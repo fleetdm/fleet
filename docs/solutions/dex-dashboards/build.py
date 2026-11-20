@@ -662,31 +662,59 @@ def linux_os(os_version):
     return f"{name} {'.'.join(parts)}", ver
 
 
+# Windows program names often carry their version, architecture, locale, or install
+# scope ("7-Zip 24.08 (x64)", "Zoom Workplace (64-bit)", "Microsoft 365 - en-us",
+# "Microsoft Visual Studio Code (User)"), which would split one app into several titles.
+WIN_NAME_SUFFIX_RE = re.compile(
+    r"\s*\((?:\s*(?:x64|x86|x86_64|amd64|arm64|64-bit|32-bit|user|machine|[a-z]{2}-[a-z]{2})\s*)+\)"
+    r"|\s+-\s+[a-z]{2}-[a-z]{2}\s*$"
+    r"|(?<=[-_ ])(?:x64|x86|amd64|arm64)(?=[-_ ]|$)", re.I)
+WIN_NAME_VERSION_RE = re.compile(r"\s*\bv?\d+(?:\.\d+)+\b")
+
+
+def win_title_name(name):
+    """'7-Zip 24.08 (x64)' -> '7-Zip': one title for every version and build of an app."""
+    out = WIN_NAME_VERSION_RE.sub("", WIN_NAME_SUFFIX_RE.sub("", name)).strip(" -_")
+    return out or name
+
+
 def patch_titles(snap, hid, h):
-    """Version per tracked title for one host: apps plus the OS."""
+    """{title key: (name, version, keys its patch policies match)} for one host: apps plus the OS."""
     out = {}
     plat = platform_of(h)
     if not plat:
         return out
+    groups = {}
     for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat, need_path=False).items():
         if app_kind(name, bid) == "support":
             continue
         if plat == "linux" and key.removeprefix("linux:") not in LINUX_VENDOR_PACKAGES:
             continue
-        # A name with its version in it ("OktaVerify-x64-7.2.3.0", an MSI's own entry)
-        # names one release, so it can't be compared across versions.
-        if plat == "windows" and (not ver or ("." in ver and re.search(r"(?<![\w.])" + re.escape(ver) + r"(?![\w.])", name))):
-            continue
-        out[("app:" + key) if plat == "macos" else key] = (name, ver)
+        if plat == "macos":
+            out["app:" + key] = (name, ver, {"app:" + key})
+        elif plat == "linux":
+            out[key] = (name, ver, {key})
+        elif ver:
+            title = win_title_name(name)
+            # Names that differ only in spacing are one app, like an MSI's own entry
+            # ("OktaVerify-x64-7.2.3.0") next to "Okta Verify".
+            groups.setdefault(re.sub(r"[^a-z0-9+]", "", title.lower()), []).append((title, ver, key))
+    for entries in groups.values():
+        title = max((e[0] for e in entries), key=lambda t: (t.count(" "), -len(t), t))
+        ver = entries[0][1]
+        for e in entries[1:]:
+            if vcmp(e[1], ver) > 0:
+                ver = e[1]
+        out["win:" + title] = (title, ver, {e[2] for e in entries})
     osv = h.get("os_version") or ""
     if plat == "macos" and osv:
-        out["os:macOS"] = ("macOS", osv.replace("macOS ", "").strip())
+        out["os:macOS"] = ("macOS", osv.replace("macOS ", "").strip(), {"os:macOS"})
     elif plat == "windows" and (w := windows_os(osv)):
         # One title per Windows version, so a computer on an older release counts as behind.
         product = re.match(r"Windows \d+", w[0]).group(0)
-        out["os:" + product] = (product, w[1])
+        out["os:" + product] = (product, w[1], {"os:" + product})
     elif plat == "linux" and (lx := linux_os(osv)):
-        out["os:" + lx[0]] = lx
+        out["os:" + lx[0]] = (*lx, {"os:" + lx[0]})
     return out
 
 
@@ -739,7 +767,8 @@ PATCH_TARGET_RE = re.compile(r"version_compare\s*\(\s*(?:bundle_short_version|ve
 
 
 def patch_targets(snap, keys):
-    """{title key: the newest version a patch policy for that app asks for}."""
+    """{title key: the newest version a patch policy for that app asks for}, from
+    {title key: the keys its policies match, like each Windows program name it merges}."""
     out = {}
     for p in (snap.get("policies") or {}).values():
         query = p.get("query") or ""
@@ -748,8 +777,8 @@ def patch_targets(snap, keys):
         if not (match := patch_policy_matcher(p.get("platform") or "", query)):
             continue
         ver = target.group(1).replace("''", "'")
-        for key in keys:
-            if match(key) and (key not in out or vcmp(ver, out[key]) > 0):
+        for key, raws in keys.items():
+            if any(match(r) for r in raws) and (key not in out or vcmp(ver, out[key]) > 0):
                 out[key] = ver
     return out
 
@@ -902,7 +931,7 @@ def build_patch(snap, hist):
         for release, build in win["releases"].items():
             versions.setdefault("os:" + release.rsplit(" ", 1)[0], {})[build] = win["released"]
 
-    current = {}
+    current, match_keys = {}, {}
     for hid, h in hosts.items():
         if is_virtual(h):
             continue
@@ -910,8 +939,9 @@ def build_patch(snap, hist):
         current[hid] = titles
         prev_host = state.get(hid) or {}
         new_host = {}
-        for key, (name, ver) in titles.items():
+        for key, (name, ver, raws) in titles.items():
             names[key] = name
+            match_keys.setdefault(key, set()).update(raws)
             vs = versions.setdefault(key, {})
             beta = key == "os:macOS" and hid in beta_hosts
             if ver not in vs:
@@ -946,9 +976,9 @@ def build_patch(snap, hist):
     by_title = {}
     for hid in active:
         covers = patched.get(hid)
-        for key, (name, ver) in current[hid].items():
-            by_title.setdefault(key, []).append([int(hid), ver, 1] if covers and covers(key) else [int(hid), ver])
-    targets = patch_targets(snap, by_title)
+        for key, (name, ver, raws) in current[hid].items():
+            by_title.setdefault(key, []).append([int(hid), ver, 1] if covers and any(covers(r) for r in raws) else [int(hid), ver])
+    targets = patch_targets(snap, {k: match_keys[k] for k in by_title})
     recent = (today - dt.timedelta(days=45)).isoformat()
     titles, index = [], {}
     for key, hv in sorted(by_title.items()):
