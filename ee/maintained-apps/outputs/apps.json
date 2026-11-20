@@ -7849,6 +7849,13 @@
       "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
     },
     {
+      "name": "Sandboxie-Plus",
+      "slug": "sandboxie-plus/windows",
+      "platform": "windows",
+      "unique_identifier": "Sandboxie-Plus",
+      "description": "Sandboxie-Plus is a sandbox tool for running programs in isolation so they can't make lasting changes to the system."
+    },
+    {
       "name": "SaneSideButtons",
       "slug": "sanesidebuttons/darwin",
       "platform": "darwin",
