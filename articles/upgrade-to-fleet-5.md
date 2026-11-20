@@ -536,6 +536,20 @@ These lists only included settings applied with YAML, so call the list endpoint 
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
+### labels removed from Create configuration profile
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `labels` in [`POST /configuration_profiles`](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) | `labels_include_all` |
+
+#### What to do
+
+Fleet 4 already supports `labels_include_all`, so change this before you upgrade.
+
+Fleet 5 ignores `labels`, so a request that still sends it creates a profile that applies to all hosts in the fleet.
+
+Pull request: [#59391](https://github.com/fleetdm/fleet/pull/59391)
+
 ### features.detail_query_overrides removed from the API
 
 | Fleet 4 | Fleet 5 |
