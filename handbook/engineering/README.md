@@ -454,7 +454,7 @@ Steps to renew the certificate:
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
 
-The Head of People (HOP) is responsible for outreach to the candidate, for scheduling the candidate for each interview stage (including the CEO interview that follows step 9), and for moving the candidate through the process, including handing the candidate off to the next stage after each interview. The engineering manager (hiring manager) follows the HOP interview and conducts the screening call, technical assessment, and "Why hire" document steps (steps 3-6).
+The Head of People (HOP) is responsible for outreach to the candidate, for scheduling the candidate for each interview stage, and for moving the candidate through the process, including handing the candidate off to the next stage after each interview. The engineering manager (hiring manager) follows the HOP interview and conducts the screening call, technical assessment, and "Why hire" document steps (steps 3-6).
 
 1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
 2. **Schedule HOP interview**: This is the first interview stage. Send the candidate a calendly link for 30m talk with the Head of People @ireedy.
@@ -466,7 +466,7 @@ The Head of People (HOP) is responsible for outreach to the candidate, for sched
 8. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
 9. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
-If the candidate passes all of these steps, then the Head of People continues with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
+If the candidate passes all of these steps, then continue with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 
 ### Releases
