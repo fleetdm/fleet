@@ -3132,7 +3132,7 @@ spec:
         ('/Library/Application Support/Claude/claude_desktop_config.json'),
 
         -- Claude Desktop (Windows)
-        ('\\AppData\\Roaming\\Claude\\claude_desktop_config.json'),
+        ('/AppData/Roaming/Claude/claude_desktop_config.json'),
 
         -- Claude Code
         ('/.claude.json'),
@@ -3140,18 +3140,18 @@ spec:
         /* ───── VS Code (original paths) ────────────────────── */
         ('/Library/Application Support/Code/User/mcp.json'),              -- macOS
         ('/.config/Code/User/mcp.json'),                                   -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\mcp.json'),                       -- Windows
+        ('/AppData/Roaming/Code/User/mcp.json'),                            -- Windows
 
         /* ───── VS Code – RooCode & Augment (new paths) ────────── */
         -- RooCode
         ('/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),          -- macOS
         ('/.config/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                              -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\globalStorage\\rooveterinaryinc.roo-cline\\settings\\mcp_settings.json'),              -- Windows
+        ('/AppData/Roaming/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                      -- Windows
 
         -- Augment
         ('/Library/Application Support/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),    -- macOS
         ('/.config/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                        -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\globalStorage\\augment.vscode-augment\\augment-global-state\\mcpServers.json'),          -- Windows
+        ('/AppData/Roaming/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                -- Windows
 
         /* ───── Other apps ─────────────────────────────────── */
         ('/.gemini/settings.json'),   -- Gemini CLI (macOS/Linux/Windows)
@@ -3162,7 +3162,11 @@ spec:
       2️⃣  Build absolute file paths for every user + suffix
       ---------------------------------------------------------- */
     full_paths AS (
-      SELECT u.directory || p.path  AS full_path,
+      -- Suffixes use '/'; convert to '\' for Windows home directories
+      SELECT CASE WHEN instr(u.directory, '\') > 0
+                  THEN replace(u.directory || p.path, '/', '\')
+                  ELSE u.directory || p.path
+             END                   AS full_path,
             p.path                 AS suffix
       FROM users   u
       JOIN path_suffixes p ON 1=1     
