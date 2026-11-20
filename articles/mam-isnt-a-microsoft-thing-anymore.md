@@ -79,7 +79,7 @@ But this is changing, and AI is speeding it up. For example, one publicly traded
 
 Enrolling a personal phone shouldn’t require a leap of faith. Employees should understand plainly what IT can and can't see, and what it can and can’t do to their personal data. Otherwise people rightly will assume the worst.
 
-(This is why we work so hard to put scope transparency and employee transparency first at Fleet. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device and find out in seconds, with blistering accuracy. We're also [working on audit transparency](https://github.com/fleetdm/fleet/issues/57438), which makes it clear when data on a device is accessed while keeping the controls an organization needs.  Feedback welcome!)
+This is why we work so hard to put scope transparency and employee transparency first at Fleet. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device and find out in seconds, with blistering accuracy. We're also [working on audit transparency](https://github.com/fleetdm/fleet/issues/57438), which makes it clear when data on a device is accessed while keeping the controls an organization needs.  (Feedback welcome!)
 
 When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture.
 
