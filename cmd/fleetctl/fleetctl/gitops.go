@@ -334,7 +334,7 @@ func gitopsCommand() *cli.Command {
 			// caught by the server.
 			seenTeamNames := make(map[string]string, len(configs)) // key -> filename
 			for _, cf := range configs {
-				// Unassigned is fleet 0, not a named fleet, so "Un-assigned" can coexist with it.
+				// Unassigned is fleet 0, not a named fleet. The server rejects fleet names that match it.
 				if cf.IsGlobalConfig || cf.Config.TeamName == nil || cf.Config.IsNoTeam() {
 					continue
 				}

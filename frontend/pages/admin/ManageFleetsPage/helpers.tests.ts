@@ -12,7 +12,7 @@ const response = (status: number, name: string, reason: string) => ({
 describe("getFleetNameError", () => {
   it("returns the conflict error for a 409, whatever the reason says", () => {
     [
-      'A fleet named "Workstations" already exists. Choose a fleet name distinct from other fleets.',
+      '"work-stations" is too similar to the fleet name "Workstations". Please try another name.',
       'A fleet named "Workstations" already exists. Fleet names must differ by more than letter case.',
       "something else entirely",
     ].forEach((reason) => {
@@ -47,6 +47,21 @@ describe("getFleetNameError", () => {
         "All fleets"
       )
     ).toBe('"All fleets" is a reserved fleet name. Please try another name.');
+  });
+
+  it("returns the too-similar error naming the reserved name", () => {
+    expect(
+      getFleetNameError(
+        response(
+          422,
+          "name",
+          '"Un-assigned" is too similar to the reserved name "Unassigned"'
+        ),
+        "Un-assigned"
+      )
+    ).toBe(
+      'Name is too similar to the reserved name "Unassigned". Please try another name.'
+    );
   });
 
   it("returns undefined for other errors", () => {

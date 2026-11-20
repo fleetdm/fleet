@@ -2048,6 +2048,11 @@ software:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `is a reserved fleet name`)
 
+	t.Setenv("TEST_TEAM_NAME", "Un-assigned")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"Un-assigned" is too similar to the reserved name "Unassigned"`)
+
 	// Dry run
 	t.Setenv("TEST_TEAM_NAME", teamName)
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
@@ -2937,9 +2942,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Try to change team name again, but this time the new name conflicts with an existing team
 			t.Setenv("TEST_TEAM_NAME", "Conflict")
 			_, err := runAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
-			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
+			require.ErrorContains(t, err, `"Conflict" is too similar to the fleet name "Conflict". Please try another name.`)
 			_, err = runAppNoChecks([]string{"gitops", "-f", gitopsFile})
-			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
+			require.ErrorContains(t, err, `"Conflict" is too similar to the fleet name "Conflict". Please try another name.`)
 
 			// Now clear the settings
 			t.Setenv("TEST_TEAM_NAME", newTeamName)
@@ -9066,7 +9071,7 @@ software:
 
 				_, err := runAppNoChecks(args(valid, first, second))
 				require.ErrorContains(t, err, fmt.Sprintf(
-					"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Choose a fleet name distinct from other fleets.",
+					"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Please try another name.",
 					first, second), names)
 				requireNothingApplied(t)
 			}
@@ -9099,7 +9104,8 @@ software:
 		})
 		require.NoError(t, err)
 
-		// Unassigned is fleet 0, so a fleet whose name only differs from it by ignored characters is not a duplicate.
+		// Unassigned is fleet 0, so a fleet whose name only differs from it by ignored characters is not a duplicate of
+		// another file. The server rejects it as too similar to a reserved name.
 		globalFile := filepath.Join(dir, "default.yml")
 		require.NoError(t, os.WriteFile(globalFile, []byte(`
 controls:
@@ -9118,7 +9124,7 @@ labels:
 		require.NoError(t, os.WriteFile(unassignedFile, []byte("name: Unassigned\npolicies:\ncontrols:\nsoftware:\n"), 0o600))
 		_, err = runAppNoChecks([]string{"gitops", "--dry-run", "-f", globalFile, "-f", unassignedFile,
 			"-f", writeFleet(t, dir, "un-assigned.yml", "Un-assigned")})
-		require.NoError(t, err)
+		require.ErrorContains(t, err, `"Un-assigned" is too similar to the reserved name "Unassigned"`)
 	})
 }
 

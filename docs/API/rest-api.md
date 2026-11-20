@@ -19441,6 +19441,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Verify invite](#verify-invite)
 - [Update invite](#update-invite)
 - [Create API-only user](#create-api-only-user)
+- [Update API-only user](#update-api-only-user)
 - [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
@@ -20416,6 +20417,73 @@ If `api_endpoints` is specified, these do not grant additional permissions other
     "api_endpoints": [1,5,7,32]
   },
   "token": "{API key}"
+}
+```
+
+### Update API-only user
+
+((Admin))
+
+Updates an API-only user's name, role, fleets, or API endpoint access.
+
+`PATCH /api/v1/fleet/users/api_only/:id`
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| id      | integer | path | **Required**. The API-only user's ID. |
+| name    | string  | body | The display name for the API-only user. |
+| global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| fleets      | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| api_endpoints | array   | body | _Available in Fleet Premium_. The API endpoints this user has access to. Should contain an array of objects in which each object includes the endpoint's `method` and `path`. For available endpoints, see [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). Set to `null` to give the user access to all API endpoints. An empty array isn't allowed. |
+
+Only the fields you specify are updated. If `api_endpoints` is specified, these do not grant additional permissions otherwise forbidden by the user's `role`.
+
+You can't update your own API-only user.
+
+#### Example
+
+`PATCH /api/v1/fleet/users/api_only/5`
+
+##### Request body
+
+```json
+{
+  "api_endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/fleet/hosts/identifier/:identifier"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe+randomlygeneratedstring@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "api_only": true,
+    "global_role": "observer",
+    "fleets": [],
+    "api_endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/v1/fleet/hosts/identifier/:identifier"
+      }
+    ]
+  }
 }
 ```
 
