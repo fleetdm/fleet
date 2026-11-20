@@ -18,8 +18,6 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 3. When you save the policy, select **Install software** from the **Automation** dropdown. For an existing policy, click the policy's **Automation** cell in the **Policies** table to open the **Manage automations** modal, or go to the **Edit policy** page.
 
-![Automation dropdown](../website/assets/images/articles/policy-automation-dropdown-784x258@2x.png)
-
 4. From the **Software** dropdown, select the software you want to install when a host fails this policy, and click **Save**.
 
 > If a software title has more than one [custom package](https://fleetdm.com/guides/deploy-software-packages#add-multiple-packages-to-a-software-title), you can select which package to install. Fleet selects the package that was added first by default. Fleet installs the package on hosts within that package's label scope.
