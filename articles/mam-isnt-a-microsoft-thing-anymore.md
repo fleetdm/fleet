@@ -36,7 +36,7 @@ Google lets you turn these controls on in the Google Workspace Admin console, al
 
 The difference with Outlook and Office apps is that Microsoft _makes you set this up in Intune_, not in its Outlook email settings or the settings for your other Office apps.  Why make it harder to find and configure this stuff?  Because by putting these settings in Intune, you need to buy both of Microsoft’s products, which makes the bundle harder to leave.
 
-Thankfully, now there’s another way.  You don’t need Intune, and Microsoft can’t force you to use Intune since they don’t control any major mobile operating system (though not for [lack of trying]()). If you actually need to stop files and copied text from moving out of work apps, you can enroll the phone in your MDM, like Fleet or Jamf.
+Thankfully, now there’s another way.  You don’t need Intune, and Microsoft can’t force you to use Intune since they don’t control any major mobile operating system (though not for [lack of trying](https://en.wikipedia.org/wiki/Windows_Phone)). If you actually need to stop files and copied text from moving out of work apps, you can enroll the phone in your MDM, like Fleet or Jamf.
 
 This works for _every_ app IT installs, Outlook and Gmail included, and it uses  Apple's and Android’s standard device management settings, an open standard any MDM can use. Once you're using them, you aren't tied to the limits of one company's office suite and its device management tool.
 
@@ -69,9 +69,9 @@ On paper, BYOD is everywhere. About 82% of organizations have a formal BYOD prog
 
 In practice, it's mostly unmanaged. We looked at companies with 500 or more employees that give everyone a work computer. There, BYOD means phones, and most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices. Nobody publishes a clean number, so take that with a grain of salt.
 
-It's not laziness. People don't know what IT can see on their personal phone, so they assume the worst. I don't blame them. I wouldn't enroll my phone in an MDM that isn't open source either, because I couldn't tell what it reads. My text messages? My browser history? What [can it see](fleetdm.com/transparency)? At a lot of companies, the answer is 🤷.
+It's not laziness. People don't know what IT can see on their personal phone, so they assume the worst. I don't blame them. I wouldn't enroll my phone in an MDM that isn't open source either, because I couldn't tell what it reads. My text messages? My browser history? What [can it see](https://fleetdm.com/transparency)? At a lot of companies, the answer is 🤷.
 
-The result is high friction, low adoption, and a culture where even executives are reticent to give up their privacy and risk [their kids’ pictures getting randomly wiped by Intune](TODO link to Stryker news).
+The result is high friction, low adoption, and a culture where even executives are reticent to give up their privacy and risk [their kids’ pictures getting randomly wiped by Intune](https://www.bankinfosecurity.com/microsoft-intune-mdm-gains-notoriety-after-stryker-hack-a-31084).
 
 ## BYOD enrollment is rapidly increasing because of AI
 
@@ -79,12 +79,12 @@ But this is changing, and AI is speeding it up. For example, one publicly traded
 
 Enrolling a personal phone shouldn’t require a leap of faith. Employees should understand plainly what IT can and can't see, and what it can and can’t do to their personal data. Otherwise people rightly will assume the worst.
 
-(This is why we work so hard to put scope transparency and employee transparency first at Fleet. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device and find out in seconds, with blistering accuracy. We're also [working on audit transparency](), which makes it clear when data on a device is accessed while keeping the controls an organization needs.  Feedback welcome!)
+(This is why we work so hard to put scope transparency and employee transparency first at Fleet. Fleet is open source, so anyone can read exactly what it collects, and employees can ask an AI assistant what IT can see on their device and find out in seconds, with blistering accuracy. We're also [working on audit transparency](https://github.com/fleetdm/fleet/issues/57438), which makes it clear when data on a device is accessed while keeping the controls an organization needs.  Feedback welcome!)
 
 When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture.
 
 ## Yes M’AM?
-Whether or not you run a BYOD program for employee phones today, and whether or not you lock down email and office apps, you are free.  You don’t need Intune, E3, Microsoft, or any other particular vendor to provide enterprise-grade security, provisioning, or even data-loss prevention, whether you have 100,000 employees or 100, and whether or not you are in a regulated industry.  Plenty of other organizations do this today without Microsoft, and it’s easy to set up.  (If you need any help, [drop us a line](/support).)
+Whether or not you run a BYOD program for employee phones today, and whether or not you lock down email and office apps, you are free.  You don’t need Intune, E3, Microsoft, or any other particular vendor to provide enterprise-grade security, provisioning, or even data-loss prevention, whether you have 100,000 employees or 100, and whether or not you are in a regulated industry.  Plenty of other organizations do this today without Microsoft, and it’s easy to set up.  (If you need any help, [drop us a line](https://fleetdm.com/support).)
 
 And in the meantime, let’s all remember: when it comes to Microsoft… don't be afraid to check your AI’s work. (And my work in this article, for that matter.)
 
