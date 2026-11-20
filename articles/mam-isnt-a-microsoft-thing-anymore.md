@@ -6,9 +6,10 @@
 
 - **You aren't locked into Microsoft for BYOD.** Google Workspace protects work data on personal phones without Intune, Entra, or enrolling the phone.
 - **MAM is two controls, and Google has both.** Only trusted apps can sign in, and those apps block copy-paste, AirDrop, saving to Files, and printing.
-- **AI assistants still say Microsoft is the only real option.** They change their answer once you ask how each piece works.
+- **Most people won't enroll a personal phone.** [STAT: ~30% BYOD enrollment]. The usual reason is privacy: they don't know what IT can see, so they assume the worst.
+- **Enrolled phones get the better first day.** With MDM, work apps arrive already signed in and configured, and the guardrails turn into setup instead of error messages.
 - **The AI tried to stop this article, too.** The assistant that helped publish it rewrote the claims from years-old sources, then backed down after reading Google's current docs.
-- **Ask how, not who.** "How does this work?" beats "Who does this best?" every time.
+- **Don't be afraid to check your LLM.** Ask how something works, not who does it best.
 
 <a purpose="cta-button" href="https://fleetdm.com/device-management">See how Fleet manages devices</a>
 
@@ -35,6 +36,24 @@ The assistant sounded sure of itself. So I stopped asking who does MAM best and 
 
 Every Microsoft advantage fell apart. Even "Microsoft has clearer error messages" didn't survive. Telling a user the app isn't approved by IT helps about as much as Google's "Access blocked." The assistant gave in once it read Google's admin docs.
 
+## Most people won't enroll
+
+[STAT: BYOD enrollment sits around 30%, plus the enterprise-segment finding. Source needed.]
+
+It's rarely laziness. People worry about privacy. They don't know what IT can see on their personal phone, so they assume the worst and keep it out. MAM is how you protect work data on all the phones that never enroll.
+
+## Two hallways
+
+Picture a new hire with a personal iPhone on their first day.
+
+**Hallway one: no MDM.** They add their work account to the iPhone Mail app. It doesn't work, and sometimes it doesn't say why. Someone tells them to download Gmail. They sign in, get sent to Okta Verify for a device check, and come back. Later they copy a line from an email into a personal note, and the paste turns into a message saying the content can only be shared within the company's apps. Every guardrail is something they bump into.
+
+**Hallway two: MDM.** They open **Settings**, tap **Sign In to Work or School Account**, and log in with their work account. In Fleet, that's Apple's [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account). Gmail or Outlook shows up already pointed at their account, because IT installed it with its [configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) filled in. Work apps and data live in their own space on the phone. IT can't see personal apps, photos, or messages. When they leave the company, the work side goes and the personal side stays.
+
+The second hallway is better for the employee and for IT. The guardrails are still there. They just show up as setup instead of surprises.
+
+More teams are walking down it, BYOD included. AI apps like Claude can now act for you on your computer and reach a lot of your organization's data, so knowing which devices are enrolled matters more than it did a year ago.
+
 ## If you run Google Workspace and Okta
 
 You aren't missing anything. Google decides which apps get in and keeps data inside them. Okta handles sign-in and device checks with Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and you don't need to enroll those phones.
@@ -45,7 +64,7 @@ When I asked an AI assistant to publish this article, it tried to stop me. It "f
 
 When I pushed back, it read Google's current docs and found my original claims were right. Then it insisted it hadn't tried to stop me. It had only "softened" the draft. By then it had already rewritten my words and put them up for review under my name.
 
-So next time an AI tells you one vendor is the only option, ask it how the thing works. Then make it read the current docs.
+Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
 
 ## See it live
 
