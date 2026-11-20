@@ -38,7 +38,9 @@ With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and
 
 Those enrollment numbers aren't fixed. Enrolling a personal phone feels like a leap of faith. Make enrollment easy. Tell people plainly what IT can and can't see, and what they're giving up. More of them will say yes. For the rest, conditional access is the best way to require it: no enrollment, no work apps.
 
-This is a lot of what we work on at Fleet. When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture. One publicly traded fintech company held out against BYOD for years and recently rolled it out for exactly these reasons. With AI apps like Claude now acting on people's computers and reaching a lot of company data, knowing which devices are enrolled matters more every month.
+When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture. One publicly traded fintech company held out against BYOD for years and recently rolled it out for exactly these reasons. With AI apps like Claude now acting on people's computers and reaching a lot of company data, knowing which devices are enrolled matters more every month.
+
+> **That's why at Fleet, we're working on BYOD that puts employee privacy first.** Fleet is open source, so anyone can read exactly what it collects. Employees can even ask an AI assistant what IT can see on their device. We call that [scope transparency](https://fleetdm.com/transparency). We're also working on audit transparency: making it clear when data on a device is accessed, with the controls an organization needs.
 
 Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
 
