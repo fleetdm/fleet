@@ -28,11 +28,13 @@ BYOD is everywhere on paper. About 82% of organizations have a formal BYOD progr
 
 We looked at companies with 500 or more employees that give everyone a work computer. There, BYOD means phones, and most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so take that with a grain of salt.
 
-It's not laziness. People don't know what IT can see on their personal phone, so they assume the worst. I can't blame them.
+It's not laziness. People don't know what IT can see on their personal phone, so they assume the worst. I don't blame them. I wouldn't enroll my phone in an MDM that isn't open source either, because I couldn't tell what it reads. My text messages? My browser history? What can it see? At a lot of companies, the answer is 🤷.
 
 Skipping enrollment also makes for a rougher first day. A new hire without MDM adds their work account to the iPhone Mail app, and it fails without saying why. Someone tells them to download Gmail. They sign in, get bounced to Okta Verify for a device check, and come back. Later, they copy a line from an email into a personal note, and it pastes as a message saying it can only be shared within the company's apps.
 
 With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and log in with their work account. (Apple calls this [Account-driven User Enrollment](https://support.apple.com/guide/deployment/dep23db2037d/web).) Gmail or Outlook shows up already signed in, because IT set it up ahead of time. Work apps and data live in their own space on the phone, and IT can't see personal apps, photos, or messages. When the employee leaves, the work side goes away and the personal side stays.
+
+![Enrolling a personal iPhone with a work account keeps work and personal data separate](../website/assets/images/articles/apple-account-driven-user-enrollment-800x400@2x.png)
 
 Those enrollment numbers aren't fixed. Enrolling a personal phone feels like a leap of faith. Make enrollment easy. Tell people plainly what IT can and can't see, and what they're giving up. More of them will say yes. For the rest, conditional access is the best way to require it: no enrollment, no work apps.
 
