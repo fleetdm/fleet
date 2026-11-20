@@ -41,7 +41,7 @@ Those enrollment numbers aren't fixed. People hold back because enrolling a pers
 
 That's why Fleet is focused on the BYOD experience. The easier enrollment is, the more people do it. IT gets fewer tickets, and new hires get to work faster. When employees know what's visible, BYOD can even be good for the culture. One publicly traded fintech company resisted BYOD for years. It recently rolled it out for exactly these reasons. With AI apps like Claude acting on people's computers and reaching a lot of company data, knowing which devices are enrolled matters more every month.
 
-> **Edit:** When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet, blurred the list of blocked actions, added a licensing caveat, and flagged my iPhone Mail claim as unverified. Its sources were Google announcements from 2020 and 2021.
+> **Edit:** When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet, blurred the list of blocked actions, added a licensing caveat, and flagged my iPhone Mail claim as unverified.
 >
 > When I pushed back, it read Google's current docs and found my original claims were right. Then it insisted it hadn't tried to stop me. It had only "softened" the draft. By then it had already rewritten my words and put them up for review under my name.
 
