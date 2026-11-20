@@ -14,24 +14,6 @@ For macOS configuration profiles, you can also use any of Apple's [built-in vari
 
 When the variable's value changes, Fleet automatically resends configuration profiles and managed app configurations to the hosts they apply to. For scripts, variables are resolved at execution time.
 
-## Where variables work
-
-| Where | Built-in variables (`$FLEET_VAR_`) | Custom variables (`$FLEET_SECRET_`) | Custom host vitals (`$FLEET_HOST_VITAL_`) |
-|---|---|---|---|
-| [Scripts](https://fleetdm.com/guides/scripts) (macOS, Windows, and Linux), including software install, post-install, and uninstall scripts, and setup experience scripts | ✓ (only `$FLEET_VAR_HOST_*` and `$FLEET_VAR_NDES_SCEP_CHALLENGE`) | ✓ | ✓ |
-| Apple (macOS, iOS, and iPadOS) configuration profiles | ✓ (only `$FLEET_VAR_HOST_*` in declarations (`.json`)) | ✓ (not in `PayloadDisplayName`) | ✓ (not in certificate authority payloads) |
-| Windows configuration profiles (`.xml`) | ✓ | ✓ | ✓ |
-| Android configuration profiles (`.json`) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✓ |
-| iOS and iPadOS [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✗ |
-| Android [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✓ |
-| [Host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) (macOS, iOS, and iPadOS) | ✓ (only `$FLEET_VAR_HOST_*`) | ✓ | ✓ |
-| DigiCert and EJBCA certificate authority fields | ✓ (only `$FLEET_VAR_HOST_*`) | ✗ | ✗ |
-| Software pre-install query | ✗ | ✗ | ✗ |
-
-`$FLEET_VAR_HOST_*` are the host and IdP variables: `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`, and the `$FLEET_VAR_HOST_END_USER_IDP_*` variables. To see which platforms each built-in variable supports, see [Built-in variables](#built-in-variables) below.
-
-Fleet shows an error when you save a script, profile, or configuration that uses a variable where it isn't supported, with two exceptions. Fleet doesn't block custom host vitals in iOS and iPadOS managed app configurations, or custom variables in Android configuration profiles and managed app configurations. In these places, Fleet sends the variable to the host as written, without its value.
-
 ## Built-in variables
 
 | Name | Scripts | Configuration profiles | Managed app configuration | Description |
@@ -69,6 +51,24 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 > The host vital and IdP variables listed above are also accepted in the DigiCert CA fields `certificate_common_name`, `certificate_seat_id`, and `certificate_user_principal_names` in `org_settings.certificate_authorities.digicert[]`, and in the EJBCA CA fields `certificate_common_name`, `username_template`, and `certificate_user_principal_names` in `org_settings.certificate_authorities.ejbca[]` (Apple hosts only). The legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` is also accepted for backwards compatibility. When these values change, or when the CA fields are edited, Fleet reissues the certificate.
 
 > If Fleet can't fill in a variable in an app's managed configuration, Fleet doesn't send the app or its configuration to that host. Learn more in the [App Store apps guide](https://fleetdm.com/guides/install-app-store-apps#variables).
+
+## Where variables work
+
+| Where | Built-in variables (`$FLEET_VAR_`) | Custom variables (`$FLEET_SECRET_`) | Custom host vitals (`$FLEET_HOST_VITAL_`) |
+|---|---|---|---|
+| [Scripts](https://fleetdm.com/guides/scripts) (macOS, Windows, and Linux), including software install, post-install, and uninstall scripts, and setup experience scripts | ✅ (only `$FLEET_VAR_HOST_*` and `$FLEET_VAR_NDES_SCEP_CHALLENGE`) | ✅ | ✅ |
+| Apple (macOS, iOS, and iPadOS) configuration profiles | ✅ (only `$FLEET_VAR_HOST_*` in declarations (`.json`)) | ✅ (not in `PayloadDisplayName`) | ✅ (not in certificate authority payloads) |
+| Windows configuration profiles (`.xml`) | ✅ | ✅ | ✅ |
+| Android configuration profiles (`.json`) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ✅ |
+| iOS and iPadOS [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ❌ |
+| Android [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ✅ |
+| [Host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) (macOS, iOS, and iPadOS) | ✅ (only `$FLEET_VAR_HOST_*`) | ✅ | ✅ |
+| DigiCert and EJBCA certificate authority fields | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ❌ |
+| Software pre-install query | ❌ | ❌ | ❌ |
+
+`$FLEET_VAR_HOST_*` are the host and IdP variables: `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`, and the `$FLEET_VAR_HOST_END_USER_IDP_*` variables. To see which platforms each built-in variable supports, see [Built-in variables](#built-in-variables) above.
+
+Fleet shows an error when you save a script, profile, or configuration that uses a variable where it isn't supported, with two exceptions. Fleet doesn't block custom host vitals in iOS and iPadOS managed app configurations, or custom variables in Android configuration profiles and managed app configurations. In these places, Fleet sends the variable to the host as written, without its value.
 
 
 <meta name="category" value="guides">
