@@ -160,7 +160,7 @@ The dashboards keep all their history, since it lives in the files. You lose the
 
 ## Host the pages somewhere else
 
-To serve the pages from your own web host, remove the `deploy` job and the **Upload the site** step, and add a step to the Build job that uploads `${{ runner.temp }}/site` with your host's tool. For example, for an Amazon S3 bucket behind CloudFront, after configuring credentials with [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials):
+To serve the pages from your own web host, remove the `deploy` job and the **Upload the site** step, and add a step to the Build job that uploads `$RUNNER_TEMP/site` with your host's tool. For example, for an Amazon S3 bucket behind CloudFront, after configuring credentials with [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials):
 
 ```bash
 aws s3 sync "$RUNNER_TEMP/site" s3://<bucket>/dex --delete
