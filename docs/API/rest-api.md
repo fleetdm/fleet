@@ -53,6 +53,7 @@ Each successful request creates a new session with its own token. The `token_exp
 | -------- | ------ | ---- | --------------------------------------------- |
 | email    | string | body | **Required**. The user's email.               |
 | password | string | body | **Required**. The user's plain text password. |
+| supports_email_verification | boolean | body | Whether the client can complete MFA by email. If `true` and the user has MFA enabled, Fleet emails the user a magic link and responds with `202`. The login finishes in the browser that opens the link. If `false` or omitted, login fails with `401` for users with MFA enabled. (Default: `false`) |
 
 #### Example
 
@@ -350,6 +351,12 @@ Retrieves the user data for the authenticated user.
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
 `POST /api/v1/fleet/perform_required_password_reset`
+
+#### Parameters
+
+| Name         | Type   | In   | Description |
+| ------------ | ------ | ---- | ----------- |
+| new_password | string | body | **Required**. The user's new password. It must be different from the current password and include at least 12 characters, 1 number (e.g. 0 - 9), and 1 symbol (e.g. &*#). |
 
 #### Example
 
@@ -2308,6 +2315,7 @@ Modifies the Fleet's configuration with the supplied information.
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
+| overwrite                | boolean | query | Whether to replace, instead of merge, `features`, `sso_settings`, `mdm.end_user_authentication`, `mdm.apple_account_provisioning`, and `fleet_desktop.sso_enabled`. If `true`, settings in these objects that are missing from the request are reset to their defaults, and `mdm.enable_profile_validation` is set to `true` if it's missing. If SSO is enabled, `sso_settings` must also include `entity_id`, `idp_name`, and `metadata` or `metadata_url`, even if they're already saved. `fleetctl gitops` sets this to `true`. (Default: `false`) |
 
 
 #### Example
@@ -3627,6 +3635,7 @@ None.
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
 - [Update human-device mapping](#update-human-device-mapping)
+- [Delete host's IdP username](#delete-hosts-idp-username)
 - [Update host's Google device ID](#update-hosts-google-device-id)
 - [Delete host's Google device ID](#delete-hosts-google-device-id)
 - [Get host's device health report](#get-hosts-device-health-report)
@@ -3725,6 +3734,7 @@ the `software` table.
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| disable_issues | boolean | query | If `true`, hosts will return all `issues` counts (`failing_policies_count`, `critical_vulnerabilities_count`, and `total_issues_count`) as 0 regardless of whether the host has any issues. This is meant to be used when increased performance is needed in exchange for the extra information. Takes precedence over `disable_failing_policies`. |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
@@ -3739,6 +3749,8 @@ the `software` table.
 | profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
 | dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
 | dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in AB will be returned. |
+| script_batch_execution_id | string | query | The ID of a batch script run (`batch_execution_id`) to filter hosts by. Only includes hosts targeted by that run. |
+| script_batch_execution_status | string | query | **Requires `script_batch_execution_id`**. Filters hosts by their script status in the batch script run. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or `"canceled"`.  If no `script_batch_execution_id` is provided, this filter is ignored. |
 
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
@@ -4063,6 +4075,7 @@ Response payload with the `munki_issue_id` filter provided:
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |  
 | software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer.      |
 | app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only.   |
+| software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -4071,6 +4084,7 @@ Response payload with the `munki_issue_id` filter provided:
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
+| connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | apple_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -4078,6 +4092,12 @@ Response payload with the `munki_issue_id` filter provided:
 | macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| profile_uuid | string | query | **Requires `profile_status`**. The UUID of the configuration profile to filter hosts by. |
+| profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
+| dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
+| dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in AB will be returned. |
+| script_batch_execution_id | string | query | The ID of a batch script run (`batch_execution_id`) to filter hosts by. Only includes hosts targeted by that run. |
+| script_batch_execution_status | string | query | **Requires `script_batch_execution_id`**. Filters hosts by their script status in the batch script run. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or `"canceled"`. |
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -5723,6 +5743,44 @@ Updates the email for the data source in the human-device mapping. This source c
 }
 ```
 
+### Delete host's IdP username
+
+_Available in Fleet Premium._
+
+`DELETE /api/v1/fleet/hosts/:id/device_mapping/idp`
+
+Deletes the end user's identity provider (IdP) username from the human-device mapping and unlinks the host from its IdP (SCIM) user. On Windows hosts joined to Microsoft Entra, Fleet adds the Entra username back the next time the host reports its details.
+
+#### Parameters
+
+| Name | Type    | In   | Description                    |
+| ---- | ------- | ---- | ------------------------------ |
+| id   | integer | path | **Required**. The host's `id`. |
+
+#### Example
+
+`DELETE /api/v1/fleet/hosts/1/device_mapping/idp`
+
+##### Default response
+
+`Status: 204`
+
+##### Host has no IdP username
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "delete host IdP mapping",
+      "reason": "no existing IdP mappings for this host"
+    }
+  ]
+}
+```
+
 ### Update host's Google device ID
 
 ((Admin)) ((Maintainer))
@@ -6175,6 +6233,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
 | available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`. |
+| include_available_for_install | boolean | query | If `true` or `1`, also list software that's available for install on the host (added to Fleet) but isn't installed. Default is `false`. Always `true` when `self_service` is `true`. |
 | vulnerable | boolean | query | If `true` or `1`, only list software that have vulnerabilities. Default is `false`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
@@ -6575,6 +6634,7 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
 | software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer.      |
 | app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only.   |
+| software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -6582,12 +6642,23 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
+| connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | apple_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                                     |
 | macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".** |
+| macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
+| os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| profile_uuid | string | query | **Requires `profile_status`**. The UUID of the configuration profile to filter hosts by. |
+| profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
+| dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
+| dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in AB will be returned. |
+| script_batch_execution_id | string | query | The ID of a batch script run (`batch_execution_id`) to filter hosts by. Only includes hosts targeted by that run. |
+| script_batch_execution_status | string | query | **Requires `script_batch_execution_id`**. Filters hosts by their script status in the batch script run. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or `"canceled"`. |
 | disable_failing_policies | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| disable_issues | boolean | query | If `true`, hosts will return all issue counts as 0 (returned as the `issues` column) regardless of whether the host has any issues. This is meant to be used when increased performance is needed in exchange for the extra information. Takes precedence over `disable_failing_policies`. |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
@@ -8110,6 +8181,8 @@ Returns a list of labels.
 | Name            | Type    | In    | Description   |
 | --------------- | ------- | ----- |------------------------------------- |
 | include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -8251,7 +8324,11 @@ Returns a list of the hosts that belong to the specified label.
 | status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                 |
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | fleet_id                  | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                |
+| software_title_id | integer | query | **Requires `software_status`**. The ID of the software title to filter hosts by. |
+| software_status | string | query | **Requires `software_title_id` and `fleet_id`**. The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| disable_issues | boolean | query | If `true`, hosts will return all `issues` counts (`failing_policies_count`, `critical_vulnerabilities_count`, and `total_issues_count`) as 0 regardless of whether the host has any issues. This is meant to be used when increased performance is needed in exchange for the extra information. Takes precedence over `disable_failing_policies`. |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
 | mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
@@ -8261,6 +8338,9 @@ Returns a list of the hosts that belong to the specified label.
 | macos_bootstrap_package | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
+| include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
+| dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
+| dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in AB will be returned. |
 
 If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings_disk_encryption` is specified, then Windows Servers are excluded from the results.
 
@@ -8717,6 +8797,8 @@ Update an existing configuration profile. Use this endpoint to change which host
 | ------------------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile_uuid              | string  | url  | **Required.** The UUID of the configuration profile to update. |
 | profile                   | file    | form | A replacement profile file (`.mobileconfig`, `.json`, or `.xml`). See requirements below. |
+| name                      | string  | body | The display name for the profile. If omitted, the current name is kept, even if you upload a new profile file. |
+| description               | string  | body | The description for the profile. If omitted, the current description is kept. An empty string clears it. |
 | labels_include_all        | array   | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array   | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any        | array   | body | Target hosts that don't have any label, specified by label name, in the array. |
@@ -8726,24 +8808,22 @@ Update an existing configuration profile. Use this endpoint to change which host
 
 Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, the profile targets all hosts.
 
-Unlike the label fields, `self_service` and `hidden` keep their current values when omitted.
+Unlike the label fields, `name`, `description`, `self_service`, and `hidden` keep their current values when omitted.
 
 Changing `self_service` from `false` to `true` opts in every host that already has the profile, so nothing is removed. Changing it from `true` to `false` installs the profile on all targeted hosts that don't have it.
 
 ##### Uploading a new profile file
 
-You can upload a new profile file to replace the contents of the existing profile. What the new file must match, and how the profile is renamed, depends on the profile type:
+You can upload a new profile file to replace the contents of the existing profile. Uploading a new file doesn't rename the profile. To rename it, use `name`. What the new file must match depends on the profile type:
 
-- **.mobileconfig profiles**: The new file must have the same **PayloadIdentifier** as the existing profile. The profile is renamed to the new file's **PayloadDisplayName**.
-- **DDM (declarative management) profiles** (`.json`): The new file must have the same **Identifier** as the existing profile. The profile keeps its current name.
-- **Windows profiles** (`.xml`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces. The profile is renamed to the uploaded file's name, without its extension.
-- **Android profiles** (`.json`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces. The profile keeps its current name.
+- **.mobileconfig profiles**: The new file must have the same **PayloadIdentifier** as the existing profile.
+- **DDM (declarative management) profiles** (`.json`): The new file must have the same **Identifier** as the existing profile.
+- **Windows profiles** (`.xml`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces.
+- **Android profiles** (`.json`): There's no identifier to match, so the new file's settings can differ completely from the ones it replaces.
 
 If a `.mobileconfig` or DDM profile doesn't have the required identifier, the request is rejected.
 
 Renaming a profile doesn't change its `profile_uuid` or which hosts it targets, and doesn't reinstall it on hosts unless the contents changed too. If another configuration profile in the same fleet already uses the new name, the request is rejected with a `409` status.
-
-Requests that only update labels don't include a file, so the profile's name is left unchanged.
 
 #### Example
 
@@ -9923,6 +10003,7 @@ If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint 
 | Name              | Type    | In    | Description                                                                      |
 |-------------------|---------|-------|----------------------------------------------------------------------------------|
 | enroll_secret     | string  | query | **Required**. The enroll secret of the fleet this host will be assigned to.       |
+| byod              | boolean | query | If `true` (or `1`), the host enrolls as a personal (BYOD) host, and Fleet can't lock or wipe it. Ignored if the host is assigned to Fleet in Apple Business or is already enrolled as company-owned. Default is `false`. |
 
 #### Example
 
@@ -10036,6 +10117,7 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 | filename | string | body | The package's file name, for example `bootstrap-package.pkg`. Required with `upload_id`. |
 | fleet_id | string | body | The fleet ID for the package. If specified, the package will be installed to hosts that are assigned to the specified fleet. If not specified, the package will be installed on "Unassigned" hosts. |
 | manual_agent_install | boolean | body | If set to `true`, Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts, or on hosts that turn on MDM manually if the bootstrap package is installed during manual enrollment. (Default: `false`) |
+| dry_run | boolean | query | Validate the bootstrap package and return any validation errors, but don't save it. Default is `false`. |
 
 
 #### Example
@@ -10134,6 +10216,7 @@ Delete a fleet's bootstrap package.
 | Name    | Type   | In  | Description                                                                                                                                               |
 | ------- | ------ | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | fleet_id | string | url | **Required** The fleet ID for the package. Zero (0) can be specified to get information about the bootstrap package for "Unassigned" hosts. |
+| dry_run | boolean | query | Validate the request and return any errors, but don't delete the package. Default is `false`. |
 
 
 #### Example
@@ -10274,6 +10357,7 @@ Upload an EULA that will be shown during the macOS DEP flow or Windows enrollmen
 | -------- | ------ | ---- | ------------------------------------------------- |
 | platform | string | body | The platform of the EULA. Options are `darwin` and `windows`. Defaults to `darwin`. Returns 422 if the value is not `darwin` or `windows`. |
 | eula     | file   | body | **Required**. A PDF document containing the EULA (`darwin`), or a markdown file containing the terms and conditions (`windows`). |
+| dry_run  | boolean | query | Validate the EULA and return any validation errors, but don't save it. Default is `false`. |
 
 #### Example
 
@@ -10342,6 +10426,7 @@ Delete an EULA file.
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
 | token | string | path  | **Required** The token of the EULA file. |
+| dry_run | boolean | query | Validate the request and return any errors, but don't delete the EULA. Default is `false`. |
 
 #### Example
 
@@ -10403,6 +10488,7 @@ List software that can be automatically installed during setup. If `install_duri
 | ----- | ------ | ----- | ---------------------------------------- |
 | platform | string  | query | Filters software titles available for install by platforms. Options are `"macos"`, `"windows"`, `"linux"`, `"ios"`, `"ipados"`, and `"android"`. Defaults to `"macos"`. To show titles from multiple platforms, separate the platforms with commas (e.g. `?platform=macos,ios,android`). |
 | fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available for "Unassigned" hosts. |
+| query | string | query | Search query keywords. Searchable fields include `name`, `display_name`, and `bundle_identifier`. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
 | order_key | string | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending). |
@@ -12322,7 +12408,7 @@ Returns the policy specified by ID.
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Requires `continuous_automations_enabled` to be `true`. |
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
-| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's patch deadline settings. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
+| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's [patch deadline settings](#update-patch-deadline-settings). 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
 | automation_type | string | body | The automation to run when a host fails this policy. Each policy can have one automation. For global ("All fleets") policies, this can be set to `"webhook_or_ticket"`. For fleet-level policies (_available in Fleet Premium_), there are additional options: `"calendar"`, `"configuration_profile"`, `"conditional_access"`, `"software"`, and `"script"`. `"calendar"` isn't supported for "Unassigned" policies. If omitted, the policy has no automation. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`. If `type` is `patch`, this is the Fleet-maintained app the policy checks. **Required if `automation_type` is `"software"` or `type` is `"patch"`.** |
 | software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. |
@@ -12445,7 +12531,7 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. |
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet shows the end user a notification listing the apps that will be updated, waits 1 hour, and then installs. A reminder is shown 5 minutes before the install. Nothing is installed until the end user has been notified and the hour has elapsed. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed. |
-| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's patch deadline settings. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
+| patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's [patch deadline settings](#update-patch-deadline-settings). 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
 | automation_type | string | body | The automation to run when a host fails this policy. Each policy can have one automation, so setting a new value replaces the policy's current automation. For global ("All fleets") policies, this can be set to `"webhook_or_ticket"`. For fleet-level policies (_available in Fleet Premium_), there are additional options: `"calendar"`, `"configuration_profile"`, `"conditional_access"`, `"software"`, and `"script"`. `"calendar"` isn't supported for "Unassigned" policies. Set this to `null` to remove the policy's automation. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. **Required when setting `automation_type` to `"software"`**, except on a patch policy (`type` is `patch`), where it's the app the policy checks and can't be changed. |
 | software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to clear the pinned package. |
@@ -12773,11 +12859,12 @@ Lists the saved reports that run on a host, along with the first result for each
 | ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | path  | **Required**. The host's ID.                                                                                  |
 | query              | string  | query | Search query keywords. Searchable fields include `name`.                                                      |
-| exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
+| include_reports_dont_store_results | boolean | query | If `true`, also include reports that don't save results (reports with `discard_data: true` or a `logging` other than `snapshot`). Default is `false`. |
 | page               | integer | query | Page number of the results to fetch.                                                                          |
 | per_page           | integer | query | Results per page.                                                                                             |
 | order_key          | string  | query | What to order results by. Valid options are `"name"` and `"last_fetched"`. Default is `"name"`.               |
 | order_direction    | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after              | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -13261,8 +13348,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
 
 ((Admin)) ((Maintainer)) ((GitOps))
 
-> `DELETE /api/v1/fleet/reports/id/:id` is deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the below API endpoint instead.
-
 Deletes the report specified by ID.
 
 `DELETE /api/v1/fleet/reports/:id`
@@ -13323,8 +13408,6 @@ Deletes the reports specified by ID. Returns the count of reports successfully d
 ### Run live report
 
 ((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
-
-> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
 Runs a live report against the specified hosts and responds with the results.
 
@@ -13401,7 +13484,7 @@ After you initiate the report, [get results via WebSocket](#retrieve-live-report
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 #### Parameters
 
@@ -13415,7 +13498,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with one host targeted by ID
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 ##### Request body
 
@@ -13454,7 +13537,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 ##### Request body
 
@@ -13503,7 +13586,7 @@ After the report has been initiated, [get results via WebSocket](#retrieve-live-
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 #### Parameters
 
@@ -13517,7 +13600,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -13556,7 +13639,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -13595,7 +13678,7 @@ One of `query` and `report_id` must be specified.
 
 #### Example with invalid label
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -13912,14 +13995,6 @@ o
   }
 ]
 ```
-
----
-
-## Schedule
-
-The [schedule API endpoints](https://github.com/fleetdm/fleet/blob/f6631e27f56b6704c555adfb7a3bb8c6d1a74d98/docs/REST%20API/rest-api.md#schedule) are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
-
-Please use the [reports](#reports) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
 ---
 
@@ -14625,6 +14700,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
 - [Delete software](#delete-software)
+- [Get patch deadline settings](#get-patch-deadline-settings)
+- [Update patch deadline settings](#update-patch-deadline-settings)
 
 ### List software
 
@@ -14960,6 +15037,7 @@ Returns a list of all operating systems.
 | platform            | string   | query | Filters the hosts to the specified platform. One of: `"darwin"` (macOS), `"windows"`, `"linux"` (all Linux distributions), `"chrome"`, `"ios"`, `"ipados"`, `"android"`, or a Linux distribution's platform, such as `"ubuntu"`, `"rhel"`, or `"omarchy"` (see the full list under `HOST_LINUX_PLATFORMS` in [`frontend/interfaces/platform.ts`](https://github.com/fleetdm/fleet/blob/main/frontend/interfaces/platform.ts)). |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| query | string | query | Only includes operating systems whose `platform` appears in this value (case-insensitive). For example, `query=darwin,windows` returns macOS and Windows versions. |
 | max_vulnerabilities   | integer | query | Limits the number of `vulnerabilities` returned per OS version. (If omitted, returns all vulnerabilities.) |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page. Default is `20`. |
@@ -15531,6 +15609,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh`, `.py`, and `.ps1`. |
+| software_title_id | integer | body | ID of an existing software title to add the package to. If specified, the package must match this title, or Fleet returns an error. A title can have up to 10 packages. |
+| configuration | string | body | Managed app configuration, as an XML plist. Only supported for `.ipa` packages (iOS and iPadOS). Ignored for other package types. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -15619,12 +15699,14 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| configuration | string | body | Managed app configuration, as an XML plist. Only supported for `.ipa` packages (iOS and iPadOS). Set to an empty string to remove the configuration. If omitted, the configuration isn't changed. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | patch | boolean | body | _Available for Fleet-maintained apps only._ Enables or disables "Patch": a policy that triggers a software install when the installed version is outdated. Set to `false` to remove the policy (and its managed `pre_install_query`, if `patch_when_closed` was enabled). |
 | patch_when_closed | boolean | body | _Available for Fleet-maintained apps only. Only applies when `patch` is `true`._ If `true` (default), Fleet adds a read-only pre-install condition that skips the automated install while the app is open. If `false` ("Force patch"), Fleet installs the update the next time the policy fails, whether or not the app is open. |
 | notify_before_patching | boolean | body |_Available for Fleet-maintained apps only. Only applies when `patch` is `true`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
+| patch_deadline | boolean | body | _Available for Fleet-maintained apps only. Only applies when `patch` is `true`._ If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet notifies the end user and patches it at the next deadline in the fleet's [patch deadline settings](#update-patch-deadline-settings). Only one of `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
 | version | string | body | Only available for Fleet-maintained apps. Pins the app to a specific or major version. Available versions are listed in the Fleet UI under **Actions > Versions**. To pin to a major version, use a caret (`^`) constraint and specify only the major version, without the minor and patch versions. For example, `"^147"` means Fleet continuously updates to the latest version until the app reaches 148.0. Set `version` to an empty string (`""`) to switch back to automatically updating to the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). `version` can't be changed in the same request as other fields; omit it to leave the current pin unchanged. |
 
 > `patch` and `patch_when_closed` are only available for Fleet-maintained apps.
@@ -16181,6 +16263,7 @@ Add Fleet-maintained app so it's available for install.
 | fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
 | fleet_id       | integer | body | **Required**. The fleet ID. Adds Fleet-maintained app to the specified fleet.  |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
+| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs default uninstall script for each Fleet-maintained app. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
@@ -16436,6 +16519,82 @@ Deletes software that's available for install. For Android hosts, the software i
 ##### Default response
 
 `Status: 204`
+
+### Get patch deadline settings
+
+_Available in Fleet Premium._
+
+Returns the fleet's patch deadline settings. Fleet-maintained apps with a patch policy that has `patch_deadline` set to `true` are patched at these deadlines. If the settings were never updated, Fleet returns the default: Tuesday at `"17:00"`.
+
+`GET /api/v1/fleet/software/patch_deadline_settings`
+
+#### Parameters
+
+| Name     | Type    | In    | Description                                                    |
+| -------- | ------- | ----- | -------------------------------------------------------------- |
+| fleet_id | integer | query | **Required**. The fleet ID. Use `0` for "Unassigned" hosts.    |
+
+#### Example
+
+`GET /api/v1/fleet/software/patch_deadline_settings?fleet_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "patch_deadline_settings": {
+    "fleet_id": 3,
+    "days": ["monday", "wednesday", "friday"],
+    "time": "11:00"
+  }
+}
+```
+
+### Update patch deadline settings
+
+_Available in Fleet Premium._
+
+Sets the days and time when Fleet patches Fleet-maintained apps with a patch policy that has `patch_deadline` set to `true`. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. If the notification can't be shown (for example, the host is offline or the screen is locked), Fleet shows it as soon as it can and installs 1 hour later.
+
+`PATCH /api/v1/fleet/software/patch_deadline_settings`
+
+#### Parameters
+
+| Name     | Type    | In   | Description |
+| -------- | ------- | ---- | ----------- |
+| fleet_id | integer | body | **Required**. The fleet ID. Use `0` for "Unassigned" hosts. |
+| days     | array   | body | **Required**. Days of the week when the deadline applies. Options are `"monday"`, `"tuesday"`, `"wednesday"`, `"thursday"`, `"friday"`, `"saturday"`, and `"sunday"`. Must include at least one day, and each day only once. |
+| time     | string  | body | **Required**. The deadline in the host's local time, formatted as `HH:MM` (24-hour), for example `"17:00"`. Fleet doesn't patch a host until it has collected the host's timezone. |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/patch_deadline_settings`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 3,
+  "days": ["monday", "wednesday", "friday"],
+  "time": "11:00"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "patch_deadline_settings": {
+    "fleet_id": 3,
+    "days": ["monday", "wednesday", "friday"],
+    "time": "11:00"
+  }
+}
+```
 
 ## Self-service categories
 
@@ -16906,6 +17065,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Create fleet](#create-fleet)
 - [Update fleet](#update-fleet)
 - [Add users to fleet](#add-users-to-fleet)
+- [List fleet users](#list-fleet-users)
+- [Remove users from fleet](#remove-users-from-fleet)
 - [Update fleet-level agent options](#update-fleets-agent-options)
 - [Delete fleet](#delete-fleet)
 
@@ -17138,6 +17299,8 @@ _Available in Fleet Premium_
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
 | name | string | body | **Required.** The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names and from the reserved names "Unassigned", "All fleets", "No team", and "All teams". When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
+| description | string | body | The fleet's description. |
+| secrets | array | body | A list of enroll secrets for the fleet. Each item is an object with a non-empty `secret` string. Up to 50 secrets. If omitted, Fleet generates one enroll secret for the fleet. |
 
 #### Example
 
@@ -17244,6 +17407,7 @@ _Available in Fleet Premium_
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
 | name                                                    | string  | body | The fleet's name. Must include at least one letter or number, and must be distinct from other fleets' names and from the reserved names "Unassigned", "All fleets", "No team", and "All teams". When comparing names, Fleet ignores letter case, accents, whitespace, punctuation, symbols, and emoji. |
+| description                                             | string  | body | The fleet's description. |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
@@ -17717,7 +17881,7 @@ _Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/fleets/:id/users`
 
-This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from fleet), which returns the same fleet object shape.
+To remove users from a fleet, use [Remove users from fleet](#remove-users-from-fleet).
 
 #### Parameters
 
@@ -17846,6 +18010,129 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "api_only": false,
         "fleets": null,
         "role": "observer"
+      }
+    ]
+  }
+}
+```
+
+### List fleet users
+
+_Available in Fleet Premium_
+
+Returns the users that have a role on the specified fleet.
+
+`GET /api/v1/fleet/fleets/:id/users`
+
+#### Parameters
+
+| Name            | Type    | In    | Description |
+| --------------- | ------- | ----- | ----------- |
+| id              | integer | path  | **Required.** The fleet's ID. |
+| query           | string  | query | Search query keywords. Searchable fields include `name` and `email`. |
+| order_key       | string  | query | What to order results by. Options include `"name"`, `"email"`, `"id"`, `"created_at"`, and `"updated_at"`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/fleets/1/users`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "users": [
+    {
+      "created_at": "2020-12-10T03:52:53Z",
+      "updated_at": "2020-12-10T03:52:53Z",
+      "id": 17,
+      "name": "Jane Doe",
+      "email": "janedoe@example.com",
+      "force_password_reset": false,
+      "gravatar_url": "",
+      "sso_enabled": false,
+      "mfa_enabled": false,
+      "global_role": null,
+      "api_only": false,
+      "last_login_at": "2020-12-10T04:15:20Z",
+      "last_activity_at": "2020-12-10T04:32:41Z",
+      "fleets": [
+        {
+          "id": 1,
+          "created_at": "0001-01-01T00:00:00Z",
+          "name": "Workstations",
+          "description": "",
+          "role": "observer"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Remove users from fleet
+
+_Available in Fleet Premium_
+
+Removes the specified users' roles on the fleet. Users that aren't on the fleet are ignored.
+
+`DELETE /api/v1/fleet/fleets/:id/users`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                  |
+|------------------|---------|------|----------------------------------------------|
+| id               | integer | path | **Required.** The fleet's ID.                 |
+| users            | array   | body | Array of users to remove. Each item is an object with the user's `id`.  |
+
+#### Example
+
+`DELETE /api/v1/fleet/fleets/1/users`
+
+##### Request body
+
+```json
+{
+  "users": [
+    {
+      "id": 17
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+The response includes the updated fleet object, in the same format as [Add users to fleet](#add-users-to-fleet).
+
+```json
+{
+  "fleet": {
+    "name": "Workstations",
+    "id": 1,
+    "user_count": 1,
+    "host_count": 0,
+    "users": [
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 1,
+        "name": "Example User1",
+        "email": "user1@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "fleets": null,
+        "role": "admin"
       }
     ]
   }
@@ -17982,7 +18269,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 
 | Name  | Type  | In   | Description                              |
 | ----- | ----- | ---- | ---------------------------------------- |
-| array | array | body | **Required** list of items to translate. |
+| list  | array | body | **Required.** The items to translate. Each item is an object with a `type` and a `payload.identifier`. `type` is one of `user`, `label`, `fleet`, or `host`. `payload.identifier` is the user's email, the label or fleet name, or a host identifier, such as hostname, UUID, or serial number. |
 
 #### Example
 
@@ -18078,6 +18365,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Verify invite](#verify-invite)
 - [Update invite](#update-invite)
 - [Create API-only user](#create-api-only-user)
+- [Update API-only user](#update-api-only-user)
 - [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
@@ -18186,6 +18474,9 @@ By default, the user will be forced to reset its password upon first login.
 | global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
 | fleets                          | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
+| gravatar_url | string | body | The URL of the user's avatar image. |
+| api_endpoints | array | body | _Available in Fleet Premium_. The API endpoints the user can access. Each item is an object with the endpoint's `method` and `path`, as returned by [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). Only allowed if `api_only` is `true`. If omitted, the user can access all endpoints their role allows. |
 
 #### Example
 
@@ -18281,6 +18572,9 @@ Creates a user account after an invited user provides registration information a
 | name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
+| position              | string | body | The user's position. |
+| gravatar_url          | string | body | The URL of the user's avatar image. |
+| admin_forced_password_reset | boolean | body | Whether the user must reset their password after logging in. (Default: `false`) |
 
 #### Example
 
@@ -18451,6 +18745,7 @@ Returns all information about a specific user.
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | password    | string  | body | The user's current password, required to change the user's own email or password (not required for an admin to modify another user).                                                                                                                                                                                                                     |
 | new_password| string  | body | The user's new password. |
+| gravatar_url | string | body | The URL of the user's avatar image. |
 | global_role | string  | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified.                                                                                                                                                                         |
 | fleets       | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `fleets` is specified, `global_role` cannot be specified. |
 
@@ -18692,6 +18987,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 | global_role | string  | body | Role the user will be granted. Either a global role is needed, or a fleet role.                                                                        |
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
+| position    | string  | body | The invited user's position. Fleet stores it with the invite. It isn't copied to the user created when the invite is accepted. |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
 | fleets       | array   | body | _Available in Fleet Premium_. A list of the fleets the user is a member of. Each item includes the fleet's ID and the user's role in the specified fleet. |
@@ -18909,6 +19205,7 @@ Verify the specified invite.
 | global_role | string  | body | Role the user will be granted. Either a global role is needed, or a fleet role.                                                                        |
 | email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
 | name        | string  | body | The name of the invited user.                                                                                                           |
+| position    | string  | body | The invited user's position. Fleet stores it with the invite. It isn't copied to the user created when the invite is accepted. |
 | sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
 | fleets       | array   | body | _Available in Fleet Premium_. A list of the fleets the user is a member of. Each item includes the fleet's ID and the user's role in the specified fleet. |
@@ -19056,6 +19353,73 @@ If `api_endpoints` is specified, these do not grant additional permissions other
 }
 ```
 
+
+### Update API-only user
+
+Updates an API-only user's name, role, or API endpoint access. You can't use this endpoint to update your own user.
+
+`PATCH /api/v1/fleet/users/api_only/:id`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| id            | integer | path | **Required.** The API-only user's ID. |
+| name          | string  | body | The display name for the API-only user. |
+| global_role   | string  | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| fleets        | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| api_endpoints | array   | body | _Available in Fleet Premium_. The API endpoints the user can access. Each item is an object with the endpoint's `method` and `path`, as returned by [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). Replaces the user's current list. Set to `null` to give the user access to all endpoints their role allows. An empty array isn't allowed. If omitted, the user's current list doesn't change. |
+
+If `api_endpoints` is specified, these do not grant additional permissions otherwise forbidden by the user's `role`.
+
+#### Example
+
+`PATCH /api/v1/fleet/users/api_only/5`
+
+##### Request body
+
+```json
+{
+  "name": "Jane Doe",
+  "api_endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/fleet/hosts/:id"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "2025-01-08T01:04:23Z",
+    "updated_at": "2025-01-09T00:08:19Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe+randomlygeneratedstring@example.com",
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "global_role": "observer",
+    "api_only": true,
+    "last_login_at": "2025-01-08T01:04:23Z",
+    "last_activity_at": "2025-01-09T00:05:12Z",
+    "fleets": [],
+    "api_endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/v1/fleet/hosts/:id"
+      }
+    ]
+  }
+}
+```
 
 ### List API endpoints for API-only user permissions
 

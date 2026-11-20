@@ -19,6 +19,8 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Software](#software)
 - [Certificates](#certificates)
 - [Users](#users)
+- [Organization logo](#organization-logo)
+- [Calendar webhook](#calendar-webhook)
 - [Conditional access](#conditional-access)
 - [Host identity](#host-identity)
 
@@ -566,6 +568,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
+- [Batch-apply Apple asset declarations](#batch-apply-apple-asset-declarations)
 - [Batch-apply packages](#batch-apply-packages)
 - [Batch-apply App Store apps](#batch-apply-app-store-apps)
 - [Get token to download package](#get-token-to-download-package)
@@ -1069,6 +1072,50 @@ If no fleet (id or name) is provided, the profiles are applied for all hosts (fo
 ##### Default response
 
 `204`
+
+### Batch-apply Apple asset declarations
+
+_Available in Fleet Premium_
+
+Replace a fleet's Apple asset declarations with the provided list. `fleetctl gitops` uses this endpoint to apply the `assets` in the YAML file.
+
+> This endpoint accepts a maximum request body size of 25MiB.
+
+`POST /api/v1/fleet/assets/batch`
+
+#### Parameters
+
+| Name       | Type    | In    | Description                                                                                                                       |
+| ---------- | ------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| fleet_id   | integer | query | The fleet ID to apply the assets to. Only one of `fleet_id` or `fleet_name` can be included in the request. |
+| fleet_name | string  | query | The name of the fleet to apply the assets to. Only one of `fleet_id` or `fleet_name` can be included in the request. |
+| dry_run    | boolean | query | Validate the provided assets and return any validation errors, but do not apply the changes. Assets that reference a `$FLEET_SECRET_` variable aren't validated. |
+| assets     | array   | body  | An array of objects. Each object has a `name` (the asset's name) and `contents` (the Base64-encoded JSON asset declaration). |
+
+If neither `fleet_id` nor `fleet_name` is provided, the assets are applied to "Unassigned" hosts.
+
+Fleet matches assets by the `Identifier` in their contents. Existing assets with the same identifier are updated, new ones are added, and existing assets that aren't in the list are deleted. Each `name` and each identifier must be unique in the request, and an existing asset's `Type` can't be changed. An empty list deletes all of the fleet's assets. If a configuration profile references an asset that would be deleted, the request fails.
+
+#### Example
+
+`POST /api/v1/fleet/assets/batch?fleet_id=1`
+
+##### Request body
+
+```json
+{
+  "assets": [
+    {
+      "name": "my-asset",
+      "contents": "eyJUeXBlIjoiY29tLmFwcGxlLmFzc2V0LmRhdGEiLC..."
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 204`
 
 ### Initiate SSO for IdP authentication during macOS, Windows or Linux setup
 
@@ -2955,7 +3002,7 @@ Lists the software installed on the current device.
       "name": "Google Chrome.app",
       "display_name": "Chrome",
       "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
-      "software_package": {
+      "package": {
         "name": "GoogleChrome.pkg",
         "version": "125.12.2",
         "self_service": true,
@@ -2976,23 +3023,13 @@ Lists the software installed on the current device.
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Google Chrome.app"]
         }
-      ],
-       "software_package": {
-        "name": "google-chrome-124-0-6367-207.pkg",
-        "version": "121.0",
-        "self_service": true,
-        "icon_url": null,
-        "last_install": null
-      },
-      "app_store_app": null
+      ]
     },
     {
       "id": 143,
       "name": "Firefox.app",
       "display_name": "Firefox",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
-      "software_package": null,
-      "app_store_app": null,
       "source": "apps",
       "status": null,
       "installed_versions": [
@@ -3003,7 +3040,7 @@ Lists the software installed on the current device.
           "installed_paths": ["/Applications/Slack.app"]
         }
       ],
-      "software_package": null,
+      "package": null,
       "app_store_app": {
         "app_store_id": "618783545",
         "categories": ["Communication"],
@@ -3015,7 +3052,7 @@ Lists the software installed on the current device.
     {
       "id": 144,
       "name": "Prettier",
-      "software_package": null,
+      "package": null,
       "app_store_app": null,
       "source": "vscode_extensions",
       "extesnion_for": "cursor",
@@ -4706,6 +4743,74 @@ Content-Length: <length>
 Body: <blob>
 ```
 
+### Download in-house app manifest using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/in_house_app/manifest/:token`
+
+iOS and iPadOS hosts call this endpoint to install an in-house app (`.ipa`). When Fleet queues an in-house app install, it creates a token for that host and app, and includes this endpoint's URL as the `ManifestURL` in the `InstallApplication` MDM command. The token expires after 6 hours. The URL uses Fleet's Apple MDM URL (`apple_server_url` if set).
+
+The response is the app's manifest (plist). The manifest points the host to [Download in-house app using a token](#download-in-house-app-using-a-token), or to a signed URL that expires after 5 minutes if signed URLs for software installers are configured.
+
+This endpoint doesn't require authentication. If the token is invalid, expired, or belongs to a different software title, Fleet returns a `403` error.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                          |
+|-------------------|---------|------|------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the in-house app's software title. |
+| token             | string  | path | **Required**. The install token Fleet created for the host. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/in_house_app/manifest/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/x-apple-aspen-config; charset=utf-8
+Content-Disposition: attachment; filename="in-house-app-manifest.plist"
+Content-Length: <length>
+Body: <manifest plist>
+```
+
+### Download in-house app using a token
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/software/titles/:software_title_id/in_house_app/:token`
+
+iOS and iPadOS hosts call this endpoint to download the in-house app (`.ipa`) named in the manifest from [Download in-house app manifest using a token](#download-in-house-app-manifest-using-a-token). It uses the same token.
+
+This endpoint doesn't require authentication. If the token is invalid, expired, or belongs to a different software title, Fleet returns a `403` error.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                          |
+|-------------------|---------|------|------------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the in-house app's software title. |
+| token             | string  | path | **Required**. The install token Fleet created for the host. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/123/in_house_app/e905e33e-07fe-4f82-889c-4848ed7eecb7`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment;filename="installer.ipa"
+Content-Length: <length>
+Body: <blob>
+```
+
 ---
 
 ## Certificates
@@ -4877,29 +4982,124 @@ param, this endpoint is considered a documented REST API endpoint
 }
 ```
 
+### Confirm email change
+
+Confirms a pending email address change and updates the user's email. When a user's email is changed with [Update user](https://fleetdm.com/docs/rest-api/rest-api#update-user), Fleet emails a confirmation link to the new address. The Fleet UI calls this endpoint when the user opens that link.
+
+The token only works for the user whose email is changing, so the request must be authenticated as that user.
+
+`GET /api/v1/fleet/email/change/:token`
+
+#### Parameters
+
+| Name  | Type   | In   | Description |
+| ----- | ------ | ---- | ----------- |
+| token | string | path | **Required.** The token from the confirmation link. |
+
+#### Example
+
+`GET /api/v1/fleet/email/change/aGVsbG8td29ybGQtdG9rZW4=`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "new_email": "janedoe@example.com"
+}
+```
+
+If the token doesn't match a pending email change for the authenticated user, Fleet returns `404`.
+
+---
+
+## Organization logo
+
+### Get organization logo
+
+Returns the custom logo uploaded with [Update organization logo](https://fleetdm.com/docs/rest-api/rest-api#update-organization-logo) as raw image bytes. The Fleet UI and `fleetctl` use this endpoint.
+
+This endpoint doesn't require authentication. It's rate limited to 60 requests per minute.
+
+`GET /api/v1/fleet/logo`
+
+#### Parameters
+
+| Name | Type   | In    | Description |
+| ---- | ------ | ----- | ----------- |
+| mode | string | query | **Required.** Which logo to return. Either `"light"` for the logo displayed in light mode or `"dark"` for the logo displayed in dark mode. |
+
+#### Example
+
+`GET /api/v1/fleet/logo?mode=light`
+
+##### Default response
+
+`Status: 200`
+
+The response body is the image file. The `Content-Type` header is `image/png`, `image/jpeg`, `image/webp`, or `image/svg+xml`, depending on the uploaded file.
+
+If no logo was uploaded for that mode, Fleet returns `404`.
+
+---
+
+## Calendar webhook
+
+### Receive Google Calendar event notification
+
+_Available in Fleet Premium_
+
+Google Calendar calls this endpoint when a calendar event that Fleet created for a host's end user changes. Fleet then re-checks the event and updates it if needed. Fleet registers the webhook URL with Google when it creates the event.
+
+Google doesn't send a Fleet API token. Instead, Fleet authenticates the request by comparing the `X-Goog-Channel-Id` header to the channel ID it saved for the event. Notifications with `X-Goog-Resource-State: sync` are ignored.
+
+`POST /api/v1/fleet/calendar/webhook/:event_uuid`
+
+#### Parameters
+
+| Name                  | Type   | In     | Description |
+| --------------------- | ------ | ------ | ----------- |
+| event_uuid            | string | path   | **Required.** The UUID of the calendar event in Fleet. |
+| X-Goog-Channel-Id     | string | header | **Required.** The ID of the Google Calendar notification channel. |
+| X-Goog-Resource-State | string | header | The type of notification, set by Google. |
+
+#### Example
+
+`POST /api/v1/fleet/calendar/webhook/a7d2b3c4-1e5f-4a6b-9c8d-0e1f2a3b4c5d`
+
+##### Default response
+
+`Status: 200`
+
+If the Google Calendar integration isn't configured, or Fleet doesn't find the event, Fleet ignores the notification and returns `200`. If the channel ID doesn't match, Fleet returns `403`.
+
 ---
 
 ## Conditional access
 
 ### Initiate Microsoft Entra conditional access
 
+_Available in Fleet Premium_
+
 Kick off authentication with Microsoft Entra to configure conditional access.
 
-`POST /api/v1/conditional-access/microsoft`
+`POST /api/v1/fleet/conditional-access/microsoft`
 
 #### Parameters
 
 | Name       | Type   | In   | Description                                                                                                                 |
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID, in GUID format. |
 
+#### Example
 
+`POST /api/v1/fleet/conditional-access/microsoft`
 
 ##### Request body
 
 ```json
 {
-  "fleet_license_key": "<LICENSE KEY>",
   "microsoft_tenant_id": "<TENANT ID>"
 }
 ```
@@ -4918,14 +5118,19 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ### Confirm Microsoft Entra conditional access configuration
 
-`POST /api/v1/conditional-access/confirm`
+_Available in Fleet Premium_
 
 Confirm whether admin consent has been granted in Microsoft Entra.
+
+`POST /api/v1/fleet/conditional-access/microsoft/confirm`
 
 #### Parameters
 
 None.
 
+#### Example
+
+`POST /api/v1/fleet/conditional-access/microsoft/confirm`
 
 ##### Default response
 
@@ -4933,9 +5138,14 @@ None.
 
 ```json
 {
-  "configuration_completed": false
+  "configuration_completed": false,
+  "setup_error": ""
 }
 ```
+
+In the response above:
+
+- `setup_error` is the error Microsoft reported if setup isn't complete, or an empty string otherwise.
 
 ### Get Okta conditional access SAML IdP metadata
 
