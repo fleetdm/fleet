@@ -10962,7 +10962,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName", false)
 	require.NoError(t, err)
 
 	// Insert into host_identity_scep_certificates table
