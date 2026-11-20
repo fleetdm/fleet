@@ -116,7 +116,7 @@ To check an app before you add it, look at the ID at the end of its Microsoft St
 
 The Microsoft Store doesn't share version numbers for modern (MSIX) apps, so Fleet shows **Latest** as the app's version. Each install gets the latest version available in the Microsoft Store.
 
-The Microsoft Store updates apps automatically. To make sure automatic updates stay on, [deploy a Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) below:
+The Microsoft Store updates apps automatically. To make sure automatic updates stay on, [deploy the Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) below:
 
 ```xml
 <Replace>
