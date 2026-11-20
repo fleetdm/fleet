@@ -1,0 +1,88 @@
+# Opens a pull request when Fleet's copy of the DEX dashboard scripts changes. Optional.
+# Copy to .github/workflows/dex-dashboards-update.yml in your own repository.
+# Setup: https://fleetdm.com/guides/build-dex-dashboards-with-github-actions#update-the-dashboards
+name: DEX dashboards update check
+
+on:
+  schedule:
+    - cron: "23 15 * * 1" # Mondays at 15:23 UTC.
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: dex-dashboards-update
+  cancel-in-progress: false
+
+env:
+  UPDATE_BRANCH: dex-dashboards-update
+
+jobs:
+  # Never sees the Fleet token and runs none of the scripts. Nothing changes until someone
+  # reviews and merges the pull request.
+  check:
+    name: Check for updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the update branch
+      pull-requests: write # open the pull request
+    steps:
+      # Keeps the checkout credential to push the update branch. This job uploads no artifacts.
+      - name: Check out this repository # zizmor: ignore[artipacked]
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check out Fleet's scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fleetdm/fleet
+          ref: main
+          path: upstream
+          sparse-checkout: docs/solutions/dex-dashboards
+          persist-credentials: false
+
+      - name: Open or update the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          sha=$(git -C upstream rev-parse HEAD)
+          rsync -a --delete --exclude __pycache__ upstream/docs/solutions/dex-dashboards/ dex-dashboards/
+          rm -rf upstream
+          git add -A dex-dashboards
+          if git diff --cached --quiet; then
+            echo "dex-dashboards/ already matches fleetdm/fleet@${sha:0:10}."
+            exit 0
+          fi
+          changed=$(git diff --cached --name-only)
+          {
+            echo "Updates \`dex-dashboards/\` to [fleetdm/fleet@${sha:0:10}](https://github.com/fleetdm/fleet/commits/${sha}/docs/solutions/dex-dashboards)."
+            echo
+            echo "The workflow runs these scripts with your Fleet token. Read the diff before you merge."
+            if grep -qx 'dex-dashboards/github-workflow.yml' <<<"$changed"; then
+              echo
+              echo "**The DEX dashboards workflow changed.** Copy \`dex-dashboards/github-workflow.yml\` to \`.github/workflows/dex-dashboards.yml\` in this pull request before you merge. This workflow can't change files in \`.github/workflows/\`."
+            fi
+            if grep -qx 'dex-dashboards/github-update-workflow.yml' <<<"$changed"; then
+              echo
+              echo "**This update check changed.** Copy \`dex-dashboards/github-update-workflow.yml\` to \`.github/workflows/dex-dashboards-update.yml\` in this pull request before you merge."
+            fi
+            echo
+            echo "Changed files:"
+            echo
+            # shellcheck disable=SC2016 # Markdown backticks, not command substitution.
+            sed 's/^/- `/; s/$/`/' <<<"$changed"
+          } > "$RUNNER_TEMP/body.md"
+          git switch -qC "$UPDATE_BRANCH"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -qm "Update DEX dashboard scripts to fleetdm/fleet@${sha:0:10}"
+          git push -q --force origin "HEAD:refs/heads/$UPDATE_BRANCH"
+          title="Update DEX dashboard scripts to fleetdm/fleet@${sha:0:10}"
+          pr=$(gh pr list --head "$UPDATE_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base "$BASE_BRANCH" --head "$UPDATE_BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi

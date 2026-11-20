@@ -51,24 +51,6 @@ func TestWingetVersionManifestDirs(t *testing.T) {
 	assert.Equal(t, "16.0.19929.20062", got[1].GetName())
 }
 
-func TestFilterVersionPrefix(t *testing.T) {
-	dir := func(name string) *github.RepositoryContent {
-		return &github.RepositoryContent{Name: &name, Type: new("dir")}
-	}
-	in := []*github.RepositoryContent{dir("26.13.1"), dir("24.22.1"), dir("240.1"), dir("24"), dir("2.4.0")}
-
-	names := func(dirs []*github.RepositoryContent) []string {
-		var out []string
-		for _, d := range dirs {
-			out = append(out, d.GetName())
-		}
-		return out
-	}
-	assert.Equal(t, []string{"24.22.1", "24"}, names(filterVersionPrefix(in, "24")))
-	assert.Equal(t, names(in), names(filterVersionPrefix(in, "")))
-	assert.Empty(t, filterVersionPrefix(in, "22"))
-}
-
 func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -1029,28 +1011,6 @@ func TestIngestOneVersionWalk(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "504")
 		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
-	})
-
-	t.Run("version prefix skips dirs outside the release line", func(t *testing.T) {
-		// A 500 on 2.0 fails the ingest if that dir is fetched at all.
-		srv := newTwoVersionServer(t, http.StatusInternalServerError)
-		t.Cleanup(srv.Close)
-
-		in := input
-		in.VersionPrefix = "1"
-		out, err := newIngester(srv).ingestOne(ctx, in)
-		require.NoError(t, err)
-		require.Equal(t, "1.0", out.Version)
-	})
-
-	t.Run("version prefix with no matching dirs fails", func(t *testing.T) {
-		srv := newTwoVersionServer(t, http.StatusOK)
-		t.Cleanup(srv.Close)
-
-		in := input
-		in.VersionPrefix = "3"
-		_, err := newIngester(srv).ingestOne(ctx, in)
-		require.ErrorContains(t, err, "no version manifest directories found")
 	})
 }
 

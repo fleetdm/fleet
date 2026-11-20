@@ -733,7 +733,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 
 	addDeclaration := func(identifier string, teamID uint, labelNames []string) string {
 		fields := map[string][]string{
-			"labels": labelNames,
+			"labels_include_all": labelNames,
 		}
 		if teamID > 0 {
 			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}

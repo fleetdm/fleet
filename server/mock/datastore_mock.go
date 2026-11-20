@@ -250,6 +250,8 @@ type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion,
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
+type HostIDByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error)
+
 type HostByUUIDFunc func(ctx context.Context, uuid string) (*fleet.Host, error)
 
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
@@ -1810,6 +1812,12 @@ type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRe
 
 type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
 
+type MDMWindowsFailInterruptedResetFunc func(ctx context.Context, enrollmentID uint, hostID uint) (bool, error)
+
+type MDMWindowsRemoteWipeInProgressFunc func(ctx context.Context, enrollmentID uint, hostID uint) (bool, error)
+
+type ClearEndUserAfterWindowsResetFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error)
+
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
 type GetIncludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
@@ -2073,6 +2081,8 @@ type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostPlatform stri
 type ResetSetupExperienceItemsAfterFailureFunc func(ctx context.Context, hostPlatform string, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
 
 type CancelPendingSetupExperienceStepsFunc func(ctx context.Context, hostUUID string) error
+
+type HostIDBySetupExperienceUUIDFunc func(ctx context.Context, hostUUID string) (uint, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
 
@@ -2983,6 +2993,9 @@ type DataStore struct {
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
+
+	HostIDByIdentifierFunc        HostIDByIdentifierFunc
+	HostIDByIdentifierFuncInvoked bool
 
 	HostByUUIDFunc        HostByUUIDFunc
 	HostByUUIDFuncInvoked bool
@@ -5324,6 +5337,15 @@ type DataStore struct {
 	WipeHostViaWindowsMDMFunc        WipeHostViaWindowsMDMFunc
 	WipeHostViaWindowsMDMFuncInvoked bool
 
+	MDMWindowsFailInterruptedResetFunc        MDMWindowsFailInterruptedResetFunc
+	MDMWindowsFailInterruptedResetFuncInvoked bool
+
+	MDMWindowsRemoteWipeInProgressFunc        MDMWindowsRemoteWipeInProgressFunc
+	MDMWindowsRemoteWipeInProgressFuncInvoked bool
+
+	ClearEndUserAfterWindowsResetFunc        ClearEndUserAfterWindowsResetFunc
+	ClearEndUserAfterWindowsResetFuncInvoked bool
+
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
 
@@ -5719,6 +5741,9 @@ type DataStore struct {
 
 	CancelPendingSetupExperienceStepsFunc        CancelPendingSetupExperienceStepsFunc
 	CancelPendingSetupExperienceStepsFuncInvoked bool
+
+	HostIDBySetupExperienceUUIDFunc        HostIDBySetupExperienceUUIDFunc
+	HostIDBySetupExperienceUUIDFuncInvoked bool
 
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
@@ -7367,6 +7392,13 @@ func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*f
 	s.HostByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostByIdentifierFunc(ctx, identifier)
+}
+
+func (s *DataStore) HostIDByIdentifier(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error) {
+	s.mu.Lock()
+	s.HostIDByIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDByIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *DataStore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, error) {
@@ -12829,6 +12861,27 @@ func (s *DataStore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host,
 	return s.WipeHostViaWindowsMDMFunc(ctx, host, cmd)
 }
 
+func (s *DataStore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollmentID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsFailInterruptedResetFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsFailInterruptedResetFunc(ctx, enrollmentID, hostID)
+}
+
+func (s *DataStore) MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollmentID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsRemoteWipeInProgressFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsRemoteWipeInProgressFunc(ctx, enrollmentID, hostID)
+}
+
+func (s *DataStore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+	s.mu.Lock()
+	s.ClearEndUserAfterWindowsResetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearEndUserAfterWindowsResetFunc(ctx, opts...)
+}
+
 func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error {
 	s.mu.Lock()
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
@@ -13751,6 +13804,13 @@ func (s *DataStore) CancelPendingSetupExperienceSteps(ctx context.Context, hostU
 	s.CancelPendingSetupExperienceStepsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelPendingSetupExperienceStepsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) HostIDBySetupExperienceUUID(ctx context.Context, hostUUID string) (uint, error) {
+	s.mu.Lock()
+	s.HostIDBySetupExperienceUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDBySetupExperienceUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {

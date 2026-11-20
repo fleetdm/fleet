@@ -2265,6 +2265,10 @@ const (
 	HeaderLicenseValueExpired = "Expired"
 )
 
+// HeaderClientVersion carries the version of the fleetctl that sends the request. Fleet can rely on it, unlike the User-Agent, which
+// admins can override with custom headers.
+const HeaderClientVersion = "X-Fleet-Client-Version"
+
 type Logging struct {
 	Debug  bool          `json:"debug"`
 	Json   bool          `json:"json"`

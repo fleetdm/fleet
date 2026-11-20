@@ -173,7 +173,6 @@ func MakeHandler(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			func(ctx context.Context, _ *http.Request) context.Context { return redact.NewContext(ctx) },
 			auth.SetRequestsContexts(svc),
-			endpointer.LogDeprecatedPathAlias, // log deprecation warning for deprecated URL path aliases
 			setCarveStoreInRequestContext(carveStore),
 		),
 		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
@@ -335,11 +334,8 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	logger *slog.Logger, limitStore throttled.GCRAStore, redisPool fleet.RedisPool, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
 ) {
-	registry := endpointer.NewHandlerRegistry()
-
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
-	ue.HandlerRegistry = registry
 
 	ue.POST("/api/_version_/fleet/trigger", triggerEndpoint, triggerRequest{})
 
@@ -354,7 +350,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.DELETE("/api/_version_/fleet/logo", deleteOrgLogoEndpoint, deleteOrgLogoRequest{})
 	ue.POST("/api/_version_/fleet/spec/enroll_secret", applyEnrollSecretSpecEndpoint, applyEnrollSecretSpecRequest{})
 	ue.GET("/api/_version_/fleet/spec/enroll_secret", getEnrollSecretSpecEndpoint, nil)
-	ue.GET("/api/_version_/fleet/version", versionEndpoint, nil)
+	ue.WithHTTPPreAuth(fleetctl4PreAuth(logger)).GET("/api/_version_/fleet/version", versionEndpoint, nil)
 
 	ue.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
 	ue.WithRequestBodySizeLimit(5*units.MiB).POST("/api/_version_/fleet/spec/fleets", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
@@ -496,8 +492,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
 	ue.GET("/api/_version_/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
 	ue.POST("/api/_version_/fleet/hosts/search", searchHostsEndpoint, searchHostsRequest{})
-	ue.POST("/api/_version_/fleet/hosts/identifier/{identifier}/query", runLiveQueryOnHostEndpoint, runLiveQueryOnHostRequest{})
-	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/query", runLiveQueryOnHostByIDEndpoint, runLiveQueryOnHostByIDRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id}/query", runLiveQueryOnHostEndpoint, runLiveQueryOnHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}", deleteHostEndpoint, deleteHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
 	ue.POST("/api/_version_/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
@@ -512,22 +507,22 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.GET("/api/_version_/fleet/hosts/{id}", getHostEndpoint, getHostRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
-	ue.WithAltPaths("/api/_version_/fleet/hosts/{id:[0-9]+}/queries").GET("/api/_version_/fleet/hosts/{id:[0-9]+}/reports", listHostReportsEndpoint, listHostReportsRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/reports/{report_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/reports", listHostReportsEndpoint, listHostReportsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/health", getHostHealthEndpoint, getHostHealthRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, fleet.RemoveLabelsFromHostRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates", listHostCertificatesEndpoint, listHostCertificatesRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/certificates", listHostCertificatesEndpoint, listHostCertificatesRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates/{template_id:[0-9]+}/resend", resendHostCertificateTemplateEndpoint, resendHostCertificateTemplateRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/ai_sessions", listHostAISessionsEndpoint, listHostAISessionsRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/ai_sessions/{ai_session_id:[0-9]+}", getHostAISessionEndpoint, getHostAISessionRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/ai_sessions/{ai_session_id:[0-9]+}/events", listHostAISessionEventsEndpoint, listHostAISessionEventsRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password", getHostRecoveryLockPasswordEndpoint, getHostRecoveryLockPasswordRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/ai_sessions", listHostAISessionsEndpoint, listHostAISessionsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/ai_sessions/{ai_session_id:[0-9]+}", getHostAISessionEndpoint, getHostAISessionRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/ai_sessions/{ai_session_id:[0-9]+}/events", listHostAISessionEventsEndpoint, listHostAISessionEventsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/recovery_lock_password", getHostRecoveryLockPasswordEndpoint, getHostRecoveryLockPasswordRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_url", getHostDeviceURLEndpoint, getHostDeviceURLRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/summary/mdm", getHostMDMSummary, getHostMDMSummaryRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", getHostMDM, getHostMDMRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/mdm", getHostMDM, getHostMDMRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/dep_assignment", getHostDEPAssignmentEndpoint, getHostDEPAssignmentRequest{})
 
@@ -551,14 +546,12 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	// websockets via the `GET /api/_version_/fleet/results/` endpoint.
 	ue.POST("/api/_version_/fleet/reports/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
 	ue.POST("/api/_version_/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
-	// This endpoint is deprecated and maintained for backwards compatibility. This and above endpoint are functionally equivalent
-	ue.POST("/api/_version_/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 
 	ue.GET("/api/_version_/fleet/carves", listCarvesEndpoint, fleet.ListCarvesRequest{})
 	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, fleet.GetCarveRequest{})
 	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, fleet.GetCarveBlockRequest{})
 
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/macadmins", getMacadminsDataEndpoint, getMacadminsDataRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/macadmins", getMacadminsDataEndpoint, getMacadminsDataRequest{})
 	ue.GET("/api/_version_/fleet/macadmins", getAggregatedMacadminsDataEndpoint, getAggregatedMacadminsDataRequest{})
 
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
@@ -580,16 +573,17 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionStatusEndpoint, fleet.BatchScriptExecutionStatusRequest{})
 	ue.GET("/api/_version_/fleet/scripts/batch", batchScriptExecutionListEndpoint, fleet.BatchScriptExecutionListRequest{})
 
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/scripts", getHostScriptDetailsEndpoint, fleet.GetHostScriptDetailsRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/activities/upcoming", listHostUpcomingActivitiesEndpoint, listHostUpcomingActivitiesRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/scripts", getHostScriptDetailsEndpoint, fleet.GetHostScriptDetailsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/activities/upcoming", listHostUpcomingActivitiesEndpoint, listHostUpcomingActivitiesRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/activities/upcoming/{activity_id}", cancelHostUpcomingActivityEndpoint, cancelHostUpcomingActivityRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/commands/{command_uuid}", cancelHostMDMCommandEndpoint, cancelHostMDMCommandRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, fleet.LockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/unlock", unlockHostEndpoint, fleet.UnlockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/wipe", wipeHostEndpoint, fleet.WipeHostRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/reset", resetHostEndpoint, fleet.ResetHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/clear_passcode", clearPasscodeEndpoint, clearPasscodeRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password/rotate", rotateRecoveryLockPasswordEndpoint, rotateRecoveryLockPasswordRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password", getHostManagedAccountPasswordEndpoint, getHostManagedAccountPasswordRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/managed_account_password", getHostManagedAccountPasswordEndpoint, getHostManagedAccountPasswordRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password/rotate", rotateManagedLocalAccountPasswordEndpoint, rotateManagedLocalAccountPasswordRequest{})
 	ue.POST("/api/_version_/fleet/hosts/release_ab", releaseABDevicesEndpoint, releaseABDevicesRequest{})
 
@@ -681,14 +675,14 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/install", installSelfServiceConfigurationProfileEndpoint, installSelfServiceConfigurationProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/uninstall", uninstallSelfServiceConfigurationProfileEndpoint, uninstallSelfServiceConfigurationProfileRequest{})
 
-	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
 
 	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxMDMCommandSize).POST("/api/_version_/fleet/commands/run", runMDMCommandEndpoint, runMDMCommandRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/commands/results", getMDMCommandResultsEndpoint, getMDMCommandResultsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
 	mdmAnyMW.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", mdmUnenrollEndpoint, mdmUnenrollRequest{})
 	ue.GET("/api/_version_/fleet/disk_encryption", getMDMDiskEncryptionSummaryEndpoint, getMDMDiskEncryptionSummaryRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key/rotate", rotateDiskEncryptionKeyEndpoint, rotateDiskEncryptionKeyRequest{})
 	ue.GET("/api/_version_/fleet/configuration_profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles/{profile_uuid}", getMDMConfigProfileEndpoint, getMDMConfigProfileRequest{})
@@ -1127,9 +1121,6 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ne.WithCustomMiddleware(mdmSsoLimiter).
 		WithRequestBodySizeLimit(fleet.MaxSSOCallbackSize).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMSSOEndpoint, callbackMDMSSORequest{})
-
-	// Register all deprecated URL path aliases from the declarative table.
-	endpointer.RegisterDeprecatedPathAliases(r, apiVersions, registry, deprecatedPathAliases)
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.
@@ -1639,4 +1630,37 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+const fleetctl4NotSupportedMessage = "Fleet 5.x isn't compatible with fleetctl 4.x. Upgrade fleetctl."
+
+// fleetctl4PreAuth refuses the version check that fleetctl 4 makes before anything else, so that it stops with an upgrade error. It
+// runs before auth so that an expired token gets this error too.
+func fleetctl4PreAuth(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !isFleetctl4Request(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			logger.WarnContext(r.Context(), "refused fleetctl 4 request", "uri", r.URL.Path, "user_agent", r.UserAgent(),
+				"ip_addr", r.RemoteAddr, "x_for_ip_addr", r.Header.Get("X-Forwarded-For"))
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusUpgradeRequired)
+			// No errors list: fleetctl 4 prints the message followed by the first error's reason, which would repeat it.
+			_ = json.NewEncoder(w).Encode(endpointer.JsonError{Message: fleetctl4NotSupportedMessage})
+		})
+	}
+}
+
+// isFleetctl4Request reports whether r looks like it comes from fleetctl 4, which doesn't send its version. It sends Go's default
+// User-Agent and JSON Content-Type and Accept headers even on a GET, which other Go clients rarely do. fleetctl 5 sends its version,
+// and admins can set its User-Agent to Go's default with custom headers (to get past a WAF, for example).
+func isFleetctl4Request(r *http.Request) bool {
+	if r.Header.Get(fleet.HeaderClientVersion) != "" {
+		return false
+	}
+	return strings.HasPrefix(r.UserAgent(), "Go-http-client/") &&
+		r.Header.Get("Content-Type") == "application/json" &&
+		r.Header.Get("Accept") == "application/json"
 }

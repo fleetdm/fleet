@@ -90,6 +90,8 @@ Custom host vitals aren't supported in iOS and iPadOS managed app configurations
 
 A custom host vital can also be referenced in a host name template (Fleet Premium), for example `WS-$FLEET_HOST_VITAL_1`. When a host's value changes, Fleet automatically re-applies its resolved name.
 
+On Android, you can also reference a custom host vital in an app's [managed configuration](https://fleetdm.com/guides/install-app-store-apps#variables). When a host's value changes, Fleet automatically resends the app's configuration to that host.
+
 > **Caveats:**
 > - Custom host vital values are **not** masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
 > - A custom host vital **can't be deleted while it's referenced** by a script, software install script, setup experience script, configuration profile, Android managed app configuration, or host name template. Edit or delete the reference first, then delete the vital.

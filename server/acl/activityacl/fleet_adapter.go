@@ -91,6 +91,11 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 	return ids, nil
 }
 
+// HostIDByIDOrIdentifier resolves the host ID or identifier of a host endpoint's :id path parameter.
+func (a *FleetServiceAdapter) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	return a.svc.HostIDByIDOrIdentifier(ctx, identifier)
+}
+
 // GetHostLite fetches minimal host information for authorization.
 func (a *FleetServiceAdapter) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
 	host, err := a.svc.GetHostLite(ctx, hostID)

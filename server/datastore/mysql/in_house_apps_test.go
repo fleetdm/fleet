@@ -1913,7 +1913,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	activitySvc := NewTestActivityService(t, ds)
 
 	// no past activities yet
-	acts, _, err := activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	acts, _, err := activitySvc.ListHostPastActivities(ctx, fmt.Sprint(iosHost.ID), activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 0)
 
@@ -1934,7 +1934,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	createInHouseAppInstallResult(t, ds, iosHost, ipaCmd, "Acknowledged")
 
 	// past activity for the failed install (ordered by created_at DESC - newest first)
-	acts, _, err = activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	acts, _, err = activitySvc.ListHostPastActivities(ctx, fmt.Sprint(iosHost.ID), activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 2)
 	// newest: created by createInHouseAppInstallResult with nil user

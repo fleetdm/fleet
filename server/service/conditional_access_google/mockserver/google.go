@@ -358,7 +358,8 @@ func (s *Server) Seed(sd SeedDevice) Device {
 // seedLocked creates the record, keyed by resourceID when given or by a random ID.
 func (s *Server) seedLocked(sd SeedDevice, resourceID string) *device {
 	if resourceID == "" {
-		resourceID = "mock" + randomHex(8)
+		// Shaped like Google's IDs, which end in a literal "%3D".
+		resourceID = "mock" + randomHex(8) + "%3D"
 	}
 	d := &device{
 		id: resourceID, customerID: bareCustomerID(sd.CustomerID), deviceID: sd.DeviceID,

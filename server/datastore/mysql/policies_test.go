@@ -136,6 +136,7 @@ func TestPolicies(t *testing.T) {
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"UpdateHostPolicyCountsDoesNotWaitOnMembershipLocks", testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
+		{"GetHostIssuesLastUpdated", testGetHostIssuesLastUpdated},
 		{"ResetPolicy", testResetPolicy},
 		{"ResetPolicyForHost", testResetPolicyForHost},
 	}
@@ -11842,4 +11843,21 @@ func testListAndCountPoliciesInScope(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, inherited, 1)
 	require.Equal(t, "global webhook", inherited[0].Name)
+}
+
+func testGetHostIssuesLastUpdated(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	// Not found keeps GetHost from adding a host_issues row for a number tried as a host ID before its lookup as a serial.
+	_, err := ds.GetHostIssuesLastUpdated(ctx, 123456)
+	require.True(t, fleet.IsNotFound(err), err)
+
+	host := test.NewHost(t, ds, "host", "1", "hostkey", "hostuuid", time.Now())
+	lastUpdated, err := ds.GetHostIssuesLastUpdated(ctx, host.ID)
+	require.NoError(t, err)
+	require.Zero(t, lastUpdated)
+
+	require.NoError(t, ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID))
+	lastUpdated, err = ds.GetHostIssuesLastUpdated(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotZero(t, lastUpdated)
 }

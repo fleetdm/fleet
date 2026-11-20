@@ -4026,7 +4026,7 @@ spec:
       policy_ids: [1]
 `,
 			wantErr: `The "policy_ids" parameter is not available anymore. ` +
-				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "fleet with failing policies webhook policy_ids cannot be forced",
@@ -4044,7 +4044,7 @@ spec:
 `,
 			flags: []string{"--force"},
 			wantErr: `The "policy_ids" parameter is not available anymore. ` +
-				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config windows_updates.grace_period_days not a number",

@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops --dry-run` reporting success for scripts that would fail on the real run (for example an unsupported interpreter or a duplicate file name) when the fleet doesn't exist yet.

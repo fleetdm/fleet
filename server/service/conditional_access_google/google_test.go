@@ -607,11 +607,34 @@ func TestListDeviceUserNamesKeepsOnlyTheDeviceNames(t *testing.T) {
 	require.Equal(t, []string{"devices/DEV1/deviceUsers/a"}, names)
 }
 
+func TestGoogleDeviceIDWithPercent(t *testing.T) {
+	// Google's device IDs end in a literal "%3D", which the request escapes again.
+	const id = "EiQyMjlkYmRiZi05YTUyLTQ0ZmItYjRhYS1iYjlmOTZiNTNkZDI%3D"
+	client, fake := newTestCloudIdentity(t)
+
+	fake.apiBody = `{"deviceUsers":[{"name":"devices/` + id + `/deviceUsers/u1"}]}`
+	names, err := client.ListDeviceUserNames(t.Context(), id)
+	require.NoError(t, err)
+	require.Equal(t, []string{"devices/" + id + "/deviceUsers/u1"}, names)
+	require.Len(t, fake.requests, 1)
+	require.Equal(t, "/v1/devices/"+id+"/deviceUsers", fake.requests[0].URL.Path)
+
+	fake.apiBody = `{"name":"devices/` + id + `"}`
+	exists, err := client.DeviceExists(t.Context(), id)
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Len(t, fake.requests, 2)
+	require.Equal(t, "/v1/devices/"+id, fake.requests[1].URL.Path)
+}
+
 func TestDeviceIDThatCannotNameADevice(t *testing.T) {
 	client, fake := newTestCloudIdentity(t)
 
 	// "-" stands for every device, and the others would change the request path.
-	for _, id := range []string{"", "-", ".", "..", "dev1/deviceUsers/u", "dev1?x", "dev1#x", "dev1%2Fx", `dev1\x`, "dev 1"} {
+	for _, id := range []string{
+		"", "-", ".", "..", "dev1/deviceUsers/u", "dev1?x", "dev1#x", "dev1%2Fx", `dev1\x`, "dev 1",
+		"dev1%", "dev1%zz", "%2D", "%2E%2E", "dev1%3Fx", "dev1%23x", "dev1%5Cx",
+	} {
 		_, err := client.ListDeviceUserNames(t.Context(), id)
 		require.True(t, fleet.IsNotFound(err), id)
 		require.True(t, IsStale(err), id)

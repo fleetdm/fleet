@@ -81,9 +81,9 @@ func TestReapStuckMDMInstalls(t *testing.T) {
 			gotHostUUID, gotCmdUUID, gotStatus = hUUID, cmdUUID, status
 			return true, nil
 		}
-		ds.HostByIdentifierFunc = func(_ context.Context, _ string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(ds, func(_ context.Context, _ string) (*fleet.Host, error) {
 			return &fleet.Host{ID: hostID, UUID: hostUUID, Platform: "ios"}, nil
-		}
+		})
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(_ context.Context, _ string, _ uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
 		}
@@ -125,9 +125,9 @@ func TestReapStuckMDMInstalls(t *testing.T) {
 			gotHostUUID, gotCmdUUID, gotStatus = hUUID, cmdUUID, status
 			return true, nil
 		}
-		ds.HostByIdentifierFunc = func(_ context.Context, _ string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(ds, func(_ context.Context, _ string) (*fleet.Host, error) {
 			return &fleet.Host{ID: hostID, UUID: hostUUID, Platform: "ios"}, nil
-		}
+		})
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(_ context.Context, _ string, _ uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
 		}
