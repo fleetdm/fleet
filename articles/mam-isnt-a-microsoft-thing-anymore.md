@@ -71,7 +71,7 @@ In practice, it's mostly unmanaged. We looked at companies with 500 or more empl
 
 It's not laziness. People don't know what IT can see on their personal phone, so they assume the worst. I don't blame them. I wouldn't enroll my phone in an MDM that isn't open source either, because I couldn't tell what it reads. My text messages? My browser history? What [can it see](https://fleetdm.com/transparency)? At a lot of companies, the answer is 🤷.
 
-The result is high friction, low adoption, and a culture where even executives are reticent to give up their privacy and risk [their kids’ pictures getting randomly wiped by Intune](https://www.bankinfosecurity.com/microsoft-intune-mdm-gains-notoriety-after-stryker-hack-a-31084).
+The current state of BYOD enrolment is high friction, low adoption, and a culture where even executives are reticent to give up their privacy and risk [their kids’ pictures getting randomly wiped by Intune](https://www.bankinfosecurity.com/microsoft-intune-mdm-gains-notoriety-after-stryker-hack-a-31084).
 
 ## BYOD enrollment is increasing because of AI
 
