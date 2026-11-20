@@ -43,6 +43,7 @@ GitHub issue: [#57461](https://github.com/fleetdm/fleet/issues/57461)
   7. Repeat for each fleet that has a passcode profile.
 
   The old DPC extras keep working, so there's no deadline to update them. Hosts that are already enrolled aren't affected.
+- If you register hosts for Google conditional access with the Chrome bookmark, connect Google in Fleet and deploy the bookmark's page again after you upgrade. Until you connect Google, the page can't register hosts. Hosts that are already registered stay marked as managed. Learn how in the [Google conditional access guide](https://fleetdm.com/guides/google-conditional-access-integration#upgrade-from-fleet-4-95).
 
 TODO
 
