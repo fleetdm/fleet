@@ -84,7 +84,7 @@ Enrolling a personal phone shouldn’t require a leap of faith. Employees should
 When enrollment is easy, more people enroll, IT gets fewer tickets, and new hires get to work faster. When people know what IT can see, BYOD can even be good for the culture.
 
 ## Yes M’AM?
-Whether or not you run a BYOD program for employee phones today, and whether or not you lock down email and office apps, you are free.  You don’t need Intune, E3, Microsoft, or any other particular vendor to provide enterprise-grade security, provisioning, or even data-loss prevention, whether you have 100,000 employees or 100, and whether or not you are in a regulated industry.  Plenty of other organizations do this today with or without Microsoft, with or without Intune, and with or without MAM, and it’s easy to set up.  (If you need any help, [drop us a line](https://fleetdm.com/support).)
+Whether or not you run a BYOD program for employee phones today, and whether or not you lock down email and office apps, you are free.  You don’t need Intune, E3, Microsoft, or any other particular vendor to provide enterprise-grade security, provisioning, or even data-loss prevention, whether you have 100,000 employees or 100, and whether or not you are in a regulated industry.  Plenty of other organizations do this today with or without Microsoft, with or without Intune, and with or without MAM, and it’s easy to set up.  (If you could use a hand, [drop us a line](https://fleetdm.com/support).)
 
 In the meantime, remember to keep squinting until you see the truth.  And when it comes to Microsoft… don't be afraid to check your AI’s work.
 
