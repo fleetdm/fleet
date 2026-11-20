@@ -1,10 +1,10 @@
-# A 28-byte .pth file turned Microsoft's agent-framework into a credential stealer
+# Microsoft's agent-framework on PyPI stole credentials on every Python start: find hosts with 1.26.1 or 1.26.2
 
 *Two poisoned releases of a Microsoft Python package ran on every interpreter start, whether or not anyone imported it. The first job is finding out which of your hosts installed them.*
 
 ## Key takeaways
 
-- **The bad versions are 1.26.1 and 1.26.2.** Both appeared on PyPI on November 17, 2026, and both were quarantined within the hour. Version 1.26.0 is the last clean release.
+- **The bad versions are 1.26.1 and 1.26.2.** Both reached PyPI on November 17, 2026, PyPI pulled both within the hour, and 1.26.0 remains the newest safe version.
 - **Installing the package was enough.** A startup hook ran the stealer whenever Python launched, including during `pip` and `pytest` runs, so "we never imported it" doesn't clear a host.
 - **The stealer went after the credentials developers and build machines hold.** It read environment variables, cloud CLI and registry config files, other processes' environments, and asked Azure for fresh managed-identity tokens.
 - **Version inventory turns a guess into a list.** Fleet already collects installed Python packages and their versions on macOS, Windows, and Linux, so you can search for the two bad versions across every enrolled host.
@@ -19,15 +19,15 @@ The releases were live for well under an hour. That's short for a human to notic
 
 ## What the two releases did
 
-According to JFrog's timeline, version 1.26.1 landed at 20:35 UTC and PyPI quarantined it at 21:06. Version 1.26.2 followed at 21:08, which shows the attacker still had publishing access after the first takedown. Both were gone by 21:16. JFrog found that the wheels were repacked by hand rather than built by Microsoft's pipeline, and [The Hacker News](https://thehackernews.com/2026/11/attackers-compromise-microsofts-agent.html) reports no matching tag or malicious code in Microsoft's GitHub repository. As of BleepingComputer's [report](https://www.bleepingcomputer.com/news/security/microsofts-agent-framework-pypi-package-compromised-to-steal-credentials/) on November 18, Microsoft hadn't explained how the attacker got publishing rights.
+According to JFrog's timeline, the first malicious build, 1.26.1, sat on PyPI from 20:35 UTC until PyPI quarantined it at 21:06. Two minutes later, the attacker published 1.26.2, which proved the publishing access had survived the first takedown, and both versions were off PyPI within the hour. JFrog found the wheels were repacked by hand instead of built by Microsoft's release pipeline. [Wiz](https://www.wiz.io/blog/malicious-version-of-microsofts-agent-framework-published-to-pypi) then traced the uploads to what appears to be ESRP signing material in the attacker's hands (a stolen certificate along with its key), ESRP being the internal Microsoft service that signs and publishes the package. A Microsoft maintainer confirmed the releases were pulled and an investigation was under way, [SecurityWeek reports](https://www.securityweek.com/microsoft-agent-framework-releases-poisoned-with-credential-stealer/).
 
-Both releases kept their dependency on the genuine `agent-framework-core` 1.26.0, so the framework kept working. Nothing looked broken.
+Neither release touched the pin on the real `agent-framework-core` 1.26.0, so applications built on the framework ran exactly as before, and no failed build or crash gave the attack away.
 
 ## Why "we never imported it" doesn't help
 
-Python reads every `.pth` file in a site-packages directory when the interpreter starts, and it runs any line that begins with `import`. Version 1.26.1 shipped a 28-byte file named `agent_framework_meta.pth` whose only content was an import of the stealer module. Version 1.26.2 restored Microsoft's original package code and moved the hook into `af_runtime_diag.pth` and `af_runtime_diag.py`, which made a quick diff of the package look clean.
+Each time the interpreter starts, Python scans its site-packages folders for `.pth` files and executes every line in them that starts with `import`. Version 1.26.1 shipped a 28-byte file named `agent_framework_meta.pth` whose only content was an import of the stealer module. In 1.26.2, the attacker put Microsoft's original package code back and relocated the hook to `af_runtime_diag.pth` and `af_runtime_diag.py`, so a quick diff of the package came up clean.
 
-That means the stealer ran on any Python launch in an affected environment: a test run, a language server in an editor, or `pip` itself. On macOS and Linux it forked into the background so the original command finished normally. It wrote no marker file, so it ran again on every start.
+As a result, starting Python for any reason on an infected machine set the stealer off, whether that was a test run, an editor's language server, or `pip` itself. On macOS and Linux it forked into the background so the original command finished normally. It wrote no marker file, so it ran again on every start.
 
 ## What it collected
 
@@ -35,47 +35,16 @@ JFrog, StepSecurity, Socket, and OX Security published overlapping analyses. Tak
 
 - Environment variables matching 31 name patterns, including Azure, AWS, GitHub, OpenAI, and Hugging Face, plus broad matches on `KEY`, `TOKEN`, and `SECRET`.
 - Up to 60 small files (80 in 1.26.2), including `~/.azure/*.json`, `pip.conf`, `.npmrc`, `.netrc`, `.git-credentials`, `.docker/config.json`, and `.env` files in common app paths.
-- On Linux, the environments of up to 300 other running processes.
-- Fresh OAuth tokens from Azure managed identity for 12 audiences, including Azure Resource Manager, Key Vault, and Microsoft Graph. Version 1.26.2 added GitHub Actions OIDC token requests.
+- On Linux, the environment variables of as many as 300 other processes running on the same machine.
+- Newly minted Azure managed-identity tokens for 12 different services, Key Vault and Microsoft Graph among them. The 1.26.2 build also asked GitHub Actions for OIDC tokens.
 
 Everything went to a single `webhook.site` URL in one compressed, unencrypted POST. JFrog notes that most of the file paths were Linux-style, so the file sweep missed most macOS home-directory locations. Environment variables and token requests didn't depend on those paths, so a Mac that installed the package still belongs on your list.
 
 ## Finding affected hosts with Fleet
 
-Fleet's agent already reports installed Python packages, with versions and install paths, on macOS, Windows, and Linux. The [software inventory reference](https://fleetdm.com/guides/software-inventory-reference) lists the locations it reads: system and per-user site-packages, plus pipx, uv tools, conda, pipenv, pyenv, and mise. In the Fleet UI, search **Software** for `agent-framework` to see every version found and the hosts running each one.
+Fleet's agent, built on osquery, already reports installed Python packages with their versions and install paths on macOS, Windows, and Linux. The [software inventory reference](https://fleetdm.com/guides/software-inventory-reference) lists where it looks: system and per-user site-packages, plus pipx, uv tools, conda, pipenv, pyenv, and mise. Searching **Software** for `agent-framework` in Fleet shows every version found across your hosts and which machines run each one, which turns 1.26.1 and 1.26.2 into a list of names instead of a guess.
 
-To answer the question directly, run a live report across your hosts:
-
-```sql
-SELECT name, version, path
-FROM users CROSS JOIN python_packages USING (uid)
-WHERE name IN ('agent-framework', 'agent_framework')
-  AND version IN ('1.26.1', '1.26.2');
-```
-
-The `users` join tells Fleet's agent to search each user's directories as well as system locations. It needs a version of Fleet's agent built on osquery 5.16.0 or later, and [this guide](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table) explains why. Test the query on a host where you've installed 1.26.0 to confirm how the package name appears before you rely on it.
-
-A removed package can leave its hook behind if someone deleted files by hand. To catch leftover hook files, check for them by name. Adjust the paths to match where Python lives on your hosts:
-
-```sql
-SELECT path FROM file
-WHERE path LIKE '/usr/lib/python3.%/site-packages/af_runtime_diag.pth'
-   OR path LIKE '/usr/local/lib/python3.%/site-packages/af_runtime_diag.pth'
-   OR path LIKE '/home/%/.local/lib/python3.%/site-packages/af_runtime_diag.pth'
-   OR path LIKE '/Users/%/Library/Python/3.%/lib/python/site-packages/af_runtime_diag.pth';
-```
-
-Repeat it for `agent_framework_meta.pth`. To keep watching after this week, turn the version check into a [policy](https://fleetdm.com/securing/what-are-fleet-policies) that passes only when neither bad version is present:
-
-```sql
-SELECT 1 WHERE NOT EXISTS (
-  SELECT 1 FROM users CROSS JOIN python_packages USING (uid)
-  WHERE name IN ('agent-framework', 'agent_framework')
-    AND version IN ('1.26.1', '1.26.2')
-);
-```
-
-Policy automations can then open a ticket or send a webhook when a host fails.
+To keep watching after this week, a [Fleet policy](https://fleetdm.com/securing/what-are-fleet-policies) can flag any host that still carries either bad version, and [automations](https://fleetdm.com/guides/automations) can open a ticket or send a webhook when a host fails. The same approach can look for the four leftover hook files by name, which matters when someone deleted the package by hand and left the `.pth` file behind. For help writing those checks for your own environment, reach out to [Fleet support](https://fleetdm.com/support) or your customer success team, or [talk to Fleet](https://fleetdm.com/contact) if you aren't a customer yet.
 
 ## What inventory won't see
 
@@ -87,14 +56,14 @@ For those gaps, Fleet can [run a script](https://fleetdm.com/guides/scripts) on 
 
 Pinning `agent-framework==1.26.0` and removing the bad files stops new collection. It doesn't undo what was sent. The researchers' advice lines up:
 
-- Treat every secret reachable from an affected host or runner as compromised and rotate it.
+- Assume any secret an infected host or build runner could read is now in the attacker's hands, and replace it.
 - Revoke Entra ID sessions for users whose `~/.azure` files were on an affected host, since a password reset doesn't invalidate cached refresh tokens.
-- Review managed-identity role assignments, federated credentials, and sign-in logs. JFrog notes that managed-identity tokens can't be revoked and stay valid for up to 24 hours.
+- Review managed-identity role assignments, federated credentials, and sign-in logs. JFrog notes that managed-identity tokens can't be revoked, and they keep working for as long as a day after they're issued.
 - Search DNS and proxy logs for `webhook.site`. An HTTP 200 response on the telemetry path means the upload completed.
 
 ## Know where your packages live before the next one
 
-This was the second Microsoft-related PyPI package compromised this year, after `durabletask` in May, according to The Hacker News. Language packages install outside the operating system's package manager, under user directories and project folders, which is exactly where traditional patch tools stop looking.
+According to The Hacker News, a Microsoft-linked package on PyPI has now been hijacked twice this year, since `durabletask` was hit in May. Language packages install outside the operating system's package manager, under user directories and project folders, which is exactly where traditional patch tools stop looking.
 
 The list of hosts that installed a bad build should come from those hosts, within minutes, not from a reconstruction of who might have run `pip install` on a Tuesday afternoon.
 
@@ -106,12 +75,13 @@ The list of hosts that installed a bad build should come from those hosts, withi
 ## Sources
 
 - JFrog Security Research, [Microsoft's agent-framework hijacked on PyPI via silent .pth startup hook](https://research.jfrog.com/post/agent-framework-hijack/).
+- Wiz Research, [Microsoft agent-framework compromised: Credential stealer targets Azure and CI pipelines](https://www.wiz.io/blog/malicious-version-of-microsofts-agent-framework-published-to-pypi).
 - BleepingComputer, [Microsoft's Agent Framework PyPI package compromised to steal credentials](https://www.bleepingcomputer.com/news/security/microsofts-agent-framework-pypi-package-compromised-to-steal-credentials/).
 - Help Net Security, [Credential stealer slipped into Microsoft's official Python agent framework](https://www.helpnetsecurity.com/2026/11/19/microsoft-agent-framework-package-pypi-compromised/).
 - The Hacker News, [Attackers compromise Microsoft's Agent Framework PyPI package to steal cloud credentials](https://thehackernews.com/2026/11/attackers-compromise-microsofts-agent.html).
 - SecurityWeek, [Microsoft Agent Framework releases poisoned with credential stealer](https://www.securityweek.com/microsoft-agent-framework-releases-poisoned-with-credential-stealer/).
 
-<meta name="articleTitle" value="A 28-byte .pth file turned Microsoft's agent-framework into a credential stealer">
+<meta name="articleTitle" value="Microsoft's agent-framework on PyPI stole credentials on every Python start: find hosts with 1.26.1 or 1.26.2">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
