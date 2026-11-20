@@ -1148,7 +1148,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 				require.ErrorAs(t, err, &invalid)
 				require.Equal(t, []map[string]string{{
 					"name":   "windows",
-					"reason": `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					"reason": `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 				}}, invalid.Invalid())
 			case tc.expectedError != "":
 				require.ErrorContains(t, err, tc.expectedError)
