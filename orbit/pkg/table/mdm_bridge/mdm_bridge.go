@@ -357,7 +357,7 @@ func isValidMDMcommand(inputCMD string) (bool, error) {
 }
 
 // executeMDMcommand executes syncML MDM commands against the OS MDM stack and returns the status of the command execution
-func executeMDMcommand(inputCMD string) (string, error) {
+func executeMDMcommand(inputCMD string) (output string, err error) {
 	// Synchronizing MDM command execution
 	mu.Lock()
 	defer mu.Unlock()
@@ -375,8 +375,8 @@ func executeMDMcommand(inputCMD string) (string, error) {
 		return "", err
 	}
 	defer func() {
-		if err := disableCmdExecution(); err != nil {
-			log.Warn().Err(err).Msg("mdm_bridge: could not remove the EmbeddedMode Flags value")
+		if disableErr := disableCmdExecution(); disableErr != nil && err == nil {
+			output, err = "", disableErr
 		}
 	}()
 
@@ -515,24 +515,24 @@ var embeddedModeFallback = []byte{0x57, 0x26, 0xdb, 0xcb, 0x8d, 0xce, 0x27, 0x47
 // findSMBIOSUUID returns the raw UUID bytes of the first type 1 structure in an SMBIOS structure table, or nil. With windowsQuirk
 // it mirrors the walk in embeddedmodesvcapi.dll, which never resets its "previous byte was zero" state between structures: a
 // string-less structure after the first one ends one byte early, and the walk can drift past type 1 or onto a stray 0x01 byte.
-func findSMBIOSUUID(table []byte, windowsQuirk bool) []byte {
+func findSMBIOSUUID(smbiosTable []byte, windowsQuirk bool) []byte {
 	prevZero := false
-	for i := 0; i+1 < len(table); {
-		if table[i] == 1 {
-			if i+24 > len(table) {
+	for i := 0; i+1 < len(smbiosTable); {
+		if smbiosTable[i] == 1 {
+			if i+24 > len(smbiosTable) {
 				return nil
 			}
-			return table[i+8 : i+24]
+			return smbiosTable[i+8 : i+24]
 		}
 		if !windowsQuirk {
 			prevZero = false
 		}
 		// Skip the formatted area, then find the double zero that ends the string set.
-		j := i + int(table[i+1])
-		for ; j < len(table) && (table[j] != 0 || !prevZero); j++ {
-			prevZero = table[j] == 0
+		j := i + int(smbiosTable[i+1])
+		for ; j < len(smbiosTable) && (smbiosTable[j] != 0 || !prevZero); j++ {
+			prevZero = smbiosTable[j] == 0
 		}
-		if j >= len(table) {
+		if j >= len(smbiosTable) {
 			return nil
 		}
 		i = j + 1
@@ -570,6 +570,8 @@ func getFlagsValue() ([]byte, error) {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, flagsRegistryLocation, registry.SET_VALUE)
 	if err == nil && procIsEmbeddedModeAllowed.Find() == nil {
 		defer k.Close()
+		// Remove the probe value; enableCmdExecution writes the chosen one before each command.
+		defer func() { _ = k.DeleteValue(flagsRegistryName) }()
 		for i, candidate := range [][]byte{windowsHash[:], specHash[:]} {
 			if err := k.SetBinaryValue(flagsRegistryName, candidate); err != nil {
 				break
