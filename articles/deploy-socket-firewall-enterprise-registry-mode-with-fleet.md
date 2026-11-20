@@ -561,7 +561,7 @@ A few things to know about these policies:
 - [Deploy Socket Firewall Enterprise in wrapper mode with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-enterprise-wrapper-mode-with-fleet)
 - [Deploy Socket Firewall Free with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-free-with-fleet)
 - [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
-- [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
+- [Custom variables (secrets)](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
 - [Scripts](https://fleetdm.com/guides/scripts) and [Automations](https://fleetdm.com/guides/automations) guides
 
 <meta name="articleTitle" value="Deploy Socket Firewall Enterprise in registry mode with Fleet">

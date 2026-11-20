@@ -459,7 +459,7 @@ try {
 - [Socket Firewall Enterprise: wrapper mode](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode) and [configuration reference](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode-configuration)
 - [Deploy Socket Firewall Enterprise in registry mode with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-enterprise-registry-mode-with-fleet)
 - [Deploy Socket Firewall Free with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-free-with-fleet)
-- [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
+- [Custom variables (secrets)](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
 - [Scripts](https://fleetdm.com/guides/scripts) and [Automations](https://fleetdm.com/guides/automations) guides
 
 <meta name="articleTitle" value="Deploy Socket Firewall Enterprise in wrapper mode with Fleet">

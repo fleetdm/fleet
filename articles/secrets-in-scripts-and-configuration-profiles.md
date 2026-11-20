@@ -1,14 +1,10 @@
-# Custom variables
+# Custom variables (secrets)
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
 </div>
 
-In Fleet you can use custom variables in [scripts](https://fleetdm.com/guides/scripts), software install, post-install, and uninstall scripts (including [script-only packages](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)), setup experience scripts, Apple and Windows [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
-
-Custom variables aren't supported in Android configuration profiles or in managed app configurations. See [Where variables work](https://fleetdm.com/guides/fleet-variables#where-variables-work).
-
-Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
+Custom variables (`$FLEET_SECRET_`) let you store a value once, like an API token, and use it in scripts, configuration profiles, and more. Fleet hides their values in the UI and API. To see everywhere you can use them, go to [Where variables work](https://fleetdm.com/guides/fleet-variables#where-variables-work).
 
 Custom variables use the same value for all hosts. To use unique per-host values, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
 
@@ -16,7 +12,7 @@ Custom variables are global. Anyone who can add or edit scripts, software, or co
 
 ## Add variables
 
-A variable can be used in a script or configuration profile by specifying a variable in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script or profile is sent to the host, Fleet will replace the variable with the variable's value. The prefix `FLEET_SECRET_` is required to indicate that this is a variable, and Fleet reserves this prefix for variables.
+To use a variable, specify it in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script, profile, or other item is sent to the host, Fleet will replace the variable with the variable's value. The prefix `FLEET_SECRET_` is required to indicate that this is a variable, and Fleet reserves this prefix for variables.
 
 For macOS and Linux scripts, if a variable doesn't have the `$FLEET_SECRET_` prefix, it will be treated as a [local environment variable](https://support.apple.com/en-my/guide/terminal/apd382cc5fa-4f58-4449-b20a-41c53c006f8f/mac).
 
@@ -50,7 +46,7 @@ During a GitOps run, Fleet scans scripts and profiles for variables, pulls their
 
 Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
 
-When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) configuration profiles that use it. Automatic resend for Windows profiles is [coming soon](https://github.com/fleetdm/fleet/issues/44852). To see which built-in variables trigger a resend, see the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
+When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) configuration profiles that use it. Automatic resend for Windows profiles is [coming soon](https://github.com/fleetdm/fleet/issues/44852). To see which built-in variables trigger a resend, see the [Variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
@@ -112,9 +108,9 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 - Fleet expands secret variables to plaintext before delivering scripts and profiles to the host, so anyone with root access can retrieve the value. This holds even if the script never echoes it. On macOS, package installer scripts are logged in full, secrets included, to the world-readable `/var/log/install.log`. Only use secret variables for values you're OK having exposed on the host.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
-<meta name="articleTitle" value="Custom variables in scripts and configuration profiles">
+<meta name="articleTitle" value="Custom variables (secrets)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-01-02">
-<meta name="description" value="A guide on using custom variables in scripts and configuration profiles.">
+<meta name="description" value="Store a value once, like an API token, and use it as a variable across your hosts.">
