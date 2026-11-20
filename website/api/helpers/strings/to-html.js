@@ -83,7 +83,7 @@ module.exports = {
         if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
           textWithLineBreaks = text.replace(/(\_)/g, '&#8203;_');
         }
-        var headingID = _.kebabCase(_.unescape(text.replace(/<code v-pre>/g, '<code>').toLowerCase()).replace(/[\’\']/g, ''));// « Ignore the inline code renderer's `v-pre` so existing heading anchors don't change.
+        var headingID = _.kebabCase(_.unescape(text.toLowerCase()).replace(/[\’\']/g, ''));
         if(!_.contains(headingsRenderedOnThisPage, headingID)){
           headingsRenderedOnThisPage.push(headingID);
         } else {
@@ -103,10 +103,9 @@ module.exports = {
     }
 
     // Creating a custom codeblock renderer function to add syntax highlighting keywords and render mermaid code blocks (```mermaid```) without the added <pre> tags.
-    // > Note: Every <code> element gets `v-pre` so Vue doesn't evaluate {{ … }} inside it when the page's template is compiled in the browser.
     customRenderer.code = function(code, infostring) {
       if(infostring === 'mermaid') {
-        return `<code class="mermaid" v-pre>${_.escape(code)}</code>`;
+        return `<code class="mermaid">${_.escape(code)}</code>`;
       } else if(infostring === 'js') {// Interpret `js` as `javascript`
         return `<pre><code class="hljs javascript" v-pre>${_.escape(code)}</code></pre>`;
       } else if(infostring === 'bash' || infostring === 'sh') {// Interpret `sh` and `bash` as `bash`
@@ -116,11 +115,6 @@ module.exports = {
       } else {// When unspecified, default to `text`
         return `<pre><code class="nohighlight" v-pre>${_.escape(code)}</code></pre>`;
       }
-    };
-
-    // Inline code also needs `v-pre` (e.g. `${{ secrets.FOO }}` in a guide about GitHub Actions). The text is already HTML-escaped by marked.
-    customRenderer.codespan = function(text) {
-      return `<code v-pre>${text}</code>`;
     };
 
     // Creating a custom blockquote renderer function to render blockquotes as tip blockquotes.
