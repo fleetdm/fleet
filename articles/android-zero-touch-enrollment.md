@@ -44,7 +44,7 @@ The device's configuration in the zero-touch portal at first boot determines its
 
 Normally, only an authorized reseller can register devices in the zero-touch portal. 
 
-In order to test zero-touch enrollment with devices you already own:
+You can also register devices you already own:
 1. If you haven't already, in the [zero-touch portal](https://enterprise.google.com/android/zero-touch/customers), add **OEM Test Reseller** as a reseller in the **Resellers** tab by navigating to **Other resellers**, finding **OEM Test Reseller**, then hitting **Enroll**.
 2. Submit [Google's device registration form](https://docs.google.com/forms/d/1zQGYyNcK1B5Q2FGF3b95Oqvs9dSAIW-lmQc_nCcc7Y8/viewform?edit_requested=true) with the device's IMEI or serial number and **OEM Test Reseller** as the Reseller. From there, apply your configuration as described above.
 
