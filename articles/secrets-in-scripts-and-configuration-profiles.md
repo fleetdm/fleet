@@ -1,4 +1,4 @@
-# Custom variables (secrets)
+# Custom variables
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
@@ -48,13 +48,13 @@ Profiles with variables aren’t validated during a GitOps dry run because the v
 
 When a custom variable's value changes, Fleet resends the Apple (macOS, iOS, iPadOS) configuration profiles that use it. Automatic resend for Windows profiles is [coming soon](https://github.com/fleetdm/fleet/issues/44852). To see which built-in variables trigger a resend, see the [Variables](https://fleetdm.com/guides/fleet-variables) guide.
 
-If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
+To upload a variable to Fleet as a custom variable, prefix it with `FLEET_SECRET_`. Fleet masks its value in the UI and API.
 
 Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
 
 > Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small fleet first.
 
-## Using the secret on a configuration profile
+## Using a custom variable in a configuration profile
 
 Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_CERT_BASE64` variables:
 ```xml
@@ -102,13 +102,13 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 
 ## Known limitations and issues
 
-- **Apple MDM profiles**: Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field of Apple configuration profiles. This field becomes the visible name of the profile and using secrets here could expose sensitive information. Place secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
+- **Apple MDM profiles**: Custom variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field of Apple configuration profiles. This field becomes the visible name of the profile and using custom variables here could expose sensitive information. Use them in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
 - **Host name templates**: A custom variable used in a [host name template](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) isn't hidden — its value becomes the host's name in Fleet and on the device. Only use custom variables for values that are safe to display (for example, a site or location code).
 - **Windows SCEP subject names**: In a Windows SCEP profile's `SubjectName`, Fleet quotes a `$FLEET_VAR_*` value so Windows reads it as one attribute. Fleet inserts a `$FLEET_SECRET_*` value as written. If that value contains `,`, `+`, `;`, or `"`, the device rejects the certificate request. Use a value without those characters.
-- Fleet expands secret variables to plaintext before delivering scripts and profiles to the host, so anyone with root access can retrieve the value. This holds even if the script never echoes it. On macOS, package installer scripts are logged in full, secrets included, to the world-readable `/var/log/install.log`. Only use secret variables for values you're OK having exposed on the host.
-- Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
+- Fleet expands custom variables to plaintext before delivering scripts and profiles to the host, so anyone with root access can retrieve the value. This holds even if the script never echoes it. On macOS, package installer scripts are logged in full, custom variable values included, to the world-readable `/var/log/install.log`. Only use custom variables for values you're OK having exposed on the host.
+- Do not use deprecated API endpoint(s) to upload profiles containing custom variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
-<meta name="articleTitle" value="Custom variables (secrets)">
+<meta name="articleTitle" value="Custom variables">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">

@@ -15,7 +15,7 @@ Each custom host vital has a unique name and is referenced by a variable in the 
 
 Custom host vitals are global: you can reference them in scripts and profiles, or use them as label criteria, across all fleets.
 
-> **Warning:** Custom host vital values are not masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
+> **Warning:** Custom host vital values are not masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for sensitive values.
 
 ### UI
 
@@ -93,7 +93,7 @@ A custom host vital can also be referenced in a host name template (Fleet Premiu
 On Android, you can also reference a custom host vital in an app's [managed configuration](https://fleetdm.com/guides/install-app-store-apps#variables). When a host's value changes, Fleet automatically resends the app's configuration to that host.
 
 > **Caveats:**
-> - Custom host vital values are **not** masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
+> - Custom host vital values are **not** masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for sensitive values.
 > - A custom host vital **can't be deleted while it's referenced** by a script, software install script, setup experience script, configuration profile, Android managed app configuration, or host name template. Edit or delete the reference first, then delete the vital.
 > - Referencing a `$FLEET_HOST_VITAL_<id>` that doesn't exist (for example, a typo like `$FLEET_HOST_VITAL_asset_tag`) is rejected when the script, profile, or host name template is saved.
 > - Custom host vitals can't be used in certificate authority (SCEP/ACME/DigiCert) payloads; those fields accept [built-in variables](https://fleetdm.com/guides/fleet-variables) only.

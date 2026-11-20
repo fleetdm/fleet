@@ -1,6 +1,6 @@
 # Deploy Socket Firewall Enterprise in wrapper mode with Fleet
 
-In wrapper mode, [Socket Firewall Enterprise](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode) runs on each developer's machine as the `sfw` command, the same way Socket Firewall Free does, but with your organization's Socket API key, security policies, allow lists, dashboard reporting, and support for more ecosystems. This guide uses Fleet to install the Enterprise `sfw` binary on macOS, Windows, and Linux, deliver the API key from a Fleet secret, verify both with policies, and repair them automatically.
+In wrapper mode, [Socket Firewall Enterprise](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode) runs on each developer's machine as the `sfw` command, the same way Socket Firewall Free does, but with your organization's Socket API key, security policies, allow lists, dashboard reporting, and support for more ecosystems. This guide uses Fleet to install the Enterprise `sfw` binary on macOS, Windows, and Linux, deliver the API key from a custom variable, verify both with policies, and repair them automatically.
 
 Wrapper mode still depends on developers running `sfw npm install` instead of `npm install`, or on the shell aliases in step 5. If you need protection that developers can't bypass, use [registry mode](https://fleetdm.com/guides/deploy-socket-firewall-enterprise-registry-mode-with-fleet) instead.
 
@@ -9,7 +9,7 @@ Wrapper mode still depends on developers running `sfw npm install` instead of `n
 - A Socket Firewall Enterprise license. Socket's [firewall-release wiki](https://github.com/SocketDev/firewall-release/wiki) states that the software requires a paid license.
 - A Socket API key with the `packages` and `entitlements:list` scopes, created in your Socket organization.
 - Hosts enrolled in Fleet with scripts enabled. See the [scripts guide](https://fleetdm.com/guides/scripts) if you deployed `fleetd` without `--enable-scripts`.
-- Fleet Premium, for the policy automations in step 4 and for masking the API key as a Fleet secret.
+- Fleet Premium, for the policy automations in step 4 and for masking the API key as a custom variable.
 - Hosts that can reach `github.com`, where Socket publishes the binaries as [GitHub release assets](https://github.com/SocketDev/firewall-release/releases), and Socket's API at `api.socket.dev`.
 - A GitOps repository connected to Fleet. The API key is stored as a `FLEET_SECRET_` variable, which Fleet masks in the UI and API.
 
@@ -190,7 +190,7 @@ try {
 
 ## Step 3: Deliver the API key and configuration
 
-The wrapper reads its settings from the `SOCKET_API_KEY` environment variable or from a `.sfw.config` file in the user's home directory, in dotenv format. Store the key in Fleet as a secret named `FLEET_SECRET_SOCKET_API_KEY`. Fleet replaces `$FLEET_SECRET_SOCKET_API_KEY` in a script with the value when it sends the script to a host, and masks the value everywhere in the Fleet UI and API. See [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) for how to define the secret in your GitOps workflow.
+The wrapper reads its settings from the `SOCKET_API_KEY` environment variable or from a `.sfw.config` file in the user's home directory, in dotenv format. Store the key in Fleet as a custom variable named `FLEET_SECRET_SOCKET_API_KEY`. Fleet replaces `$FLEET_SECRET_SOCKET_API_KEY` in a script with the value when it sends the script to a host, and masks the value everywhere in the Fleet UI and API. See [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) for how to define it in your GitOps workflow.
 
 Both scripts below also set `SFW_UNKNOWN_HOST_ACTION=block`, which is Socket's default. Other settings from Socket's [configuration reference](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode-configuration) go in the same place:
 
@@ -459,7 +459,7 @@ try {
 - [Socket Firewall Enterprise: wrapper mode](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode) and [configuration reference](https://docs.socket.dev/docs/socket-firewall-enterprise-wrapper-mode-configuration)
 - [Deploy Socket Firewall Enterprise in registry mode with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-enterprise-registry-mode-with-fleet)
 - [Deploy Socket Firewall Free with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-free-with-fleet)
-- [Custom variables (secrets)](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
+- [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
 - [Scripts](https://fleetdm.com/guides/scripts) and [Automations](https://fleetdm.com/guides/automations) guides
 
 <meta name="articleTitle" value="Deploy Socket Firewall Enterprise in wrapper mode with Fleet">
@@ -467,4 +467,4 @@ try {
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-09-17">
-<meta name="description" value="Install the Socket Firewall Enterprise wrapper on macOS, Windows, and Linux with Fleet, deliver the API key as a secret, and verify with policies.">
+<meta name="description" value="Install the Socket Firewall Enterprise wrapper on macOS, Windows, and Linux with Fleet, deliver the API key as a custom variable, and verify with policies.">
