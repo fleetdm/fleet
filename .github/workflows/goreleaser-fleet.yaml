@@ -100,6 +100,25 @@ jobs:
         with:
           subject-path: "dist/**"
 
+      - name: Download attestations
+        uses: actions/attest-download-all@v1
+        with:
+          path: attestations
+
+      - name: Upload attestations to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Uploading attestations to release $TAG_NAME..."
+          for file in attestations/*.intoto.jsonl; do
+            if [[ -f "$file" ]]; then
+              echo "Uploading $(basename "$file")..."
+              gh release upload "$TAG_NAME" "$file" --repo "$GITHUB_REPOSITORY" --clobber
+            fi
+          done
+          echo "Attestation upload complete"
+
       - name: Get tag
         run: |
           echo "TAG=$(git describe --tags |  sed -e "s/^fleet-//")" >> $GITHUB_OUTPUT
@@ -279,6 +298,25 @@ jobs:
         with:
           subject-path: dist/fleetctl_v*_mac.pkg
 
+      - name: Download attestations
+        uses: actions/attest-download-all@v1
+        with:
+          path: attestations
+
+      - name: Upload attestations to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Uploading attestations to release $TAG_NAME..."
+          for file in attestations/*.intoto.jsonl; do
+            if [[ -f "$file" ]]; then
+              echo "Uploading $(basename "$file")..."
+              gh release upload "$TAG_NAME" "$file" --repo "$GITHUB_REPOSITORY" --clobber
+            fi
+          done
+          echo "Attestation upload complete"
+
   build-fleetctl-msi:
     runs-on: windows-2022
     needs: goreleaser
@@ -395,6 +433,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -433,3 +473,24 @@ jobs:
             gh release upload "$TAG_NAME" "$msi" --repo "$GITHUB_REPOSITORY" --clobber
           done
           echo "Upload complete"
+
+      - name: Download attestations
+        uses: actions/attest-download-all@v1
+        continue-on-error: true
+        with:
+          path: attestations
+
+      - name: Upload attestations to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Uploading attestations to release $TAG_NAME..."
+          for file in attestations/*.intoto.jsonl; do
+            if [[ -f "$file" ]]; then
+              echo "Uploading $(basename "$file")..."
+              gh release upload "$TAG_NAME" "$file" --repo "$GITHUB_REPOSITORY" --clobber
+            fi
+          done
+          echo "Attestation upload complete"
