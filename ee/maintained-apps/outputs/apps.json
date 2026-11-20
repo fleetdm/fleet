@@ -6673,6 +6673,13 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
+      "name": "Parsec",
+      "slug": "parsec/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tv.parsec.www",
+      "description": "Parsec is a remote desktop app for low-latency streaming and remote access to computers."
+    },
+    {
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",

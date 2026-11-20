@@ -245,6 +245,18 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	caskVersion := out.Version
 	external_refs.EnrichManifest(out)
 
+	if input.Token == "parsec" {
+		// The cask version ("150-105c") names the parsecd dylib that Parsec.app
+		// downloads and updates by itself; the app bundle (what the apps table
+		// reports) only changes when Parsec republishes the pkg. Version by the
+		// bundle inside the installer so the patch policy can pass.
+		version, err := external_refs.ParsecPackageAppVersion(ctx, out.InstallerURL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading Parsec app version from installer")
+		}
+		out.Version = version
+	}
+
 	// create patch policy
 	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
 		Platform:    "darwin",
