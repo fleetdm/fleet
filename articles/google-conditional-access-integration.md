@@ -210,12 +210,7 @@ Fleet unmarks a host's device within 5 minutes when:
 - The host is deleted, including by [host expiry](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings).
 - The host is unenrolled, or MDM is turned off on it.
 
-To unmark a host that stays in Fleet, remove its Google device ID. Use an admin or maintainer's API token:
-
-```sh
-curl -X DELETE https://<your Fleet URL>/api/v1/fleet/hosts/<host ID>/google_device_id \
-  -H "Authorization: Bearer <your API token>"
-```
+To unmark a host that stays in Fleet, remove its Google device ID with the [Delete host's Google device ID](https://fleetdm.com/docs/rest-api/rest-api#delete-hosts-google-device-id) API endpoint.
 
 Removing the ID resets the host:
 
@@ -226,20 +221,7 @@ If you delete a device in the Google Admin console, Fleet notices within an hour
 
 ## GitOps
 
-To manage the integration with [GitOps](https://fleetdm.com/docs/configuration/yaml-files#google-conditional-access), add it to `default.yml`:
-
-```yaml
-org_settings:
-  integrations:
-    google_conditional_access:
-      customer_id: C01234abc
-      admin_email: fleet-conditional-access@example.com
-      api_key_json: $GOOGLE_CONDITIONAL_ACCESS_API_KEY_JSON
-```
-
-If you leave out `api_key_json`, Fleet keeps the key you uploaded in the UI.
-
-> **Warning:** Removing `google_conditional_access` from the YAML deletes the integration and its key. It doesn't unmark devices. See [Disable](#disable).
+To manage the integration with GitOps, see [`google_conditional_access`](https://fleetdm.com/docs/configuration/yaml-files#google-conditional-access) in the YAML reference.
 
 ## Disable
 
@@ -259,7 +241,7 @@ Deleting the integration in Fleet doesn't unmark devices. They stay marked as ma
 - **The Google card shows an error after it was connected**: Google refused Fleet's service account when Fleet last had a device to mark or unmark. The key was deleted in Google Cloud, the delegation was removed, or the admin user lost its role. Fix it in Google, or select **Edit** to upload a new key. Fleet checks again every 5 minutes and clears the error once Google accepts the service account. Devices stay managed in the meantime.
 - **iPhone or iPad: "Sign in to Gmail on this device, then open this page again."** although Gmail is signed in: Gmail doesn't have the configuration from Step 5. Check that Fleet installed Gmail and that `partner` is spelled as shown. Then ask the end user to quit and reopen Gmail.
 - **iPhone or iPad: Self-service opens with no sign-in**: The host is already registered, isn't **On (automatic)**, or the end user closed the Google page 3 times in 24 hours. A company iPhone or iPad enrolled without Apple Business shows as **On (manual)**, and Fleet doesn't register it.
-- **iPhone or iPad: "Something went wrong. Try again." after you changed your Fleet server URL**: fleetdm.com still sends sign-ins to the old URL. In Fleet, head to **Settings > Integrations > Conditional access**, select **Delete** on the **Google** card, and connect again as described in Step 4. With GitOps, remove `google_conditional_access` from the YAML, run GitOps, then add it back with `api_key_json` and run GitOps again. Devices stay managed in the meantime.
+- **iPhone or iPad: "Something went wrong. Try again." after you changed your Fleet server URL**: fleetdm.com still sends sign-ins to the old URL. Delete the integration and connect again, as described in [Step 4](#step-4-connect-fleet-to-google).
 - **iPhone or iPad: "This device isn't allowed to access company data."**: The device may be registered to another host, for example when someone opened another host's sign-in link on it. To find that host, list the activities that saved a Google device ID and look for the device's ID in `details.google_device_id`:
 
   ```sh

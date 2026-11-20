@@ -119,13 +119,13 @@ fleetdm.com:
 
 Android hosts don't use fleetdm.com for this. Your Fleet server finds each company-owned Android host's device in Google by itself, with no sign-in.
 
-The [Chrome bookmark](https://fleetdm.com/guides/google-conditional-access-integration#register-hosts-with-a-chrome-bookmark) doesn't send device traffic to fleetdm.com either. Use it if you don't want device traffic going to fleetdm.com. Your Fleet server still contacts fleetdm.com once, when you connect Google. The bookmark needs Google connected so Fleet can use the service account to check that each device is real in Google and to store its Google Workspace accounts. Google can give the same device a different device ID over its lifetime, so storing only the ID could miss marking it as managed.
+The [Chrome bookmark](https://fleetdm.com/guides/google-conditional-access-integration#register-hosts-with-a-chrome-bookmark) doesn't send device traffic to fleetdm.com either. Use it if you don't want device traffic going to fleetdm.com. Your Fleet server still contacts fleetdm.com once, when you connect Google.
 
 fleetdm.com doesn't mark devices as managed. Your Fleet server does that with a service account you create in your own Google Cloud project, with domain-wide delegation limited to the `cloud-identity.devices` scope. You own the credential. The Fleet server unmarks a device when its host is deleted or unenrolled, or when you remove the host's Google device ID. No Google service account credentials pass through fleetdm.com.
 
 Compared to Android MDM:
 
-- fleetdm.com calls your Fleet server at `/api/*/fleet/google_conditional_access/register`, authenticated with the per-server secret. If you restrict inbound traffic, [allow that endpoint](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet#conditional-access-google).
+- If you restrict inbound traffic, [allow the endpoint fleetdm.com calls](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet#conditional-access-google).
 - New data passes through fleetdm.com: the Fleet server URL, your Google customer ID, and, for each iPhone or iPad that signs in, its host UUID, the end user's Google account, and the names of that account's device records in Google.
 
 ## Further reading
