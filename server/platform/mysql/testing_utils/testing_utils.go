@@ -2,7 +2,6 @@ package testing_utils
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
@@ -72,9 +72,9 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTabl
 			}
 
 			var allTables []struct {
-				Name          string        `db:"table_name"`
-				AutoIncrement sql.NullInt64 `db:"auto_increment"`
-				UpdateTime    sql.NullTime  `db:"update_time"`
+				Name          string     `db:"table_name"`
+				AutoIncrement *uint64    `db:"auto_increment"`
+				UpdateTime    *time.Time `db:"update_time"`
 			}
 			err = sqlx.SelectContext(ctx, tx, &allTables, `
       SELECT table_name AS table_name, auto_increment AS auto_increment, update_time AS update_time
@@ -92,7 +92,7 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTabl
 				}
 				// Truncate tables with a used ID counter so IDs start at 1 again, even if they have no rows.
 				// Also truncate tables written since their last truncate to reset their update time.
-				if table.AutoIncrement.Int64 > 1 || table.UpdateTime.Valid {
+				if (table.AutoIncrement != nil && *table.AutoIncrement > 1) || table.UpdateTime != nil {
 					tables = append(tables, table.Name)
 					continue
 				}
