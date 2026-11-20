@@ -70,9 +70,7 @@ This change is imperceptible to users, as clicking on the "My device" tray item 
 
 Fleet can be configured to require an end user to authenticate via SSO to view the "My Device" page. 
 
-Fleet Desktop uses the same identity provider (IdP) as [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) during setup experience. This works with any IdP that supports SAML, like Okta or Microsoft Entra ID. Configure it in **Settings > Integrations > Authentication (SSO) > End users** before you turn on SSO for Fleet Desktop.
-
-End users sign in on your IdP's sign-in page, so your IdP's sign-in policy decides which multi-factor authentication (MFA) methods they can use.
+> Fleet Desktop doesn't support signing in with hardware security keys, like YubiKeys, yet. To follow along, see [#59329](https://github.com/fleetdm/fleet/issues/59329).
 
 To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
 On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
