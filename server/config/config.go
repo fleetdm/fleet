@@ -1153,6 +1153,8 @@ type MicrosoftCompliancePartnerConfig struct {
 	// ClientID is the client ID of Fleet's multi-tenant Entra app, the audience of the
 	// device ID tokens reported by macOS hosts.
 	ClientID string `yaml:"client_id"`
+	// WindowsTrustedDeviceIDOnly accepts a Windows host's Entra device ID only from sources the end user can't fake.
+	WindowsTrustedDeviceIDOnly bool `yaml:"windows_trusted_device_id_only"`
 }
 
 // GoogleConditionalAccessConfig holds the server configuration for Google conditional access.
@@ -2351,6 +2353,8 @@ func (man Manager) addConfigs() {
 	// Microsoft Compliance Partner
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 	man.addConfigString("microsoft_compliance_partner.client_id", DefaultMicrosoftCompliancePartnerClientID, "Client ID of Fleet's Microsoft Compliance Partner Entra app (for development/testing)")
+	man.addConfigBool("microsoft_compliance_partner.windows_trusted_device_id_only", false,
+		"Accept a Windows host's Entra device ID only from its Entra join, or from a user certificate whose device ID Microsoft signed for the host at Entra MDM enrollment or in Autopilot")
 	man.addConfigString("google_conditional_access.proxy_uri", "https://fleetdm.com", "URI of the Google conditional access relay (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
@@ -2776,8 +2780,9 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
 		},
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
-			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
-			ClientID: man.getConfigString("microsoft_compliance_partner.client_id"),
+			ProxyURI:                   man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+			ClientID:                   man.getConfigString("microsoft_compliance_partner.client_id"),
+			WindowsTrustedDeviceIDOnly: man.getConfigBool("microsoft_compliance_partner.windows_trusted_device_id_only"),
 		},
 		GoogleConditionalAccess: GoogleConditionalAccessConfig{
 			ProxyURI: man.getConfigString("google_conditional_access.proxy_uri"),

@@ -8740,6 +8740,7 @@ type windowsEnrollmentFixture struct {
 	awaitingConfiguration fleet.WindowsMDMAwaitingConfiguration
 	awaitingAt            *time.Time
 	ztdRegistrationID     string // optional, the Autopilot ZTDID the device supplied at enrollment
+	entraDeviceID         string // optional, the Entra device ID signed into the enrollment token
 }
 
 // insertWindowsEnrolledDevice inserts an MDM-enrollment row with sensible defaults for every field tests don't care
@@ -8770,6 +8771,7 @@ func insertWindowsEnrolledDevice(t *testing.T, ctx context.Context, ds *Datastor
 		AwaitingConfiguration:   f.awaitingConfiguration,
 		AwaitingConfigurationAt: f.awaitingAt,
 		ZTDRegistrationID:       f.ztdRegistrationID,
+		EntraDeviceID:           f.entraDeviceID,
 	}))
 	return f.mdmDeviceID
 }

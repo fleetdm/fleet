@@ -47,6 +47,7 @@ import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/Rotated
 import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
 import SetHostGoogleDeviceIdActivityItem from "./ActivityItems/SetHostGoogleDeviceIdActivityItem";
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
+import StoppedReportingMicrosoftEntraDeviceIdActivityItem from "./ActivityItems/StoppedReportingMicrosoftEntraDeviceIdActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
@@ -131,6 +132,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.UninstalledOptInConfigurationProfile]: OptInConfigurationProfileActivityItem,
   [ActivityType.ResetPolicy]: ResetPolicyActivityItem,
   [ActivityType.HostEnrollmentRejected]: HostEnrollmentRejectedActivityItem,
+  [ActivityType.StoppedReportingMicrosoftEntraDeviceId]: StoppedReportingMicrosoftEntraDeviceIdActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<
