@@ -7,6 +7,10 @@ services:
       - COLLECTOR_OTLP_ENABLED=true
       - METRICS_STORAGE_TYPE=prometheus
       - PROMETHEUS_SERVER_URL=http://prometheus:9090
+      # Match the metric names emitted by the collector's spanmetrics connector.
+      - PROMETHEUS_QUERY_NAMESPACE=traces_span_metrics
+      - PROMETHEUS_QUERY_NORMALIZE_CALLS=true
+      - PROMETHEUS_QUERY_NORMALIZE_DURATION=true
     ports:
       - "16686:16686"
       - "14269:14269"

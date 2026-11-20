@@ -135,6 +135,7 @@ Ask the agent to clean up, or run `python3 <skill folder>/scripts/gitops_export.
 - "isn't a global admin": log in to `fleetctl` as a user with the global admin role.
 - Version warning: `fleetctl` and your Fleet server are different versions. Install the matching `fleetctl` (step 1) so the dry run behaves the way CI's will.
 - "can't reach Fleet" though fleetctl works in your terminal: your agent runs commands in a sandbox without network access. Allow network access for these commands.
+- "Fleet's default install and uninstall scripts couldn't be read": outside the Fleet repository, the export downloads [those scripts](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) from `raw.githubusercontent.com` to tell Fleet's defaults from your own scripts. Allow access to that address and ask the agent to export again.
 - `unknown key "org_settings.yara_rules..."`: a known `fleetctl` bug. GitOps can't carry YARA rules until it's fixed.
 - Dry-run notes about placeholders or masks: those values weren't in `.env`, so the files that use them weren't checked with real values. Add them (step 5) and ask the agent to validate again.
 - Anything else: ask the agent what failed. Every step is safe to run again. [Talk to a human at Fleet](https://fleetdm.com/support) if you're stuck.
@@ -153,4 +154,4 @@ python3 scripts/gitops_export.py all --dir ~/fleet-gitops --org-name "Acme, Inc.
 python3 -m unittest discover -s scripts/tests
 ```
 
-The tests run offline. Inside the Fleet repository, they also check the templates `fleetctl new` ships, Fleet's default package scripts, and the list of deprecated GitOps keys.
+The tests run offline. Inside the Fleet repository, they also check the templates `fleetctl new` ships, Fleet's default package scripts in `pkg/file/scripts/`, and the list of deprecated GitOps keys. Outside it, stand-ins take the place of the default scripts.

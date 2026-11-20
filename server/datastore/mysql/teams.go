@@ -109,7 +109,7 @@ func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.T
 		}
 		noTeam := &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}
 		lites = append(lites, noTeam.ToTeamLite())
@@ -135,7 +135,7 @@ func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.T
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
 	if tid == 0 {
 		if withExtras {
-			return nil, ctxerr.Errorf(ctx, "withExtras argument not supported for team ID 0")
+			return nil, ctxerr.Errorf(ctx, "withExtras argument not supported for fleet ID 0")
 		}
 		config, err := defaultTeamConfigDB(ctx, q)
 		if err != nil {
@@ -143,7 +143,7 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras boo
 		}
 		return &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}, nil
 	}
@@ -426,16 +426,24 @@ func (ds *Datastore) loadExtrasForTeam(ctx context.Context, team *fleet.Team) (*
 func (ds *Datastore) TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
 	// Normalize to match the NFC normalization applied on write (see NewTeam).
 	nameUnicode := norm.NFC.String(name)
-	stmt := `SELECT id, name FROM teams WHERE name = ? AND id != ? LIMIT 1`
-	team := &fleet.Team{}
-	switch err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode, excludeID); {
-	case err == nil:
-		return team, nil
-	case errors.Is(err, sql.ErrNoRows):
-		return nil, nil
-	default:
+	// The name key can't be computed in SQL, so every other fleet is compared
+	// in Go. The teams table is small.
+	stmt := `SELECT id, name, name = ? AS collation_equal FROM teams WHERE id != ? ORDER BY id`
+	var others []struct {
+		ID             uint   `db:"id"`
+		Name           string `db:"name"`
+		CollationEqual bool   `db:"collation_equal"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &others, stmt, nameUnicode, excludeID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check team name conflict")
 	}
+	key := fleet.TeamNameKey(nameUnicode)
+	for _, other := range others {
+		if other.CollationEqual || fleet.TeamNameKey(other.Name) == key {
+			return &fleet.Team{ID: other.ID, Name: other.Name}, nil
+		}
+	}
+	return nil, nil
 }
 
 func (ds *Datastore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {

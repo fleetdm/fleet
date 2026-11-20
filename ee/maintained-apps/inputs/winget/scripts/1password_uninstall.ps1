@@ -3,6 +3,7 @@
 
 # Each release has a new ProductCode, so uninstall whatever version is
 # installed by resolving it from the stable UpgradeCode.
+$ErrorActionPreference = 'Stop'
 $upgradeCode = '{04B64D44-52BF-41A6-85BA-CDBA63AEB44D}'
 $timeoutSeconds = 300  # 5 minute timeout per product
 $successCodes = @(0, 3010, 1641)

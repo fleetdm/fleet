@@ -32,7 +32,6 @@ var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"label_membership_type": "l.label_membership_type",
 	"author_id":             "l.author_id",
 	"criteria":              "l.criteria",
-	"team_id":               "l.team_id",
 	"fleet_id":              "l.team_id",
 
 	// dependent on include_host_counts being set on request
@@ -83,7 +82,7 @@ func (ds *Datastore) SetAsideLabels(ctx context.Context, notOnTeamID *uint, labe
 	}
 
 	if !hasGlobalWriteRole() && (notOnTeamID == nil || !hasWriteRoleOnTeam(*notOnTeamID)) {
-		return ctxerr.New(ctx, "you cannot edit labels on the specified team")
+		return ctxerr.New(ctx, "you cannot edit labels on the specified fleet")
 	}
 
 	type existingLabel struct {
@@ -389,7 +388,7 @@ DELETE FROM label_membership WHERE label_id = ?
 	return ctxerr.Wrap(ctx, err, "ApplyLabelSpecs transaction")
 }
 
-var errLabelMismatchHostTeam = errors.New("supplied hosts are on a different team than the label")
+var errLabelMismatchHostTeam = errors.New("supplied hosts are on a different fleet than the label")
 
 func checkHostIdentifiersInTeam(
 	ctx context.Context,
@@ -941,7 +940,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	return labels, nil
 }
 
-var errInaccessibleTeam = errors.New("The team ID you provided refers to a team that either does not exist or you do not have permission to access.")
+var errInaccessibleTeam = errors.New("The fleet ID you provided refers to a fleet that either does not exist or you do not have permission to access.")
 
 // labelScopeKey mirrors the labels unique index: names compare case-insensitively within one fleet, or among
 // global labels (fleet 0).
@@ -1227,7 +1226,6 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"last_enrolled_at":               "h.last_enrolled_at",
 	"refetch_requested":              "h.refetch_requested",
 	"refetch_critical_queries_until": "h.refetch_critical_queries_until",
-	"team_id":                        "h.team_id",
 	"fleet_id":                       "h.team_id",
 	"policy_updated_at":              "h.policy_updated_at",
 	"public_ip":                      "h.public_ip",
@@ -1247,7 +1245,6 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"timezone":          "h.timezone",
 	// must match SELECT clause subquery so cursor pagination (WHERE) and
 	// ORDER BY are consistent — MySQL disallows SELECT aliases in WHERE.
-	"team_name":  "(SELECT name FROM teams t WHERE t.id = h.team_id)",
 	"fleet_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
 
 	// COALESCE required on the following:

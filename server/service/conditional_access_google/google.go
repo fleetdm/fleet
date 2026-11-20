@@ -1,0 +1,455 @@
+package conditional_access_google
+
+import (
+	"context"
+	"crypto/rsa"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"strings"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/str"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
+	"google.golang.org/api/cloudidentity/v1"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+)
+
+// EndpointOverrideEnv points the API and the token exchange at a mock server. Dev only.
+const EndpointOverrideEnv = "FLEET_DEV_GOOGLE_CLOUD_IDENTITY_ENDPOINT"
+
+// ClientStateSuffix follows the customer ID, without its "C", in Fleet's client state ID.
+const ClientStateSuffix = "-fleet"
+
+const maxGoogleResponseBytes = 1 << 20
+
+const (
+	// The largest pages Google serves.
+	deviceUsersPageSize = 20
+	devicesPageSize     = 100
+	// A device has a few DeviceUsers and a device ID a record or two, so a listing
+	// that outgrows these isn't followed to its end.
+	maxDeviceUserPages = 50
+	maxDevicePages     = 10
+)
+
+var errTooManyPages = errors.New("listing has more pages than expected")
+
+func NewCloudIdentityFactory(logger *slog.Logger) CloudIdentityFactory {
+	return func(ctx context.Context, creds Credentials) (CloudIdentity, error) {
+		c, err := newCloudIdentity(ctx, creds, logger)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
+	}
+}
+
+type cloudIdentityClient struct {
+	svc            *cloudidentity.Service
+	bareCustomerID string
+}
+
+func newCloudIdentity(ctx context.Context, creds Credentials, logger *slog.Logger) (*cloudIdentityClient, error) {
+	// Google's device APIs take the ID without its "C".
+	bareCustomerID := strings.TrimPrefix(creds.CustomerID, "C")
+	key, err := parseServiceAccountKey(creds.ServiceAccountKey)
+	if err != nil {
+		return nil, err
+	}
+
+	endpoint := dev_mode.Env(EndpointOverrideEnv)
+	conf := &jwt.Config{
+		Email:        key.ClientEmail,
+		PrivateKey:   []byte(key.PrivateKey),
+		PrivateKeyID: key.PrivateKeyID,
+		Scopes:       []string{cloudidentity.CloudIdentityDevicesScope},
+		TokenURL:     tokenURL(endpoint),
+		Subject:      creds.AdminEmail,
+	}
+
+	// The token exchange and the API calls share this client's timeout and response cap. Only
+	// API calls follow ctx: the oauth2 jwt token request carries no context.
+	httpClient := fleethttp.NewClient(fleethttp.WithMaxResponseSize(maxGoogleResponseBytes))
+	opts := []option.ClientOption{option.WithHTTPClient(conf.Client(context.WithValue(ctx, oauth2.HTTPClient, httpClient)))}
+	if endpoint != "" {
+		logger.WarnContext(ctx, "using Google Cloud Identity endpoint override; do not use in production",
+			"env", EndpointOverrideEnv, "endpoint", endpoint)
+		opts = append(opts, option.WithEndpoint(endpoint))
+	}
+	svc, err := cloudidentity.NewService(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create cloud identity service: %w", err)
+	}
+	return &cloudIdentityClient{svc: svc, bareCustomerID: bareCustomerID}, nil
+}
+
+func (c *cloudIdentityClient) CheckDelegation(ctx context.Context) error {
+	// Only authorization matters; fetch no device data.
+	if _, err := c.svc.Devices.List().Customer(c.customer()).PageSize(1).Fields("nextPageToken").Context(ctx).Do(); err != nil {
+		return &Error{err: err, delegationCheck: true}
+	}
+	return nil
+}
+
+func (c *cloudIdentityClient) SetClientState(ctx context.Context, deviceUserName string, state fleet.GoogleConditionalAccessClientState) error {
+	var body cloudidentity.GoogleAppsCloudidentityDevicesV1ClientState
+	var mask []string
+	if state.Managed != nil {
+		body.Managed = "UNMANAGED"
+		if *state.Managed {
+			body.Managed = "MANAGED"
+		}
+		mask = append(mask, "managed")
+	}
+	if state.CustomID != nil {
+		body.CustomId = *state.CustomID
+		mask = append(mask, "customId")
+	}
+	if len(mask) == 0 {
+		return errors.New("client state has no field to write")
+	}
+	name := deviceUserName + "/clientStates/" + c.bareCustomerID + ClientStateSuffix
+	op, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(name, &body).
+		Customer(c.customer()).UpdateMask(strings.Join(mask, ",")).Context(ctx).Do()
+	if err != nil {
+		return &Error{err: err, resourceCall: true}
+	}
+	if op.Done && op.Error != nil {
+		return &Error{err: operationError(op.Error), resourceCall: true}
+	}
+	return nil
+}
+
+// operationError turns the error Google reports inside a finished operation, with HTTP 200
+// and a google.rpc.Code, into the API error the classifiers read. Each code gets the HTTP
+// status google.rpc.Code maps it to, except CANCELLED: its 499 would read as a rejection,
+// so it stays a 500 with the rest.
+func operationError(s *cloudidentity.Status) *googleapi.Error {
+	code := http.StatusInternalServerError
+	switch codes.Code(s.Code) { //nolint:gosec // google.rpc.Code values fit in a uint32
+	case codes.InvalidArgument, codes.FailedPrecondition, codes.OutOfRange:
+		code = http.StatusBadRequest
+	case codes.Unauthenticated:
+		code = http.StatusUnauthorized
+	case codes.PermissionDenied:
+		code = http.StatusForbidden
+	case codes.NotFound:
+		code = http.StatusNotFound
+	case codes.AlreadyExists, codes.Aborted:
+		code = http.StatusConflict
+	case codes.ResourceExhausted:
+		code = http.StatusTooManyRequests
+	case codes.Unimplemented:
+		code = http.StatusNotImplemented
+	case codes.Unavailable:
+		code = http.StatusServiceUnavailable
+	case codes.DeadlineExceeded:
+		code = http.StatusGatewayTimeout
+	}
+	msg := s.Message
+	if msg == "" {
+		msg = fmt.Sprintf("Google operation failed with code %d", s.Code)
+	}
+	return &googleapi.Error{Code: code, Message: msg}
+}
+
+func (c *cloudIdentityClient) ListDeviceUserNames(ctx context.Context, deviceID string) ([]string, error) {
+	if !validDeviceID(deviceID) {
+		return nil, &invalidDeviceIDError{id: deviceID}
+	}
+	device := "devices/" + deviceID
+	prefix := device + "/deviceUsers/"
+	var names []string
+	morePages := limitPages(maxDeviceUserPages)
+	err := c.svc.Devices.DeviceUsers.List(device).Customer(c.customer()).PageSize(deviceUsersPageSize).
+		Fields("deviceUsers(name)", "nextPageToken").
+		Pages(ctx, func(resp *cloudidentity.GoogleAppsCloudidentityDevicesV1ListDeviceUsersResponse) error {
+			for _, du := range resp.DeviceUsers {
+				// Only this device's names are kept, whatever Google answers.
+				if len(du.Name) > len(prefix) && strings.EqualFold(du.Name[:len(prefix)], prefix) {
+					names = append(names, du.Name)
+				}
+			}
+			return morePages(resp.NextPageToken)
+		})
+	switch {
+	case errors.Is(err, errTooManyPages):
+		return nil, err
+	case err != nil:
+		return nil, &Error{err: err, resourceCall: true}
+	}
+	return names, nil
+}
+
+func (c *cloudIdentityClient) FindDeviceIDs(ctx context.Context, androidDeviceID string) ([]string, error) {
+	if androidDeviceID == "" {
+		// The match below would keep every record that has no deviceId.
+		return nil, nil
+	}
+	var ids []string
+	morePages := limitPages(maxDevicePages)
+	err := c.svc.Devices.List().Customer(c.customer()).Filter("id:"+androidDeviceID).PageSize(devicesPageSize).
+		Fields("devices(name,deviceId)", "nextPageToken").
+		Pages(ctx, func(resp *cloudidentity.GoogleAppsCloudidentityDevicesV1ListDevicesResponse) error {
+			for _, d := range resp.Devices {
+				// Google doesn't document the filter as an exact match.
+				if strings.EqualFold(d.DeviceId, androidDeviceID) {
+					ids = append(ids, strings.TrimPrefix(d.Name, "devices/"))
+				}
+			}
+			return morePages(resp.NextPageToken)
+		})
+	switch {
+	case errors.Is(err, errTooManyPages):
+		return nil, err
+	case err != nil:
+		return nil, &Error{err: err}
+	}
+	return ids, nil
+}
+
+func (c *cloudIdentityClient) DeviceExists(ctx context.Context, deviceID string) (bool, error) {
+	if !validDeviceID(deviceID) {
+		return false, nil
+	}
+	if _, err := c.svc.Devices.Get("devices/" + deviceID).Customer(c.customer()).Fields("name").Context(ctx).Do(); err != nil {
+		gErr := &Error{err: err, resourceCall: true}
+		if gErr.IsNotFound() {
+			return false, nil
+		}
+		return false, gErr
+	}
+	return true, nil
+}
+
+// validDeviceID accepts only a single path segment that names one device: "-" stands for
+// every device, and a dot segment or anything that needs escaping would change the path.
+// Google's IDs end in a literal "%3D", so "%" is accepted when what it encodes would be
+// accepted too, in case Google decodes the path once more.
+func validDeviceID(id string) bool {
+	decoded, err := url.PathUnescape(id)
+	if err != nil {
+		return false
+	}
+	for _, s := range []string{id, decoded} {
+		if s == "" || s == "-" || s == "." || s == ".." || strings.ContainsAny(s, `/\?#`) {
+			return false
+		}
+	}
+	withoutPercent := strings.ReplaceAll(id, "%", "")
+	return url.PathEscape(withoutPercent) == withoutPercent
+}
+
+// invalidDeviceIDError reads like Google's 404 for a device, without the call.
+type invalidDeviceIDError struct {
+	id string
+}
+
+func (e *invalidDeviceIDError) Error() string {
+	return fmt.Sprintf("invalid Google device ID %q", e.id)
+}
+
+func (e *invalidDeviceIDError) IsNotFound() bool { return true }
+func (e *invalidDeviceIDError) IsStale() bool    { return true }
+
+// limitPages returns the check a listing runs after each page, which fails once it has
+// read limit pages and Google has more.
+func limitPages(limit int) func(nextPageToken string) error {
+	pages := 0
+	return func(nextPageToken string) error {
+		if pages++; pages >= limit && nextPageToken != "" {
+			return errTooManyPages
+		}
+		return nil
+	}
+}
+
+func (c *cloudIdentityClient) customer() string {
+	return "customers/" + c.bareCustomerID
+}
+
+type serviceAccountKey struct {
+	ClientEmail  string `json:"client_email"`
+	PrivateKeyID string `json:"private_key_id"`
+	PrivateKey   string `json:"private_key"`
+}
+
+func parseServiceAccountKey(b []byte) (*serviceAccountKey, error) {
+	var key serviceAccountKey
+	if err := json.Unmarshal(b, &key); err != nil {
+		return nil, errors.New("read the service account key: not a JSON object")
+	}
+	// The token source reports a key it can't use the way it reports a failed token
+	// request, which IsUnavailable takes for an outage, so the key is checked here.
+	privateKey, err := cryptoutil.ParsePrivateKey([]byte(key.PrivateKey), "private_key")
+	if err != nil {
+		return nil, fmt.Errorf("read the service account key: %w", err)
+	}
+	if _, ok := privateKey.(*rsa.PrivateKey); !ok {
+		return nil, errors.New("read the service account key: private_key is not an RSA key")
+	}
+	return &key, nil
+}
+
+// tokenURL ignores the key's token_uri, which would receive the signed assertion.
+func tokenURL(endpointOverride string) string {
+	if endpointOverride != "" {
+		return strings.TrimSuffix(endpointOverride, "/") + "/token"
+	}
+	return google.JWTTokenURL
+}
+
+// Error is a failed Google call whose message is safe to show the admin.
+type Error struct {
+	err error
+	// resourceCall is set on a call naming a device or DeviceUser, where a 404 or 403 is
+	// about that resource rather than the delegation.
+	resourceCall bool
+	// delegationCheck is set on the delegation check, where any refusal is about the
+	// delegation.
+	delegationCheck bool
+}
+
+func (e *Error) Unwrap() error { return e.err }
+
+func (e *Error) Error() string {
+	return str.TruncateErrorResponse(e.message())
+}
+
+func (e *Error) message() string {
+	if apiErr, ok := errors.AsType[*googleapi.Error](e.err); ok {
+		if apiErr.Message != "" {
+			return apiErr.Message
+		}
+		// Without a JSON reason the body is a proxy page; don't show it.
+		return fmt.Sprintf("Google returned HTTP %d", apiErr.Code)
+	}
+	if tokenErr, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok {
+		return tokenErrorMessage(tokenErr)
+	}
+	if _, ok := errors.AsType[*http.MaxBytesError](e.err); ok || errors.Is(e.err, fleethttp.ErrMaxSizeExceeded) {
+		return "Google's response is too large"
+	}
+	if urlErr, ok := errors.AsType[*url.Error](e.err); ok {
+		return "request to Google failed: " + urlErr.Err.Error()
+	}
+	return e.err.Error()
+}
+
+func tokenErrorMessage(e *oauth2.RetrieveError) string {
+	code, desc := e.ErrorCode, e.ErrorDescription
+	if code == "" {
+		// The jwt token source leaves these empty.
+		var body struct {
+			Code        string `json:"error"`
+			Description string `json:"error_description"`
+		}
+		if json.Unmarshal(e.Body, &body) == nil {
+			code, desc = body.Code, body.Description
+		}
+	}
+	switch {
+	case code != "" && desc != "":
+		return code + ": " + desc
+	case code != "":
+		return code
+	case e.Response != nil:
+		return fmt.Sprintf("Google token request failed: HTTP %d", e.Response.StatusCode)
+	}
+	return "Google token request failed"
+}
+
+// IsNotFound reports a 404 on a call naming a device resource.
+func (e *Error) IsNotFound() bool {
+	if !e.resourceCall {
+		return false
+	}
+	apiErr, ok := errors.AsType[*googleapi.Error](e.err)
+	return ok && apiErr.Code == http.StatusNotFound
+}
+
+var _ fleet.NotFoundError = (*Error)(nil)
+
+// IsUnavailable reports a failure on Google's side or on the way to Google, as opposed to
+// settings or credentials Google rejects. Only a 4xx answer other than a 429 is a
+// rejection: the token source flattens a failed token request into a string, so a
+// failure without an answer can't be told apart by its cause.
+func (e *Error) IsUnavailable() bool {
+	status, answered := e.httpStatus()
+	return !answered || status >= http.StatusInternalServerError || status == http.StatusTooManyRequests
+}
+
+// httpStatus is the status of Google's answer, when it answered with an error.
+func (e *Error) httpStatus() (int, bool) {
+	if apiErr, ok := errors.AsType[*googleapi.Error](e.err); ok {
+		return apiErr.Code, true
+	}
+	if tokenErr, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok && tokenErr.Response != nil {
+		return tokenErr.Response.StatusCode, true
+	}
+	return 0, false
+}
+
+// IsUnavailable reports whether err is a Google call that failed on Google's side or on
+// the way there (a 5xx, a 429, a timeout or a dropped connection), so retrying later can
+// succeed with the same settings.
+func IsUnavailable(err error) bool {
+	u, ok := errors.AsType[interface {
+		error
+		IsUnavailable() bool
+	}](err)
+	return ok && u.IsUnavailable()
+}
+
+// IsStale reports a 404 or 403 on a call naming a DeviceUser or device: Google no longer
+// has it, or it is no longer in the customer's Workspace.
+func IsStale(err error) bool {
+	e, ok := errors.AsType[interface {
+		error
+		IsStale() bool
+	}](err)
+	return ok && e.IsStale()
+}
+
+// IsAuthError reports that Google refused the delegated token, its exchange, or the
+// delegation check, so no call can succeed until the customer fixes the delegation.
+func IsAuthError(err error) bool {
+	e, ok := errors.AsType[interface {
+		error
+		IsAuthError() bool
+	}](err)
+	return ok && e.IsAuthError()
+}
+
+func (e *Error) IsStale() bool {
+	if !e.resourceCall {
+		return false
+	}
+	apiErr, ok := errors.AsType[*googleapi.Error](e.err)
+	return ok && (apiErr.Code == http.StatusNotFound || apiErr.Code == http.StatusForbidden)
+}
+
+func (e *Error) IsAuthError() bool {
+	status, _ := e.httpStatus()
+	if status < http.StatusBadRequest || e.IsUnavailable() {
+		return false
+	}
+	if _, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok || e.delegationCheck {
+		// The token exchange refuses a bad subject, scope or signature, and the delegation
+		// check has nothing else to be refused for.
+		return true
+	}
+	// A 403 on a device resource can mean the device left the Workspace.
+	return status == http.StatusUnauthorized || (status == http.StatusForbidden && !e.resourceCall)
+}

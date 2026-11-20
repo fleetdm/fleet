@@ -234,7 +234,9 @@ describe("UserForm - component", () => {
     await user.tab();
 
     expect(
-      screen.getByText("Enter a password with at least 1 number and 1 symbol")
+      screen.getByText(
+        "Enter a password with at least 1 letter, 1 number, and 1 symbol"
+      )
     ).toBeInTheDocument();
   });
 

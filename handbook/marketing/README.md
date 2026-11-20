@@ -8,7 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------|:----------------------------------------------------------------------|
 | Product Marketing Manager | Allen Houchins <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
 | Marketing Coordinator | Irena Reedy <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
-| GTM Engineer | Eric Shaw <sup><sub> See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#website-group) </sup></sub>
+| GTM Engineer | Eric Shaw <sup><sub> See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#first-impressions) </sup></sub>
 | VP of Security Solutions | Dhruv Majumdar <sup><sub> See [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success#team) </sup></sub>
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
@@ -18,6 +18,10 @@ This handbook page details processes specific to working [with](#contact-us) and
 - To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.)
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
+- To **request content**, like a guide, article, blog post, or sales collateral, [create an issue with the `:mktg-content` label](https://github.com/fleetdm/confidential/issues/new?labels=%3Amktg-content&title=Content%20request%3A+) in the fleetdm/confidential repository. In the issue, include:
+  - **What you need:** the type of content, the topic, who it's for, and any source material or examples.
+  - **When you need it by:** the date, and what it's for (for example, a customer meeting or an event).
+  - Any Fleet team member can track content requests on the [Content planning board](https://github.com/orgs/fleetdm/projects/114).
 
 
 ### Press boilerplate text
@@ -100,6 +104,11 @@ The Marketing department is directly responsible for achieving revenue pipeline�
 Before each group call, copy the attendees from the "Let's get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
 On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
+
+
+### Route a non-ICP prospect to "Let's get you set up!"
+
+When a prospect is not an ICP fit (for example, an organization with only a few dozen hosts), send them to the "Let's get you set up!" group office hours instead of booking time with sales: [https://calendly.com/fleetdm/chat](https://calendly.com/fleetdm/chat)
 
 
 ### Monitor the #help-marketing Slack channel

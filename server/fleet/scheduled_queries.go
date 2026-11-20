@@ -3,7 +3,6 @@ package fleet
 import (
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -16,8 +15,8 @@ type ScheduledQuery struct {
 	ID          uint   `json:"id"`
 	PackID      uint   `json:"pack_id" db:"pack_id"`
 	Name        string `json:"name"`
-	QueryID     uint   `json:"query_id" renameto:"report_id" db:"query_id"`
-	QueryName   string `json:"query_name" renameto:"report_name" db:"query_name"`
+	QueryID     uint   `json:"report_id" db:"query_id"`
+	QueryName   string `json:"report_name" db:"query_name"`
 	Query       string `json:"query"` // populated via a join on queries
 	Description string `json:"description,omitempty"`
 	// Interval specifies query frequency, in seconds.
@@ -60,7 +59,7 @@ type PackStats struct {
 	//	- "global" is the type of the global pack.
 	//	- "team-$ID" is returned for team packs.
 	Type       string                `json:"type"`
-	QueryStats []ScheduledQueryStats `json:"query_stats" renameto:"report_stats"`
+	QueryStats []ScheduledQueryStats `json:"report_stats"`
 }
 
 type AggregatedStats struct {
@@ -73,7 +72,7 @@ type AggregatedStats struct {
 
 type ScheduledQueryPayload struct {
 	PackID   *uint     `json:"pack_id"`
-	QueryID  *uint     `json:"query_id" renameto:"report_id"`
+	QueryID  *uint     `json:"report_id" removedkey:"query_id"`
 	Interval *uint     `json:"interval"`
 	Snapshot *bool     `json:"snapshot"`
 	Removed  *bool     `json:"removed"`
@@ -84,10 +83,10 @@ type ScheduledQueryPayload struct {
 }
 
 type ScheduledQueryStats struct {
-	ScheduledQueryName string `json:"scheduled_query_name,omitempty" renameto:"scheduled_report_name" db:"scheduled_query_name"`
-	ScheduledQueryID   uint   `json:"scheduled_query_id,omitempty" renameto:"scheduled_report_id" db:"scheduled_query_id"`
+	ScheduledQueryName string `json:"scheduled_report_name,omitempty" db:"scheduled_query_name"`
+	ScheduledQueryID   uint   `json:"scheduled_report_id,omitempty" db:"scheduled_query_id"`
 
-	QueryName   string `json:"query_name,omitempty" renameto:"report_name" db:"query_name"`
+	QueryName   string `json:"report_name,omitempty" db:"query_name"`
 	Description string `json:"description,omitempty" db:"description"`
 
 	PackName string `json:"pack_name,omitempty" db:"pack_name"`
@@ -110,82 +109,4 @@ type ScheduledQueryStats struct {
 	WallTime uint64 `json:"wall_time" db:"wall_time"`
 	// WallTimeMs should always be hidden (0-value) in the Fleet API response since it does not map to a field in the DB.
 	WallTimeMs uint64 `json:"wall_time_ms,omitempty"`
-}
-
-func ScheduledQueryFromQuery(query *Query) *ScheduledQuery {
-	var (
-		snapshot *bool
-		removed  *bool
-	)
-	if query.Logging == "" || query.Logging == "snapshot" { //nolint:gocritic // ignore ifElseChain
-		snapshot = ptr.Bool(true)
-		removed = ptr.Bool(false)
-	} else if query.Logging == "differential" {
-		snapshot = ptr.Bool(false)
-		removed = ptr.Bool(true)
-	} else { // query.Logging == "differential_ignore_removals"
-		snapshot = ptr.Bool(false)
-		removed = ptr.Bool(false)
-	}
-	return &ScheduledQuery{
-		ID:              query.ID,
-		Name:            query.Name,
-		QueryID:         query.ID,
-		QueryName:       query.Name,
-		Query:           query.Query,
-		Description:     query.Description,
-		Interval:        query.Interval,
-		Snapshot:        snapshot,
-		Removed:         removed,
-		Platform:        &query.Platform,
-		Version:         &query.MinOsqueryVersion,
-		AggregatedStats: query.AggregatedStats,
-	}
-}
-
-func ScheduledQueryToQueryPayloadForNewQuery(originalQuery *Query, scheduledQuery *ScheduledQuery) QueryPayload {
-	logging := ptr.String(LoggingSnapshot) // default is snapshot.
-	if scheduledQuery.Snapshot != nil && scheduledQuery.Removed != nil {
-		if *scheduledQuery.Snapshot { //nolint:gocritic // ignore ifElseChain
-			logging = ptr.String(LoggingSnapshot)
-		} else if *scheduledQuery.Removed {
-			logging = ptr.String(LoggingDifferential)
-		} else {
-			logging = ptr.String(LoggingDifferentialIgnoreRemovals)
-		}
-	}
-	return QueryPayload{
-		Name:               &originalQuery.Name,
-		Description:        &originalQuery.Description,
-		Query:              &originalQuery.Query,
-		ObserverCanRun:     &originalQuery.ObserverCanRun,
-		TeamID:             originalQuery.TeamID,
-		Interval:           &scheduledQuery.Interval,
-		Platform:           scheduledQuery.Platform,
-		MinOsqueryVersion:  scheduledQuery.Version,
-		AutomationsEnabled: ptr.Bool(true),
-		Logging:            logging,
-	}
-}
-
-// NOTE(lucas): payload.Snapshot and payload.Removed must both be set in order to
-// change the logging behavior of a scheduled query.
-// Document this API change.
-func ScheduledQueryPayloadToQueryPayloadForModifyQuery(payload ScheduledQueryPayload) QueryPayload {
-	var logging *string
-	if payload.Snapshot != nil && payload.Removed != nil {
-		if *payload.Snapshot { //nolint:gocritic // ignore ifElseChain
-			logging = ptr.String(LoggingSnapshot)
-		} else if *payload.Removed {
-			logging = ptr.String(LoggingDifferential)
-		} else {
-			logging = ptr.String(LoggingDifferentialIgnoreRemovals)
-		}
-	}
-	return QueryPayload{
-		Interval:          payload.Interval,
-		Platform:          payload.Platform,
-		MinOsqueryVersion: payload.Version,
-		Logging:           logging,
-	}
 }

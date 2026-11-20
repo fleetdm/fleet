@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -18,11 +17,9 @@ import (
 	"testing"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -72,7 +69,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		}
 	}
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	ce := &CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -149,7 +146,7 @@ func TestHTTPPreAuthMiddlewareRunsBeforeDecode(t *testing.T) {
 		}
 	}
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	ce := (&CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -194,7 +191,7 @@ func TestMultipartTempFilesRemovedAfterRequest(t *testing.T) {
 	for _, decodeErr := range []error{nil, errors.New("bad form")} {
 		var spooled int
 		var flushable bool
-		r := mux.NewRouter()
+		r := NewRouter()
 		ce := &CommonEndpointer[testHandlerFunc]{
 			EP: nopEP{},
 			MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -268,7 +265,7 @@ func TestHTTPPreAuthMiddlewarePassThrough(t *testing.T) {
 		}
 	}
 
-	r := mux.NewRouter()
+	r := NewRouter()
 	ce := (&CommonEndpointer[testHandlerFunc]{
 		EP: nopEP{},
 		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
@@ -303,107 +300,6 @@ func TestHTTPPreAuthMiddlewarePassThrough(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.True(t, decodeCalled, "decoder must run when pre-auth passes through")
 	assert.True(t, authCalled, "auth middleware must run when pre-auth passes through")
-}
-
-func TestRegisterDeprecatedPathAliases(t *testing.T) {
-	// Set up a router and register a primary endpoint via CommonEndpointer.
-	r := mux.NewRouter()
-	registry := NewHandlerRegistry()
-	versions := []string{"v1", "2022-04"}
-
-	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req any) (any, error) {
-			if authctx, ok := authz_ctx.FromContext(ctx); ok {
-				authctx.SetChecked()
-			}
-			return next(ctx, req)
-		}
-	}
-
-	ce := &CommonEndpointer[testHandlerFunc]{
-		EP: nopEP{},
-		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
-			return func(ctx context.Context, r *http.Request) (request any, err error) {
-				return nopRequest{}, nil
-			}
-		},
-		EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
-			w.WriteHeader(http.StatusOK)
-			return nil
-		},
-		AuthMiddleware:  authMiddleware,
-		Router:          r,
-		Versions:        versions,
-		HandlerRegistry: registry,
-	}
-
-	// Register the primary endpoint.
-	ce.GET("/api/_version_/fleet/fleets", func(ctx context.Context, request any) (platform_http.Errorer, error) {
-		return nopResponse{}, nil
-	}, nil)
-
-	// Register a deprecated alias for it.
-	RegisterDeprecatedPathAliases(r, versions, registry, []DeprecatedPathAlias{
-		{
-			Method:          "GET",
-			PrimaryPath:     "/api/_version_/fleet/fleets",
-			DeprecatedPaths: []string{"/api/_version_/fleet/teams"},
-		},
-	})
-
-	s := httptest.NewServer(r)
-	t.Cleanup(s.Close)
-
-	// Both the primary and deprecated paths should return 200.
-	for _, path := range []string{"/api/v1/fleet/fleets", "/api/v1/fleet/teams", "/api/latest/fleet/teams"} {
-		resp, err := http.Get(s.URL + path)
-		require.NoError(t, err)
-		resp.Body.Close()
-		require.Equal(t, http.StatusOK, resp.StatusCode, "path %s should return 200", path)
-	}
-}
-
-func TestLogDeprecatedPathAlias(t *testing.T) {
-	// Without deprecated path info in context, LogDeprecatedPathAlias is a no-op.
-	lc := &logging.LoggingContext{}
-	ctx := logging.NewContext(context.Background(), lc)
-	ctx2 := LogDeprecatedPathAlias(ctx, nil)
-	require.Equal(t, ctx, ctx2, "should return same context when no deprecated path info")
-	require.Empty(t, lc.Extras)
-
-	// With deprecated path info, it should set warn level and extras.
-	ctx = context.WithValue(ctx, deprecatedPathInfoKey{}, deprecatedPathInfo{
-		deprecatedPath: "/api/_version_/fleet/teams",
-		primaryPath:    "/api/_version_/fleet/fleets",
-	})
-	LogDeprecatedPathAlias(ctx, nil)
-
-	// Extras is a flat []interface{} of key-value pairs.
-	require.Len(t, lc.Extras, 4) // "deprecated_path", value, "deprecation_warning", value
-	require.Equal(t, "deprecated_path", lc.Extras[0])
-	require.Equal(t, "/api/_version_/fleet/teams", lc.Extras[1])
-	require.Equal(t, "deprecation_warning", lc.Extras[2])
-	require.Contains(t, lc.Extras[3], "deprecated")
-
-	// ForceLevel should be set to Warn.
-	require.NotNil(t, lc.ForceLevel)
-	require.Equal(t, slog.LevelWarn, *lc.ForceLevel)
-}
-
-func TestRegisterDeprecatedPathAliasesPanicsOnMissing(t *testing.T) {
-	r := mux.NewRouter()
-	registry := NewHandlerRegistry()
-	versions := []string{"v1"}
-
-	require.Panics(t, func() {
-		RegisterDeprecatedPathAliases(r, versions, registry, []DeprecatedPathAlias{
-			{
-				Method:          "GET",
-				PrimaryPath:     "/api/_version_/fleet/nonexistent",
-				DeprecatedPaths: []string{"/api/_version_/fleet/old"},
-			},
-		})
-	})
 }
 
 func defaultJSONUnmarshal(body io.Reader, req any) error {
@@ -752,7 +648,7 @@ func TestMakeEndpointRequestSizeOverride(t *testing.T) {
 			platform_http.EndpointRequestSizeOverrides = c.overrides
 
 			var limitPassed int64
-			r := mux.NewRouter()
+			r := NewRouter()
 			ce := &CommonEndpointer[testHandlerFunc]{
 				EP: nopEP{},
 				MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {

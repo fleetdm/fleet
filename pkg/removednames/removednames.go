@@ -7,16 +7,17 @@ import (
 )
 
 // GuideURL is the Fleet 5 migration guide that every removal message links to.
-const GuideURL = "https://fleetdm.com/learn-more-about/fleet-5-migration"
+const GuideURL = "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 
 // pathPrefix is the start of every KindPath entry. Entries keep it so they are full paths, and messages for removed endpoints drop it.
+// A path outside the Fleet API has its own full path and shows it in full.
 const pathPrefix = "/api/_version_/fleet"
 
 // Kind is the kind of thing a removed name was.
 type Kind string
 
 const (
-	KindPath          Kind = "path"           // URL path template, starting with /api/_version_/fleet
+	KindPath          Kind = "path"           // URL path template, starting with /api/_version_/fleet (or a full path outside the Fleet API)
 	KindQueryParam    Kind = "query_param"    // URL query parameter
 	KindJSONKey       Kind = "json_key"       // key in a JSON request or response body
 	KindFormField     Kind = "form_field"     // multipart form field
@@ -66,7 +67,7 @@ type Entry struct {
 }
 
 // Message returns the error message for the removed name, for example
-// `The "team_id" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`.
+// `The "team_id" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`.
 func (e Entry) Message() string {
 	if e.Format == nil {
 		return defaultFormat(e.Kind).Message(e)

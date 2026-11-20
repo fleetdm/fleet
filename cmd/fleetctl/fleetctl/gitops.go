@@ -19,7 +19,7 @@ import (
 
 const (
 	filenameMaxLength           = 255
-	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s to set VPP apps\n"
+	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for fleet %s to set VPP apps\n"
 )
 
 type LabelUsage struct {
@@ -186,7 +186,7 @@ func gitopsCommand() *cli.Command {
 			if appConfig.License.IsPremium() {
 				teams, err := fleetClient.ListTeams("")
 				if err != nil {
-					return fmt.Errorf("getting teams: %w", err)
+					return fmt.Errorf("getting fleets: %w", err)
 				}
 				for _, tm := range teams {
 					teamIDLookup[tm.Name] = &tm.ID
@@ -221,9 +221,9 @@ func gitopsCommand() *cli.Command {
 						if err != nil {
 							return fmt.Errorf("marshaling software for unassigned hosts: %w", err)
 						}
-						syntheticSoftwareByTeam[fleet.TeamNameNoTeam] = raw
-						teamsSoftwareInstallers[fleet.TeamNameNoTeam] = installers
-						teamsVPPApps[fleet.TeamNameNoTeam] = vppApps
+						syntheticSoftwareByTeam[fleet.DisplayNameNoTeam] = raw
+						teamsSoftwareInstallers[fleet.DisplayNameNoTeam] = installers
+						teamsVPPApps[fleet.DisplayNameNoTeam] = vppApps
 					}
 				}
 				for teamName, teamID := range teamIDLookup {
@@ -232,14 +232,14 @@ func gitopsCommand() *cli.Command {
 					}
 					softwareMap, installers, vppApps, err := generateSoftwareForValidation(fleetClient, appConfig, *teamID)
 					if err != nil {
-						return fmt.Errorf("getting software for team %q: %w", teamName, err)
+						return fmt.Errorf("getting software for fleet %q: %w", teamName, err)
 					}
 					if softwareMap == nil {
 						continue
 					}
 					raw, err := json.Marshal(softwareMap)
 					if err != nil {
-						return fmt.Errorf("marshaling software for team %q: %w", teamName, err)
+						return fmt.Errorf("marshaling software for fleet %q: %w", teamName, err)
 					}
 					syntheticSoftwareByTeam[teamName] = raw
 					teamsSoftwareInstallers[teamName] = installers
@@ -282,7 +282,7 @@ func gitopsCommand() *cli.Command {
 				configFile := ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig}
 
 				if !isGlobalConfig && !appConfig.License.IsPremium() {
-					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
+					logf("[!] skipping fleet config %s since fleets are only supported for premium Fleet users\n", flFilename)
 					continue
 				}
 				if isGlobalConfig {
@@ -309,7 +309,7 @@ func gitopsCommand() *cli.Command {
 						existingLabels = globalLabels
 					} else {
 						if existingLabels, err = fleetClient.GetLabels(*teamID); err != nil {
-							return fmt.Errorf("getting team '%s' labels: %w", teamName, err)
+							return fmt.Errorf("getting fleet '%s' labels: %w", teamName, err)
 						}
 					}
 				}
@@ -329,22 +329,23 @@ func gitopsCommand() *cli.Command {
 				return fmt.Errorf("global config must be provided alongside %s", noTeamFilename)
 			}
 
-			// Fail fast if two YAML files in this run resolve to the same
-			// team name under MySQL's utf8mb4_unicode_ci collation.
+			// Fail fast if two YAML files in this run have the same fleet name
+			// key. Pairs that conflict only under the teams.name collation are
+			// caught by the server.
 			seenTeamNames := make(map[string]string, len(configs)) // key -> filename
 			for _, cf := range configs {
-				if cf.IsGlobalConfig || cf.Config.TeamName == nil {
+				// Unassigned is fleet 0, not a named fleet. The server rejects fleet names that match it.
+				if cf.IsGlobalConfig || cf.Config.TeamName == nil || cf.Config.IsNoTeam() {
 					continue
 				}
-				name := strings.TrimSpace(*cf.Config.TeamName)
-				key := norm.NFC.String(strings.ToLower(name))
+				key := fleet.TeamNameKey(*cf.Config.TeamName)
 				if key == "" {
 					continue
 				}
 				if prev, ok := seenTeamNames[key]; ok {
 					return fmt.Errorf(
-						"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Fleet names must differ by more than letter case.",
-						prev, cf.Filename,
+						"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. %s",
+						prev, cf.Filename, fleet.TeamNameConflictHint,
 					)
 				}
 				seenTeamNames[key] = cf.Filename
@@ -661,7 +662,7 @@ func gitopsCommand() *cli.Command {
 				if ms := config.Controls.MacOSSetup; ms != nil && ms.MacOSSetupAssistant.Value != "" {
 					switch {
 					case config.TeamName == nil || config.IsNoTeam():
-						setupAssistantFleets[fleet.TeamNameNoTeam] = 0
+						setupAssistantFleets[fleet.DisplayNameNoTeam] = 0
 					case config.TeamID != nil:
 						setupAssistantFleets[norm.NFC.String(*config.TeamName)] = *config.TeamID
 					}
@@ -745,15 +746,15 @@ func gitopsCommand() *cli.Command {
 							return fmt.Errorf("apple_business fleet %s cannot be deleted", team.Name)
 						}
 						if slices.Contains(vppTeams, team.Name) {
-							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
+							return fmt.Errorf("volume_purchasing_program fleet %s cannot be deleted", team.Name)
 						}
 						if windowsEnrollmentDefaultFleet != "" && norm.NFC.String(team.Name) == windowsEnrollmentDefaultFleet {
 							return fmt.Errorf("windows_automatic_enrollment default_fleet %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
-							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted fleet %s\n", team.Name)
 						} else {
-							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting team %s\n", team.Name)
+							_, _ = fmt.Fprintf(c.App.Writer, "[-] deleting fleet %s\n", team.Name)
 							if err := fleetClient.DeleteTeam(team.ID); err != nil {
 								return err
 							}
@@ -767,7 +768,7 @@ func gitopsCommand() *cli.Command {
 			// mean that other teams are not present.
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
-				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
+				defaultNoTeamConfig.TeamName = new(fleet.DisplayNameNoTeam)
 				_, err := fleetClient.DoGitOps(
 					c.Context,
 					defaultNoTeamConfig,
@@ -1454,7 +1455,7 @@ func applyWindowsEnrollmentAssignmentIfNeeded(
 		return err
 	}
 	if _, ok := knownTeams[norm.NFC.String(defaultFleet)]; !ok {
-		return fmt.Errorf("windows_automatic_enrollment default_fleet %q not found in team configs", defaultFleet)
+		return fmt.Errorf("windows_automatic_enrollment default_fleet %q not found in fleet configs", defaultFleet)
 	}
 	if flDryRun {
 		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply Windows enrollment default fleet\n")
@@ -1495,13 +1496,9 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 									if teamStr, ok := team.(string); ok {
 										// normalize for Unicode support
 										normalizedTeam := norm.NFC.String(teamStr)
-										// Accept display name "All fleets" as equivalent to the internal "All teams"
-										if normalizedTeam == fleet.DisplayNameAllTeams {
-											normalizedTeam = fleet.TeamNameAllTeams
-										}
 										vppTeams = append(vppTeams, normalizedTeam)
-										// ListTeams doesn't return "No team" or "All teams", so account for those special cases
-										if _, ok := teamNames[normalizedTeam]; !ok && normalizedTeam != fleet.TeamNameNoTeam && normalizedTeam != fleet.TeamNameAllTeams {
+										// ListTeams doesn't return Unassigned or All fleets, and the server rejects the old names of those.
+										if _, ok := teamNames[normalizedTeam]; !ok && !fleet.IsReservedTeamName(normalizedTeam) {
 											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}
@@ -1534,7 +1531,7 @@ func applyVPPTokenAssignmentIfNeeded(
 			continue
 		}
 		if _, ok := knownTeams[norm.NFC.String(vppTeam)]; !ok {
-			return fmt.Errorf("volume_purchasing_program team %s not found in team configs", vppTeam)
+			return fmt.Errorf("volume_purchasing_program fleet %s not found in fleet configs", vppTeam)
 		}
 	}
 
@@ -1545,12 +1542,12 @@ func applyVPPTokenAssignmentIfNeeded(
 	}
 
 	if flDryRun {
-		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply volume_purchasing_program teams\n")
+		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply volume_purchasing_program fleets\n")
 		return nil
 	}
-	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying volume_purchasing_program teams\n")
+	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying volume_purchasing_program fleets\n")
 	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
-		return fmt.Errorf("applying fleet config for volume_purchasing_program teams: %w", err)
+		return fmt.Errorf("applying fleet config for volume_purchasing_program fleets: %w", err)
 	}
 	return nil
 }

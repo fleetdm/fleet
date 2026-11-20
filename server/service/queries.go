@@ -26,7 +26,7 @@ func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err != nil {
 		return fleet.GetQueryResponse{Err: err}, nil
 	}
-	return fleet.GetQueryResponse{Query: query, Report: query}, nil
+	return fleet.GetQueryResponse{Report: query}, nil
 }
 
 func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -275,7 +275,7 @@ func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return fleet.CreateQueryResponse{Err: err}, nil
 	}
-	return fleet.CreateQueryResponse{Query: query, Report: query}, nil
+	return fleet.CreateQueryResponse{Report: query}, nil
 }
 
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
@@ -411,7 +411,7 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return fleet.ModifyQueryResponse{Err: err}, nil
 	}
-	return fleet.ModifyQueryResponse{Query: query, Report: query}, nil
+	return fleet.ModifyQueryResponse{Report: query}, nil
 }
 
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
@@ -421,12 +421,6 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
-	return svc.modifyLoadedQuery(ctx, query, p)
-}
-
-// modifyLoadedQuery is ModifyQuery for callers that already hold the query,
-// so the schedule endpoints don't load it a second time to scope-check it.
-func (svc *Service) modifyLoadedQuery(ctx context.Context, query *fleet.Query, p fleet.QueryPayload) (*fleet.Query, error) {
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(query.ID), "get query to modify")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return nil, err
@@ -588,12 +582,6 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return ctxerr.Wrap(ctx, err, "lookup query by ID")
 	}
-	return svc.deleteLoadedQuery(ctx, query)
-}
-
-// deleteLoadedQuery is DeleteQueryByID for callers that already hold the
-// query, so the schedule endpoints don't load it a second time.
-func (svc *Service) deleteLoadedQuery(ctx context.Context, query *fleet.Query) error {
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Report").WithID(query.ID), "lookup query by ID")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, query, fleet.ActionWrite, notFoundErr); err != nil {
 		return err

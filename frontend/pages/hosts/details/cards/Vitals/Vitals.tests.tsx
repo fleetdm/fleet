@@ -915,7 +915,7 @@ describe("Disk encryption data", () => {
       enabled: true,
       status: "On",
       message:
-        "The disk is encrypted. If recently turned on, encryption could take awhile.",
+        "The disk is encrypted. If recently turned on, encryption could take a while.",
     },
   ])(
     "renders the $platform '$status' tooltip without forced line breaks",
@@ -1032,7 +1032,7 @@ describe("Agent data", () => {
 });
 
 describe("Last restarted vital", () => {
-  it.each(["darwin", "windows", "ubuntu"])(
+  it.each(["darwin", "windows", "ubuntu", "chrome"])(
     "renders Last restarted for supported platform: %s",
     (platform) => {
       const mockHost = createMockHost({
@@ -1046,7 +1046,7 @@ describe("Last restarted vital", () => {
     }
   );
 
-  it.each(["chrome", "ios", "ipados", "android"])(
+  it.each(["ios", "ipados", "android"])(
     "does not render Last restarted for unsupported platform: %s",
     (platform) => {
       const mockHost = createMockHost({

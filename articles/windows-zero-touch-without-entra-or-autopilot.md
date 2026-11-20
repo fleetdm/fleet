@@ -60,6 +60,8 @@ Changes you make to the fleet in Step 1, like adding software, apply to every ne
 6. Windows signs them out. They sign in with their new password.
 7. Windows offers to set up a Windows Hello PIN.
 
+> **Note:** A Windows password that matches the end user's IdP password is coming soon. Today, the end user chooses a new password at point 5 above.
+
 Setup takes a few minutes, depending on how much software you add.
 
 ## Further reading
@@ -67,6 +69,7 @@ Setup takes a few minutes, depending on how much software you add.
 - [Autopilot without Autopilot: zero-touch Windows deployment with Fleet](https://fleetdm.com/articles/autopilot-without-autopilot)
 - [Preinstall Fleet's agent on Windows with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package)
 - [Windows and Linux setup experience](https://fleetdm.com/guides/windows-linux-setup-experience)
+- [Provision Windows devices with Fleet, Okta, and a partner](https://fleetdm.com/guides/provision-windows-devices-with-fleet-okta-and-a-partner)
 
 <meta name="articleTitle" value="Windows zero touch without Entra or Autopilot">
 <meta name="authorFullName" value="Luke Heath">

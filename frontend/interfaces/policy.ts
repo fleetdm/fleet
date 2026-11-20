@@ -25,6 +25,17 @@ export default PropTypes.shape({
 
 export type OtherAutomationType = "webhook" | "ticket";
 
+/** A policy's one automation, as the policy endpoints name it. */
+export type PolicyAutomationType =
+  | "conditional_access"
+  | "software"
+  | "script"
+  | "configuration_profile"
+  | "calendar"
+  | "webhook_or_ticket";
+
+export type PolicyType = "dynamic" | "patch";
+
 export type TicketOrWebhookState = OtherAutomationType | "disabled";
 
 export interface IStoredPolicyResponse {
@@ -33,7 +44,6 @@ export interface IStoredPolicyResponse {
 
 export interface IPoliciesCountResponse {
   count: number;
-  inherited_policy_count?: number;
 }
 
 export type PolicyAutomationActivityStatus = "error" | "success";
@@ -67,8 +77,9 @@ export interface IPolicy {
   updated_at: string;
   // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical: boolean;
-  calendar_events_enabled: boolean;
-  conditional_access_enabled: boolean;
+  /** Only in host policy lists; the policy endpoints return `automation_type`. */
+  calendar_events_enabled?: boolean;
+  conditional_access_enabled?: boolean;
   /** Hidden from end users in Fleet Desktop. Absent on device (My device) policies. */
   hidden?: boolean;
   type: string;
@@ -80,6 +91,7 @@ export interface IPolicy {
   patch_when_closed?: boolean;
   notify_before_patching?: boolean;
   patch_deadline?: boolean;
+  automation_type?: PolicyAutomationType | null;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
@@ -106,7 +118,6 @@ export interface IPolicyStats extends IPolicy {
   passing_host_count: number;
   failing_host_count: number;
   host_count_updated_at: string;
-  webhook: string;
   has_run: boolean;
   next_update_ms: number;
 }
@@ -137,15 +148,6 @@ export interface ILoadAllPoliciesResponse {
   policies?: IPolicyStats[];
 }
 
-// Team policies API can return {}
-export interface ILoadTeamPoliciesResponse {
-  policies?: IPolicyStats[];
-}
-
-export interface ILoadTeamPolicyResponse {
-  policy: IPolicyStats;
-}
-
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
@@ -156,8 +158,6 @@ export interface IPolicyFormData {
   query?: string | number | boolean | undefined;
   fleet_id?: number | null;
   id?: number;
-  calendar_events_enabled?: boolean;
-  conditional_access_enabled?: boolean;
   hidden?: boolean;
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
@@ -176,9 +176,8 @@ export interface IPolicyFormData {
   labels_exclude_any?: string[];
   labels_exclude_all?: string[];
   /** Required for creating patch policy */
-  type?: "dynamic" | "patch";
-  /** Required for creating patch policy */
-  patch_software_title_id?: number;
+  type?: PolicyType;
+  automation_type?: PolicyAutomationType | null;
 }
 
 export interface IPolicyNew {

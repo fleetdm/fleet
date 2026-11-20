@@ -1,0 +1,1 @@
+- Host details **Actions** dropdown: Turn off MDM (Unenroll), Lock, Wipe, and Clear passcode now stay visible but disabled, with a tooltip explaining why, while the host is locked, wiped, or has a pending MDM command.
