@@ -20,6 +20,7 @@ module.exports = {
     connectionAlreadyExists: { description: 'The provided Google customer ID is already registered from another Origin.', statusCode: 409 },
     missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest' },
     invalidOriginHeader: { description: 'The Origin header is not an HTTPS URL.', responseType: 'badRequest' },
+    fleetInstanceNotOnAllowlist: {description: 'This Fleet instance is not on the allowlist.', responseType: 'unauthorized' }
   },
 
 
@@ -52,6 +53,10 @@ module.exports = {
       ) {
         throw 'invalidOriginHeader';
       }
+    }
+
+    if(!_.find(sails.config.custom.googleConditionalAccessAllowedOrigins, {fleetInstanceUrl: origin, googleCustomerId: googleCustomerId})) {
+      throw 'fleetInstanceNotOnAllowlist';
     }
 
     let fleetServerSecret = require('node:crypto').randomBytes(15).toString('hex');
