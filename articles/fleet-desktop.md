@@ -74,7 +74,6 @@ Fleet Desktop uses the same identity provider (IdP) as [end user authentication]
 
 End users sign in on your IdP's sign-in page, so your IdP's sign-in policy decides which multi-factor authentication (MFA) methods they can use.
 
-> Fleet hasn't confirmed yet that hardware security keys, like YubiKeys, work in the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). To follow along, see [#59329](https://github.com/fleetdm/fleet/issues/59329).
 
 To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
 On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
