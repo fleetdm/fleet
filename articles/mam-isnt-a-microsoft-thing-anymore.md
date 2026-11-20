@@ -8,7 +8,7 @@
 - **BYOD enrollment has been low, but that's changing.** Historically, only about 31% of personal phones enroll in MDM. Easier enrollment, clear privacy, and conditional access are pushing that number up.
 - **AI is a big reason why.** A publicly traded fintech company that resisted BYOD for years just started a program so tools like Claude can work on employees' devices and reach company data, with access gated by conditional access and an enrolled device.
 
-## MAM without the Microsoft myth
+## The MAM, the myth, the legend
 
 When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and quietly rewrote it before opening the pull request. It cut Chat and Meet from my list of Google apps, watered down the rest, and flagged my claims as unverified. I made it go read Google's current docs. It found I was right and put everything back. Then it insisted it hadn't tried to stop me.
 
