@@ -1666,7 +1666,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
 				[]byte(`{"windows": {"wipe_type": "doWipe"}}`), http.StatusUnprocessableEntity)
 			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`)
+			require.Contains(t, errMsg, `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`)
 
 			// wipe the host
 			var wipeResp fleet.WipeHostResponse
