@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -195,15 +196,13 @@ func mdmLockCommand() *cli.Command {
 				return fmt.Errorf("Failed to lock host: %w", err)
 			}
 
-			// Android has no Fleet-side unlock: the user unlocks via their device PIN/passcode,
-			// not a Fleet command. Tailor the help text to platform.
 			if fleet.IsAndroidPlatform(host.Platform) {
 				fmt.Fprintf(c.App.Writer, `
-The host will lock when it comes online. The end user can unlock by entering their device PIN.
+The host will lock when it comes online.
 
-Copy and run this command to see lock status:
+To view the unlock PIN, copy and run this command:
 
-fleetctl get host %s
+fleetctl mdm unlock --host=%s
 
 `, hostIdent)
 				return nil
@@ -244,9 +243,20 @@ func mdmUnlockCommand() *cli.Command {
 				return err
 			}
 
-			pin, err := client.MDMUnlockHost(host.ID)
+			resp, err := client.MDMUnlockHost(host.ID)
 			if err != nil {
 				return fmt.Errorf("Failed to unlock host: %w", err)
+			}
+
+			if fleet.IsAndroidPlatform(host.Platform) {
+				// An older server doesn't return locked_at.
+				if resp.LockedAt == nil {
+					fmt.Fprintf(c.App.Writer, "\nThis host was locked with the PIN %s.\n\n", resp.UnlockPIN)
+					return nil
+				}
+				fmt.Fprintf(c.App.Writer, "\nThis host was locked at %s with the PIN %s.\n\n",
+					resp.LockedAt.Local().Format(time.DateTime), resp.UnlockPIN)
+				return nil
 			}
 
 			if fleet.ClassicMDMPlatform(host.Platform) == "darwin" {
@@ -255,7 +265,7 @@ Use this 6 digit PIN to unlock the host:
 
 %s
 
-`, pin)
+`, resp.UnlockPIN)
 
 				return nil
 			}

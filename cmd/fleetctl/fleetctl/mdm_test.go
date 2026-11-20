@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
@@ -507,6 +508,15 @@ func TestMDMLockCommand(t *testing.T) {
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
 
+	androidEnrolled := testhost{
+		host: &fleet.Host{
+			ID:       16,
+			UUID:     "android-enrolled",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("On (personally owned)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
 	androidNotConnected := testhost{
 		host: &fleet.Host{
 			ID:       15,
@@ -533,6 +543,7 @@ func TestMDMLockCommand(t *testing.T) {
 		winEnrolledWP,
 		macEnrolledWP,
 		androidNotConnected,
+		androidEnrolled,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -552,7 +563,8 @@ func TestMDMLockCommand(t *testing.T) {
 		macEnrolledWP.host.ID: macEnrolledWP,
 	}
 
-	ds := setupTestServer(t)
+	androidModule := &fakeAndroidModule{}
+	ds := setupTestServerWithAndroid(t, androidModule)
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// custom ds mocks for these tests
@@ -683,6 +695,25 @@ fleetctl mdm unlock --host=%s
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
 
+	t.Run("android", func(t *testing.T) {
+		appCfgAndroid := &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfgAndroid, nil
+		}
+
+		buf, err := runAppNoChecks([]string{"mdm", "lock", "--host", androidEnrolled.host.UUID})
+		require.NoError(t, err)
+		require.Equal(t, `
+The host will lock when it comes online.
+
+To view the unlock PIN, copy and run this command:
+
+fleetctl mdm unlock --host=android-enrolled
+
+`, buf.String())
+		require.Equal(t, []uint{androidEnrolled.host.ID}, androidModule.lockedHostIDs)
+	})
+
 	t.Run("gitops user", func(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appCfgAllMDM, nil
@@ -805,6 +836,33 @@ func TestMDMUnlockCommand(t *testing.T) {
 		},
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
+	androidLocked := testhost{
+		host: &fleet.Host{
+			ID:       16,
+			UUID:     "android-locked",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("On (personally owned)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
+	androidLockPending := testhost{
+		host: &fleet.Host{
+			ID:       17,
+			UUID:     "android-lock-pending",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("On (personally owned)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
+	androidNeverLocked := testhost{
+		host: &fleet.Host{
+			ID:       18,
+			UUID:     "android-never-locked",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("On (personally owned)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
 	androidNotConnected := testhost{
 		host: &fleet.Host{
 			ID:       15,
@@ -831,6 +889,9 @@ func TestMDMUnlockCommand(t *testing.T) {
 		winEnrolledWP,
 		macEnrolledWP,
 		androidNotConnected,
+		androidLocked,
+		androidLockPending,
+		androidNeverLocked,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -995,6 +1056,54 @@ fleetctl get host %s
 	}
 
 	runTestCases(t, ds, "unlock", successfulOutput, cases)
+
+	t.Run("android", func(t *testing.T) {
+		lockedAt := time.Date(2026, 11, 20, 15, 4, 5, 0, time.UTC)
+		androidLockStatus := func() *fleet.HostLockWipeStatus {
+			return &fleet.HostLockWipeStatus{
+				HostFleetPlatform:    "android",
+				UnlockPIN:            "654321",
+				LockMDMCommand:       &fleet.MDMCommand{RequestType: string(android.MDMAndroidCommandTypeResetPassword)},
+				LockMDMCommandResult: &fleet.MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: lockedAt},
+			}
+		}
+		ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+			switch host.ID {
+			case androidLocked.host.ID:
+				return androidLockStatus(), nil
+			case androidLockPending.host.ID:
+				status := androidLockStatus()
+				status.LockMDMCommandResult = nil
+				return status, nil
+			default:
+				return &fleet.HostLockWipeStatus{HostFleetPlatform: "android"}, nil
+			}
+		}
+		appCfgAndroid := &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfgAndroid, nil
+		}
+
+		t.Run("locked", func(t *testing.T) {
+			buf, err := runAppNoChecks([]string{"mdm", "unlock", "--host", androidLocked.host.UUID})
+			require.NoError(t, err)
+			require.Equal(t,
+				fmt.Sprintf("\nThis host was locked at %s with the PIN 654321.\n\n", lockedAt.Local().Format(time.DateTime)),
+				buf.String())
+		})
+
+		t.Run("pending lock", func(t *testing.T) {
+			buf, err := runAppNoChecks([]string{"mdm", "unlock", "--host", androidLockPending.host.UUID})
+			require.ErrorContains(t, err, "Host has pending lock request.")
+			require.Empty(t, buf.String())
+		})
+
+		t.Run("never locked", func(t *testing.T) {
+			buf, err := runAppNoChecks([]string{"mdm", "unlock", "--host", androidNeverLocked.host.UUID})
+			require.ErrorContains(t, err, "Host is already unlocked.")
+			require.Empty(t, buf.String())
+		})
+	})
 }
 
 func TestMDMWipeCommand(t *testing.T) {
@@ -1506,8 +1615,23 @@ func TestMDMClearPasscodeCommand(t *testing.T) {
 	}
 }
 
+// fakeAndroidModule stubs the Android service for the lock and unlock commands.
+type fakeAndroidModule struct {
+	android.Service
+	lockedHostIDs []uint
+}
+
+func (f *fakeAndroidModule) LockAndroidHost(_ context.Context, hostID uint) (string, error) {
+	f.lockedHostIDs = append(f.lockedHostIDs, hostID)
+	return "123456", nil
+}
+
 // sets up the test server with the mock datastore and returns the mock datastore
 func setupTestServer(t *testing.T) *mock.Store {
+	return setupTestServerWithAndroid(t, nil)
+}
+
+func setupTestServerWithAndroid(t *testing.T, androidModule android.Service) *mock.Store {
 	enqueuer := new(mdmmock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
@@ -1529,6 +1653,7 @@ func setupTestServer(t *testing.T) *mock.Store {
 		MDMPusher:        testing_utils.MockPusher{},
 		License:          license,
 		NoCacheDatastore: true,
+		AndroidModule:    androidModule,
 	})
 
 	return ds
@@ -1536,6 +1661,12 @@ func setupTestServer(t *testing.T) *mock.Store {
 
 // sets up common data store mocks that are needed for the tests.
 func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[uint]testhost) {
+	ds.GetHostMDMAndroidProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostCertificateTemplate, error) {
+		return nil, nil
+	}
 	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 		h, ok := hostByUUID[identifier]
 		if !ok {
