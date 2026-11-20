@@ -65,11 +65,11 @@ const WipeModal = ({
         {isWindowsHost && (
           <>
             <p>
-              Wipe lost or stolen hosts. To use the host again, you will need to
+              Wipe lost or stolen hosts. To use the host again, you may need to
               reinstall the OS.
             </p>
             <p>
-              To repurpose the host for another user, use{" "}
+              To repurpose the host for another end user, use{" "}
               <b>Actions &gt; Reset</b>.
             </p>
           </>

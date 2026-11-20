@@ -1270,7 +1270,8 @@ func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return fleet.WipeHostResponse{Err: err}, nil
 	}
-	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
+	// WipeHost refuses a locked or wiped host. A wipe queued behind an acknowledged reset is reported as unlocked here too,
+	// although getting the host shows its reset status.
 	return fleet.WipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 

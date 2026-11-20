@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 )
@@ -453,7 +454,7 @@ func (svc *Service) ResetHost(ctx context.Context, hostID uint) error {
 
 	// Tracked through host_mdm_actions.wipe_ref like a wipe: the Windows MDM result handler and the re-enrollment check
 	// for a host whose hardware ID is already enrolled both rely on it, and MDM re-enrollment clears it.
-	cmd := newWindowsRemoteWipeCommand(fleet.WindowsRemoteWipePersistProvisionedData)
+	cmd := microsoft_mdm.RemoteWipeCmd(fleet.WindowsRemoteWipePersistProvisionedData)
 	if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, cmd); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing reset request for windows")
 	}
@@ -465,16 +466,6 @@ func (svc *Service) ResetHost(ctx context.Context, hostID uint) error {
 		return ctxerr.Wrap(ctx, err, "create activity for reset host request")
 	}
 	return nil
-}
-
-// newWindowsRemoteWipeCommand builds an Exec of the given RemoteWipe CSP node.
-func newWindowsRemoteWipeCommand(node string) *fleet.MDMWindowsCommand {
-	cmdUUID := uuid.NewString()
-	return &fleet.MDMWindowsCommand{
-		CommandUUID:  cmdUUID,
-		RawCommand:   fmt.Appendf(nil, windowsWipeCommand, cmdUUID, node),
-		TargetLocURI: fleet.WindowsRemoteWipeLocURI(node),
-	}
 }
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus, viewPIN bool) (
@@ -639,7 +630,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		}
 
 	case "windows":
-		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, newWindowsRemoteWipeCommand(fleet.WindowsRemoteWipeProtected)); err != nil {
+		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, microsoft_mdm.RemoteWipeCmd(fleet.WindowsRemoteWipeProtected)); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for windows")
 		}
 
@@ -954,21 +945,6 @@ var (
 	linuxUnlockScript []byte
 	//go:embed embedded_scripts/linux_wipe.sh
 	linuxWipeScript []byte
-
-	windowsWipeCommand = `
-		<Exec>
-			<CmdID>%s</CmdID>
-			<Item>
-				<Target>
-					<LocURI>./Device/Vendor/MSFT/RemoteWipe/%s</LocURI>
-				</Target>
-				<Meta>
-					<Format xmlns="syncml:metinf">chr</Format>
-					<Type>text/plain</Type>
-				</Meta>
-				<Data></Data>
-			</Item>
-		</Exec>`
 )
 
 func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
