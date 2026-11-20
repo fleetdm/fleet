@@ -2,17 +2,19 @@
 
 _Available in Fleet Premium_
 
-Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [scripts](https://fleetdm.com/guides/scripts), [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or [managed app configurations](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) (iOS, iPadOS, and Android). 
+Variables let you use one script, configuration profile, or managed app configuration across many hosts. Fleet fills in the right value for each host.
 
-You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (prefixed with `$FLEET_SECRET_`) to define your own key-value pairs. 
+Fleet has three types of variables:
 
-To store a different value per host, create [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (prefixed with `$FLEET_HOST_VITAL_`).
+- [Built-in variables](#built-in-variables) (`$FLEET_VAR_`): values Fleet already knows, like the host's serial number or the end user's IdP username.
+- [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_`): values you define once and share across all hosts, like an API token. Fleet hides their values in the UI and API.
+- [Custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_`): fields you define, with a different value for each host, like an asset tag.
 
-Each variable type works in different places. See [Where variables work](#where-variables-work).
+Each type works in different places. Learn more in [Where variables work](#where-variables-work).
 
 For macOS configuration profiles, you can also use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) in [Automated Certificate Management Environment (ACME)](https://developer.apple.com/documentation/devicemanagement/acmecertificate), [Simple Certificate Enrolment Protocol (SCEP)](https://developer.apple.com/documentation/devicemanagement/scep), or [VPN](https://developer.apple.com/documentation/devicemanagement/vpn) payloads.
 
-When the variable's value changes, Fleet automatically resends configuration profiles and managed app configurations to the hosts they apply to. For scripts, variables are resolved at execution time.
+Scripts use a variable's current value each time they run. When a value changes, Fleet resends the configuration profiles and managed app configurations that use it. Resending Windows profiles when a custom variable changes is [coming soon](https://github.com/fleetdm/fleet/issues/44852).
 
 ## Built-in variables
 
