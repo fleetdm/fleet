@@ -40,11 +40,11 @@ Each configuration enrolls hosts to one fleet. To enroll hosts to more than one 
 
 The device's configuration in the zero-touch portal at first boot determines its fleet. Only one configuration can be the default for new devices.
 
-## Step 4: Register test devices
+## Step 4: Register devices
 
 Normally, only an authorized reseller can register devices in the zero-touch portal. 
 
-In order to test zero-touch enrollment with devices you already own:
+You can also register devices you already own:
 1. If you haven't already, in the [zero-touch portal](https://enterprise.google.com/android/zero-touch/customers), add **OEM Test Reseller** as a reseller in the **Resellers** tab by navigating to **Other resellers**, finding **OEM Test Reseller**, then hitting **Enroll**.
 2. Submit [Google's device registration form](https://docs.google.com/forms/d/1zQGYyNcK1B5Q2FGF3b95Oqvs9dSAIW-lmQc_nCcc7Y8/viewform?edit_requested=true) with the device's IMEI or serial number and **OEM Test Reseller** as the Reseller. From there, apply your configuration as described above.
 
@@ -53,6 +53,18 @@ In order to test zero-touch enrollment with devices you already own:
 After a device is factory reset or unboxed and connected to a network: The device enrolls to Fleet and appears on the **Hosts** page in the fleet you picked in Step 1.
 
 > Zero-touch enrollment doesn't support [end-user authentication (EUA)](https://fleetdm.com/guides/setup-experience#end-user-authentication). There's no browser-based identity provider (IdP) sign-in during zero-touch provisioning, so IdP variables in certificates won't work on these hosts.
+
+## Allow only zero-touch enrollments
+
+To make sure only company-owned devices you bought can enroll, turn on **Allow only zero-touch enrollments** in **Settings > Organization settings > Advanced options**. This setting applies to all fleets.
+
+When it's on:
+
+- Devices can only enroll through zero-touch.
+- Hosts that are already enrolled stay enrolled.
+- The enrollment page doesn't show a QR code for company-owned devices or a link to add a work profile on personal devices.
+
+If someone wipes a company-owned device that isn't registered in the zero-touch portal, they can't re-enroll it with a QR code. To enroll it, [register the device in the zero-touch portal](#step-4-register-devices) or turn the setting off.
 
 ## Troubleshoot
 
