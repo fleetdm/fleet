@@ -1112,6 +1112,7 @@ import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
+import Windscribe from "./png/Windscribe.png";
 import Windsurf from "./png/Windsurf.png";
 import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
@@ -2326,6 +2327,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
+  windscribe: Windscribe,
   windsurf: Windsurf,
   winlogbeat: Winlogbeat,
   winrar: Winrar,
