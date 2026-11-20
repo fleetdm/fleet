@@ -12,7 +12,7 @@
 #   category: required. A category slug from the list above.
 #   description: required. Shown on the integration's page.
 #   summary: required. One line, shown on the card in the directory.
-#   logo: required. A file in website/assets/images/, 28px tall at 2x, with a transparent background. Name it logo-{name}-{width}x28@2x.png.
+#   logo: required. A file in website/assets/images/, at least 24px tall at 2x, with a transparent background. Name it logo-{name}-{width}x{height}@2x.png.
 #   vendorUrl: optional. Link to the vendor's site.
 #   docs: optional. A list of links, each with a label and url.
 #   alsoListedIn: optional. Extra category slugs to list the integration under.
@@ -85,7 +85,7 @@ integrations:
     category: "identity-provider"
     description: "Duo is a multi-factor authentication (MFA) and access platform. Configure Fleet as a Duo SSO application so your team signs in with existing corporate credentials. Use Fleet's conditional access so Duo blocks sign-in from macOS, Windows, and Linux hosts that aren't managed by Fleet."
     summary: "Sign in to Fleet with Duo, and block sign-in from hosts that aren’t managed by Fleet."
-    logo: "logo-duo-93x47@2x.png"
+    logo: "logo-duo-87x28@2x.png"
     vendorUrl: "https://duo.com/"
     docs:
       - label: "Conditional access: Duo"
