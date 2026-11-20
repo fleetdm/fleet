@@ -276,6 +276,10 @@ Deleting the integration in Fleet doesn't unmark devices. They stay marked as ma
 
 Before Fleet 4.96, this guide registered hosts with a **Register with Google** bookmark in Chrome. You can still use it, for example to register iPhones and iPads that don't have the Gmail configuration from [Step 5](#step-5-set-up-iphones-and-ipads).
 
+The bookmark doesn't send device traffic to fleetdm.com, so use it if you don't want device traffic going there. The only traffic to fleetdm.com is from your Fleet server, once, when you connect Google.
+
+In Fleet 4.96, the bookmark needs Google connected in Fleet ([Steps 1 to 4](#step-1-set-up-google-workspace)). Fleet uses the service account to check that each Google device ID is a real device in Google, and to store the device's Google Workspace accounts instead of only its ID. Google can give the same device a different device ID over its lifetime, so storing only the ID could miss marking it as managed.
+
 How it works:
 
 1. Fleet installs Google Chrome on each managed device with a **Register with Google** bookmark. The bookmark's link includes the host's UUID in Fleet.
