@@ -24,7 +24,9 @@ Currently, the macOS versions of these apps are Apple Silicon-only rather than u
 
 ### Windows
 
-Windows apps are x64, so they run on both x64 and Arm hosts. On Arm, Windows 11 runs x64 apps through its built-in emulator, Prism. [Learn more](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation).
+Most Windows apps are x64. On Arm hosts, Windows 11 runs them through its built-in emulator, Prism. [Learn more](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation).
+
+Some apps also have an Arm version, marked "(ARM64)" in the name, for example "Docker Desktop (ARM64)". These only install on Arm hosts.
 
 Fleet installs Windows apps for all users (machine scope) when the app supports it. Otherwise, Fleet installs the app for the signed-in user. If more than one user is signed in, Fleet installs the app for one of them.
 
