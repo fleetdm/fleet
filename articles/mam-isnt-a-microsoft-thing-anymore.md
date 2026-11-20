@@ -55,7 +55,7 @@ Compare that with modern MDM, on iOS for example, where an employee simply opens
 
 This way, work apps and data live in their own space on the phone, and IT can't see personal apps, photos, or messages. When the employee leaves, the work side goes away and the personal side stays.
 
-![Signing in to a work account from Settings on a personal iPhone](../website/assets/images/articles/ios-byod-account-driven-user-enrollment-375x667@2x.png)
+![Signing in to a work account from Settings on a personal iPhone](../website/assets/images/articles/ios-byod-account-driven-user-enrollment-206x200@2x.png)
 
 Android is just as quick. The employee opens Fleet's enrollment page, taps **Enroll**, and Android sets up a work profile that keeps work apps separate from personal ones.
 
