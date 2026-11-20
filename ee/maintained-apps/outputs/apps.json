@@ -9795,6 +9795,13 @@
       "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
     },
     {
+      "name": "Windscribe",
+      "slug": "windscribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Windscribe",
+      "description": "Windscribe is a VPN client that encrypts network traffic and blocks ads and trackers."
+    },
+    {
       "name": "Windsurf",
       "slug": "windsurf/windows",
       "platform": "windows",
