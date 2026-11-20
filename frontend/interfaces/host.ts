@@ -257,6 +257,11 @@ export interface IHostMdmData {
   wipe_allowed?: boolean;
   lock_allowed?: boolean;
   clear_passcode_allowed?: boolean;
+  /**
+   * Android only; only populated by host details. True when Fleet has a stored
+   * unlock PIN the host acknowledged and no lock/unenroll/wipe/clear passcode is pending.
+   */
+  unlock_pin_available?: boolean;
 }
 
 export interface IHostMaintenanceWindow {

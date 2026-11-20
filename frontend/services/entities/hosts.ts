@@ -89,6 +89,8 @@ export type IUnlockHostResponse =
   | {
       host_id: number;
       unlock_pin: string;
+      locked_at?: string;
+      device_status?: string;
     }
   | Record<string, never>;
 
