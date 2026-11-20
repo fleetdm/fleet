@@ -73,9 +73,9 @@ curl -X PUT https://<your-fleet-url>/api/v1/fleet/hosts/<host_id>/custom_host_vi
   -d '{"value": "C02XL0Zerato"}'
 ```
 
-## Reference a custom host vital in scripts and configuration profiles
+## Reference a custom host vital
 
-Reference the vital by its variable anywhere in a script or configuration profile. When Fleet sends the script or profile to a host, it replaces `$FLEET_HOST_VITAL_<id>` with that host's value.
+Reference the vital by its variable, for example in a script or configuration profile. To see everywhere you can use it, go to [Where variables work](https://fleetdm.com/guides/fleet-variables#where-variables-work). When Fleet sends the script, profile, or other item to a host, it replaces `$FLEET_HOST_VITAL_<id>` with that host's value.
 
 For example, a configuration profile that writes the host's asset tag (defined as `$FLEET_HOST_VITAL_1`):
 
@@ -131,5 +131,5 @@ See [GitOps labels](https://fleetdm.com/docs/configuration/yaml-files#labels) fo
 <meta name="authorGitHubUsername" value="nulmete">
 <meta name="authorFullName" value="Nicolás Ulmete">
 <meta name="publishedOn" value="2026-07-15">
-<meta name="articleTitle" value="Use custom host vitals in scripts and configuration profiles">
-<meta name="description" value="Define custom host fields, set a value per host, and use them as variables in scripts and configuration profiles.">
+<meta name="articleTitle" value="Custom host vitals">
+<meta name="description" value="Define custom host fields, set a value per host, and use them as variables across your hosts.">
