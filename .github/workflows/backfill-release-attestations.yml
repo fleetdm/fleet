@@ -1,0 +1,189 @@
+name: Backfill Release Attestations
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/backfill-release-attestations.yml
+  workflow_dispatch:
+    inputs:
+      num_releases:
+        description: "Number of releases to process (default: 5)"
+        required: false
+        default: "5"
+        type: string
+      dry_run:
+        description: "Dry run mode (don't upload)"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  backfill-attestations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Determine release count
+        id: config
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            NUM_RELEASES="${{ github.event.inputs.num_releases }}"
+            DRY_RUN="${{ github.event.inputs.dry_run }}"
+          else
+            NUM_RELEASES="5"
+            DRY_RUN="true"
+          fi
+          echo "num_releases=$NUM_RELEASES" >> $GITHUB_OUTPUT
+          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
+
+      - name: Backfill attestations for existing releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUM_RELEASES: ${{ steps.config.outputs.num_releases }}
+          DRY_RUN: ${{ steps.config.outputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          REPO="${{ github.repository }}"
+          WORK_DIR=$(mktemp -d)
+          trap "rm -rf $WORK_DIR" EXIT
+
+          echo "Working directory: $WORK_DIR"
+          echo "Repository: $REPO"
+          echo "Release count: $NUM_RELEASES"
+          echo "Dry run: $DRY_RUN"
+          echo ""
+
+          # Get the last N releases
+          echo "Fetching last $NUM_RELEASES releases..."
+          RELEASES=$(gh release list --repo "$REPO" --limit "$NUM_RELEASES" --json tagName --jq '.[].tagName')
+
+          UPLOAD_COUNT=0
+          SKIP_COUNT=0
+          FAILED_COUNT=0
+
+          for TAG in $RELEASES; do
+            echo "================================"
+            echo "Processing release: $TAG"
+            echo "================================"
+
+            # Check if attestations already exist on this release
+            EXISTING_ATTESTATIONS=$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[] | select(.name | endswith(".intoto.jsonl")) | .name' || echo "")
+
+            if [[ -n "$EXISTING_ATTESTATIONS" ]]; then
+              echo "✓ Attestations already exist on this release:"
+              echo "$EXISTING_ATTESTATIONS"
+              SKIP_COUNT=$((SKIP_COUNT + 1))
+              continue
+            fi
+
+            # Create a temporary directory for this release
+            RELEASE_DIR="$WORK_DIR/$TAG"
+            mkdir -p "$RELEASE_DIR"
+            cd "$RELEASE_DIR"
+
+            # Get all assets from this release (prioritize smaller files for faster download)
+            ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[] | select(.size < 5000000) | .name' | head -5)
+
+            if [[ -z "$ASSETS" ]]; then
+              # If no small files, try checksums or any file
+              ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[] | .name' | grep -E "(checksums|SBOM|provenance)" | head -1)
+            fi
+
+            if [[ -z "$ASSETS" ]]; then
+              # Fall back to first asset
+              ASSETS=$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[0] | .name')
+            fi
+
+            if [[ -z "$ASSETS" ]]; then
+              echo "✗ No assets found for $TAG"
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+              continue
+            fi
+
+            ATTESTATION_DOWNLOADED=false
+
+            # Try to download attestation for the first asset
+            for ASSET in $ASSETS; do
+              echo "  Attempting to get attestation for: $ASSET"
+
+              # Download the asset
+              if ! gh release download "$TAG" --repo "$REPO" --pattern "$ASSET" --dir . 2>/dev/null; then
+                echo "    ⊘ Failed to download asset"
+                continue
+              fi
+
+              # Try to get its attestation
+              if gh attestation download "$ASSET" --repo "$REPO" 2>/dev/null; then
+                echo "    ✓ Attestation found for $ASSET"
+                ATTESTATION_DOWNLOADED=true
+
+                # Rename to standard .intoto.jsonl format for Scorecard
+                ATTESTATION_FILE=$(ls -1 sha256:*.jsonl 2>/dev/null | head -1)
+                if [[ -n "$ATTESTATION_FILE" ]]; then
+                  # Use a release-specific name
+                  NEW_NAME="${TAG#fleet-}.intoto.jsonl"
+                  mv "$ATTESTATION_FILE" "$NEW_NAME"
+                  echo "    ✓ Renamed to: $NEW_NAME"
+                  echo "    ✓ File size: $(du -h "$NEW_NAME" | cut -f1)"
+
+                  # Upload to release
+                  if [[ "$DRY_RUN" == "true" ]]; then
+                    echo "    [DRY RUN] Would upload attestation to release"
+                  else
+                    echo "    Uploading attestation to release..."
+                    if gh release upload "$TAG" "$NEW_NAME" --repo "$REPO" --clobber; then
+                      echo "    ✓ Successfully uploaded attestation"
+                      UPLOAD_COUNT=$((UPLOAD_COUNT + 1))
+                    else
+                      echo "    ✗ Failed to upload attestation"
+                      FAILED_COUNT=$((FAILED_COUNT + 1))
+                    fi
+                  fi
+                fi
+                break
+              fi
+
+              # Clean up downloaded asset
+              rm -f "$ASSET"
+            done
+
+            if [[ "$ATTESTATION_DOWNLOADED" == false ]]; then
+              echo "✗ Could not find attestation for any asset in $TAG"
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+            fi
+
+            cd - > /dev/null
+            echo ""
+          done
+
+          echo "================================"
+          echo "Summary"
+          echo "================================"
+          echo "Attestations uploaded: $UPLOAD_COUNT"
+          echo "Attestations skipped (already exist): $SKIP_COUNT"
+          echo "Attestations failed: $FAILED_COUNT"
+          echo "Total releases processed: $(echo "$RELEASES" | wc -w)"
+          echo ""
+
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "This was a dry run. To actually upload attestations, trigger the workflow"
+            echo "manually with workflow_dispatch and set dry_run to false."
+          else
+            echo "✓ Attestations have been uploaded to releases"
+            echo "Next steps:"
+            echo "1. Wait a few minutes for Scorecard to pick up the changes"
+            echo "2. Re-run Scorecard to see updated Signed-Releases score"
+          fi
+
+          if [[ $FAILED_COUNT -gt 0 ]]; then
+            echo ""
+            echo "⚠ Some releases failed. This may be normal if they don't have attestations."
+            exit 0
+          fi
