@@ -97,6 +97,19 @@ describe("getInstallErrorMessage", () => {
     );
   });
 
+  it("prefers the expiration message when the token name contains a later branch's trigger phrase", () => {
+    const result = getInstallErrorMessage(
+      makeErr(
+        `Couldn't install. VPP token "fleetd installed inc" is expired. Please renew it and try again.`
+      )
+    );
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain("is expired");
+    expect(container.textContent).toContain(
+      "Settings > Integration > Volume Purchasing Program"
+    );
+  });
+
   it("returns default message for unknown errors", () => {
     const result = getInstallErrorMessage(makeErr("something unexpected"));
     expect(result).toBe("Couldn't install. Please try again.");

@@ -66,14 +66,17 @@ const showAPIMessage = (message: string) => {
 export const getInstallErrorMessage = (e: unknown) => {
   const reason = upperFirst(trimEnd(getErrorReason(e), "."));
 
+  // Check VPP expiration first so a token whose location happens to contain a
+  // later branch's trigger phrase (fleetd installed, can be installed only on)
+  // still gets the Settings guidance and token-name surfacing.
+  if (isVPPTokenExpiredReason(reason)) {
+    return createVPPTokenExpiredMessage(reason);
+  }
   if (reason.includes("fleetd installed")) {
     return `${INSTALL_SOFTWARE_ERROR_PREFIX}. ${reason}.`;
   }
   if (reason.includes("can be installed only on")) {
     return createOnlyInstallableOnMacOSMessage(reason);
-  }
-  if (isVPPTokenExpiredReason(reason)) {
-    return createVPPTokenExpiredMessage(reason);
   }
   if (
     reason.includes("unresolvable Fleet variable in managed app configuration")
