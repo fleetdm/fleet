@@ -200,6 +200,7 @@ import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import UnlockModal from "./modals/UnlockModal";
+import ViewUnlockPinModal from "./modals/ViewUnlockPinModal";
 import WipeModal from "./modals/WipeModal";
 
 const baseClass = "host-details";
@@ -346,6 +347,7 @@ const HostDetailsPage = ({
   );
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
+  const [showViewUnlockPinModal, setShowViewUnlockPinModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
@@ -1418,6 +1420,9 @@ const HostDetailsPage = ({
       case "unlock":
         setShowUnlockHostModal(true);
         break;
+      case "viewUnlockPin":
+        setShowViewUnlockPinModal(true);
+        break;
       case "wipe":
         setShowWipeModal(true);
         break;
@@ -1489,6 +1494,7 @@ const HostDetailsPage = ({
         wipeAllowed={host.mdm.wipe_allowed}
         lockAllowed={host.mdm.lock_allowed}
         clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
+        unlockPinAvailable={host.mdm.unlock_pin_available}
       />
     );
   };
@@ -2512,6 +2518,7 @@ const HostDetailsPage = ({
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
+              hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               onSuccess={() => {
                 setHostMdmDeviceState("locking");
                 setShowLocationModal(false);
@@ -2533,6 +2540,16 @@ const HostDetailsPage = ({
                   setHostMdmDeviceState("unlocking");
               }}
               onClose={() => setShowUnlockHostModal(false)}
+            />
+          )}
+          {showViewUnlockPinModal && (
+            <ViewUnlockPinModal
+              id={host.id}
+              onClose={() => {
+                setShowViewUnlockPinModal(false);
+                // viewing the PIN logs a viewed_host_unlock_pin activity
+                refetchPastActivities();
+              }}
             />
           )}
           {showWipeModal && (
