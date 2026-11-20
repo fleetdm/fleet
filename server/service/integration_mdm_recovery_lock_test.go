@@ -1539,6 +1539,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		var resp getHostRecoveryLockPasswordResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", hostID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.RecoveryLockPassword)
+		status := getHostRecoveryLockStatus(hostID)
+		assert.True(t, status.PasswordAvailable, "a known recovery lock password should be available in host details")
 		return resp.RecoveryLockPassword
 	}
 
