@@ -12,6 +12,12 @@
     }
   }
 
+  &__automation {
+    display: flex;
+    flex-direction: column;
+    gap: $gap-form-component;
+  }
+
   &__page-header {
     display: flex;
     flex-direction: column;

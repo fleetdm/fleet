@@ -98,19 +98,24 @@ wails3 generate bindings -clean=true -ts
   bakes in the picked fleet's enroll secret. If the server can't be read (down, expired token,
   untrusted certificate), or there's no context, the Fleet URL and secret are typed in instead.
   Packages land in `<file server directory>/packages/<context>/` when python http.server has a
-  directory set, so test machines can download them from it, else in `<server 1's repo>/packages/`
-  (gitignored). A context pointing at one of Hangar's servers builds with that server's own
-  `fleetctl`. The selected platforms build at the same time, one `fleetctl package` each, so a
-  full set takes about as long as the slowest `.msi`; each log line is tagged with its platform.
-  `.msi` builds need Docker.
+  directory set, and the tab's *Start sharing* runs that same python http.server (one folder and
+  port, set in Settings), with install commands per package. Without a directory they go in
+  `<server 1's repo>/packages/` (gitignored) and aren't shared, since python would serve the whole
+  repo. A context pointing at one of Hangar's servers builds with that server's own `fleetctl`.
+  The selected platforms build at the same time, one `fleetctl package` each, so a full set takes
+  about as long as the slowest `.msi`; each log line is tagged with its platform. `.msi` builds
+  need Docker.
 - **Mock APNs.** osquery-perf won't start simulated macOS hosts that can enroll in MDM, or any
-  iOS/iPadOS host, without a mock APNs server (`--mdm_apns_url`). Turning on *Mock APNs* for a
-  server (Settings → Fleet server) runs `cmd/apple-apns-mock` from server 1's clone on that
-  server's Redis as part of Start all, and points `fleet serve` at it through
-  `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL`. Fleet reads that only at startup, so the Server tab asks
-  for a restart when the running serve doesn't match. While it's on, real Apple devices enrolled
-  in that server get no pushes. See
-  [the mock's design doc](../../docs/Contributing/mdm/apple/apple-apns-mock.md).
+  iOS/iPadOS host, without a mock APNs server (`--mdm_apns_url`). The osquery-perf tab's *Mock
+  APNs* card runs one for the run's target server: `cmd/apple-apns-mock` from server 1's clone, on
+  that server's Redis. Start stays off until that clone has the mock, the Redis answers `PING` and
+  the port is free, so it can't start into an immediate exit. A `fleet serve` started while the
+  mock runs pushes to it through `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL`; Fleet reads that only at
+  startup, so starting the mock restarts a running serve, and the Server tab offers a restart
+  after it stops. Fleet sends every Apple push to that one URL, so while serve pushes to the mock,
+  real Apple devices on that server get none. Start all doesn't start it, and its card is on the
+  Server tab only while it runs. See [the mock's design
+  doc](../../docs/Contributing/mdm/apple/apple-apns-mock.md).
 
 ## Versioning
 

@@ -31,7 +31,7 @@ import {
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 import { mapAutomationRows } from "pages/policies/components";
-import { getTicketOrWebhookInfo } from "pages/policies/helpers";
+import { getTicketOrWebhookState } from "pages/policies/helpers";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import PATHS from "router/paths";
 import policiesAPI from "services/entities/policies";
@@ -44,7 +44,6 @@ import { addGravatarUrlToResource } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
 
 import PolicyAutomationsActivitiesTable from "../components/PolicyAutomationsActivitiesTable";
-import PolicyAutomationsModal from "../components/PolicyAutomationsModal";
 import PolicyLabelModal, {
   IPolicyLabelModalProps,
 } from "../components/PolicyLabelModal";
@@ -139,7 +138,6 @@ const PolicyDetailsPage = ({
 
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
-  const [showAutomationsModal, setShowAutomationsModal] = useState(false);
 
   if (policyId === null || isNaN(policyId)) {
     router.push(PATHS.MANAGE_POLICIES);
@@ -176,10 +174,7 @@ const PolicyDetailsPage = ({
 
   const labelModalData = storedPolicy ? getLabelModalData(storedPolicy) : null;
 
-  const {
-    state: ticketOrWebhookState,
-    policyIds: currentAutomatedPolicies,
-  } = getTicketOrWebhookInfo(
+  const ticketOrWebhookState = getTicketOrWebhookState(
     storedPolicy?.fleet_id == null ? config ?? undefined : teamData?.fleet
   );
   const otherAutomationType: OtherAutomationType | undefined =
@@ -318,59 +313,61 @@ const PolicyDetailsPage = ({
     );
   };
 
-  const openAutomationsModal = () => setShowAutomationsModal(true);
+  const renderAutomation = () => {
+    const [automation] = storedPolicy
+      ? mapAutomationRows(storedPolicy, otherAutomationType)
+      : [];
+    if (!storedPolicy || !automation) {
+      return (
+        <DataSet
+          className={`${baseClass}__automations`}
+          title="Automation"
+          value={DEFAULT_EMPTY_CELL_VALUE}
+        />
+      );
+    }
 
-  const renderAutomations = () => {
-    const emptyState = (
-      <DataSet
-        className={`${baseClass}__automations`}
-        title="Automations"
-        value={DEFAULT_EMPTY_CELL_VALUE}
-      />
-    );
+    const isScriptGraphic =
+      automation.graphicName === "file-sh" ||
+      automation.graphicName === "file-ps1" ||
+      automation.graphicName === "file-configuration-profile";
+    // Continuous automations only change how software and script automations
+    // run.
+    const isContinuous =
+      !!storedPolicy.continuous_automations_enabled &&
+      (storedPolicy.automation_type === "software" ||
+        storedPolicy.automation_type === "script");
 
-    if (!storedPolicy) return emptyState;
-
-    const automations = mapAutomationRows(
-      storedPolicy,
-      currentAutomatedPolicies,
-      otherAutomationType
-    );
-    if (!automations.length) return emptyState;
-
-    const firstAutomation = automations[0];
     return (
       <DataSet
-        className={`${baseClass}__automations${
-          automations.length > 1 ? ` ${baseClass}__automations--multi` : ""
-        }`}
-        title="Automations"
+        className={`${baseClass}__automations`}
+        title="Automation"
         value={
           <>
-            {firstAutomation.isSoftware ? (
+            {automation.isSoftware ? (
               <SoftwareIcon
-                name={firstAutomation.iconName ?? firstAutomation.name}
-                url={firstAutomation.iconUrl}
+                name={automation.iconName ?? automation.name}
+                url={automation.iconUrl}
                 size="small"
               />
             ) : (
-              firstAutomation.graphicName && (
+              automation.graphicName && (
                 <Graphic
-                  name={firstAutomation.graphicName}
-                  className={
-                    firstAutomation.graphicName === "file-sh" ||
-                    firstAutomation.graphicName === "file-ps1" ||
-                    firstAutomation.graphicName === "file-configuration-profile"
-                      ? "scale-40-24"
-                      : ""
-                  }
+                  name={automation.graphicName}
+                  className={isScriptGraphic ? "scale-40-24" : ""}
                 />
               )
             )}
-            <TruncatedTextList
-              items={automations.map((a) => a.name)}
-              onClick={openAutomationsModal}
-            />
+            <span className={`${baseClass}__automation-name`}>
+              {automation.name}
+            </span>
+            {isContinuous && (
+              <span className={`${baseClass}__automation-continuous`}>
+                <TooltipWrapper tipContent="Runs every time Fleet receives a failing response, not only on a host's first failure.">
+                  Continuous
+                </TooltipWrapper>
+              </span>
+            )}
           </>
         }
       />
@@ -460,7 +457,7 @@ const PolicyDetailsPage = ({
                 {renderFleetName()}
                 {renderPlatforms()}
                 {renderLabels()}
-                {renderAutomations()}
+                {renderAutomation()}
                 {renderAuthor()}
               </div>
               {renderResolution()}
@@ -482,7 +479,6 @@ const PolicyDetailsPage = ({
         <PolicyAutomationsActivitiesTable
           policy={storedPolicy}
           initialSearchQuery={location.query.query}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           canResetPolicy={canEditPolicy}
         />
@@ -501,14 +497,6 @@ const PolicyDetailsPage = ({
           excludeScopeLabel={labelModalData.excludeScopeLabel}
           getLabelPath={canEditLabels ? PATHS.LABEL_EDIT : undefined}
           onClose={() => setShowLabelModal(false)}
-        />
-      )}
-      {showAutomationsModal && storedPolicy && (
-        <PolicyAutomationsModal
-          storedPolicy={storedPolicy}
-          currentAutomatedPolicies={currentAutomatedPolicies}
-          otherAutomationType={otherAutomationType}
-          onClose={() => setShowAutomationsModal(false)}
         />
       )}
     </MainContent>

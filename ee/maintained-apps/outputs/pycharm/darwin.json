@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.3",
+      "version": "2026.3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm' AND version_compare(bundle_short_version, '2026.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm' AND version_compare(bundle_short_version, '2026.3.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.pycharm' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2026.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2026.3.0.1-aarch64.dmg",
       "install_script_ref": "4d7ac360",
       "uninstall_script_ref": "5e263570",
-      "sha256": "6a4ba27899d8ff6462bec0e84aa8251810d151215643ef36806cd47f9c89df32",
+      "sha256": "48247f627dcfb60e4ad09ca4b647b9ab49bf7cd2f6b25e3eef5b968b046ecc6c",
       "default_categories": [
         "Developer tools"
       ]

@@ -622,59 +622,8 @@ func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtC
 // the host row the enrollment landed on (a freshly inserted row is fine as
 // long as the bound host no longer exists).
 func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id uint, plane fleet.EnrollmentPlane, matchedHostID uint) error {
-	// consumed_at is written with the database clock, so the window is judged
-	// there too rather than against this server's clock.
-	var s struct {
-		fleet.HostOneTimeEnrollSecret
-		OutsideWindow bool `db:"outside_window"`
-	}
-	err := sqlx.GetContext(ctx, tx, &s,
-		`SELECT `+hostOneTimeEnrollSecretColumns+`,
-			(consumed_at IS NOT NULL AND consumed_at < NOW(6) - INTERVAL ? SECOND) AS outside_window
-		FROM host_one_time_enroll_secrets WHERE id = ? FOR UPDATE`,
-		int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow/time.Second), id)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		// Deleted between lookup and consumption (admin rotation or MDM reset).
-		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent}, "one-time enroll secret no longer exists")
-	case err != nil:
-		return ctxerr.Wrap(ctx, err, "lock one-time enroll secret")
-	}
-
-	if s.HostID != nil && *s.HostID != matchedHostID {
-		var boundExists bool
-		if err := sqlx.GetContext(ctx, tx, &boundExists, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = ?)`, *s.HostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "check bound host for one-time enroll secret")
-		}
-		if boundExists {
-			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: s.HostID},
-				"one-time enroll secret bound to another host")
-		}
-	}
-
-	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
-	// must not land on a host that another Windows MDM enrollment already claims, or on a host that isn't Windows: either is a
-	// different machine presenting this host's identifiers, and landing would rotate the real host's node key. The stored platform
-	// is what counts, since the agent's is self-reported.
-	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
-		var claimed bool
-		if err := sqlx.GetContext(ctx, tx, &claimed, `
-			SELECT EXISTS (
-				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
-			) OR EXISTS (
-				SELECT 1 FROM hosts WHERE id = ? AND platform NOT IN ('', 'windows')
-			)`, matchedHostID, *s.MDMWindowsEnrollmentID, matchedHostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
-		}
-		if claimed {
-			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
-				"one-time enroll secret landing on a host claimed by another windows mdm enrollment or not windows")
-		}
-	}
-
-	if s.UsedAt(plane) != nil || s.OutsideWindow {
-		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent, HostID: s.HostID}, "one-time enroll secret already used")
+	if err := checkHostOneTimeEnrollSecretDB(ctx, tx, id, plane, matchedHostID, true); err != nil {
+		return err
 	}
 
 	var column string
@@ -692,6 +641,70 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 		 SET `+column+` = NOW(6), consumed_at = COALESCE(consumed_at, NOW(6)), host_id = COALESCE(host_id, ?)
 		 WHERE id = ?`, matchedHostID, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "consume one-time enroll secret")
+	}
+	return nil
+}
+
+// checkHostOneTimeEnrollSecretDB returns an EnrollmentRejectedError when the one-time enroll secret may not enroll the plane
+// over matchedHostID. lock takes the row lock that consuming the secret needs.
+func checkHostOneTimeEnrollSecretDB(ctx context.Context, q sqlx.QueryerContext, id uint, plane fleet.EnrollmentPlane,
+	matchedHostID uint, lock bool,
+) error {
+	// consumed_at is written with the database clock, so the window is judged
+	// there too rather than against this server's clock.
+	var s struct {
+		fleet.HostOneTimeEnrollSecret
+		OutsideWindow bool `db:"outside_window"`
+	}
+	stmt := `SELECT ` + hostOneTimeEnrollSecretColumns + `,
+			(consumed_at IS NOT NULL AND consumed_at < NOW(6) - INTERVAL ? SECOND) AS outside_window
+		FROM host_one_time_enroll_secrets WHERE id = ?`
+	if lock {
+		stmt += ` FOR UPDATE`
+	}
+	err := sqlx.GetContext(ctx, q, &s, stmt, int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow/time.Second), id)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// Deleted between lookup and consumption (admin rotation or MDM reset).
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent}, "one-time enroll secret no longer exists")
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "load one-time enroll secret")
+	}
+
+	if s.HostID != nil && *s.HostID != matchedHostID {
+		var boundExists bool
+		if err := sqlx.GetContext(ctx, q, &boundExists, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = ?)`, *s.HostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check bound host for one-time enroll secret")
+		}
+		if boundExists {
+			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: s.HostID},
+				"one-time enroll secret bound to another host")
+		}
+	}
+
+	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
+	// must not land on a host that another Windows MDM enrollment already claims, or on a host that isn't Windows: either is a
+	// different machine presenting this host's identifiers, and landing would rotate the real host's node key. The stored platform
+	// is what counts, since the agent's is self-reported.
+	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
+		var claimed bool
+		if err := sqlx.GetContext(ctx, q, &claimed, `
+			SELECT EXISTS (
+				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
+			) OR EXISTS (
+				SELECT 1 FROM hosts WHERE id = ? AND platform NOT IN ('', 'windows')
+			)`, matchedHostID, *s.MDMWindowsEnrollmentID, matchedHostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
+		}
+		if claimed {
+			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
+				"one-time enroll secret landing on a host claimed by another windows mdm enrollment or not windows")
+		}
+	}
+
+	if s.UsedAt(plane) != nil || s.OutsideWindow {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent, HostID: s.HostID}, "one-time enroll secret already used")
 	}
 	return nil
 }

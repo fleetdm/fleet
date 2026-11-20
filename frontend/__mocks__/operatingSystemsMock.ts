@@ -5,9 +5,8 @@ import { createMockSoftwareVulnerability } from "./softwareMock";
 
 const DEFAULT_OS_VERSION: IOperatingSystemVersion = {
   os_version_id: 1,
-  name: "Mac OS X",
-  name_only: "Mac OS X",
-  version: "10.15.7",
+  os_name: "Mac OS X",
+  os_version: "10.15.7",
   platform: "darwin",
   hosts_count: 1,
   generated_cpes: ["cpe:/o:apple:mac_os_x:10.15.7"],
@@ -41,9 +40,8 @@ export const createMockOSVersionsResponse = (
 const DEFAULT_LINUX_OS_VERSION: IOperatingSystemVersion = {
   os_version_id: 3,
   hosts_count: 2,
-  name: "Ubuntu 24.04.1 LTS",
-  name_only: "Ubuntu",
-  version: "24.04.1 LTS",
+  os_name: "Ubuntu",
+  os_version: "24.04.1 LTS",
   platform: "ubuntu",
   generated_cpes: [],
   kernels: [

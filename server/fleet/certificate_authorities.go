@@ -986,6 +986,8 @@ type CertificateAuthoritiesBatchOperations struct {
 	Delete []*CertificateAuthority
 	Add    []*CertificateAuthority
 	Update []*CertificateAuthority
+	// DeleteCertificateTemplates deletes the certificate templates that use the deleted CAs with them.
+	DeleteCertificateTemplates bool
 }
 
 type SmallstepSCEPProxyCA struct {

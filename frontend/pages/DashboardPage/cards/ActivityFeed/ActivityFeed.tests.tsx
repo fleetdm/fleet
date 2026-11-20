@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import {
   activityHandlerHasMoreActivities,
   activityHandlerHasPreviousActivities,
+  defaultActivityHandler,
 } from "test/handlers/activity-handlers";
 import mockServer from "test/mock-server";
 import {
@@ -15,6 +16,10 @@ import {
 } from "test/test-utils";
 
 import ActivityFeed from "./ActivityFeed";
+
+beforeEach(() => {
+  mockServer.use(defaultActivityHandler);
+});
 
 describe("Activity Feed", () => {
   it("renders the correct number of activities", async () => {

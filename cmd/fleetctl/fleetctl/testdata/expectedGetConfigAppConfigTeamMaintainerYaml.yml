@@ -124,6 +124,7 @@ spec:
     discard_reports_data: false
     server_url: ""
     ai_features_disabled: false
+    ai_sessions_disabled: false
     mcp_disabled: false
   vulnerability_settings:
     databases_path: /some/path
@@ -135,7 +136,6 @@ spec:
       destination_url: ""
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""

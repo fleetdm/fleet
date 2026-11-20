@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.10.3",
+      "version": "26.11.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.trezor.TrezorSuite';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.trezor.TrezorSuite' AND version_compare(bundle_short_version, '26.10.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.trezor.TrezorSuite' AND version_compare(bundle_short_version, '26.11.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.trezor.TrezorSuite' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://data.trezor.io/suite/releases/desktop/latest/Trezor-Suite-26.10.3-mac-arm64.dmg",
+      "installer_url": "https://data.trezor.io/suite/releases/desktop/latest/Trezor-Suite-26.11.2-mac-arm64.dmg",
       "install_script_ref": "e530bba3",
       "uninstall_script_ref": "53e06e17",
-      "sha256": "d1e1bc3b597a800d4395ac152ee5445a8eadcb4c318e831a3227bbd49694d9a3",
+      "sha256": "23533d9f06c7c0bc78793d57ee274571f681cbb3952efc567bc37474888031de",
       "default_categories": [
         "Security"
       ]

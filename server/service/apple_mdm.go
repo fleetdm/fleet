@@ -2042,33 +2042,6 @@ func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint
 	return ps, nil
 }
 
-type listMDMAppleDevicesRequest struct{}
-
-type listMDMAppleDevicesResponse struct {
-	Devices []fleet.MDMAppleDevice `json:"devices"`
-	Err     error                  `json:"error,omitempty"`
-}
-
-func (r listMDMAppleDevicesResponse) Error() error { return r.Err }
-
-func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	devices, err := svc.ListMDMAppleDevices(ctx)
-	if err != nil {
-		return listMDMAppleDevicesResponse{Err: err}, nil
-	}
-	return &listMDMAppleDevicesResponse{
-		Devices: devices,
-	}, nil
-}
-
-func (svc *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDevice{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	return svc.ds.MDMAppleListDevices(ctx)
-}
-
 type mdmAppleEnrollRequest struct {
 	// Token is expected to be a UUID string that identifies a template MDM Apple enrollment profile.
 	Token string `query:"token"`
@@ -3059,7 +3032,7 @@ func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostProfilesRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type getHostProfilesResponse struct {
@@ -3072,11 +3045,14 @@ func (r getHostProfilesResponse) Error() error { return r.Err }
 
 func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostProfilesRequest)
-	sums, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID)
+	// GitOps users can't list hosts, so they can't look up an identifier. A host ID still works: the call gets it without a lookup.
+	sums, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+		return svc.MDMListHostConfigurationProfiles(ctx, hostID)
+	})
 	if err != nil {
 		return getHostProfilesResponse{Err: err}, nil
 	}
-	res := getHostProfilesResponse{Profiles: sums, HostID: req.ID}
+	res := getHostProfilesResponse{Profiles: sums, HostID: hostID}
 	if res.Profiles == nil {
 		res.Profiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
 	}
@@ -5279,7 +5255,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
 				// for app verification, we always request only managed apps
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.Identifier()}, cmdUUID, true); err != nil {
-					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+					// A failed push leaves the command queued, so it still needs to be associated with the install.
+					if _, pushFailed := errors.AsType[*apple_mdm.NotificationFailedError](err); !pushFailed {
+						return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+					}
+					svc.logger.ErrorContext(r.Context, "sending push notification for install verification", "host_uuid", cmdResult.Identifier(), "err", err)
 				}
 
 				// update the install record

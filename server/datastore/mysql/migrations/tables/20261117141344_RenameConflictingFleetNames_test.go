@@ -129,6 +129,31 @@ func TestUp_20261117141344(t *testing.T) {
 			after:  []string{" Lab", "Kiosks ", "Lab 2", "  Lab   3"},
 		},
 		{
+			name:   "reserved names",
+			before: []string{"Un-assigned", "All_fleets", "No-team", "all-teams", "unassigned", "Ünassigned 🚀", "ＡＬＬ　ＦＬＥＥＴＳ"},
+			after:  []string{"Un-assigned 2", "All_fleets 2", "No-team 2", "all-teams 2", "unassigned 3", "Ünassigned 🚀 4", "ＡＬＬ　ＦＬＥＥＴＳ 3"},
+		},
+		{
+			name:   "reserved name number taken",
+			before: []string{"Unassigned (2)", "Un-assigned", "UNASSIGNED 3"},
+			after:  []string{"Unassigned (2)", "Un-assigned 4", "UNASSIGNED 3"},
+		},
+		{
+			name:   "reserved name number taken under collation",
+			before: []string{"Unassigned 𝐀 2", "Unassigned 🚀"},
+			after:  []string{"Unassigned 𝐀 2", "Unassigned 🚀 3"},
+		},
+		{
+			name:   "reserved name shortened to fit",
+			before: []string{strings.Repeat("-", 245) + "Unassigned"},
+			after:  []string{strings.Repeat("-", 245) + "Unassign 2"},
+		},
+		{
+			name:   "near reserved names",
+			before: []string{"Unassigned 2", "Unassigned Macs", "Not assigned", "All fleet", "Fleets", "Team"},
+			after:  []string{"Unassigned 2", "Unassigned Macs", "Not assigned", "All fleet", "Fleets", "Team"},
+		},
+		{
 			name:   "nothing to rename",
 			before: []string{"Workstations", "Workstations 2", "Servers", "サーバー", "Fleet 🚀"},
 			after:  []string{"Workstations", "Workstations 2", "Servers", "サーバー", "Fleet 🚀"},
@@ -436,6 +461,62 @@ func TestUp_20261117141344(t *testing.T) {
 		applyNext(t, db)
 
 		require.Equal(t, []string{"Workstations", "workstations 2"}, fleetNames(t, db))
+		var got string
+		require.NoError(t, db.Get(&got, `SELECT json_value FROM app_config_json WHERE id = 1`))
+		assert.JSONEq(t, want, got)
+	})
+
+	t.Run("app config reserved names", func(t *testing.T) {
+		db := applyUpToPrev(t)
+
+		ids := insertFleets(t, db, []string{"Unassigned", "all-teams", "Workstations"})
+		unassigned, allTeams := ids[0], ids[1]
+
+		insertABM := func(org string, macOS, iOS any) {
+			execNoErr(t, db, `INSERT INTO abm_tokens
+				(organization_name, apple_id, renew_at, token, enrollment_url_token, macos_default_team_id, ios_default_team_id)
+				VALUES (?, 'abm@example.com', '2030-01-01', 'x', RPAD(?, 33, 'e'), ?, ?)`, org, org, macOS, iOS)
+		}
+		insertABM("Fleet named Unassigned", unassigned, allTeams)
+		insertABM("Hosts in no fleet", nil, nil)
+
+		insertVPP := func(location, nullTeamType string, fleetIDs ...int64) {
+			tokenID := execNoErrLastID(t, db,
+				`INSERT INTO vpp_tokens (organization_name, location, renew_at, token) VALUES ('Org', ?, '2030-01-01', 'x')`, location)
+			for _, id := range fleetIDs {
+				execNoErr(t, db, `INSERT INTO vpp_token_teams (vpp_token_id, team_id, null_team_type) VALUES (?, ?, 'none')`, tokenID, id)
+			}
+			if len(fleetIDs) == 0 {
+				execNoErr(t, db, `INSERT INTO vpp_token_teams (vpp_token_id, team_id, null_team_type) VALUES (?, NULL, ?)`, tokenID, nullTeamType)
+			}
+		}
+		insertVPP("Fleets", "", unassigned, allTeams)
+		insertVPP("Hosts in no fleet", "noteam")
+		insertVPP("All fleets", "allteams")
+
+		config := func(unassignedFleet, allTeamsFleet string) string {
+			var merged string
+			require.NoError(t, db.Get(&merged, `SELECT JSON_MERGE_PATCH(json_value, ?) FROM app_config_json WHERE id = 1`,
+				mustJSON(t, map[string]any{"mdm": map[string]any{
+					"apple_business": []any{
+						map[string]any{"organization_name": "Fleet named Unassigned", "macos_fleet": unassignedFleet, "ios_fleet": allTeamsFleet, "ipados_fleet": "", "byod_fleet": ""},
+						// On a token that isn't assigned to the renamed fleet, the name means hosts that aren't in a fleet.
+						map[string]any{"organization_name": "Hosts in no fleet", "macos_fleet": "Unassigned", "ios_fleet": "Unassigned", "ipados_fleet": "", "byod_fleet": ""},
+					},
+					"volume_purchasing_program": []any{
+						map[string]any{"location": "Fleets", "fleets": []string{unassignedFleet, allTeamsFleet}},
+						map[string]any{"location": "Hosts in no fleet", "fleets": []string{"Unassigned"}},
+						map[string]any{"location": "All fleets", "fleets": []string{"All fleets"}},
+					},
+				}})))
+			return merged
+		}
+		before, want := config("Unassigned", "all-teams"), config("Unassigned 2", "all-teams 2")
+		execNoErr(t, db, `UPDATE app_config_json SET json_value = ? WHERE id = 1`, before)
+
+		applyNext(t, db)
+
+		require.Equal(t, []string{"Unassigned 2", "all-teams 2", "Workstations"}, fleetNames(t, db))
 		var got string
 		require.NoError(t, db.Get(&got, `SELECT json_value FROM app_config_json WHERE id = 1`))
 		assert.JSONEq(t, want, got)

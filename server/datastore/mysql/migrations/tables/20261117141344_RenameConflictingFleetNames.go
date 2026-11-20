@@ -47,19 +47,25 @@ func fleetNameKey20261117141344(name string) string {
 	return key.String()
 }
 
+// reservedFleetNames20261117141344 is a frozen copy of the reserved fleet names, so this migration keeps renaming the
+// same fleets if that list changes later.
+var reservedFleetNames20261117141344 = []string{"Unassigned", "All fleets", "No team", "All teams"}
+
 type renamedFleet20261117141344 struct {
 	id      uint
 	oldName string
 	newName string
 }
 
-// Up_20261117141344 renames fleets that break the Fleet 5 name rules: a name needs at least one letter or number, and
-// must not match another fleet's name by name key or under the teams.name collation.
+// Up_20261117141344 renames fleets that break the Fleet 5 name rules: a name needs at least one letter or number, must
+// not match another fleet's name by name key or under the teams.name collation, and must not match a reserved fleet
+// name by name key.
 //
 // Fleets are processed in id order and each rename is written right away, so the teams table always holds the final
 // names of the fleets already processed and the current names of the rest. A fleet whose name has no letter or number is
 // numbered from 1. A fleet that matches a name an earlier fleet ended up with is numbered from 2, so the oldest fleet
-// keeps its name. A number is skipped if the result would match any name in the table.
+// keeps its name. A fleet that matches a reserved name is also numbered from 2, including a fleet named "Unassigned"
+// before that name was reserved. A number is skipped if the result would match any name in the table.
 func Up_20261117141344(tx *sql.Tx) error {
 	type fleetRow struct {
 		id   uint
@@ -109,7 +115,11 @@ func Up_20261117141344(tx *sql.Tx) error {
 		return taken, nil
 	}
 
-	finalKeys := make(map[string]struct{}, len(fleets))
+	// A new name ends in a number, so it never matches a reserved name.
+	finalKeys := make(map[string]struct{}, len(fleets)+len(reservedFleetNames20261117141344))
+	for _, name := range reservedFleetNames20261117141344 {
+		finalKeys[fleetNameKey20261117141344(name)] = struct{}{}
+	}
 	var renamed []renamedFleet20261117141344
 	for _, f := range fleets {
 		liveKeys[f.key]--

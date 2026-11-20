@@ -761,7 +761,7 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 				Enable: true, DestinationURL: "https://example.com/status", HostPercentage: 10, DaysCount: 2,
 			},
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-				Enable: true, DestinationURL: "https://example.com/policies", PolicyIDs: []uint{1, 2}, HostBatchSize: 5,
+				Enable: true, DestinationURL: "https://example.com/policies", HostBatchSize: 5,
 			},
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable: true, DestinationURL: "https://example.com/activities",
@@ -809,9 +809,9 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 		},
 		{
 			name: "failing policies only (policies automations)",
-			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "policy_ids": [3], "host_batch_size": 0}}}`,
+			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "host_batch_size": 0}}}`,
 			want: func(w *fleet.TeamWebhookSettings) {
-				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2", PolicyIDs: []uint{3}}
+				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2"}
 			},
 		},
 		{
@@ -1052,7 +1052,7 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 				}, fleet.ApplyTeamSpecOptions{DryRun: dryRun})
 				var conflict *fleet.ConflictError
 				require.ErrorAs(t, err, &conflict)
-				require.Contains(t, err.Error(), `fleet name "Work-stations" conflicts with existing fleet "Workstations". `+fleet.TeamNameConflictHint)
+				require.Contains(t, err.Error(), fleet.TeamNameConflictMessage("Work-stations", "Workstations"))
 			}
 		}
 	})

@@ -49,7 +49,6 @@ const STATUS_FILTER_OPTIONS: CustomOptionType[] = [
 
 interface IPolicyAutomationsActivitiesTableProps {
   policy: IPolicy;
-  currentAutomatedPolicies: number[];
   otherAutomationType?: OtherAutomationType;
   canResetPolicy: boolean;
   /** Prefills the host search, e.g. when linked from a host's policy. */
@@ -58,7 +57,6 @@ interface IPolicyAutomationsActivitiesTableProps {
 
 const PolicyAutomationsActivitiesTable = ({
   policy,
-  currentAutomatedPolicies,
   otherAutomationType,
   canResetPolicy,
   initialSearchQuery = "",
@@ -306,7 +304,6 @@ const PolicyAutomationsActivitiesTable = ({
         <PolicyResetModal
           policy={policy}
           host={resetHost}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           isResetting={isResetting}
           onSubmit={resetPolicy}

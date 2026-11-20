@@ -108,7 +108,7 @@ const AgentOptionsPage = ({
     setIsUpdatingAgentOptions(true);
 
     // Formatting of API not UI and allows empty agent options
-    const formDataToSubmit = agentOptions
+    const formDataToSubmit = agentOptions?.trim()
       ? yaml.load(agentOptions)
       : EMPTY_AGENT_OPTIONS;
 

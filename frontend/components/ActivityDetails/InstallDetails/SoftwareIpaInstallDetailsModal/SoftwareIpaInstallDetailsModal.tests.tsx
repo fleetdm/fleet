@@ -229,7 +229,7 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
       },
     });
 
-    const closeBtn = await screen.findByRole("button", { name: /close/i });
+    const closeBtn = await screen.findByText("Close");
     closeBtn.click();
     expect(onCancel).toHaveBeenCalledTimes(1);
   });

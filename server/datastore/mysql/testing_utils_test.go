@@ -55,11 +55,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		replicaOpt = Replica(&replicaConf)
 	}
 
-	// For use with WithFleetConfig. Note that since we're setting up the DB in a different way
-	// than in production, we have to reset the MinSoftwareLastOpenedAtDiff field to its default so
-	// it's not overwritten here.
 	tc := config.TestConfig()
-	tc.Osquery.MinSoftwareLastOpenedAtDiff = defaultMinLastOpenedAtDiff
 
 	// TODO: for some reason we never log datastore messages when running integration tests, why?
 	//
@@ -82,10 +78,9 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 	}
 	if opts.RealReplica {
 		replicaOpts := &common_mysql.DBOptions{
-			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-			MaxAttempts:         1,
-			Logger:              slog.New(slog.DiscardHandler),
-			SqlMode:             common_mysql.TestSQLMode,
+			MaxAttempts: 1,
+			Logger:      slog.New(slog.DiscardHandler),
+			SqlMode:     common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
@@ -905,6 +900,10 @@ func (t *testingLookupService) UsersByIDs(ctx context.Context, ids []uint) ([]*f
 // GetHostLite adapts Datastore.HostLite to the LookupService interface.
 func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet.Host, error) {
 	return t.ds.HostLite(ctx, id)
+}
+
+func (t *testingLookupService) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	return t.ds.HostIDByIdentifier(ctx, identifier, fleet.HostIDByIdentifierOptions{MatchID: true})
 }
 
 func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
