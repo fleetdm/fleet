@@ -34,7 +34,7 @@ jobs:
   test-js:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -81,7 +81,7 @@ jobs:
   lint-js:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -129,7 +129,7 @@ jobs:
   lint-icons:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
