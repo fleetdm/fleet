@@ -1547,6 +1547,9 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		}
 
 	case "android":
+		if mdmActions.UnlockPIN != nil {
+			status.UnlockPIN = *mdmActions.UnlockPIN
+		}
 		// Android lock/wipe/clear-passcode are AMAPI commands tracked in mdm_android_commands;
 		// lock_ref / wipe_ref / clear_passcode_ref store the Fleet-generated command_uuid (no
 		// unlock_ref on Android). All three fetch the same shape, so loop them.
@@ -2170,6 +2173,7 @@ func (ds *Datastore) getHostMDMAndroidCommand(ctx context.Context, cmdUUID strin
 		CommandUUID: cmd.CommandUUID,
 		HostUUID:    cmd.HostUUID,
 		Status:      cmd.Status,
+		UpdatedAt:   cmd.UpdatedAt,
 	}, nil
 }
 

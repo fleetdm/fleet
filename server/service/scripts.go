@@ -1233,27 +1233,28 @@ func (svc *Service) LockHost(ctx context.Context, _ uint, _ bool) (string, error
 
 func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.UnlockHostRequest)
-	pin, err := svc.UnlockHost(ctx, req.HostID)
+	res, err := svc.UnlockHost(ctx, req.HostID)
 	if err != nil {
 		return fleet.UnlockHostResponse{Err: err}, nil
 	}
 
-	// We bail if a host is unlocked or wiped, so we can assume the host is locked at this point
-	resp := fleet.UnlockHostResponse{HostID: &req.HostID, DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
-	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
-	// call triggers the unlocking without further user action.
-	if pin != "" {
-		resp.UnlockPIN = pin
-	}
-	return resp, nil
+	// Only macOS and Android return an unlock PIN; for other platforms the UnlockHost call
+	// triggers the unlocking without further user action.
+	return fleet.UnlockHostResponse{
+		HostID:        &req.HostID,
+		UnlockPIN:     res.UnlockPIN,
+		LockedAt:      res.LockedAt,
+		DeviceStatus:  res.DeviceStatus,
+		PendingAction: res.PendingAction,
+	}, nil
 }
 
-func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
+func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
