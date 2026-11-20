@@ -1,81 +1,42 @@
 # ARTEX agents inventoried the Windows machines missing CrowdStrike Falcon. Do you have that list?
 
-*An FBI alert says AI agents built on the open-source ARTEX framework can reach privileged access in under three hours. One line in it describes the agents checking which machines had no endpoint sensor. That's a list defenders can build first.*
+*A new FBI alert reports that AI agents built on the open-source ARTEX framework can reach privileged access in less than three hours, and that they searched for Windows machines without an endpoint sensor. Defenders can build that same list first.*
 
 ## Key takeaways
 
-- **The window to respond is now measured in hours.** The FBI says some ARTEX intrusions went from initial targeting to privileged access in under three hours. A weekly scan or a monthly coverage review can't confirm anything inside that window.
-- **These attacks are loud, and they still finish.** The FBI describes ARTEX traffic as noisy enough to trigger alerts. The problem is the time left to act on an alert, so answers about device state have to be ready before it fires.
-- **Attackers look for the machines your sensor missed.** The alert says agents inventoried sensor coverage to find Windows machines without CrowdStrike Falcon. Where endpoint protection was present, it blocked their lateral movement attempts. Coverage gaps are worth finding before someone else does.
-- **The traces the FBI lists are things a device can report.** New SSH keys, new accounts, remote access tools, and tunneling software all show up in device data. You can ask every host about them in one pass.
-- **None of the weaknesses are new.** Amazon, which observed two ARTEX campaigns, says the agents succeeded where basic security hygiene was missing. The fix is the same fundamentals, verified faster.
-- **Fleet is not your EDR.** Fleet won't block an intrusion. It tells IT and security teams which devices are missing a sensor, across macOS, Windows, and Linux, and lets them ask new questions of every online host in seconds.
+- **The response window is now measured in hours.** According to the FBI, some ARTEX intrusions reached privileged access less than three hours after the attackers first selected a target, faster than any weekly scan or monthly review can catch.
+- **Attackers look for the machines your sensor missed.** The agents inventoried sensor coverage to find Windows machines without CrowdStrike Falcon, and the FBI's technique table also records that endpoint protection blocked their attempts to move laterally.
+- **Fleet complements your EDR rather than replacing it.** Fleet does not block intrusions, but it shows IT and security teams which devices are missing a sensor across macOS, Windows, and Linux.
 
 <a purpose="cta-button" href="https://fleetdm.com/reports">Browse ready-made reports</a>
 
-On November 13, the FBI published a [FLASH alert](https://www.ic3.gov/CSA/2026/261113.pdf) on ARTEX, an open-source penetration testing framework that attackers now use to run intrusions with AI agents. The headline number is the speed: under three hours from first targeting to privileged access in some cases.
+On November 13, the FBI published a [FLASH alert](https://www.ic3.gov/CSA/2026/261113.pdf) on ARTEX, an open-source penetration testing framework that attackers now use to run intrusions with AI agents. The alert's central finding is speed: some intrusions reached privileged access in less than three hours.
 
-Further down, in a table of observed techniques, there's a quieter detail. Once inside a network, the agents "inventoried endpoint sensor coverage to identify Windows machines without CrowdStrike Falcon." The attacker's software built a list of unprotected machines. This article looks at what the alert says and how to build that list yourself.
+A table of observed techniques later in the alert contains a less prominent detail. Once inside a network, the agents "inventoried endpoint sensor coverage to identify Windows machines without CrowdStrike Falcon." In other words, the attacker's software compiled a list of unprotected machines, and defenders can compile the same list first.
 
 ## What the FBI and Amazon reported
 
-ARTEX is a multi-agent platform written in Go. An operator describes a goal in plain language, and the agents turn it into commands with little human input. It has no model of its own. It connects to outside models, and the FBI says DeepSeek Flash models were the most common on attacker-controlled installations. The developer, known as "Autumn-27," released ARTEX on GitHub in July 2026 for authorized testing and took the repository down on October 8 after reports of abuse. Forks, mirrors, and a paid version called ARTEX PRO still circulate. As of early November, researchers had counted more than 1,600 ARTEX consoles exposed on the internet.
+ARTEX is a multi-agent platform that turns plain-language goals into commands with little human input, using outside AI models. Its developer pulled the GitHub repository on October 8 after reports of abuse, but forks, mirrors, and a commercial version called ARTEX PRO remain in circulation. The FBI says attackers have used it since at least August 2026 against organizations in ten sectors. One campaign stole personal information belonging to approximately 67,000 people from South Korean financial institutions, and a supply chain compromise that hit ConnectWise Cloud Backup customers led to sign-in attempts against more than 2,250 downstream tenants.
 
-The FBI says attackers have used ARTEX since at least August 2026 against organizations in ten sectors, including financial services, government, defense, healthcare, and legal. It names two campaigns. One hit South Korean financial institutions and took personal information on about 67,000 people. The other was a supply chain compromise affecting ConnectWise Cloud Backup customers, which led to attempted sign-ins to more than 2,250 downstream tenants.
-
-Amazon published [its own findings](https://aws.amazon.com/blogs/security/amazon-threat-intelligence-observes-threat-actors-running-cybercrime-campaigns-with-artex-ai-agents/) the same day. Between October 3 and November 5, its decoy sensors recorded agents stealing AI model API keys in one campaign and trying to defeat identity checks at two cryptocurrency exchanges in another. Amazon assesses with moderate confidence that ARTEX was the tool, and notes it can't verify the outcomes the agents reported.
-
-## Three hours changes what "regularly" means
-
-The FBI's wording is precise. ARTEX "generates high volumes of forensically noisy traffic that may trigger alerts, but attack speed provides limited time for coordinated defender response before objective completion." The alert calls this a compressed detection window.
-
-Detection is not the weak point here. The alerts may well fire. The weak point is everything a team needs to know after the alert: which devices are affected, which ones lack protection, and what changed on them in the last hour. If those answers come from a scan that runs weekly, or a spreadsheet someone reconciles each quarter, they describe a network from before the intrusion started.
+Amazon published [its own findings](https://aws.amazon.com/blogs/security/amazon-threat-intelligence-observes-threat-actors-running-cybercrime-campaigns-with-artex-ai-agents/) the same day. Its decoy sensors captured requests from ARTEX agents that carried the agents' own records of two campaigns, one stealing AI model API keys and another trying to defeat identity checks at cryptocurrency exchanges. Amazon attributes the activity to ARTEX with moderate confidence and cautions that the results the agents claimed could not be independently confirmed.
 
 ## The agents looked for unprotected machines
 
-The same FBI table that mentions the sensor inventory also lists what the agents tried next: lateral movement to domain controllers using Pass-the-Ticket, WinRM, Kerberos relay, and Pass-the-Hash. The alert notes those attempts were "blocked by endpoint protection."
+The FBI describes ARTEX traffic as noisy enough that it may trigger alerts, "but attack speed provides limited time for coordinated defender response before objective completion." The weak point is what a team needs to know once an alert fires, such as which devices lack protection, and a weekly scan cannot answer that in time.
 
-The FBI doesn't connect the two lines, but the lesson is hard to miss. The sensor did its job where it was running, and the agents went looking for where it wasn't. Most organizations have a few of those machines: a laptop reimaged without the full software set, a server that predates the rollout, a device where the sensor stopped after an update.
-
-Your EDR console can tell you about the hosts it knows. It can't tell you about hosts it has never seen. You need a second source of truth for that, one that doesn't depend on the sensor being installed.
+The same FBI table lists the agents' next move, attempts to reach domain controllers with Pass-the-Ticket, Pass-the-Hash, Kerberos relay, and WinRM, and notes that those attempts were "blocked by endpoint protection." The FBI does not connect the two entries, but read together they suggest that the sensor worked where it was running and that the agents looked for machines where it was not. An EDR console cannot report on hosts it has never seen, so finding those gaps requires a source that does not depend on the sensor.
 
 ## Building the list before an attacker does
 
-Fleet's agent runs on the device and reports back on its own, so it can say whether another tool is present. Fleet's [report library](https://fleetdm.com/reports) includes a report called "Get CrowdStrike sensor status" for macOS, Windows, and Linux:
+Fleet's agent runs on the device and reports independently, so it can confirm whether another tool is present. Fleet's [report library](https://fleetdm.com/reports) includes a ready-made "Get CrowdStrike sensor status" report for macOS, Windows, and Linux, and running it as a [live report](https://fleetdm.com/guides/reports) returns an answer from every online host within seconds. For other EDR products, [Fleet support](https://fleetdm.com/support) can help adapt the check.
 
-```sql
-SELECT
-  CASE WHEN COUNT(*) > 0 THEN 'yes' ELSE 'no' END AS crowdstrike_running,
-  GROUP_CONCAT(DISTINCT name) AS sensor_processes
-FROM processes
-WHERE name IN ('com.crowdstrike.falcon.Agent', 'falcond', 'falcon-sensor', 'falcon-sensor-bpf', 'CSFalconService.exe', 'CSFalconContainer.exe');
-```
+To keep that answer current, turn the check into a [policy](https://fleetdm.com/securing/what-are-fleet-policies) that fails on any host without a running sensor. Fleet checks policies every hour by default, and a [policy automation](https://fleetdm.com/guides/automations) can install the missing software or run a script on a failing host. Webhooks and tickets are sent once a day by default, an interval you can shorten. Fleet can only answer for enrolled devices, and offline hosts respond once they reconnect.
 
-Hosts that answer "no" have no sensor running. Run it as a [live report](https://fleetdm.com/guides/reports) and every online host answers within seconds. If you use a different EDR, swap in that product's process names.
-
-A one-time answer goes stale, so turn the check into a [policy](https://fleetdm.com/securing/what-are-fleet-policies). Fleet checks policies every hour by default. When a host fails, a [policy automation](https://fleetdm.com/guides/automations) can install the missing software, run a script, call a webhook, or open a ticket.
-
-Two limits are worth stating plainly. A device has to be enrolled in Fleet to answer, so an unmanaged machine is invisible to this check too. And offline hosts don't respond to a live report until they come back.
-
-## Other traces a device can report
-
-The FBI asks organizations reporting an ARTEX incident to look for specific artifacts. Several live on the host:
-
-- SSH key additions
-- Newly created accounts
-- Open-source remote access tools: WISP, vshell, and AdaptixC2
-- Tunneling tools: Chisel and SoftEther
-- Web shells, as `.aspx` or `.jsp` files in unexpected web application paths
-
-Fleet's agent exposes tables that cover most of this ground. `authorized_keys` lists SSH keys on macOS and Linux. `users` lists local accounts. `processes` and `listening_ports` show what's running and what's accepting connections on all three desktop and server platforms. When an alert fires on one machine, running the same question against every host shows whether it's one device or forty.
-
-This is context, not detection. The FBI's technique list includes masquerading, so a renamed binary won't match a search by name. Much of the alert also concerns cloud identity: OAuth application credentials, service principal sign-ins, and Microsoft Entra audit records. Fleet doesn't see those. Your identity provider's logs and your EDR own that work.
+The same approach covers several host artifacts the FBI lists, including SSH key additions, new accounts, and remote access or tunneling tools such as vshell and Chisel. Fleet's agent can query tables such as `authorized_keys` on macOS and Linux, along with `users`, `processes`, and `listening_ports` on all three platforms, to show how far the activity has spread. This data provides context rather than detection: a renamed binary will not match a search by name, which leaves that work to your EDR, and the alert's cloud identity activity appears in your identity provider's logs rather than on devices.
 
 ## The fundamentals, checked faster
 
-Amazon's CISO, CJ Moses, wrote that none of the techniques in the campaigns were new and that the agents "succeeded where basic security hygiene was missing." The FBI's recommendations read the same way: inventory every internet-facing application, keep management interfaces off the open internet, apply least privilege, and rotate exposed credentials.
-
-What ARTEX changes is how long a gap can sit open before someone finds it. An agent that runs all night will check every machine for a missing sensor. The defense is to know your own gaps first, and to check them on a schedule that fits a three-hour window.
+CJ Moses, the CISO of Amazon Integrated Security, wrote that none of the techniques in the campaigns were new and that the agents "succeeded where basic security hygiene was missing." The FBI's recommendations are just as basic, from inventorying internet-facing applications to rotating exposed credentials. ARTEX shortens how long a gap can stay open, so the most effective defense is to find your own gaps first and recheck them on a schedule that fits a three-hour window.
 
 ## See it live
 
@@ -92,4 +53,4 @@ What ARTEX changes is how long a gap can sit open before someone finds it. An ag
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="publishedOn" value="2026-11-17">
 <meta name="category" value="industry news">
-<meta name="description" value="The FBI says ARTEX AI agents reach privileged access in under three hours and look for hosts without EDR. Find those hosts first.">
+<meta name="description" value="The FBI says some ARTEX AI agent intrusions reach privileged access in under three hours and seek hosts without EDR. Find them first.">
