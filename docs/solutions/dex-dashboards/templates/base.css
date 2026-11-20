@@ -253,6 +253,8 @@ input.search::placeholder { color: var(--ui-fleet-black-50); }
 
 /* Tables, like Fleet's data tables */
 .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+/* Without this, a mouse's always-on scroll bars take the viewer's theme, not the page's, and draw dark tracks on a light page. */
+.tbl-wrap, .dd-menu, pre { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 table.tbl { width: 100%; border-collapse: collapse; color: var(--ink-2); }
 .tbl th {
   text-align: left; font-size: 12px; font-weight: 600; color: var(--ink); padding: 0;

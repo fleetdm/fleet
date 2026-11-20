@@ -242,6 +242,10 @@ The workflow ran from a branch other than `main`, and the environment's deployme
 
 The repository doesn't let workflows open pull requests. Under **Settings > Actions > General**, select **Allow GitHub Actions to create and approve pull requests**, then run the update check again.
 
+**AI governance groups agent usage under "No department"**
+
+Department comes from each computer's end user in your identity provider. A computer falls under "No department" when Fleet has no identity provider user for it, or that user has no department. Map your identity provider's users to hosts and include the `department` attribute ([Foreign host vitals: Identity provider (IdP) username, groups, and department](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)). The next run picks up the change. To update the site now, run **DEX dashboards** from **Actions** without **First run: start new histories**.
+
 **Patch velocity says "Couldn't check the latest release"**
 
 The runner couldn't reach `sofafeed.macadmins.io` or `api.msrc.microsoft.com`. GitHub-hosted runners reach them by default, so this usually means a firewall in front of a self-hosted runner. Allow those hosts and `updates.fleetdm.com`.

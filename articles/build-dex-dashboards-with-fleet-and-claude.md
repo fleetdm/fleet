@@ -301,6 +301,10 @@ The AI tools report has no stored results. Check that it's assigned to your flee
 
 Add the `DEX - AI governance - AI agent usage per host` report from `dex-reports.yml` (step 1). It reads the `ai_agent_sessions` table, so only computers with fleetd 1.64.0 or later send results.
 
+**AI governance groups agent usage under "No department"**
+
+Department comes from each computer's end user in your identity provider. A computer falls under "No department" when Fleet has no identity provider user for it, or that user has no department. Map your identity provider's users to hosts and include the `department` attribute ([Foreign host vitals: Identity provider (IdP) username, groups, and department](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)). The next run picks up the change.
+
 **Connectivity says "Wi-Fi report not set up" or "VPN gate report not set up"**
 
 The scripts didn't find a report with that exact name in any fleet. Add it from `dex-reports.yml` (step 1) without renaming it.
