@@ -190,7 +190,7 @@ If the end user closes the Google page 3 times without signing in, **Self-servic
 
 ### Android
 
-End users don't do anything.
+End users don't need to do anything.
 
 ## Google device ID and Google accounts
 
