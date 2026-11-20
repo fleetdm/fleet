@@ -5,7 +5,7 @@
 ## Key takeaways
 
 - **MAM comes down to two controls.** It gates sign-in by app and adds data loss prevention (DLP) inside those apps. Neither one depends on a special deal with Apple or Google.
-- **Google Workspace offers both.** The Admin console can limit mail access to Gmail and restrict copy-paste and sharing from Google's iOS apps, just as Conditional Access and Intune app protection do for Outlook.
+- **Google Workspace offers both.** The Admin console can limit mail access to Gmail and block copy-paste, AirDrop, and printing from Google's iOS apps, just as Conditional Access and Intune app protection do for Outlook.
 - **Asking how it works beats asking who does it best.** Every claimed Microsoft advantage fell apart once the assistant had to explain the mechanism behind it.
 - **LLMs repeat old market history as current fact.** Years of vendor marketing and analyst reports trained them to treat Microsoft as the default answer.
 - **Google Workspace and Okta shops aren't missing anything.** You can protect mail on personal phones without Microsoft licenses and without enrolling the phones in MDM.
@@ -21,9 +21,9 @@ That turns out to be wrong.
 Strip away the branding and MAM is two things:
 
 1. **Gating sign-in by app.** Whoever issues the mail token can refuse every app except the ones it trusts. Microsoft does this with Conditional Access, so only Outlook gets in. Google does the same thing from the Workspace Admin console, so only Gmail gets in. Either way, the native iPhone Mail app is blocked.
-2. **DLP inside the app.** Block copy-paste into personal apps and accounts, sharing, and saving outside work. Microsoft calls this Intune app protection. Google builds similar controls into Gmail, Drive, Docs, Sheets, and Slides on iOS, and you configure them in the Admin console.
+2. **DLP inside the app.** Block copy-paste to personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google builds the same controls into Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS, and you configure them in the Admin console.
 
-That's it. No magic partnership with Apple or Google. Each vendor controls its own sign-in and its own apps. And neither vendor gives these controls away: Intune app protection needs an Intune license, and Google's iOS data protection settings need a Workspace Enterprise edition.
+That's it. No magic partnership with Apple or Google. Each vendor controls its own sign-in and its own apps.
 
 ## How I got the AI to admit it
 
