@@ -644,7 +644,7 @@ The page logs every result, with the reason, to Cloud Logging. In Fleet, each re
 
 #### Add the bookmark to Chrome
 
-Add Google Chrome to each fleet with iPhones, iPads, or Android devices, with a configuration that adds the **Register with Google** bookmark. Fleet replaces `$FLEET_VAR_HOST_UUID` with each host's UUID, so every device gets its own link. Replace `PAGE_URL` with the page URL.
+Add Google Chrome to each fleet with iPhones, iPads, or Android devices, and configure it to add the **Register with Google** bookmark. Fleet replaces `$FLEET_VAR_HOST_UUID` with each host's UUID, so every device gets its own link. Replace `PAGE_URL` with the page URL.
 
 **iOS and iPadOS:**
 
