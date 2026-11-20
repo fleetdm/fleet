@@ -1,4 +1,4 @@
-# MAM isn't a Microsoft thing anymore (but your LLM thinks it is)
+# MAM isn't a Microsoft thing anymore (but your LLM still thinks it is)
 
 *An AI assistant tried to stop me from publishing this article. It was wrong, and so is the idea that protecting work data on personal phones means buying Microsoft.*
 
