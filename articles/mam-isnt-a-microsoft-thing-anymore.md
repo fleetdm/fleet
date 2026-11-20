@@ -43,7 +43,7 @@ That's why at Fleet, we're working on BYOD that puts employee privacy first. Fle
 Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
 
 <meta name="category" value="articles">
-<meta name="articleTitle" value="MAM isn't a Microsoft thing anymore (but your LLM thinks it is)">
+<meta name="articleTitle" value="MAM isn't a Microsoft thing anymore (but your LLM still thinks it is)">
 <meta name="authorFullName" value="Mike McNeil">
 <meta name="authorGitHubUsername" value="mikermcneil">
 <meta name="publishedOn" value="2026-11-20">
