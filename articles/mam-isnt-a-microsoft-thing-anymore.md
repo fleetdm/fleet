@@ -6,7 +6,7 @@
 
 - **You aren't locked into Microsoft for BYOD.** Google Workspace protects work data on personal phones without Intune, Entra, or enrolling the phone.
 - **MAM is two controls, and Google has both.** Only trusted apps can sign in, and those apps block copy-paste, AirDrop, saving to Files, and printing.
-- **Most people won't enroll a personal phone.** [STAT: ~30% BYOD enrollment]. The usual reason is privacy: they don't know what IT can see, so they assume the worst.
+- **Most personal phones never enroll.** Roughly a third of personal phones are in MDM, compared with about three quarters of company-owned devices. The usual reason is privacy: people don't know what IT can see, so they assume the worst.
 - **Enrolled phones get the better first day.** With MDM, work apps arrive already signed in and configured, and the guardrails turn into setup instead of error messages.
 - **The AI tried to stop this article, too.** The assistant that helped publish it rewrote the claims from years-old sources, then backed down after reading Google's current docs.
 - **Don't be afraid to check your LLM.** Ask how something works, not who does it best.
@@ -38,7 +38,9 @@ Every Microsoft advantage fell apart. Even "Microsoft has clearer error messages
 
 ## Most people won't enroll
 
-[STAT: BYOD enrollment sits around 30%, plus the enterprise-segment finding. Source needed.]
+On paper, BYOD is everywhere. About 82% of organizations run a formal BYOD program, and Gartner says 55% of employees use a personal device for work at least some of the time.
+
+We looked at companies with 500 or more employees that issue every employee a computer. There, BYOD means phones. And phones mostly don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so treat that as rough. The gap is hard to miss anyway.
 
 It's rarely laziness. People worry about privacy. They don't know what IT can see on their personal phone, so they assume the worst and keep it out. MAM is how you protect work data on all the phones that never enroll.
 
