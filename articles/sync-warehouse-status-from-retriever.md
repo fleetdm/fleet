@@ -177,7 +177,7 @@ The device's serial number doesn't match a host in Fleet. The device may never h
 
 ## Further reading
 
-- [Use custom host vitals in scripts and configuration profiles](https://fleetdm.com/guides/custom-host-vitals)
+- [Custom host vitals](https://fleetdm.com/guides/custom-host-vitals)
 - [Labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet)
 - [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user)
 - [How Fleet's IT team shares warehouse inventory with employees](https://fleetdm.com/handbook/it#check-warehouse-inventory)

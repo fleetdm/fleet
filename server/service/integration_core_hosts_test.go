@@ -44,21 +44,10 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
-	p, err := s.ds.NewPack(context.Background(), &fleet.Pack{
-		Name: t.Name(),
-		Hosts: []fleet.Target{
-			{
-				Type:     fleet.TargetHost,
-				TargetID: hosts[0].ID,
-			},
-		},
-	})
-	require.NoError(t, err)
-
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
 
 	req := deleteHostsRequest{
-		Filters: &map[string]any{"team_id": float64(team1.ID)},
+		Filters: &map[string]any{"fleet_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -72,11 +61,6 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
 	require.NoError(t, err)
-
-	newP, err := s.ds.Pack(context.Background(), p.ID)
-	require.NoError(t, err)
-	require.Empty(t, newP.Hosts)
-	require.NoError(t, s.ds.DeletePack(context.Background(), newP.Name))
 }
 
 func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
@@ -229,7 +213,7 @@ func (s *integrationTestSuite) TestTechnicianCannotDeleteHostsOnFree() {
 		[]fleet.UserTeam{{Team: *team, Role: fleet.RoleTechnician}})
 	defer func() { s.token = s.getTestAdminToken() }()
 
-	teamFilter := &map[string]any{"team_id": float64(team.ID)}
+	teamFilter := &map[string]any{"fleet_id": float64(team.ID)}
 
 	s.token = globalTechnician
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusPaymentRequired)
@@ -390,7 +374,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
 	require.Equal(t, "https://fleetdm.com", *hostResp.Host.MDM.ServerURL)
 
-	// no macos_settings is returned when MDM is not configured
+	// no apple_settings is returned when MDM is not configured
 	require.Nil(t, hostResp.Host.MDM.MacOSSettings)
 }
 
@@ -523,7 +507,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// foo v0.0.1 is only installed on host2
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host2.ID, resp.Hosts[0].ID)
 	assert.Equal(t, "foo", resp.Software.Name)
@@ -531,7 +515,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	assert.Nil(t, resp.SoftwareTitle)
 
 	var countResp countHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Equal(t, 1, countResp.Count)
 
 	// foo v0.0.2 is installed on hosts 0 and 1
@@ -568,21 +552,40 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Equal(t, 3, countResp.Count)
 
 	// verify invalid combinations of software filters
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_id", fmt.Sprint(fooV1ID))
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID))
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_id", fmt.Sprint(fooV1ID), "software_version_id", fmt.Sprint(fooV1ID), "software_title_id", fmt.Sprint(fooTitleID))
+
+	removedSoftwareIDMessage := `The "software_id" parameter is not available anymore. ` +
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
+	allHostsLabelIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	labelHostsPath := fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabelIDs["All Hosts"])
+	idParam := fmt.Sprint(fooV1ID)
+	getUnprocessableErrorText := func(path string, queryParams ...string) string {
+		res := s.DoRaw("GET", path, nil, http.StatusUnprocessableEntity, queryParams...)
+		return extractServerErrorText(res.Body)
+	}
+
+	// send software_id to each hosts endpoint, the request should be rejected with the Fleet 5 message
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts", "software_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/count", "software_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/report", "software_id", idParam, "format", "csv"), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText(labelHostsPath, "software_id", idParam), removedSoftwareIDMessage)
+
+	// send software_id with software_version_id to each hosts endpoint, the request should be rejected with the Fleet 5 message
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts", "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/count", "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText("/api/latest/fleet/hosts/report", "software_id", idParam, "software_version_id", idParam, "format", "csv"), removedSoftwareIDMessage)
+	require.Contains(t, getUnprocessableErrorText(labelHostsPath, "software_id", idParam, "software_version_id", idParam), removedSoftwareIDMessage)
 
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
 	defer s.cleanupQuery(q.ID)
 	globalPolicy0, err := s.ds.NewGlobalPolicy(
 		context.Background(), &user1.ID, fleet.PolicyPayload{
-			QueryID: &q.ID,
+			Name:        q.Name,
+			Query:       q.Query,
+			Description: q.Description,
 		},
 	)
 	require.NoError(t, err)
@@ -593,7 +596,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	)
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.TotalIssuesCount)
@@ -715,11 +718,6 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(9999))
-	require.Empty(t, resp.Hosts)
-	assert.Nil(t, resp.Software)
-
-	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(9999))
 	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.Software)
@@ -731,7 +729,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "team_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, &resp, "fleet_id", fmt.Sprint(9999))
 
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host2.ID, "1.2.3", []string{"err"}, []string{"warn"}))
@@ -1046,7 +1044,6 @@ func (s *integrationTestSuite) TestListHostsPopulateSoftwareWithInstalledPaths()
 	assert.Equal(t, "chrome_extensions", sw.Source)
 	assert.Equal(t, "test-extension-id", sw.ExtensionID)
 	assert.Equal(t, "chrome", sw.ExtensionFor)
-	assert.Equal(t, "chrome", sw.Browser) // backward compatibility field
 	assert.Equal(t, "com.google.Chrome", sw.BundleIdentifier)
 
 	// Verify installed_paths is populated and not empty
@@ -1229,13 +1226,13 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "name", "include_host_counts", "false")
 
 	// team filter, no host
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team2.ID))
 	require.Equal(t, uint(0), resp.TotalsHostsCount)
 	require.Empty(t, resp.Platforms)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host, low_disk_count is ignored as not premium
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team1.ID), "low_disk_space", "2")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Nil(t, resp.LowDiskSpaceCount)
 	require.Len(t, resp.Platforms, 1)
@@ -1243,7 +1240,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, uint(1), resp.TotalsHostsCount)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 
@@ -1582,8 +1579,6 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
 		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
 		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
-		{name: "osquery host id", identifier: *target.OsqueryHostID, wantHostID: target.ID},
-		{name: "node key", identifier: *target.NodeKey, wantHostID: target.ID},
 		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
 		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
 		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},
@@ -1597,11 +1592,125 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	}
 
 	t.Run("not found", func(t *testing.T) {
+		s.Do("GET", "/api/latest/fleet/hosts/"+*target.OsqueryHostID, nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/"+*target.NodeKey, nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/%20", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/%E2%80%8B", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/99999999999999999999", nil, http.StatusNotFound)
+	})
+}
+
+func (s *integrationTestSuite) TestHostEndpointsAcceptIdentifiers() {
+	t := s.T()
+	ctx := t.Context()
+
+	newHost := func(name string, mutate func(*fleet.Host)) *fleet.Host {
+		host := &fleet.Host{
+			Hostname:        "endpoint-identifier-hostname-" + name,
+			OsqueryHostID:   new("endpoint-identifier-osquery-" + name),
+			NodeKey:         new("endpoint-identifier-nodekey-" + name),
+			UUID:            "endpoint-identifier-uuid-" + name,
+			Platform:        "darwin",
+			HardwareSerial:  "endpoint-identifier-serial-" + name,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			// Offline, so a live report returns right away instead of waiting for the host.
+			SeenTime: time.Now().Add(-time.Hour),
+		}
+		if mutate != nil {
+			mutate(host)
+		}
+		created, err := s.ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		return created
+	}
+	target := newHost("target", nil)
+
+	admin := s.users[TestAdminUserEmail]
+	report, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:     t.Name(),
+		Query:    "SELECT 1",
+		AuthorID: &admin.ID,
+		Saved:    true,
+		Logging:  fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+
+	// Error responses carry a random uuid, so compare everything else.
+	responseFor := func(t *testing.T, path string, wantStatus int) map[string]any {
+		var body map[string]any
+		s.DoJSON("GET", path, nil, wantStatus, &body)
+		delete(body, "uuid")
+		return body
+	}
+
+	endpoints := []struct {
+		path string
+		// wantStatus is not 200 for the endpoints that need something this host doesn't have (MDM, a premium license); they must still
+		// resolve the host the same way.
+		wantStatus int
+		// unknownHostStatus overrides the 404 for an endpoint whose middleware answers before it looks up the host.
+		unknownHostStatus int
+	}{
+		{path: "/api/latest/fleet/hosts/%s/health", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/mdm", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/macadmins", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/software", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/encryption_key", wantStatus: http.StatusBadRequest},
+		{path: "/api/latest/fleet/hosts/%s/recovery_lock_password", wantStatus: http.StatusUnprocessableEntity},
+		{path: "/api/latest/fleet/hosts/%s/certificates", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/configuration_profiles", wantStatus: http.StatusBadRequest, unknownHostStatus: http.StatusBadRequest},
+		{path: "/api/latest/fleet/hosts/%s/activities", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/activities/upcoming", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/managed_account_password", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/reports", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/reports/" + fmt.Sprint(report.ID), wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/scripts", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions/1", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions/1/events", wantStatus: http.StatusPaymentRequired},
+	}
+	identifiers := map[string]string{"serial": target.HardwareSerial, "uuid": target.UUID, "hostname": target.Hostname}
+	for _, endpoint := range endpoints {
+		t.Run(endpoint.path, func(t *testing.T) {
+			byID := responseFor(t, fmt.Sprintf(endpoint.path, fmt.Sprint(target.ID)), endpoint.wantStatus)
+			for name, identifier := range identifiers {
+				require.Equal(t, byID, responseFor(t, fmt.Sprintf(endpoint.path, identifier), endpoint.wantStatus), name)
+			}
+			unknownHostStatus := http.StatusNotFound
+			if endpoint.unknownHostStatus != 0 {
+				unknownHostStatus = endpoint.unknownHostStatus
+			}
+			s.Do("GET", fmt.Sprintf(endpoint.path, "no-such-host"), nil, unknownHostStatus)
+		})
+	}
+
+	t.Run("live report", func(t *testing.T) {
+		for _, identifier := range []string{fmt.Sprint(target.ID), target.HardwareSerial, target.UUID, target.Hostname} {
+			var resp runLiveQueryOnHostResponse
+			s.DoJSON("POST", "/api/latest/fleet/hosts/"+identifier+"/query", runLiveQueryOnHostRequest{Query: "SELECT 1"}, http.StatusOK, &resp)
+			require.Equal(t, target.ID, resp.HostID, identifier)
+			require.Equal(t, fleet.StatusOffline, resp.Status, identifier)
+		}
+		s.Do("POST", "/api/latest/fleet/hosts/no-such-host/query", runLiveQueryOnHostRequest{Query: "SELECT 1"}, http.StatusBadRequest)
+	})
+
+	t.Run("newest host wins on a shared serial", func(t *testing.T) {
+		const sharedSerial = "endpoint-identifier-shared-serial"
+		newHost("stale-duplicate", func(h *fleet.Host) { h.HardwareSerial = sharedSerial })
+		newest := newHost("newest-duplicate", func(h *fleet.Host) { h.HardwareSerial = sharedSerial })
+
+		var hostResp getHostResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/"+sharedSerial, nil, http.StatusOK, &hostResp)
+		require.Equal(t, newest.ID, hostResp.Host.ID)
+	})
+
+	t.Run("device url only takes a host ID", func(t *testing.T) {
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", target.ID), nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts/"+target.HardwareSerial+"/device_url", nil, http.StatusNotFound)
 	})
 }
 

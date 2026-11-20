@@ -29,6 +29,7 @@ func mdmCommand() *cli.Command {
 			mdmLockCommand(),
 			mdmUnlockCommand(),
 			mdmWipeCommand(),
+			mdmResetCommand(),
 			mdmClearPasscodeCommand(),
 		},
 	}
@@ -44,7 +45,7 @@ func mdmRunCommand() *cli.Command {
 			debugFlag(),
 			&cli.StringFlag{
 				Name:     "hosts",
-				Usage:    "Comma-separated hosts to target. Hosts can be specified by hostname, UUID, or serial number.",
+				Usage:    "Comma-separated hosts to target. Hosts can be specified by host ID, hostname, UUID, or serial number.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -180,7 +181,7 @@ func mdmLockCommand() *cli.Command {
 		Usage: "Lock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by hostname, UUID, or serial number.",
+			Usage:    "The host, specified by host ID, hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -233,7 +234,7 @@ func mdmUnlockCommand() *cli.Command {
 		Usage: "Unlock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by hostname, UUID, or serial number.",
+			Usage:    "The host, specified by host ID, hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -284,7 +285,7 @@ func mdmClearPasscodeCommand() *cli.Command {
 		Usage:   "Clear the passcode on a host. Supported on iOS, iPadOS, and Android.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by hostname, UUID, or serial number.",
+			Usage:    "The host, specified by host ID, hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -321,7 +322,7 @@ func mdmWipeCommand() *cli.Command {
 		Usage: "Wipe a host to erase all content on a workstation.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
-			Usage:    "The host, specified by identifier, that you want to wipe.",
+			Usage:    "The host that you want to wipe, specified by host ID, hostname, UUID, or serial number.",
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
@@ -338,6 +339,39 @@ func mdmWipeCommand() *cli.Command {
 
 			fmt.Fprintf(c.App.Writer, `
 The host will wipe when it comes online.
+
+Copy and run this command to see results:
+
+fleetctl get host %s`, hostIdent)
+
+			return nil
+		},
+	}
+}
+
+func mdmResetCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "reset",
+		Usage: "Reset a Windows host so it can be repurposed for another end user.",
+		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
+			Name:     "host",
+			Usage:    "The host, specified by identifier, that you want to reset.",
+			Required: true,
+		}},
+		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+
+			client, host, err := hostMdmActionSetup(c, hostIdent, "reset")
+			if err != nil {
+				return err
+			}
+
+			if err := client.MDMResetHost(host.ID); err != nil {
+				return fmt.Errorf("Failed to reset host: %w", err)
+			}
+
+			fmt.Fprintf(c.App.Writer, `
+The host will reset when it comes online.
 
 Copy and run this command to see results:
 
@@ -371,6 +405,9 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 		var sce kithttp.StatusCoder
 		if errors.As(err, &sce) {
 			if sce.StatusCode() == http.StatusForbidden {
+				if me, meErr := client.Me(); meErr == nil && isGitOpsUser(me) {
+					return nil, nil, errors.New(fleet.GitOpsMDMCommandErrorMessage)
+				}
 				return nil, nil, fmt.Errorf("Permission denied. You don't have permission to %s this host.", actionType)
 			}
 		}

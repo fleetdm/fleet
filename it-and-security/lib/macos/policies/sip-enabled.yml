@@ -3,6 +3,8 @@
   critical: true
   description: |-
     Verifies System Integrity Protection (SIP) is enabled.
-  resolution: |-
-    System Integrity Protection (SIP) should never be disabled on managed Macs. If this policy is failing, drop a note in #help-it immediately.
+  resolution: >-
+    No action needed from you. IT reviews failing hosts and works with you to turn System Integrity Protection back
+    on from macOS Recovery.
+  hidden: true
   platform: darwin

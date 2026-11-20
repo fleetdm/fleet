@@ -206,7 +206,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	appConf.MDM.WindowsEnabledAndConfigured = true
 	appConf.MDM.AppleBMEnabledAndConfigured = true
 	appConf.MDM.AndroidEnabledAndConfigured = true
-	appConf.MDM.MacOSSetup.BootstrapPackage.Set = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 
@@ -1836,7 +1835,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 	require.NoError(t, err)
 
 	// add the team_id field
-	err = w.WriteField("team_id", fmt.Sprint(pkg.TeamID))
+	err = w.WriteField("fleet_id", fmt.Sprint(pkg.TeamID))
 	require.NoError(t, err)
 
 	w.Close()
@@ -1919,7 +1918,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true,
 					"lock_end_user_info": %t
 				}
@@ -1943,7 +1942,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 						"idp_name": "",
 						"metadata_url": ""
 					},
-					"macos_setup": {
+					"setup_experience": {
 						"enable_end_user_authentication": false,
 						"lock_end_user_info": false
 					}
@@ -2340,7 +2339,7 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 
 	var queryParams []string
 	if teamID != nil {
-		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
+		queryParams = append(queryParams, "fleet_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	var combined getMDMProfilesSummaryResponse

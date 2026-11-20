@@ -43,7 +43,9 @@ func deleteHostOneTimeEnrollSecrets(ctx context.Context, tx sqlx.ExtContext, hos
 // CleanupHostOneTimeEnrollSecrets deletes, in batches, spent secrets that a
 // newer secret for the same host has superseded (once past the second-plane
 // window, so a late osquery enrollment is not orphaned) and secrets whose host
-// no longer exists. Unconsumed secrets whose host records still exist are never
+// no longer exists. A spent Android secret is kept until a newer one is used:
+// until then the device may still hold it, and presenting it is what gets the
+// device's agent configuration resent. Unconsumed secrets whose host records still exist are never
 // removed here: a host holds at most one and it stays valid until used.
 func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64, error) {
 	const batchSize = 1000
@@ -59,6 +61,7 @@ func (ds *Datastore) CleanupHostOneTimeEnrollSecrets(ctx context.Context) (int64
 					FROM host_one_time_enroll_secrets s
 					JOIN host_one_time_enroll_secrets newer ON newer.host_id = s.host_id AND newer.id > s.id
 					WHERE s.consumed_at IS NOT NULL AND s.consumed_at < NOW(6) - INTERVAL ? SECOND
+						AND (s.platform <> 'android' OR newer.consumed_at IS NOT NULL)
 					LIMIT ?
 				) AS superseded
 			)`,
@@ -619,59 +622,8 @@ func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtC
 // the host row the enrollment landed on (a freshly inserted row is fine as
 // long as the bound host no longer exists).
 func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id uint, plane fleet.EnrollmentPlane, matchedHostID uint) error {
-	// consumed_at is written with the database clock, so the window is judged
-	// there too rather than against this server's clock.
-	var s struct {
-		fleet.HostOneTimeEnrollSecret
-		OutsideWindow bool `db:"outside_window"`
-	}
-	err := sqlx.GetContext(ctx, tx, &s,
-		`SELECT `+hostOneTimeEnrollSecretColumns+`,
-			(consumed_at IS NOT NULL AND consumed_at < NOW(6) - INTERVAL ? SECOND) AS outside_window
-		FROM host_one_time_enroll_secrets WHERE id = ? FOR UPDATE`,
-		int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow/time.Second), id)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		// Deleted between lookup and consumption (admin rotation or MDM reset).
-		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent}, "one-time enroll secret no longer exists")
-	case err != nil:
-		return ctxerr.Wrap(ctx, err, "lock one-time enroll secret")
-	}
-
-	if s.HostID != nil && *s.HostID != matchedHostID {
-		var boundExists bool
-		if err := sqlx.GetContext(ctx, tx, &boundExists, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = ?)`, *s.HostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "check bound host for one-time enroll secret")
-		}
-		if boundExists {
-			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: s.HostID},
-				"one-time enroll secret bound to another host")
-		}
-	}
-
-	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
-	// must not land on a host that another Windows MDM enrollment already claims, or on a host that isn't Windows: either is a
-	// different machine presenting this host's identifiers, and landing would rotate the real host's node key. The stored platform
-	// is what counts, since the agent's is self-reported.
-	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
-		var claimed bool
-		if err := sqlx.GetContext(ctx, tx, &claimed, `
-			SELECT EXISTS (
-				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
-			) OR EXISTS (
-				SELECT 1 FROM hosts WHERE id = ? AND platform NOT IN ('', 'windows')
-			)`, matchedHostID, *s.MDMWindowsEnrollmentID, matchedHostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
-		}
-		if claimed {
-			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
-				"one-time enroll secret landing on a host claimed by another windows mdm enrollment or not windows")
-		}
-	}
-
-	if s.UsedAt(plane) != nil || s.OutsideWindow {
-		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent, HostID: s.HostID}, "one-time enroll secret already used")
+	if err := checkHostOneTimeEnrollSecretDB(ctx, tx, id, plane, matchedHostID, true); err != nil {
+		return err
 	}
 
 	var column string
@@ -689,6 +641,70 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 		 SET `+column+` = NOW(6), consumed_at = COALESCE(consumed_at, NOW(6)), host_id = COALESCE(host_id, ?)
 		 WHERE id = ?`, matchedHostID, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "consume one-time enroll secret")
+	}
+	return nil
+}
+
+// checkHostOneTimeEnrollSecretDB returns an EnrollmentRejectedError when the one-time enroll secret may not enroll the plane
+// over matchedHostID. lock takes the row lock that consuming the secret needs.
+func checkHostOneTimeEnrollSecretDB(ctx context.Context, q sqlx.QueryerContext, id uint, plane fleet.EnrollmentPlane,
+	matchedHostID uint, lock bool,
+) error {
+	// consumed_at is written with the database clock, so the window is judged
+	// there too rather than against this server's clock.
+	var s struct {
+		fleet.HostOneTimeEnrollSecret
+		OutsideWindow bool `db:"outside_window"`
+	}
+	stmt := `SELECT ` + hostOneTimeEnrollSecretColumns + `,
+			(consumed_at IS NOT NULL AND consumed_at < NOW(6) - INTERVAL ? SECOND) AS outside_window
+		FROM host_one_time_enroll_secrets WHERE id = ?`
+	if lock {
+		stmt += ` FOR UPDATE`
+	}
+	err := sqlx.GetContext(ctx, q, &s, stmt, int64(fleet.HostOneTimeEnrollSecretSecondPlaneWindow/time.Second), id)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// Deleted between lookup and consumption (admin rotation or MDM reset).
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent}, "one-time enroll secret no longer exists")
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "load one-time enroll secret")
+	}
+
+	if s.HostID != nil && *s.HostID != matchedHostID {
+		var boundExists bool
+		if err := sqlx.GetContext(ctx, q, &boundExists, `SELECT EXISTS (SELECT 1 FROM hosts WHERE id = ?)`, *s.HostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check bound host for one-time enroll secret")
+		}
+		if boundExists {
+			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: s.HostID},
+				"one-time enroll secret bound to another host")
+		}
+	}
+
+	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
+	// must not land on a host that another Windows MDM enrollment already claims, or on a host that isn't Windows: either is a
+	// different machine presenting this host's identifiers, and landing would rotate the real host's node key. The stored platform
+	// is what counts, since the agent's is self-reported.
+	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
+		var claimed bool
+		if err := sqlx.GetContext(ctx, q, &claimed, `
+			SELECT EXISTS (
+				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
+			) OR EXISTS (
+				SELECT 1 FROM hosts WHERE id = ? AND platform NOT IN ('', 'windows')
+			)`, matchedHostID, *s.MDMWindowsEnrollmentID, matchedHostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
+		}
+		if claimed {
+			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
+				"one-time enroll secret landing on a host claimed by another windows mdm enrollment or not windows")
+		}
+	}
+
+	if s.UsedAt(plane) != nil || s.OutsideWindow {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretSpent, HostID: s.HostID}, "one-time enroll secret already used")
 	}
 	return nil
 }
@@ -755,6 +771,203 @@ func rejectSharedSecretForMDMManagedWindowsHost(
 	if s.Autopilot || (s.Linked && !firstOsqueryEnrollment) {
 		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
 			"shared enroll secret presented for MDM-managed Windows host")
+	}
+	return nil
+}
+
+// MintAndroidOneTimeEnrollSecret returns the one-time enroll secret to put in the Fleet Android agent's managed configuration.
+// The configuration is rebuilt whenever the host's apps or certificate templates change, so an unconsumed secret is returned
+// again rather than churned. Once the agent has used it, the next build mints a fresh one, which is what lets the agent enroll
+// again later.
+func (ds *Datastore) MintAndroidOneTimeEnrollSecret(ctx context.Context, hostID uint) (string, error) {
+	// Most builds find a live secret, so check without locking the host row first. The primary, because a replica could still
+	// show a secret the agent just used. A secret bound to an earlier UUID of the host could never match the agent, so it isn't
+	// reused.
+	var live string
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &live, `
+		SELECT s.secret FROM host_one_time_enroll_secrets s
+		JOIN hosts h ON h.id = s.host_id AND h.platform = 'android' AND h.team_id <=> s.team_id AND h.uuid = s.hardware_uuid
+		WHERE s.host_id = ? AND s.consumed_at IS NULL
+		ORDER BY s.id DESC LIMIT 1`, hostID)
+	switch {
+	case err == nil:
+		return live, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return "", ctxerr.Wrap(ctx, err, "load live android one-time enroll secret")
+	}
+
+	var secret string
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var host struct {
+			UUID           string `db:"uuid"`
+			TeamID         *uint  `db:"team_id"`
+			HardwareSerial string `db:"hardware_serial"`
+		}
+		// FOR UPDATE on the hosts row serializes concurrent mints for the same host, as in mintHostOneTimeEnrollSecret.
+		err := sqlx.GetContext(ctx, tx, &host,
+			`SELECT uuid, team_id, hardware_serial FROM hosts WHERE id = ? AND platform = 'android' FOR UPDATE`, hostID)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, notFound("Host").WithID(hostID), "minting android one-time enroll secret")
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "load android host for one-time enroll secret")
+		}
+		if host.UUID == "" {
+			return ctxerr.Errorf(ctx, "android host %d has no uuid to bind a one-time enroll secret to", hostID)
+		}
+
+		var existing struct {
+			ID     uint   `db:"id"`
+			Secret string `db:"secret"`
+		}
+		err = sqlx.GetContext(ctx, tx, &existing, `
+			SELECT id, secret FROM host_one_time_enroll_secrets
+			WHERE host_id = ? AND hardware_uuid = ? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`,
+			hostID, host.UUID)
+		switch {
+		case err == nil:
+			// The host may have moved fleets since the secret was minted, and the secret's fleet is the one enrollment uses.
+			if _, err := tx.ExecContext(ctx, `UPDATE host_one_time_enroll_secrets SET team_id = ? WHERE id = ?`,
+				host.TeamID, existing.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update fleet of android one-time enroll secret")
+			}
+			secret = existing.Secret
+			return nil
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "load unconsumed android one-time enroll secret")
+		}
+
+		tok, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generate android one-time enroll secret")
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_one_time_enroll_secrets
+				(secret, host_id, team_id, platform, hardware_uuid, hardware_serial)
+			VALUES (?, ?, ?, 'android', ?, ?)`,
+			string(tok), hostID, host.TeamID, host.UUID, host.HardwareSerial); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert android one-time enroll secret")
+		}
+		secret = string(tok)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return secret, nil
+}
+
+// rejectSharedSecretForMDMManagedAndroidHost refuses a shared enroll secret for a matched Android host. Android hosts are only
+// created by Android MDM enrollment, and the Fleet Android agent gets a one-time secret through its managed configuration, so a
+// shared secret landing on one can only be another device presenting the host's identifiers. platform is the matched row's.
+func rejectSharedSecretForMDMManagedAndroidHost(ctx context.Context, hostID uint, platform string) error {
+	if platform != "android" {
+		return nil
+	}
+	return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
+		"shared enroll secret presented for android host")
+}
+
+// isAndroidOneTimeEnrollSecret reports whether the one-time enroll secret was minted for an Android host.
+func isAndroidOneTimeEnrollSecret(ctx context.Context, tx sqlx.QueryerContext, secretID uint) (bool, error) {
+	var platform string
+	err := sqlx.GetContext(ctx, tx, &platform, `SELECT platform FROM host_one_time_enroll_secrets WHERE id = ?`, secretID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "load one-time enroll secret platform")
+	}
+	return platform == "android", nil
+}
+
+// androidOneTimeSecretHost returns the Android host an Android one-time enroll secret is bound to, which the orbit enrollment
+// lands on whatever other row shares the device's identifiers, and whether the secret is an Android one at all. The host is
+// nil when the secret isn't an Android one or its host no longer exists. Matching by identifier would otherwise land on any
+// row already holding the device's ID as its osquery identifier (a legacy duplicate of the device, or a row another machine
+// enrolled with that ID), and the secret's host binding would refuse the real agent there for good. That row's osquery
+// identifier is cleared, since the identifier is unique and the bound host takes it. The identifier must be the device's ID,
+// the one the secret is bound to, so the secret can't take another host's identifier.
+func (ds *Datastore) androidOneTimeSecretHost(
+	ctx context.Context, tx sqlx.ExtContext, secretID uint, osqueryIdentifier string,
+) (*enrolledHostInfo, bool, error) {
+	var row struct {
+		SecretPlatform string     `db:"secret_platform"`
+		SecretUUID     string     `db:"secret_uuid"`
+		ID             *uint      `db:"id"`
+		LastEnrolledAt *time.Time `db:"last_enrolled_at"`
+		NodeKeySet     bool       `db:"node_key_set"`
+		HasUUID        bool       `db:"has_uuid"`
+	}
+	err := sqlx.GetContext(ctx, tx, &row, `
+		SELECT s.platform AS secret_platform, s.hardware_uuid AS secret_uuid, h.id, h.last_enrolled_at,
+			COALESCE(h.orbit_node_key IS NOT NULL, FALSE) AS node_key_set, COALESCE(h.uuid <> '', FALSE) AS has_uuid
+		FROM host_one_time_enroll_secrets s
+		LEFT JOIN hosts h ON h.id = s.host_id AND h.platform = 'android'
+		WHERE s.id = ?`, secretID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, false, nil
+	case err != nil:
+		return nil, false, ctxerr.Wrap(ctx, err, "load host of android one-time enroll secret")
+	}
+	if row.SecretPlatform != "android" {
+		return nil, false, nil
+	}
+	if row.ID == nil {
+		return nil, true, nil
+	}
+	if !strings.EqualFold(osqueryIdentifier, row.SecretUUID) {
+		return nil, true, ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: row.ID},
+			"android one-time enroll secret presented another osquery identifier")
+	}
+
+	res, err := tx.ExecContext(ctx, `UPDATE hosts SET osquery_host_id = NULL WHERE osquery_host_id = ? AND id <> ?`, osqueryIdentifier, *row.ID)
+	if err != nil {
+		return nil, true, ctxerr.Wrap(ctx, err, "detach osquery identifier from another host for android one-time enroll secret")
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		ds.logger.WarnContext(ctx, "android one-time enroll secret: cleared the osquery identifier of another host holding the device's ID",
+			"host_id", *row.ID, "identifier", osqueryIdentifier)
+	}
+
+	info := &enrolledHostInfo{ID: *row.ID, NodeKeySet: row.NodeKeySet, Platform: "android", HasUUID: row.HasUUID}
+	if row.LastEnrolledAt != nil {
+		info.LastEnrolledAt = *row.LastEnrolledAt
+	}
+	return info, true, nil
+}
+
+// rejectAndroidDeviceIdentifiers refuses an enrollment whose hardware UUID or osquery identifier is the enterprise-specific ID
+// of an Android device Fleet manages, unless it presented that device's own one-time secret. The device record outlives a
+// deleted host, and a row holding the ID would be matched by the Fleet Android agent's own enrollment (by osquery identifier)
+// or adopted by Android enrollment (by UUID), keeping the node key of whoever enrolled it.
+func rejectAndroidDeviceIdentifiers(ctx context.Context, tx sqlx.QueryerContext, reason string, identifiers ...string) error {
+	var ids []string
+	for _, id := range identifiers {
+		if id != "" {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	// The device's host, when it still exists, is named in the rejection so the attempt is attributed to it.
+	stmt, args, err := sqlx.In(`
+		SELECT h.id FROM android_devices ad LEFT JOIN hosts h ON h.id = ad.host_id
+		WHERE ad.enterprise_specific_id IN (?) LIMIT 1`, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build android device lookup for enrolling identifiers")
+	}
+	var devices []struct {
+		HostID *uint `db:"id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &devices, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "check android device with enrolling identifiers")
+	}
+	if len(devices) == 1 {
+		return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: reason, HostID: devices[0].HostID},
+			"enrollment presented the identifier of an android device")
 	}
 	return nil
 }

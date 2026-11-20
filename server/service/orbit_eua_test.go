@@ -363,6 +363,9 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			return cfg, nil
 		}
 		inner.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
+		inner.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+			return false, nil
+		}
 		// A reverse-link is the moment an Entra enrollment first has a host, so it is also when its deferred
 		// mdm_enrolled activity gets recorded.
 		inner.ListHostsLiteByUUIDsFunc = func(ctx context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {

@@ -109,6 +109,9 @@ func (a ActivityTypeDisabledActivityAutomations) ActivityName() string {
 	return "disabled_activity_automations"
 }
 
+// The 2017 pack activity types below are no longer emitted. They're kept so
+// existing activities still render.
+
 type ActivityTypeCreatedPack struct {
 	ID   uint   `json:"pack_id"`
 	Name string `json:"pack_name"`
@@ -205,8 +208,8 @@ func (a ActivityTypeAppliedSpecPolicy) ActivityName() string {
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -216,8 +219,8 @@ func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -227,7 +230,7 @@ func (a ActivityTypeEditedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name     string  `json:"query_name" renameto:"report_name"`
+	Name     string  `json:"report_name"`
 	TeamID   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -237,7 +240,7 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs      []uint  `json:"query_ids" renameto:"report_ids"`
+	IDs      []uint  `json:"report_ids"`
 	Teamid   int64   `json:"fleet_id"`
 	TeamName *string `json:"fleet_name,omitempty"`
 }
@@ -308,8 +311,8 @@ func (a ActivityTypeEditedAgentOptions) ActivityName() string {
 
 type ActivityTypeLiveQuery struct {
 	TargetsCount uint             `json:"targets_count"`
-	QuerySQL     string           `json:"query_sql" renameto:"query"`
-	QueryName    *string          `json:"query_name,omitempty" renameto:"report_name"`
+	QuerySQL     string           `json:"query"`
+	QueryName    *string          `json:"report_name,omitempty"`
 	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 
@@ -636,16 +639,16 @@ func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-type ActivityTypeViewedHostRecoveryLockPassword struct {
+type ActivityTypeReadHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
-	return "viewed_host_recovery_lock_password"
+func (a ActivityTypeReadHostRecoveryLockPassword) ActivityName() string {
+	return "read_host_recovery_lock_password"
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+func (a ActivityTypeReadHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -717,34 +720,10 @@ func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
 	return "deleted_macos_setup_assistant"
 }
 
-// ActivityTypeEnabledMacosDiskEncryption is deprecated, superseded by
-// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
-// activities still render.
-type ActivityTypeEnabledMacosDiskEncryption struct {
-	TeamID   *uint   `json:"fleet_id"`
-	TeamName *string `json:"fleet_name"`
-}
-
-func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
-	return "enabled_macos_disk_encryption"
-}
-
-// ActivityTypeDisabledMacosDiskEncryption is deprecated, superseded by
-// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
-// activities still render.
-type ActivityTypeDisabledMacosDiskEncryption struct {
-	TeamID   *uint   `json:"fleet_id"`
-	TeamName *string `json:"fleet_name"`
-}
-
-func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
-	return "disabled_macos_disk_encryption"
-}
-
 // ActivityTypeEditedDiskEncryptionSettings is recorded once per platform whose
-// effective disk encryption settings changed. It replaces the deprecated
-// ActivityTypeEnabledMacosDiskEncryption / ActivityTypeDisabledMacosDiskEncryption
-// pair.
+// effective disk encryption settings changed. Activities recorded before Fleet
+// 4.92, when one setting covered every platform, were migrated to this type
+// with a null platform.
 type ActivityTypeEditedDiskEncryptionSettings struct {
 	FleetID   *uint   `json:"fleet_id"`
 	FleetName *string `json:"fleet_name"`
@@ -1178,6 +1157,38 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeResetHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeResetHost) ActivityName() string {
+	return "reset_host"
+}
+
+func (a ActivityTypeResetHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+// ActivityTypeFailedReset is logged when a Windows host reports that the reset command failed, or comes back from an
+// interrupted reset without having been reset.
+type ActivityTypeFailedReset struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFailedReset) ActivityName() string {
+	return "failed_reset"
+}
+
+func (a ActivityTypeFailedReset) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedReset) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeWipeFailedHost struct {
@@ -1734,7 +1745,7 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 
 type ActivityDeletedAppStoreApp struct {
 	SoftwareTitle       string                    `json:"software_title"`
-	SoftwareDisplayName *string                   `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string                    `json:"software_display_name"`
 	AppStoreID          string                    `json:"app_store_id"`
 	TeamName            *string                   `json:"fleet_name"`
 	TeamID              *uint                     `json:"fleet_id"`
@@ -2153,6 +2164,24 @@ func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName()
 	return "deleted_conditional_access_integration_microsoft"
 }
 
+type ActivityTypeAddedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "added_conditional_access_integration_google"
+}
+
+type ActivityTypeDeletedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "deleted_conditional_access_integration_google"
+}
+
+type ActivityTypeEditedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeEditedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "edited_conditional_access_integration_google"
+}
+
 type ActivityTypeAddedConditionalAccessOkta struct{}
 
 func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
@@ -2454,6 +2483,12 @@ type ActivityTypeSetHostGoogleDeviceID struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 	GoogleDeviceID  string `json:"google_device_id"`
+	// GoogleEmail is the Google account that signed in. A sign-in is the only record of who
+	// bound the host; a Fleet user setting the ID names no account.
+	GoogleEmail string `json:"google_email,omitempty"`
+	// Automated is set when the end user's Google sign-in or the sync cron bound the host,
+	// not a Fleet user.
+	Automated bool `json:"-"`
 }
 
 func (a ActivityTypeSetHostGoogleDeviceID) ActivityName() string {
@@ -2462,6 +2497,10 @@ func (a ActivityTypeSetHostGoogleDeviceID) ActivityName() string {
 
 func (a ActivityTypeSetHostGoogleDeviceID) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) WasFromAutomation() bool {
+	return a.Automated
 }
 
 type ActivityTypeDeletedHostGoogleDeviceID struct {

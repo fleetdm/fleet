@@ -172,30 +172,6 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.GetMDMAppleEnrollmentProfileByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 		return &fleet.MDMAppleEnrollmentProfile{ID: 1, Token: token, Type: fleet.MDMAppleEnrollmentTypeAutomatic}, nil
 	}
-	ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-		return nil, nil
-	}
-	ds.NewMDMAppleInstallerFunc = func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.MDMAppleInstallerFunc = func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.MDMAppleInstallerDetailsByIDFunc = func(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.DeleteMDMAppleInstallerFunc = func(ctx context.Context, id uint) error {
-		return nil
-	}
-	ds.MDMAppleInstallerDetailsByTokenFunc = func(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.ListMDMAppleInstallersFunc = func(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
-		return nil, nil
-	}
-	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-		return nil, nil
-	}
 	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: false}, nil
@@ -306,20 +282,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		}
 	}
 
-	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
-		ctx := test.UserContext(ctx, user)
-		_, err := svc.UploadMDMAppleInstaller(ctx, "foo", 3, bytes.NewReader([]byte("foo")))
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.GetMDMAppleInstallerByID(ctx, 42)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.DeleteMDMAppleInstaller(ctx, 42)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleInstallers(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-		_, err = svc.ListMDMAppleDevices(ctx)
-		checkAuthErr(t, err, shouldFailWithAuth)
-	}
-
 	// some eula methods read and write access for gitops users. We test them separately
 	// from the other MDM methods.
 	testEULAMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
@@ -337,9 +299,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		err := svc.MDMDeleteEULA(ctx, "foo", false)
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
-
-	// Only global admins can access the endpoints.
-	testAuthdMethods(t, test.UserAdmin, false)
 
 	// The EULA methods check each platform's MDM after authorization, so both are on.
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -361,16 +320,11 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
 	} {
-		testAuthdMethods(t, user, true)
 		testEULAMethods(t, user, true)
 	}
 	// Token authenticated endpoints can be accessed by anyone.
 	ctx = test.UserContext(ctx, test.UserNoRoles)
-	_, err := svc.GetMDMAppleInstallerByToken(ctx, "foo")
-	require.NoError(t, err)
-	_, err = svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo", "", &fleet.MDMAppleMachineInfo{})
-	require.NoError(t, err)
-	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
+	_, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, "foo", "", &fleet.MDMAppleMachineInfo{})
 	require.NoError(t, err)
 	_, err = svc.MDMGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
@@ -808,7 +762,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 }
 
 func TestNewMDMAppleConfigProfile(t *testing.T) {
-	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+	identifier := "Bar.$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 	setup := func(t *testing.T, license *fleet.LicenseInfo, identifier string) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, license)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
@@ -1122,7 +1076,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 
 	t.Run("Fleet variables used in the upload are threaded through to the datastore call", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		identifierWithVar := "com.fleetdm.test.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+		identifierWithVar := "com.fleetdm.test.$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 		existing := newExistingProfile(identifierWithVar, "Test Profile", 0)
 		mcBytes := mcBytesForTest("Test Profile", identifierWithVar, "UUID")
 
@@ -1137,7 +1091,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
-		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserEmailIDP)
+		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserIDPUsername)
 	})
 
 	t.Run("secrets_updated_at from expanding embedded secrets is threaded through to the datastore call", func(t *testing.T) {
@@ -2236,19 +2190,16 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		}
 		return &fleet.Host{ID: hostID, UUID: "WR0N6-UU1D", Platform: "darwin"}, nil
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		if identifier == "h0571d3n71f13r" {
-			return &fleet.HostLite{ID: uint(42)}, nil
+			return 42, nil
 		}
-		return &fleet.HostLite{ID: uint(21)}, nil
+		return 21, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return nil, nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
@@ -2370,7 +2321,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			}
 			ds.AppConfigFuncInvoked = false
 			ds.HostFuncInvoked = false
-			ds.HostLiteByIdentifierFuncInvoked = false
+			ds.HostIDByIdentifierFuncInvoked = false
 			ds.GetHostMDMAppleProfilesFuncInvoked = false
 
 			var gotHost *fleet.HostDetail
@@ -2383,7 +2334,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			if c.hostIdentifier != nil {
 				h, err := svc.GetHostByIDOrIdentifier(ctx, *c.hostIdentifier, fleet.HostDetailOptions{})
 				require.NoError(t, err)
-				require.True(t, ds.HostLiteByIdentifierFuncInvoked)
+				require.True(t, ds.HostIDByIdentifierFuncInvoked)
 				gotHost = h
 			}
 			require.NotNil(t, gotHost)
@@ -5746,7 +5697,6 @@ func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 func TestEnsureFleetdConfig(t *testing.T) {
 	testError := errors.New("test error")
 	testURL := "https://example.com"
-	testTeamName := "test-team"
 	logger := slog.New(slog.DiscardHandler)
 	mdmConfig := config.MDMConfig{
 		AppleSCEPCert: "./testdata/server.pem",
@@ -5818,7 +5768,6 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
-			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
 		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
@@ -5865,7 +5814,6 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
-			appCfg.MDM.DeprecatedAppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
 		ds.GetMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, identifier string) (*fleet.MDMAppleConfigProfile, error) {
@@ -9211,7 +9159,7 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	<array>
 		<dict>
 			<key>ComputerName</key>
-			<string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+			<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
 		</dict>
 	</array>
 </dict>
@@ -9226,7 +9174,16 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	vars, err := validateConfigProfileFleetVariables(profileWithVars, premiumLic, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
-	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
+	require.Contains(t, vars, "HOST_END_USER_IDP_USERNAME")
+
+	// A removed variable gets its Fleet 5 error whatever the license.
+	profileWithRemovedVar := strings.ReplaceAll(profileWithVars, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}")
+	for _, lic := range []*fleet.LicenseInfo{freeLic, premiumLic} {
+		_, err = validateConfigProfileFleetVariables(profileWithRemovedVar, lic, &fleet.GroupedCertificateAuthorities{})
+		var removedErr *fleet.RemovedFleetVariableError
+		require.ErrorAs(t, err, &removedErr, lic.Tier)
+		require.ErrorContains(t, err, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`)
+	}
 
 	// Test profile without variables (should work with free license)
 	profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>
@@ -9519,9 +9476,52 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
-			name:    "conditional access SCEP URL variable",
+			// Supported, but only alongside the renewal ID in a SCEP payload.
+			name:    "conditional access SCEP URL variable outside a SCEP profile",
 			profile: customProfileForValidation(fleet.FleetVarConditionalAccessSCEPURL.WithPrefix()),
-			errMsg:  "Fleet variable " + fleet.FleetVarConditionalAccessSCEPURL.WithPrefix() + " is not supported in configuration profiles.",
+			errMsg:  fleet.ConditionalAccessSCEPVariablesMissingErrMsg,
+		},
+		{
+			name: "Conditional access happy path",
+			profile: customSCEPForValidation("${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE}", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"),
+			vars: []string{"CONDITIONAL_ACCESS_SCEP_CHALLENGE", "CONDITIONAL_ACCESS_SCEP_URL", "SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "Conditional access profile written before the variables, with the secret and URL in it",
+			profile: customSCEPForValidation("global-secret", "https://fleet.example.com/api/fleet/conditional_access/scep",
+				"Name", "com.apple.security.scep"),
+			vars: []string{"SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "Conditional access literal challenge with the url variable",
+			profile: customSCEPForValidation("global-secret", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"),
+			vars: []string{"CONDITIONAL_ACCESS_SCEP_URL", "SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "Conditional access challenge is not a fleet variable",
+			profile: customSCEPForValidation("x$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE\" must be in the SCEP certificate's \"Challenge\" field.",
+		},
+		{
+			name: "Conditional access challenge outside the Challenge field",
+			profile: customSCEPForValidation("global-secret", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE\" must be in the SCEP certificate's \"Challenge\" field.",
+		},
+		{
+			name: "Conditional access url outside the URL field",
+			profile: customSCEPForValidation("global-secret", "https://fleet.example.com/api/fleet/conditional_access/scep",
+				"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL\" must be in the SCEP certificate's \"URL\" field.",
+		},
+		{
+			name: "Conditional access renewal ID shows up in the wrong place",
+			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"$FLEET_VAR_SCEP_RENEWAL_ID", "com.apple.security.scep"),
+			errMsg: renewalIDNotInSubjectMsg,
 		},
 		{
 			name:    "silent migration SCEP challenge variable",

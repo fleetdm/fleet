@@ -3,6 +3,7 @@
   "slug": "cpu-z/windows",
   "package_identifier": "CPUID.CPU-Z",
   "unique_identifier": "CPUID CPU-Z",
+  "open_process_names": ["cpuz.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",

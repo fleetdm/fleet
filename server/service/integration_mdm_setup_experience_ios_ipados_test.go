@@ -51,11 +51,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-			       "apple_business_manager": [{
+			       "apple_business": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
@@ -74,7 +74,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// app 1 macOS only
 	macOSApp1 := &fleet.VPPApp{
@@ -165,7 +165,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	// Add a profile
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	devices := []godep.Device{
 		{
@@ -236,11 +236,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-			       "apple_business_manager": [{
+			       "apple_business": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
@@ -257,7 +257,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 	var getVPPTokenResp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	iOSApp := &fleet.VPPApp{
 		AdamID: "2", Platform: fleet.IOSPlatform,
@@ -290,7 +290,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 
 	// custom profile, expected by the enroll/release helper
 	teamProfile := mobileconfigForTest("N1", "I1")
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	device := godep.Device{
 		Model:        "iPhone 16 Pro",
@@ -374,17 +374,17 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 
 	// set the enable release device manually option
 	payload := map[string]any{
-		"enable_release_device_manually": opts.EnableReleaseManually,
-		"manual_agent_install":           false,
+		"apple_enable_release_device_manually": opts.EnableReleaseManually,
+		"macos_manual_agent_install":           false,
 	}
 	if opts.TeamID != nil {
-		payload["team_id"] = *opts.TeamID
+		payload["fleet_id"] = *opts.TeamID
 	}
 
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	t.Cleanup(func() {
 		// Get back to the default state.
-		payload["enable_release_device_manually"] = false
+		payload["apple_enable_release_device_manually"] = false
 		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	})
 

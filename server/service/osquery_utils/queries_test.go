@@ -27,7 +27,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -38,7 +37,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -500,9 +498,6 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, &config.FleetConfig{
-		Osquery: config.OsqueryConfig{EnableAsyncHostProcessing: "false"},
-	})
 
 	var gotPackStats []fleet.PackStats
 	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
@@ -513,10 +508,10 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil, Integrations{}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil, Integrations{}, nil)["scheduled_query_stats"].DirectIngestFunc
 
 	ctx := t.Context()
-	assert.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, task, nil))
+	require.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, ds, nil))
 	assert.Len(t, host.PackStats, 0)
 
 	resJSON := `
@@ -598,7 +593,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(resJSON), &rows))
 
-	assert.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, task, rows))
+	require.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, ds, rows))
 	assert.Len(t, gotPackStats, 2)
 	sort.Slice(gotPackStats, func(i, j int) bool {
 		return gotPackStats[i].PackName < gotPackStats[j].PackName
@@ -679,7 +674,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		},
 	)
 
-	assert.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, task, nil))
+	require.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, ds, nil))
 	assert.Len(t, gotPackStats, 0)
 }
 
@@ -733,11 +728,27 @@ func TestGetDetailQueries(t *testing.T) {
 
 	// the Entra join user query is premium only
 	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	queriesPremium := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, nil, Integrations{}, nil)
+	withToolCalls := config.FleetConfig{Osquery: config.OsqueryConfig{AISessionMaxToolCalls: fleet.DefaultHostAISessionMaxEvents}}
+	queriesPremium := GetDetailQueries(premiumCtx, withToolCalls, nil, nil, Integrations{}, nil)
 	premiumQueries := append([]string{}, baseQueries...)
-	premiumQueries = append(premiumQueries, "entra_join_user_windows")
+	premiumQueries = append(premiumQueries, "entra_join_user_windows", "ai_agent_sessions", "ai_agent_session_events")
 	require.Len(t, queriesPremium, len(premiumQueries))
 	sortedKeysCompare(t, queriesPremium, premiumQueries)
+
+	// collecting AI sessions can be turned off in the org settings
+	aiSessionsOff := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{AISessionsDisabled: true}}
+	queriesPremiumNoAISessions := GetDetailQueries(premiumCtx, withToolCalls, aiSessionsOff, nil, Integrations{}, nil)
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_sessions")
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_session_events")
+	require.Contains(t, queriesPremiumNoAISessions, "entra_join_user_windows")
+	queriesPremiumAISessions := GetDetailQueries(premiumCtx, withToolCalls, &fleet.AppConfig{}, nil, Integrations{}, nil)
+	require.Contains(t, queriesPremiumAISessions, "ai_agent_sessions")
+	require.Contains(t, queriesPremiumAISessions, "ai_agent_session_events")
+
+	// with no tool calls to store, only the sessions are collected
+	queriesPremiumNoToolCalls := GetDetailQueries(premiumCtx, config.FleetConfig{}, &fleet.AppConfig{}, nil, Integrations{}, nil)
+	require.Contains(t, queriesPremiumNoToolCalls, "ai_agent_sessions")
+	require.NotContains(t, queriesPremiumNoToolCalls, "ai_agent_session_events")
 
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
@@ -956,8 +967,8 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Omarchy reports its own platform and a versioned BUILD_ID. Unlike the OS
-	// inventory row, the host keeps the distro name and its real version.
+	// Omarchy reports its own platform and a versioned BUILD_ID, which the host
+	// keeps as its version.
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "omarchy-host",
@@ -2103,7 +2114,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 		{
 			// CachyOS is an Arch-based rolling-release distribution. It reports a
 			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
-			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			// so it gets its own row with a "rolling" version.
 			data: []map[string]string{
 				{
 					"name":           "CachyOS Linux",
@@ -2117,16 +2128,15 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				},
 			},
 			expected: fleet.OperatingSystem{
-				Name:          "Arch Linux",
+				Name:          "CachyOS Linux",
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-2-cachyos",
 			},
 		},
 		{
-			// Omarchy is an Arch-based rolling-release distribution. Unlike CachyOS it
-			// reports a versioned BUILD_ID rather than "rolling", so it should still
-			// aggregate onto the "Arch Linux" row with a "rolling" version.
+			// Omarchy is an Arch-based distribution. Unlike CachyOS it reports a
+			// versioned BUILD_ID rather than "rolling", so its row has that version.
 			data: []map[string]string{
 				{
 					"name":           "Omarchy",
@@ -2140,8 +2150,8 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				},
 			},
 			expected: fleet.OperatingSystem{
-				Name:          "Arch Linux",
-				Version:       "rolling",
+				Name:          "Omarchy",
+				Version:       "4.0.0",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-arch1-1",
 			},
@@ -4587,7 +4597,6 @@ func TestSoftwareLinuxNix(t *testing.T) {
 	require.Equal(t, discoveryTable("fleetd_nix_packages"), softwareLinuxNix.Discovery)
 	require.Nil(t, softwareLinuxNix.IngestFunc)
 	require.Nil(t, softwareLinuxNix.DirectIngestFunc)
-	require.Nil(t, softwareLinuxNix.DirectTaskIngestFunc)
 
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err)
@@ -4629,7 +4638,6 @@ func TestSoftwareAdobePlugins(t *testing.T) {
 	// must not ingest anything on its own.
 	require.Nil(t, softwareAdobePlugins.IngestFunc)
 	require.Nil(t, softwareAdobePlugins.DirectIngestFunc)
-	require.Nil(t, softwareAdobePlugins.DirectTaskIngestFunc)
 
 	// The query reports exactly the columns the software ingestion reads, so a renamed
 	// or dropped alias (e.g. bundle_id not aliased to bundle_identifier) fails here

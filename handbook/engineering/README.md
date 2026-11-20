@@ -479,7 +479,7 @@ Processes for maintaining and releasing changes to fleetdm.com (local testing, d
 
 ## Runbooks
 
-Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](./runbooks) subdirectory and link them here.
+Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](https://github.com/fleetdm/fleet/tree/main/handbook/engineering/runbooks) subdirectory and link them here.
 
 - [AI coding tool outage](./runbooks/ai-coding-tool-outage.md): fall back to GitHub Copilot when Claude Code is unavailable.
 
@@ -540,9 +540,9 @@ Please see [Confirm latest versions of dependencies](https://fleetdm.com/handboo
 
 Please see [Indicate your product group is release-ready](https://fleetdm.com/handbook/engineering/releases#indicate-your-product-group-is-release-ready).
 
-##### Submit test coverage requests to QA Wolf
+##### Request Playwright test coverage
 
-Please see [Submit test coverage requests to QA Wolf](https://fleetdm.com/handbook/engineering/releases#submit-test-coverage-requests-to-qa-wolf).
+Please see [Request Playwright test coverage](https://fleetdm.com/handbook/engineering/releases#request-playwright-test-coverage).
 
 ##### Prepare Fleet release
 

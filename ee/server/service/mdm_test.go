@@ -1246,14 +1246,11 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 	t.Parallel()
 
 	abmToken := func(orgName string, isDefault bool, macOSTeam string) *fleet.ABMToken {
-		return &fleet.ABMToken{
-			OrganizationName: orgName,
-			IsDefault:        isDefault,
-			MacOSTeam:        fleet.ABMTokenTeam{Name: macOSTeam},
-			IOSTeam:          fleet.ABMTokenTeam{Name: macOSTeam},
-			IPadOSTeam:       fleet.ABMTokenTeam{Name: macOSTeam},
-			BYODTeam:         fleet.ABMTokenTeam{Name: macOSTeam},
+		tm := fleet.ABMTokenTeam{Name: macOSTeam, ID: 1}
+		if macOSTeam == fleet.DisplayNameNoTeam {
+			tm.ID = 0
 		}
+		return &fleet.ABMToken{OrganizationName: orgName, IsDefault: isDefault, MacOSTeam: tm, IOSTeam: tm, IPadOSTeam: tm, BYODTeam: tm}
 	}
 	abmEntry := func(orgName string, isDefault bool, teamName string) fleet.MDMAppleABMAssignmentInfo {
 		return fleet.MDMAppleABMAssignmentInfo{
@@ -1275,8 +1272,18 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 	}{
 		{
 			name:    "creates entry when app config was never set",
-			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.DisplayNameNoTeam)},
 			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
+			wantSet: true,
+		},
+		{
+			name: "keeps a fleet named Unassigned",
+			tokens: []*fleet.ABMToken{{
+				OrganizationName: "org1", MacOSTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam, ID: 5},
+				IOSTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}, IPadOSTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+				BYODTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			}},
+			want:    []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "org1", MacOSTeam: fleet.DisplayNameNoTeam}},
 			wantSet: true,
 		},
 		{
@@ -1307,7 +1314,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
 				abmEntry("org1", true, "Workstations"),
 			}),
-			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.DisplayNameNoTeam)},
 			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
 			wantSet: true,
 		},
@@ -1329,7 +1336,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 			tokens: []*fleet.ABMToken{
 				abmToken("org1", false, "Workstations"),
 				abmToken("org2", true, "Servers"),
-				abmToken("org3", false, fleet.TeamNameNoTeam),
+				abmToken("org3", false, fleet.DisplayNameNoTeam),
 			},
 			want: []fleet.MDMAppleABMAssignmentInfo{
 				abmEntry("org1", false, "Workstations"),
@@ -1382,7 +1389,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 		appCfg := &fleet.AppConfig{}
 		tokens := []*fleet.ABMToken{
 			abmToken("org1", true, "Workstations"),
-			abmToken("org2", false, fleet.TeamNameNoTeam),
+			abmToken("org2", false, fleet.DisplayNameNoTeam),
 		}
 
 		syncABMTokensToAppConfig(appCfg, tokens)
@@ -1439,10 +1446,10 @@ func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
 			ID:               2,
 			OrganizationName: "org2",
 			IsDefault:        true, // the datastore promoted it inside the delete tx
-			MacOSTeam:        fleet.ABMTokenTeam{Name: "Workstations"},
-			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
-			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
-			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+			MacOSTeam:        fleet.ABMTokenTeam{Name: "Workstations", ID: 1},
+			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
 		}}
 		ds, svc, saved := setupDeleteTest(t, entries, remaining)
 

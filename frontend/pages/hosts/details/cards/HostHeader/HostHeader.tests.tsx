@@ -7,7 +7,6 @@ import { internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
-import { DEVICE_STATUS_TAGS } from "./helpers";
 import HostHeader from "./HostHeader";
 
 const renderActionDropdown = jest.fn(() => <div data-testid="dropdown" />);
@@ -103,7 +102,9 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus={null}
       />
     );
-    expect(screen.getByText(/Fetching fresh vitals/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("Refetching... This can take up to 1 minute.")
+    ).toBeInTheDocument();
   });
 
   it("calls onRefetchHost when refetch button is clicked", () => {
@@ -199,6 +200,27 @@ describe("HostHeader", () => {
     expect(screen.getByText("Wiped")).toBeInTheDocument();
   });
 
+  it.each([
+    { status: "resetting", badge: "Reset pending" },
+    { status: "reset", badge: "Reset" },
+    { status: "reset_wipe_pending", badge: "Reset" },
+  ] as const)(
+    "renders the '$badge' badge for a Windows host",
+    ({ status, badge }) => {
+      render(
+        <HostHeader
+          summaryData={{ ...defaultSummaryData, platform: "windows" }}
+          showRefetchSpinner={false}
+          onRefetchHost={jest.fn()}
+          renderActionsDropdown={renderActionDropdown}
+          hostMdmDeviceStatus={status}
+          hostMdmEnrollmentStatus="On (manual)"
+        />
+      );
+      expect(screen.getByText(badge)).toBeInTheDocument();
+    }
+  );
+
   it("renders 'Lock pending' and 'Wiped' badges for Android hosts", () => {
     const { rerender } = renderWithSetup(
       <HostHeader
@@ -239,8 +261,8 @@ describe("HostHeader", () => {
     expect(screen.getByText("Wipe pending")).toBeInTheDocument();
   });
 
-  it("renders no badge for a pending Android BYOD unenroll", () => {
-    render(
+  it("renders 'Unenroll pending' badge and tooltip for a pending Android BYOD unenroll", async () => {
+    const { user } = renderWithSetup(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
         showRefetchSpinner={false}
@@ -250,9 +272,14 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus="On (personal)"
       />
     );
-    Object.values(DEVICE_STATUS_TAGS).forEach(({ title }) => {
-      expect(screen.queryByText(title)).not.toBeInTheDocument();
-    });
+    expect(screen.queryByText("Wipe pending")).not.toBeInTheDocument();
+    expect(screen.getByText("Unenroll pending")).toHaveClass("warning");
+
+    await user.hover(screen.getByText("Unenroll pending"));
+
+    expect(
+      await screen.findByText(/Host will unenroll when it comes online/i)
+    ).toBeInTheDocument();
   });
 
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {

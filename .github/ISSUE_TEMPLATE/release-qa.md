@@ -69,6 +69,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 1. Navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
 2. Navigate to the login page and attempt to login with both valid and invalid SSO credentials to verify expected results.
+3. With SMTP or SES configured, enable two-factor authentication (email) for a non-SSO user in **Settings > Users**. Log in as that user with valid credentials, then open the magic link from the email in the same browser, with the Network tab of devtools open.
 
 </td>
 <td>
@@ -78,6 +79,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 3. Forget password link prompts for email.
 4. Valid credentials result in a successful login.
 5. Valid SSO credentials result in a successful login.
+6. MFA login prompts the user to check their email, and the magic link results in a successful login. Exactly one `POST /api/latest/fleet/sessions` request is sent, and the user stays logged in (no "Your session expired" redirect to the login page).
 
 </td>
 </tr>

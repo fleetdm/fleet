@@ -200,12 +200,12 @@ func TestMDMRunCommand(t *testing.T) {
 				NoCacheDatastore: true,
 			})
 
-			ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 				h, ok := hostByUUID[identifier]
 				if !ok {
-					return nil, &notFoundError{}
+					return 0, &notFoundError{}
 				}
-				return &fleet.HostLite{ID: h.host.ID, TeamID: h.host.TeamID}, nil
+				return h.host.ID, nil
 			}
 			ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 				h, ok := hostByID[hostID]
@@ -221,9 +221,6 @@ func TestMDMRunCommand(t *testing.T) {
 				return nil
 			}
 			ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-				return nil, nil
-			}
-			ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 				return nil, nil
 			}
 			ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
@@ -685,6 +682,24 @@ fleetctl mdm unlock --host=%s
 	}
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfgAllMDM, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+			return nil, nil
+		}
+		for _, action := range []string{"lock", "unlock", "clear-passcode", "wipe"} {
+			t.Run(action, func(t *testing.T) {
+				_, err := runAppNoChecks([]string{"mdm", action, "--host", macEnrolled.host.UUID})
+				require.ErrorContains(t, err, fleet.GitOpsMDMCommandErrorMessage)
+			})
+		}
+	})
 }
 
 func TestMDMUnlockCommand(t *testing.T) {
@@ -1144,6 +1159,24 @@ func TestMDMWipeCommand(t *testing.T) {
 		},
 		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
 	}
+	winEnrolledRP := testhost{
+		host: &fleet.Host{
+			ID:       22,
+			UUID:     "win-enrolled-rp",
+			Platform: "windows",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("On (manual)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
+	winEnrolledReset := testhost{
+		host: &fleet.Host{
+			ID:       23,
+			UUID:     "win-enrolled-reset",
+			Platform: "windows",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("On (manual)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
 
 	linuxHostIDs := []uint{linuxEnrolled.host.ID, linuxEnrolled2.host.ID, linuxEnrolled3.host.ID}
 
@@ -1169,6 +1202,8 @@ func TestMDMWipeCommand(t *testing.T) {
 		winEnrolledLocked,
 		macEnrolledLocked,
 		androidNotConnected,
+		winEnrolledRP,
+		winEnrolledReset,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -1178,6 +1213,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		winEnrolledLocked.host.ID: winEnrolledLocked,
 		macEnrolledLocked.host.ID: macEnrolledLocked,
 	}
+	resetCmd := &fleet.MDMCommand{RequestType: fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData)}
 
 	unlockPending := map[uint]testhost{
 		winEnrolledUP.host.ID: winEnrolledUP,
@@ -1245,6 +1281,16 @@ func TestMDMWipeCommand(t *testing.T) {
 
 			status.WipeMDMCommand = &fleet.MDMCommand{}
 			status.WipeMDMCommandResult = nil
+			return &status, nil
+		}
+
+		switch host.ID {
+		case winEnrolledRP.host.ID:
+			status.WipeMDMCommand = resetCmd
+			return &status, nil
+		case winEnrolledReset.host.ID:
+			status.WipeMDMCommand = resetCmd
+			status.WipeMDMCommandResult = &fleet.MDMCommandResult{Status: "200"}
 			return &status, nil
 		}
 
@@ -1326,7 +1372,6 @@ func TestMDMWipeCommand(t *testing.T) {
 	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
-	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
 
 	cases := []struct {
 		appCfg  *fleet.AppConfig
@@ -1358,8 +1403,9 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid windows but host is locked", []string{"--host", winEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
-		{appCfgScriptsDisabled, "valid linux and scripts are disabled", []string{"--host", linuxEnrolled.host.UUID}, ""},
 		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
+		{appCfgAllMDM, "valid windows with pending reset", []string{"--host", winEnrolledRP.host.UUID}, ""},
+		{appCfgAllMDM, "valid windows after reset", []string{"--host", winEnrolledReset.host.UUID}, ""},
 	}
 
 	successfulOutput := func(ident string) string {
@@ -1372,6 +1418,38 @@ fleetctl get host %s`, ident)
 	}
 
 	runTestCases(t, ds, "wipe", successfulOutput, cases)
+
+	resetCases := []struct {
+		appCfg  *fleet.AppConfig
+		desc    string
+		flags   []string
+		wantErr string
+	}{
+		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
+		{appCfgAllMDM, "reset non-existent host", []string{"--host", "notfound"}, fleet.HostNotFoundErrMsg},
+		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.host.UUID}, ""},
+		{appCfgAllMDM, "macos", []string{"--host", macEnrolled.host.UUID}, "Reset is only available for Windows hosts."},
+		{appCfgNoMDM, "linux", []string{"--host", linuxEnrolled.host.UUID}, "Reset is only available for Windows hosts."},
+		{appCfgMacMDM, "windows but only macos mdm", []string{"--host", winEnrolled.host.UUID}, `Windows MDM isn't turned on.`},
+		{appCfgWinMDM, "windows but not enrolled", []string{"--host", winNotEnrolled.host.UUID}, `Can't reset the host because it doesn't have MDM turned on.`},
+		{appCfgAllMDM, "windows but pending lock", []string{"--host", winEnrolledLP.host.UUID}, "Host cannot be reset until lock is complete."},
+		{appCfgAllMDM, "windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "windows but pending reset", []string{"--host", winEnrolledRP.host.UUID}, "Host has pending reset request. The host will be reset when it comes online."},
+		{appCfgAllMDM, "windows but host wiped", []string{"--host", winEnrolledWiped.host.UUID}, "Host is already wiped."},
+		{appCfgAllMDM, "windows but host reset", []string{"--host", winEnrolledReset.host.UUID}, "Host is already reset."},
+		{appCfgAllMDM, "windows but host is locked", []string{"--host", winEnrolledLocked.host.UUID}, "Host cannot be reset until it is unlocked."},
+	}
+
+	resetOutput := func(ident string) string {
+		return fmt.Sprintf(`
+The host will reset when it comes online.
+
+Copy and run this command to see results:
+
+fleetctl get host %s`, ident)
+	}
+
+	runTestCases(t, ds, "reset", resetOutput, resetCases)
 }
 
 func writeTmpAppleMDMCmd(t *testing.T, commandName string) string {
@@ -1523,12 +1601,12 @@ func setupTestServer(t *testing.T) *mock.Store {
 
 // sets up common data store mocks that are needed for the tests.
 func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[uint]testhost) {
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		h, ok := hostByUUID[identifier]
 		if !ok {
-			return nil, &notFoundError{}
+			return 0, &notFoundError{}
 		}
-		return &fleet.HostLite{ID: h.host.ID, TeamID: h.host.TeamID}, nil
+		return h.host.ID, nil
 	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
 		return time.Now(), nil
@@ -1538,9 +1616,6 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	}
 	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return nil, nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
@@ -1557,7 +1632,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostUUID, customerID string) (string, error) {
 		return "", nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {

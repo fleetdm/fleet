@@ -77,7 +77,6 @@ const ProfileFormPage = ({
   const isManualPath =
     location.pathname === PATHS.CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL;
   const showAIView =
-    featureFlags.showAIProfileBuilder === "true" &&
     !profileUUID &&
     !isManualPath &&
     !gitOpsModeEnabled &&
@@ -203,6 +202,7 @@ const ProfileFormPage = ({
             pathname: PATHS.CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL,
             query: isPremiumTier ? { fleet_id: teamId } : {},
           }}
+          defaultPlatform={location.query.platform}
         />
       );
     }

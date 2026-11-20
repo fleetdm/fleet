@@ -72,23 +72,26 @@ export const roleOptions = ({
     },
   ];
 
-  if (isPremiumTier) {
+  if (isApiOnly) {
     roles.splice(1, 0, {
-      label: "Observer+",
-      value: "observer_plus",
+      label: "GitOps",
+      value: "gitops",
     });
+  }
 
-    roles.splice(2, 0, {
-      label: "Technician",
-      value: "technician",
-    });
-
-    if (isApiOnly) {
-      roles.splice(3, 0, {
-        label: "GitOps",
-        value: "gitops",
-      });
-    }
+  if (isPremiumTier) {
+    roles.splice(
+      1,
+      0,
+      {
+        label: "Observer+",
+        value: "observer_plus",
+      },
+      {
+        label: "Technician",
+        value: "technician",
+      }
+    );
   }
 
   return roles;

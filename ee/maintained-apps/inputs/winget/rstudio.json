@@ -3,6 +3,7 @@
   "slug": "rstudio/windows",
   "package_identifier": "Posit.RStudio",
   "unique_identifier": "RStudio",
+  "open_process_names": ["rgui.exe", "rsession.exe", "rstudio.exe"],
   "program_publisher": "Posit Software",
   "installer_arch": "x64",
   "installer_type": "exe",
