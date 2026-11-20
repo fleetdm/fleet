@@ -601,11 +601,11 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		var rotateResp rotateRecoveryLockPasswordResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateResp)
 
-		// While the rotation is in flight the row is no longer 'verified', so the API
-		// withholds the password rather than hand back one that may already be stale.
+		// While the rotation is in flight the prior password is still the one on the device.
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
-		assert.Nil(t, getPasswordResp.RecoveryLockPassword.Password, "password is withheld until the rotation verifies")
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Equal(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password)
 
 		// The rotation is delivered and verified the same way an initial set is
 		ackSetThenVerify(t, mdmClient)
@@ -1530,6 +1530,240 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// viewPassword returns a fresh response each call: unmarshalling into a reused one
+	// overwrites the previous call's Password pointer.
+	viewPassword := func(t *testing.T, hostID uint) *recoveryLockPasswordPayload {
+		t.Helper()
+		var resp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", hostID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.RecoveryLockPassword)
+		return resp.RecoveryLockPassword
+	}
+
+	dbAutoRotateAt := func(t *testing.T, hostUUID string) *time.Time {
+		t.Helper()
+		var at *time.Time
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &at,
+				`SELECT auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+		})
+		return at
+	}
+
+	// verifiedHostWithPassword returns a host whose recovery lock is verified, and its password.
+	verifiedHostWithPassword := func(t *testing.T) (*fleet.Host, *mdmtest.TestAppleMDMClient, string) {
+		t.Helper()
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
+		}, http.StatusOK, &appConfigResponse{})
+		t.Cleanup(func() {
+			s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+				"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
+			}, http.StatusOK, &appConfigResponse{})
+		})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+
+		pw := viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		return host, mdmClient, *pw.Password
+	}
+
+	t.Run("pending rotation shows the prior password until the new one verifies", func(t *testing.T) {
+		host, mdmClient, prior := verifiedHostWithPassword(t)
+
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+
+		// Pending: SetRecoveryLock queued, not yet delivered.
+		pw := viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		assert.Equal(t, prior, *pw.Password)
+
+		// Verifying: device applied the new password, Fleet hasn't confirmed it yet.
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd)
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+
+		pw = viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		assert.Equal(t, prior, *pw.Password)
+
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		pw = viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		assert.NotEqual(t, prior, *pw.Password)
+	})
+
+	t.Run("failed rotation keeps showing the prior password", func(t *testing.T) {
+		t.Run("device rejects the new password on verify", func(t *testing.T) {
+			host, mdmClient, prior := verifiedHostWithPassword(t)
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+
+			setCmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, setCmd)
+			verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+			require.NoError(t, err)
+			if verifyCmd == nil {
+				verifyCmd, err = mdmClient.Idle()
+				require.NoError(t, err)
+			}
+			require.NotNil(t, verifyCmd)
+			_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, false)
+			require.NoError(t, err)
+
+			rlpStatus := getHostRecoveryLockStatus(host.ID)
+			require.NotNil(t, rlpStatus.Status)
+			require.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status)
+
+			pw := viewPassword(t, host.ID)
+			require.NotNil(t, pw.Password)
+			assert.Equal(t, prior, *pw.Password)
+		})
+
+		t.Run("SetRecoveryLock errors until retries are exhausted", func(t *testing.T) {
+			host, mdmClient, prior := verifiedHostWithPassword(t)
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+
+			for attempt := 0; attempt <= maxRecoveryLockRetries; attempt++ {
+				if attempt > 0 {
+					runRecoveryLockCron(t)
+				}
+				cmd, err := mdmClient.Idle()
+				require.NoError(t, err)
+				require.NotNil(t, cmd, "attempt %d should have a command queued", attempt)
+				require.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+				_, err = mdmClient.Err(cmd.CommandUUID, []mdm.ErrorChain{
+					{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "DeviceAlreadyHasPIN"},
+				})
+				require.NoError(t, err)
+
+				pw := viewPassword(t, host.ID)
+				require.NotNil(t, pw.Password, "attempt %d", attempt)
+				assert.Equal(t, prior, *pw.Password, "attempt %d", attempt)
+			}
+
+			rlpStatus := getHostRecoveryLockStatus(host.ID)
+			require.NotNil(t, rlpStatus.Status)
+			require.Equal(t, fleet.RecoveryLockStatusFailed, *rlpStatus.Status)
+
+			pw := viewPassword(t, host.ID)
+			require.NotNil(t, pw.Password)
+			assert.Equal(t, prior, *pw.Password)
+		})
+	})
+
+	t.Run("pending removal shows the current password until the host confirms the clear", func(t *testing.T) {
+		host, mdmClient, current := verifiedHostWithPassword(t)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
+		}, http.StatusOK, &appConfigResponse{})
+		runRecoveryLockCron(t)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		require.Equal(t, fleet.RecoveryLockStatusRemovingEnforcement, *rlpStatus.Status)
+
+		pw := viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		assert.Equal(t, current, *pw.Password)
+		assert.Nil(t, pw.AutoRotateAt, "a password pending removal is never auto-rotated")
+
+		// Device acknowledged the clear, verify still outstanding.
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd)
+
+		pw = viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		assert.Equal(t, current, *pw.Password)
+
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound, &getHostRecoveryLockPasswordResponse{})
+	})
+
+	t.Run("viewing during a pending rotation does not schedule another rotation", func(t *testing.T) {
+		// assertNoRotationScheduled views the password and checks nothing got scheduled.
+		assertNoRotationScheduled := func(t *testing.T, host *fleet.Host) {
+			t.Helper()
+			pw := viewPassword(t, host.ID)
+			assert.Nil(t, pw.AutoRotateAt)
+			assert.Nil(t, dbAutoRotateAt(t, host.UUID))
+		}
+
+		t.Run("rotation in flight", func(t *testing.T) {
+			host, mdmClient, _ := verifiedHostWithPassword(t)
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+			assertNoRotationScheduled(t, host)
+
+			setCmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, setCmd)
+			verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+			require.NoError(t, err)
+			if verifyCmd == nil {
+				verifyCmd, err = mdmClient.Idle()
+				require.NoError(t, err)
+			}
+			require.NotNil(t, verifyCmd)
+			assertNoRotationScheduled(t, host)
+
+			_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+			require.NoError(t, err)
+			require.Nil(t, dbAutoRotateAt(t, host.UUID), "views during the rotation must not carry over once it verifies")
+
+			// Even with every deadline passed, the cron finds nothing to rotate.
+			runRecoveryLockCron(t)
+			cmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			assert.Nil(t, cmd, "no additional rotation should be sent")
+		})
+
+		t.Run("rotation awaiting retry after a transient error", func(t *testing.T) {
+			host, mdmClient, _ := verifiedHostWithPassword(t)
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+
+			setCmd, err := mdmClient.Idle()
+			require.NoError(t, err)
+			require.NotNil(t, setCmd)
+			_, err = mdmClient.Err(setCmd.CommandUUID, []mdm.ErrorChain{
+				{ErrorCode: 12066, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "DeviceAlreadyHasPIN"},
+			})
+			require.NoError(t, err)
+
+			// The retry state leaves status NULL with the rotation still pending.
+			assertNoRotationScheduled(t, host)
+		})
 	})
 
 	// Final cleanup: ensure recovery lock is disabled
