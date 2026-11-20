@@ -1986,8 +1986,8 @@ func (s *integrationMDMTestSuite) TestVPPAutomaticInstallPolicyActivityNoFleet()
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 		&addAppStoreAppRequest{TeamID: new(fleet.PolicyNoTeamID), AppStoreID: "1", AutomaticInstall: true}, http.StatusOK, &addAppResp)
 
-	var policies fleet.ListTeamPoliciesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", fleet.PolicyNoTeamID), nil, http.StatusOK, &policies)
+	var policies fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policies, "fleet_id", fmt.Sprint(fleet.PolicyNoTeamID))
 	require.Len(t, policies.Policies, 1)
 	s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
 		fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":%q}`, policies.Policies[0].ID, policies.Policies[0].Name), 0)

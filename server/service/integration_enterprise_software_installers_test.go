@@ -3797,8 +3797,8 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 		Filename:         "dummy_installer.pkg",
 		AutomaticInstall: true,
 	}, http.StatusOK, "")
-	ts = fleet.ListTeamPoliciesResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", fleet.PolicyNoTeamID), nil, http.StatusOK, &ts)
+	ts = fleet.ListPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &ts, "fleet_id", fmt.Sprint(fleet.PolicyNoTeamID))
 	require.Len(t, ts.Policies, 1)
 	s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
 		fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software] DummyApp (pkg)"}`, ts.Policies[0].ID), 0)
