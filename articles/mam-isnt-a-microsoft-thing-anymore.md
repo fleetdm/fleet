@@ -6,8 +6,8 @@
 
 - **You aren't locked into Microsoft for BYOD.** Google Workspace protects work data on personal phones without Intune, Entra, or enrolling the phone.
 - **MAM is two controls, and Google has both.** Only trusted apps can sign in, and those apps block copy-paste, AirDrop, saving to Files, and printing.
-- **Most personal phones never enroll.** Roughly a third of personal phones are in MDM, compared with about three quarters of company-owned devices. The usual reason is privacy: people don't know what IT can see, so they assume the worst.
-- **Enrolled phones get the better first day.** With MDM, work apps arrive already signed in and configured, and the guardrails turn into setup instead of error messages.
+- **Most personal phones don't enroll.** Roughly a third of personal phones are in MDM, compared with about three quarters of company-owned devices. The usual reason is privacy: people don't know what IT can see, so they assume the worst.
+- **Enrollment can go up.** Make it easy, show people exactly what IT can see on their phone, and require it with conditional access. Enrolled phones also get a better first day: work apps arrive already signed in and configured.
 - **The AI tried to stop this article, too.** The assistant that helped publish it rewrote the claims from years-old sources, then backed down after reading Google's current docs.
 - **Don't be afraid to check your LLM.** Ask how something works, not who does it best.
 
@@ -36,13 +36,13 @@ The assistant sounded sure of itself. So I stopped asking who does MAM best and 
 
 Every Microsoft advantage fell apart. Even "Microsoft has clearer error messages" didn't survive. Telling a user the app isn't approved by IT helps about as much as Google's "Access blocked." The assistant gave in once it read Google's admin docs.
 
-## Most people won't enroll
+## Most people don't enroll
 
 On paper, BYOD is everywhere. About 82% of organizations run a formal BYOD program, and Gartner says 55% of employees use a personal device for work at least some of the time.
 
-We looked at companies with 500 or more employees that issue every employee a computer. There, BYOD means phones. And phones mostly don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so treat that as rough. The gap is hard to miss anyway.
+We looked at companies with 500 or more employees that issue every employee a computer. There, BYOD means phones. And most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so treat that as rough. The gap is hard to miss anyway.
 
-It's rarely laziness. People worry about privacy. They don't know what IT can see on their personal phone, so they assume the worst and keep it out. MAM is how you protect work data on all the phones that never enroll.
+It's rarely laziness. People worry about privacy. They don't know what IT can see on their personal phone, so they assume the worst and keep it out. MAM is how you protect work data on the phones that don't enroll.
 
 ## Two hallways
 
@@ -55,6 +55,14 @@ Picture a new hire with a personal iPhone on their first day.
 The second hallway is better for the employee and for IT. The guardrails are still there. They just show up as setup instead of surprises.
 
 More teams are walking down it, BYOD included. AI apps like Claude can now act for you on your computer and reach a lot of your organization's data, so knowing which devices are enrolled matters more than it did a year ago.
+
+## Enrollment can go up
+
+Those numbers aren't fixed. People hold back because enrolling a personal phone feels like a leap of faith. Make enrollment as easy as hallway two. Show people exactly what IT can and can't see on their phone, and what they're giving up. Then more of them say yes.
+
+For everyone else, conditional access is the best way to require it: no enrollment, no work apps.
+
+That's why we're so focused on the BYOD experience at Fleet. The easier enrollment is, the more people do it. IT gets fewer tickets, and new hires get to work faster. And when employees know what's visible, BYOD can be good for the culture, too. One publicly traded fintech company resisted BYOD for years. It recently rolled it out for exactly these reasons.
 
 ## If you run Google Workspace and Okta
 
