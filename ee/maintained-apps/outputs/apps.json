@@ -10110,6 +10110,13 @@
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
     },
     {
+      "name": "ZeroTier One",
+      "slug": "zerotier-one/windows",
+      "platform": "windows",
+      "unique_identifier": "ZeroTier One",
+      "description": "ZeroTier One is a virtual networking client that connects devices over encrypted peer-to-peer networks."
+    },
+    {
       "name": "Zettlr",
       "slug": "zettlr/darwin",
       "platform": "darwin",
