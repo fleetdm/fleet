@@ -711,10 +711,10 @@
   platform: apple
   category: Device details
   externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/user-configured-command
-  description: Inform the device that it can allow the user to continue in Setup Assistant.
+  description: Inform the device that it can continue past Setup Assistant and finish login.
   supportedDeviceTypes:
-    - iOS 9.0+
-    - iPadOS 9.0+
+    - iOS 17.0+
+    - iPadOS 17.0+
   faq:
     - question: What does the UserConfigured MDM command do?
       answer: |
@@ -1437,7 +1437,7 @@
   platform: apple
   category: Managed apps
   externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/apply-redemption-code-command
-  description: Remove an app.
+  description: Complete the installation of an app using a redemption code.
   supportedDeviceTypes:
     - iOS 5.0+
     - iPadOS 5.0+
@@ -1595,7 +1595,7 @@
 - name: Managed application configuration
   platform: apple
   category: Managed apps
-  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-attributes-command
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-configuration-command
   description: Get app configurations from managed apps on a device.
   supportedDeviceTypes:
     - iOS 7.0+
@@ -1655,7 +1655,7 @@
 - name: Managed application feedback
   platform: apple
   category: Managed apps
-  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-attributes-command
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-feedback-command
   description: Get app feedback from a managed app on the device.
   supportedDeviceTypes:
     - iOS 7.0+
@@ -1722,7 +1722,7 @@
   supportedDeviceTypes:
     - iOS 8.0+
     - iPadOS 8.0+
-    - macOS 10.19+
+    - macOS 10.9+ (deprecated in macOS 11)
   faq:
     - question: What does the InstallMedia MDM command do?
       answer: |
@@ -1836,7 +1836,7 @@
 - name: Remove media
   platform: apple
   category: Managed media
-  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-media-list-command
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/remove-media-command
   description: Remove a previously installed book from a device.
   supportedDeviceTypes:
     - iOS 8.0+
@@ -1845,9 +1845,6 @@
     - question: What does the RemoveMedia MDM command do?
       answer: |
         `RemoveMedia` deletes a managed book from an iPhone or iPad. Set `MediaType` to `Book` and identify the book with the `PersistentID` or `iTunesStoreID` used when it was installed.
-    - question: What's the correct RemoveMedia payload?
-      answer: |
-        Put `MediaType`, `PersistentID`, and `RequestType` inside a `Command` dictionary, like every other Apple MDM command. Some published examples, including the sample on this page, put these keys at the top level of the plist. That fails, and Fleet rejects it as a command it can't decode.
     - question: How do I run RemoveMedia with Fleet?
       answer: |
         Fleet doesn't send `RemoveMedia` for any built-in feature. Fix the payload structure, then run `fleetctl mdm run-command --hosts=<hostname> --payload=remove-book.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Get the book's `PersistentID` from `ManagedMediaList` first.
@@ -1871,12 +1868,17 @@
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
     <plist version="1.0">
     <dict>
-        <key>MediaType</key>
-        <string>Book</string>
-        <key>PersistentID</key>
-        <string>com.acme.pdf.myenterprisebook</string>
-        <key>RequestType</key>
-        <string>RemoveMedia</string>
+        <key>Command</key>
+        <dict>
+            <key>MediaType</key>
+            <string>Book</string>
+            <key>PersistentID</key>
+            <string>com.acme.pdf.myenterprisebook</string>
+            <key>RequestType</key>
+            <string>RemoveMedia</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RemoveMedia</string>
     </dict>
     </plist>
 
@@ -1987,12 +1989,12 @@
 - name: Invite to program
   platform: apple
   category: Accounts
-  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/account-configuration-command
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/invite-to-program-command
   description: Invite a user to join the Volume Purchase Program (VPP).
   supportedDeviceTypes:
     - iOS 7.0+
     - iPadOS 7.0+
-    - macOS 10.11+
+    - macOS 10.9+
   faq:
     - question: What does the InviteToProgram MDM command do?
       answer: |
@@ -2045,7 +2047,7 @@
     - iOS 4.0+
     - iPadOS 4.0+
     - visionOS 1.1+
-    - macOS 10.0+
+    - watchOS 10.0+
   faq:
     - question: What does the ClearPasscode MDM command do?
       answer: |
@@ -2140,7 +2142,7 @@
   platform: apple
   category: Passwords
   externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/clear-restrictions-password-command
-  description: Remove the passcode from a device.
+  description: Clear the Screen Time password and the restrictions on a device.
   supportedDeviceTypes:
     - iOS 8.0+
     - iPadOS 8.0+
@@ -2259,7 +2261,7 @@
   externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/set-auto-admin-password-command
   description: Update the local administrator account password.
   supportedDeviceTypes:
-    - macOS 10.13+
+    - macOS 10.11+
   faq:
     - question: What does the SetAutoAdminPassword MDM command do?
       answer: |
@@ -2450,17 +2452,13 @@
     <dict>
         <key>Command</key>
         <dict>
-            <key>AllowOroms</key>
-            <false/>
-            <key>CurrentPassword</key>
-            <string>oldpassword</string>
-            <key>NewPassword</key>
-            <string>newpassword</string>
+            <key>Password</key>
+            <string>firmwarepassword</string>
             <key>RequestType</key>
-            <string>SetFirmwarePassword</string>
+            <string>VerifyFirmwarePassword</string>
         </dict>
         <key>CommandUUID</key>
-        <string>0001_SetFirmwarePassword</string>
+        <string>0001_VerifyFirmwarePassword</string>
     </dict>
     </plist>
 
@@ -2468,10 +2466,10 @@
   platform: apple
   category: Lost device
   externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command
-  description: Verify the firmware password on a device.
+  description: Enable Lost Mode on a device, which provides a message and phone number on the Lock Screen.
   supportedDeviceTypes:
     - iOS 9.3+
-    - ipadOS 9.3+
+    - iPadOS 9.3+
   faq:
     - question: What does the EnableLostMode MDM command do?
       answer: |
@@ -2536,7 +2534,7 @@
   description: Request the location of a device when in Lost Mode.
   supportedDeviceTypes:
     - iOS 9.3+
-    - ipadOS 9.3+
+    - iPadOS 9.3+
   faq:
     - question: What does the DeviceLocation MDM command do?
       answer: |
@@ -2598,7 +2596,7 @@
   description: Play the Lost Mode sound on a device that’s in Lost Mode.
   supportedDeviceTypes:
     - iOS 10.3+
-    - ipadOS 10.3+
+    - iPadOS 10.3+
   faq:
     - question: What does the PlayLostModeSound MDM command do?
       answer: |
@@ -2650,7 +2648,7 @@
   description: Take the device out of Lost Mode.
   supportedDeviceTypes:
     - iOS 9.3+
-    - ipadOS 9.3+
+    - iPadOS 9.3+
   faq:
     - question: What does the DisableLostMode MDM command do?
       answer: |
@@ -2865,7 +2863,19 @@
       answer: |
         Content caching is turned on but isn't ready to serve content. Check `RegistrationStatus`, `RegistrationError`, and `Alerts` in the response. A cache that can't register with Apple won't serve devices.
   command: |
-    TODO
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ContentCachingInformation</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ContentCachingInformation</string>
+    </dict>
+    </plist>
 
 - name: Request AirPlay mirroring
   platform: apple
@@ -2874,7 +2884,7 @@
   description: Prompt the user to share their screen using AirPlay Mirroring.
   supportedDeviceTypes:
     - iOS 7.0+
-    - ipadOS 7.0+
+    - iPadOS 7.0+
     - macOS 10.10+
   faq:
     - question: What does the RequestMirroring MDM command do?
@@ -2940,7 +2950,7 @@
   description: Stop mirroring the display to another device.
   supportedDeviceTypes:
     - iOS 7.0+
-    - ipadOS 7.0+
+    - iPadOS 7.0+
     - macOS 10.10+
   faq:
     - question: What does the StopMirroring MDM command do?
@@ -2992,7 +3002,7 @@
   description: Query a carrier URL for active eSIM cellular-plan profiles on a device.
   supportedDeviceTypes:
     - iOS 13.0+
-    - ipadOS 13.0+
+    - iPadOS 13.0+
   faq:
     - question: What does the RefreshCellularPlans MDM command do?
       answer: |
@@ -3281,11 +3291,6 @@
         - Supervised Macs, and the `DeviceLockAndRemovePasscode` access right.
         - A Lights Out Management configuration payload installed on the controller and target Macs.
         - The target's `LOMProtocolVersion` and IPv6 addresses, which you get by sending `LOMSetupRequest` to the target.
-    - question: Is the sample payload on this page complete?
-      answer: |
-        No. A working payload also needs `RequestType` set to `LOMDeviceRequest` inside the `Command` dictionary, and each `RequestList` entry needs `LOMProtocolVersion`, using the value the target returned for `LOMSetupRequest`.
-
-        `DeviceDNSName` must match the DNS name in the target's LOM client certificate. See [Apple's reference](https://developer.apple.com/documentation/devicemanagement/lom-device-request-command) for every required key.
     - question: How do I run LOMDeviceRequest with Fleet?
       answer: |
         Fleet doesn't have a built-in LOM feature, so you deploy the LOM configuration profile in **Controls > OS settings** and send the command yourself. Fill in the payload for each target, then send it to the controller Mac with `fleetctl mdm run-command --hosts=<controller-hostname> --payload=lom-device-request.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
@@ -3314,23 +3319,27 @@
         <key>Command</key>
         <dict>
             <key>RequestList</key>
-        <array>
-            <dict>
-                <key>DeviceDNSName</key>
-                <string>lomdevice.com</string>
-                <key>DeviceRequestType</key>
-                <string>Reset</string>
-                <key>DeviceRequestUUID</key>
-                <string>0001</string>
-                <key>PrimaryIPv6AddressList</key>
-                <array>
-                    <string>fe80::94f6:d6ff:fef3:c05b</string>
-                    <string>fe80::94f6:d6ff:fef3:c1a4</string>
-                </array>
-                <key>SecondaryIPv6AddressList</key>
-                <array/>
-            </dict>
-        </array>
+            <array>
+                <dict>
+                    <key>DeviceDNSName</key>
+                    <string>lomdevice.example.com</string>
+                    <key>DeviceRequestType</key>
+                    <string>Reset</string>
+                    <key>DeviceRequestUUID</key>
+                    <string>0001</string>
+                    <key>LOMProtocolVersion</key>
+                    <integer>1</integer>
+                    <key>PrimaryIPv6AddressList</key>
+                    <array>
+                        <string>fe80::94f6:d6ff:fef3:c05b</string>
+                        <string>fe80::94f6:d6ff:fef3:c1a4</string>
+                    </array>
+                    <key>SecondaryIPv6AddressList</key>
+                    <array/>
+                </dict>
+            </array>
+            <key>RequestType</key>
+            <string>LOMDeviceRequest</string>
         </dict>
         <key>CommandUUID</key>
         <string>0001_LOMDeviceRequest</string>
@@ -3594,7 +3603,7 @@
 - name: Clear Activation Lock bypass code
   platform: apple
   category: Security
-  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/activation-lock-bypass-code-command
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/clear-activation-lock-bypass-code-command
   description: Clear the Activation Lock bypass code on a device.
   supportedDeviceTypes:
     - iOS 7.1+
@@ -3852,7 +3861,7 @@
   description: Get a list of users with active accounts on a device.
   supportedDeviceTypes:
     - iOS 9.3+
-    - ipadOS 9.3+
+    - iPadOS 9.3+
     - macOS 10.13+
   faq:
     - question: What does the UserList MDM command do?
@@ -3910,7 +3919,7 @@
   description: Force the current user to log out of a device.
   supportedDeviceTypes:
     - iOS 9.3+
-    - ipadOS 9.3+
+    - iPadOS 9.3+
   faq:
     - question: What does the LogOutUser MDM command do?
       answer: |
@@ -3959,11 +3968,11 @@
 - name: Delete user
   platform: apple
   category: User management
-  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/log-out-user-command
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/delete-user-command
   description: Delete a user’s account from a device.
   supportedDeviceTypes:
     - iOS 9.3+
-    - ipadOS 9.3+
+    - iPadOS 9.3+
     - macOS 10.13+
   faq:
     - question: What does the DeleteUser MDM command do?
@@ -3971,11 +3980,6 @@
         `DeleteUser` deletes a user account and its data from a device. Set `UserName` to the account to delete.
 
         On Shared iPad, it removes cached users to free up space. Two options apply there: `ForceDeletion` deletes the user even if they have data waiting to sync, and `DeleteAllUsers` (iPadOS 14 and later) deletes every user. On macOS, it removes a local user account.
-    - question: Is the sample payload on this page correct?
-      answer: |
-        No. It uses `LogOutUser` as the `RequestType`. A working payload sets `RequestType` to `DeleteUser`, sets `UserName` to the account to delete, and optionally sets `ForceDeletion` to `true`.
-
-        See [Apple's DeleteUser reference](https://developer.apple.com/documentation/devicemanagement/delete-user-command) for the full example.
     - question: How often is DeleteUser used?
       answer: |
         Occasionally. It's common in Shared iPad deployments to free up storage. On Macs, it's used when offboarding a user or cleaning up shared computers.
@@ -4014,11 +4018,15 @@
     <dict>
         <key>Command</key>
         <dict>
+            <key>ForceDeletion</key>
+            <false/>
             <key>RequestType</key>
-            <string>LogOutUser</string>
+            <string>DeleteUser</string>
+            <key>UserName</key>
+            <string>jappleseed</string>
         </dict>
         <key>CommandUUID</key>
-        <string>0001_LogOutUser</string>
+        <string>0001_DeleteUser</string>
     </dict>
     </plist>
 
@@ -4057,7 +4065,7 @@
       answer: |
         Rarely, if your MDM supports DDM. A manual send can help when troubleshooting a host whose declarations look out of date.
 
-        Use a payload with `RequestType` set to `DeclarativeManagement` directly inside the `Command` dictionary and no `Data` key, which is what Fleet sends. The sample on this page nests a second `Command` dictionary, which isn't valid. With Fleet, run `fleetctl mdm run-command --hosts=<hostname> --payload=declarative-management.xml`.
+        The example on this page has no `Data` key, which is what Fleet sends to start a sync. With Fleet, run `fleetctl mdm run-command --hosts=<hostname> --payload=declarative-management.xml`.
     - question: Does DeclarativeManagement work on personal (BYOD) devices?
       answer: |
         Yes. Apple allows it in user enrollment on iOS, iPadOS, macOS, and visionOS, and it doesn't require supervision.
@@ -4080,21 +4088,11 @@
     <dict>
         <key>Command</key>
         <dict>
-            <key>CommandUUID</key>
-            <string>0001_DeclarativeManagement</string>
-            <key>Command</key>
-            <dict>
-                <key>RequestType</key>
-                <string>DeclarativeManagement</string>
-                <key>Data</key>
-                <data>
-                eyJTeW5jVG9rZW5zIjogeyJUaW1lc3RhbXAiOiAiMjAyMS0wNi0wMlQwMToy
-                ODowMFoiLCAiRGVjbGFyYXRpb25zVG9rZW4iOiAiYjY1NDQwMjdhMzE1Y2Qw
-                MDg1ZDRjZjA4MTc0NjI0YzJkMTQyNDQ0ODA0MzBhODdiMTc2YTI3MjdlNzM2
-                NjEzOCJ9fQ==
-                </data>
-            </dict>
+            <key>RequestType</key>
+            <string>DeclarativeManagement</string>
         </dict>
+        <key>CommandUUID</key>
+        <string>0001_DeclarativeManagement</string>
     </dict>
     </plist>
 
@@ -4148,7 +4146,7 @@
         Fleet doesn't yet detect a replaced BitLocker recovery password, so the key shown in **Actions > Show disk encryption key** goes stale. On hosts where Fleet enforces disk encryption, don't use this command. Use the fleet transfer workaround above instead.
     - question: How do I run RotateRecoveryPasswords with Fleet?
       answer: |
-        Save only the `<Exec>` element from the example (drop the `<syncml>` and `<syncbody>` wrappers, because Fleet accepts a single `<Exec>` with one `<Item>`). Microsoft documents the `<Data>` value as a request ID, such as a GUID, which Windows reports back in `RotateRecoveryPasswordsRequestID`.
+        Save the example payload and put a new request ID, such as a GUID, in `<Data>`. Windows reports it back in `RotateRecoveryPasswordsRequestID`, so you can match the rotation to your request.
 
         Then run `fleetctl mdm run-command --hosts=<hostname> --payload=rotate.xml`, which prints the command UUID. With the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API, Fleet uses your `<CmdID>` as the command ID, so give it a new unique value. It's available in Fleet Free and Fleet Premium.
     - question: How do I check that BitLocker recovery password rotation worked?
@@ -4165,22 +4163,19 @@
       answer: |
         No. Microsoft documents it for OS drives and fixed data drives only. Removable drives protected with BitLocker To Go aren't included.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>5f0096d1-c2aa-4934-b67a-0ed35d20d322</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/BitLocker/RotateRecoveryPasswords</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>5f0096d1-c2aa-4934-b67a-0ed35d20d322</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/BitLocker/RotateRecoveryPasswords</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>7f6e5a2c-3b1d-4e8f-9a0b-1c2d3e4f5a6b</Data>
+      </Item>
+    </Exec>
 
 - name: Enroll (Personal scope)
   platform: windows
@@ -4227,23 +4222,19 @@
       answer: |
         No. Microsoft documents `CertificateStore/MY/SCEP` as device scope only. For a certificate in the signed-in user's store, use ClientCertificateInstall with a `./User/` LocURI.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>1a3a3666-2df6-4dcf-a785-46b2f28d2fbf</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/SCEP/{UniqueID}/Install/Enroll</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>1a3a3666-2df6-4dcf-a785-46b2f28d2fbf</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/SCEP/{UniqueID}/Install/Enroll</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: RenewNow
   platform: windows
@@ -4283,7 +4274,7 @@
         With fleetd installed alongside Intune, Fleet can find affected devices with a policy and fix the most common cause with a script. See [Find Windows devices that can't renew their Intune MDM certificate](https://fleetdm.com/guides/find-windows-devices-that-cant-renew-their-intune-mdm-certificate).
     - question: How do I run RenewNow with Fleet?
       answer: |
-        Save only the `<Exec>` element (without the `<syncml>` and `<syncbody>` wrappers) and run `fleetctl mdm run-command --hosts=<hostname> --payload=renewnow.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=renewnow.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Fleet can only send it over Fleet's own enrollment. Because Fleet declines WSTEP renewals today, expect `RenewStatus` to read `3` (failed) with `RenewErrorCode` `0x801900C8` afterward. The host stays managed.
     - question: How do I check whether the MDM certificate renewed?
@@ -4295,23 +4286,19 @@
       answer: |
         Device scope only. The MDM client certificate belongs to the device's enrollment, so there's no `./User/` version of this node.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>cdd76df2-d665-4045-9503-7954cc491bf2</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/WSTEP/Renew/RenewNow</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>cdd76df2-d665-4045-9503-7954cc491bf2</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/WSTEP/Renew/RenewNow</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: Enroll (Device context)
   platform: windows
@@ -4362,23 +4349,19 @@
 
         Common causes are a reused or expired challenge, a `CAThumbprint` that doesn't match the root CA, a SCEP URL the device can't reach, and a missing root CA certificate on devices that aren't joined to Active Directory.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>96821528-e7c2-41ce-b4a8-6a20c61df80b</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>96821528-e7c2-41ce-b4a8-6a20c61df80b</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: Enroll (User context)
   platform: windows
@@ -4429,29 +4412,25 @@
 
         If a user is signed in and it's still pending, check that the device has an MDM enrollment with a user, not a device-only enrollment. A profile that mixes `./Device/` and `./User/` settings also waits for sign-in, so keep device settings in a separate profile.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>a901c1bc-3970-461d-9c92-932645cab9b3</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>a901c1bc-3970-461d-9c92-932645cab9b3</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: Enroll
   platform: windows
   category: DMClient
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridlinkedenrollmentenroll
-  description: Silently unenrolls the device from a Linked Enrollment without user interaction. All settings and resources applied by the Declared Configuration are rolled back automatically.
+  description: Enrolls the device in a Linked Enrollment, which applies settings through Declared Configuration, using the Microsoft Entra device token. No user interaction is needed.
   supportedDeviceTypes:
     - Windows 10.0.22621
     - Windows 10.0.22000.918
@@ -4484,7 +4463,7 @@
         To enforce Windows settings with Fleet, add CSP configuration profiles in **Controls > OS settings** or with GitOps. Fleet tracks each profile's status per host and resends ones that fail. See [Custom OS settings](https://fleetdm.com/guides/custom-os-settings).
     - question: How do I run LinkedEnrollment Enroll with Fleet?
       answer: |
-        Set `DiscoveryEndpoint` first with a custom Windows profile, because Fleet's custom commands only accept `<Exec>`. Then replace `{ProviderID}` with `Fleet` (Fleet's provider ID), save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=linked-enroll.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Set `DiscoveryEndpoint` first with a custom Windows profile, because Fleet's custom commands only accept `<Exec>`. Then replace `{ProviderID}` with `Fleet` (Fleet's provider ID), save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=linked-enroll.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         This only helps if another service provides the declared configuration endpoint.
     - question: How do I check whether the linked enrollment succeeded?
@@ -4496,23 +4475,19 @@
       answer: |
         `0x80070002` means `DiscoveryEndpoint` isn't set. A `404` command status usually means the build doesn't support linked enrollment or `{ProviderID}` doesn't match the device's enrollment. Problems authenticating with the Entra device token, for example on a device that isn't Entra joined, show up in `LastError`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>307799ee-7535-472d-a06e-a846d8e6f214</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Enroll</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>307799ee-7535-472d-a06e-a846d8e6f214</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Enroll</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: Unenroll (linked enrollment)
   platform: windows
@@ -4546,7 +4521,7 @@
         Rarely. Use it when retiring a declared configuration deployment, when switching to an MDM that doesn't use one, or to reset a linked enrollment that's stuck before enrolling again.
     - question: Does Fleet use LinkedEnrollment Unenroll?
       answer: |
-        No. Fleet doesn't create linked enrollments. If a host was migrated to Fleet from an MDM that used one, you can send this command to clean it up. Replace `{ProviderID}` with the provider ID of the primary enrollment (`Fleet` for Fleet), save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=linked-unenroll.xml`.
+        No. Fleet doesn't create linked enrollments. If a host was migrated to Fleet from an MDM that used one, you can send this command to clean it up. Replace `{ProviderID}` with the provider ID of the primary enrollment (`Fleet` for Fleet), save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=linked-unenroll.xml`.
 
         You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. The host must be enrolled in Fleet's MDM.
     - question: How do I confirm the linked enrollment was removed?
@@ -4558,23 +4533,19 @@
       answer: |
         Windows 11, version 22H2 and later, Windows 11, version 21H2 with KB5016691 (build 22000.918), and Windows 10, versions 20H2, 21H1, and 21H2 with KB5018482 (build 1904x.2193). On older builds the node doesn't exist and the command returns `404`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>48e557bd-c055-4239-bb13-d24fb5e0c526</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Unenroll</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>48e557bd-c055-4239-bb13-d24fb5e0c526</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Unenroll</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: InitiateRecovery
   platform: windows
@@ -4606,7 +4577,7 @@
         Fleet authenticates Windows check-ins with credentials it provisions at enrollment, not with the MDM certificate, so a certificate problem rarely needs recovery. If a host loses its Fleet enrollment and fleetd is installed, Fleet enrolls it again automatically when [automatic Windows MDM enrollment](https://fleetdm.com/guides/windows-mdm-setup) is on.
     - question: How do I run InitiateRecovery with Fleet?
       answer: |
-        Replace `{ProviderID}` with `Fleet`, set `<Data>` to `0` or `1` with the `int` format, and save only the `<Exec>` element. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=recovery.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Replace `{ProviderID}` with `Fleet`, set `<Data>` to `0` or `1` with the `int` format, and save the payload. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=recovery.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
     - question: How do I check the result of InitiateRecovery?
       answer: |
         Read `./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/Recovery/RecoveryStatus`. `0` means no recovery has run, `1` in progress, and `2` finished successfully.
@@ -4616,23 +4587,19 @@
       answer: |
         No. Recovery runs in the background without prompting the user. The device may miss check-ins while it re-establishes credentials, so commands queued during that time can be delayed.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>cc6ccbd3-3679-44c0-976a-581e8946a96a</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/Recovery/InitiateRecovery</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">int</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data>0</Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>cc6ccbd3-3679-44c0-976a-581e8946a96a</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/Recovery/InitiateRecovery</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>0</Data>
+      </Item>
+    </Exec>
 
 - name: Unenroll (provider)
   platform: windows
@@ -4662,7 +4629,7 @@
         To turn off MDM for specific hosts, Fleet's guide uses a script that removes the enrollment and fleetd. To leave another MDM, use migration rather than sending this command.
     - question: How do I run Provider Unenroll with Fleet?
       answer: |
-        Replace `{ProviderID}` with `Fleet` and fix the double slash in the example so the path ends in `/Fleet/Unenroll`. Save only the `<Exec>` element and run `fleetctl mdm run-command --hosts=<hostname> --payload=unenroll.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Replace `{ProviderID}` with `Fleet` in the `<LocURI>` and `<Data>`, so the path ends in `/Fleet/Unenroll`. Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=unenroll.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         If fleetd is still installed and automatic Windows MDM enrollment is on, Fleet enrolls the host again. To keep it out, use Fleet's documented turn-off steps instead.
     - question: How do I confirm the device unenrolled?
@@ -4672,30 +4639,26 @@
         Check the host's MDM status in Fleet after fleetd next reports in. On the device, the enrollment disappears from **Settings > Accounts > Access work or school**.
     - question: Why did Provider Unenroll fail?
       answer: |
-        A `404` status usually means `{ProviderID}` doesn't match an enrollment on the device, or the LocURI is malformed, such as the double slash in the example. A `405` means the verb wasn't `<Exec>`.
+        A `404` status usually means `{ProviderID}` doesn't match an enrollment on the device, or the LocURI is malformed. A `405` means the verb wasn't `<Exec>`.
 
         Microsoft notes that `<Data>` is ignored on current Windows versions. The provider ID in the LocURI selects the enrollment.
     - question: Can I undo an MDM unenrollment?
       answer: |
         Not from the MDM, since it can no longer reach the device. The device has to enroll again, either automatically through fleetd when Fleet's automatic Windows MDM enrollment is on, by the end user, or through a provisioning flow such as Autopilot.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>e43a2271-7661-4587-b452-df8880005fd8</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}//Unenroll</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>e43a2271-7661-4587-b452-df8880005fd8</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/Unenroll</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>{ProviderID}</Data>
+      </Item>
+    </Exec>
 
 - name: Unenroll (device)
   platform: windows
@@ -4728,7 +4691,7 @@
         No. Fleet's agent (fleetd) unenrolls hosts locally instead, both for [automatic Windows MDM migration](https://fleetdm.com/guides/windows-mdm-setup#automatic-windows-mdm-migration) from another MDM and when you turn Windows MDM off in Fleet. To turn off MDM for specific hosts, Fleet's guide uses a script that removes the enrollment and fleetd.
     - question: How do I run DMClient Unenroll with Fleet?
       answer: |
-        Put `Fleet` in `<Data>`, set the format to `chr`, and save only the `<Exec>` element. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=unenroll.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Put `Fleet` in `<Data>`, set the format to `chr`, and save the payload. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=unenroll.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         If fleetd is still installed and automatic Windows MDM enrollment is on, Fleet enrolls the host again on its next check-in.
     - question: How do I confirm the device unenrolled?
@@ -4740,23 +4703,19 @@
 
         If it worked, you won't see an error, and usually not a success status either, because the connection ends.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>b1eae449-50af-4cb1-a680-a7ef8f583646</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Unenroll</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>b1eae449-50af-4cb1-a680-a7ef8f583646</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/DMClient/Unenroll</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: OfflineScan
   platform: windows
@@ -4786,7 +4745,7 @@
         Run `Start-MpWDOScan` in an elevated PowerShell session. Users can also start one from **Windows Security > Virus & threat protection > Scan options > Microsoft Defender Offline scan**. Either way, the device restarts into the offline scan.
     - question: How do I run OfflineScan with Fleet?
       answer: |
-        Save only the `<Exec>` element (drop the `<syncml>` and `<syncbody>` wrappers) and run `fleetctl mdm run-command --hosts=<hostname> --payload=offlinescan.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. It's available in Fleet Free and Fleet Premium.
+        Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=offlinescan.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. It's available in Fleet Free and Fleet Premium.
 
         Fleet doesn't send Defender commands automatically. You can also run `Start-MpWDOScan` as a PowerShell script from **Actions > Run script** on the host details page, which shows its output in Fleet.
     - question: How do I know the offline scan ran?
@@ -4800,22 +4759,18 @@
 
         A failure on a supported version often means Microsoft Defender Antivirus isn't the active antivirus, for example when a third-party product has put it in passive mode or turned it off.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>0370d798-9a85-4dee-a870-176146513415</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Defender/OfflineScan</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>0370d798-9a85-4dee-a870-176146513415</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Defender/OfflineScan</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: RollbackEngine
   platform: windows
@@ -4843,7 +4798,7 @@
         Run `MpCmdRun.exe -RemoveDefinitions -Engine` in an elevated prompt. It restores the previously installed engine. `MpCmdRun.exe` is in `%ProgramData%\Microsoft\Windows Defender\Platform\<version>` or `%ProgramFiles%\Windows Defender`.
     - question: How do I run RollbackEngine with Fleet?
       answer: |
-        Save only the `<Exec>` element and run `fleetctl mdm run-command --hosts=<hostname> --payload=rollback-engine.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Fleet doesn't send Defender commands automatically.
+        Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=rollback-engine.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Fleet doesn't send Defender commands automatically.
 
         To roll back many hosts and see output for each, you can instead run `MpCmdRun.exe -RemoveDefinitions -Engine` as a PowerShell script from **Controls > Scripts**.
     - question: How do I verify the Defender engine was rolled back?
@@ -4858,22 +4813,18 @@
       answer: |
         A `404` status means the Windows version is older than 1803. Other failures usually mean there's no saved earlier engine to roll back to, or Microsoft Defender Antivirus isn't the active antivirus.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>d8d49362-a2df-46b6-b42b-dab967f822f8</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Defender/RollbackEngine</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>d8d49362-a2df-46b6-b42b-dab967f822f8</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Defender/RollbackEngine</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: RollbackPlatform
   platform: windows
@@ -4899,7 +4850,7 @@
         Plan for one. Microsoft marks the node's reboot behavior as server initiated, which means the MDM is expected to restart the device. Send an `<Exec>` on `./Device/Vendor/MSFT/Reboot/RebootNow`, or let the end user restart.
     - question: How do I run RollbackPlatform with Fleet?
       answer: |
-        Save only the `<Exec>` element and run `fleetctl mdm run-command --hosts=<hostname> --payload=rollback-platform.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Fleet doesn't send Defender commands automatically.
+        Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=rollback-platform.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Fleet doesn't send Defender commands automatically.
 
         You can also run `MpCmdRun.exe -RevertPlatform` as a PowerShell script from **Controls > Scripts**, which shows the output for each host in Fleet. Try it on one host before a wider rollout.
     - question: How do I verify the Defender platform was rolled back?
@@ -4912,22 +4863,18 @@
       answer: |
         A `404` status means the device runs a Windows version older than 1803. Other failures usually mean there's no earlier platform installation to roll back to, or Microsoft Defender Antivirus isn't the active antivirus.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>25b353ea-3b5a-4da8-a9a0-3aa602cf08a3</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Defender/RollbackPlatform</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>25b353ea-3b5a-4da8-a9a0-3aa602cf08a3</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Defender/RollbackPlatform</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: Scan
   platform: windows
@@ -4941,7 +4888,7 @@
       answer: |
         It starts a Microsoft Defender Antivirus scan. The command is an `<Exec>` on `./Device/Vendor/MSFT/Defender/Scan`.
 
-        Set `<Data>` to `1` for a quick scan or `2` for a full scan. The example payload has no `<Data>` element, so add one before you send it.
+        Set `<Data>` to `1` for a quick scan or `2` for a full scan. The example on this page runs a quick scan.
     - question: What's the difference between a Defender quick scan and full scan?
       answer: |
         A quick scan checks the places malware most often runs from, such as startup locations and running processes, and usually finishes in minutes. A full scan checks every file on fixed drives and can take hours, with noticeable CPU and disk use.
@@ -4957,7 +4904,7 @@
         In Fleet, run the script from **Actions > Run script** on the host details page, or from **Controls > Scripts** for many hosts. To scan automatically, attach the script to a policy, for example one that fails when signatures are out of date. See the [scripts guide](https://fleetdm.com/guides/scripts).
     - question: How do I run a Defender quick scan with Fleet?
       answer: |
-        Add `<Data>1</Data>` (or `2` for a full scan) inside the `<Item>`, keep the format as `chr`, and save only the `<Exec>` element. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=scan.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        The example already has `<Data>1</Data>` for a quick scan. Change it to `2` for a full scan, keep the format as `chr`, and save the payload. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=scan.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Pass a comma-separated list to `--hosts` to target several hosts. Fleet doesn't start Defender scans on its own.
     - question: How do I know the Defender scan finished?
@@ -4974,22 +4921,19 @@
       answer: |
         Possibly. A quick scan is light. A full scan can slow the device while it runs. Windows Security shows scan activity, and any detections appear as notifications and in **Protection history**.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>9326cc3a-8960-4e7a-b46f-c414e871ca5b</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Defender/Scan</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>9326cc3a-8960-4e7a-b46f-c414e871ca5b</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Defender/Scan</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Exec>
 
 - name: UpdateSignature
   platform: windows
@@ -5015,7 +4959,7 @@
         Not reliably. It targets security intelligence. The engine and platform follow their own monthly update channels, so check `Health/EngineVersion` and `Health/DefenderVersion` separately if you need them current.
     - question: How do I run UpdateSignature with Fleet?
       answer: |
-        Save only the `<Exec>` element (drop the `<syncml>` and `<syncbody>` wrappers) and run `fleetctl mdm run-command --hosts=<hostname> --payload=update-signature.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. It's available in Fleet Free and Fleet Premium.
+        Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=update-signature.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. It's available in Fleet Free and Fleet Premium.
 
         Fleet doesn't send Defender commands automatically. To update hosts only when needed, create a policy that fails when signatures are out of date and attach an `Update-MpSignature` script as its automation.
     - question: How do I confirm Defender signatures updated?
@@ -5032,22 +4976,18 @@
       answer: |
         Yes, with a setting instead of repeated commands. The Policy CSP's `Defender/SignatureUpdateInterval` sets how many hours Defender waits between checks. Deliver it in a configuration profile, which Fleet keeps enforced through **Controls > OS settings**. See [Custom OS settings](https://fleetdm.com/guides/custom-os-settings).
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>034c6f94-db50-4ec1-87f5-71900cb730a2</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Defender/UpdateSignature</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>034c6f94-db50-4ec1-87f5-71900cb730a2</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Defender/UpdateSignature</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: MdmConfiguration
   platform: windows
@@ -5077,7 +5017,7 @@
         None. Fleet tracks each Windows configuration profile itself and shows whether it's Verified, Verifying, Pending, or Failed in **Host details > OS settings**. That usually answers "did my setting apply?" without a device snapshot.
     - question: How do I run MdmConfiguration with Fleet?
       answer: |
-        Save only the `<Exec>` element from the example, without the `<syncml>` and `<syncbody>` wrappers, because Fleet accepts a single `<Exec>` with one `<Item>`. Keep `<Data>SNAP</Data>`. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=mdm-snap.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Save the example payload. It's a single `<Exec>` with one `<Item>`, which is the format Fleet accepts. Keep `<Data>SNAP</Data>`. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=mdm-snap.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Because Fleet can't download the snapshot, this is mostly useful when someone will collect it locally afterward.
     - question: What's the easiest way to get MDM diagnostics from a remote Windows host in Fleet?
@@ -5092,23 +5032,19 @@
       answer: |
         `MdmConfiguration` only snapshots MDM state on the device, and the file has to be pulled back with `FileDownload`. `ArchiveDefinition` gathers a set of logs, registry keys, and command output into a zip and uploads it to storage you provide. For remote collection, `ArchiveDefinition` is the more practical of the two.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>86e88d1e-9474-4098-91af-ec28d066b072</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/DiagnosticLog/DeviceStateData/MdmConfiguration</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data>SNAP</Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>86e88d1e-9474-4098-91af-ec28d066b072</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/DiagnosticLog/DeviceStateData/MdmConfiguration</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>SNAP</Data>
+      </Item>
+    </Exec>
 
 - name: ArchiveDefinition
   platform: windows
@@ -5142,7 +5078,7 @@
         None. Fleet doesn't send this command and doesn't provide upload storage for it. You can send it as a custom MDM command with your own storage URL.
     - question: How do I run ArchiveDefinition with Fleet?
       answer: |
-        The example has no `<Data>` element, so add one with your `Collection` XML. Escape it or wrap it in CDATA, since the format is `chr`. Save only the `<Exec>` element and run `fleetctl mdm run-command --hosts=<hostname> --payload=archive.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        The example has no `<Data>` element, so add one with your `Collection` XML. Escape it or wrap it in CDATA, since the format is `chr`. Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=archive.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Fleet keeps the command payload, including the SAS URL, in its command history. Use a write-only SAS URL with a short expiry.
     - question: How do I know the diagnostic archive uploaded?
@@ -5161,22 +5097,18 @@
 
         Use `ArchiveDefinition` when you need full log bundles, like `.etl` traces or `.evtx` files, for a vendor or Microsoft support.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>91bde209-058a-4d1a-9805-702aeab4976a</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/DiagnosticLog/DiagnosticArchive/ArchiveDefinition</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>91bde209-058a-4d1a-9805-702aeab4976a</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/DiagnosticLog/DiagnosticArchive/ArchiveDefinition</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: Export
   platform: windows
@@ -5191,9 +5123,9 @@
         It exports the events from one Windows event log channel into an `.evtx` file on the device. The command is an `<Exec>` on `./Vendor/MSFT/DiagnosticLog/EtwLog/Channels/{ChannelName}/Export`.
 
         `.evtx` is the standard Windows event log format, so you can open the file in Event Viewer. You can set an XPath filter first with the channel's `Filter` node to export only matching events.
-    - question: Why is there no channel name in the example LocURI?
+    - question: How do I put the channel name in the Export LocURI?
       answer: |
-        The example omits it. Insert the full channel name between `Channels/` and `/Export`, URL-encoded. Microsoft warns that an unencoded name is read as a different path. For example, `Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin` becomes `Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider%2FAdmin`.
+        Replace `{ChannelName}` in the example with the full channel name, URL-encoded. Microsoft warns that an unencoded name is read as a different path. For example, `Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin` becomes `Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider%2FAdmin`.
     - question: Where does the exported .evtx file go?
       answer: |
         It stays on the device. Microsoft documents pulling it back with the DiagnosticLog CSP's `FileDownload` node, which reads the file in blocks through repeated `<Get>` and `<Replace>` operations. Fleet custom commands accept only a single `<Exec>`, so Fleet can't run that sequence.
@@ -5205,7 +5137,7 @@
         None. Fleet doesn't send this command. You can send it as a custom MDM command.
     - question: How do I run DiagnosticLog Export with Fleet?
       answer: |
-        Put the encoded channel name in the LocURI, save only the `<Exec>` element (Fleet accepts a single `<Exec>` with one `<Item>`), and run `fleetctl mdm run-command --hosts=<hostname> --payload=export.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Put the encoded channel name in the LocURI, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=export.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Microsoft's CSP lets the server add channel nodes with `<Add>`, which a custom command can't do. If you get `404`, check the channel name and encoding first.
     - question: How do I get Windows event logs from hosts with Fleet instead?
@@ -5217,23 +5149,19 @@
       answer: |
         `fleetctl get mdm-command-results --id=<command-uuid>` shows Windows' status code. `200` means the export ran. `404` usually means the channel name is missing, misspelled, or not URL-encoded. `500` means Windows couldn't export the channel.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>22ba5bc3-70cf-4742-94e4-c7c7658a64a2</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Channels/Export</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>22ba5bc3-70cf-4742-94e4-c7c7658a64a2</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Channels/{ChannelName}/Export</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: TraceControl
   platform: windows
@@ -5247,7 +5175,7 @@
       answer: |
         It starts or stops an Event Tracing for Windows (ETW) session for a collector. The command is an `<Exec>` on `./Vendor/MSFT/DiagnosticLog/EtwLog/Collectors/{CollectorName}/TraceControl`, with `<Data>START</Data>` or `<Data>STOP</Data>` and format `chr`.
 
-        The example has no `<Data>` element, so add one. Starting a collector again overwrites its previous log file.
+        The example on this page starts a session. Starting a collector again overwrites its previous log file.
     - question: What has to be set up before TraceControl works?
       answer: |
         A collector with at least one provider. Microsoft's steps:
@@ -5262,7 +5190,7 @@
         None. Fleet doesn't send this command.
     - question: How do I run TraceControl with Fleet?
       answer: |
-        Replace `{CollectorName}`, add `<Data>START</Data>`, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=trace-start.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you). Send a second command with `STOP` when you're done.
+        Replace `{CollectorName}`, keep `<Data>START</Data>` (or change it to `STOP`), save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=trace-start.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you). Send a second command with `STOP` when you're done.
 
         Fleet custom commands accept only `<Exec>`, so they can't create the collector and providers. Fleet's Windows configuration profiles accept `<Add>`, so one option is a profile that adds those nodes. Test it on one host first.
     - question: Where does the trace file go?
@@ -5282,22 +5210,19 @@
       answer: |
         A `404` usually means the collector doesn't exist yet or `{CollectorName}` is wrong. A `500` means Windows couldn't start or stop the session. Check that `<Data>` is exactly `START` or `STOP`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>a563bffc-2c4c-4f2f-a5e5-6545bab6ad95</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Collectors/{CollectorName}/TraceControl</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>a563bffc-2c4c-4f2f-a5e5-6545bab6ad95</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Collectors/{CollectorName}/TraceControl</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>START</Data>
+      </Item>
+    </Exec>
 
 - name: DownloadInstall (Device context)
   platform: windows
@@ -5329,7 +5254,7 @@
         To install MSIs with Fleet, add the package as a custom package or use a Fleet-maintained app (Fleet Premium). fleetd installs it, Fleet reports success or failure with the installer output, and you can make it self-service or install it automatically with a policy.
     - question: How do I format the DownloadInstall payload?
       answer: |
-        Replace `{ProductID}` with the MSI product code, URL-encoding the braces as `%7B` and `%7D`. Add `<Data>` with the `MsiInstallJob`, keep format `xml`, and save only the `<Exec>` element. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=install.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Replace `{ProductID}` with the MSI product code, URL-encoding the braces as `%7B` and `%7D`. Add `<Data>` with the `MsiInstallJob`, keep format `xml`, and save the payload. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=install.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Every `ContentURL` must be reachable from the device, and `FileHash` must match the file exactly.
     - question: How do I know the MSI installed?
@@ -5351,22 +5276,18 @@
 
         With Fleet, uninstall from **Host details > Software** if the app was added to Fleet, or run `msiexec /x {ProductCode} /quiet` in a script.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>02802f7e-1266-494a-b4b0-9878a122fafa</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>02802f7e-1266-494a-b4b0-9878a122fafa</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: DownloadInstall (User context)
   platform: windows
@@ -5402,7 +5323,7 @@
         A truly per-user MSI has to run as the signed-in user. That usually means the user installs it themselves, for example from a file share or download link you provide.
     - question: How do I run user-context DownloadInstall with Fleet?
       answer: |
-        Replace `{ProductID}` with the URL-encoded product code, add your `MsiInstallJob` in `<Data>`, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=install-user.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Replace `{ProductID}` with the URL-encoded product code, add your `MsiInstallJob` in `<Data>`, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=install-user.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Microsoft requires an `<Add>` on the node before the `<Exec>`, and Fleet custom commands can't include it, so expect this to be unreliable.
     - question: How do I check a per-user MSI install?
@@ -5411,22 +5332,18 @@
 
         Per-user installs are recorded in that user's registry hive, so check the host's software inventory in Fleet, or ask the user to confirm the app opens.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>bbb7ee46-9032-4020-b1f5-0252104ab3a8</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>bbb7ee46-9032-4020-b1f5-0252104ab3a8</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: HostedInstall (Device context)
   platform: windows
@@ -5461,7 +5378,7 @@
         None. Fleet doesn't send this command, and custom package uploads don't accept `.msix`. To provision an MSIX or APPX for all users with Fleet, add a PowerShell script-only package that runs `Add-AppxProvisionedPackage -Online`. This works because Fleet runs Windows scripts as SYSTEM. See [Deploy software](https://fleetdm.com/guides/deploy-software-packages).
     - question: How do I run HostedInstall with Fleet?
       answer: |
-        Add `<Data>` with your `Application` element, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=hostedinstall.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Add `<Data>` with your `Application` element, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=hostedinstall.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Microsoft's examples send an `<Add>` on the `{PackageFamilyName}` node first, so that Windows can remove the app cleanly when the device unenrolls. Fleet custom commands can't include that `<Add>`.
     - question: How do I know HostedInstall worked?
@@ -5479,22 +5396,18 @@
 
         The HRESULT in `LastError` tells you which. Windows app deployment errors often start with `0x80073CF`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>ba628a02-12d5-48c4-9586-34fa039a4a00</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/HostedInstall</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>ba628a02-12d5-48c4-9586-34fa039a4a00</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/HostedInstall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: StoreInstall (Device context)
   platform: windows
@@ -5529,7 +5442,7 @@
         None. Fleet doesn't send `StoreInstall` in either context.
     - question: How do I run StoreInstall with Fleet?
       answer: |
-        Replace `{PackageFamilyName}`, add `<Data>` with your `Application` element, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=storeinstall.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Replace `{PackageFamilyName}`, add `<Data>` with your `Application` element, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=storeinstall.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Because Microsoft doesn't support Store installs in device context, test on one host before relying on the result.
     - question: How do I check whether a Store app installed?
@@ -5541,22 +5454,18 @@
       answer: |
         Per Microsoft's guide: the device needs connectivity to the Microsoft Store, Microsoft Store services must be enabled (you can still hide the Store UI), and the user must be signed in with their Microsoft Entra identity. Policies that turn off the Store or its services block these installs.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>19e07f1f-bce0-43a1-a364-477c1cd500ab</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/StoreInstall</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>19e07f1f-bce0-43a1-a364-477c1cd500ab</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/StoreInstall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: AddLicense (Device context)
   platform: windows
@@ -5587,7 +5496,7 @@
         None. Fleet doesn't manage Microsoft Store licenses. For free Store apps, Fleet's [script-only package guide](https://fleetdm.com/guides/build-your-own-windows-self-service-with-winget-and-script-only-packages-guide) installs apps without a separate license step.
     - question: How do I run AddLicense with Fleet?
       answer: |
-        Replace `{LicenseID}` with the license's Content ID, add `<Data><License Content="..."/></Data>` with the base64 blob, keep format `xml`, and save only the `<Exec>` element. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=addlicense.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Replace `{LicenseID}` with the license's Content ID, add `<Data><License Content="..."/></Data>` with the base64 blob, keep format `xml`, and save the payload. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=addlicense.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Fleet stores the command payload in its command history, so treat the license blob accordingly.
     - question: How do I confirm the license was added?
@@ -5597,22 +5506,18 @@
       answer: |
         Microsoft documents a `<Delete>` on `./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}`. Fleet custom commands accept only `<Exec>`, so Fleet can't send it. Removing the provisioned app is usually the more useful step.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>2a7e4bc2-5b0d-4cf1-b66d-05f828177582</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>2a7e4bc2-5b0d-4cf1-b66d-05f828177582</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: GetLicenseFromStore (Device context)
   platform: windows
@@ -5644,29 +5549,25 @@
         None. Fleet doesn't send this command. You can send it as a custom MDM command.
     - question: How do I run GetLicenseFromStore with Fleet?
       answer: |
-        Replace `{LicenseID}`, keep format `xml`, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=getlicense.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Replace `{LicenseID}`, keep format `xml`, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=getlicense.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
 
         Microsoft's CSP reference doesn't publish a `<Data>` schema for this node, so test on one host first.
     - question: How do I check that the license was retrieved?
       answer: |
         Look for `200` in `fleetctl get mdm-command-results --id=<command-uuid>`. A `404` usually means the `{LicenseID}` is wrong, and a `500` means the Store couldn't issue a license. Afterward, the `{LicenseID}` node reports `LicenseCategory` and `LicenseUsage`. Confirm the app opens.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>aba692b8-bd1b-4bd1-90b6-eef510b03562</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>aba692b8-bd1b-4bd1-90b6-eef510b03562</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: ResetPackage (Device context)
   platform: windows
@@ -5695,7 +5596,7 @@
         None. Fleet doesn't send this command. Fleet runs Windows scripts as SYSTEM, so `Reset-AppxPackage` in a Fleet script won't reset a signed-in user's copy. For a remote reset, send `ResetPackage` as a custom command or have the user reset the app in Settings.
     - question: How do I run ResetPackage with Fleet?
       answer: |
-        Add `<Data>` with the XML that identifies the package. Microsoft's CSP reference doesn't publish the schema or an example, so test on one host first. Save only the `<Exec>` element and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
+        Add `<Data>` with the XML that identifies the package. Microsoft's CSP reference doesn't publish the schema or an example, so test on one host first. Save the payload and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you).
     - question: When should I use ResetPackage?
       answer: |
         As a help desk fix for a Store or MSIX app that crashes on launch, won't sync, or is stuck in a bad sign-in state. It's faster than uninstalling and reinstalling, and it doesn't need the package source. If a reset doesn't help, reinstall the app.
@@ -5703,22 +5604,18 @@
       answer: |
         `fleetctl get mdm-command-results --id=<command-uuid>` shows Windows' status code. `200` means the reset ran, `404` means the device runs Windows 10 or the LocURI is wrong, and `500` means Windows couldn't reset the package. Then open the app. It should start with default settings, as if newly installed.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>5f301e26-48ec-4a40-bad5-9c8b4e438ca2</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>5f301e26-48ec-4a40-bad5-9c8b4e438ca2</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: UpdateScan (Device context)
   platform: windows
@@ -5744,7 +5641,7 @@
         None. Fleet doesn't send this command. You can send it as a custom MDM command.
     - question: How do I run UpdateScan with Fleet?
       answer: |
-        Save only the `<Exec>` element from the example, without the `<syncml>` and `<syncbody>` wrappers, and run `fleetctl mdm run-command --hosts=<hostname> --payload=updatescan.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you). Custom Windows commands like this one are available in Fleet Free and Fleet Premium.
+        Save the payload from the example and run `fleetctl mdm run-command --hosts=<hostname> --payload=updatescan.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a unique `<CmdID>`, since the API uses it as the command ID (`fleetctl` generates one for you). Custom Windows commands like this one are available in Fleet Free and Fleet Premium.
     - question: How do I check the result of UpdateScan?
       answer: |
         A `200` in `fleetctl get mdm-command-results --id=<command-uuid>` means Windows started the scan. The scan result is in `./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/LastScanError`, which reports the last error code from the scan.
@@ -5757,23 +5654,19 @@
       answer: |
         A `405` means Windows didn't accept the verb. This node only supports `<Exec>`. A `500` means the scan couldn't start. Problems during the scan, such as no connection to Store services or policies that turn off Store updates, show up in `LastScanError`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>44702317-0b9b-4dc0-945f-e5303a967e8c</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>44702317-0b9b-4dc0-945f-e5303a967e8c</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: HostedInstall (User context)
   platform: windows
@@ -5795,7 +5688,7 @@
         Device context (`./Device/`) provisions the app instead. Windows installs it as Local System and registers it for every user at their next sign-in. Use device context for shared computers or when every user needs the app.
     - question: What goes in the HostedInstall payload?
       answer: |
-        Put the app's package family name in the `<LocURI>` in place of `{PackageFamilyName}`, for example `Contoso.App_8wekyb3d8bbwe`. The sample on this page leaves that segment out, so add it.
+        Put the app's package family name in the `<LocURI>` in place of `{PackageFamilyName}`, for example `Contoso.App_8wekyb3d8bbwe`.
 
         The `<Data>` (format `xml`) holds an `<Application>` element with a required `PackageUri` attribute. You can add a `<Dependencies>` list of `<Dependency PackageUri="..."/>` entries for framework packages, and `DeploymentOptions` for options like forcing the app to close during an update.
     - question: What does a Windows host need before HostedInstall can install an app?
@@ -5810,7 +5703,7 @@
         To install for every user on a computer, an administrator can run `Add-AppxProvisionedPackage -Online -PackagePath <path> -SkipLicense`.
     - question: How do I run HostedInstall (User context) with Fleet?
       answer: |
-        Save only the `<Exec>` element, with one `<Item>`, as an XML file. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=hosted-install.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
+        Save the payload as an XML file. Then run `fleetctl mdm run-command --hosts=<hostname> --payload=hosted-install.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
 
         Microsoft's examples send an `<Add>` for the `{PackageFamilyName}` node before the `<Exec>`, which it says lets the app be removed cleanly at unenrollment. Fleet custom commands only accept `<Exec>`, so test on one host first.
     - question: What's the recommended way to deploy an MSIX or APPX app with Fleet?
@@ -5829,22 +5722,18 @@
 
         Windows records the details in `AppInstallation/{PackageFamilyName}/LastError` and `LastErrorDesc`. Fleet custom commands can't read those nodes, so check the AppX deployment event logs on the host.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>ab117216-9adc-49cf-b3b1-3a1a7d9b43d0</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/HostedInstall</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>ab117216-9adc-49cf-b3b1-3a1a7d9b43d0</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/HostedInstall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: StoreInstall (User context)
   platform: windows
@@ -5871,7 +5760,7 @@
         For new deployments, use another method, such as a script that installs the app from the Microsoft Store, or winget.
     - question: What goes in the StoreInstall payload?
       answer: |
-        Replace `{PackageFamilyName}` in the `<LocURI>`. The sample on this page leaves that segment out. The `<Data>` (format `xml`) is an `<Application>` element with `id`, `flags`, and `skuid` attributes.
+        Replace `{PackageFamilyName}` in the `<LocURI>` with the app's package family name. The `<Data>` (format `xml`) is an `<Application>` element with `id`, `flags`, and `skuid` attributes.
 
         `id` is the product ID. `flags="0"` tells the management tool to call back to Store for Business to assign a seat, and `flags="1"` lets the device claim a seat if one is available. `skuid` is required.
     - question: What does the host need for StoreInstall (User context) to work?
@@ -5884,7 +5773,7 @@
         Paid apps aren't supported by that method, because the Store can't license them without a store account.
     - question: How do I run StoreInstall (User context) with Fleet?
       answer: |
-        Save only the `<Exec>` element, with one `<Item>`, as an XML file. Run `fleetctl mdm run-command --hosts=<hostname> --payload=store-install.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
+        Save the payload as an XML file. Run `fleetctl mdm run-command --hosts=<hostname> --payload=store-install.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
 
         Microsoft's flow sends an `<Add>` for the app's node first. Fleet custom commands only accept `<Exec>`, so test on one host.
     - question: How do I check if StoreInstall (User context) worked?
@@ -5896,22 +5785,18 @@
       answer: |
         Common causes are a malformed `<Data>` body, a missing package family name in the `<LocURI>`, no license seat available, or a user who isn't signed in with Entra. A policy or firewall that blocks the Microsoft Store also stops installs, even when Windows accepts the command.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>48a53564-56b8-4ddf-b27f-8e0fa0d0f513</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/StoreInstall</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>48a53564-56b8-4ddf-b27f-8e0fa0d0f513</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/StoreInstall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: AddLicense (User context)
   platform: windows
@@ -5942,7 +5827,7 @@
         AddLicense installs a license you supply in the command. GetLicenseFromStore asks the device to download the license from the Microsoft Store. Use AddLicense for offline licenses and GetLicenseFromStore for online ones.
     - question: How do I run AddLicense (User context) with Fleet?
       answer: |
-        Replace `{LicenseID}` with the content ID, put the `<License Content="..."/>` element in `<Data>`, and save only the `<Exec>` element as a file. Run `fleetctl mdm run-command --hosts=<hostname> --payload=add-license.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Replace `{LicenseID}` with the content ID, put the `<License Content="..."/>` element in `<Data>`, and save the payload as a file. Run `fleetctl mdm run-command --hosts=<hostname> --payload=add-license.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
     - question: How do I know AddLicense (User context) worked?
@@ -5959,22 +5844,18 @@
       answer: |
         Usually the license blob is malformed, isn't base64-encoded, or belongs to a different app than the `{LicenseID}` in the path. A user must also be signed in, because the command runs in that user's context.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>9b0b3d42-e244-4359-8471-46f8cf62558e</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>9b0b3d42-e244-4359-8471-46f8cf62558e</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: GetLicenseFromStore (User context)
   platform: windows
@@ -6003,7 +5884,7 @@
         For organization-purchased apps, likely not. Those licenses came from Microsoft Store for Business, which Microsoft retired on March 31, 2023. Test on one host before relying on it, and plan to move these apps to another deployment method.
     - question: How do I run GetLicenseFromStore (User context) with Fleet?
       answer: |
-        Replace `{LicenseID}` with the license's content ID, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=get-license.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Replace `{LicenseID}` with the license's content ID, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=get-license.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Send it while the user is signed in. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
     - question: How do I license free Microsoft Store apps with Fleet?
@@ -6016,22 +5897,18 @@
       answer: |
         Common causes are a `{LicenseID}` that doesn't match an app, a host that can't reach the Microsoft Store, Store services turned off by policy, or no signed-in user. If the license came from Microsoft Store for Business, the source may no longer exist.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>f4796a1e-5bf9-4828-a602-d3a0ac9f5930</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>f4796a1e-5bf9-4828-a602-d3a0ac9f5930</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: RemovePackage (User context)
   platform: windows
@@ -6073,7 +5950,7 @@
         With Fleet, you can run these as a script from **Actions > Run script**, or automatically when a policy fails. See [policy automations](https://fleetdm.com/guides/policy-automation-run-script).
     - question: How do I run RemovePackage with Fleet?
       answer: |
-        Put the full name in the `Name` attribute, save only the `<Exec>` element as a file, and run `fleetctl mdm run-command --hosts=<hostname> --payload=remove-package.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Put the full name in the `Name` attribute, save the payload as a file, and run `fleetctl mdm run-command --hosts=<hostname> --payload=remove-package.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
     - question: How do I know RemovePackage worked?
@@ -6083,25 +5960,19 @@
       answer: |
         Usually the full name doesn't match an installed package, often because the app updated. A malformed `<Package>` element also fails. `RemoveForAllUsers="1"` only works for provisioned packages, and system apps can't be removed at all.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>70fe3f35-ce6f-484d-a14f-1f8ceb9edda3</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/RemovePackage</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data>
-              <Package Name="{PackageFullName}" RemoveForAllUsers="1" />
-            </Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>70fe3f35-ce6f-484d-a14f-1f8ceb9edda3</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/RemovePackage</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data><Package Name="{PackageFullName}" RemoveForAllUsers="1" /></Data>
+      </Item>
+    </Exec>
 
 - name: ResetPackage (User context)
   platform: windows
@@ -6134,7 +6005,7 @@
         Fleet runs Windows scripts as SYSTEM, so a Fleet script that runs `Reset-AppxPackage` won't target the signed-in user's copy of the app.
     - question: How do I run ResetPackage (User context) with Fleet?
       answer: |
-        Add an XML `<Data>` body that identifies the package, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-package.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Add an XML `<Data>` body that identifies the package, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-package.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Microsoft doesn't publish a sample `<Data>` body for this node, so confirm the format on a test host first. Send it while the user is signed in.
     - question: How do I check if ResetPackage (User context) worked?
@@ -6144,22 +6015,18 @@
       answer: |
         On Windows 10 the node doesn't exist, so the command fails. On Windows 11, check that `<Data>` is valid and names an app that's installed for the signed-in user. A reset can also fail if the app is running and can't be closed.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>ceeeeabd-f3d0-4c15-bdf2-07326cf27bbd</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>ceeeeabd-f3d0-4c15-bdf2-07326cf27bbd</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: UpdateScan (User context)
   platform: windows
@@ -6184,7 +6051,7 @@
         It starts a scan, and Windows handles what happens next. To update Store apps, the device must be able to reach Microsoft Store services. Updates for apps you deployed from a hosted location come from a new HostedInstall, not from a scan.
     - question: How do I run UpdateScan (User context) with Fleet?
       answer: |
-        The command needs no data. Save only the `<Exec>` element as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=update-scan-user.xml`. To target several hosts, pass a comma-separated list to `--hosts`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        The command needs no data. Save the payload as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=update-scan-user.xml`. To target several hosts, pass a comma-separated list to `--hosts`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Send it while the user is signed in. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
     - question: How do I check the result of UpdateScan (User context)?
@@ -6204,23 +6071,19 @@
       answer: |
         Check that the verb is `<Exec>` and the format is `null`. A user also needs to be signed in, because the command runs in the user's context. Scans that start but can't finish, for example because Store services are blocked, are recorded in `LastScanError`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>f4a37fe3-e8f4-4961-a80e-e4d33550d496</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>f4a37fe3-e8f4-4961-a80e-e4d33550d496</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: TriggerAttestation
   platform: windows
@@ -6244,7 +6107,7 @@
       answer: |
         A Microsoft Azure Attestation instance with an attestation policy, a Microsoft Entra token to authenticate to it, and a Windows 11 host with a TPM.
 
-        The `<Data>` is JSON with `rpid`, the MAA endpoint URL, a `nonce`, `aadToken`, and a correlation vector `cv`. Microsoft's field list calls the endpoint `serviceEndpoint`, while its sample uses `endpoint`. The sample on this page has no `<Data>`, so add it.
+        The `<Data>` is JSON with `rpid`, the MAA endpoint URL, a `nonce`, `aadToken`, and a correlation vector `cv`. The example on this page uses Microsoft's sample `<Data>`. Microsoft's field list calls the endpoint `serviceEndpoint`, while its sample uses `endpoint`, so test on one host before sending it widely.
     - question: How do I read the attestation report?
       answer: |
         Use `<Get>` on `./Vendor/MSFT/HealthAttestation/AttestStatus` for the session's status code and `GetAttestReport` for the signed report.
@@ -6257,7 +6120,7 @@
         Those policy results also drive [conditional access](https://fleetdm.com/guides/conditional-access), which can block a failing host from signing in to apps.
     - question: How do I run TriggerAttestation with Fleet?
       answer: |
-        Add the JSON `<Data>`, save only the `<Exec>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=trigger-attestation.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Replace the sample JSON in `<Data>` with your own values, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=trigger-attestation.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Each session needs a fresh nonce and a valid Entra token, so build a new payload for every run.
     - question: How do I know TriggerAttestation started?
@@ -6269,22 +6132,19 @@
 
         Failures after a `202`, such as an expired Entra token or an unreachable MAA endpoint, are recorded in `AttestStatus` on the host.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>47b2a850-2c56-4044-b2de-98e49d9cfcb9</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/HealthAttestation/TriggerAttestation</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>47b2a850-2c56-4044-b2de-98e49d9cfcb9</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/HealthAttestation/TriggerAttestation</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>{"rpid": "https://www.contoso.com/attestation", "endpoint": "https://contoso.eus.attest.azure.net/attest/tpm?api-version=2020-10-01", "nonce": "5468697320697320612054657374204e6f6e6365", "aadToken": "dummytokenstring", "cv": "testonboarded"}</Data>
+      </Item>
+    </Exec>
 
 - name: VerifyHealth
   platform: windows
@@ -6319,30 +6179,26 @@
         For device health in Fleet, write policies on osquery data, such as `tpm_info`, `secureboot`, and `bitlocker_info`. Failing policies can trigger a script or block sign-ins through [conditional access](https://fleetdm.com/guides/conditional-access).
     - question: How do I run VerifyHealth with Fleet?
       answer: |
-        It needs no data. Save only the `<Exec>` element as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=verify-health.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        It needs no data. Save the payload as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=verify-health.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         A `200` in `fleetctl get mdm-command-results --id=<command-uuid>` means the device accepted the request.
     - question: Why did VerifyHealth fail?
       answer: |
         Usually because the device can't use its TPM, for example because it has no TPM or the TPM isn't ready. A typo in the `<LocURI>` also fails. If the command is accepted but `Status` returns `2`, the device couldn't reach the DHA service.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>b442558e-a685-48c4-9fa1-71e5c6c9338f</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/HealthAttestation/VerifyHealth</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>b442558e-a685-48c4-9fa1-71e5c6c9338f</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/HealthAttestation/VerifyHealth</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: ResetPassword
   platform: windows
@@ -6384,7 +6240,7 @@
         Fleet doesn't store or display Windows LAPS passwords.
     - question: How do I run ResetPassword with Fleet?
       answer: |
-        Save only the `<Exec>` element as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=laps-reset.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Save the payload as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=laps-reset.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         It's a device-scope command, so no user needs to be signed in. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
     - question: How do I know ResetPassword worked?
@@ -6396,28 +6252,24 @@
       answer: |
         If the node isn't found, the host's Windows build doesn't include Windows LAPS. If the reset fails, LAPS usually isn't configured with a backup directory, or the host can't reach Entra ID or a domain controller to store the new password.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>fa8a8f93-b3ed-48ef-940f-6232e74c087a</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/LAPS/Actions/ResetPassword</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>fa8a8f93-b3ed-48ef-940f-6232e74c087a</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/LAPS/Actions/ResetPassword</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: Install (User context)
   platform: windows
   category: Office
-  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#deviceinstallationidinstall
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#userinstallationidinstall
   description: Installs Microsoft Office for the user based on the provided XML configuration.
   supportedDeviceTypes:
     - Windows 10.0.15063
@@ -6427,9 +6279,6 @@
         It installs Microsoft 365 Apps (Office) with the Office Deployment Tool, from a request sent in the signed-in user's context. It's an `<Exec>` on `./User/Vendor/MSFT/Office/Installation/{id}/Install`, on Windows 10, version 1703 and later.
 
         `{id}` is a unique name you choose for this install. The `<Data>` holds the Office Deployment Tool configuration XML.
-    - question: Why does the sample on this page use a ./Device path?
-      answer: |
-        The sample targets `./Device/Vendor/MSFT/Office/Installation/{id}/Install`, which is the device context node. For a user context install, change the start of the `<LocURI>` to `./User/`.
     - question: Should I use the user or device context to install Office?
       answer: |
         Usually device context. Microsoft documents both nodes with the same description, but the user context version only runs while a user is signed in, and its status is tracked under the user's `./User/` nodes.
@@ -6447,7 +6296,7 @@
         This is the recommended route in Fleet, because Fleet tracks the install, shows script output, and detects Office in software inventory.
     - question: How do I run Office Install (User context) with Fleet?
       answer: |
-        Change the `<LocURI>` to the `./User/` path, replace `{id}`, add the escaped configuration to `<Data>`, and save only the `<Exec>` element. Run `fleetctl mdm run-command --hosts=<hostname> --payload=office-install-user.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Replace `{id}` in the `<LocURI>`, add the escaped configuration to `<Data>`, and save the payload. Run `fleetctl mdm run-command --hosts=<hostname> --payload=office-install-user.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Send it while the user is signed in. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
     - question: How do I know Office Install (User context) worked?
@@ -6465,27 +6314,23 @@
 
         A rejected command usually means the configuration wasn't escaped.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>b06743fc-3682-4aba-9f65-90a134b3dd6d</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>b06743fc-3682-4aba-9f65-90a134b3dd6d</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: Install (Device context)
   platform: windows
   category: Office
-  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#userinstallationidinstall
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#deviceinstallationidinstall
   description: Installs Microsoft Office on the device using the provided XML configuration data.
   supportedDeviceTypes:
     - Windows 10.0.15063
@@ -6495,9 +6340,6 @@
         It installs Microsoft 365 Apps (Office) on the whole computer with the Office Deployment Tool. It's an `<Exec>` on `./Device/Vendor/MSFT/Office/Installation/{id}/Install`, on Windows 10, version 1703 and later.
 
         `{id}` is any unique name for this install. The `<Data>` holds the Office Deployment Tool configuration XML that picks the product, channel, and languages.
-    - question: Why does the sample on this page use a ./User path?
-      answer: |
-        The sample targets `./User/Vendor/MSFT/Office/Installation/{id}/Install`, which is the user context node. For a device context install, change the start of the `<LocURI>` to `./Device/`.
     - question: Why use the device context for Office?
       answer: |
         It doesn't depend on who's signed in. The command runs even when no one is signed in, which makes it a good fit for new and shared computers. The user context version only runs while a user is signed in.
@@ -6513,7 +6355,7 @@
         Fleet then tracks each install, shows the script output, and detects Office in software inventory. Use the Office CSP only if you specifically want an MDM-driven install.
     - question: How do I run Office Install (Device context) with Fleet?
       answer: |
-        Set the `<LocURI>` to the `./Device/` path, replace `{id}`, and put the escaped configuration in `<Data>`, for example `&lt;Configuration&gt;`. Save only the `<Exec>` element.
+        Replace `{id}` in the `<LocURI>` and put the escaped configuration in `<Data>`, for example `&lt;Configuration&gt;`. Save the payload.
 
         Run `fleetctl mdm run-command --hosts=<hostname> --payload=office-install.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. With the API, use a unique `<CmdID>`, since Fleet keeps it as the command's ID. `fleetctl` sets a new one for you.
     - question: How do I check the Office install status?
@@ -6532,22 +6374,18 @@
 
         Hosts also need to reach Microsoft's Office content delivery network.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>2e9f2aba-db2e-44a4-9c78-6d05fd5ef4a4</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>2e9f2aba-db2e-44a4-9c78-6d05fd5ef4a4</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: Install
   platform: windows
@@ -6597,23 +6435,19 @@
       answer: |
         Microsoft's method is a `<Delete>` on the `UPPrinterInstalls/{PrinterSharedID}` node. Fleet custom commands only send `<Exec>`, so Fleet can't send it. If you added the node with a user-scoped configuration profile, removing that profile from Fleet sends the delete. The user can also remove the printer in Windows Settings.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>0d2f967d-2c8b-45a6-9a5e-6969cb58b10a</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./User/Vendor/MSFT/PrinterProvisioning/UPPrinterInstalls/{PrinterSharedID}/Install</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>0d2f967d-2c8b-45a6-9a5e-6969cb58b10a</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./User/Vendor/MSFT/PrinterProvisioning/UPPrinterInstalls/{PrinterSharedID}/Install</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: RebootNow
   platform: windows
@@ -6657,23 +6491,19 @@
 
         If Fleet rejects the command before sending it, make sure the payload is a single `<Exec>` without the `<SyncML>` wrapper and, when you use the API, that the `<CmdID>` hasn't been used before.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>d21ff8f2-a1ae-43c9-8763-26d7554f4a94</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>d21ff8f2-a1ae-43c9-8763-26d7554f4a94</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: doAutomaticRedeployment
   platform: windows
@@ -6705,7 +6535,7 @@
       answer: |
         Yes, as a custom command, on hosts that enrolled through [Microsoft Entra automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). Hosts that aren't Entra joined, like most hosts that enrolled by installing fleetd, need a full wipe instead.
 
-        Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=autopilot-reset.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Fleet treats every RemoteWipe command as a wipe, so this requires Fleet Premium.
+        Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=autopilot-reset.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Fleet treats every RemoteWipe command as a wipe, so this requires Fleet Premium.
     - question: Will fleetd still be installed after Autopilot Reset?
       answer: |
         Not necessarily. Autopilot Reset removes apps, and the MDM enrollment stays in place, so the host doesn't go through a fresh enrollment that would reinstall the agent.
@@ -6725,22 +6555,18 @@
       answer: |
         No. Fleet only tracks wipe status for wipes started with **Actions > Wipe**, `fleetctl mdm wipe`, or the Wipe host API. A custom Autopilot Reset leaves the host's status unchanged. Check the command result and the host's activity instead.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>1259012e-3aa2-4f65-a191-eee74d7208c1</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/AutomaticRedeployment/doAutomaticRedeployment</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>1259012e-3aa2-4f65-a191-eee74d7208c1</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/AutomaticRedeployment/doAutomaticRedeployment</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: doWipe
   platform: windows
@@ -6796,22 +6622,18 @@
       answer: |
         Yes. Go to **Settings > System > Recovery > Reset this PC** and choose **Remove everything**. That requires someone at the computer with admin rights. MDM lets you start the same reset remotely, without the user's involvement.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>d85af4e3-ed77-4b4e-8a6f-d50ae80d35e4</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>d85af4e3-ed77-4b4e-8a6f-d50ae80d35e4</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: doWipeCloud
   platform: windows
@@ -6841,7 +6663,7 @@
         Rarely. Most MDMs default to a local wipe, and admins reach for the cloud version only when a local reset doesn't work.
     - question: How do I run doWipeCloud with Fleet?
       answer: |
-        As a custom command. Fleet's **Wipe** action only sends `doWipeProtected` or `doWipe`. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=wipe-cloud.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command. Fleet's **Wipe** action only sends `doWipeProtected` or `doWipe`. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=wipe-cloud.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         All RemoteWipe commands require Fleet Premium. A custom wipe doesn't change the host's wipe status in Fleet, so track it from the command result.
     - question: How do I know doWipeCloud worked?
@@ -6856,22 +6678,18 @@
       answer: |
         Yes. On the computer, go to **Settings > System > Recovery > Reset this PC**, choose **Remove everything**, then **Cloud download**. It needs someone at the computer with admin rights.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>f1b40cb3-d964-4378-bdd8-132305dcc879</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloud</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>f1b40cb3-d964-4378-bdd8-132305dcc879</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloud</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: doWipeCloudPersistProvisionedData
   platform: windows
@@ -6904,7 +6722,7 @@
         Rarely. It's mostly used by organizations that provision computers with packages instead of Autopilot, when a local reset isn't an option.
     - question: How do I run doWipeCloudPersistProvisionedData with Fleet?
       answer: |
-        As a custom command, which requires Fleet Premium. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=wipe-cloud-keep-ppkg.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command, which requires Fleet Premium. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=wipe-cloud-keep-ppkg.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         It's most useful when your package installs fleetd, so the host can come back into Fleet on its own. See [Preinstall Fleet's agent on Windows with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package).
     - question: How do I know doWipeCloudPersistProvisionedData worked?
@@ -6918,22 +6736,18 @@
 
         A `500` means Windows couldn't start the reset, often because the Windows Recovery Environment is disabled. Check with `reagentc /info`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>d07f227f-74c1-4a0d-8e79-f0a9bcf1ffe2</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistProvisionedData</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>d07f227f-74c1-4a0d-8e79-f0a9bcf1ffe2</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistProvisionedData</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: doWipeCloudPersistUserData
   platform: windows
@@ -6968,7 +6782,7 @@
         Rarely. Most Windows repairs are handled with scripts or software updates. A full reinstall that keeps files is a last resort before wiping.
     - question: How do I run doWipeCloudPersistUserData with Fleet?
       answer: |
-        As a custom command, which requires Fleet Premium. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-cloud-keep-files.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command, which requires Fleet Premium. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-cloud-keep-files.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Apps are removed, which can include fleetd. Test on one host first, and plan how fleetd and your software will be reinstalled, for example with [a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package).
     - question: How do I know doWipeCloudPersistUserData worked?
@@ -6982,22 +6796,18 @@
 
         A `500` means Windows couldn't start the reset. Check that the Windows Recovery Environment is enabled with `reagentc /info`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>ef6fd567-f6ac-43c9-854d-c8df66684f0d</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistUserData</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>ef6fd567-f6ac-43c9-854d-c8df66684f0d</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistUserData</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: doWipePersistProvisionedData
   platform: windows
@@ -7028,7 +6838,7 @@
         Occasionally, by organizations that provision computers with packages instead of Autopilot and reset them between users.
     - question: How do I run doWipePersistProvisionedData with Fleet?
       answer: |
-        As a custom command, which requires Fleet Premium. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=wipe-keep-ppkg.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command, which requires Fleet Premium. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=wipe-keep-ppkg.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         If your package installs fleetd, the host can come back into Fleet without hands-on work. See [Preinstall Fleet's agent on Windows with a provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package).
     - question: Do I need to include a value of 1 in the command?
@@ -7043,22 +6853,18 @@
       answer: |
         A `500` means Windows couldn't start the reset, most often because the Windows Recovery Environment is disabled. Run `reagentc /enable` on the host, for example with a Fleet script, and try again. A `400` usually means the payload is malformed.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>505af1a0-407c-4971-a193-1a25a94abb2b</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipePersistProvisionedData</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>505af1a0-407c-4971-a193-1a25a94abb2b</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipePersistProvisionedData</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: doWipePersistUserData
   platform: windows
@@ -7088,7 +6894,7 @@
         Rarely. It's a last resort for a Windows install that scripts and updates can't fix.
     - question: How do I run doWipePersistUserData with Fleet?
       answer: |
-        As a custom command, which requires Fleet Premium. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-keep-files.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command, which requires Fleet Premium. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-keep-files.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
     - question: Will the host stay in Fleet after doWipePersistUserData?
       answer: |
         Don't count on it. Apps are removed, which can include fleetd, so the host may stop reporting to Fleet until the agent is reinstalled.
@@ -7106,22 +6912,18 @@
       answer: |
         Yes, if they're an admin on the computer. They go to **Settings > System > Recovery > Reset this PC** and choose **Keep my files**. The MDM command lets IT start the same reset remotely.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>faa34fe4-7ab5-4815-ac4d-3e99b4f79ad3</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipePersistUserData</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>faa34fe4-7ab5-4815-ac4d-3e99b4f79ad3</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipePersistUserData</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: doWipeProtected
   platform: windows
@@ -7171,22 +6973,18 @@
       answer: |
         Disable the user's account in Microsoft Entra ID or your identity provider first, so the device can't be used to reach company data. Then send the wipe. If the device has an eSIM, send `ResetToFactoryState` before the wipe, since the wipe ends MDM management.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>0d0f7e7b-82b7-4fff-a4d1-101c9edb795d</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>0d0f7e7b-82b7-4fff-a4d1-101c9edb795d</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: InstallWindowsDefenderApplicationGuard
   platform: windows
@@ -7221,7 +7019,7 @@
         Rarely, and less every year because of the deprecation.
     - question: How do I run InstallWindowsDefenderApplicationGuard with Fleet?
       answer: |
-        As a custom command. Add `<Data>Install</Data>` to the `<Item>`, save only the `<Exec>` element with a new, unique `<CmdID>`, and run `fleetctl mdm run-command --hosts=<hostname> --payload=install-mdag.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command. The example on this page already has `<Data>Install</Data>`. Save it and run `fleetctl mdm run-command --hosts=<hostname> --payload=install-mdag.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Deliver the `Settings` nodes in a Windows configuration profile in **Controls > OS settings** so Fleet keeps them enforced. See [Custom OS settings](https://fleetdm.com/guides/custom-os-settings).
     - question: How do I check if Application Guard is installed?
@@ -7233,22 +7031,19 @@
       answer: |
         A `404` usually means the feature isn't available on that Windows version, including Windows 11, version 24H2 and later. A `500` usually means the install couldn't run, often because the hardware doesn't support virtualization or it's turned off in the firmware.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>be527684-1679-449f-b4f1-7d2f6fe48ce7</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/WindowsDefenderApplicationGuard/InstallWindowsDefenderApplicationGuard</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>be527684-1679-449f-b4f1-7d2f6fe48ce7</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/WindowsDefenderApplicationGuard/InstallWindowsDefenderApplicationGuard</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>Install</Data>
+      </Item>
+    </Exec>
 
 - name: ChangeProductKey
   platform: windows
@@ -7276,7 +7071,7 @@
         Rarely. It's used to fix activation problems or move computers onto volume licensing. Most organizations that use Windows Enterprise E3 or E5 rely on subscription activation instead, which needs no key.
     - question: How do I run ChangeProductKey with Fleet?
       answer: |
-        Add `<Data>` with your key, save only the `<Exec>` element with a new, unique `<CmdID>`, and run `fleetctl mdm run-command --hosts=<hostname> --payload=change-key.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Add `<Data>` with your key, save the payload (with a new, unique `<CmdID>` if you use the API), and run `fleetctl mdm run-command --hosts=<hostname> --payload=change-key.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Fleet keeps the command payload, including the key, in the command's results. To keep the key out of that history, run `slmgr /ipk` with a [Fleet secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) in a script instead.
     - question: How do I know ChangeProductKey worked?
@@ -7291,22 +7086,18 @@
       answer: |
         Usually not. Changing the key is silent and doesn't restart the computer. If the new key changes activation status, the user may see that in **Settings > System > Activation**.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>e416bea9-8407-4a72-a7db-415cd4dcf622</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/WindowsLicensing/ChangeProductKey</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>e416bea9-8407-4a72-a7db-415cd4dcf622</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/WindowsLicensing/ChangeProductKey</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: CheckApplicability
   platform: windows
@@ -7335,7 +7126,7 @@
         Rarely, and usually right before an edition upgrade. Many admins skip it and instead test the upgrade on one pilot computer.
     - question: How do I run CheckApplicability with Fleet?
       answer: |
-        Add `<Data>` with the 29-character key, including dashes. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=check-key.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Add `<Data>` with the 29-character key, including dashes. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=check-key.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Fleet keeps the payload, including the key, in the command's results.
     - question: Where do I see the CheckApplicability result?
@@ -7347,22 +7138,18 @@
       answer: |
         A `4xx` status usually means the key or payload is malformed, for example a key without dashes. A `5xx` status means the device couldn't evaluate the key.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>e3f7b84a-1984-4511-843f-c33001392d14</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/WindowsLicensing/CheckApplicability</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>e3f7b84a-1984-4511-843f-c33001392d14</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/WindowsLicensing/CheckApplicability</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: SwitchFromSMode
   platform: windows
@@ -7396,7 +7183,7 @@
         Once enrolled, send SwitchFromSMode so fleetd, scripts, software installs, and osquery reports can work.
     - question: How do I run SwitchFromSMode with Fleet?
       answer: |
-        As a custom command. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=switch-from-s-mode.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=switch-from-s-mode.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         To block users from switching on their own, add `SMode/SwitchingPolicy` to a Windows configuration profile in **Controls > OS settings**.
     - question: How do I know SwitchFromSMode worked?
@@ -7405,23 +7192,19 @@
 
         Windows records the outcome in `SMode/Status`: `0` switched, `1` in progress, `3` already out of S mode, `4` failed. Fleet's custom commands can't read that node, so check **Settings > System > Activation** on the computer, which no longer mentions S mode.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>848dc97d-0d6d-489e-bb32-9a90fa2e3afb</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/WindowsLicensing/SMode/SwitchFromSMode</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>848dc97d-0d6d-489e-bb32-9a90fa2e3afb</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/WindowsLicensing/SMode/SwitchFromSMode</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: RemoveSubscription
   platform: windows
@@ -7450,7 +7233,7 @@
         Rarely. It's a preview feature for organizations testing device-based subscriptions.
     - question: How do I run RemoveSubscription with Fleet?
       answer: |
-        As a custom command. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=remove-subscription.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Test on an Insider build first.
+        As a custom command. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=remove-subscription.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API. Test on an Insider build first.
     - question: How do I know RemoveSubscription worked?
       answer: |
         A `200` in `fleetctl get mdm-command-results --id=<CmdID>` means Windows accepted the command. Windows records details in the `Subscriptions/SubscriptionStatus` and `Subscriptions/SubscriptionLastError` nodes.
@@ -7460,23 +7243,19 @@
       answer: |
         A `404` usually means the host isn't running an Insider build that has this node. Other failures are described in `Subscriptions/SubscriptionLastError` and `Subscriptions/SubscriptionLastErrorDescription`.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>da9c456a-2f0e-4d8a-9748-0fbde572ee76</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/WindowsLicensing/Subscriptions/RemoveSubscription</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>da9c456a-2f0e-4d8a-9748-0fbde572ee76</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/WindowsLicensing/Subscriptions/RemoveSubscription</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">null</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data></Data>
+      </Item>
+    </Exec>
 
 - name: UpgradeEditionWithLicense
   platform: windows
@@ -7509,29 +7288,25 @@
         Almost never today, because it only applied to Windows 10 Mobile.
     - question: Can I send UpgradeEditionWithLicense with Fleet?
       answer: |
-        Yes, as a custom command, but expect desktop computers to reject it. Put the license XML in `<Data>`, save only the `<Exec>` element with a new, unique `<CmdID>`, and run `fleetctl mdm run-command --hosts=<hostname> --payload=upgrade-license.xml`.
+        Yes, as a custom command, but expect desktop computers to reject it. Put the license XML in `<Data>`, save the payload (with a new, unique `<CmdID>` if you use the API), and run `fleetctl mdm run-command --hosts=<hostname> --payload=upgrade-license.xml`.
 
         For a real edition upgrade, send `UpgradeEditionWithProductKey` instead.
     - question: What errors does UpgradeEditionWithLicense return?
       answer: |
         On Windows desktop computers, it usually fails because they expect a product key, not a license. A `4xx` status can also mean the license XML is malformed.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>472afd03-6963-4c7b-aebb-99d561724086</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithLicense</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">xml</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>472afd03-6963-4c7b-aebb-99d561724086</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithLicense</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">xml</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
 
 - name: UpgradeEditionWithProductKey
   platform: windows
@@ -7571,7 +7346,7 @@
         Occasionally, when an organization standardizes on Enterprise or Education and uses volume licensing.
     - question: How do I run UpgradeEditionWithProductKey with Fleet?
       answer: |
-        Replace the placeholder in `<Data>` with your 29-character key, including dashes. Save only the `<Exec>` element with a new, unique `<CmdID>` and run `fleetctl mdm run-command --hosts=<hostname> --payload=upgrade-edition.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Replace the placeholder in `<Data>` with your 29-character key, including dashes. Save the payload (with a new, unique `<CmdID>` if you use the API) and run `fleetctl mdm run-command --hosts=<hostname> --payload=upgrade-edition.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Fleet keeps the payload, including the key, in the command's results. To find hosts still on the old edition, create a policy on the `os_version` table, for example `SELECT 1 FROM os_version WHERE name LIKE '%Enterprise%';`.
     - question: How do I know UpgradeEditionWithProductKey worked?
@@ -7583,23 +7358,19 @@
       answer: |
         A failure status usually means an invalid key, a key without dashes, or an upgrade path Microsoft doesn't support, like Home to Enterprise. Run `CheckApplicability` with the same key first to catch these before any user is interrupted.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>3d13b6f6-5e79-4a28-b8f5-062f884a1de1</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithProductKey</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data>XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>3d13b6f6-5e79-4a28-b8f5-062f884a1de1</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithProductKey</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+        <Data>XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</Data>
+      </Item>
+    </Exec>
 
 - name: ResetToFactoryState
   platform: windows
@@ -7631,7 +7402,7 @@
         Rarely. It's used when retiring, reassigning, or recovering a lost cellular-capable laptop.
     - question: How do I run ResetToFactoryState with Fleet?
       answer: |
-        As a custom command. Replace `{eUICC}` with `Default` or the device's EID, save only the `<Exec>` element with a new, unique `<CmdID>`, and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-euicc.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        As a custom command. Replace `{eUICC}` with `Default` or the device's EID, save the payload (with a new, unique `<CmdID>` if you use the API), and run `fleetctl mdm run-command --hosts=<hostname> --payload=reset-euicc.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
         Fleet's **Wipe** action doesn't send this command, so send it yourself before wiping.
     - question: How do I know ResetToFactoryState worked?
@@ -7643,19 +7414,15 @@
       answer: |
         A `404` usually means the `{eUICC}` value is wrong or the device has no eUICC. A `500` means the reset failed on the modem side. Check that the modem is turned on and try again.
   command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>ebb2aec5-4865-4419-9fa1-3458d32fcab6</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/eUICCs/{eUICC}/Actions/ResetToFactoryState</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">chr</Format>
-              <Type>text/plain</Type>
-            </Meta>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
+    <Exec>
+      <CmdID>ebb2aec5-4865-4419-9fa1-3458d32fcab6</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/eUICCs/{eUICC}/Actions/ResetToFactoryState</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type>text/plain</Type>
+        </Meta>
+      </Item>
+    </Exec>
