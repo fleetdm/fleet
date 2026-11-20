@@ -120,6 +120,8 @@ fleetdm.com will:
 
 fleetdm.com won't mark devices as managed. Your Fleet server does that with a service account you create in your own Google Cloud project, with domain-wide delegation limited to the `cloud-identity.devices` scope. You own the credential, and the Fleet server unmarks a device when its host leaves Fleet or stops being company-owned. No Google credentials pass through fleetdm.com.
 
+The [Chrome bookmark](https://fleetdm.com/guides/google-conditional-access-integration) will need Google connected in Fleet, so your Fleet server will need to reach fleetdm.com once, to connect. Registering hosts with the bookmark won't go through fleetdm.com.
+
 Compared to Android MDM:
 
 - fleetdm.com will call your Fleet server, authenticated with the per-server secret. If you restrict inbound traffic, you'll need to allow that endpoint from fleetdm.com. The exact path isn't final yet. See the plan in [#56354](https://github.com/fleetdm/fleet/issues/56354).
