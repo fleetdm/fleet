@@ -1,5 +1,3 @@
-//go:build windows
-
 package mdm_bridge
 
 import (

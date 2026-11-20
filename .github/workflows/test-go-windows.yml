@@ -68,7 +68,6 @@ jobs:
             "./orbit/pkg/table/amcache/..."
             "./orbit/pkg/table/bitlocker_key_protectors/..."
             "./orbit/pkg/table/cis_audit/..."
-            "./orbit/pkg/table/mdm_bridge/..."
             "./orbit/pkg/table/windowsupdatetable/..."
           )
           Write-Host "Running Windows-specific Go tests for packages:"
