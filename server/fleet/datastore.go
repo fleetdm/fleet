@@ -386,7 +386,8 @@ type Datastore interface {
 	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
 	// UpdateHostIssuesFailingPoliciesForSingleHost updates the failing policies count in host_issues table for a single host.
 	UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error
-	// Gets the last time the host's row in `host_issues` was updated
+	// GetHostIssuesLastUpdated gets the last time the host's row in `host_issues` was updated, or the zero time if it has none. It returns
+	// a not found error if the host doesn't exist.
 	GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error)
 	// UpdateHostIssuesVulnerabilities updates the critical vulnerabilities counts in host_issues.
 	UpdateHostIssuesVulnerabilities(ctx context.Context) error

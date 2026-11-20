@@ -7748,21 +7748,16 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 }
 
 func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
-	stmt := `
-		SELECT updated_at FROM host_issues WHERE host_id = ?
-	`
-	var out []time.Time
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &out, stmt, hostId); err != nil {
+	// Selecting from hosts returns not found for a missing host, so its caller doesn't add a host_issues row for it.
+	stmt := `SELECT hi.updated_at FROM hosts h LEFT JOIN host_issues hi ON hi.host_id = h.id WHERE h.id = ?`
+	var updatedAt sql.NullTime
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &updatedAt, stmt, hostId); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return time.Time{}, ctxerr.Wrap(ctx, notFound("Host").WithID(hostId))
+		}
 		return time.Time{}, ctxerr.Wrap(ctx, err, "checking host_issues last updated")
 	}
-	if len(out) == 0 {
-		// okay
-		return time.Time{}, nil
-	}
-	if len(out) > 1 {
-		return time.Time{}, ctxerr.New(ctx, "Multiple host_issues rows found for this host_id")
-	}
-	return out[0], nil
+	return updatedAt.Time, nil
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
@@ -7777,13 +7772,11 @@ func (ds *Datastore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Co
 }
 
 func updateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, tx sqlx.ExecerContext, hostID uint) error {
-	// The host is selected from hosts so that an ID with no host, like a number tried as a host ID before its lookup as a serial, adds no
-	// row, and one beyond the column's range isn't an error.
 	stmt := `
 	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
 	SELECT host_id.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
 		FROM policy_membership pm
-		RIGHT JOIN (SELECT id FROM hosts WHERE id = ?) as host_id
+		RIGHT JOIN (SELECT ? as id) as host_id
 		ON pm.host_id = host_id.id
 		GROUP BY host_id.id
 	ON DUPLICATE KEY UPDATE

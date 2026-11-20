@@ -136,7 +136,7 @@ func TestPolicies(t *testing.T) {
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 		{"UpdateHostPolicyCountsDoesNotWaitOnMembershipLocks", testUpdateHostPolicyCountsDoesNotWaitOnMembershipLocks},
 		{"RecordPolicyQueryExecutionsStalePolicyIDs", testRecordPolicyQueryExecutionsStalePolicyIDs},
-		{"UpdateHostIssuesForMissingHost", testUpdateHostIssuesForMissingHost},
+		{"GetHostIssuesLastUpdated", testGetHostIssuesLastUpdated},
 		{"ResetPolicy", testResetPolicy},
 		{"ResetPolicyForHost", testResetPolicyForHost},
 	}
@@ -11845,13 +11845,19 @@ func testListAndCountPoliciesInScope(t *testing.T, ds *Datastore) {
 	require.Equal(t, "global webhook", inherited[0].Name)
 }
 
-func testUpdateHostIssuesForMissingHost(t *testing.T, ds *Datastore) {
+func testGetHostIssuesLastUpdated(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	// A number tried as a host ID before its lookup as a serial can name no host, or be beyond the host_id column's range.
-	for _, hostID := range []uint{123456, 1 << 32} {
-		require.NoError(t, ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, hostID))
-		var rows int
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &rows, `SELECT COUNT(*) FROM host_issues WHERE host_id = ?`, hostID))
-		require.Zero(t, rows, "host ID %d", hostID)
-	}
+	// Not found keeps GetHost from adding a host_issues row for a number tried as a host ID before its lookup as a serial.
+	_, err := ds.GetHostIssuesLastUpdated(ctx, 123456)
+	require.True(t, fleet.IsNotFound(err), err)
+
+	host := test.NewHost(t, ds, "host", "1", "hostkey", "hostuuid", time.Now())
+	lastUpdated, err := ds.GetHostIssuesLastUpdated(ctx, host.ID)
+	require.NoError(t, err)
+	require.Zero(t, lastUpdated)
+
+	require.NoError(t, ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID))
+	lastUpdated, err = ds.GetHostIssuesLastUpdated(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotZero(t, lastUpdated)
 }

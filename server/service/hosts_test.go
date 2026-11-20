@@ -7971,6 +7971,7 @@ func TestHostByIDOrIdentifier(t *testing.T) {
 	const otherHostID = 42
 	notFound := newNotFoundError()
 	forbidden := authz.ForbiddenWithInternal("can't list hosts", nil, nil, nil)
+	dbErr := errors.New("database down")
 	testCases := []struct {
 		name       string
 		identifier string
@@ -8003,6 +8004,10 @@ func TestHostByIDOrIdentifier(t *testing.T) {
 			wantHostID: 7, wantErr: forbidden, wantLookups: 1},
 		{name: "a number beyond a host ID's range is looked up", identifier: "4294967296", lookupID: otherHostID,
 			wantCalls: []uint{otherHostID}, wantHostID: otherHostID, wantLookups: 1},
+		{name: "another error for a host ID isn't looked up", identifier: "7", failFor: 7, failErr: dbErr, lookupID: otherHostID,
+			wantCalls: []uint{7}, wantHostID: 7, wantErr: dbErr},
+		{name: "a lookup error is returned", identifier: "7", failFor: 7, lookupErr: dbErr, wantCalls: []uint{7}, wantHostID: 7,
+			wantErr: dbErr, wantLookups: 1},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
