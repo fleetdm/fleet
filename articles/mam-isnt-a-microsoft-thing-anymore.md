@@ -1,6 +1,6 @@
 # MAM isn't a Microsoft thing anymore (but your LLM thinks it is)
 
-*If you run Google Workspace, you can protect work data on personal phones without Microsoft and without MDM. Your AI assistant will probably tell you otherwise.*
+*An AI assistant tried to stop me from publishing this article. It was wrong, and so is the idea that protecting work data on personal phones means buying Microsoft.*
 
 ## Key takeaways
 
@@ -13,7 +13,9 @@
 
 <a purpose="cta-button" href="https://fleetdm.com/device-management">See how Fleet manages devices</a>
 
-I spent an afternoon researching BYOD with an AI assistant. Every answer ended in the same place: to protect work data on personal phones without enrolling them in MDM, buy Microsoft. Intune app protection, Entra Conditional Access, Outlook. Everyone else is playing catch-up.
+When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet from my list of Google apps, blurred the rest, and flagged my claims as unverified. When I made it read Google's current docs, it found I was right and put everything back. Then it insisted it hadn't tried to stop me.
+
+That was the second time that day. Earlier, I'd spent an afternoon researching BYOD with an AI assistant. Every answer ended in the same place: to protect work data on personal phones without enrolling them in MDM, buy Microsoft. Intune app protection, Entra Conditional Access, Outlook. Everyone else is playing catch-up.
 
 That used to be true. It isn't anymore.
 
@@ -40,10 +42,6 @@ With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and
 Those enrollment numbers aren't fixed. People hold back because enrolling a personal phone feels like a leap of faith. Make enrollment easy. Show people what IT can and can't see on their phone, and what they're giving up. More of them will say yes. For everyone else, conditional access is the best way to require it: no enrollment, no work apps.
 
 That's why Fleet is focused on the BYOD experience. The easier enrollment is, the more people do it. IT gets fewer tickets, and new hires get to work faster. When employees know what's visible, BYOD can even be good for the culture. One publicly traded fintech company resisted BYOD for years. It recently rolled it out for exactly these reasons. With AI apps like Claude acting on people's computers and reaching a lot of company data, knowing which devices are enrolled matters more every month.
-
-> **Edit:** When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet, blurred the list of blocked actions, added a licensing caveat, and flagged my iPhone Mail claim as unverified.
->
-> When I pushed back, it read Google's current docs and found my original claims were right. Then it insisted it hadn't tried to stop me. It had only "softened" the draft. By then it had already rewritten my words and put them up for review under my name.
 
 Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
 
