@@ -578,6 +578,9 @@ const MDMStatusModal = ({
       {renderMDMStatus()}
       {isPremiumTier &&
         isAppleDevice &&
+        // never show it for non automatic or pending hosts, they will never need the profile assignment info
+        (enrollmentStatus === "On (automatic)" ||
+          enrollmentStatus === "Pending") &&
         // Only render the profile assignment section if this host has an actual
         // host_dep_assignment entry, in which case we expect there to be data to
         // render. While loading or on query error, keep the section visible so
