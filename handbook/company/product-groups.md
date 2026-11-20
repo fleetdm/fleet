@@ -64,6 +64,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - Queries
 - Labels
 - GitOps engine
+- MCP server
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://github.com/orgs/fleetdm/projects/71), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
 
