@@ -111,6 +111,12 @@ const renderGenerator = ({
   isPremiumTier = true,
   teamId = 2,
   mdm = appleOnly,
+  defaultPlatform,
+}: {
+  isPremiumTier?: boolean;
+  teamId?: number;
+  mdm?: typeof appleOnly;
+  defaultPlatform?: string;
 } = {}) => {
   const router = createMockRouter();
   const render = createCustomRenderer({
@@ -133,6 +139,7 @@ const renderGenerator = ({
       gitOpsModeEnabled={false}
       listPath="/controls/os-settings/configuration-profiles?fleet_id=2"
       manualLocation={MANUAL_LOCATION}
+      defaultPlatform={defaultPlatform}
     />
   );
   return { ...results, router };
@@ -202,6 +209,22 @@ describe("AIProfileGenerator", () => {
     });
     await user.click(screen.getByRole("combobox"));
     expect(screen.getByText("Windows")).toBeInTheDocument();
+  });
+
+  it("preselects the platform from the default when its MDM is on", () => {
+    renderGenerator({
+      mdm: { ...appleOnly, windows_mdm_enabled: true },
+      defaultPlatform: "windows",
+    });
+    expect(screen.getByText("Windows")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Apple (macOS, iOS, iPadOS)")
+    ).not.toBeInTheDocument();
+  });
+
+  it("falls back to the first platform when the default's MDM is off", () => {
+    renderGenerator({ defaultPlatform: "windows" });
+    expect(screen.getByText("Apple (macOS, iOS, iPadOS)")).toBeInTheDocument();
   });
 
   it("names the fleet the profile is added to", () => {

@@ -35,11 +35,7 @@ module.exports = {
     //  ║  ║ ║║ ╦║║║║   ║ ║ ║  ╚═╗╠═╣║  ║╣ ╚═╗╠╣ ║ ║╠╦╝║  ║╣
     //  ╩═╝╚═╝╚═╝╩╝╚╝   ╩ ╚═╝  ╚═╝╩ ╩╩═╝╚═╝╚═╝╚  ╚═╝╩╚═╚═╝╚═╝
     // Log in to Salesforce.
-    let jsforce = require('jsforce');
-    let salesforceConnection = new jsforce.Connection({
-      loginUrl : 'https://fleetdm.my.salesforce.com'
-    });
-    await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+    let salesforceConnection = await sails.helpers.salesforce.getConnection();
     // If the state is not set to California, remove the city (This is the only state that is in two different territories.)
     if(state && state.toLowerCase() !== 'california') {
       city = undefined;

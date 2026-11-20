@@ -153,8 +153,9 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText(/ran/i));
 
-    // No tooltip on install status
-    expect(screen.queryByText(/The script ran/i)).not.toBeInTheDocument();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      /The script ran \(finished with exit code 0\)/i
+    );
 
     // There SHOULD be a button with this label
     expect(screen.queryByRole("button", { name: /ran/i })).toBeInTheDocument();

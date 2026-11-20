@@ -99,8 +99,8 @@ module.exports.custom = {
   // Other integrations:
   // anthropicSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
-  // salesforceIntegrationUsername: undefined,
-  // salesforceIntegrationPasskey: undefined,
+  // salesforceIntegrationClientId: undefined,
+  // salesforceIntegrationClientSecret: undefined,
 
   // For cleaning up LinkedIn URLs before creating CRM records.
   RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
@@ -230,6 +230,8 @@ module.exports.custom = {
   ***************************************************************************/
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
     '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
+    '.github/workflows/market-research-check.yml': 'lukeheath',// « rebuilds and checks the market research explorer, DMs the build on Slack
+    '.github/workflows/market-research-revenue.yml': 'lukeheath',// « weekly Fleet revenue pull from Salesforce for the market research
   },
 
 
@@ -556,6 +558,10 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
 
+  // Google conditional access proxy
+  // googleConditionalAccessOauthClientId: '…',
+  // googleConditionalAccessOauthClientSecret: '…',
+  // googleConditionalAccessPartnerId: '…',
 
   // Android proxy
   // androidEnterpriseProjectId: '…',

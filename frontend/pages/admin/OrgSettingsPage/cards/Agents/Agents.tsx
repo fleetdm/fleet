@@ -12,7 +12,10 @@ import PageDescription from "components/PageDescription";
 import YamlAce from "components/YamlAce";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
-import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import {
+  EMPTY_AGENT_OPTIONS,
+  FLEET_GUIDES_BASE_LINK,
+} from "utilities/constants";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 
 import { IAppConfigFormProps } from "../constants";
@@ -79,7 +82,7 @@ const Agents = ({
     }
 
     // Formatting of API not UI and allows empty agent options
-    const formDataToSubmit: any = agentOptions
+    const formDataToSubmit: any = agentOptions?.trim()
       ? {
           agent_options: yaml.load(agentOptions),
         }
@@ -119,7 +122,7 @@ const Agents = ({
           <InfoBanner>
             Want some hosts to have different options?&nbsp;
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/teams"
+              url={`${FLEET_GUIDES_BASE_LINK}/fleets`}
               text="Learn more about fleets"
               newTab
               variant="banner-link"

@@ -144,7 +144,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			}
 
 			assert.Equal(t, 1, osVersion.HostsCount)
-			assert.Equal(t, fmt.Sprintf("%s %s", tt.os.Name, tt.os.Version), osVersion.Name)
 			assert.Equal(t, tt.os.Name, osVersion.NameOnly)
 			assert.Equal(t, tt.os.Version, osVersion.Version)
 			assert.Equal(t, tt.os.Platform, osVersion.Platform)

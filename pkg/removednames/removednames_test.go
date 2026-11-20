@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -182,8 +181,8 @@ func TestEntriesWellFormed(t *testing.T) {
 		default:
 			assert.Fail(t, "unknown format", e.Old)
 		}
-		// The device download of the removed installer store sat outside the Fleet API.
-		if e.Kind == KindPath && e.Old != "/api/mdm/apple/installer" {
+		// The device download of the removed installer store and the public version endpoint sat outside the Fleet API.
+		if e.Kind == KindPath && !slices.Contains([]string{"/api/mdm/apple/installer", "/version"}, e.Old) {
 			assert.True(t, strings.HasPrefix(e.Old, pathPrefix), "path should start with %s: %s", pathPrefix, e.Old)
 		}
 
@@ -257,31 +256,6 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 		assert.Positive(t, found)
 	})
 
-	t.Run("deprecated team paths", func(t *testing.T) {
-		t.Parallel()
-		teamPath := regexp.MustCompile(`/teams?(/|$)`)
-		paramRegex := regexp.MustCompile(`\{(\w+):[^}]*\}`)
-		found := 0
-		ast.Inspect(parseFile(t, filepath.Join(root, "server", "service", "handler_deprecated_paths.go")), func(n ast.Node) bool {
-			lit, ok := n.(*ast.CompositeLit)
-			if !ok {
-				return true
-			}
-			primary := literalsOf(lit, "PrimaryPath")
-			for _, deprecated := range literalsOf(lit, "DeprecatedPaths") {
-				if len(primary) != 1 || !teamPath.MatchString(deprecated) {
-					continue
-				}
-				found++
-				oldPath, newPath := paramRegex.ReplaceAllString(deprecated, "{$1}"), paramRegex.ReplaceAllString(primary[0], "{$1}")
-				assert.True(t, hasEntry(func(e Entry) bool { return e.Kind == KindPath && e.Old == oldPath && e.New == newPath }),
-					"deprecated path %s -> %s is missing from entries", oldPath, newPath)
-			}
-			return true
-		})
-		assert.Positive(t, found)
-	})
-
 	t.Run("fleetctl flag, command, and env var aliases", func(t *testing.T) {
 		t.Parallel()
 		endsWithAny := func(context string, names []string) bool {
@@ -332,27 +306,16 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 
 	t.Run("gitops no-team file and name", func(t *testing.T) {
 		t.Parallel()
-		var fileNames, noTeamNames []string
+		var fileNames []string
 		ast.Inspect(parseFile(t, filepath.Join(root, "pkg", "spec", "gitops.go")), func(n ast.Node) bool {
-			switch v := n.(type) {
-			case *ast.BasicLit:
-				if strings.HasSuffix(v.Value, `-team.yml"`) {
-					fileNames = append(fileNames, stringLits(v)...)
-				}
-			case *ast.ValueSpec:
-				if len(v.Names) == 1 && v.Names[0].Name == "noTeam" && len(v.Values) == 1 {
-					noTeamNames = append(noTeamNames, stringLits(v.Values[0])...)
-				}
+			if v, ok := n.(*ast.BasicLit); ok && strings.HasSuffix(v.Value, `-team.yml"`) {
+				fileNames = append(fileNames, stringLits(v)...)
 			}
 			return true
 		})
 		require.NotEmpty(t, fileNames)
-		require.NotEmpty(t, noTeamNames)
 		for _, name := range fileNames {
 			assert.True(t, has(KindFileName, ScopeRequest, name, ""), "GitOps file name %s is missing from entries", name)
-		}
-		for _, name := range noTeamNames {
-			assert.True(t, has(KindYAMLValue, ScopeRequest, "name: "+name, ""), "GitOps fleet name %s is missing from entries", name)
 		}
 	})
 }

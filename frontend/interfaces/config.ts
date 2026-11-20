@@ -8,7 +8,10 @@ import {
 } from "interfaces/webhook";
 
 import { IVulnExposureFilterDefaults } from "./charts";
-import { IGlobalIntegrations } from "./integration";
+import {
+  IGlobalGoogleConditionalAccessIntegration,
+  IGlobalIntegrations,
+} from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
 
 export interface ILicense {
@@ -169,12 +172,13 @@ export interface IConfigFeatures {
 
 export interface IConfigServerSettings {
   server_url: string;
-  live_query_disabled: boolean;
+  live_reporting_disabled: boolean;
   enable_analytics: boolean;
   deferred_save_host: boolean;
-  query_reports_disabled: boolean;
+  discard_reports_data: boolean;
   ai_features_disabled: boolean;
   mcp_disabled: boolean;
+  ai_sessions_disabled: boolean;
 }
 
 export interface IConfig {
@@ -227,6 +231,8 @@ export interface IConfig {
     okta_certificate: string;
     // Bypass setting
     bypass_disabled?: boolean;
+    /** Read-only. Settings are in `integrations.google_conditional_access`. */
+    google?: IConditionalAccessGoogleStatus;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
@@ -363,6 +369,21 @@ export interface IGitOpsModeConfig {
   exceptions: IGitOpsExceptions;
 }
 
+export type ConditionalAccessGoogleState =
+  | ""
+  | "pending"
+  | "delegation_failed"
+  | "registration_failed"
+  | "connected"
+  | "deleted";
+
+export interface IConditionalAccessGoogleStatus {
+  service_account_key_configured: boolean;
+  /** Empty while the integration is off. */
+  state: ConditionalAccessGoogleState;
+  error_message: string | null;
+}
+
 /** Check if Okta conditional access is configured (all 4 fields must be present) */
 export const isOktaConditionalAccessConfigured = (
   config: IConfig | null | undefined
@@ -383,6 +404,46 @@ export const isEntraConditionalAccessConfigured = (
   return (
     config?.conditional_access?.microsoft_entra_connection_configured ?? false
   );
+};
+
+/** Check if the Google conditional access settings are saved. The connection
+ * state is in `conditional_access.google`. Not part of
+ * `isConditionalAccessConfigured`: Google doesn't use per-fleet policy
+ * automations. */
+export const isGoogleConditionalAccessConfigured = (
+  config: IConfig | null | undefined
+): boolean => {
+  return !!config?.integrations?.google_conditional_access?.customer_id;
+};
+
+/** `saved` is the connect or edit response, or null after a delete. Spares
+ * reading the config back, which a replica that hasn't caught up can answer. */
+export const withGoogleConditionalAccess = (
+  config: IConfig,
+  saved:
+    | (IGlobalGoogleConditionalAccessIntegration &
+        IConditionalAccessGoogleStatus)
+    | null
+): IConfig => {
+  return {
+    ...config,
+    integrations: {
+      ...config.integrations,
+      google_conditional_access: saved && {
+        customer_id: saved.customer_id,
+        admin_email: saved.admin_email,
+      },
+    },
+    conditional_access: config.conditional_access && {
+      ...config.conditional_access,
+      google: {
+        service_account_key_configured:
+          saved?.service_account_key_configured ?? false,
+        state: saved?.state ?? "",
+        error_message: saved?.error_message ?? null,
+      },
+    },
+  };
 };
 
 /** Check if any conditional access provider is configured (Okta or Entra) */

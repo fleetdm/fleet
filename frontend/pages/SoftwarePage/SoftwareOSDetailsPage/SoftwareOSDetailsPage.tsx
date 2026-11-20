@@ -28,6 +28,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
   PLATFORM_DISPLAY_NAMES,
 } from "utilities/constants";
+import { getHostOSDisplayName } from "utilities/helpers";
 
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
@@ -50,12 +51,15 @@ export const SummaryCard = ({
 }: ISummaryCardProps) => (
   <Card className={`${baseClass}__summary-section`}>
     <SoftwareDetailsSummary
-      displayName={osVersion.name}
+      displayName={getHostOSDisplayName(
+        osVersion.os_name,
+        osVersion.os_version
+      )}
       hostCount={osVersion.hosts_count}
       countsUpdatedAt={countsUpdatedAt}
       queryParams={{
-        os_name: osVersion.name_only,
-        os_version: osVersion.version,
+        os_name: osVersion.os_name,
+        os_version: osVersion.os_version,
         fleet_id: teamIdForApi,
       }}
       name={osVersion.platform}
@@ -119,8 +123,8 @@ export const KernelsCard = ({
   <Card className={`${baseClass}__summary-section`}>
     <CardHeader header="Kernels" />
     <OSKernelsTable
-      osName={osVersion.name_only}
-      osVersion={osVersion.version}
+      osName={osVersion.os_name}
+      osVersion={osVersion.os_version}
       data={osVersion.kernels}
       isLoading={isLoading}
       router={router}

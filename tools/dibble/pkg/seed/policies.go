@@ -49,8 +49,9 @@ func Policies(c Client, log Logger, theme themes.Theme, teams []Team, count int)
 				"query":       dummyPolicyQuery,
 				"description": n.Desc,
 				"platform":    seededPlatforms[i%len(seededPlatforms)],
+				"fleet_id":    t.ID,
 			}
-			err := c.Post(fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t.ID), body, nil)
+			err := c.Post("/api/latest/fleet/policies", body, nil)
 			switch {
 			case err == nil:
 				res.Created++

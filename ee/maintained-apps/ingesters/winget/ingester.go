@@ -498,7 +498,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	// Adobe Creative Cloud runs its own node.exe), so match only this app's install dir:
 	// another copy running shouldn't block its updates.
 	switch input.Slug {
-	case "nodejs/windows":
+	case "nodejs/windows", "nodejs-22/windows", "nodejs-24/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`
 	case "python-3.13/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313\%');`
@@ -506,8 +506,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313-arm64\%');`
 	case "python-3.14/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python314\%');`
-	case "nodejs-22/windows":
-		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`
 	}
 
 	// arm64 builds can't run on x64 hosts, so their policies must pass there. The open

@@ -98,11 +98,6 @@ type ServerProfile struct {
 	ComposeProject string           `json:"compose_project"` // docker compose -p value
 	FleetServe     FleetServeConfig `json:"fleet_serve"`
 	Enabled        bool             `json:"enabled"`
-	// MockAPNs runs cmd/apple-apns-mock with this server's stack and points
-	// fleet serve's Apple MDM pushes at it, so osquery-perf's simulated Apple
-	// devices can MDM-enroll. Real Apple devices on this server get no pushes
-	// while it's on.
-	MockAPNs bool `json:"mock_apns"`
 }
 
 // DefaultPortsForIndex returns the canonical port block for the i-th server
@@ -225,9 +220,6 @@ type InstallersConfig struct {
 	Targets      map[string]InstallerTarget `json:"targets"`
 	ManualTarget InstallerTarget            `json:"manual_target"`
 	Options      InstallerOptions           `json:"options"`
-	// SharePort is the port for sharing the packages folder over HTTP; 0 means
-	// pick a free one.
-	SharePort uint16 `json:"share_port"`
 }
 
 // InstallerTarget is where one context's packages enroll. The Fleet URL and

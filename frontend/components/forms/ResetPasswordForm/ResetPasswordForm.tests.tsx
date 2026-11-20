@@ -97,7 +97,7 @@ describe("ResetPasswordForm - component", () => {
     await user.click(screen.getByRole("button", { name: "Reset password" }));
 
     const passwordError = screen.getByText(
-      "Enter a password with at least 1 number and 1 symbol"
+      "Enter a password with at least 1 letter, 1 number, and 1 symbol"
     );
     expect(passwordError).toBeInTheDocument();
     expect(submitSpy).not.toHaveBeenCalled();
