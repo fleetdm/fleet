@@ -301,8 +301,8 @@ type Endpoint struct {
 	Version        string      `json:"osquery_version"`
 	HardwareSerial string      `json:"hardware_serial"`
 	PrimaryIP      string      `json:"primary_ip"`
-	TeamID         *uint       `json:"team_id"`
-	TeamName       string      `json:"team_name"`
+	TeamID         *uint       `json:"fleet_id"`
+	TeamName       string      `json:"fleet_name"`
 	Labels         []HostLabel `json:"labels"`
 }
 
@@ -815,7 +815,7 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 		params.Set("per_page", strconv.Itoa(apiPerPage))
 		params.Set("page", strconv.Itoa(page))
 		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
+			params.Set("fleet_id", teamIDStr)
 		}
 		if p := strings.TrimSpace(platform); p != "" {
 			params.Set("platform", p)
@@ -880,6 +880,10 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 	return out, false, nil
 }
 
+type listReportsResponse struct {
+	Reports []Query `json:"reports"`
+}
+
 // GetQueries retrieves global and all team-specific queries from Fleet.
 func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/reports", nil)
@@ -888,9 +892,7 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 	}
 	defer resp.Body.Close()
 
-	var result struct {
-		Queries []Query `json:"queries"`
-	}
+	var result listReportsResponse
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get queries: status %d", resp.StatusCode)
 	}
@@ -900,8 +902,8 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 
 	teams, err := fc.GetTeams(ctx)
 	if err != nil {
-		fc.logger.WarnContext(ctx, "skipping team queries", "err", err)
-		return result.Queries, nil
+		fc.logger.WarnContext(ctx, "skipping fleet queries", "err", err)
+		return result.Reports, nil
 	}
 	// Concurrent per-team fan-out (bounded by teamFanOutConcurrency). Each
 	// goroutine writes its slice into a shared chunk that is merged after
@@ -921,25 +923,23 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 			defer func() { <-sem }()
 			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/reports?fleet_id=%d", team.ID), nil)
 			if err != nil {
-				fc.logger.WarnContext(ctx, "team queries error", "team_id", team.ID, "err", err)
+				fc.logger.WarnContext(ctx, "fleet queries error", "fleet_id", team.ID, "err", err)
 				return
 			}
 			defer teamResp.Body.Close()
 			if teamResp.StatusCode != http.StatusOK {
-				fc.logger.WarnContext(ctx, "team queries: unexpected status", "team_id", team.ID, "status", teamResp.StatusCode)
+				fc.logger.WarnContext(ctx, "fleet queries: unexpected status", "fleet_id", team.ID, "status", teamResp.StatusCode)
 				return
 			}
-			var tr struct {
-				Queries []Query `json:"queries"`
-			}
+			var tr listReportsResponse
 			if derr := json.NewDecoder(teamResp.Body).Decode(&tr); derr != nil {
-				fc.logger.WarnContext(ctx, "team queries decode failed", "team_id", team.ID, "err", derr)
+				fc.logger.WarnContext(ctx, "fleet queries decode failed", "fleet_id", team.ID, "err", derr)
 				return
 			}
-			for i := range tr.Queries {
-				tr.Queries[i].Name = fmt.Sprintf("[%s] %s", team.Name, tr.Queries[i].Name)
+			for i := range tr.Reports {
+				tr.Reports[i].Name = fmt.Sprintf("[%s] %s", team.Name, tr.Reports[i].Name)
 			}
-			chunks <- chunk{idx: idx, queries: tr.Queries}
+			chunks <- chunk{idx: idx, queries: tr.Reports}
 		}(i, team)
 	}
 	wg.Wait()
@@ -952,14 +952,14 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 	}
 	sort.Slice(chunkSlice, func(i, j int) bool { return chunkSlice[i].idx < chunkSlice[j].idx })
 	for _, c := range chunkSlice {
-		result.Queries = append(result.Queries, c.queries...)
+		result.Reports = append(result.Reports, c.queries...)
 	}
-	return result.Queries, nil
+	return result.Reports, nil
 }
 
 // GetPolicies retrieves global and all team-specific policies from Fleet.
 func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
-	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/global/policies", nil)
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/policies", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get policies: %w", err)
 	}
@@ -977,7 +977,7 @@ func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
 
 	teams, err := fc.GetTeams(ctx)
 	if err != nil {
-		fc.logger.WarnContext(ctx, "skipping team policies", "err", err)
+		fc.logger.WarnContext(ctx, "skipping fleet policies", "err", err)
 		return result.Policies, nil
 	}
 	// Concurrent per-team fan-out (same pattern as GetQueries).
@@ -994,21 +994,21 @@ func (fc *FleetClient) GetPolicies(ctx context.Context) ([]Policy, error) {
 		go func(idx int, team Team) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/fleets/%d/policies", team.ID), nil)
+			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/policies?fleet_id=%d", team.ID), nil)
 			if err != nil {
-				fc.logger.WarnContext(ctx, "team policies error", "team_id", team.ID, "err", err)
+				fc.logger.WarnContext(ctx, "fleet policies error", "fleet_id", team.ID, "err", err)
 				return
 			}
 			defer teamResp.Body.Close()
 			if teamResp.StatusCode != http.StatusOK {
-				fc.logger.WarnContext(ctx, "team policies: unexpected status", "team_id", team.ID, "status", teamResp.StatusCode)
+				fc.logger.WarnContext(ctx, "fleet policies: unexpected status", "fleet_id", team.ID, "status", teamResp.StatusCode)
 				return
 			}
 			var tr struct {
 				Policies []Policy `json:"policies"`
 			}
 			if derr := json.NewDecoder(teamResp.Body).Decode(&tr); derr != nil {
-				fc.logger.WarnContext(ctx, "team policies decode failed", "team_id", team.ID, "err", derr)
+				fc.logger.WarnContext(ctx, "fleet policies decode failed", "fleet_id", team.ID, "err", derr)
 				return
 			}
 			for i := range tr.Policies {
@@ -1117,19 +1117,19 @@ func (fc *FleetClient) GetTeams(ctx context.Context) ([]Team, error) {
 	endpoint := "/api/v1/fleet/fleets"
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get teams: %w", err)
+		return nil, fmt.Errorf("failed to get fleets: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get teams: status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to get fleets: status code %d", resp.StatusCode)
 	}
 
 	var result struct {
 		Teams []Team `json:"fleets"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode teams response: %w", err)
+		return nil, fmt.Errorf("failed to decode fleets response: %w", err)
 	}
 
 	return result.Teams, nil
@@ -1196,7 +1196,7 @@ func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, pl
 	// team_id, status, query, and policy_id when no label is set).
 	params := url.Values{}
 	if teamIDStr != "" {
-		params.Set("team_id", teamIDStr)
+		params.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		params.Set("status", status)
@@ -1260,7 +1260,7 @@ func (fc *FleetClient) resolveLabelName(ctx context.Context, name string) (uint,
 func (fc *FleetClient) resolveTeamNames(ctx context.Context, teamNames []string) ([]uint, error) {
 	teams, err := fc.GetTeams(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get teams: %w", err)
+		return nil, fmt.Errorf("failed to get fleets: %w", err)
 	}
 
 	teamMap := make(map[string]uint)
@@ -1461,7 +1461,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 			params.Set("per_page", fmt.Sprintf("%d", perPage))
 		}
 		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
+			params.Set("fleet_id", teamIDStr)
 		}
 		if status != "" {
 			params.Set("status", status)
@@ -1491,7 +1491,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 	labelParams := url.Values{}
 	labelParams.Set("populate_labels", "true")
 	if teamIDStr != "" {
-		labelParams.Set("team_id", teamIDStr)
+		labelParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		labelParams.Set("status", status)
@@ -1534,7 +1534,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		policyParams.Set("policy_response", policyResponse)
 	}
 	if teamIDStr != "" {
-		policyParams.Set("team_id", teamIDStr)
+		policyParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		policyParams.Set("status", status)
@@ -1606,7 +1606,7 @@ func (fc *FleetClient) enrichHostLabels(ctx context.Context, hosts []Endpoint) {
 
 // GetPolicyCompliance retrieves policy compliance data
 func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID uint) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/global/policies/%d", policyID)
+	endpoint := fmt.Sprintf("/api/v1/fleet/policies/%d", policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get policy compliance: %w", err)
@@ -1642,34 +1642,38 @@ func (fc *FleetClient) GetPolicyCompliance(ctx context.Context, policyID uint) (
 	}, nil
 }
 
-// GetTeamPolicyCompliance retrieves policy compliance scoped to a single fleet
-// (team). Wraps GET /api/v1/fleet/fleets/:team_id/policies/:policy_id and
+// GetTeamPolicyCompliance retrieves policy compliance for a policy that belongs
+// to a single fleet (team). Wraps GET /api/v1/fleet/policies/:policy_id and
 // returns the same PolicyCompliance shape as the global variant so callers
 // can treat both uniformly. Use this — not GetPolicyCompliance — when the
-// caller knows the policy belongs to a specific fleet, or when global counts
-// would be misleading because the policy is fleet-scoped.
+// caller knows the policy belongs to a specific fleet; a policy from another
+// scope is an error, so counts for the wrong fleet are never reported.
 func (fc *FleetClient) GetTeamPolicyCompliance(ctx context.Context, teamID, policyID uint) (*PolicyCompliance, error) {
-	endpoint := fmt.Sprintf("/api/v1/fleet/fleets/%d/policies/%d", teamID, policyID)
+	endpoint := fmt.Sprintf("/api/v1/fleet/policies/%d", policyID)
 	resp, err := fc.makeFleetRequest(ctx, "GET", endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get team policy compliance: %w", err)
+		return nil, fmt.Errorf("failed to get fleet policy compliance: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get team policy compliance: status code %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to get fleet policy compliance: status code %d", resp.StatusCode)
 	}
 
 	var result struct {
 		Policy struct {
 			ID               uint   `json:"id"`
 			Name             string `json:"name"`
+			FleetID          *uint  `json:"fleet_id"`
 			PassingHostCount int    `json:"passing_host_count"`
 			FailingHostCount int    `json:"failing_host_count"`
 		} `json:"policy"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode team policy compliance response: %w", err)
+		return nil, fmt.Errorf("failed to decode fleet policy compliance response: %w", err)
+	}
+	if result.Policy.FleetID == nil || *result.Policy.FleetID != teamID {
+		return nil, fmt.Errorf("policy %d does not belong to fleet %d", policyID, teamID)
 	}
 
 	total := result.Policy.PassingHostCount + result.Policy.FailingHostCount
@@ -1776,7 +1780,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	titleParams.Set("query", strings.TrimSpace(cveID))
 	titleParams.Set("per_page", strconv.Itoa(titlesPerPage))
 	if teamIDStr != "" {
-		titleParams.Set("team_id", teamIDStr)
+		titleParams.Set("fleet_id", teamIDStr)
 	}
 	titleIDs := make([]uint, 0)
 	for page := 0; ; page++ {
@@ -1824,7 +1828,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	for _, tID := range titleIDs {
 		detailURL := fmt.Sprintf("/api/v1/fleet/software/titles/%d", tID)
 		if teamIDStr != "" {
-			detailURL += "?team_id=" + teamIDStr
+			detailURL += "?fleet_id=" + teamIDStr
 		}
 		// Honor caller cancellation between fan-out iterations: a slow CVE with
 		// many vulnerable titles can issue dozens of HTTP calls, so checking
@@ -1867,7 +1871,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	baseParams := url.Values{}
 	baseParams.Set("populate_labels", "true")
 	if teamIDStr != "" {
-		baseParams.Set("team_id", teamIDStr)
+		baseParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		baseParams.Set("status", status)
@@ -1988,13 +1992,13 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 	}
 
 	var result struct {
-		Query Query `json:"query"`
+		Report Query `json:"report"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode created query response: %w", err)
 	}
 
-	return &result.Query, nil
+	return &result.Report, nil
 }
 
 // LiveQueryTargetSpec captures every dimension that scopes a live query.

@@ -34,7 +34,8 @@ export interface IUserFormValidationContext {
 const PASSWORD_ERRORS: Record<string, string> = {
   too_short: "Enter a password with at least 12 characters",
   too_long: "Enter a password with 48 characters or fewer",
-  invalid_format: "Enter a password with at least 1 number and 1 symbol",
+  invalid_format:
+    "Enter a password with at least 1 letter, 1 number, and 1 symbol",
 };
 
 export const isPasswordShown = (

@@ -51,7 +51,7 @@ export enum ActivityType {
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
-  ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
+  ReadHostRecoveryLockPassword = "read_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
   SetHostGoogleDeviceId = "set_host_google_device_id",
   DeletedHostGoogleDeviceId = "deleted_host_google_device_id",
@@ -136,7 +136,9 @@ export enum ActivityType {
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
   WipedHost = "wiped_host",
+  ResetHost = "reset_host",
   FailedWipe = "failed_wipe",
+  FailedReset = "failed_reset",
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
@@ -173,6 +175,9 @@ export enum ActivityType {
   EditedAppleAccountProvisioning = "edited_apple_account_provisioning",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
+  AddedConditionalAccessGoogle = "added_conditional_access_integration_google",
+  EditedConditionalAccessGoogle = "edited_conditional_access_integration_google",
+  DeletedConditionalAccessGoogle = "deleted_conditional_access_integration_google",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
   DeletedConditionalAccessOkta = "deleted_conditional_access_okta",
   HostBypassedConditionalAccess = "host_bypassed_conditional_access",
@@ -255,12 +260,14 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.WipedHost
+  | ActivityType.ResetHost
   | ActivityType.FailedWipe
+  | ActivityType.FailedReset
   | ActivityType.MdmUnenrolled
   | ActivityType.MdmEnrolled
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.RetrievedHostMyDeviceURL
-  | ActivityType.ViewedHostRecoveryLockPassword
+  | ActivityType.ReadHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
   | ActivityType.SetHostGoogleDeviceId
   | ActivityType.DeletedHostGoogleDeviceId
@@ -405,11 +412,11 @@ export interface IActivityDetails {
   profile_name?: string;
   profile_uuid?: string;
   public_ip?: string;
-  query_id?: number;
-  query_ids?: number[];
-  query_name?: string;
+  report_id?: number;
+  report_ids?: number[];
+  report_name?: string;
   reason?: EnrollmentRejectedReason | string;
-  query_sql?: string;
+  query?: string;
   request_type?: string;
   role?: UserRole;
   script_execution_id?: string;
@@ -480,6 +487,7 @@ export interface IActivityDetails {
   domain?: string;
   host_idp_username?: string;
   google_device_id?: string;
+  google_email?: string;
   idp_full_name?: string;
   idp_email?: string;
   replaced_idp_email?: string;
@@ -648,7 +656,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
   retrieved_host_my_device_url: "Retrieved My device URL",
-  viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
+  read_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
   set_host_google_device_id: "Marked as company-owned in Google",
   deleted_host_google_device_id: "Unmarked as company-owned in Google",
@@ -670,12 +678,20 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_logged_in: "User login: success",
   user_mfa_requested: "User login: MFA email sent",
   wiped_host: "Wiped host",
+  reset_host: "Reset host",
   failed_wipe: "Failed wipe",
+  failed_reset: "Failed reset",
   edited_apple_account_provisioning: "Edited Apple account provisioning",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:
     "Deleted conditional access integration: Microsoft",
+  [ActivityType.AddedConditionalAccessGoogle]:
+    "Added conditional access integration: Google",
+  [ActivityType.EditedConditionalAccessGoogle]:
+    "Edited conditional access integration: Google",
+  [ActivityType.DeletedConditionalAccessGoogle]:
+    "Deleted conditional access integration: Google",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   [ActivityType.RotatedDiskEncryptionKey]:
     "Triggered disk encryption key rotation",

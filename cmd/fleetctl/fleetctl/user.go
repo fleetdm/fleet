@@ -93,7 +93,7 @@ func createUserCommand() *cli.Command {
 			var globalRole *string
 			var teams []fleet.UserTeam
 			if globalRoleString != "" && len(teamStrings) > 0 { //nolint:gocritic // ignore ifElseChain
-				return errors.New("Users may not have global_role and teams.")
+				return errors.New("Users may not have global_role and fleets.")
 			} else if globalRoleString == "" && len(teamStrings) == 0 {
 				globalRole = ptr.String(fleet.RoleObserver)
 			} else if globalRoleString != "" {
@@ -105,14 +105,14 @@ func createUserCommand() *cli.Command {
 				for _, t := range teamStrings {
 					parts := strings.Split(t, ":")
 					if len(parts) != 2 {
-						return fmt.Errorf("Unable to parse '%s' as team_id:role", t)
+						return fmt.Errorf("Unable to parse '%s' as fleet_id:role", t)
 					}
 					teamID, err := strconv.Atoi(parts[0])
 					if err != nil {
-						return fmt.Errorf("Unable to parse team_id: %w", err)
+						return fmt.Errorf("Unable to parse fleet_id: %w", err)
 					}
 					if !fleet.ValidTeamRole(parts[1]) {
-						return fmt.Errorf("'%s' is not a valid team role", parts[1])
+						return fmt.Errorf("'%s' is not a valid fleet role", parts[1])
 					}
 
 					teams = append(teams, fleet.UserTeam{Team: fleet.Team{ID: uint(teamID)}, Role: parts[1]}) //nolint:gosec // dismiss G115

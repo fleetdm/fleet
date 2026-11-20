@@ -61,12 +61,6 @@ func (t *CAConfigAssetType) Scan(value any) error {
 	return nil
 }
 
-type CAConfigAsset struct {
-	Name  string            `db:"name"`
-	Value []byte            `db:"value"`
-	Type  CAConfigAssetType `db:"type"`
-}
-
 type CAType string
 
 const (
@@ -992,6 +986,8 @@ type CertificateAuthoritiesBatchOperations struct {
 	Delete []*CertificateAuthority
 	Add    []*CertificateAuthority
 	Update []*CertificateAuthority
+	// DeleteCertificateTemplates deletes the certificate templates that use the deleted CAs with them.
+	DeleteCertificateTemplates bool
 }
 
 type SmallstepSCEPProxyCA struct {

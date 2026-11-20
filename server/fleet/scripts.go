@@ -225,7 +225,7 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 		case r.ScriptName != "":
 			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_name' is allowed.`)
 		case r.TeamID > 0:
-			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'team_id' is allowed.`)
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'fleet_id' is allowed.`)
 		}
 	}
 	if r.ScriptContents != "" {
@@ -233,7 +233,7 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 		case r.ScriptName != "":
 			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
 		case r.TeamID > 0:
-			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
+			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'fleet_id' is allowed.`)
 		}
 	}
 
@@ -729,9 +729,12 @@ type HostLockWipeStatus struct {
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
-	// macOS and Windows use MDM commands for Wipe
+	// macOS and Windows use MDM commands for Wipe. A Windows Reset is tracked here too, see IsReset.
 	WipeMDMCommand       *MDMCommand
 	WipeMDMCommandResult *MDMCommandResult
+	// WipeQueuedAfterReset is set when a Windows wipe waits behind a reset the host already acknowledged. The wipe goes out
+	// if the reset is interrupted; until then the wipe MDM command above stays the reset.
+	WipeQueuedAfterReset bool
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
@@ -760,12 +763,15 @@ type DeviceStatus string
 
 const (
 	DeviceStatusWiped    DeviceStatus = "wiped"
+	DeviceStatusReset    DeviceStatus = "reset"
 	DeviceStatusLocked   DeviceStatus = "locked"
 	DeviceStatusUnlocked DeviceStatus = "unlocked"
 )
 
 func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 	switch {
+	case s.IsWiped() && s.IsReset():
+		return DeviceStatusReset
 	case s.IsWiped():
 		return DeviceStatusWiped
 	case s.IsLocked():
@@ -781,6 +787,7 @@ const (
 	PendingActionLock          PendingDeviceAction = "lock"
 	PendingActionUnlock        PendingDeviceAction = "unlock"
 	PendingActionWipe          PendingDeviceAction = "wipe"
+	PendingActionReset         PendingDeviceAction = "reset"
 	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
 	PendingActionLocation      PendingDeviceAction = "location"
 	// PendingActionUnenroll is never derived from HostLockWipeStatus. It replaces "wipe" for Android BYOD hosts, where the
@@ -797,7 +804,9 @@ func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 		return PendingActionLock
 	case s.IsPendingUnlock():
 		return PendingActionUnlock
-	case s.IsPendingWipe():
+	case s.IsPendingWipe() && s.IsReset():
+		return PendingActionReset
+	case s.IsPendingWipe(), s.WipeQueuedAfterReset:
 		return PendingActionWipe
 	case s.IsPendingClearPasscode():
 		return PendingActionClearPasscode
@@ -901,6 +910,13 @@ func (s HostLockWipeStatus) IsWiped() bool {
 	default:
 		return false
 	}
+}
+
+// IsReset reports whether the host's wipe command is a Windows Reset. A reset counts as a wipe everywhere else (pending,
+// wiped, the re-enrollment check), and only changes the reported device status and pending action.
+func (s HostLockWipeStatus) IsReset() bool {
+	return s.HostFleetPlatform == "windows" && s.WipeMDMCommand != nil &&
+		s.WipeMDMCommand.RequestType == WindowsRemoteWipeLocURI(WindowsRemoteWipePersistProvisionedData)
 }
 
 var (

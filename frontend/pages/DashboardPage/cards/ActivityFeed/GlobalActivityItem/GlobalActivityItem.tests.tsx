@@ -109,8 +109,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.LiveQuery,
       details: {
-        query_name: "Test Query",
-        query_sql: "SELECT * FROM users",
+        report_name: "Test Query",
+        query: "SELECT * FROM users",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -122,8 +122,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.LiveQuery,
       details: {
-        query_name: "Test Query",
-        query_sql: "SELECT * FROM users",
+        report_name: "Test Query",
+        query: "SELECT * FROM users",
         targets_count: 10,
         stats: {
           system_time_p50: 0,
@@ -146,8 +146,8 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.LiveQuery,
       details: {
-        query_name: "Test Query",
-        query_sql: "SELECT * FROM users",
+        report_name: "Test Query",
+        query: "SELECT * FROM users",
         targets_count: 10,
         stats: {
           system_time_p50: 0,
@@ -858,9 +858,9 @@ describe("Activity Feed", () => {
     });
   });
 
-  it("renders a 'viewed_host_recovery_lock_password' type activity", () => {
+  it("renders a 'read_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.ViewedHostRecoveryLockPassword,
+      type: ActivityType.ReadHostRecoveryLockPassword,
       details: { host_display_name: "Anna's MacBook Pro" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -889,6 +889,47 @@ describe("Activity Feed", () => {
       screen.getByText("as company-owned in Google.", { exact: false })
     ).toBeInTheDocument();
     expect(screen.queryByText(/unmarked/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      ActivityType.AddedConditionalAccessGoogle,
+      "configured Google conditional access.",
+    ],
+    [
+      ActivityType.EditedConditionalAccessGoogle,
+      "edited Google conditional access configuration.",
+    ],
+    [
+      ActivityType.DeletedConditionalAccessGoogle,
+      "deleted Google conditional access configuration.",
+    ],
+  ])("renders a '%s' activity", (type, text) => {
+    const activity = createMockActivity({ type });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(text, { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'set_host_google_device_id' activity from a Google sign-in as Fleet with the account", () => {
+    const activity = createMockActivity({
+      type: ActivityType.SetHostGoogleDeviceId,
+      actor_full_name: undefined,
+      fleet_initiated: true,
+      details: {
+        host_display_name: "Anna's iPhone",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+        google_email: "anna@example.com",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(screen.getByText("Anna's iPhone")).toBeInTheDocument();
+    expect(screen.getByText("anna@example.com")).toBeInTheDocument();
+    expect(
+      screen.getByText("signed in.", { exact: false })
+    ).toBeInTheDocument();
   });
 
   it("renders a 'deleted_host_google_device_id' type activity", () => {
@@ -2267,7 +2308,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedMultipleSavedQuery,
       details: {
-        query_ids: [1, 2, 3],
+        report_ids: [1, 2, 3],
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -2276,19 +2317,41 @@ describe("Activity Feed", () => {
       screen.getByText("deleted multiple reports", { exact: false })
     ).toBeInTheDocument();
   });
-  // test for wipe activity
-  it("renders a 'wiped_host' type activity for a team", () => {
+  it.each([
+    [ActivityType.WipedHost, "wiped"],
+    [ActivityType.ResetHost, "reset"],
+    [ActivityType.FailedReset, "Reset failed on"],
+  ])("renders a '%s' type activity", (type, verb) => {
     const activity = createMockActivity({
-      type: ActivityType.WipedHost,
+      type,
       details: {
         host_display_name: "Foo Host",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    expect(screen.getByText("wiped", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(verb, { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
   });
+
+  it.each([ActivityType.FailedWipe, ActivityType.FailedReset])(
+    "renders a '%s' type activity without the Fleet actor",
+    (type) => {
+      const activity = createMockActivity({
+        type,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(screen.queryByText("Fleet")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("failed on", { exact: false })
+      ).toBeInTheDocument();
+    }
+  );
 
   it("renders a 'deleted_host' type activity for manual deletion", () => {
     const activity = createMockActivity({

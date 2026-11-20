@@ -37,17 +37,15 @@ spec:
     zendesk: null
   mdm:
     android_enabled_and_configured: false
-    apple_bm_terms_expired: false
+    apple_business_terms_expired: false
     apple_server_url: ""
-    apple_bm_enabled_and_configured: false
+    apple_business_enabled_and_configured: false
     enabled_and_configured: false
     apple_business: null
-    apple_business_manager: null
     apple_account_provisioning:
       oauth_idp_token_url: null
       oauth_idp_client_id: null
       oauth_idp_client_secret: null
-    volume_purchasing_program: null
     windows_mdm_enabled: false
     enable_disk_encryption: false
     name_template: null
@@ -84,66 +82,36 @@ spec:
       deadline_days: 7
       grace_period_days: 3
     apple_settings:
-      configuration_profiles: null
       enable_disk_encryption: false
       enable_escrow_disk_encryption_key: false
-    macos_settings:
-      custom_settings: null
-      enable_disk_encryption: false
-      enable_escrow_disk_encryption_key: false
-    macos_setup:
-      bootstrap_package:
-      enable_end_user_authentication: false
-      enable_managed_local_account: false
-      enable_release_device_manually: false
-      end_user_local_account_type: admin
-      lock_end_user_info: false
-      macos_enable_bootstrap_package_during_manual_enrollment: false
-      macos_enable_bootstrap_package_during_migration: false
-      macos_setup_assistant:
-      manual_agent_install:
-      macos_require_all_software: false
-      windows_require_all_software: false
-      script:
-      software:
     setup_experience:
-      macos_bootstrap_package:
-      enable_create_local_admin_account: false
+      macos_managed_local_account_enabled: false
+      windows_managed_local_account_enabled: false
       enable_end_user_authentication: false
       apple_enable_release_device_manually: false
-      end_user_local_account_type: admin
+      macos_end_user_local_account_type: admin
       lock_end_user_info: false
-      apple_setup_assistant:
       macos_enable_bootstrap_package_during_manual_enrollment: false
       macos_enable_bootstrap_package_during_migration: false
       macos_manual_agent_install:
       macos_require_all_software: false
       windows_require_all_software: false
-      macos_script:
       software:
     windows_automatic_enrollment: null
     windows_settings:
       require_bitlocker_pin: false
-      custom_settings: null
       enable_disk_encryption: false
-      configuration_profiles: null
-      enable_managed_local_account: false
     linux_settings:
       enable_escrow_disk_encryption_key: false
     android_settings:
       certificates: null
-      custom_settings: null
-      configuration_profiles: null
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""
       metadata: ""
       metadata_url: ""
       entity_id: ""
-  scripts: null
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
     org_logo_url_dark_mode: ""
     org_logo_url_light_mode: ""
     org_name: ""
@@ -151,14 +119,12 @@ spec:
   server_settings:
     deferred_save_host: false
     enable_analytics: false
-    live_query_disabled: false
     live_reporting_disabled: false
-    query_report_cap: 0
-    query_reports_disabled: false
     report_cap: 0
     discard_reports_data: false
     server_url: ""
     ai_features_disabled: false
+    ai_sessions_disabled: false
     mcp_disabled: false
   vulnerability_settings:
     databases_path: /some/path
@@ -170,7 +136,6 @@ spec:
       destination_url: ""
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""

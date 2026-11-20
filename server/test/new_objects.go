@@ -8,7 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,18 +37,6 @@ func NewQueryWithSchedule(t *testing.T, ds fleet.Datastore, teamID *uint, name, 
 
 func NewQuery(t *testing.T, ds fleet.Datastore, teamID *uint, name, q string, authorID uint, saved bool) *fleet.Query {
 	return NewQueryWithSchedule(t, ds, teamID, name, q, authorID, saved, 0, false)
-}
-
-func NewPack(t *testing.T, ds fleet.Datastore, name string) *fleet.Pack {
-	err := ds.ApplyPackSpecs(context.Background(), []*fleet.PackSpec{{Name: name}})
-	require.Nil(t, err)
-
-	// Loading gives us the timestamps
-	pack, ok, err := ds.PackByName(context.Background(), name)
-	require.True(t, ok)
-	require.NoError(t, err)
-
-	return pack
 }
 
 func NewCampaign(t *testing.T, ds fleet.Datastore, queryID uint, status fleet.DistributedQueryStatus, now time.Time) *fleet.DistributedQueryCampaign {
@@ -290,20 +277,4 @@ func NewUser(t *testing.T, ds fleet.Datastore, name, email string, admin bool) *
 	require.NotZero(t, u.ID)
 
 	return u
-}
-
-func NewScheduledQuery(t *testing.T, ds fleet.Datastore, pid, qid, interval uint, snapshot, removed bool, name string) *fleet.ScheduledQuery {
-	sq, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     name,
-		PackID:   pid,
-		QueryID:  qid,
-		Interval: interval,
-		Snapshot: &snapshot,
-		Removed:  &removed,
-		Platform: ptr.String("darwin"),
-	})
-	require.NoError(t, err)
-	require.NotZero(t, sq.ID)
-
-	return sq
 }

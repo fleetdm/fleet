@@ -94,6 +94,7 @@ import {
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
+import useGoogleConditionalAccessSignIn from "./useGoogleConditionalAccessSignIn";
 
 const baseClass = "device-user";
 
@@ -419,17 +420,13 @@ const DeviceUserPage = ({
   const {
     host,
     license,
-    org_logo_url: orgLogoUrl = "",
-    org_logo_url_light_background: orgLogoUrlLightBackground = "",
     org_logo_url_dark_mode: orgLogoUrlDarkMode = "",
     org_logo_url_light_mode: orgLogoUrlLightMode = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
   } = dupDetails || {};
-  const darkLogoURL = orgLogoUrlDarkMode || orgLogoUrl;
-  const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
-  const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
+  const orgLogoURL = darkMode ? orgLogoUrlDarkMode : orgLogoUrlLightMode;
   const isPremiumTier = license?.tier === "premium";
   const diskEncryptionSetting = host?.mdm.os_settings?.disk_encryption;
   const needsBitLockerPIN =
@@ -557,6 +554,16 @@ const DeviceUserPage = ({
     ssoErrorParam: location.query.sso_error,
     isSetupOnly: !!location.query.setup_only,
     hasSession: !!dupDetails,
+  });
+
+  const {
+    isChecking: isCheckingGoogleSignIn,
+    isRedirecting: isRedirectingToGoogle,
+  } = useGoogleConditionalAccessSignIn({
+    deviceAuthToken,
+    isSignInRequired:
+      !!dupDetails?.google_conditional_access_sign_in_required &&
+      !isSSORequired,
   });
 
   const { bypassConditionalAccess } = deviceUserAPI;
@@ -819,6 +826,15 @@ const DeviceUserPage = ({
           toggleInfoModal={toggleInfoModal}
           platform={host.platform}
         />
+      );
+    }
+
+    if (isCheckingGoogleSignIn || isRedirectingToGoogle) {
+      return (
+        <div className={`${baseClass}__redirect`} role="status">
+          <Spinner variant="mobile" />
+          <span>Redirecting to Google sign-in...</span>
+        </div>
       );
     }
 
@@ -1136,7 +1152,7 @@ const DeviceUserPage = ({
   const renderDeviceSSOState = () => {
     if (isRedirectingToSSO) {
       return (
-        <div className={`${baseClass}__sso-redirect`} role="status">
+        <div className={`${baseClass}__redirect`} role="status">
           <Spinner {...(isMobileView && { variant: "mobile" })} />
           <span>Redirecting to your organization’s sign-in page…</span>
         </div>

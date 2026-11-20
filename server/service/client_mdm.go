@@ -58,7 +58,7 @@ func (c *Client) ListABTokens() ([]*fleet.ABMToken, error) {
 }
 
 // CountHosts returns the number of hosts matching the given raw query string
-// (e.g. "team_id=1&mdm_enrollment_status=pending").
+// (e.g. "fleet_id=1&mdm_enrollment_status=pending").
 func (c *Client) CountHosts(query string) (int, error) {
 	verb, path := "GET", "/api/latest/fleet/hosts/count"
 	var responseBody countHostsResponse
@@ -492,6 +492,14 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	var response fleet.WipeHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
 		return fmt.Errorf("wipe host request: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) MDMResetHost(hostID uint) error {
+	var response fleet.ResetHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", hostID), &response); err != nil {
+		return fmt.Errorf("reset host request: %w", err)
 	}
 	return nil
 }

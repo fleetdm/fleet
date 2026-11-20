@@ -4,19 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/gorilla/mux"
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
@@ -30,8 +27,7 @@ func jsonMarshal(w http.ResponseWriter, response interface{}) error {
 }
 
 func uint32FromRequest(r *http.Request, name string) (uint32, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, endpointer.ErrBadRoute
 	}
@@ -144,14 +140,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	teamID, err := handleDeprecatedParams(r, "team_id", "fleet_id")
-	if err != nil {
-		return hopt, err
-	}
-	if teamID != "" {
+	if teamID := r.URL.Query().Get("fleet_id"); teamID != "" {
 		id, err := strconv.ParseUint(teamID, 10, 32)
 		if err != nil {
-			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", teamID)))
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid fleet_id: %s", teamID)))
 		}
 		tid := uint(id)
 		hopt.TeamFilter = &tid
@@ -271,7 +263,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		if hopt.TeamFilter == nil {
 			return hopt, ctxerr.Wrap(
 				r.Context(), badRequest(
-					"Missing team_id (it must be present when software_status is specified)",
+					"Missing fleet_id (it must be present when software_status is specified)",
 				),
 			)
 		}
@@ -438,10 +430,12 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.ConnectedToFleetFilter = ptr.Bool(true)
 	}
 
-	macOSSettingsStatus, err := handleDeprecatedParams(r, "macos_settings", "apple_settings")
-	if err != nil {
-		return hopt, err
+	if r.URL.Query().Has("macos_settings") {
+		if removedEntry, ok := removednames.Find(removednames.KindQueryParam, "macos_settings", ""); ok {
+			return hopt, ctxerr.Wrap(r.Context(), fleet.NewInvalidArgumentError("macos_settings", removedEntry.Message()))
+		}
 	}
+	macOSSettingsStatus := r.URL.Query().Get("apple_settings")
 	switch fleet.OSSettingsStatus(macOSSettingsStatus) {
 	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
 		hopt.MacOSSettingsFilter = fleet.OSSettingsStatus(macOSSettingsStatus)
@@ -503,10 +497,12 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
-	mdmBootstrapPackageStatus, err := handleDeprecatedParams(r, "bootstrap_package", "macos_bootstrap_package")
-	if err != nil {
-		return hopt, err
+	if r.URL.Query().Has("bootstrap_package") {
+		if removedEntry, ok := removednames.Find(removednames.KindQueryParam, "bootstrap_package", ""); ok {
+			return hopt, ctxerr.Wrap(r.Context(), fleet.NewInvalidArgumentError("bootstrap_package", removedEntry.Message()))
+		}
 	}
+	mdmBootstrapPackageStatus := r.URL.Query().Get("macos_bootstrap_package")
 	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
 	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
 		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
@@ -747,14 +743,10 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	}
 
 	userOpts := fleet.UserListOptions{ListOptions: opt}
-	tid, err := handleDeprecatedParams(r, "team_id", "fleet_id")
-	if err != nil {
-		return userOpts, err
-	}
-	if tid != "" {
+	if tid := r.URL.Query().Get("fleet_id"); tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
-			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
+			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid fleet_id: %s", tid)))
 		}
 		// GitHub CodeQL flags this as: Incorrect conversion between integer types. Previously waived: https://github.com/fleetdm/fleet/security/code-scanning/516
 		userOpts.TeamID = uint(teamID)
@@ -765,29 +757,4 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 
 type getGenericSpecRequest struct {
 	Name string `url:"name"`
-}
-
-func handleDeprecatedParams(r *http.Request, deprecatedParam, newParam string) (string, error) {
-	ctx := r.Context()
-	query := r.URL.Query()
-	hasOld := query.Has(deprecatedParam)
-	hasNew := query.Has(newParam)
-
-	if hasOld && hasNew {
-		return "", ctxerr.Wrap(
-			ctx,
-			badRequest(fmt.Sprintf("Cannot specify both %s and %s parameters", deprecatedParam, newParam)),
-		)
-	}
-	if hasOld {
-		if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
-			logging.WithLevel(ctx, slog.LevelWarn)
-			logging.WithExtras(ctx,
-				"deprecated_param", deprecatedParam,
-				"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", deprecatedParam, newParam),
-			)
-		}
-		return query.Get(deprecatedParam), nil
-	}
-	return query.Get(newParam), nil
 }

@@ -87,7 +87,7 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 
 Fleet uses [Retriever](https://helloretriever.com) to store and ship devices from the Fleet IT warehouse. Each device Retriever handles shows a **Warehouse status** host vital in [dogfood](https://dogfood.fleetdm.com/dashboard), which updates daily. Devices that Retriever hasn't handled don't have a status.
 
-To see devices that are ready to ship, open **Hosts** in [dogfood](https://dogfood.fleetdm.com/hosts/manage) and filter by the **Warehouse: Ready for deployment** label. To request one, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md).
+To see devices that are ready to ship, open **Hosts** in dogfood and [filter by the **Warehouse: Ready for deployment** label](https://dogfood.fleetdm.com/hosts/manage/labels/33159). To request one, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md).
 
 | Warehouse status | What it means |
 |:--|:--|
@@ -112,6 +112,11 @@ When a Fleetie is blocked from connecting a third-party app to their Google Work
 3. Review the OAuth scopes the app is requesting. Check whether the same app is already trusted under a different client ID — if it is, investigate why this request came in under a new one before approving.
 4. Approve the app with the least privilege that meets the use case, limited to the services it actually needs. Deny apps that aren't business-critical or that duplicate a tool Fleet already supports.
 5. Comment on the issue with the decision, the scopes granted, and the reason, then close the issue. This comment is the audit trail for future access reviews.
+
+
+### Schedule access reviews
+
+IT schedules quarterly and annual access reviews directly in [Vanta](https://www.vanta.com/) using its built-in access review scheduling. These reviews meet the [access authorization and termination policy](https://fleetdm.com/handbook/it/security#access-authorization-and-termination).
 
 
 ### Exclude a host from a screen lock policy

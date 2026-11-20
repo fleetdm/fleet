@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,6 +25,8 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"RevokedCertsNotReturned", testRevokedConditionalAccessCertsNotReturned},
 		{"ExpiredCertsNotReturned", testExpiredConditionalAccessCertsNotReturned},
 		{"CertificateLifecycle", testConditionalAccessCertificateLifecycle},
+		{"OneTimeChallenges", testConditionalAccessOneTimeChallenges},
+		{"OneTimeChallengeAppleExpansion", testConditionalAccessOneTimeChallengeAppleExpansion},
 	}
 
 	for _, c := range cases {
@@ -221,4 +225,125 @@ func testConditionalAccessCertificateLifecycle(t *testing.T, ds *Datastore) {
 	createdAt, err := ds.GetConditionalAccessCertCreatedAtByHostID(ctx, host2.ID)
 	require.NoError(t, err)
 	assert.True(t, createdAt.After(now.Add(-1*time.Hour)) && createdAt.Before(now.Add(1*time.Minute)))
+}
+
+func testConditionalAccessOneTimeChallenges(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	enrollmentID := insertWindowsEnrollment(t, ds, "ca-hw-1", "ca-host-uuid").ID
+
+	challenge, err := ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, enrollmentID)
+	require.NoError(t, err)
+	// Windows sends the challenge as a PrintableString, which has no '_'.
+	require.Regexp(t, `^[0-9a-f]{64}$`, challenge)
+
+	var row struct {
+		fleet.AppleSCEPChallengeInfo
+		SecondsLeft int64 `db:"seconds_left"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &row, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid,
+			TIMESTAMPDIFF(SECOND, NOW(6), expires_at) AS seconds_left FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+	})
+	require.Equal(t, fleet.AppleSCEPChallengeInfo{Purpose: fleet.ConditionalAccessSCEPChallengePurpose, UUID: new("ca-host-uuid")}, row.AppleSCEPChallengeInfo)
+	require.InDelta(t, fleet.ConditionalAccessSCEPChallengeTTL.Seconds(), row.SecondsLeft, 5)
+
+	// every send until the host uses it carries the same challenge
+	again, err := ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, enrollmentID)
+	require.NoError(t, err)
+	require.Equal(t, challenge, again)
+
+	// Fleet's Apple MDM SCEP server neither accepts nor uses it up
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, challenge)
+	require.True(t, fleet.IsNotFound(err), err)
+
+	// another host's attempt fails without using it up
+	err = ds.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, "other-host-uuid")
+	require.True(t, fleet.IsNotFound(err), err)
+	require.NoError(t, ds.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, "ca-host-uuid"))
+
+	// single use
+	err = ds.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, "ca-host-uuid")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	// once used, the next send gets a new one
+	next, err := ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, enrollmentID)
+	require.NoError(t, err)
+	require.NotEqual(t, challenge, next)
+
+	// an expired challenge is neither accepted nor reused
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_apple_scep_challenges SET expires_at = NOW(6) - INTERVAL 1 SECOND WHERE challenge = ?`, next)
+		return err
+	})
+	err = ds.ConsumeConditionalAccessSCEPChallenge(ctx, next, "ca-host-uuid")
+	require.True(t, fleet.IsNotFound(err), err)
+	afterExpiry, err := ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, enrollmentID)
+	require.NoError(t, err)
+	require.NotEqual(t, next, afterExpiry)
+
+	require.Error(t, ds.ConsumeConditionalAccessSCEPChallenge(ctx, "", "ca-host-uuid"))
+	require.Error(t, ds.ConsumeConditionalAccessSCEPChallenge(ctx, afterExpiry, ""))
+	err = ds.ConsumeConditionalAccessSCEPChallenge(ctx, "does-not-exist", "ca-host-uuid")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	// a challenge must be bound to a host, so an enrollment not linked to one gets none
+	_, err = ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, insertWindowsEnrollment(t, ds, "ca-hw-unlinked", "").ID)
+	require.Error(t, err)
+	_, err = ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, 999999)
+	require.True(t, fleet.IsNotFound(err), err)
+
+	// the conditional access SCEP server doesn't accept an Apple MDM challenge, and leaves it usable
+	insertAppleSCEPChallenge(t, ds, "apple-renewal", fleet.AppleMDMCertPurposeSCEPRenewal, time.Hour, nil)
+	err = ds.ConsumeConditionalAccessSCEPChallenge(ctx, "apple-renewal", "uuid-apple-renewal")
+	require.True(t, fleet.IsNotFound(err), err)
+	_, err = ds.ConsumeAppleSCEPChallenge(ctx, "apple-renewal")
+	require.NoError(t, err)
+
+	// concurrent sends to the same enrollment create a single challenge
+	concurrentID := insertWindowsEnrollment(t, ds, "ca-hw-concurrent", "ca-concurrent-uuid").ID
+	const workers = 10
+	results := make([]string, workers)
+	var wg sync.WaitGroup
+	for i := range workers {
+		wg.Go(func() {
+			c, err := ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, concurrentID)
+			assert.NoError(t, err)
+			results[i] = c
+		})
+	}
+	wg.Wait()
+	for _, r := range results {
+		require.Equal(t, results[0], r)
+	}
+}
+
+func testConditionalAccessOneTimeChallengeAppleExpansion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	doc := `<string>` + fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge) + `</string>`
+	expand := func(t *testing.T, enrollmentID string) string {
+		t.Helper()
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, enrollmentID)
+		require.NoError(t, err)
+		challenge := strings.TrimSuffix(strings.TrimPrefix(expanded, "<string>"), "</string>")
+		require.Regexp(t, `^[0-9a-f]{64}$`, challenge)
+		return challenge
+	}
+
+	nanoEnroll(t, ds, &fleet.Host{UUID: "ca-mac-udid", Platform: "darwin"}, false)
+	challenge := expand(t, "ca-mac-udid")
+	require.Equal(t, challenge, expand(t, "ca-mac-udid"))
+
+	// bound to the host the device channel names, which is the UUID in the profile's SAN
+	err := ds.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, "other-udid")
+	require.True(t, fleet.IsNotFound(err), err)
+	require.NoError(t, ds.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, "ca-mac-udid"))
+	require.NotEqual(t, challenge, expand(t, "ca-mac-udid"))
+
+	// separate from the renewal challenge for the same enrollment
+	renewal, err := ds.ExpandHostSecrets(ctx, `<string>`+fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)+`</string>`, "ca-mac-udid")
+	require.NoError(t, err)
+	require.NotContains(t, renewal, expand(t, "ca-mac-udid"))
+
+	_, err = ds.ExpandHostSecrets(ctx, doc, "unknown-enrollment")
+	require.Error(t, err)
 }

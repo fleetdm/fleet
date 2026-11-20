@@ -68,6 +68,14 @@ const XmlCPETestDict = `
     <title xml:lang="en-US">Good Corp Correct Result 1.0</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:*:*:*"/>
   </cpe-item>
+  <cpe-item name="cpe:/a:fleetdm:fleet:1.64.0">
+    <title xml:lang="en-US">Fleetdm Fleet 1.64.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:fleetdm:fleet:1.64.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
+  <cpe-item name="cpe:/a:jetbrains:fleet:1.64.0">
+    <title xml:lang="en-US">JetBrains Fleet 1.64.0</title>
+    <cpe-23:cpe23-item name="cpe:2.3:a:jetbrains:fleet:1.64.0:*:*:*:*:*:*:*"/>
+  </cpe-item>
   <cpe-item name="cpe:/a:python:requests:2.31.0">
     <title xml:lang="en-US">Python Requests 2.31.0</title>
     <cpe-23:cpe23-item name="cpe:2.3:a:python:requests:2.31.0:*:*:*:*:*:*:*"/>

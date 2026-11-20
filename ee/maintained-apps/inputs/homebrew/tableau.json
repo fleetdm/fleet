@@ -4,6 +4,5 @@
   "token": "tableau",
   "installer_format": "dmg",
   "slug": "tableau/darwin",
-  "default_categories": ["Productivity"],
-  "frozen": true
+  "default_categories": ["Productivity"]
 }
