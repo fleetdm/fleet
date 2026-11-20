@@ -380,13 +380,15 @@ That said, for example, if a Fleetie struggled with a gambling issue in their pa
 
 ## Why does Fleet support query packs?
 
+Packs are a legacy feature that Fleet still supports. Today, reports are the way to schedule queries in Fleet and the portable way to import and export them.
+
 As originally envisioned by Zach Wasserman and the team when creating osquery, packs are a way to import and export queries into (and out of!) any platform that speaks osquery, whether that's Fleet, [Security Onion](https://securityonionsolutions.com/), an EDR, or even Rapid7. Queries [should be portable](https://github.com/fleetdm/fleet/blob/f711e60de47c69ab8be5bc13cf73fedf88adc338/README.md#lighter-than-air) to minimize lock-in to particular tools.
 
 The "Packs" section of the UI that began in `kolide/fleet` c. 2017 was an early attempt to  segment and target formations of hosts that share certain characteristics.  This came with some difficulties with debugging and collaboration, since it could be hard to tell which queries were running on which hosts. It also made it harder to understand what performance impact running all those queries might cause.
 
 Eventually, when working on some related improvements, it became clear that Fleet needed a better way to organize hosts, controls, reports, and configuration that wasn't tied exclusively to data collection in Splunk.  It was time to learn from the original design and come up with a smarter way to group hosts.
 
-The first step was to add a simpler way to schedule queries, and tuck away the legacy feature called "Packs", so that "packs" refer to what they were originally: a portable way to import and export queries. 
+The first step was to add a simpler way to schedule queries, and tuck away the legacy feature called "Packs". Today, reports are the portable way to import and export queries.
 
 Packs will always be supported in Fleet.
 
