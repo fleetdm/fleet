@@ -76,10 +76,18 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTabl
 				AutoIncrement *uint64    `db:"auto_increment"`
 				UpdateTime    *time.Time `db:"update_time"`
 			}
-			err = sqlx.SelectContext(ctx, tx, &allTables, `
-      SELECT table_name AS table_name, auto_increment AS auto_increment, update_time AS update_time
-      FROM information_schema.tables
-      WHERE table_schema = database() AND table_type = 'BASE TABLE'`)
+			sql := `
+      SELECT
+        table_name AS table_name,
+        auto_increment AS auto_increment,
+        update_time AS update_time
+      FROM
+        information_schema.tables
+      WHERE
+        table_schema = database() AND
+        table_type = 'BASE TABLE'
+    `
+			err = sqlx.SelectContext(ctx, tx, &allTables, sql)
 			if err != nil {
 				return err
 			}
