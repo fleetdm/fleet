@@ -951,9 +951,12 @@ func (svc *Service) IsEnterpriseAlive(ctx context.Context) (bool, error) {
 		return false, ctxerr.Wrap(ctx, err, "listing enterprises")
 	}
 
-	enterpriseID := strings.TrimPrefix(enterprise.EnterpriseID, "enterprises/")
+	// The direct Google client lists every enterprise in the GCP project without filtering
+	// by server URL, so a suffix match can misidentify an unrelated enterprise whose ID
+	// ends in ours. Match the full resource name instead.
+	wantName := enterprise.Name()
 	for _, ent := range enterprises {
-		if strings.HasSuffix(ent.Name, enterpriseID) {
+		if ent.Name == wantName {
 			return true, nil
 		}
 	}
