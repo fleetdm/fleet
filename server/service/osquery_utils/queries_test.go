@@ -5000,6 +5000,7 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 				{"path": `C:\Program Files\Internet Explorer\iexplore.exe`, "filename": "iexplore.exe", "product_version": "11.0.26100.1", "file_version": "11.0.26100.1"},
 				{"path": `C:\Program Files\Windows Media Player\wmplayer.exe`, "filename": "wmplayer.exe", "product_version": "12.0.26100.1", "file_version": "12.0.26100.1"},
 				{"path": `C:\Program Files\Common Files\microsoft shared\helper.exe`, "filename": "helper.exe", "product_version": "1.0", "file_version": "1.0"},
+				{"path": `C:\Program Files\Common Files\Acme\updater.exe`, "filename": "updater.exe", "product_version": "3.1", "file_version": "3.1"},
 				{"path": `C:\Program Files\SomeApp\unins000.exe`, "filename": "unins000.exe", "product_version": "1.0", "file_version": "1.0"},
 				{"path": `C:\Program Files\SomeApp\Uninstall.exe`, "filename": "Uninstall.exe", "product_version": "1.0", "file_version": "1.0"},
 			},
@@ -5007,6 +5008,12 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 				{
 					"name": "MsMpEng.exe", "version": "4.18.25030.2", "source": "programs",
 					"vendor": "", "installed_path": `C:\Program Files\Windows Defender`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+				{
+					"name": "updater.exe", "version": "3.1", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Common Files\Acme`,
 					"extension_id": "", "extension_for": "", "upgrade_code": "",
 					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
 				},

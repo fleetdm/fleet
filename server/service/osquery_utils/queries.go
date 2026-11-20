@@ -2189,19 +2189,27 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 // programFilesWindowsComponentDirs are folders Windows itself installs under Program Files. Their
 // executables are parts of the OS, not applications.
 var programFilesWindowsComponentDirs = map[string]struct{}{
-	"common files":      {},
-	"internet explorer": {},
-	"windows defender":  {},
+	"internet explorer":                           {},
+	"windows defender":                            {},
 	"windows defender advanced threat protection": {},
-	"windows mail":                {},
-	"windows media player":        {},
-	"windows multimedia platform": {},
-	"windows nt":                  {},
-	"windows photo viewer":        {},
-	"windows portable devices":    {},
-	"windows security":            {},
-	"windows sidebar":             {},
-	"windowspowershell":           {},
+	"windows mail":                                {},
+	"windows media player":                        {},
+	"windows multimedia platform":                 {},
+	"windows nt":                                  {},
+	"windows photo viewer":                        {},
+	"windows portable devices":                    {},
+	"windows security":                            {},
+	"windows sidebar":                             {},
+	"windowspowershell":                           {},
+}
+
+// programFilesCommonFilesWindowsDirs are the Windows folders under Program Files\Common Files. The rest of
+// Common Files holds third-party components, which are still reported.
+var programFilesCommonFilesWindowsDirs = map[string]struct{}{
+	"microsoft shared": {},
+	"services":         {},
+	"speechengines":    {},
+	"system":           {},
 }
 
 // skipProgramFilesScanExe reports whether a scanned executable is never an application of its own:
@@ -2218,6 +2226,13 @@ func skipProgramFilesScanExe(exePath string) bool {
 	dirs := programFilesScanDirs(path)
 	if len(dirs) == 0 {
 		return false
+	}
+	if dirs[0] == "common files" {
+		if len(dirs) < 2 {
+			return false
+		}
+		_, ok := programFilesCommonFilesWindowsDirs[dirs[1]]
+		return ok
 	}
 	_, ok := programFilesWindowsComponentDirs[dirs[0]]
 	return ok
