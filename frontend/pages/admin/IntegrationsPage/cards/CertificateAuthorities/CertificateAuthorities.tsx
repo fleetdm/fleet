@@ -145,11 +145,7 @@ const CertificateAuthorities = () => {
       <>
         {pageDescription}
         {getConflictingCANames(certAuthorities).map((group) => (
-          <InfoBanner
-            key={group[0].name.toLowerCase()}
-            color="yellow"
-            icon="warning"
-          >
+          <InfoBanner key={group[0].name.toLowerCase()} color="yellow">
             These certificate authorities have conflicting names:{" "}
             {group.map((ca) => `"${ca.type}:${ca.name}"`).join(" ")}. Please
             rename one of them and update any profiles that use it.
