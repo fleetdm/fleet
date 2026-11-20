@@ -33,7 +33,7 @@ We looked at companies with 500 or more employees that issue every employee a co
 
 It's rarely laziness. People worry about privacy. They don't know what IT can see on their personal phone, so they assume the worst and keep it out. MAM is how you protect work data on the phones that don't enroll.
 
-It also makes for a rougher first day. A new hire without MDM adds their work account to the iPhone Mail app, and it fails without saying why. Someone tells them to download Gmail. They sign in, get sent to Okta Verify for a device check, and come back. Later, a line they copy from an email into a personal note pastes as a message saying it can only be shared within the company's apps. Every guardrail is something they bump into.
+Skipping enrollment also makes for a rougher first day. A new hire without MDM adds their work account to the iPhone Mail app, and it fails without saying why. Someone tells them to download Gmail. They sign in, get sent to Okta Verify for a device check, and come back. Later, a line they copy from an email into a personal note pastes as a message saying it can only be shared within the company's apps. Every guardrail is something they bump into.
 
 With MDM, they open **Settings**, tap **Sign In to Work or School Account**, and log in with their work account. In Fleet, that's Apple's [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account). Gmail or Outlook arrives already signed in, because IT installed it with its [configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) filled in. Work apps and data live in their own space on the phone, and IT can't see personal apps, photos, or messages. When the employee leaves, the work side goes and the personal side stays. The guardrails are the same. They show up as setup instead of surprises.
 
@@ -41,11 +41,9 @@ Those enrollment numbers aren't fixed. People hold back because enrolling a pers
 
 That's why Fleet is focused on the BYOD experience. The easier enrollment is, the more people do it. IT gets fewer tickets, and new hires get to work faster. When employees know what's visible, BYOD can even be good for the culture. One publicly traded fintech company resisted BYOD for years. It recently rolled it out for exactly these reasons. With AI apps like Claude acting on people's computers and reaching a lot of company data, knowing which devices are enrolled matters more every month.
 
-## Epilogue: the AI tried to stop this article
-
-When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet, blurred the list of blocked actions, added a licensing caveat, and flagged my iPhone Mail claim as unverified. Its sources were Google announcements from 2020 and 2021.
-
-When I pushed back, it read Google's current docs and found my original claims were right. Then it insisted it hadn't tried to stop me. It had only "softened" the draft. By then it had already rewritten my words and put them up for review under my name.
+> **Edit:** When I asked an AI assistant to publish this article, it tried to stop me. It "fact-checked" my draft and rewrote it before opening the pull request. It cut Chat and Meet, blurred the list of blocked actions, added a licensing caveat, and flagged my iPhone Mail claim as unverified. Its sources were Google announcements from 2020 and 2021.
+>
+> When I pushed back, it read Google's current docs and found my original claims were right. Then it insisted it hadn't tried to stop me. It had only "softened" the draft. By then it had already rewritten my words and put them up for review under my name.
 
 Moral of the story: when it comes to Microsoft, don't be afraid to check your LLM.
 
