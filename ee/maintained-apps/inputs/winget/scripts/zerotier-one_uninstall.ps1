@@ -1,5 +1,6 @@
 # Each ZeroTier One release has a new ProductCode, so this script finds every
 # installed version by ZeroTier One's UpgradeCode and uninstalls each one.
+$ErrorActionPreference = 'Stop'
 $upgradeCode = '{B0E2A5F3-88B6-4E77-B922-CB4739B4C4C8}'
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product

@@ -9,7 +9,7 @@
       },
       "installer_url": "https://download.zerotier.com/RELEASES/1.16.2/dist/ZeroTierOne.msi",
       "install_script_ref": "22e48c46",
-      "uninstall_script_ref": "d16dcefa",
+      "uninstall_script_ref": "b4e7bd14",
       "sha256": "42514072b0fe44b8f66e0395bcd23a0b1d1642c28ed00831f1527b2f41b14670",
       "default_categories": [
         "Productivity"
@@ -18,6 +18,6 @@
   ],
   "refs": {
     "22e48c46": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv `\"${logFile}`\" /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nif ($successCodes -contains $installProcess.ExitCode) {\n  Exit 0\n}\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
-    "d16dcefa": "# Each ZeroTier One release has a new ProductCode, so this script finds every\n# installed version by ZeroTier One's UpgradeCode and uninstalls each one.\n$upgradeCode = '{B0E2A5F3-88B6-4E77-B922-CB4739B4C4C8}'\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# 3010 = reboot required, 1641 = reboot initiated\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts($upgradeCode)) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\nExit 0\n"
+    "b4e7bd14": "# Each ZeroTier One release has a new ProductCode, so this script finds every\n# installed version by ZeroTier One's UpgradeCode and uninstalls each one.\n$ErrorActionPreference = 'Stop'\n$upgradeCode = '{B0E2A5F3-88B6-4E77-B922-CB4739B4C4C8}'\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# 3010 = reboot required, 1641 = reboot initiated\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts($upgradeCode)) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\nExit 0\n"
   }
 }
