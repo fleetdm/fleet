@@ -64,7 +64,6 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 | Android [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ✅ |
 | [Host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) (macOS, iOS, and iPadOS) | ✅ (only `$FLEET_VAR_HOST_*`) | ✅ | ✅ |
 | DigiCert and EJBCA certificate authority fields | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ❌ |
-| Software pre-install query | ❌ | ❌ | ❌ |
 
 `$FLEET_VAR_HOST_*` are the host and IdP variables: `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`, and the `$FLEET_VAR_HOST_END_USER_IDP_*` variables.
 
