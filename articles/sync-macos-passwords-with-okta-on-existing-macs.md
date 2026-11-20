@@ -143,8 +143,8 @@ This is expected for up to 4 hours. macOS checks the password with Okta when its
 - [Apple's Extensible Single Sign-On profile reference](https://developer.apple.com/documentation/devicemanagement/extensiblesinglesignon)
 
 <meta name="articleTitle" value="Sync macOS passwords with Okta on Macs that are already set up">
-<meta name="authorFullName" value="AUTHOR_FULL_NAME">
-<meta name="authorGitHubUsername" value="AUTHOR_GITHUB_USERNAME">
-<meta name="publishedOn" value="YYYY-MM-DD">
+<meta name="authorFullName" value="Kitzy">
+<meta name="authorGitHubUsername" value="kitzy">
+<meta name="publishedOn" value="2026-11-23">
 <meta name="category" value="guides">
 <meta name="description" value="Keep local macOS passwords in sync with Okta on Macs that are already set up, without a wipe, using Fleet Desktop's Platform SSO extension.">
