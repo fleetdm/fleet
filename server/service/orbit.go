@@ -422,9 +422,32 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		team, err := svc.ds.TeamLite(ctx, *enrollTeamID)
 		if err != nil {
 			recordErrorDetail(ctx, err)
-			return "", fleet.OrbitError{Message: "failed to get team config"}
+			return "", fleet.OrbitError{Message: "failed to get fleet config"}
 		}
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+	}
+
+	var hostCreated bool
+	enrollOpts := append([]fleet.DatastoreEnrollOrbitOption{
+		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollOrbitHostInfo(hostInfo),
+		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
+		fleet.WithEnrollOrbitTeamID(enrollTeamID),
+		fleet.WithEnrollOrbitIdentityCert(identityCert),
+		fleet.WithEnrollOrbitCreated(&hostCreated),
+		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
+	}, secretOpts...)
+
+	// A Windows host back from a reset belongs to its next end user, so the previous one is forgotten and the host doesn't
+	// count as already enrolled for end user authentication. The matched host's stored platform decides, not the reported one.
+	var windowsResetDone bool
+	if hostInfo.HardwareUUID != "" {
+		windowsResetDone, err = svc.ds.ClearEndUserAfterWindowsReset(ctx, enrollOpts...)
+		if err != nil {
+			recordErrorDetail(ctx, err)
+			return "", fleet.OrbitError{Message: "failed to clear end user after reset"}
+		}
 	}
 
 	var euaDeviceID, euaIdpAcctUUID string
@@ -479,7 +502,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					recordErrorDetail(ctx, err)
 					return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment"}
 				}
-				if !previouslyEnrolled {
+				if !previouslyEnrolled || windowsResetDone {
 					// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 					// Dereference the team ID so the log shows the numeric value; leave it nil for a global enroll secret.
 					var teamID any
@@ -491,7 +514,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 						"host_uuid", hostInfo.HardwareUUID,
 						"hardware_serial", hostInfo.HardwareSerial,
 						"platform", platform,
-						"team_id", teamID,
+						"fleet_id", teamID,
 					)
 					return "", fleet.NewOrbitIDPAuthRequiredError()
 				}
@@ -501,17 +524,6 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	var hostCreated bool
-	enrollOpts := append([]fleet.DatastoreEnrollOrbitOption{
-		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
-		fleet.WithEnrollOrbitHostInfo(hostInfo),
-		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
-		fleet.WithEnrollOrbitTeamID(enrollTeamID),
-		fleet.WithEnrollOrbitIdentityCert(identityCert),
-		fleet.WithEnrollOrbitCreated(&hostCreated),
-		fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
-		fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
-	}, secretOpts...)
 	host, err := svc.ds.EnrollOrbit(ctx, enrollOpts...)
 	if err != nil {
 		if rejected, ok := errors.AsType[*fleet.EnrollmentRejectedError](err); ok {
@@ -642,7 +654,7 @@ func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, ho
 	svc.logger.InfoContext(
 		ctx, "stamped orbit debug logging on enroll",
 		"host_id", host.ID,
-		"team_id", host.TeamID,
+		"fleet_id", host.TeamID,
 		"orbit_debug_until", until,
 		"duration", duration.String(),
 	)
@@ -1810,7 +1822,7 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
 		svc.logger.DebugContext(
 			ctx,
-			"skipping key archival, disk encryption not enabled for host team/globally",
+			"skipping key archival, disk encryption not enabled for host fleet/globally",
 			"host_id", host.ID,
 		)
 		return nil
@@ -1897,7 +1909,7 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 	if !osquery_utils.IsDiskEncryptionEscrowEnabledForHost(ctx, svc.logger, svc.ds, host) {
 		svc.logger.DebugContext(
 			ctx,
-			"skipping LUKS key archival, disk encryption not enabled for host team/globally",
+			"skipping LUKS key archival, disk encryption not enabled for host fleet/globally",
 			"host_id", host.ID,
 		)
 		return nil
@@ -2368,7 +2380,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// do not create a "past" activity if the status is not terminal or if the activity
 	// was canceled.
 	if status := result.Status(); status != fleet.SoftwareInstallPending && !installWasCanceled {
-		// Force read from primary to avoid replication lag issues where attempt_number might be NULL
+		// Force read from primary to avoid replication lag issues where attempt_number might be NULL, and so the
+		// host fleet read with the result reflects a transfer that just committed.
 		ctx = ctxdb.RequirePrimary(ctx, true)
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {

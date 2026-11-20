@@ -242,6 +242,7 @@ const Modal = ({
                 variant="subdued"
                 onClick={handleClose}
                 autofocus={isContentDisabled}
+                ariaLabel="Close"
               >
                 <Icon name="close" color="core-fleet-black" size="medium" />
               </Button>

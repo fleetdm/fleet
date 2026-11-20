@@ -1,0 +1,3 @@
+- Fixed GitOps rejecting "Unassigned" in `volume_purchasing_program` fleets, which also removed the VPP token from "Unassigned" and deleted its App Store apps mid-run.
+- Fixed a VPP token being assigned to "Unassigned" instead of the named fleet when `volume_purchasing_program` spelled the fleet name in a different Unicode form.
+- GitOps now rejects "Unassigned" in `volume_purchasing_program` fleets while a fleet created before the name was reserved is still named "Unassigned", and asks you to rename that fleet.

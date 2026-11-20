@@ -291,31 +291,21 @@ const NewLabelPage = ({
   }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
+  };
 
-    const fullValidation = validateNewLabelFormData(newFormData);
-
+  // Clear the field's error on focus to match Fleet's validation pattern
+  // (reports and policies clear name errors on focus, not on becoming valid).
+  const onFieldFocus = (fieldName: "name" | "vitalValue") => {
     setFormErrors((prev) => {
-      const next: INewLabelFormValidation = { ...prev, isValid: true };
+      if (fieldName === "name" && !prev.name) return prev;
+      if (fieldName === "vitalValue" && !prev.criteria) return prev;
 
-      // start from previous errors
-      if (prev.name) next.name = prev.name;
-      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
-      if (prev.criteria) next.criteria = prev.criteria;
-
-      // ONLY CLEAR existing error on this field if it is now valid.
-      if (fieldName === "name") {
-        if (prev.name && fullValidation.name?.isValid) {
-          next.name = undefined;
-        }
-      } else if (fieldName === "vitalValue") {
-        if (prev.criteria && fullValidation.criteria?.isValid) {
-          next.criteria = undefined;
-        }
-      }
+      const next: INewLabelFormValidation = { ...prev };
+      if (fieldName === "name") next.name = undefined;
+      if (fieldName === "vitalValue") next.criteria = undefined;
 
       const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
-
       return next;
     });
   };
@@ -438,27 +428,7 @@ const NewLabelPage = ({
   }, 3000);
 
   const onQueryChange = (newQuery: string) => {
-    const newFormData = { ...formData, labelQuery: newQuery };
-    setFormData(newFormData);
-
-    const fullValidation = validateNewLabelFormData(newFormData);
-
-    setFormErrors((prev) => {
-      const next: INewLabelFormValidation = { ...prev, isValid: true };
-
-      if (prev.name) next.name = prev.name;
-      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
-      if (prev.criteria) next.criteria = prev.criteria;
-
-      if (prev.labelQuery && fullValidation.labelQuery?.isValid) {
-        next.labelQuery = undefined;
-      }
-
-      const fields = [next.name, next.labelQuery, next.criteria];
-      next.isValid = fields.every((f) => !f || f.isValid);
-
-      return next;
-    });
+    setFormData({ ...formData, labelQuery: newQuery });
 
     // Clear any existing syntax error immediately on change — the 3s debounce
     // will re-add it if the query is still invalid once the user stops typing.
@@ -466,6 +436,18 @@ const NewLabelPage = ({
       setQuerySyntaxError(null);
     }
     debounceValidateSql(newQuery);
+  };
+
+  // Clear the labelQuery required-field error on focus, matching the pattern
+  // reports and policies use for name / query errors.
+  const onQueryFocus = () => {
+    setFormErrors((prev) => {
+      if (!prev.labelQuery) return prev;
+      const next: INewLabelFormValidation = { ...prev, labelQuery: undefined };
+      const fields = [next.name, next.labelQuery, next.criteria];
+      next.isValid = fields.every((f) => !f || f.isValid);
+      return next;
+    });
   };
 
   // Validate SQL on blur so incomplete queries don't flash a syntax error
@@ -530,6 +512,7 @@ const NewLabelPage = ({
               name="query"
               onChange={onQueryChange}
               onBlur={onQueryBlur}
+              onFocus={onQueryFocus}
               value={labelQuery}
               label="Query"
               labelActionComponent={
@@ -597,6 +580,7 @@ const NewLabelPage = ({
                 name="vitalValue"
                 onChange={onInputChange}
                 onBlur={onInputBlur}
+                onFocus={() => onFieldFocus("vitalValue")}
                 value={vitalValue}
                 inputClassName={`${baseClass}__vital-value`}
                 placeholder={getVitalValuePlaceholder(vital)}
@@ -640,6 +624,7 @@ const NewLabelPage = ({
         name="name"
         onChange={onInputChange}
         onBlur={onInputBlur}
+        onFocus={() => onFieldFocus("name")}
         value={name}
         inputClassName={`${baseClass}__label-name`}
         label="Name"

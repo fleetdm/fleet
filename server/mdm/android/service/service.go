@@ -625,7 +625,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Verify the enroll secret before anything that could reveal server
 	// configuration state, so callers without a valid secret always get the
 	// same response.
-	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	verifiedSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil, fleet.NewAuthFailedError("invalid secret")
@@ -697,12 +697,25 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		personalUsageSetting = "PERSONAL_USAGE_DISALLOWED"
 	}
 
+	var teamID uint
+	if id := verifiedSecret.GetTeamID(); id != nil {
+		teamID = *id
+	}
+	policyName, err := svc.EnsureFleetDefaultPolicy(ctx, enterprise.Name(), teamID)
+	if err != nil {
+		// Enrolling without the setup passcode beats not enrolling; the host still gets it once it's
+		// moved to its own policy.
+		svc.logger.ErrorContext(ctx, "failed to ensure the fleet's android default policy, enrolling with the global one",
+			"fleet_id", teamID, "err", err)
+		policyName = fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID)
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
 		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: personalUsageSetting,
-		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
+		PolicyName:         policyName,
 		OneTimeOnly:        true,
 	}
 	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)
@@ -1658,7 +1671,7 @@ func (svc *Service) agentEnrollSecret(
 		return "", ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
 	}
 	if len(enrollSecrets) == 0 {
-		return "", ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		return "", ctxerr.Errorf(ctx, "no enroll secrets found for fleet %v", androidHost.Host.TeamID)
 	}
 	return enrollSecrets[0].Secret, nil
 }
@@ -1735,9 +1748,18 @@ func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string
 func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
 	policy *androidmanagement.Policy, metadata map[string]string,
 ) (skip bool, err error) {
+	skip, _, err = svc.patchPolicy(ctx, policyID, policyName, policy, metadata)
+	return skip, err
+}
+
+// patchPolicy is PatchPolicy that also returns the AMAPI error, which is otherwise only recorded in the
+// policy request.
+func (svc *Service) patchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (skip bool, apiErr error, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
-		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+		return false, nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
 	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
@@ -1766,9 +1788,9 @@ func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string
 	}
 
 	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+		return false, apiErr, ctxerr.Wrap(ctx, err, "save android policy request")
 	}
-	return skip, nil
+	return skip, apiErr, nil
 }
 
 func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {

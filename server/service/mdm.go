@@ -673,7 +673,7 @@ func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byt
 			if recoveryLockEnabled {
 				err := fleet.NewInvalidArgumentError(
 					"command",
-					"Could not run command. Recovery Lock password is already set for one or more hosts. To set a custom password, disable Recovery Lock passwords for those hosts' teams. To rotate the password, learn how: https://fleetdm.com/learn-more-about/recovery-lock-passwords",
+					"Could not run command. Recovery Lock password is already set for one or more hosts. To set a custom password, disable Recovery Lock passwords for those hosts' fleets. To rotate the password, learn how: https://fleetdm.com/learn-more-about/recovery-lock-passwords",
 				).WithStatus(http.StatusConflict)
 				return ctxerr.Wrap(ctx, err, "SetRecoveryLock blocked by team config")
 			}
@@ -1224,7 +1224,7 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 	}
 
 	if authzErr != nil {
-		svc.logger.ErrorContext(ctx, "unauthorized to view some team commands", "details", authzErr)
+		svc.logger.ErrorContext(ctx, "unauthorized to view some fleet commands", "details", authzErr)
 
 		// filter-out the teams that the user is not allowed to view
 		allowedResults := make([]*fleet.MDMCommand, 0, len(results))
@@ -1424,6 +1424,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
 
+		if _, match := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", cp.Name)}}, nil
+		}
+
 		if downloadRequested {
 			return fleet.DownloadFileResponse{
 				Content:     cp.Mobileconfig,
@@ -1441,6 +1445,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		decl, err := svc.GetMDMAppleDeclaration(ctx, req.ProfileUUID)
 		if err != nil {
 			return &getMDMConfigProfileResponse{Err: err}, nil
+		}
+
+		if _, match := apple_mdm.FleetReservedDeclarationIdentifiers()[decl.Identifier]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", decl.Name)}}, nil
 		}
 
 		if downloadRequested {
@@ -1462,6 +1470,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 			return &getMDMConfigProfileResponse{Err: err}, nil
 		}
 
+		if _, match := mdm.FleetReservedProfileNames()[prof.Name]; match {
+			return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", prof.Name)}}, nil
+		}
+
 		if downloadRequested {
 			return fleet.DownloadFileResponse{
 				Content:     prof.RawJSON,
@@ -1478,6 +1490,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	if err != nil {
 		return &getMDMConfigProfileResponse{Err: err}, nil
+	}
+
+	if _, match := mdm.FleetReservedProfileNames()[cp.Name]; match {
+		return &getMDMConfigProfileResponse{Err: &fleet.BadRequestError{Message: fmt.Sprintf("Can not retrieve Fleet managed profiles: %s", cp.Name)}}, nil
 	}
 
 	if downloadRequested {
@@ -1799,7 +1815,7 @@ func resolveProfileDeployFlags(ctx context.Context, curSelfService, curHidden bo
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := newMDMConfigProfileRequest{}
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -1808,7 +1824,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add fleet_id
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0
@@ -2050,7 +2066,7 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 	}
 	decoded.ProfileUUID = profileUUID
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -2476,7 +2492,7 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 	if _, ok := fleetNames[existing.Name]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
-			InternalErr: fmt.Errorf("editing profile %s for team %s not allowed because it's managed by Fleet", existing.Name, teamName),
+			InternalErr: fmt.Errorf("editing profile %s for fleet %s not allowed because it's managed by Fleet", existing.Name, teamName),
 		}
 	}
 
@@ -2888,6 +2904,13 @@ func (svc *Service) BatchSetMDMProfiles(
 	for _, p := range profiles {
 		if isAppleDeclarationContents(p.Contents) {
 			if err := fleet.ValidateNoSecretsInDeclarationIdentifier(p.Contents); err != nil {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+			}
+			continue
+		}
+		// Not detected by platform: an unquoted variable makes Android JSON invalid until secrets are expanded.
+		if bytes.HasPrefix(bytes.TrimSpace(p.Contents), []byte("{")) {
+			if err := fleet.ValidateAndroidPasscodeProfileVariables(p.Contents); err != nil {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
 			}
 			continue
@@ -3371,6 +3394,17 @@ func getAppleProfiles(
 				return nil, nil, err
 			}
 
+			if err := fleet.ValidateMDMProfileName(prof.Name); err != nil {
+				reason := err.Error()
+				name := "apple_settings.configuration_profiles"
+				if iae, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok && iae.HasErrors() {
+					reason = iae.Invalid()[0]["reason"] // nolint:nilaway // iae.HasErrors check length, so [0] is not a nil potential
+					name = fmt.Sprintf("%s.%s", name, iae.Invalid()[0]["name"])
+				}
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(name, "Couldn't edit configuration_profiles. "+reason))
+			}
+
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			mdmDecl.Description = prof.Description
 			mdmDecl.Hidden = prof.Hidden
@@ -3518,13 +3552,13 @@ func getAppleProfiles(
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
-		if len(profs) == 0 {
+		if len(profs) == 0 && len(decls) == 0 {
 			return nil, nil, nil
 		}
 
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("apple_settings.configuration_profiles", fleet.AppleMDMNotConfiguredMessage))
 	}
 
 	return profs, decls, nil
@@ -3598,7 +3632,7 @@ func getWindowsProfiles(
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
 			return nil, nil
@@ -3671,7 +3705,7 @@ func getAndroidProfiles(ctx context.Context,
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
-		// custom_settings key, we just return a success response in this
+		// configuration_profiles key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
 			return nil, nil
@@ -3725,7 +3759,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		if platform != "darwin" && platform != "windows" && platform != "android" {
 			// We can only display a generic error message here because at this point
 			// we don't know the file extension or whether the profile is intended
-			// for macos_settings, windows_settings or android_settings. We should expect to never see this
+			// for apple_settings, windows_settings or android_settings. We should expect to never see this
 			// in practice because the client should be validating the profiles
 			// before sending them to the server so the client can surface  more helpful
 			// error messages to the user. However, we're validating again here just
@@ -4775,7 +4809,7 @@ func (svc *Service) GetMDMConfigProfileStatus(ctx context.Context, profileUUID s
 		if err != nil {
 			return fleet.MDMConfigProfileStatus{}, err
 		}
-		if ok := slices.Contains(mdm.ListFleetReservedMacOSDeclarationNames(), decl.Name); ok {
+		if _, ok := apple_mdm.FleetReservedDeclarationIdentifiers()[decl.Identifier]; ok {
 			// this endpoint is for custom settings, not fleet-controlled profiles,
 			// return not found if such a profile is requested here (status of e.g.
 			// FileVault is considerably different than just checking the status of

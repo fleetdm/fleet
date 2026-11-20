@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -23,7 +24,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -53,7 +56,7 @@ func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) *fleet.VPPToke
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
 	return resPatchVPP.Token
 }
 
@@ -1579,7 +1582,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	var tokenResp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
 
 	var batchAppResp batchAssociateAppStoreAppsResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -1772,6 +1775,135 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 	require.Equal(t, "ipa_test.ipa", st.SoftwareTitle.Packages[0].Name)
 	require.Equal(t, "ios", st.SoftwareTitle.Packages[0].Platform)
 	require.WithinDuration(t, time.Now(), st.SoftwareTitle.Packages[0].UploadedAt, time.Hour)
+}
+
+func (s *integrationMDMTestSuite) TestInHouseAppInstallVerificationPushFailure() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa"}, http.StatusOK, "")
+	var titleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa' AND global_or_team_id = 0")
+	})
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, titleID), nil, http.StatusAccepted)
+
+	s.runWorker()
+	cmd, err := iosDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "InstallApplication", cmd.Command.RequestType)
+
+	// From here on every push fails, but commands are still queued for the device's next check-in.
+	origPush := s.pushProvider.PushFunc
+	t.Cleanup(func() { s.pushProvider.PushFunc = origPush })
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res := make(map[string]*push.Response, len(pushes))
+		for _, p := range pushes {
+			res[p.Token.String()] = &push.Response{Id: uuid.New().String(), Err: errors.New("APNS delivery failed")}
+		}
+		return res, nil
+	}
+
+	countJobs := func() int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, "SELECT COUNT(*) FROM jobs WHERE name = ? AND args->>'$.host_uuid' = ?",
+				worker.AppleSoftwareJobName, iosHost.UUID)
+		})
+		return n
+	}
+	// answerAll replies to every pending command as a device that hasn't installed the app yet
+	answerAll := func(cmd *mdm.Command) (lastVerifyUUID string, verifyCmds int) {
+		for cmd != nil {
+			require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+			require.True(t, strings.HasPrefix(cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix))
+			lastVerifyUUID = cmd.CommandUUID
+			verifyCmds++
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, []fleet.Software{})
+			require.NoError(t, err)
+		}
+		return lastVerifyUUID, verifyCmds
+	}
+
+	// The install ack sends the first verification command.
+	cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	lastVerifyUUID, verifyCmds := answerAll(cmd)
+	require.Equal(t, 1, verifyCmds)
+
+	// Each cycle is one minute: the worker cron runs once, then the device checks in.
+	runWorkerAfterOneMinute := func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = not_before - INTERVAL 1 MINUTE WHERE state = ?", fleet.JobStateQueued)
+			return err
+		})
+		require.NoError(t, s.worker.ProcessJobs(ctx))
+	}
+	var cmdsPerCycle, jobsPerCycle []int
+	for range 6 {
+		jobsBefore := countJobs()
+		runWorkerAfterOneMinute()
+		cmd, err = iosDevice.Idle()
+		require.NoError(t, err)
+		lastVerifyUUID, verifyCmds = answerAll(cmd)
+		cmdsPerCycle = append(cmdsPerCycle, verifyCmds)
+		jobsPerCycle = append(jobsPerCycle, countJobs()-jobsBefore)
+	}
+	assert.Equal(t, []int{1, 1, 1, 1, 1, 1}, cmdsPerCycle, "verification commands per cycle")
+	assert.Equal(t, []int{1, 1, 1, 1, 1, 1}, jobsPerCycle, "apple_software jobs queued per cycle")
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var verifyUUID *string
+		if err := sqlx.GetContext(ctx, q, &verifyUUID,
+			"SELECT verification_command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID); err != nil {
+			return err
+		}
+		assert.Equal(t, lastVerifyUUID, ptr.ValOrZero(verifyUUID))
+
+		var retriedJobs int
+		if err := sqlx.GetContext(ctx, q, &retriedJobs,
+			"SELECT COUNT(*) FROM jobs WHERE name = ? AND args->>'$.host_uuid' = ? AND (retries > 0 OR state = ?)",
+			worker.AppleSoftwareJobName, iosHost.UUID, fleet.JobStateFailure); err != nil {
+			return err
+		}
+		assert.Zero(t, retriedJobs)
+		return nil
+	})
+	pending, err := s.ds.IsHostPendingMDMInstallVerification(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	require.True(t, pending)
+
+	// The device reports the app installed while pushes still fail; verification releases the host.
+	runWorkerAfterOneMinute()
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.True(t, strings.HasPrefix(cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix))
+	_, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, []fleet.Software{
+		{Name: "test", BundleIdentifier: "com.ipa-test.ipa-test", Version: "1.0", Installed: true},
+	})
+	require.NoError(t, err)
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var verifiedAt *time.Time
+		if err := sqlx.GetContext(ctx, q, &verifiedAt,
+			"SELECT verification_at FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID); err != nil {
+			return err
+		}
+		assert.NotNil(t, verifiedAt)
+		return nil
+	})
+	pending, err = s.ds.IsHostPendingMDMInstallVerification(ctx, iosHost.UUID)
+	require.NoError(t, err)
+	require.False(t, pending)
 }
 
 func (s *integrationMDMTestSuite) TestInHouseAppInstallErrorThenUpdatePackage() {
@@ -2134,7 +2266,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	var tokenResp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID}}, http.StatusOK, &resPatchVPP)
 
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:     &team2.ID,
@@ -2158,7 +2290,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	team3 := newTeamResp3.Team
 
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team2.ID, team3.ID, 0}}, http.StatusOK, &resPatchVPP)
 
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:     nil,
@@ -2166,7 +2298,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 		Platform:   "ios",
 	}, http.StatusConflict)
 	txt = extractServerErrorText(res.Body)
-	require.Contains(t, txt, "already has an installer available for the No team fleet.")
+	require.Contains(t, txt, "already has an installer available for the Unassigned fleet.")
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
@@ -3252,8 +3384,8 @@ func (s *integrationMDMTestSuite) TestVPPInstallUsesAppToken() {
 
 	// Both tokens go to the same fleet.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenAID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenBID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenAID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", tokenBID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// App 2 is an iOS app and app 3 an iPadOS app. App X is added from token A and app Y from token B.
 	const adamX, adamY = "2", "3"
@@ -3335,7 +3467,7 @@ func (s *integrationMDMTestSuite) TestVPPInstallUsesAppToken() {
 	})
 	before = snapshot()
 	body := installApp(newHost(fleet.IPadOSPlatform), adamY, http.StatusUnprocessableEntity)
-	require.Contains(t, string(body), "Couldn't install. VPP token expired.")
+	require.Contains(t, string(body), `Couldn't install. VPP token \"Location B\" is expired. Please renew it and try again.`)
 	require.Equal(t, before, snapshot(), "no Apple call may happen for an expired token")
 
 	before = snapshot()

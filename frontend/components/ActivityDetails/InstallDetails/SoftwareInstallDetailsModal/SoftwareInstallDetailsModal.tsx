@@ -143,19 +143,22 @@ export const StatusMessage = ({
     status || ""
   ) ? (
     <>
-      {" ("}
+      {" "}
       {activityCreatedAt ? (
-        timeAgoText
+        `(${timeAgoText})`
       ) : (
-        <TooltipWrapper
-          tipContent="Time when Fleet sent install command. If the host was offline, the install finished after it came online."
-          position="top"
-          showArrow
-        >
-          {timeAgoText}
-        </TooltipWrapper>
+        <span style={{ whiteSpace: "nowrap" }}>
+          {"("}
+          <TooltipWrapper
+            tipContent="Time when Fleet sent install command. If the host was offline, the install finished after it came online."
+            position="top"
+            showArrow
+          >
+            {timeAgoText}
+          </TooltipWrapper>
+          {")"}
+        </span>
       )}
-      {")"}
     </>
   ) : (
     ""

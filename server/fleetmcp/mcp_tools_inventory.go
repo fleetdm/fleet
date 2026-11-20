@@ -30,7 +30,7 @@ func validateGetSoftwareArgs(perHost bool, fleet, platform, vulnerable, aiTool, 
 		return errors.New("extension_for requires source — e.g. source=chrome_extensions with extension_for=brave")
 	}
 	if !perHost && platform != "" && fleet == "" {
-		return errors.New("platform requires fleet in cross-host mode — Fleet's software/titles endpoint only filters by platform when a team is also set")
+		return errors.New("platform requires fleet in cross-host mode — Fleet's software/titles endpoint only filters by platform when a fleet is also set")
 	}
 	return nil
 }
@@ -41,7 +41,7 @@ func registerGetSoftware(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithString("host_id", mcp.Description("Numeric Fleet host ID. Switches to per-host mode. Mutually exclusive with fleet/platform.")),
 		mcp.WithString("host_identifier", mcp.Description("Exact hostname / UUID / serial OR a substring (same disambiguation as get_host). Switches to per-host mode. Mutually exclusive with fleet/platform.")),
 		mcp.WithString("fleet", mcp.Description("Fleet name (e.g. 'Workstations') — cross-host mode only. Resolved via get_fleets.")),
-		mcp.WithString("platform", mcp.Description("Cross-host mode only, and REQUIRES `fleet` (Fleet's software/titles endpoint only filters by platform together with a team). One of: macos, windows, linux, chrome, ios, ipados.")),
+		mcp.WithString("platform", mcp.Description("Cross-host mode only, and REQUIRES `fleet` (Fleet's software/titles endpoint only filters by platform together with a fleet). One of: macos, windows, linux, chrome, ios, ipados.")),
 		mcp.WithString("vulnerable", mcp.Description("'true' to show only software with known CVEs; 'false' or omitted shows all.")),
 		mcp.WithString("ai_tool", mcp.Description("'true' to show only AI tools (AI apps, AI CLI tools, MCP servers, AI skills), whatever their source. Fleet Premium. Server-side in both modes.")),
 		mcp.WithString("source", mcp.Description("osquery source table (e.g. 'npm_packages', 'python_packages', 'apps', 'deb_packages', 'chrome_extensions', or 'ai_clis', 'mcp_servers', 'ai_skills' for AI tools on Fleet Premium). Case-insensitive. Server-side in cross-host mode (unknown sources are rejected), client-side in per-host mode.")),

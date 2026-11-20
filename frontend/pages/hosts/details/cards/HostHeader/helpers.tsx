@@ -23,6 +23,12 @@ type DeviceStatusTagConfig = Record<
   IDeviceStatusTag
 >;
 
+const RESET_TAG: IDeviceStatusTag = {
+  title: "Reset",
+  tagType: "error",
+  generateTooltip: () => "Host was reset.",
+};
+
 export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locked: {
     title: "Locked",
@@ -116,6 +122,14 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     generateTooltip: () =>
       "Host will wipe when it comes online. If the host is online, it will wipe the next time it checks in to Fleet.",
   },
+  reset: RESET_TAG,
+  reset_wipe_pending: RESET_TAG,
+  resetting: {
+    title: "Reset pending",
+    tagType: "error",
+    generateTooltip: () =>
+      "Host will reset when it comes online. If the host is online, it will reset the next time it checks in to Fleet.",
+  },
   clearing_passcode: {
     title: "Clear passcode pending",
     tagType: "warning",
@@ -170,6 +184,22 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
   wiped: (
     <>
       You can&apos;t fetch data from <br /> a wiped host.
+    </>
+  ),
+  resetting: (
+    <>
+      You can&apos;t fetch data from <br /> a resetting host.
+    </>
+  ),
+  reset: (
+    <>
+      You can&apos;t fetch data from <br /> a reset host.
+    </>
+  ),
+  // Same as reset
+  reset_wipe_pending: (
+    <>
+      You can&apos;t fetch data from <br /> a reset host.
     </>
   ),
   clearing_passcode: (

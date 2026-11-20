@@ -952,6 +952,14 @@ func testListSoftwareTitlesMultiplePackages(t *testing.T, ds *Datastore) {
 	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, adminFilter)
 	require.NoError(t, err)
 	require.Equal(t, 2, title.SoftwareInstallersCount)
+
+	// list available for install, the title with two active packages should appear once
+	titles, count, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, AvailableForInstall: true}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+	require.Equal(t, "Multi App", titles[0].Name)
+	require.Len(t, titles[0].Packages, 2)
 }
 
 // Regression guard for the per-installer policy dispatch loop in
@@ -2624,7 +2632,7 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 			PackagesOnly: true,
 		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "packages_only can only be provided with team_id")
+		require.Contains(t, err.Error(), "packages_only can only be provided with fleet_id")
 	})
 
 	t.Run("packages_only=false with team_id", func(t *testing.T) {

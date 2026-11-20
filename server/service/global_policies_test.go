@@ -363,73 +363,6 @@ func TestGetPolicyByIDNoTeamPolicyAuth(t *testing.T) {
 	}
 }
 
-func TestRemoveGlobalPoliciesFromWebhookConfig(t *testing.T) {
-	ds := new(mock.Store)
-	svc := &Service{ds: ds}
-
-	var storedAppConfig fleet.AppConfig
-
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &storedAppConfig, nil
-	}
-	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
-		storedAppConfig = *info
-		return nil
-	}
-
-	for _, tc := range []struct {
-		name     string
-		currCfg  []uint
-		toDelete []uint
-		expCfg   []uint
-	}{
-		{
-			name:     "delete-one",
-			currCfg:  []uint{1},
-			toDelete: []uint{1},
-			expCfg:   []uint{},
-		},
-		{
-			name:     "delete-all-2",
-			currCfg:  []uint{1, 2, 3},
-			toDelete: []uint{1, 2, 3},
-			expCfg:   []uint{},
-		},
-		{
-			name:     "basic",
-			currCfg:  []uint{1, 2, 3},
-			toDelete: []uint{1, 2},
-			expCfg:   []uint{3},
-		},
-		{
-			name:     "empty-cfg",
-			currCfg:  []uint{},
-			toDelete: []uint{1},
-			expCfg:   []uint{},
-		},
-		{
-			name:     "no-deletion-cfg",
-			currCfg:  []uint{1},
-			toDelete: []uint{2, 3, 4},
-			expCfg:   []uint{1},
-		},
-		{
-			name:     "no-deletion-cfg-2",
-			currCfg:  []uint{1},
-			toDelete: []uint{},
-			expCfg:   []uint{1},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			storedAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = tc.currCfg
-			err := svc.removeGlobalPoliciesFromWebhookConfig(context.Background(), tc.toDelete)
-			require.NoError(t, err)
-			require.Equal(t, tc.expCfg, storedAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-		})
-	}
-}
-
-// test ApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs
 func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T) {
 	ds := new(mock.Store)
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -438,27 +371,22 @@ func TestApplyPolicySpecsReturnsErrorOnDuplicatePolicyNamesInSpecs(t *testing.T)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	req := []*fleet.PolicySpec{
-		{
-			Name:     "query1",
-			Query:    "select 1;",
-			Platform: "windows",
-		},
-		{
-			Name:     "query1",
-			Query:    "select 1;",
-			Platform: "windows",
-		},
-	}
-
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
-	err := svc.ApplyPolicySpecs(ctx, req)
+	// Unassigned in a different letter case is the same fleet.
+	for _, fleets := range [][2]string{{"", ""}, {"Unassigned", "unassigned"}} {
+		req := []*fleet.PolicySpec{
+			{Name: "query1", Query: "select 1;", Platform: "windows", Team: fleets[0]},
+			{Name: "query1", Query: "select 2;", Platform: "windows", Team: fleets[1]},
+		}
 
-	badRequestError := &fleet.BadRequestError{}
-	require.ErrorAs(t, err, &badRequestError)
-	require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
+		err := svc.ApplyPolicySpecs(ctx, req)
+
+		badRequestError := &fleet.BadRequestError{}
+		require.ErrorAs(t, err, &badRequestError)
+		require.Equal(t, "duplicate policy names not allowed", badRequestError.Message)
+	}
 }
 
 func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
@@ -888,87 +816,6 @@ func TestResetPolicyEmitsActivity(t *testing.T) {
 	})
 }
 
-func TestNewGlobalPolicyQueryIDAuth(t *testing.T) {
-	const (
-		queryID   = uint(99)
-		secretSQL = "SELECT secret FROM restricted;"
-	)
-
-	testCases := []struct {
-		name            string
-		user            *fleet.User
-		payload         fleet.PolicyPayload
-		queryErr        error
-		wantQueryLoaded bool
-		wantErr         bool
-	}{
-		{
-			name:            "global admin from query_id loads and authorizes the query",
-			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
-			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
-			wantQueryLoaded: true,
-		},
-		{
-			name:            "global maintainer from query_id loads and authorizes the query",
-			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleMaintainer)},
-			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
-			wantQueryLoaded: true,
-		},
-		{
-			name:            "global gitops from query_id loads and authorizes the query",
-			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleGitOps)},
-			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
-			wantQueryLoaded: true,
-		},
-		{
-			name:            "no query_id does not load any query",
-			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
-			payload:         fleet.PolicyPayload{Name: "inline", Query: "SELECT 1;"},
-			wantQueryLoaded: false,
-		},
-		{
-			name:            "missing referenced query fails",
-			user:            &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
-			payload:         fleet.PolicyPayload{QueryID: new(queryID)},
-			queryErr:        &notFoundError{},
-			wantQueryLoaded: true,
-			wantErr:         true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
-			opts := &TestServerOpts{}
-			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
-			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
-				return nil
-			}
-
-			ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
-				require.Equal(t, queryID, id)
-				if tc.queryErr != nil {
-					return nil, tc.queryErr
-				}
-				return &fleet.Query{ID: id, Name: "referenced query", Query: secretSQL}, nil
-			}
-			ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
-				return &fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "referenced query", Query: secretSQL}}, nil
-			}
-
-			ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tc.user})
-
-			_, err := svc.NewGlobalPolicy(ctx, tc.payload)
-			if tc.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-			require.Equal(t, tc.wantQueryLoaded, ds.QueryFuncInvoked)
-		})
-	}
-}
-
 func TestApplyPolicySpecsScriptID(t *testing.T) {
 	setupDS := func() *mock.Store {
 		ds := new(mock.Store)
@@ -1044,8 +891,8 @@ func TestApplyPolicySpecsScriptID(t *testing.T) {
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{s}))
 		require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 
-		// "No team" is not "All fleets", so it keeps its automations.
-		noTeam := spec("No team", new(uint(1)))
+		// Unassigned is not "All fleets", so it keeps its automations. A policy has one, so no script here.
+		noTeam := spec(fleet.DisplayNameNoTeam, nil)
 		noTeam.SoftwareTitleID = new(uint(1))
 		ds.ApplyPolicySpecsFuncInvoked = false
 		require.NoError(t, svc.ApplyPolicySpecs(adminCtx(ctx), []*fleet.PolicySpec{noTeam}))
@@ -1222,4 +1069,57 @@ func TestApplyPolicySpecsHidden(t *testing.T) {
 		require.Contains(t, err.Error(), `"hidden" and "conditional_access_enabled" cannot both be set`)
 		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 	})
+}
+
+func TestApplyPolicySpecsWebhookOrTicketPermission(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error { return nil }
+	// The stored name is NFC-normalized; the spec below spells it decomposed.
+	ds.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+		require.Equal(t, []string{"café"}, names)
+		return map[string]bool{"café": true}, nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	maintainerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+		ID: 2, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleMaintainer}},
+	}})
+	spec := func(webhook bool) []*fleet.PolicySpec {
+		return []*fleet.PolicySpec{{Name: "café", Query: "SELECT 1;", Team: "team1", WebhooksAndTicketsEnabled: webhook}}
+	}
+
+	// Re-applying the unchanged value isn't a change, so a fleet maintainer can.
+	require.NoError(t, svc.ApplyPolicySpecs(maintainerCtx, spec(true)))
+	require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+
+	ds.ApplyPolicySpecsFuncInvoked = false
+	err := svc.ApplyPolicySpecs(maintainerCtx, spec(false))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "forbidden")
+	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	// Patch policies are matched by app, so renaming one in a spec is still a change to its automation.
+	ds.WebhooksAndTicketsByPolicyNameFunc = func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
+		return nil, nil
+	}
+	ds.WebhooksAndTicketsByPatchPolicySlugFunc = func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error) {
+		require.Equal(t, uint(1), teamID)
+		require.Equal(t, []string{"zoom/darwin"}, slugs)
+		return map[string]bool{"zoom/darwin": true}, nil
+	}
+	patchSpec := func(webhook bool) []*fleet.PolicySpec {
+		return []*fleet.PolicySpec{{
+			Name: "renamed patch policy", Team: "team1", Type: fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/darwin", WebhooksAndTicketsEnabled: webhook,
+		}}
+	}
+	ds.ApplyPolicySpecsFuncInvoked = false
+	err = svc.ApplyPolicySpecs(maintainerCtx, patchSpec(false))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "forbidden")
+	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+	require.NoError(t, svc.ApplyPolicySpecs(maintainerCtx, patchSpec(true)))
+	require.True(t, ds.ApplyPolicySpecsFuncInvoked)
 }

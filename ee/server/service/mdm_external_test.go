@@ -96,6 +96,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -151,7 +152,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 		EnabledAndConfigured:  true,
 		EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: ssoSettings},
 		MacOSSetup: fleet.MacOSSetup{
-			BootstrapPackage:            optjson.SetString("https://example.com/bootstrap.pkg"),
 			EnableEndUserAuthentication: true,
 			EnableReleaseDeviceManually: optjson.SetBool(true),
 		},
@@ -163,11 +163,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 	team2 := &fleet.Team{
 		ID:   2,
 		Name: "two",
-		Config: fleet.TeamConfig{
-			MDM: fleet.TeamMDM{
-				MacOSSetup: fleet.MacOSSetup{MacOSSetupAssistant: optjson.SetString("foo/bar")},
-			},
-		},
 	}
 	teamStore := map[uint]*fleet.Team{1: team1, 2: team2}
 
@@ -259,7 +254,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 			require.Equal(t, tm.ID, team.ID)                                               // sanity check
 			require.Equal(t, tm.Name, team.Name)                                           // sanity check
 			require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not modified
-			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not modified
 			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not modified
 			return teamStore[tm.ID], nil
 		}
@@ -294,7 +288,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 			require.Equal(t, "new team", team.Name)
 			require.Equal(t, "new description", team.Description)
 			require.False(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not set
-			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not set
 			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not set
 			team.ID = id
 			teamStore[id] = team
@@ -332,7 +325,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 			require.Equal(t, "12.0", team.Config.MDM.MacOSUpdates.MinimumVersion.Value)    // set
 			require.Equal(t, "2024-01-01", team.Config.MDM.MacOSUpdates.Deadline.Value)    // set
 			require.False(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not set
-			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not set
 			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not set
 			team.ID = id
 			teamStore[id] = team
@@ -348,7 +340,6 @@ func TestTeamCreationDoesNotApplyMDMDefaults(t *testing.T) {
 			require.Equal(t, "12.0", team.Config.MDM.MacOSUpdates.MinimumVersion.Value)    // unchanged
 			require.Equal(t, "2025-01-01", team.Config.MDM.MacOSUpdates.Deadline.Value)    // modified
 			require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not set
-			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not set
 			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not set
 
 			return teamStore[tm.ID], nil
