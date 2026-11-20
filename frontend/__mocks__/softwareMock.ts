@@ -107,9 +107,8 @@ export const createMockSoftwareVersionsResponse = (
 
 const DEFAULT_OS_VERSION_MOCK = {
   os_version_id: 1,
-  name: "macOS 14.6.1",
-  name_only: "macOS",
-  version: "14.6.1",
+  os_name: "macOS",
+  os_version: "14.6.1",
   platform: "darwin",
   hosts_count: 42,
   generated_cpes: [],

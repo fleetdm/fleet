@@ -1,10 +1,22 @@
-import React from "react";
-
-import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import {
+  IPolicyStats,
+  OtherAutomationType,
+  PolicyAutomationType,
+} from "interfaces/policy";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { IPoliciesFilterParams } from "services/entities/policies";
 
-import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
-import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
+/** The Policies table's automation filter. "patch" filters by policy type. */
+export type PoliciesAutomationFilter = PolicyAutomationType | "patch";
+
+export const getPoliciesFilterParams = (
+  filter: PoliciesAutomationFilter | null
+): Pick<IPoliciesFilterParams, "automationType" | "type"> => {
+  if (!filter) {
+    return {};
+  }
+  return filter === "patch" ? { type: "patch" } : { automationType: filter };
+};
 
 export type AutomationDisplayType =
   | "software"
@@ -37,127 +49,58 @@ export type IAutomationData =
   | ISoftwareAutomationData
   | INonSoftwareAutomationData;
 
-/** Returns an ordered list of automations configured for a policy. */
+/** Returns the policy's automation, as a list for the Automation column. */
 export const getAutomationsForPolicy = (
   policy: Pick<
     IPolicyStats,
+    | "automation_type"
     | "install_software"
     | "run_script"
     | "resend_configuration_profile"
-    | "calendar_events_enabled"
-    | "conditional_access_enabled"
-    | "webhook"
   >,
   otherAutomationType?: OtherAutomationType
 ): IAutomationData[] => {
-  const automations: IAutomationData[] = [];
-
-  if (policy.install_software) {
-    automations.push({
-      type: "software",
-      name: getDisplayedSoftwareName(
-        policy.install_software.name,
-        policy.install_software.display_name
-      ),
-      iconName: policy.install_software.name,
-      softwareTitleId: policy.install_software.software_title_id,
-      iconUrl: policy.install_software.icon_url,
-    });
+  switch (policy.automation_type) {
+    case "software":
+      return policy.install_software
+        ? [
+            {
+              type: "software",
+              name: getDisplayedSoftwareName(
+                policy.install_software.name,
+                policy.install_software.display_name
+              ),
+              iconName: policy.install_software.name,
+              softwareTitleId: policy.install_software.software_title_id,
+              iconUrl: policy.install_software.icon_url,
+            },
+          ]
+        : [];
+    case "script":
+      return policy.run_script
+        ? [{ type: "script", name: policy.run_script.name }]
+        : [];
+    case "configuration_profile":
+      return policy.resend_configuration_profile
+        ? [
+            {
+              type: "profile",
+              name: policy.resend_configuration_profile.name,
+            },
+          ]
+        : [];
+    case "calendar":
+      return [{ type: "calendar", name: "Maintenance window" }];
+    case "conditional_access":
+      return [{ type: "conditional_access", name: "Conditional access" }];
+    case "webhook_or_ticket":
+      return [
+        {
+          type: "other",
+          name: otherAutomationType === "ticket" ? "Ticket" : "Webhook",
+        },
+      ];
+    default:
+      return [];
   }
-  if (policy.run_script) {
-    automations.push({
-      type: "script",
-      name: policy.run_script.name,
-    });
-  }
-  if (policy.resend_configuration_profile) {
-    automations.push({
-      type: "profile",
-      name: policy.resend_configuration_profile.name,
-    });
-  }
-  if (policy.calendar_events_enabled) {
-    automations.push({
-      type: "calendar",
-      name: "Maintenance window",
-    });
-  }
-  if (policy.conditional_access_enabled) {
-    automations.push({
-      type: "conditional_access",
-      name: "Conditional access",
-    });
-  }
-  if (policy.webhook === "On") {
-    automations.push({
-      type: "other",
-      name: otherAutomationType === "ticket" ? "Ticket" : "Webhook",
-    });
-  }
-
-  return automations;
-};
-
-/** Creates a readable JSX element from the error message */
-export const getInstallSoftwareErrorMessage = (
-  result: PromiseRejectedResult,
-  formData: IInstallSoftwareFormData,
-  currentTeamName?: string
-): JSX.Element => {
-  const apiErrorMessage = result.reason.data.errors[0].reason;
-  const parts = apiErrorMessage.split(
-    /(Software title with ID \d+|team ID \d+)/i
-  );
-
-  const jsxElement = parts.map((part: string) => {
-    if (part.startsWith("Software title with ID")) {
-      const swId = part.match(/\d+/)?.[0];
-      const policy = formData.find(
-        (item) => item.swIdToInstall?.toString() === swId
-      );
-      return policy ? (
-        <React.Fragment key={part}>
-          <b>{policy.swNameToInstall}</b> (ID: {swId})
-        </React.Fragment>
-      ) : (
-        part
-      );
-    } else if (part.startsWith("team ID")) {
-      return currentTeamName ? <b key={part}>{currentTeamName}</b> : part;
-    }
-    return <React.Fragment key={part}>{part}</React.Fragment>;
-  });
-
-  return <>Could not update policy. {jsxElement}</>;
-};
-
-export const getRunScriptErrorMessage = (
-  result: PromiseRejectedResult,
-  formData: IPolicyRunScriptFormData,
-  currentTeamName?: string
-): JSX.Element => {
-  const apiErrorMessage = result.reason.data.errors[0].reason;
-  const parts = apiErrorMessage.split(/(Script with ID \d+|team ID \d+)/i);
-
-  const jsxElement = parts.map((part: string) => {
-    if (part.startsWith("Script with ID")) {
-      const scriptId = part.match(/\d+/)?.[0];
-      const policy = formData.find(
-        (item) => item.scriptIdToRun?.toString() === scriptId
-      );
-
-      return policy ? (
-        <React.Fragment key={part}>
-          <b>{policy.scriptNameToRun}</b> (ID: {scriptId})
-        </React.Fragment>
-      ) : (
-        part
-      );
-    } else if (part.startsWith("team ID")) {
-      return currentTeamName ? <b key={part}>{currentTeamName}</b> : part;
-    }
-    return <React.Fragment key={part}>{part}</React.Fragment>;
-  });
-
-  return <>Could not update policy. {jsxElement}</>;
 };

@@ -1307,7 +1307,6 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSON(
 		"POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 			Password: newRawPwd,
-			ID:       u.ID,
 		}, http.StatusForbidden, &perfPwdResetResp,
 	)
 
@@ -1315,7 +1314,6 @@ func (s *integrationTestSuite) TestUsers() {
 	s.token = s.getTestToken(u.Email, userRawPwd)
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       u.ID,
 	}, http.StatusOK, &perfPwdResetResp)
 	assert.False(t, perfPwdResetResp.User.AdminForcedPasswordReset)
 	oldUserRawPwd := userRawPwd
@@ -1326,7 +1324,6 @@ func (s *integrationTestSuite) TestUsers() {
 	newRawPwd = "new_password2!"
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       u.ID,
 	}, http.StatusForbidden, &perfPwdResetResp)
 	s.token = s.getTestAdminToken()
 

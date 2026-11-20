@@ -3813,7 +3813,7 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "version_name": Name of the admin-created App Store app version. Defaults to "Default version" when the admin didn't set one.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format.
 - "auto_update_enabled": Whether automatic updates are enabled for this version (iOS and iPadOS only; omitted when unset).
 - "auto_update_window_start": Start of the auto-update maintenance window in `HH:MM` host local time (omitted when unset).
 - "auto_update_window_end": End of the auto-update maintenance window in `HH:MM` host local time (omitted when unset).
@@ -3857,6 +3857,7 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
@@ -3864,13 +3865,14 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "version_name": Name of the admin-created App Store app version that was deleted. Defaults to "Default version" when the admin didn't set one.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format.
 
 #### Example
 
 ```json
 {
   "software_title": "Slack",
+  "software_display_name": "Slack (work)",
   "app_store_id": "618783545",
   "platform": "ios",
   "team_name": "Workstations",
@@ -3990,7 +3992,7 @@ This activity contains the following fields:
 - "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 - "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 - "version_name": Name of the admin-created App Store app version that was edited. Defaults to "Default version" when the admin didn't set one.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format.
 
 
 #### Example

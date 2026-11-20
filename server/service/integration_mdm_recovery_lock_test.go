@@ -93,7 +93,7 @@ func (s *integrationMDMTestSuite) TestRemovedMDMConfigKeys() {
 	require.NoError(t, err)
 
 	removedMsg := func(key string) string {
-		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 	recoveryLockMsg := removedMsg("enable_recovery_lock_password")
 	macOSMsg := removedMsg("require_all_software_macos")

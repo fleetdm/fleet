@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"slices"
@@ -123,6 +124,7 @@ func TestHosts(t *testing.T) {
 		{"ByIdentifier", testHostsByIdentifier},
 		{"ByUUID", testHostsByUUID},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
+		{"HostIDByIdentifier", testHostIDByIdentifier},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
 		{"SaveHostUsers", testHostsSaveHostUsers},
@@ -173,6 +175,8 @@ func TestHosts(t *testing.T) {
 		{"GetDeviceAuthToken", testHostsGetDeviceAuthToken},
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
+		{"OSVersionsArchLinux", testOSVersionsArchLinux},
+		{"OSVersionsStoredFormat", testOSVersionsStoredFormat},
 		{"DeleteHosts", testHostsDeleteHosts},
 		{"DeleteHostsIdPAccounts", testHostsDeleteHostsIdPAccounts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
@@ -917,7 +921,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	// Bad team filter
 	_, err = ds.ListHosts(context.Background(), userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterBad})
 	require.Error(t, err)
-	require.True(t, strings.Contains(err.Error(), "team is invalid"), err)
+	require.ErrorContains(t, err, "fleet is invalid")
 }
 
 func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
@@ -4304,10 +4308,10 @@ func testHostIDsByLabelIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID}, ids)
 
-	// HostIDsByIdentifier still matches them, for live queries and profile variables.
+	// HostIDsByIdentifier also matches hostnames, for live queries and profile variables, but not agent keys.
 	ids, err = ds.HostIDsByIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, ids)
+	assert.ElementsMatch(t, []uint{hosts[0].ID}, ids)
 }
 
 func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
@@ -4481,15 +4485,13 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
-	h, err = ds.HostByIdentifier(context.Background(), "osquery_host_id_2")
-	require.NoError(t, err)
-	assert.Equal(t, uint(2), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
-
-	h, err = ds.HostByIdentifier(context.Background(), "node_key_4")
-	require.NoError(t, err)
-	assert.Equal(t, uint(4), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
+	// Agent keys aren't identifiers.
+	for _, agentKey := range []string{"osquery_host_id_2", "node_key_4"} {
+		_, err = ds.HostByIdentifier(context.Background(), agentKey)
+		require.True(t, fleet.IsNotFound(err), "HostByIdentifier(%q): %v", agentKey, err)
+		_, err = ds.HostLiteByIdentifier(context.Background(), agentKey)
+		require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", agentKey, err)
+	}
 
 	h, err = ds.HostByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
@@ -4505,8 +4507,6 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 		setSerial := func(h *fleet.Host, value string) { h.HardwareSerial = value }
 		setUUID := func(h *fleet.Host, value string) { h.UUID = value }
 		setHostname := func(h *fleet.Host, value string) { h.Hostname = value }
-		setOsqueryHostID := func(h *fleet.Host, value string) { h.OsqueryHostID = &value }
-		setNodeKey := func(h *fleet.Host, value string) { h.NodeKey = &value }
 
 		// The expected loser is created first, so the winner never has the lower ID unless the case is about the tie-break.
 		testCases := []struct {
@@ -4517,8 +4517,6 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 		}{
 			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
 			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
-			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
-			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
 			{name: "lowest ID wins on a shared hostname", setLoser: setHostname, setWinner: setHostname},
 			{name: "lowest ID wins on a shared serial", setLoser: setSerial, setWinner: setSerial},
 			{name: "lowest ID wins on a shared UUID", setLoser: setUUID, setWinner: setUUID},
@@ -4656,6 +4654,90 @@ func testHostsByUUID(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testHostIDByIdentifier(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	var hostCount int
+	// newHost creates a host whose identifiers are all unique, then overrides the ones set changes.
+	newHost := func(set func(*fleet.Host)) uint {
+		hostCount++
+		h := &fleet.Host{
+			DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+			OsqueryHostID:  new(fmt.Sprintf("unique_osquery_host_id_%d", hostCount)),
+			NodeKey:        new(fmt.Sprintf("unique_node_key_%d", hostCount)),
+			UUID:           fmt.Sprintf("unique_uuid_%d", hostCount),
+			Hostname:       fmt.Sprintf("unique_hostname_%d", hostCount),
+			HardwareSerial: fmt.Sprintf("unique_serial_%d", hostCount),
+		}
+		if set != nil {
+			set(h)
+		}
+		created, err := ds.NewHost(t.Context(), h)
+		require.NoError(t, err)
+		return created.ID
+	}
+	setSerial := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.HardwareSerial = value } }
+	setUUID := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.UUID = value } }
+	setHostname := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.Hostname = value } }
+	matchID := fleet.HostIDByIdentifierOptions{MatchID: true}
+
+	t.Run("priority across and within columns", func(t *testing.T) {
+		// The older host is created first, so a column beating a newer host's column shows that priority comes before recency.
+		testCases := []struct {
+			name         string
+			older, newer func(string) func(*fleet.Host)
+			newerWins    bool
+		}{
+			{name: "serial beats a newer UUID", older: setSerial, newer: setUUID},
+			{name: "UUID beats a newer hostname", older: setUUID, newer: setHostname},
+			{name: "newest host wins on a shared serial", older: setSerial, newer: setSerial, newerWins: true},
+			{name: "newest host wins on a shared UUID", older: setUUID, newer: setUUID, newerWins: true},
+			{name: "newest host wins on a shared hostname", older: setHostname, newer: setHostname, newerWins: true},
+		}
+		for i, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				contested := fmt.Sprintf("contested_%d", i)
+				wantID, newerID := newHost(tc.older(contested)), newHost(tc.newer(contested))
+				if tc.newerWins {
+					wantID = newerID
+				}
+				gotID, err := ds.HostIDByIdentifier(t.Context(), contested, matchID)
+				require.NoError(t, err)
+				require.Equal(t, wantID, gotID)
+			})
+		}
+	})
+
+	t.Run("host ID", func(t *testing.T) {
+		idHost := newHost(nil)
+		serialHost := newHost(setSerial(fmt.Sprint(idHost)))
+		fallbackHost := newHost(setSerial("987654321"))
+		for _, tc := range []struct {
+			identifier string
+			opts       fleet.HostIDByIdentifierOptions
+			wantID     uint
+		}{
+			{fmt.Sprint(idHost), matchID, idHost},                               // a host ID beats another host's serial
+			{fmt.Sprint(idHost), fleet.HostIDByIdentifierOptions{}, serialHost}, // without MatchID, the ID isn't matched
+			{"987654321", matchID, fallbackHost},                                // a number no host has as its ID falls back
+		} {
+			gotID, err := ds.HostIDByIdentifier(t.Context(), tc.identifier, tc.opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantID, gotID, tc.identifier)
+		}
+	})
+
+	t.Run("agent keys and blank identifiers match nothing", func(t *testing.T) {
+		newHost(func(h *fleet.Host) {
+			h.OsqueryHostID, h.NodeKey = new("agent_osquery_host_id"), new("agent_node_key")
+			h.UUID, h.Hostname, h.HardwareSerial = "", "", ""
+		})
+		for _, identifier := range []string{"agent_osquery_host_id", "agent_node_key", "", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
+			_, err := ds.HostIDByIdentifier(t.Context(), identifier, matchID)
+			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", identifier, err)
+		}
+	})
+}
+
 func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	now := time.Now().UTC().Truncate(time.Second)
 	for i := 1; i <= 10; i++ {
@@ -4689,16 +4771,6 @@ func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	h, err = ds.HostLiteByID(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, identifier, h.UUID)
-
-	h, err = ds.HostLiteByIdentifier(context.Background(), "osquery_host_id_2")
-	require.NoError(t, err)
-	assert.Equal(t, uint(2), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
-
-	h, err = ds.HostLiteByIdentifier(context.Background(), "node_key_4")
-	require.NoError(t, err)
-	assert.Equal(t, uint(4), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostLiteByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
@@ -4983,7 +5055,9 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 
 	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 
@@ -5601,19 +5675,26 @@ func testHostsOSNameAndVersionLoaders(t *testing.T, ds *Datastore) {
 		Name: "Microsoft Windows 11 Pro 24H2", Version: "10.0.26100.1742", Arch: "64-bit", KernelVersion: "10.0.26100.1742",
 		Platform: "windows", DisplayVersion: "24H2",
 	}))
-	// The OS inventory records Omarchy as "Arch Linux" "rolling"; the API returns the host's own name and version.
+	// The OS inventory records Arch Linux ARM as "Arch Linux"; the API returns the host's own name and version. An
+	// Omarchy host that an earlier Fleet recorded as "Arch Linux" "rolling" reads as Arch Linux until it reports
+	// again.
 	arch := newHost("arch", "arch", "Arch Linux rolling")
-	omarchy := newHost("omarchy", "omarchy", "Omarchy 4.0.0")
-	for _, h := range []*fleet.Host{arch, omarchy} {
+	archARM := newHost("archarm", "archarm", "Arch Linux ARM rolling")
+	omarchyLegacy := newHost("omarchy-legacy", "omarchy", "Omarchy 4.0.0")
+	for _, h := range []*fleet.Host{arch, archARM, omarchyLegacy} {
 		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
 			Name: "Arch Linux", Version: "rolling", Arch: "x86_64", KernelVersion: "6.12.1-arch1-1", Platform: h.Platform,
 		}))
 	}
+	omarchy := newHost("omarchy", "omarchy", "Omarchy 4.0.0")
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, omarchy.ID, fleet.OperatingSystem{
+		Name: "Omarchy", Version: "4.0.0", Arch: "x86_64", KernelVersion: "6.12.1-arch1-1", Platform: "omarchy",
+	}))
 	// Hosts without an OS row yet: an Android device that reports no version, and an Omarchy host before its inventory
 	// comes in, which the Omarchy filter must not match.
 	android := newHost("android", "android", "Android")
 	omarchyNoOS := newHost("omarchy-no-os", "omarchy", "Omarchy 4.0.0")
-	all := []*fleet.Host{win, arch, omarchy, android, omarchyNoOS}
+	all := []*fleet.Host{win, arch, archARM, omarchyLegacy, omarchy, android, omarchyNoOS}
 
 	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "os name and version", Query: "select 1"})
 	require.NoError(t, err)
@@ -5623,11 +5704,13 @@ func testHostsOSNameAndVersionLoaders(t *testing.T, ds *Datastore) {
 
 	type osFields struct{ combined, name, version string }
 	want := map[uint]osFields{
-		win.ID:         {"Windows 11 Pro 24H2 10.0.26100.1742", "Windows 11 Pro 24H2", "10.0.26100.1742"},
-		arch.ID:        {"Arch Linux rolling", "Arch Linux", "rolling"},
-		omarchy.ID:     {"Omarchy 4.0.0", "Omarchy", "4.0.0"},
-		android.ID:     {"Android", "", ""},
-		omarchyNoOS.ID: {"Omarchy 4.0.0", "", ""},
+		win.ID:           {"Windows 11 Pro 24H2 10.0.26100.1742", "Windows 11 Pro 24H2", "10.0.26100.1742"},
+		arch.ID:          {"Arch Linux rolling", "Arch Linux", "rolling"},
+		archARM.ID:       {"Arch Linux ARM rolling", "Arch Linux ARM", "rolling"},
+		omarchyLegacy.ID: {"Omarchy 4.0.0", "Arch Linux", "rolling"},
+		omarchy.ID:       {"Omarchy 4.0.0", "Omarchy", "4.0.0"},
+		android.ID:       {"Android", "", ""},
+		omarchyNoOS.ID:   {"Omarchy 4.0.0", "", ""},
 	}
 	checkHosts := func(t *testing.T, hosts ...*fleet.Host) {
 		t.Helper()
@@ -5675,7 +5758,7 @@ func testHostsOSNameAndVersionLoaders(t *testing.T, ds *Datastore) {
 	}
 
 	// The returned values round-trip into the os_name and os_version filters. Windows names also match with
-	// "Microsoft", and the inventory's "Arch Linux" "rolling" still matches every host it groups.
+	// "Microsoft", and the inventory's "Arch Linux" "rolling" still matches every host recorded under it.
 	for _, tc := range []struct {
 		name, version string
 		wantIDs       []uint
@@ -5683,7 +5766,8 @@ func testHostsOSNameAndVersionLoaders(t *testing.T, ds *Datastore) {
 		{"Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
 		{"Microsoft Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
 		{"Omarchy", "4.0.0", []uint{omarchy.ID}},
-		{"Arch Linux", "rolling", []uint{arch.ID, omarchy.ID}},
+		{"Arch Linux ARM", "rolling", []uint{archARM.ID}},
+		{"Arch Linux", "rolling", []uint{arch.ID, archARM.ID, omarchyLegacy.ID}},
 	} {
 		hosts = listHostsCheckCount(t, ds, adminFilter, fleet.HostListOptions{
 			OSNameFilter: new(tc.name), OSVersionFilter: new(tc.version),
@@ -6368,11 +6452,15 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	q2 := test.NewQuery(t, ds, nil, "query2", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 	p2, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+		Name:        q2.Name,
+		Query:       q2.Query,
+		Description: q2.Description,
 	})
 	require.NoError(t, err)
 
@@ -6463,7 +6551,9 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 
 	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 
@@ -9965,6 +10055,91 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected, osVersions.OSVersions)
 }
 
+func testOSVersionsArchLinux(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Arch Linux ARM is recorded as Arch Linux, and so is a CachyOS host that an earlier Fleet recorded and that
+	// hasn't reported since. CachyOS and Omarchy hosts that reported since have their own operating systems.
+	for i, hostOS := range []fleet.OperatingSystem{
+		{Name: "Arch Linux", Version: "rolling", Platform: "arch", Arch: "x86_64"},
+		{Name: "Arch Linux", Version: "rolling", Platform: "archarm", Arch: "aarch64"},
+		{Name: "Arch Linux", Version: "rolling", Platform: "cachyos", Arch: "x86_64"},
+		{Name: "CachyOS Linux", Version: "rolling", Platform: "cachyos", Arch: "x86_64"},
+		{Name: "Omarchy", Version: "4.0.0", Platform: "omarchy", Arch: "x86_64"},
+	} {
+		name := fmt.Sprintf("%s-%d", hostOS.Platform, i)
+		h := test.NewHost(t, ds, name, "", name, name, time.Now(), test.WithPlatform(hostOS.Platform))
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, hostOS))
+	}
+	require.NoError(t, ds.UpdateOSVersions(ctx))
+
+	osVersions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, osVersions.OSVersions, 3)
+	archLinux, cachyOS, omarchy := osVersions.OSVersions[0], osVersions.OSVersions[1], osVersions.OSVersions[2]
+	assert.Equal(t, []any{"Arch Linux", "rolling", "arch", 3}, []any{archLinux.NameOnly, archLinux.Version, archLinux.Platform, archLinux.HostsCount})
+	assert.Equal(t, []any{"CachyOS Linux", "rolling", "cachyos", 1}, []any{cachyOS.NameOnly, cachyOS.Version, cachyOS.Platform, cachyOS.HostsCount})
+	assert.Equal(t, []any{"Omarchy", "4.0.0", "omarchy", 1}, []any{omarchy.NameOnly, omarchy.Version, omarchy.Platform, omarchy.HostsCount})
+
+	for platform, want := range map[string][]string{
+		"arch":    {"Arch Linux"},
+		"archarm": nil,
+		"cachyos": {"CachyOS Linux"},
+		"omarchy": {"Omarchy"},
+	} {
+		osVersions, err := ds.OSVersions(ctx, nil, &platform, nil, nil)
+		require.NoError(t, err)
+		var got []string
+		for _, v := range osVersions.OSVersions {
+			got = append(got, v.NameOnly)
+		}
+		assert.Equal(t, want, got, platform)
+	}
+
+	osVersion, _, err := ds.OSVersion(ctx, archLinux.OSVersionID, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "arch", osVersion.Platform)
+	assert.Equal(t, 3, osVersion.HostsCount)
+}
+
+func testOSVersionsStoredFormat(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Counts as Fleet 4 stored them, read after the upgrade until the next aggregation replaces them.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO aggregated_stats (id, global_stats, type, json_value) VALUES (0, 1, ?, ?)`,
+			aggregatedStatsTypeOSVersions, `[{"id": 3, "os_version_id": 2, "hosts_count": 4, "name": "macOS 14.1.2", "name_only": "macOS",
+			"version": "14.1.2", "platform": "darwin", "vulnerabilities": null, "vulnerabilities_count": 0}]`)
+		return err
+	})
+	want := fleet.OSVersion{OSVersionID: 2, HostsCount: 4, Name: "macOS 14.1.2", NameOnly: "macOS", Version: "14.1.2", Platform: "darwin"}
+	osVersions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.OSVersion{want}, osVersions.OSVersions)
+	osVersion, _, err := ds.OSVersion(ctx, 2, nil)
+	require.NoError(t, err)
+	assert.Equal(t, want, *osVersion)
+
+	// The aggregation keeps storing the same keys.
+	h := test.NewHost(t, ds, "ubuntu", "", "ubuntu", "ubuntu", time.Now(), test.WithPlatform("ubuntu"))
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{Name: "Ubuntu", Version: "24.04", Platform: "ubuntu", Arch: "x86_64"}))
+	require.NoError(t, ds.UpdateOSVersions(ctx))
+	var stored []map[string]any
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var jsonValue []byte
+		if err := sqlx.GetContext(ctx, q, &jsonValue, `SELECT json_value FROM aggregated_stats WHERE id = 0 AND global_stats = 1 AND type = ?`,
+			aggregatedStatsTypeOSVersions); err != nil {
+			return err
+		}
+		return json.Unmarshal(jsonValue, &stored)
+	})
+	require.Len(t, stored, 1)
+	assert.ElementsMatch(t, []string{"id", "os_version_id", "hosts_count", "name", "name_only", "version", "platform"}, slices.Collect(maps.Keys(stored[0])))
+	assert.Equal(t, "Ubuntu 24.04", stored[0]["name"])
+	assert.Equal(t, "Ubuntu", stored[0]["name_only"])
+	assert.Equal(t, "24.04", stored[0]["version"])
+}
+
 func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -10419,9 +10594,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
-	require.NoError(t, err)
-
-	_, err = ds.SetHostGoogleDeviceID(ctx, host.ID, "google-device-id")
 	require.NoError(t, err)
 
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
@@ -10883,9 +11055,9 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 			var p *fleet.Policy
 			var err error
 			if i == 2 || i == 5 {
-				p, err = ds.NewTeamPolicy(ctx, team.ID, &u.ID, fleet.PolicyPayload{QueryID: &q.ID, Hidden: true})
+				p, err = ds.NewTeamPolicy(ctx, team.ID, &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description, Hidden: true})
 			} else {
-				p, err = ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+				p, err = ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description})
 			}
 			require.NoError(t, err)
 			policies = append(policies, p)
@@ -11169,7 +11341,9 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 		p, err := ds.NewGlobalPolicy(
 			context.Background(), &user1.ID, fleet.PolicyPayload{
-				QueryID: &q.ID,
+				Name:        q.Name,
+				Query:       q.Query,
+				Description: q.Description,
 			},
 		)
 		require.NoError(t, err)
@@ -13594,11 +13768,11 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	u := test.NewUser(t, ds, "Jack", "jack@example.com", true)
 
 	q := test.NewQuery(t, ds, nil, "passing_query", "select 1", 0, true)
-	passingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	passingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description})
 	require.NoError(t, err)
 
 	q = test.NewQuery(t, ds, nil, "failing_query", "select 1", 0, true)
-	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description})
 	require.NoError(t, err)
 
 	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
@@ -13852,11 +14026,11 @@ func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
 	}{
 		{desc: "no identifier", in: nil, out: nil},
 		{desc: "no match", in: []string{"ZZZ"}, out: nil},
-		{desc: "single match", in: []string{"abc"}, out: []string{h1.Hostname}},
-		{desc: "two matches", in: []string{"mno"}, out: []string{h2.Hostname, h3.Hostname}},
-		{desc: "all matches", in: []string{"def"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "multiple identifiers", in: []string{"abc", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "duplicate identifiers", in: []string{"abc", "abc", "ghi"}, out: []string{h1.Hostname}},
+		{desc: "single match", in: []string{"jkl"}, out: []string{h1.Hostname}},
+		{desc: "two matches", in: []string{"def"}, out: []string{h1.Hostname, h3.Hostname}},
+		{desc: "node keys aren't identifiers", in: []string{"abc"}, out: nil},
+		{desc: "multiple identifiers", in: []string{"jkl", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
+		{desc: "duplicate identifiers", in: []string{"jkl", "jkl", "ghi"}, out: []string{h1.Hostname}},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -14133,7 +14307,9 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 		p, err := ds.NewGlobalPolicy(
 			context.Background(), &user1.ID, fleet.PolicyPayload{
-				QueryID: &q.ID,
+				Name:        q.Name,
+				Query:       q.Query,
+				Description: q.Description,
 			},
 		)
 		require.NoError(t, err)

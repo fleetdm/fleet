@@ -16,6 +16,7 @@
       "enable_analytics": false,
       "deferred_save_host": false,
       "ai_features_disabled": false,
+      "ai_sessions_disabled": false,
       "mcp_disabled": false
     },
     "host_expiry_settings": {
@@ -66,7 +67,6 @@
       "failing_policies_webhook": {
         "enable_failing_policies_webhook": false,
         "destination_url": "",
-        "policy_ids": null,
         "host_batch_size": 0
       },
       "vulnerabilities_webhook": {
@@ -139,10 +139,6 @@
         "webhook_url": ""
       },
       "apple_settings": {
-        "enable_disk_encryption": false,
-        "enable_escrow_disk_encryption_key": false
-      },
-      "macos_settings": {
         "enable_disk_encryption": false,
         "enable_escrow_disk_encryption_key": false
       },

@@ -18,6 +18,7 @@ const meta: Meta<typeof InputField> = {
     disabled: { control: "boolean" },
     blockAutoComplete: { control: "boolean" },
     enableCopy: { control: "boolean" },
+    enableOpenInNewTab: { control: "boolean" },
     enableShowSecret: { control: "boolean" },
     labelTooltipPosition: {
       control: "select",
@@ -136,5 +137,17 @@ export const Textarea: Story = {
     label: "Textarea Input",
     type: "textarea",
     placeholder: "Enter multiple lines of text...",
+  },
+};
+
+export const WithCopyAndOpenInNewTab: Story = {
+  args: {
+    ...Default.args,
+    name: "open-in-new-tab-input",
+    label: "Share this link with your end users:",
+    value: "https://fleet.example.com/enroll?enroll_secret=abc123",
+    readOnly: true,
+    enableCopy: true,
+    enableOpenInNewTab: true,
   },
 };

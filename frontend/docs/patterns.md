@@ -1074,7 +1074,8 @@ Both live in [`frontend/test/test-utils.tsx`](../test/test-utils.tsx).
 ### Fixtures and API mocks
 
 - Use entity fixtures from [`frontend/__mocks__/`](../__mocks__/) — e.g. `createMockHost`, `createMockUser`, `createMockConfig`. Don't hand-roll minimal `{ id: 1, ... }` shapes inline; they drift from the real interface.
-- Default MSW handlers live in [`frontend/test/default-handlers.ts`](../test/default-handlers.ts). Custom handlers live under [`frontend/test/handlers/`](../test/handlers/) and are applied per-test with `mockServer.use(customHandler)`.
+- MSW handlers live under [`frontend/test/handlers/`](../test/handlers/). The mock server starts with none, so apply each one a test needs with `mockServer.use(handler)`, in a `beforeEach` when every test in the file needs it.
+- The mock server only runs in test files that import [`frontend/test/mock-server.ts`](../test/mock-server.ts). Requests from a test file that doesn't import it aren't mocked.
 
 ### What to assert
 

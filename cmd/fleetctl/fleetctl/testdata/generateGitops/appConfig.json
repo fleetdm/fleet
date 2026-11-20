@@ -169,7 +169,6 @@
     "failing_policies_webhook": {
       "enable_failing_policies_webhook": true,
       "destination_url": "https://some-failing-policies-webhook-url.com",
-      "policy_ids": [],
       "host_batch_size": 2
     },
     "vulnerabilities_webhook": {
@@ -213,7 +212,12 @@
           "owl": "hoot"
         }
       }
-    ]
+    ],
+    "google_conditional_access": {
+      "customer_id": "C02cajzvg",
+      "admin_email": "admin@fleetdm.com",
+      "api_key_json": "********"
+    }
   },
   "mdm": {
     "apple_server_url": "http://some-apple-server-url.com",
@@ -251,8 +255,8 @@
       "deadline_days": 5,
       "grace_period_days": 2
     },
-    "macos_settings": {
-      "custom_settings": null,
+    "apple_settings": {
+      "configuration_profiles": null,
       "enable_disk_encryption": false,
       "enable_escrow_disk_encryption_key": true
     },
@@ -292,7 +296,7 @@
     "windows_mdm_enabled": true,
     "name_template": "No team Mac $FLEET_VAR_HOST_UUID",
     "windows_settings": {
-      "custom_settings": [],
+      "configuration_profiles": [],
       "enable_disk_encryption": true,
       "require_bitlocker_pin": false
     },
@@ -302,7 +306,7 @@
     },
     "android_enabled_and_configured": true,
     "android_settings": {
-      "custom_settings": []
+      "configuration_profiles": []
     }
   },
   "gitops": {

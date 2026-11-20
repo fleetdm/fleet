@@ -779,7 +779,7 @@ type MDMHostData struct {
 	// complete the disk encryption process.
 	//
 	// It is not filled in by all host-returning datastore methods.
-	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" renameto:"apple_settings" db:"-" csv:"-"`
+	MacOSSettings *MDMHostMacOSSettings `json:"apple_settings,omitempty" db:"-" csv:"-"`
 
 	// MacOSSetup indicates macOS-specific MDM setup for the host, such
 	// as the status of the bootstrap package.
@@ -838,7 +838,7 @@ type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
-	// macos_settings carries the same value for backwards compatibility
+	// apple_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
 	// FleetdCanSetPIN is true when this host's fleetd can apply a BitLocker PIN the end user types, so the page offers
 	// the PIN form rather than the Manage BitLocker instructions.
@@ -2053,14 +2053,14 @@ type OSVersion struct {
 	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
-	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
-	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field will no longer include the alphanumeric version.
-	Name string `json:"name"`
+	// Name is the name and alphanumeric version of the operating system, e.g., "macOS 14.1.2". The API doesn't
+	// return it.
+	Name string `json:"-"`
 	// NameOnly is the name of the operating system, e.g., "Microsoft Windows 11 Enterprise",
-	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field be removed.
-	NameOnly string `json:"name_only"`
+	// "Ubuntu", or "macOS".
+	NameOnly string `json:"os_name"`
 	// Version is the alphanumeric version of the operating system, e.g., "21H2", "20.4.0", or "12.5".
-	Version string `json:"version"`
+	Version string `json:"os_version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
 	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
@@ -2082,10 +2082,9 @@ type OSVersion struct {
 	Kernels *[]*Kernel `json:"kernels,omitempty"`
 }
 
-// UseAPINames switches Name and NameOnly to the form API responses show (see APIOSName). Only call it on a value that is
-// about to be written to a response: the stored names are the keys for OS vulnerability lookups.
+// UseAPINames switches NameOnly to the form API responses show (see APIOSName). Only call it on a value that is about
+// to be written to a response: the stored names are the keys for OS vulnerability lookups.
 func (o *OSVersion) UseAPINames() {
-	o.Name = APIOSName(o.Name)
 	o.NameOnly = APIOSName(o.NameOnly)
 }
 
@@ -2298,6 +2297,12 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostIDByIdentifierOptions sets which columns Datastore.HostIDByIdentifier matches besides hardware_serial, UUID and hostname.
+type HostIDByIdentifierOptions struct {
+	// MatchID tries a numeric identifier as a host ID first.
+	MatchID bool
 }
 
 // HostLite contains a subset of Host fields.

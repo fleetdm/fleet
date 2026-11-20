@@ -204,11 +204,12 @@ interface IMdmMacOsSetup {
   bootstrap_package_name: string;
 }
 
-export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
+export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped" | "reset";
 export type HostMdmPendingAction =
   | "unlock"
   | "lock"
   | "wipe"
+  | "reset"
   | "clear_passcode"
   | "location"
   | "unenroll"
@@ -329,6 +330,9 @@ export interface IDUPDetails {
   platform?: HostPlatform;
   global_config: IDeviceGlobalConfig;
   self_service: boolean;
+  /** Whether an iOS or iPadOS host should ask the Google status route for a
+   * sign-in URL. */
+  google_conditional_access_sign_in_required?: boolean;
 }
 
 export interface IHostEncrpytionKeyResponse {

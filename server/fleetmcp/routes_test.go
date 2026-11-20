@@ -271,7 +271,7 @@ var fakeHosts = []map[string]any{
 // fakeFleetResponse returns the minimal body each route needs for the tools to
 // carry on to their next call.
 func fakeFleetResponse(route Route, params map[string]string, query url.Values) (any, bool) {
-	policy := map[string]any{"id": 3, "name": "Disk encryption", "passing_host_count": 1, "failing_host_count": 1}
+	policy := map[string]any{"id": 3, "name": "Disk encryption", "fleet_id": 1, "passing_host_count": 1, "failing_host_count": 1}
 	hostDetail := func(match func(h map[string]any) bool) (any, bool) {
 		for _, h := range fakeHosts {
 			if match(h) {
@@ -288,9 +288,9 @@ func fakeFleetResponse(route Route, params map[string]string, query url.Values) 
 	switch route.Path {
 	case "/api/v1/fleet/fleets":
 		return map[string]any{"fleets": []any{map[string]any{"id": 1, "name": "Workstations"}}}, true
-	case "/api/v1/fleet/fleets/:id/policies", "/api/v1/fleet/global/policies":
+	case "/api/v1/fleet/policies":
 		return map[string]any{"policies": []any{policy}}, true
-	case "/api/v1/fleet/fleets/:fleet_id/policies/:policy_id", "/api/v1/fleet/global/policies/:id":
+	case "/api/v1/fleet/policies/:id":
 		return map[string]any{"policy": policy}, true
 	case "/api/v1/fleet/host_summary":
 		return map[string]any{"totals_hosts_count": 2, "platforms": []any{map[string]any{"platform": "darwin", "hosts_count": 2}}}, true

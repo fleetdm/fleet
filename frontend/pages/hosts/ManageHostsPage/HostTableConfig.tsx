@@ -738,7 +738,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent="Only supported on macOS, Windows, and Linux, where Fleet's agent can measure system uptime."
+          tipContent="Only supported on macOS, Windows, Linux, and ChromeOS where Fleet's agent can measure system uptime."
           tooltipClass="host-table-header-tooltip"
           fixedPositionStrategy
         >
@@ -757,7 +757,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (isMobilePlatform(platform) || platform === "chrome") {
+      if (isMobilePlatform(platform)) {
         return NotSupported;
       }
       return (

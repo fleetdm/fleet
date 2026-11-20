@@ -25,7 +25,7 @@ Here's what the end user sees with each option:
 | **Force patch** > **Deadline** | If the app is running, the end user sees a notification 1 hour before the fleet's next patch deadline. The app closes and updates at the deadline. If the app isn't running, it's patched silently. |
 | **End user initiated (manual)** | Nothing installs on its own. The end user updates the app from Fleet Desktop > Self service when they choose. |
 
-> The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** or **Deadline** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop.
+> The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** or **Deadline** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop. To keep the app installed but out of sight, see [Hide the Fleet Desktop app in Finder](#hide-the-fleet-desktop-app-in-finder).
 
 This chart shows what happens after a patch policy fails:
 
@@ -141,9 +141,34 @@ Fleet creates the patch policy with no software automation, so nothing installs 
 
 End users update the app when they choose. If the app is available in [self-service](https://fleetdm.com/guides/software-self-service), they select the Fleet icon in the menu bar, select **Self-service**, and update the app from there.
 
+
+## Hide the Fleet Desktop app in Finder
+
+Some organizations want end users to keep using the Fleet Desktop menu bar icon, or their own branded desktop app, instead of the Fleet Desktop app. The Fleet Desktop app is still required for notifications, but you can hide it in Finder. Notifications keep working, because Fleet runs the app from `/Applications/Fleet Desktop.app` by its path.
+
+1. [Deploy the Fleet Desktop app](https://fleetdm.com/guides/fleet-desktop#deploy-fleet-desktop) as a Fleet-maintained app, and don't make it available in **Self-service**.
+2. Under **Advanced options**, add this post-install script. It runs again after every update, so the new version stays hidden.
+
+```zsh
+#!/bin/zsh
+APP="/Applications/Fleet Desktop.app"
+
+if [[ ! -d "$APP" ]]; then
+  echo "Fleet Desktop app not present, nothing to hide"
+  exit 0
+fi
+
+/usr/bin/chflags hidden "$APP" || { echo "chflags failed"; exit 1; }
+echo "Hidden: $(/bin/ls -lOd "$APP")"
+```
+
+3. To hide the install policy from end users on **My device**, set [`hidden: true`](https://fleetdm.com/docs/configuration/yaml-files#policies) on it (Fleet 4.94 or later).
+
+Don't move or rename the app. Fleet only looks for it at `/Applications/Fleet Desktop.app`.
+
 <meta name="articleTitle" value="Patching end user experience">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-09-24">
+<meta name="publishedOn" value="2026-11-20">
 <meta name="description" value="See what end users experience for each Fleet-maintained app patch option, including notifications before Fleet closes and updates apps.">

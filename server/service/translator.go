@@ -69,11 +69,7 @@ func translateTeamToID(ctx context.Context, ds fleet.Datastore, identifier strin
 }
 
 func translateHostToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
-	host, err := ds.HostByIdentifier(ctx, identifier)
-	if err != nil {
-		return 0, err
-	}
-	return host.ID, nil
+	return ds.HostIDByIdentifier(ctx, identifier, fleet.HostIDByIdentifierOptions{})
 }
 
 func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {

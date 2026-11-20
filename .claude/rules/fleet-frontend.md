@@ -47,6 +47,21 @@ useQuery(
 - Build query strings with `buildQueryStringFromParams()` from `frontend/utilities/url/`
 - Build full paths with `getPathWithQueryParams(path, params)` — auto-filters undefined/null values
 
+## Read after write
+Never follow a write with a `GET` to learn what the write did. The `GET` can be answered by a read replica, or by another server instance's cache (app config is cached per instance for 1 second), and return the state from before the write: a success toast over a page that hasn't changed.
+
+- Update state from the write's response: `setConfig(await configAPI.update(changes))`, or `queryClient.setQueryData(key, response)` in a mutation's `onSuccess`.
+- When the result is known without a response (a delete, a toggle), set it locally.
+- If the endpoint doesn't return the state the UI needs, change the endpoint to return it, read on the primary (`ctxdb.RequirePrimary(ctx, true)`), instead of adding a follow-up `GET`.
+- Invalidating queries after a mutation (see React Query) is for data the response doesn't describe, like a paginated list the new row belongs to. It is not a way to read back what was just written.
+- Exception: after a failed write that may have partly applied, a reload is fine as a best effort. The error carries no state, and a stale answer only leaves the page as it was.
+
+Anti-pattern:
+```ts
+await teamsAPI.update(changes, teamId);
+const { team } = await teamsAPI.load(teamId); // may predate the write
+```
+
 ## Permission Checking
 Use helpers from `frontend/utilities/permissions/permissions.ts`:
 - Global roles: `permissions.isGlobalAdmin(user)`, `isGlobalMaintainer(user)`, `isOnGlobalTeam(user)`

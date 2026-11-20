@@ -2186,6 +2186,17 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "",
 		},
 		{
+			// The Homebrew "codex" formula is the OpenAI Codex CLI, which has no CPE of its own.
+			// Without a translation it matched codexnotes:codex, a notes app, and inherited its
+			// CVEs (CVE-2021-43635).
+			software: fleet.Software{
+				Name:    "codex",
+				Source:  "homebrew_packages",
+				Version: "0.165.0",
+			},
+			cpe: "",
+		},
+		{
 			// teamcity-cli installs as "teamcity" via the JetBrains Homebrew tap, but it is a
 			// separate product from the TeamCity CI server and has no CPE of its own, so it must
 			// not inherit the server's vulnerabilities.
@@ -2223,6 +2234,29 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:       "16",
 			},
 			cpe: "",
+		},
+		{
+			// The OneDrive Photos add-on is listed in Windows programs as "Photos" (Microsoft
+			// Corporation, version 26.x). It is not the Windows Photos app, which is a Store app and
+			// never appears in programs, and its 26.x version sorts below the 2022.x ranges of
+			// microsoft:photos CVEs such as CVE-2022-30168.
+			software: fleet.Software{
+				Name:    "Photos",
+				Source:  "programs",
+				Vendor:  "Microsoft Corporation",
+				Version: "26.204.1019.0007",
+			},
+			cpe: "",
+		},
+		{
+			// The skip only applies to the exact "Photos" name.
+			software: fleet.Software{
+				Name:    "Microsoft Photos",
+				Source:  "programs",
+				Vendor:  "Microsoft Corporation",
+				Version: "2026.11090.22001.0",
+			},
+			cpe: "cpe:2.3:a:microsoft:photos:2026.11090.22001.0:*:*:*:*:windows:*:*",
 		},
 	}
 

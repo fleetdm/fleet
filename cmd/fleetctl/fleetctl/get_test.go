@@ -539,9 +539,9 @@ func TestGetHosts(t *testing.T) {
 		ComputerName:    "test_host",
 		Hostname:        "test_host",
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.NotEmpty(t, identifier)
-		return &fleet.HostLite{ID: testHost.ID}, nil
+		return testHost.ID, nil
 	}
 	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		return testHost, nil
@@ -1556,52 +1556,52 @@ func TestGetQueries(t *testing.T) {
 		return nil, 0, 0, nil, errors.New("invalid team ID")
 	}
 
-	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |            SCHEDULE            |
-+--------+-------------+-----------+-----------+--------------------------------+
-| query1 | some desc   | select 1; | All teams | interval: 0                    |
-|        |             |           |           |                                |
-|        |             |           |           | platform: all                  |
-|        |             |           |           |                                |
-|        |             |           |           | min_osquery_version: all       |
-|        |             |           |           |                                |
-|        |             |           |           | automations_enabled: false     |
-|        |             |           |           |                                |
-|        |             |           |           | logging:                       |
-|        |             |           |           |                                |
-|        |             |           |           | discard_data: false            |
-+--------+-------------+-----------+-----------+--------------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                    |
-|        |             |           |           |                                |
-|        |             |           |           | platform: all                  |
-|        |             |           |           |                                |
-|        |             |           |           | min_osquery_version: all       |
-|        |             |           |           |                                |
-|        |             |           |           | automations_enabled: false     |
-|        |             |           |           |                                |
-|        |             |           |           | logging:                       |
-|        |             |           |           |                                |
-|        |             |           |           | discard_data: true             |
-|        |             |           |           |                                |
-|        |             |           |           | labels_include_any:            |
-|        |             |           |           |                                |
-|        |             |           |           |   - label1                     |
-|        |             |           |           |                                |
-|        |             |           |           |   - label2                     |
-+--------+-------------+-----------+-----------+--------------------------------+
-| query4 | some desc 4 | select 4; | All teams | interval: 60                   |
-|        |             |           |           |                                |
-|        |             |           |           | platform: darwin,windows       |
-|        |             |           |           |                                |
-|        |             |           |           | min_osquery_version: 5.3.0     |
-|        |             |           |           |                                |
-|        |             |           |           | automations_enabled: true      |
-|        |             |           |           |                                |
-|        |             |           |           | logging:                       |
-|        |             |           |           | differential_ignore_removals   |
-|        |             |           |           |                                |
-|        |             |           |           | discard_data: false            |
-+--------+-------------+-----------+-----------+--------------------------------+
+	expectedGlobal := `+--------+-------------+-----------+------------+--------------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |            SCHEDULE            |
++--------+-------------+-----------+------------+--------------------------------+
+| query1 | some desc   | select 1; | All fleets | interval: 0                    |
+|        |             |           |            |                                |
+|        |             |           |            | platform: all                  |
+|        |             |           |            |                                |
+|        |             |           |            | min_osquery_version: all       |
+|        |             |           |            |                                |
+|        |             |           |            | automations_enabled: false     |
+|        |             |           |            |                                |
+|        |             |           |            | logging:                       |
+|        |             |           |            |                                |
+|        |             |           |            | discard_data: false            |
++--------+-------------+-----------+------------+--------------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                    |
+|        |             |           |            |                                |
+|        |             |           |            | platform: all                  |
+|        |             |           |            |                                |
+|        |             |           |            | min_osquery_version: all       |
+|        |             |           |            |                                |
+|        |             |           |            | automations_enabled: false     |
+|        |             |           |            |                                |
+|        |             |           |            | logging:                       |
+|        |             |           |            |                                |
+|        |             |           |            | discard_data: true             |
+|        |             |           |            |                                |
+|        |             |           |            | labels_include_any:            |
+|        |             |           |            |                                |
+|        |             |           |            |   - label1                     |
+|        |             |           |            |                                |
+|        |             |           |            |   - label2                     |
++--------+-------------+-----------+------------+--------------------------------+
+| query4 | some desc 4 | select 4; | All fleets | interval: 60                   |
+|        |             |           |            |                                |
+|        |             |           |            | platform: darwin,windows       |
+|        |             |           |            |                                |
+|        |             |           |            | min_osquery_version: 5.3.0     |
+|        |             |           |            |                                |
+|        |             |           |            | automations_enabled: true      |
+|        |             |           |            |                                |
+|        |             |           |            | logging:                       |
+|        |             |           |            | differential_ignore_removals   |
+|        |             |           |            |                                |
+|        |             |           |            | discard_data: false            |
++--------+-------------+-----------+------------+--------------------------------+
 `
 
 	expectedYAMLGlobal := `---
@@ -1659,7 +1659,7 @@ spec:
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |  TEAM  |          SCHEDULE          |
+|  NAME  | DESCRIPTION |   QUERY   | FLEET  |          SCHEDULE          |
 +--------+-------------+-----------+--------+----------------------------+
 | query3 | some desc 3 | select 3; | Foobar | interval: 3600             |
 |        |             |           |        |                            |
@@ -2005,21 +2005,21 @@ func TestGetQueriesAsObserver(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setCurrentUserSession(t, ds, tc.user)
 
-			expected := `+--------+-------------+-----------+-----------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
-+--------+-------------+-----------+-----------+----------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
+			expected := `+--------+-------------+-----------+------------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |          SCHEDULE          |
++--------+-------------+-----------+------------+----------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
 `
 			expectedYaml := `---
 apiVersion: v1
@@ -2065,45 +2065,45 @@ spec:
 		},
 	})
 
-	expected := `+--------+-------------+-----------+-----------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
-+--------+-------------+-----------+-----------+----------------------------+
-| query1 | some desc   | select 1; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
-| query3 | some desc 3 | select 3; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
+	expected := `+--------+-------------+-----------+------------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |          SCHEDULE          |
++--------+-------------+-----------+------------+----------------------------+
+| query1 | some desc   | select 1; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
+| query3 | some desc 3 | select 3; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
 `
 	expectedYaml := `---
 apiVersion: v1
@@ -2208,33 +2208,33 @@ spec:
 			},
 		}, 2, 0, nil, nil
 	}
-	expected = `+--------+-------------+-----------+-----------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
-+--------+-------------+-----------+-----------+----------------------------+
-| query1 | some desc   | select 1; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
+	expected = `+--------+-------------+-----------+------------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |          SCHEDULE          |
++--------+-------------+-----------+------------+----------------------------+
+| query1 | some desc   | select 1; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "reports"}))
 }
@@ -2325,7 +2325,6 @@ func TestEnrichedAppConfig(t *testing.T) {
           "failing_policies_webhook": {
             "enable_failing_policies_webhook": false,
             "destination_url": "",
-            "policy_ids": null,
             "host_batch_size": 0
           },
           "vulnerabilities_webhook": {
@@ -2649,6 +2648,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "team1" {
@@ -3491,12 +3493,12 @@ func TestGetMDMCommands(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		fmt.Println("Called", identifier)
 		if identifier == "foo" || identifier == "h1" {
-			return &fleet.HostLite{ID: 1, UUID: "h1", Hostname: "host1"}, nil
+			return 1, nil
 		}
-		return nil, errors.New(fleet.HostIdentiferNotFound)
+		return 0, errors.New(fleet.HostIdentiferNotFound)
 	}
 
 	var empty bool

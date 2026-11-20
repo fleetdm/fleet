@@ -84,9 +84,6 @@ spec:
     apple_settings:
       enable_disk_encryption: false
       enable_escrow_disk_encryption_key: false
-    macos_settings:
-      enable_disk_encryption: false
-      enable_escrow_disk_encryption_key: false
     setup_experience:
       macos_managed_local_account_enabled: false
       windows_managed_local_account_enabled: false
@@ -167,6 +164,7 @@ spec:
     discard_reports_data: false
     server_url: ""
     ai_features_disabled: false
+    ai_sessions_disabled: false
     mcp_disabled: false
   smtp_settings:
     authentication_method: ""
@@ -219,7 +217,6 @@ spec:
       destination_url: ""
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""

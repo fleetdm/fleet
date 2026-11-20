@@ -170,4 +170,18 @@ describe("AgentOptionsPage", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(updateSpy).toHaveBeenCalledWith(1, EMPTY_AGENT_OPTIONS);
   });
+
+  it("submits whitespace-only agent options as an empty config", async () => {
+    const updateSpy = jest
+      .spyOn(osqueryOptionsAPI, "updateTeam")
+      .mockResolvedValue({} as never);
+    const { user } = renderAgentOptionsPage();
+
+    const editor = await screen.findByLabelText("YAML");
+    await user.clear(editor);
+    await user.type(editor, "   ");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(updateSpy).toHaveBeenCalledWith(1, EMPTY_AGENT_OPTIONS);
+  });
 });

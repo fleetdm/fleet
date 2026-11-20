@@ -4895,6 +4895,13 @@
       "description": "KnockKnock is a tool to show what is persistently installed on the computer."
     },
     {
+      "name": "KopiaUI",
+      "slug": "kopiaui/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.kopia.ui",
+      "description": "KopiaUI is a backup and restore tool."
+    },
+    {
       "name": "Krisp",
       "slug": "krisp/darwin",
       "platform": "darwin",
@@ -5924,6 +5931,13 @@
       "description": "Multitouch is a tool to add more gestures for Trackpad and Magic Mouse."
     },
     {
+      "name": "Munki",
+      "slug": "munki/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.munki.ManagedSoftwareCenter",
+      "description": "Munki is a software installation manager."
+    },
+    {
       "name": "MURAL",
       "slug": "mural/darwin",
       "platform": "darwin",
@@ -6659,6 +6673,13 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
+      "name": "Parsec",
+      "slug": "parsec/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tv.parsec.www",
+      "description": "Parsec is a remote desktop app for low-latency streaming and remote access to computers."
+    },
+    {
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",
@@ -7161,6 +7182,13 @@
       "platform": "darwin",
       "unique_identifier": "me.proton.pass.electron",
       "description": "Proton Pass is a desktop client for Proton Pass."
+    },
+    {
+      "name": "Proton Pass",
+      "slug": "proton-pass/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Pass",
+      "description": "Proton Pass is an open-source, end-to-end encrypted password manager."
     },
     {
       "name": "ProtonVPN",
@@ -10087,6 +10115,13 @@
       "platform": "darwin",
       "unique_identifier": "io.zeplin.osx",
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
+    },
+    {
+      "name": "ZeroTier One",
+      "slug": "zerotier-one/windows",
+      "platform": "windows",
+      "unique_identifier": "ZeroTier One",
+      "description": "ZeroTier One is a virtual networking client that connects devices over encrypted peer-to-peer networks."
     },
     {
       "name": "Zettlr",

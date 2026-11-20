@@ -310,12 +310,8 @@ class Collector:
             out["labels"] = [s for s in specs if s.get("label_type") in (None, "", "regular")
                              and (_team_id(s) or None) == (tid or None)]
 
-        if is_global:
-            pol = api.json(f"{F}/policies")
-            out["policies"] = _items(pol, "policies")
-        else:
-            pol = api.json(f"{F}/fleets/{tid}/policies")
-            out["policies"] = [p for p in _items(pol, "policies") if (_team_id(p) or 0) == tid]
+        pol = api.json(f"{F}/policies", fleet_param)
+        out["policies"] = _items(pol, "policies") if is_global else [p for p in _items(pol, "policies") if (_team_id(p) or 0) == tid]
 
         if not tid == 0:
             reps = api.paged(f"{F}/reports", "reports", fleet_param) if tid else api.paged(f"{F}/reports", "reports")

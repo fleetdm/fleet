@@ -350,6 +350,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/reset", nil, http.StatusPaymentRequired)
 
 	// try to update the apple_enable_release_device_manually setting, requires premium.
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)
@@ -590,54 +591,6 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	s.Do("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK)
 }
 
-// this test can be deleted once the "v1" version is removed.
-func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
-	t := s.T()
-
-	// create a query that can be scheduled
-	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "TestQuery2",
-		Query:          "select * from osquery;",
-		ObserverCanRun: true,
-		Saved:          true,
-		Logging:        fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	// try to schedule that query on the endpoint that is deprecated
-	// in that version
-	gsParams := fleet.ScheduledQueryPayload{QueryID: &qr.ID, Interval: new(uint(42))}
-	res := s.DoRaw("POST", "/api/2022-04/fleet/global/schedule", jsonMustMarshal(t, gsParams), http.StatusNotFound)
-	res.Body.Close()
-	// use the correct version for that deprecated API
-	createResp := globalScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/v1/fleet/global/schedule", gsParams, http.StatusOK, &createResp)
-	require.NotZero(t, createResp.Scheduled.ID)
-
-	// list the scheduled queries with the new endpoint, but the old version
-	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusNotFound)
-	res.Body.Close()
-
-	// list again, this time with the correct version
-	gs := fleet.GlobalSchedulePayload{}
-	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
-	require.Len(t, gs.GlobalSchedule, 1)
-
-	// the removed pack GET /schedule/{id} shares its path with the report-backed
-	// PATCH and DELETE on 2022-04+, so it is 405 there and 404 on v1
-	res = s.DoRaw("GET", fmt.Sprintf("/api/2022-04/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusMethodNotAllowed)
-	res.Body.Close()
-	res = s.DoRaw("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
-	res.Body.Close()
-
-	// delete using the old endpoint but on the wrong new version
-	res = s.DoRaw("DELETE", fmt.Sprintf("/api/2022-04/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
-	res.Body.Close()
-	// properly delete with old endpoint and old version
-	var delResp deleteGlobalScheduleResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusOK, &delResp)
-}
-
 func (s *integrationTestSuite) TestDebugDB() {
 	t := s.T()
 	var response map[string]string
@@ -662,4 +615,31 @@ func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
 	var d conditionalAccessMicrosoftDeleteResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
 		http.StatusPaymentRequired, &d)
+
+	var g googleConditionalAccessResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID:        "C02cajzvg",
+		AdminEmail:        "admin@example.com",
+		ServiceAccountKey: json.RawMessage(`{"client_email":"sa@example.com","private_key":"k"}`),
+	}, http.StatusPaymentRequired, &g)
+	s.DoJSON("PATCH", "/api/latest/fleet/conditional_access/google", json.RawMessage(`{"admin_email": "admin@example.com"}`),
+		http.StatusPaymentRequired, &g)
+	var gd deleteGoogleConditionalAccessResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusPaymentRequired, &gd)
+
+	t := s.T()
+	host := createOrbitEnrolledHost(t, "ios", "google", s.ds)
+	cleanupCtx := context.WithoutCancel(t.Context())
+	t.Cleanup(func() { _ = s.ds.DeleteHost(cleanupCtx, host.ID) })
+	// The device flows are off: nothing is enabled and no sign-in starts.
+	var st fleet.GoogleConditionalAccessDeviceStatus
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+host.UUID+"/conditional_access/google", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&st))
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, st)
+
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"integrations": {"google_conditional_access": {"customer_id": "C02cajzvg", "admin_email": "admin@example.com"}}
+	}`), http.StatusUnprocessableEntity)
+	name, _ := extractServerErrorNameReason(res.Body)
+	s.Require().Equal("integrations.google_conditional_access", name)
 }

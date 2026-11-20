@@ -333,11 +333,11 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 		{"both empty", json.RawMessage(`{}`), Features{}, false, false},
 		{"only one feature set", json.RawMessage(`{"host_settings": {"enable_host_users": true}}`), Features{EnableHostUsers: true}, false, false},
 		{
-			// macos_settings.enable_disk_encryption is no longer an alias of
+			// apple_settings.enable_disk_encryption is no longer an alias of
 			// the flat toggle: it enables macOS enforcement only, so the
 			// virtual flat toggle reads false.
 			"a feature and macOS disk encryption set",
-			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "mdm": {"macos_settings": {"enable_disk_encryption": true}}}`),
+			json.RawMessage(`{"host_settings": {"enable_host_users": true}, "mdm": {"apple_settings": {"enable_disk_encryption": true}}}`),
 			Features{EnableHostUsers: true},
 			false,
 			true,
@@ -351,7 +351,7 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 		},
 		{
 			"flat disk encryption false and macOS setting true",
-			json.RawMessage(`{"mdm": {"enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true}}}`),
+			json.RawMessage(`{"mdm": {"enable_disk_encryption": false, "apple_settings": {"enable_disk_encryption": true}}}`),
 			Features{},
 			false,
 			true,
@@ -388,7 +388,7 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			// the per-platform settings are always explicit booleans
 			mdm, ok := resultMap["mdm"].(map[string]any)
 			require.True(t, ok)
-			macosSettings, ok := mdm["macos_settings"].(map[string]any)
+			macosSettings, ok := mdm["apple_settings"].(map[string]any)
 			require.True(t, ok)
 			require.EqualValues(t, c.wantMacOSDiskEncryption, macosSettings["enable_disk_encryption"])
 			require.EqualValues(t, c.wantDiskEncryption, macosSettings["enable_escrow_disk_encryption_key"])

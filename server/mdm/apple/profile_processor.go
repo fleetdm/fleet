@@ -215,6 +215,23 @@ func preprocessProfileContents(
 			}
 		}
 
+		// The conditional access SCEP URL and challenge placeholder are the same for every host, so they're substituted
+		// once on the shared contents. The challenge is created for the host when the command is sent (see
+		// ExpandHostSecrets), so the stored command never holds one.
+		isConditionalAccessVar := func(v string) bool {
+			return v == string(fleet.FleetVarConditionalAccessSCEPURL) || v == string(fleet.FleetVarConditionalAccessSCEPChallenge)
+		}
+		if slices.ContainsFunc(fleetVars, isConditionalAccessVar) {
+			scepURL, err := url.JoinPath(appConfig.ServerSettings.ServerURL, fleet.ConditionalAccessSCEPPath)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building conditional access SCEP URL")
+			}
+			contentsStr = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPURLRegexp, contentsStr, scepURL)
+			contentsStr = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPChallengeRegexp, contentsStr,
+				fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge))
+			fleetVars = slices.DeleteFunc(fleetVars, isConditionalAccessVar)
+		}
+
 		var variablesUpdatedAt *time.Time
 
 		// Do common validation that applies to all hosts in the target

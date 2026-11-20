@@ -13,8 +13,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"golang.org/x/text/unicode/norm"
-
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -29,8 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
-
-const teamNameConflictErrMsg = "Fleet names must differ by more than letter case."
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	if user == nil {
@@ -102,17 +98,20 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if utf8.RuneCountInString(*p.Name) > fleet.MaxTeamNameLength {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 	}
-	if fleet.IsReservedTeamName(*p.Name) {
-		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
+	if reason := fleet.ReservedTeamNameReason(*p.Name); reason != "" {
+		return nil, fleet.NewInvalidArgumentError("name", reason)
+	}
+	if fleet.TeamNameKey(*p.Name) == "" {
+		return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
 	}
 
-	conflict, err := svc.ds.TeamConflictsWithName(ctx, *p.Name, 0)
+	conflict, err := svc.ds.TeamConflictsWithName(ctxdb.RequirePrimary(ctx, true), *p.Name, 0)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
 	}
 	if conflict != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
+			Message: fleet.TeamNameConflictMessage(*p.Name, conflict.Name),
 		})
 	}
 
@@ -194,17 +193,20 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if utf8.RuneCountInString(*payload.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
-		if fleet.IsReservedTeamName(*payload.Name) {
-			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
+		if reason := fleet.ReservedTeamNameReason(*payload.Name); reason != "" {
+			return nil, fleet.NewInvalidArgumentError("name", reason)
+		}
+		if fleet.TeamNameKey(*payload.Name) == "" {
+			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
 		}
 
-		conflict, err := svc.ds.TeamConflictsWithName(ctx, *payload.Name, teamID)
+		conflict, err := svc.ds.TeamConflictsWithName(ctxdb.RequirePrimary(ctx, true), *payload.Name, teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
 		}
 		if conflict != nil {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
+				Message: fleet.TeamNameConflictMessage(*payload.Name, conflict.Name),
 			})
 		}
 		oldName = team.Name
@@ -649,7 +651,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	); err != nil {
 		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
 		ctxerr.Handle(ctx, err)
-		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "fleet_id", team.ID)
 	}
 
 	if macOSMinVersionUpdated {
@@ -908,7 +910,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
-				svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
+				svc.logger.InfoContext(ctx, "force-apply fleet agent options with validation errors", "err", err)
 			}
 			if !applyOptions.Force {
 				return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -975,7 +977,7 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		}
 		if fullUser.HasAnyGlobalRole() && (currentUser == nil || !currentUser.HasAnyGlobalRole()) {
 			return nil, authz.ForbiddenWithInternal(
-				"A user with a global role cannot be added to a team by a non global user.",
+				"A user with a global role cannot be added to a fleet by a non global user.",
 				currentUser, fullUser, fleet.ActionWriteMembers,
 			)
 		}
@@ -1085,7 +1087,6 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	if err != nil {
 		return nil, err
 	}
-
 	if err = obfuscateSecrets(vc.User, teams); err != nil {
 		return nil, err
 	}
@@ -1252,12 +1253,11 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		if err != nil {
 			return nil, err
 		}
-
 		// Convert TeamConfig to Team for API compatibility
 		// Team ID 0 represents "No Team"
 		team := &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}
 
@@ -1301,7 +1301,6 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 	if err != nil {
 		return nil, err
 	}
-
 	if err = obfuscateSecrets(user, []*fleet.Team{team}); err != nil {
 		return nil, err
 	}
@@ -1390,7 +1389,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 		activity := fleet.ActivityTypeEditedEnrollSecrets{}
 		team, err := svc.ds.TeamLite(ctx, teamID)
 		if err != nil {
-			svc.logger.ErrorContext(ctx, "error while fetching team for edited enroll secret activity", "err", err, "teamID", teamID)
+			svc.logger.ErrorContext(ctx, "error while fetching fleet for edited enroll secret activity", "err", err, "fleet_id", teamID)
 		}
 		if team != nil {
 			activity = fleet.ActivityTypeEditedEnrollSecrets{
@@ -1398,7 +1397,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 				TeamName: &team.Name,
 			}
 		} else {
-			svc.logger.ErrorContext(ctx, "team not found for edited enroll secret activity", "teamID", teamID)
+			svc.logger.ErrorContext(ctx, "fleet not found for edited enroll secret activity", "fleet_id", teamID)
 		}
 
 		if err := svc.NewActivity(
@@ -1406,7 +1405,7 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 			authz.UserFromContext(ctx),
 			activity,
 		); err != nil {
-			errMsg := fmt.Sprintf("creating edited enroll secret activity for team %d", teamID)
+			errMsg := fmt.Sprintf("creating edited enroll secret activity for fleet %d", teamID)
 			return nil, ctxerr.Wrap(ctx, err, errMsg)
 		}
 	}
@@ -1507,7 +1506,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	seenNames := make(map[string]seenSpec, len(specs))
 	for _, spec := range specs {
 		trimmedName := strings.TrimSpace(spec.Name)
-		key := norm.NFC.String(strings.ToLower(trimmedName))
+		// Compares name keys only. Pairs that conflict only under the
+		// teams.name collation are caught by the database check below.
+		key := fleet.TeamNameKey(trimmedName)
 		if key == "" {
 			continue
 		}
@@ -1518,7 +1519,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if prev, ok := seenNames[key]; ok {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
 				"duplicate fleet names in request: %q (filename %q) and %q (filename %q). %s",
-				prev.name, prev.filename, trimmedName, filename, teamNameConflictErrMsg,
+				prev.name, prev.filename, trimmedName, filename, fleet.TeamNameConflictHint,
 			)})
 		}
 		seenNames[key] = seenSpec{name: trimmedName, filename: filename}
@@ -1554,8 +1555,11 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if utf8.RuneCountInString(spec.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
-		if fleet.IsReservedTeamName(spec.Name) {
-			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
+		if reason := fleet.ReservedTeamNameReason(spec.Name); reason != "" {
+			return nil, fleet.NewInvalidArgumentError("name", reason)
+		}
+		if fleet.TeamNameKey(spec.Name) == "" {
+			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
 		}
 
 		var team *fleet.Team
@@ -1567,23 +1571,6 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			team, err = svc.ds.TeamByFilename(ctx, *spec.Filename)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, err
-			}
-		}
-
-		// If we matched by filename, enforce uniqueness against *other*
-		// teams. Excluding the matched team's id lets a case-only self-rename
-		// ("ABC" → "abc") succeed while still catching renames that collide
-		// with a different team.
-		if team != nil {
-			conflict, err := svc.ds.TeamConflictsWithName(ctx, spec.Name, team.ID)
-			if err != nil {
-				return nil, err
-			}
-			if conflict != nil {
-				return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
-					"fleet name %q conflicts with existing fleet %q. %s",
-					spec.Name, conflict.Name, teamNameConflictErrMsg,
-				)})
 			}
 		}
 
@@ -1604,9 +1591,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 					// The spec supplied a filename that matched no existing
 					// team, but the team matched by name is already managed
 					// by a different filename.
-					svc.logger.InfoContext(ctx, "GitOps filename changed for existing team",
-						"team_id", team.ID,
-						"team_name", team.Name,
+					svc.logger.InfoContext(ctx, "GitOps filename changed for existing fleet",
+						"fleet_id", team.ID,
+						"fleet_name", team.Name,
 						"old_filename", *team.Filename,
 						"new_filename", *spec.Filename,
 					)
@@ -1623,12 +1610,25 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			tmID = team.ID
 		}
 
+		// Enforce uniqueness against *other* teams, whether this spec creates a
+		// team or edits the one matched above. Excluding the matched team's id
+		// lets a self-rename to a variant of its own name ("ABC" → "abc")
+		// succeed while still catching names that collide with a different
+		// team.
+		conflict, err := svc.ds.TeamConflictsWithName(ctxdb.RequirePrimary(ctx, true), spec.Name, tmID)
+		if err != nil {
+			return nil, err
+		}
+		if conflict != nil {
+			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.TeamNameConflictMessage(spec.Name, conflict.Name)})
+		}
+
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
 			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true, tmID); err != nil {
 				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
-					svc.logger.InfoContext(ctx, "force-apply team agent options with validation errors", "err", err)
+					svc.logger.InfoContext(ctx, "force-apply fleet agent options with validation errors", "err", err)
 				}
 				if !applyOpts.Force {
 					return nil, ctxerr.Wrap(ctx, err, "validate agent options")
@@ -1727,7 +1727,7 @@ func validateVulnExposureFilters(ctx context.Context, veFilters *fleet.VulnExpos
 		return nil
 	}
 	invalid := &fleet.InvalidArgumentError{}
-	veFilters.Validate("team.settings.features", invalid)
+	veFilters.Validate("features", invalid)
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -1902,6 +1902,12 @@ func (svc *Service) createTeamFromSpec(
 		hostActivitiesWebhook = spec.WebhookSettings.HostActivitiesWebhook
 	}
 
+	var failingPoliciesWebhook fleet.FailingPoliciesWebhookSettings
+	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
+		failingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
+	}
+
 	if spec.Integrations.GoogleCalendar != nil {
 		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
@@ -1929,7 +1935,7 @@ func (svc *Service) createTeamFromSpec(
 				return nil, err
 			}
 			if !available {
-				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for fleet '%s' is already being used", spec.Name))
 				break
 			}
 		}
@@ -1966,8 +1972,9 @@ func (svc *Service) createTeamFromSpec(
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
-				HostStatusWebhook:     hostStatusWebhook,
-				HostActivitiesWebhook: hostActivitiesWebhook,
+				FailingPoliciesWebhook: failingPoliciesWebhook,
+				HostStatusWebhook:      hostStatusWebhook,
+				HostActivitiesWebhook:  hostActivitiesWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar:           spec.Integrations.GoogleCalendar,
@@ -2054,7 +2061,7 @@ func (svc *Service) editTeamFromSpec(
 	opts fleet.ApplyTeamSpecOptions,
 ) error {
 	if team == nil {
-		return ctxerr.New(ctx, "editing team from spec: team is nil")
+		return ctxerr.New(ctx, "editing fleet from spec: fleet is nil")
 	}
 
 	var oldName string
@@ -2456,7 +2463,7 @@ func (svc *Service) editTeamFromSpec(
 				return err
 			}
 			if !available {
-				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for fleet '%s' is already being used", spec.Name))
 				break
 			}
 		}
@@ -2510,7 +2517,7 @@ func (svc *Service) editTeamFromSpec(
 	); err != nil {
 		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
 		ctxerr.Handle(ctx, err)
-		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "fleet_id", team.ID)
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSDiskEncryption {
@@ -3025,7 +3032,6 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
-
 	// Apply and validate webhook settings if provided
 	if payload.WebhookSettings != nil {
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
@@ -3041,7 +3047,7 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 		if payload.Integrations.GoogleCalendar != nil ||
 			payload.Integrations.ConditionalAccessEnabled.Set {
 			return nil, fleet.NewInvalidArgumentError("integrations",
-				"google_calendar and conditional_access_enabled are not supported for \"No team\"")
+				"google_calendar and conditional_access_enabled are not supported for \"Unassigned\"")
 		}
 
 		// Get app config for integration validation (needed even if clearing integrations)
@@ -3090,7 +3096,7 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	// Return as a Team for API compatibility
 	team := &fleet.Team{
 		ID:     0,
-		Name:   fleet.ReservedNameNoTeam,
+		Name:   fleet.DisplayNameNoTeam,
 		Config: *config,
 	}
 

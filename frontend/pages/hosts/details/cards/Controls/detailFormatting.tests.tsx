@@ -46,7 +46,7 @@ describe("getDetailGuidance", () => {
       createMockHostMdmProfile({
         status: "failed",
         detail:
-          'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration The variable is used in the DigiCert certificate authority, not in the profile.',
+          'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade The variable is used in the DigiCert certificate authority, not in the profile.',
       })
     );
 
@@ -54,11 +54,11 @@ describe("getDetailGuidance", () => {
 
     expect(
       screen.getByRole("link", {
-        name: /fleetdm.com\/learn-more-about\/fleet-5-migration/,
+        name: /fleetdm.com\/learn-more-about\/fleet-5-upgrade/,
       })
     ).toHaveAttribute(
       "href",
-      "https://fleetdm.com/learn-more-about/fleet-5-migration"
+      "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
     );
     expect(
       screen.getByText(/used in the DigiCert certificate authority/)

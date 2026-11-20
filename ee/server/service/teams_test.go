@@ -154,6 +154,71 @@ func TestNewTeamNameValidation(t *testing.T) {
 			teamName: new(strings.Repeat("日", fleet.MaxTeamNameLength)),
 			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
 		},
+		{
+			name:     "emoji only is rejected",
+			teamName: new("🚀"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "repeated emoji is rejected",
+			teamName: new("🚀🚀🚀"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "punctuation only is rejected",
+			teamName: new("!!!"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "dashes only is rejected",
+			teamName: new("---"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "CJK brackets only is rejected",
+			teamName: new("「」"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "CJK punctuation only is rejected",
+			teamName: new("・・・"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "emoji separated by spaces is rejected",
+			teamName: new("🚀 🚀"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "combining mark only is rejected",
+			teamName: new("\u093e"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "Devanagari name is accepted",
+			teamName: new("राम"),
+			wantName: "राम",
+		},
+		{
+			name:     "CJK name is accepted",
+			teamName: new("開発"),
+			wantName: "開発",
+		},
+		{
+			name:     "accented name is accepted",
+			teamName: new("Ingeniería"),
+			wantName: "Ingeniería",
+		},
+		{
+			name:     "numbers only is accepted",
+			teamName: new("2026"),
+			wantName: "2026",
+		},
+		{
+			name:     "name with an emoji is accepted",
+			teamName: new("Fleet 🚀"),
+			wantName: "Fleet 🚀",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -299,6 +364,71 @@ func TestModifyTeamNameValidation(t *testing.T) {
 			teamName: new(strings.Repeat("日", fleet.MaxTeamNameLength)),
 			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
 		},
+		{
+			name:     "emoji only is rejected",
+			teamName: new("🚀"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "repeated emoji is rejected",
+			teamName: new("🚀🚀🚀"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "punctuation only is rejected",
+			teamName: new("!!!"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "dashes only is rejected",
+			teamName: new("---"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "CJK brackets only is rejected",
+			teamName: new("「」"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "CJK punctuation only is rejected",
+			teamName: new("・・・"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "emoji separated by spaces is rejected",
+			teamName: new("🚀 🚀"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "combining mark only is rejected",
+			teamName: new("\u093e"),
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "Devanagari name is accepted",
+			teamName: new("राम"),
+			wantName: "राम",
+		},
+		{
+			name:     "CJK name is accepted",
+			teamName: new("開発"),
+			wantName: "開発",
+		},
+		{
+			name:     "accented name is accepted",
+			teamName: new("Ingeniería"),
+			wantName: "Ingeniería",
+		},
+		{
+			name:     "numbers only is accepted",
+			teamName: new("2026"),
+			wantName: "2026",
+		},
+		{
+			name:     "name with an emoji is accepted",
+			teamName: new("Fleet 🚀"),
+			wantName: "Fleet 🚀",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -424,6 +554,71 @@ func TestApplyTeamSpecsNameValidation(t *testing.T) {
 			teamName: strings.Repeat("日", fleet.MaxTeamNameLength),
 			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
 		},
+		{
+			name:     "emoji only is rejected",
+			teamName: "🚀",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "repeated emoji is rejected",
+			teamName: "🚀🚀🚀",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "punctuation only is rejected",
+			teamName: "!!!",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "dashes only is rejected",
+			teamName: "---",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "CJK brackets only is rejected",
+			teamName: "「」",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "CJK punctuation only is rejected",
+			teamName: "・・・",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "emoji separated by spaces is rejected",
+			teamName: "🚀 🚀",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "combining mark only is rejected",
+			teamName: "\u093e",
+			wantErr:  "must include at least one letter or number",
+		},
+		{
+			name:     "Devanagari name is accepted",
+			teamName: "राम",
+			wantName: "राम",
+		},
+		{
+			name:     "CJK name is accepted",
+			teamName: "開発",
+			wantName: "開発",
+		},
+		{
+			name:     "accented name is accepted",
+			teamName: "Ingeniería",
+			wantName: "Ingeniería",
+		},
+		{
+			name:     "numbers only is accepted",
+			teamName: "2026",
+			wantName: "2026",
+		},
+		{
+			name:     "name with an emoji is accepted",
+			teamName: "Fleet 🚀",
+			wantName: "Fleet 🚀",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -483,7 +678,7 @@ func TestNewTeamCollationEqualConflict(t *testing.T) {
 	var conflict *fleet.ConflictError
 	require.ErrorAs(t, err, &conflict)
 	require.Contains(t, err.Error(), `"ABC"`)
-	require.Contains(t, err.Error(), "must differ by more than letter case")
+	require.Contains(t, err.Error(), fleet.TeamNameConflictHint)
 }
 
 // TestModifyTeamCaseOnlyRenameAndConflict covers two ModifyTeam scenarios:
@@ -555,7 +750,7 @@ func TestModifyTeamCaseOnlyRenameAndConflict(t *testing.T) {
 		var conflict *fleet.ConflictError
 		require.ErrorAs(t, err, &conflict)
 		require.Contains(t, err.Error(), `"def"`)
-		require.Contains(t, err.Error(), "must differ by more than letter case")
+		require.Contains(t, err.Error(), fleet.TeamNameConflictHint)
 	})
 }
 
@@ -566,7 +761,7 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 				Enable: true, DestinationURL: "https://example.com/status", HostPercentage: 10, DaysCount: 2,
 			},
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-				Enable: true, DestinationURL: "https://example.com/policies", PolicyIDs: []uint{1, 2}, HostBatchSize: 5,
+				Enable: true, DestinationURL: "https://example.com/policies", HostBatchSize: 5,
 			},
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable: true, DestinationURL: "https://example.com/activities",
@@ -614,9 +809,9 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 		},
 		{
 			name: "failing policies only (policies automations)",
-			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "policy_ids": [3], "host_batch_size": 0}}}`,
+			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "host_batch_size": 0}}}`,
 			want: func(w *fleet.TeamWebhookSettings) {
-				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2", PolicyIDs: []uint{3}}
+				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2"}
 			},
 		},
 		{
@@ -770,7 +965,7 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 		var conflict *fleet.ConflictError
 		require.ErrorAs(t, err, &conflict)
 		require.Contains(t, err.Error(), `"def"`)
-		require.Contains(t, err.Error(), "must differ by more than letter case")
+		require.Contains(t, err.Error(), fleet.TeamNameConflictHint)
 	})
 
 	t.Run("adopt existing team via new filename succeeds", func(t *testing.T) {
@@ -816,7 +1011,75 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 		require.ErrorAs(t, err, &conflict)
 		require.Contains(t, err.Error(), "foo.yml")
 		require.Contains(t, err.Error(), "bar.yml")
-		require.Contains(t, err.Error(), "must differ by more than letter case")
+		require.Contains(t, err.Error(), fleet.TeamNameConflictHint)
+	})
+
+	t.Run("intra-batch conflict ignores whitespace and punctuation", func(t *testing.T) {
+		svc, ds := newSvc()
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			t.Fatalf("TeamConflictsWithName must not be called when the pre-pass catches the conflict (got name=%q, excludeID=%d)", name, excludeID)
+			return nil, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "Work Stations"},
+			{Name: "Servers"},
+			{Name: "work-stations"},
+		}, fleet.ApplyTeamSpecOptions{})
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, err, &conflict)
+		require.Contains(t, err.Error(), `"Work Stations"`)
+		require.Contains(t, err.Error(), `"work-stations"`)
+		require.Contains(t, err.Error(), fleet.TeamNameConflictHint)
+	})
+
+	t.Run("new team that conflicts with an existing team is not created", func(t *testing.T) {
+		for _, filename := range []*string{nil, new("work-stations.yml")} {
+			for _, dryRun := range []bool{false, true} {
+				svc, ds := newSvc()
+				ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+					require.Equal(t, "Work-stations", name)
+					require.Zero(t, excludeID)
+					return &fleet.Team{ID: 3, Name: "Workstations"}, nil
+				}
+				ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+					t.Fatalf("NewTeam must not be called when a conflict is detected")
+					return nil, nil
+				}
+
+				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+					{Name: "Work-stations", Filename: filename},
+				}, fleet.ApplyTeamSpecOptions{DryRun: dryRun})
+				var conflict *fleet.ConflictError
+				require.ErrorAs(t, err, &conflict)
+				require.Contains(t, err.Error(), fleet.TeamNameConflictMessage("Work-stations", "Workstations"))
+			}
+		}
+	})
+
+	t.Run("adopting a team by name with a rename that conflicts with another team fails", func(t *testing.T) {
+		// "Team 𝐁" matches the existing "Team 𝐀" under the collation, so the
+		// spec adopts it. The new name then matches "Team B" by name key.
+		svc, ds := newSvc()
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return &fleet.Team{ID: 12, Name: "Team 𝐀"}, nil
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			require.Equal(t, "Team 𝐁", name)
+			require.Equal(t, uint(12), excludeID)
+			return &fleet.Team{ID: 13, Name: "Team B"}, nil
+		}
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			t.Fatalf("SaveTeam must not be called when a conflict is detected")
+			return nil, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "Team 𝐁", Filename: new("team-b.yml")},
+		}, fleet.ApplyTeamSpecOptions{})
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, err, &conflict)
+		require.Contains(t, err.Error(), `"Team B"`)
 	})
 
 	t.Run("no-filename spec with collation-equal name preserves DB canonical name", func(t *testing.T) {

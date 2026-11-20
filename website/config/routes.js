@@ -571,6 +571,38 @@ module.exports.routes = {
     }
   },
 
+  'GET /google-conditional-access/done': {
+    action: 'google-proxy/view-google-conditional-access-done',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/not-allowed': {
+    action: 'google-proxy/view-google-conditional-access-not-allowed',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/not-found': {
+    action: 'google-proxy/view-google-conditional-access-not-found',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/error': {
+    action: 'google-proxy/view-google-conditional-access-error',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
   'GET /legal/terms': {
     action: 'legal/view-terms',
   },
@@ -907,7 +939,7 @@ module.exports.routes = {
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing',
   'GET /handbook/community': '/handbook/marketing',
-  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/marketing/markdown-guide': '/handbook/company/writing',
   'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
   'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
@@ -1429,6 +1461,8 @@ module.exports.routes = {
   'GET /learn-more-about/apple-available-os-updates': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
   'GET /learn-more-about/linux-os-updates': '/guides/enforce-os-updates#linux',
   'GET /learn-more-about/android-os-updates': '/guides/enforce-os-updates#android',
+  'GET /learn-more-about/os-updates-apple': '/guides/enforce-os-updates#apple-macos-ios-and-ipados-end-user-experience',
+  'GET /learn-more-about/os-updates-windows': '/guides/enforce-os-updates#windows2',
   'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
   'GET /learn-more-about/query-templates-for-automatic-install-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
@@ -1461,7 +1495,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
-  'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#step-2-sign-the-package',
+  'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#sign-the-package',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/self-service-software-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/api/rest-api#request-certificate',
@@ -1479,6 +1513,8 @@ module.exports.routes = {
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/managed-lost-mode': 'https://support.apple.com/en-gb/guide/security/secc46f3562c/web',
   'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#special-android-behavior',
+  'GET /learn-more-about/deployment-rings': '/guides/roll-out-changes-with-deployment-rings',
+  'GET /learn-more-about/roll-out-new-package-version': '/guides/roll-out-changes-with-deployment-rings#a-new-version-of-a-custom-package',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/api/rest-api#get-manual-enrollment-profile',
@@ -1515,7 +1551,7 @@ module.exports.routes = {
   'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
-  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
+  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
@@ -1668,6 +1704,14 @@ module.exports.routes = {
   'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
   'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
   'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
+
+  //  ╔═╗╔═╗╔═╗╔═╗╦  ╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ║ ╦║ ║║ ║║ ╦║  ║╣   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╚═╝╚═╝╚═╝╚═╝╩═╝╚═╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/google-conditional-access': { action: 'google-proxy/create-google-conditional-access-customer', csrf: false },
+  'DELETE /api/v1/google-conditional-access': { action: 'google-proxy/remove-one-google-conditional-access-customer', csrf: false },
+  'GET /api/v1/google-conditional-access/sign-in': { action: 'google-proxy/redirect-to-google-sign-in' },
+  'GET /api/v1/google-conditional-access/callback': { action: 'google-proxy/receive-redirect-from-google' },
 
   //
   //  ╦  ╦╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
