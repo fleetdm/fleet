@@ -21,39 +21,44 @@
   faq:
     - question: What does the InstallProfile MDM command do?
       answer: |
-        `InstallProfile` tells an Apple device to install a configuration profile (`.mobileconfig`). The profile is base64-encoded and sent in the command's `Payload` key.
+        `InstallProfile` tells an Apple device to install a configuration profile (`.mobileconfig`). The profile is base64-encoded and sent in the command's `Payload` key, and it installs without asking the user to approve it.
 
-        Once installed, the device enforces every payload in the profile, such as restrictions, Wi-Fi, VPN, certificates, or passcode rules. Profiles installed by MDM are marked as managed, so the MDM server can remove them later.
+        Once installed, the device enforces every payload in the profile, such as restrictions, Wi-Fi, VPN, certificates, or passcode rules. The profile is marked as managed, so only the MDM that installed it can remove it.
     - question: How often is InstallProfile used?
       answer: |
-        Constantly. It's one of the most common Apple MDM commands. Every MDM uses it during enrollment to deliver settings, and again whenever a profile is added, edited, or retried.
+        Constantly. It's one of the most common Apple MDM commands. MDMs send it during enrollment to deliver settings, and again whenever a profile is added, edited, or reassigned.
 
-        On a typical fleet, most of the MDM command traffic for configuration comes from `InstallProfile` and its counterpart, `RemoveProfile`.
+        Apple now ships many new settings as declarations for declarative device management (DDM), but configuration profiles are still how most Apple settings get delivered.
+    - question: What's the difference between InstallProfile and declarative device management (DDM)?
+      answer: |
+        With `InstallProfile`, the MDM server pushes a profile and has to check back to confirm the device still has it. With DDM, the server sends declarations once, and the device applies them, keeps them enforced, and reports status changes on its own.
+
+        Most MDMs, including Fleet, support both. Some newer Apple settings, like software update enforcement, are only available as declarations.
+    - question: Can I install a configuration profile without an MDM?
+      answer: |
+        Yes. On a Mac, a user can open a `.mobileconfig` file and approve it in **System Settings > General > Device Management**. On iPhone and iPad, they download it and install it from **Settings**.
+
+        But some payloads only work when an MDM installs them, like privacy preferences (PPPC), system extension, and kernel extension policies. Users can also remove profiles they installed themselves at any time.
     - question: Which Fleet features use InstallProfile?
       answer: |
-        Fleet sends `InstallProfile` automatically for [OS settings](https://fleetdm.com/guides/custom-os-settings). When you add a `.mobileconfig` in **Controls > OS settings > Configuration profiles** (or with GitOps), Fleet signs it and sends it to every targeted host.
+        [OS settings](https://fleetdm.com/guides/custom-os-settings). When you add a `.mobileconfig` in **Controls > OS settings** or with GitOps, Fleet signs it and sends `InstallProfile` to every targeted host.
 
-        Fleet also uses it for profiles it manages itself, like disk encryption settings and certificate delivery profiles, and to renew a host's enrollment profile.
-    - question: How do I send InstallProfile with Fleet?
+        Fleet also installs a few profiles of its own, like the FileVault profile when disk encryption is enforced, and a renewed enrollment profile when a host's MDM certificate is close to expiring.
+    - question: How do I send a one-off InstallProfile command with Fleet?
       answer: |
-        For most cases, upload the profile in **Controls > OS settings** instead. Fleet then tracks status, retries failures, and removes the profile when a host leaves the fleet.
+        Base64-encode your `.mobileconfig`, put it in the `Payload` `<data>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=install-profile.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
-        To send it as a one-off custom command, base64-encode your `.mobileconfig`, put it in the `Payload` `<data>` element, and run `fleetctl mdm run-command --hosts=<hostname> --payload=install-profile.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API, with the whole command base64-encoded. It's available in Fleet Free.
-    - question: Will Fleet track a profile I install with a custom command?
-      answer: |
-        No. A profile sent as a custom `InstallProfile` command isn't one of the host's OS settings in Fleet. Fleet won't show its status in **Host details > OS settings**, retry it, or remove it when the host changes fleets.
-
-        If you want Fleet to keep the profile enforced, add it as a configuration profile in **Controls > OS settings**.
+        A profile sent this way isn't tracked in OS settings, so Fleet won't retry it or remove it later. If you want the profile enforced, add it in **Controls > OS settings** instead.
     - question: Can I install a user-scoped profile with InstallProfile?
       answer: |
-        Not as a custom command. Fleet sends custom MDM commands on the device channel only, so the profile installs at the device (system) level.
+        Only on macOS, and only on the user channel. `InstallProfile` sent on the device channel installs the profile for the whole device. Sent on the user channel, it installs for the signed-in user.
 
-        To deliver a user-scoped profile on macOS, set `PayloadScope` to `User` and add it in OS settings. Fleet then sends it on the user channel. Learn more in the [device and user scope guide](https://fleetdm.com/guides/custom-os-settings#device-and-user-scope).
+        Fleet sends custom commands on the device channel. To deliver a user-scoped profile with Fleet, set `PayloadScope` to `User` and add it in OS settings. Learn more about [device and user scope](https://fleetdm.com/guides/custom-os-settings#device-and-user-scope).
     - question: How do I know if InstallProfile worked?
       answer: |
-        Run `fleetctl get mdm-command-results --id=<command-uuid>`. A status of `Acknowledged` means the device installed the profile. `Error` means it rejected it, and the result includes Apple's `ErrorChain`.
+        `Acknowledged` means the device installed the profile. `Error` means it rejected it, and the response includes Apple's `ErrorChain` with the reason. In Fleet, run `fleetctl get mdm-command-results --id=<command-uuid>`.
 
-        On the device, the profile appears in **System Settings > General > Device Management** on macOS, or **Settings > General > VPN & Device Management** on iPhone and iPad. For profiles managed in OS settings, Fleet shows Pending, Verifying, Verified, or Failed.
+        On the device, the profile appears in **System Settings > General > Device Management** on macOS, or **Settings > General > VPN & Device Management** on iPhone and iPad.
     - question: What errors can InstallProfile return?
       answer: |
         Most failures come back in the `ErrorChain` with the `MCInstallationErrorDomain` or `MCProfileErrorDomain` domain. Common causes:
@@ -61,14 +66,14 @@
         - The profile is malformed, or the payload isn't base64-encoded correctly.
         - A payload isn't supported on that platform or OS version.
         - A payload requires a supervised device, or user-approved MDM on macOS.
-        - A profile with the same `PayloadIdentifier` already exists and can't be replaced.
+        - A profile with the same `PayloadIdentifier` was installed by the user or another MDM, so it can't be replaced.
 
         `CommandFormatError` means the command plist itself was invalid.
     - question: Does InstallProfile require a supervised device?
       answer: |
-        No, the command works on supervised and unsupervised devices. But some payloads inside a profile only apply on supervised iPhones and iPads, like many restrictions.
+        No. The command works on supervised and unsupervised devices. But some payloads inside a profile only apply on supervised iPhones and iPads, including many restrictions.
 
-        On macOS, some payloads, like privacy preferences (PPPC) and kernel extension policies, only work when MDM enrollment is user-approved. Hosts enrolled through automatic enrollment (ADE) meet that requirement.
+        On macOS, some payloads, like privacy preferences (PPPC) and kernel extension policies, only work when MDM enrollment is user-approved. Macs enrolled through Automated Device Enrollment (ADE) meet that requirement.
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -127,36 +132,41 @@
   faq:
     - question: What does the ProfileList MDM command do?
       answer: |
-        `ProfileList` asks an Apple device to return the configuration profiles it has installed. The response lists each profile's `PayloadIdentifier`, `PayloadUUID`, display name, whether it's managed, and its payload contents.
+        `ProfileList` asks an Apple device for the configuration profiles it has installed. For each profile, the response includes its `PayloadIdentifier`, `PayloadUUID`, display name, whether it's managed by MDM, and a summary of the payloads inside it (type and identifier, not the setting values).
 
-        Set `ManagedOnly` to `true` to return only profiles installed by MDM, or `false` to include profiles the end user installed.
+        Set `ManagedOnly` to `true` to return only profiles installed by MDM, or `false` to include profiles the user installed.
     - question: How often is ProfileList used?
       answer: |
-        Occasionally. Some MDMs send it on a schedule to check which profiles are present. It's most useful when you're troubleshooting why a setting isn't applied.
+        Regularly, as an inventory command. Many MDMs send it during routine inventory updates to confirm which profiles a device has. Admins also send it on demand when a setting isn't being applied.
+    - question: How do I list installed profiles on a Mac without MDM?
+      answer: |
+        Run `sudo profiles list` in Terminal for a quick list, or `sudo profiles show -type configuration` for details. Users can also see installed profiles in **System Settings > General > Device Management**.
+
+        On iPhone and iPad, go to **Settings > General > VPN & Device Management**.
     - question: Does Fleet send ProfileList automatically?
       answer: |
-        No. Fleet doesn't send `ProfileList` on its own. On macOS, Fleet verifies configuration profiles with an osquery query reported by fleetd. On iPhone and iPad, Fleet verifies a profile when the device acknowledges the install command.
+        No. Fleet checks macOS profiles with a query that fleetd reports every hour by default, and checks iPhone and iPad profiles by confirming the device acknowledged each install.
 
-        You can still send `ProfileList` as a custom command whenever you need a full inventory.
-    - question: How do I run ProfileList with Fleet?
+        Send `ProfileList` as a custom command when you want the device's own complete list, including profiles installed outside Fleet.
+    - question: How do I run ProfileList with Fleet and read the results?
       answer: |
-        Save the payload as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=profile-list.xml`. Or base64-encode it and send it with the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+        Save the payload as a file and run `fleetctl mdm run-command --hosts=<hostname> --payload=profile-list.xml`, or use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
 
-        It's read-only and changes nothing on the device. It's available in Fleet Free.
-    - question: How do I see the results of ProfileList?
+        Then run `fleetctl get mdm-command-results --id=<command-uuid>`. When the status is `Acknowledged`, the result holds the device's response with the `ProfileList` array. The command is read-only and changes nothing on the device.
+    - question: Why does ProfileList show profiles my MDM doesn't know about?
       answer: |
-        Run `fleetctl get mdm-command-results --id=<command-uuid>`, or call the [Get MDM command results](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) API. When the status is `Acknowledged`, the `result` field holds the device's response plist with the `ProfileList` array.
-    - question: Why doesn't Fleet show a profile that ProfileList returns?
-      answer: |
-        Fleet only manages profiles you added in OS settings. Profiles installed by the end user, another MDM, or a custom `InstallProfile` command aren't tracked by Fleet.
+        Because the device reports everything installed, not only what your MDM manages. Extra profiles usually came from the user, a previous MDM, or a one-off custom `InstallProfile` command. User-installed profiles have `IsManaged` set to `false`.
 
-        Profiles installed manually by the end user can't be removed through Fleet. Ask the user to remove them in **System Settings > General > Device Management**.
+        An MDM can't remove profiles the user installed. The user has to remove them in **System Settings > General > Device Management**.
+    - question: What's the difference between ProfileList and ProvisioningProfileList?
+      answer: |
+        `ProfileList` returns configuration profiles, which hold device settings. `ProvisioningProfileList` returns app provisioning profiles, which let in-house or development apps run on iPhone and iPad.
     - question: Can ProfileList show user-scoped profiles?
       answer: |
-        Not when you send it from Fleet. Custom commands go to the device channel, so the response covers device-level profiles. Profiles installed in a user's scope on macOS won't appear.
+        Only when it's sent on the user channel, which is macOS only. Sent on the device channel, it returns device-level profiles. Fleet sends custom commands on the device channel, so profiles installed in a user's scope won't appear.
     - question: What errors can ProfileList return?
       answer: |
-        Errors are rare because the command is read-only. `CommandFormatError` usually means the plist is malformed, for example a misspelled `RequestType`. If the device is offline, the command stays `Pending` until it checks in.
+        Errors are rare because the command is read-only. `CommandFormatError` usually means the plist is malformed, for example a misspelled `RequestType`. If the device is offline, the command waits as `Pending` until the device checks in.
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -191,41 +201,42 @@
       answer: |
         `RemoveProfile` tells an Apple device to uninstall a configuration profile. You identify the profile by its `PayloadIdentifier` in the `Identifier` key.
 
-        When the profile is removed, the device stops enforcing its settings. Only profiles installed by MDM can be removed this way.
+        Once the profile is removed, the device stops enforcing its settings. An MDM can only remove profiles that it installed.
     - question: How often is RemoveProfile used?
       answer: |
-        Routinely. MDMs send it whenever a profile is deleted, a profile's targeting changes, or a device moves to a group with different settings.
+        Routinely. MDMs send it whenever a profile is deleted, its targeting changes, or a device moves to a group with different settings.
     - question: Which Fleet features use RemoveProfile?
       answer: |
-        Fleet sends `RemoveProfile` automatically when you delete a profile from **Controls > OS settings**, when a host moves to a fleet without that profile, or when a label-scoped profile no longer applies. See [removal behavior](https://fleetdm.com/guides/custom-os-settings#removal-behavior).
+        Fleet sends `RemoveProfile` when you delete a profile from **Controls > OS settings**, when a host moves to a fleet without that profile, or when a label-scoped profile no longer applies. See [removal behavior](https://fleetdm.com/guides/custom-os-settings#removal-behavior).
 
-        Fleet also sends it to remove its own enrollment profile when you turn off MDM for a host.
+        **Actions > Turn off MDM** also uses it, to remove Fleet's enrollment profile from the host.
     - question: How do I send RemoveProfile with Fleet?
       answer: |
-        Put the profile's `PayloadIdentifier` in the `Identifier` key, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=remove-profile.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API with a base64-encoded payload.
-
-        It's available in Fleet Free.
-    - question: What happens if I remove a profile that Fleet manages?
+        Put the profile's `PayloadIdentifier` in the `Identifier` key, save the payload, and run `fleetctl mdm run-command --hosts=<hostname> --payload=remove-profile.xml`. You can also use the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API.
+    - question: What happens if I remove a profile that's still assigned in my MDM?
       answer: |
-        Fleet puts it back. On macOS, Fleet notices the profile is missing the next time fleetd reports host details and resends it, up to its retry limit, then marks it Failed.
+        Most MDMs put it back. In Fleet, a macOS host that's missing an assigned profile gets it resent automatically, up to 4 attempts, after which the profile shows as Failed.
 
-        To remove a managed profile for good, delete it from OS settings or change its targeting instead.
-    - question: Can RemoveProfile remove the Fleet enrollment profile?
+        To remove a managed profile for good, delete it or change its targeting in your MDM rather than sending `RemoveProfile` directly.
+    - question: Can end users remove profiles installed by MDM?
       answer: |
-        Yes, and that unenrolls the host from MDM. The enrollment profile's identifier is `com.fleetdm.fleet.mdm.apple`. After it's removed, Fleet can't send the host any more MDM commands.
+        No. Only the MDM that installed a profile can remove it. A user can only remove MDM profiles by removing the MDM enrollment itself, which removes every profile it installed. On devices enrolled through Automated Device Enrollment (ADE), the enrollment can be made non-removable.
+    - question: Can RemoveProfile remove the MDM enrollment profile?
+      answer: |
+        Yes, and that unenrolls the device from MDM. Afterward, the MDM can't send it any more commands. Fleet's enrollment profile identifier is `com.fleetdm.fleet.mdm.apple`.
 
-        If you want to turn off MDM, use the host's **Actions** menu in Fleet so Fleet records the change.
+        To turn off MDM for a host in Fleet, use **Actions > Turn off MDM** so Fleet records the change.
     - question: Can I remove a user-scoped profile with RemoveProfile?
       answer: |
-        No. Fleet sends custom commands on the device channel only, so user-scoped profiles can't be removed this way. In **Host details > OS settings**, user-scoped profiles have an icon next to them. Remove them by deleting or retargeting the profile in OS settings.
+        Only by sending it on the user channel, which is macOS only. Fleet sends custom commands on the device channel, so remove user-scoped profiles by deleting or retargeting them in OS settings. In **Host details > OS settings**, user-scoped profiles have a user icon next to them.
     - question: How do I know if RemoveProfile worked?
       answer: |
-        Run `fleetctl get mdm-command-results --id=<command-uuid>`. `Acknowledged` means the device removed the profile. You can confirm with a `ProfileList` command, or by checking **System Settings > General > Device Management** on the device.
-    - question: What errors can RemoveProfile return?
+        `Acknowledged` means the device removed the profile. In Fleet, run `fleetctl get mdm-command-results --id=<command-uuid>`. To confirm, send a `ProfileList` command or check **System Settings > General > Device Management** on the device.
+    - question: Why did RemoveProfile fail?
       answer: |
-        The most common error is that no profile with that identifier is installed. Check the exact `PayloadIdentifier`, since it's case-sensitive.
+        Usually because the identifier doesn't match an installed profile that this MDM installed. Check the exact `PayloadIdentifier`, since it's case-sensitive, and remember that profiles the user installed can't be removed by MDM.
 
-        Removal also fails for profiles the end user installed manually, since MDM can only remove profiles it installed. `CommandFormatError` means the command plist is malformed.
+        `CommandFormatError` means the command plist is malformed.
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
