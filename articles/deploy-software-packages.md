@@ -16,6 +16,8 @@ Learn more about automatically installing software [the Automatically install so
 
 * If you're self-hosting Fleet, you need an S3 bucket [configured](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-software-installers-bucket) to store the packages. Increase any load balancer timeouts to at least 5 minutes for the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) and [Modify package](https://fleetdm.com/docs/rest-api/rest-api#modify-package) API endpoints.
 
+* If you're self-hosting Fleet, make sure the Fleet server's temporary folder is on disk and has enough free space. Learn more about [temporary storage](https://fleetdm.com/docs/deploy/reference-architectures#temporary-storage).
+
 ## Add a custom package
 
 * Navigate to the **Software** page.
