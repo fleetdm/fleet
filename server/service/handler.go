@@ -1678,9 +1678,12 @@ func fleetctl4PreAuth(logger *slog.Logger) func(http.Handler) http.Handler {
 }
 
 // isFleetctl4Request reports whether r looks like it comes from fleetctl 4, which doesn't send its version. It sends Go's default
-// User-Agent and JSON Content-Type and Accept headers even on a GET, which other Go clients rarely do. fleetctl 5 sends its own
-// User-Agent.
+// User-Agent and JSON Content-Type and Accept headers even on a GET, which other Go clients rarely do. fleetctl 5 sends its version,
+// and admins can set its User-Agent to Go's default with custom headers (to get past a WAF, for example).
 func isFleetctl4Request(r *http.Request) bool {
+	if r.Header.Get(fleet.HeaderClientVersion) != "" {
+		return false
+	}
 	return strings.HasPrefix(r.UserAgent(), "Go-http-client/") &&
 		r.Header.Get("Content-Type") == "application/json" &&
 		r.Header.Get("Accept") == "application/json"
