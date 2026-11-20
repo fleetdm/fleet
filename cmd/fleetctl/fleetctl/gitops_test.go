@@ -5423,10 +5423,6 @@ software:
 		"Global Webhook Policy 2":  true,
 		"Global No Webhook Policy": false,
 	}, appliedSpecs)
-	require.Empty(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), nil)
-	require.NoError(t, err)
-	require.Empty(t, webhookPolicyIDs)
 }
 
 func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {
@@ -5467,7 +5463,6 @@ agent_options:
 	savedFleet, err := ds.TeamByName(context.Background(), fleetName)
 	require.NoError(t, err)
 	require.False(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
-	require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
 func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
@@ -5501,16 +5496,6 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string,
 	) (fleetPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return appliedPolicies, nil, nil
-	}
-
-	// No settings write sets the fleet's webhook or ticket policies; each policy spec carries its own.
-	requireNoPolicyIDs := func(t *testing.T) {
-		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
-		require.NoError(t, err)
-		require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-		webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), &savedFleet.ID)
-		require.NoError(t, err)
-		require.Empty(t, webhookPolicyIDs)
 	}
 
 	t.Run("policy_ids is rejected", func(t *testing.T) {
@@ -5609,7 +5594,6 @@ agent_options:
 		require.NoError(t, err)
 		require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 		require.Equal(t, map[string]bool{"Webhook Policy 1": true, "Webhook Policy 2": true, "No Webhook Policy": false}, appliedSpecs)
-		requireNoPolicyIDs(t)
 	})
 
 	t.Run("does not re-fetch policies when all already exist", func(t *testing.T) {
@@ -5661,7 +5645,6 @@ agent_options:
 		require.Equal(t, 1, listTeamPoliciesCalls)
 
 		require.Equal(t, map[string]bool{"Existing Policy 1": true, "Existing Policy 2": true}, appliedSpecs)
-		requireNoPolicyIDs(t)
 	})
 }
 

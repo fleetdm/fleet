@@ -869,7 +869,7 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(cmd.AppConfig.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(cmd.AppConfig.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -1529,7 +1529,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	// For "No Team" (team ID 0), only include webhook settings
 	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
 	// See https://github.com/fleetdm/fleet/issues/20287
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(team.Config.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(team.Config.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -2132,12 +2132,8 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	return result, nil
 }
 
-// webhookSettingsWithoutPolicyIDs serializes the given webhook settings struct
-// to a map and removes the failing_policies_webhook.policy_ids key (since
-// those are now represented as webhooks_and_tickets_enabled on individual
-// policies).
-// TODO(#58577): remove with policy_ids.
-func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error) {
+// webhookSettingsMap serializes the given webhook settings struct to a map.
+func webhookSettingsMap(webhookSettings any) (map[string]any, error) {
 	b, err := json.Marshal(webhookSettings)
 	if err != nil {
 		return nil, fmt.Errorf("marshal webhook settings: %w", err)
@@ -2145,9 +2141,6 @@ func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error
 	var m map[string]any
 	if err := json.Unmarshal(b, &m); err != nil {
 		return nil, fmt.Errorf("unmarshal webhook settings: %w", err)
-	}
-	if fpw, ok := m["failing_policies_webhook"].(map[string]any); ok {
-		delete(fpw, "policy_ids")
 	}
 	return m, nil
 }

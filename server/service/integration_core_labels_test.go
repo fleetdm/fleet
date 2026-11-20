@@ -1115,13 +1115,13 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	)
 	require.NoError(t, err)
 
-	gpParams := fleet.GlobalPolicyRequest{
+	gpParams := fleet.CreatePolicyRequest{
 		Name:        qr.Name,
 		Query:       qr.Query,
 		Description: qr.Description,
 		Resolution:  "some global resolution",
 	}
-	gpResp := fleet.GlobalPolicyResponse{}
+	gpResp := fleet.CreatePolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 	require.NoError(
@@ -1697,21 +1697,21 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
 	lbl := lblResp.Label
 
-	// All policy label scope fields on GlobalPolicyRequest are tagged
+	// All policy label scope fields on CreatePolicyRequest are tagged
 	// `premium:"true"`, so the endpoint decoder rejects with 400 before reaching
 	// the service handler.
-	for _, req := range []fleet.GlobalPolicyRequest{
+	for _, req := range []fleet.CreatePolicyRequest{
 		{Name: "premium-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
 		{Name: "premium-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
 		{Name: "premium-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
 		{Name: "premium-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
 	} {
-		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusBadRequest, &fleet.CreatePolicyResponse{})
 	}
 
 	// A policy without any label scope can still be created on free-tier.
-	var freeOK fleet.GlobalPolicyResponse
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+	var freeOK fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 		Name:  "free-no-labels-" + t.Name(),
 		Query: "SELECT 1",
 	}, http.StatusOK, &freeOK)

@@ -464,8 +464,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr3.Report.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to create a global policy, should allow.
-	gplr := fleet.GlobalPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+	gplr := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 		Name:  "foo9",
 		Query: "SELECT * from plist;",
 	}, http.StatusOK, &gplr)
@@ -483,33 +483,34 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	)
 
 	// Attempt to delete a global policy, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{gplr.Policy.ID},
-	}, http.StatusOK, &fleet.DeleteGlobalPoliciesResponse{})
+	}, http.StatusOK, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to create a team policy, should allow.
-	tplr := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Name:  "foo10",
-		Query: "SELECT * from file;",
+	tplr := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: new(t1.ID),
+		Name:   "foo10",
+		Query:  "SELECT * from file;",
 	}, http.StatusOK, &tplr)
 
 	// Attempt to edit a team policy, should allow.
-	mtplr := fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
+	mtplr := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", tplr.Policy.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foo';"),
 	}, http.StatusOK, &mtplr)
 
 	// Attempt to view a team policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
-		&fleet.GetTeamPolicyByIDResponse{},
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", tplr.Policy.ID), nil, http.StatusOK,
+		&fleet.GetPolicyByIDResponse{},
 	)
 
 	// Attempt to delete a team policy, should allow.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", t1.ID), fleet.DeleteTeamPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{tplr.Policy.ID},
-	}, http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
+	}, http.StatusOK, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to create a user, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
@@ -695,40 +696,41 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetPolicyByIDRequest{}, http.StatusForbidden, &fleet.GetPolicyByIDResponse{})
 
 	// Attempt to delete a global policy, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{gp2.ID},
-	}, http.StatusForbidden, &fleet.DeleteGlobalPoliciesResponse{})
+	}, http.StatusForbidden, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to create a team policy, should allow.
-	ttplr := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Name:  "foo1000",
-		Query: "SELECT * from file;",
+	ttplr := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: new(t1.ID),
+		Name:   "foo1000",
+		Query:  "SELECT * from file;",
 	}, http.StatusOK, &ttplr)
 
 	// Attempt to edit a team policy, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", ttplr.Policy.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foobar';"),
-	}, http.StatusOK, &fleet.ModifyTeamPolicyResponse{})
+	}, http.StatusOK, &fleet.ModifyPolicyResponse{})
 
 	// Attempt to edit another team's policy, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", t2p.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foobar';"),
-	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
+	}, http.StatusForbidden, &fleet.ModifyPolicyResponse{})
 
 	// Attempt to view a team policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
-		&fleet.GetTeamPolicyByIDResponse{},
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", ttplr.Policy.ID), nil, http.StatusOK,
+		&fleet.GetPolicyByIDResponse{},
 	)
 
 	// Attempt to view another team's policy, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusForbidden, &fleet.GetTeamPolicyByIDResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", t2p.ID), nil, http.StatusForbidden, &fleet.GetPolicyByIDResponse{})
 
 	// Attempt to delete a team policy, should allow.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", t1.ID), fleet.DeleteTeamPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{ttplr.Policy.ID},
-	}, http.StatusOK, &fleet.DeleteTeamPoliciesResponse{})
+	}, http.StatusOK, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to edit own team, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), modifyTeamRequest{

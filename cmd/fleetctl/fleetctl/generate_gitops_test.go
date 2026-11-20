@@ -288,7 +288,6 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 					FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 						Enable:         true,
 						DestinationURL: "https://example.com/no-team-webhook",
-						PolicyIDs:      []uint{1, 2, 3},
 						HostBatchSize:  100,
 					},
 					HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{

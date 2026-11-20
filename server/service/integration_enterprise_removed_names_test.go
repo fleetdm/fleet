@@ -148,11 +148,10 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	// Removed sort keys are values of order_key, so the error names that parameter.
 	for _, tc := range [][]string{
 		{"/hosts", "team_name"}, {"/hosts", "team_id"}, {"/labels", "team_id"}, {"/labels/1/hosts", "team_name"},
-		{"/fleets/0/policies", "team_id"}, {"/reports", "team_id"}, {"/configuration_profiles", "team_id"},
+		{"/policies", "team_id"}, {"/reports", "team_id"}, {"/configuration_profiles", "team_id"},
 	} {
 		rejectNamed("GET", tc[0], "", "order_key", tc[1], "order_key", tc[1])
 	}
-	rejectNamed("GET", "/fleets/0/policies", "", "inherited_order_key", "team_id", "inherited_order_key", "team_id")
 	rejectNamed("POST", "/translate", `{"list": [{"type": "team", "payload": {"identifier": "a"}}]}`, "type", "team")
 
 	// The rejected create calls did not create anything, and the new name is accepted.
