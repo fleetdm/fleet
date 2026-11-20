@@ -18,19 +18,23 @@ That used to be true. It isn't anymore.
 
 Under the hood, it comes down to two controls. First, you decide which apps can sign in. Whoever issues the mail token gets to say which apps receive one. Microsoft uses Conditional Access to let Outlook in, and Google's Admin console does the same for Gmail. Either way, the built-in iPhone Mail app is out. Second, those apps keep work data in. They can block copy-paste into personal apps, the share sheet, AirDrop, saving to Files, and printing. Microsoft calls this Intune app protection. Google has the same switches in Gmail, Drive, Docs, Sheets, Slides, Chat, and Meet on iOS.
 
+The assistant sounded very sure of itself, so I stopped asking who does MAM best and started asking how it works. "You sound like you've been reading propaganda. Show me why Microsoft does this best." "Isn't the same true for Gmail? Gmail becomes the only app that passes the sign-in check." One by one, the Microsoft advantages fell apart. Even "Microsoft has clearer error messages" didn't hold up. A message saying the app isn't approved by IT helps a user about as much as Google's "Access blocked." The assistant gave in once it read Google's admin docs.
+
 You may have heard that app protection without enrollment only works with Intune. That's false, and it has nothing to do with managing devices. Outlook and the Office apps have some lightweight data controls built in, and Microsoft calls them MAM. Google has the same controls in Gmail and its other work apps, and so does any other office suite. You set them in your office suite's settings, like Google Workspace or Microsoft 365, and Google lets you push some of them through your device management tool, too. There's no secret deal with Apple behind any of it.
 
 What about Microsoft? It doesn't let other device management tools control everything inside Outlook. Another MDM can set up the mail account and block sharing the inbox, but settings like turning off add-ins, stopping contacts from syncing to the phone, or blocking copy-paste only work through Intune. Google isn't fully open either. It documents its copy-paste and share sheet controls for any tool that supports AppConfig, the open standard for configuring apps, but AirDrop, printing, and saving to Files can only be set in its own Admin console. That's more open than Microsoft, but it's still not everything. My guess is that Google simply doesn't have the leverage Microsoft has to force people onto its own tools, so it leans on open standards instead.
 
 It's also worth asking how much this matters to you in practice. In my conversations with companies, most that have the license for MAM don't lean on it much. Some turned it on because it came in their Microsoft bundle, and some never turned it on at all.
 
-The assistant sounded very sure of itself, so I stopped asking who does MAM best and started asking how it works. "You sound like you've been reading propaganda. Show me why Microsoft does this best." "Isn't the same true for Gmail? Gmail becomes the only app that passes the sign-in check." One by one, the Microsoft advantages fell apart. Even "Microsoft has clearer error messages" didn't hold up. A message saying the app isn't approved by IT helps a user about as much as Google's "Access blocked." The assistant gave in once it read Google's admin docs.
-
 So if you run Google Workspace and Okta, you aren't missing anything. Google decides which apps get in and keeps the data inside them. Okta handles sign-in and device checks with Okta Verify. You don't need Microsoft licenses to protect mail on personal phones, and you don't need to enroll those phones.
+
+Or you can enroll the phone and skip the whole question. Once a phone is enrolled, iOS itself can keep work data in work apps. One profile can stop files and copied text from moving between work apps and personal apps, for every app IT installs, Outlook included. Those are Apple's standard device management settings, so it doesn't matter which controls Microsoft lets other tools reach. You can still use your office suite's settings, but you aren't locked into them.
+
+So why not enroll every phone? Because most people don't.
 
 ## Most people don't enroll
 
-That last part matters, because most personal phones aren't enrolled in anything. On paper, BYOD is everywhere. About 82% of organizations have a formal BYOD program, and Gartner says 55% of employees use a personal device for work at least some of the time.
+On paper, BYOD is everywhere. About 82% of organizations have a formal BYOD program, and Gartner says 55% of employees use a personal device for work at least some of the time.
 
 In practice, it's mostly unmanaged. We looked at companies with 500 or more employees that give everyone a work computer. There, BYOD means phones, and most of those phones don't enroll. One industry estimate puts MDM enrollment at about 31% of personal devices, compared with about 78% of company-owned ones. Nobody publishes a clean number, so take that with a grain of salt.
 
