@@ -3832,3 +3832,20 @@ describe("opt-in configuration profile activities", () => {
     });
   });
 });
+
+describe("viewed_host_unlock_pin activity", () => {
+  it("renders the actor and the host display name", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ViewedHostUnlockPin,
+      actor_full_name: "Test User",
+      details: { host_display_name: "Test Samsung" },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+
+    expect(container).toHaveTextContent(
+      "Test User viewed the unlock PIN for Test Samsung."
+    );
+  });
+});

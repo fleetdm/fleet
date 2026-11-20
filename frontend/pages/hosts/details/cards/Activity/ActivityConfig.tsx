@@ -48,6 +48,7 @@ import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/Rota
 import SetHostGoogleDeviceIdActivityItem from "./ActivityItems/SetHostGoogleDeviceIdActivityItem";
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
+import ViewedHostUnlockPinActivityItem from "./ActivityItems/ViewedHostUnlockPinActivityItem/ViewedHostUnlockPinActivityItem";
 import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
 
@@ -107,6 +108,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.ResentCertificate]: ResentCertificateActivityItem,
   [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
   [ActivityType.ViewedManagedLocalAccount]: ViewedManagedLocalAccountActivityItem,
+  [ActivityType.ViewedHostUnlockPin]: ViewedHostUnlockPinActivityItem,
   [ActivityType.CreatedManagedLocalAccount]: CreatedManagedLocalAccountActivityItem,
   [ActivityType.CreatedDiskEncryptionPIN]: CreatedDiskEncryptionPINActivityItem,
   [ActivityType.RotatedManagedLocalAccountPassword]: RotatedManagedLocalAccountPasswordActivityItem,

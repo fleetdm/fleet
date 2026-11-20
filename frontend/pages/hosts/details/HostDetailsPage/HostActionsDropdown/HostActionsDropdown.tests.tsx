@@ -5,6 +5,7 @@ import React from "react";
 import createMockTeam from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
+import { UserRole } from "interfaces/user";
 import { createCustomRenderer } from "test/test-utils";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
@@ -3406,5 +3407,163 @@ describe("Host Actions Dropdown", () => {
         );
       }
     );
+  });
+
+  describe("View unlock PIN action", () => {
+    const renderDropdown = async ({
+      currentUser = createMockUser({ global_role: "admin" }),
+      hostTeamId = null,
+      isPremiumTier = true,
+      hostPlatform = "android",
+      unlockPinAvailable,
+      hostMdmDeviceStatus = "unlocked",
+    }: {
+      currentUser?: ReturnType<typeof createMockUser>;
+      hostTeamId?: number | null;
+      isPremiumTier?: boolean;
+      hostPlatform?: string;
+      unlockPinAvailable?: boolean;
+      hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
+    } = {}) => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier,
+            isAndroidMdmEnabledAndConfigured: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: currentUser.global_role === "admin",
+            isGlobalMaintainer: currentUser.global_role === "maintainer",
+            isGlobalObserver: currentUser.global_role === "observer",
+            isGlobalTechnician: currentUser.global_role === "technician",
+            currentUser,
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={hostTeamId}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform={hostPlatform}
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus={hostMdmDeviceStatus}
+          hostScriptsEnabled={false}
+          unlockPinAvailable={unlockPinAvailable}
+        />
+      );
+
+      // The dropdown renders nothing when no actions are available.
+      const actionsButton = screen.queryByText("Actions");
+      if (actionsButton) {
+        await user.click(actionsButton);
+      }
+    };
+
+    it("shows the action directly after Lock for an Android admin when the PIN is available", async () => {
+      await renderDropdown({ unlockPinAvailable: true });
+
+      const labels = screen
+        .getAllByText(
+          /^(Transfer|Unenroll|Lock|View unlock PIN|Wipe|Clear passcode|Delete)$/
+        )
+        .map((element) => element.textContent);
+      expect(labels).toContain("View unlock PIN");
+      expect(labels.indexOf("View unlock PIN")).toBe(
+        labels.indexOf("Lock") + 1
+      );
+    });
+
+    it("shows the action for a team maintainer", async () => {
+      await renderDropdown({
+        unlockPinAvailable: true,
+        hostTeamId: 1,
+        currentUser: createMockUser({
+          global_role: null,
+          fleets: [createMockTeam({ id: 1, role: "maintainer" })],
+        }),
+      });
+      expect(screen.getByText("View unlock PIN")).toBeInTheDocument();
+    });
+
+    it("shows the action for a global maintainer", async () => {
+      await renderDropdown({
+        unlockPinAvailable: true,
+        currentUser: createMockUser({ global_role: "maintainer" }),
+      });
+      expect(screen.getByText("View unlock PIN")).toBeInTheDocument();
+    });
+
+    it("hides the action when the PIN is unavailable", async () => {
+      await renderDropdown({ unlockPinAvailable: false });
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it("hides the action when unlock_pin_available is missing", async () => {
+      await renderDropdown();
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it.each<HostMdmDeviceStatusUIState>([
+      "locking",
+      "locked",
+      "unlocking",
+      "wiping",
+      "wiped",
+      "clearing_passcode",
+      "unenrolling",
+    ])("hides the action while the device status is %s", async (status) => {
+      await renderDropdown({
+        unlockPinAvailable: true,
+        hostMdmDeviceStatus: status,
+      });
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it("hides the action on Fleet Free", async () => {
+      await renderDropdown({ unlockPinAvailable: true, isPremiumTier: false });
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it.each<UserRole>(["observer", "observer_plus", "technician"])(
+      "hides the action for a global %s",
+      async (role) => {
+        await renderDropdown({
+          unlockPinAvailable: true,
+          currentUser: createMockUser({ global_role: role }),
+        });
+        expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+      }
+    );
+
+    it.each<UserRole>(["observer", "observer_plus", "technician"])(
+      "hides the action for a team %s",
+      async (role) => {
+        await renderDropdown({
+          unlockPinAvailable: true,
+          hostTeamId: 1,
+          currentUser: createMockUser({
+            global_role: null,
+            fleets: [createMockTeam({ id: 1, role })],
+          }),
+        });
+        expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+      }
+    );
+
+    it.each(["darwin", "ios", "windows", "ubuntu"])(
+      "hides the action for a %s host",
+      async (hostPlatform) => {
+        await renderDropdown({ unlockPinAvailable: true, hostPlatform });
+        expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+      }
+    );
+
+    it("still shows Lock and never shows Unlock on Android", async () => {
+      await renderDropdown({ unlockPinAvailable: true });
+      expect(screen.getByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+    });
   });
 });

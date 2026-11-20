@@ -789,6 +789,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  viewedHostUnlockPin: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the unlock PIN for <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdManagedLocalAccount: (activity: IActivity) => {
     return (
       <>
@@ -2836,6 +2844,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ViewedManagedLocalAccount: {
       return TAGGED_TEMPLATES.viewedManagedLocalAccount(activity);
+    }
+    case ActivityType.ViewedHostUnlockPin: {
+      return TAGGED_TEMPLATES.viewedHostUnlockPin(activity);
     }
     case ActivityType.CreatedManagedLocalAccount: {
       return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
