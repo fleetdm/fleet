@@ -37,7 +37,7 @@ jobs:
             DRY_RUN="${{ github.event.inputs.dry_run }}"
           else
             NUM_RELEASES="5"
-            DRY_RUN="true"
+            DRY_RUN="false"
           fi
           echo "num_releases=$NUM_RELEASES" >> $GITHUB_OUTPUT
           echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
