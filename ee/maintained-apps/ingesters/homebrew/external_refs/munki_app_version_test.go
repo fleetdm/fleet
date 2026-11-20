@@ -21,8 +21,13 @@ import (
 // a real ~20MB munkitools pkg so the test doesn't need to fetch or embed one.
 func buildFlatPkgWithDistribution(t *testing.T, distributionXML string) []byte {
 	t.Helper()
+	return buildFlatPkgWithFile(t, "Distribution", distributionXML)
+}
 
-	distCompressed := zlibCompress(t, []byte(distributionXML))
+func buildFlatPkgWithFile(t *testing.T, name, contents string) []byte {
+	t.Helper()
+
+	distCompressed := zlibCompress(t, []byte(contents))
 
 	tocXML := `<?xml version="1.0" encoding="UTF-8"?>
 <xar>
@@ -33,7 +38,7 @@ func buildFlatPkgWithDistribution(t *testing.T, distributionXML string) []byte {
     <length>` + strconv.Itoa(len(distCompressed)) + `</length>
    </data>
    <type>file</type>
-   <name>Distribution</name>
+   <name>` + name + `</name>
   </file>
  </toc>
 </xar>`

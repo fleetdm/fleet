@@ -771,6 +771,7 @@ import PaintDotNet from "./png/PaintDotNet.png";
 import PaleMoon from "./png/PaleMoon.png";
 import Paletro from "./png/Paletro.png";
 import ParallelsDesktop from "./png/ParallelsDesktop.png";
+import Parsec from "./png/Parsec.png";
 import Pastebot from "./png/Pastebot.png";
 import Pcoipclient from "./png/Pcoipclient.png";
 import Pd from "./png/Pd.png";
@@ -1965,6 +1966,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
+  parsec: Parsec,
   pastebot: Pastebot,
   pd: Pd,
   "pdf expert": PdfExpert,
