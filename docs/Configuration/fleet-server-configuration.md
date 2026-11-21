@@ -1073,12 +1073,14 @@ Size of generated app tokens.
 
 How long invite tokens should be valid for.
 
-- Default value: `5d` (5 days)
+Valid time units are `s`, `m`, `h`.
+
+- Default value: `120h` (5 days)
 - Environment variable: `FLEET_APP_INVITE_TOKEN_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
   app:
-    invite_token_validity_period: 1d
+    invite_token_validity_period: 24h
   ```
 
 ### app_enable_report_stats
@@ -1135,7 +1137,7 @@ In the Fleet UI, the browser cookie is set at login to expire after this duratio
 
 Valid time units are `s`, `m`, `h`.
 
-- Default value: `5d` (5 days)
+- Default value: `120h` (5 days)
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
   ```yaml
