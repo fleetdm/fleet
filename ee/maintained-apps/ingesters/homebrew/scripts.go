@@ -45,6 +45,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 			// Stop if it won't quit: fleetd deletes $TMPDIR after the install, which
 			// would take the moved-aside bundle the app is still running from.
 			sb.Writef("quit_and_track_application '%s' || exit 1", app.UniqueIdentifier)
+			var appPaths []string
 			for _, appItem := range artifact.App {
 				// Only process string values (skip objects with target, those are handled by custom scripts)
 				if appItem.String == "" {
@@ -54,6 +55,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				// strings alongside "$APPDIR"/"$TMPDIR"; escape it so a payload like
 				// $(...) can't reach the root-privileged mv/cp/rm below.
 				appPath := shellDoubleQuoteEscape(appItem.String)
+				appPaths = append(appPaths, appPath)
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
@@ -67,8 +69,14 @@ fi`, appPath)
 	exit 1
 fi`, appPath)
 			}
-			// Relaunch the app if it was running before installation
-			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			// Relaunch the app if it was running before installation. Open it by
+			// path when the artifact installs a single app; with several, which one
+			// has the bundle ID isn't known, so open it by bundle ID.
+			if len(appPaths) == 1 {
+				sb.Writef(`relaunch_application '%s' "$APPDIR/%s"`, app.UniqueIdentifier, appPaths[0])
+			} else {
+				sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			}
 
 		case len(artifact.Pkg) > 0:
 			sb.Write("# install pkg files")
@@ -1219,8 +1227,17 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 // 'sudo -u "$console_user" open' rather than 'osascript ... to activate', since
 // the latter fails when launching an app that isn't already running from a root
 // context.
+// relaunchApplicationFunc relaunches an app that quit_and_track_application
+// quit before the install. With an app path it opens that bundle, otherwise
+// (pkg installs, casks with several apps) it opens the bundle ID. Opening by
+// bundle ID right after the app is replaced has failed for some apps (Affinity,
+// Rider) while opening by path worked, and macOS can take a minute or more to
+// check a freshly copied bundle, so it retries every 10 seconds for up to 2
+// minutes and logs open's error for each failed attempt. A relaunch that keeps
+// failing doesn't fail the install.
 const relaunchApplicationFunc = `relaunch_application() {
   local bundle_id="$1"
+  local app_path="$2"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
@@ -1244,20 +1261,32 @@ const relaunchApplicationFunc = `relaunch_application() {
   # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
   # and GUI session — 'sudo -u' alone doesn't do this, which can cause
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
-  local open_status=0
-  if [[ $EUID -eq 0 ]]; then
-    local console_uid
-    console_uid=$(id -u "$console_user")
-    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  else
-    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  fi
+  local open_args=(-b "$bundle_id")
+  [[ -z "$app_path" ]] || open_args=("$app_path")
+  local attempt=0 open_status open_output
+  SECONDS=0
+  while true; do
+    attempt=$((attempt + 1))
+    open_status=0
+    if [[ $EUID -eq 0 ]]; then
+      local console_uid
+      console_uid=$(id -u "$console_user")
+      open_output=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" open "${open_args[@]}" 2>&1) || open_status=$?
+    else
+      open_output=$(open "${open_args[@]}" 2>&1) || open_status=$?
+    fi
 
-  if [[ $open_status -eq 0 ]]; then
-    echo "Application '$bundle_id' relaunched successfully."
-  else
-    echo "Failed to relaunch application '$bundle_id'."
-  fi
+    if [[ $open_status -eq 0 ]]; then
+      echo "Application '$bundle_id' relaunched successfully."
+      return
+    fi
+    echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
+    if (( SECONDS >= 120 )); then
+      break
+    fi
+    sleep 10
+  done
+  echo "Failed to relaunch application '$bundle_id'."
 }
 `
 
