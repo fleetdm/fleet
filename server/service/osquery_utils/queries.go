@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -2103,9 +2104,15 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 		`\program files (x86)\`: {},
 	}
 	knownPaths := make(map[string]struct{})
+	// Many programs entries have no install_location, so their executables are also matched by
+	// folder name: "C:\Program Files\7-Zip\7z.exe" belongs to "7-Zip 26.06 (x64 edition)".
+	knownNames := make(map[string]struct{})
 	for _, row := range mainSoftwareResults {
 		if row["source"] != "programs" {
 			continue
+		}
+		if name := programFolderName(row["name"]); name != "" {
+			knownNames[name] = struct{}{}
 		}
 		p := normalizeWindowsDir(row["installed_path"])
 		if p == "" {
@@ -2126,6 +2133,10 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 			continue
 		}
 
+		if skipProgramFilesScanExe(exePath) {
+			continue
+		}
+
 		// Extract and normalize the directory containing the exe.
 		exeDir := normalizeWindowsDir(windowsDirname(exePath))
 
@@ -2137,6 +2148,14 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 			if strings.HasPrefix(exeDir, knownPath) {
 				duplicate = true
 				break
+			}
+		}
+		if !duplicate {
+			for _, dir := range programFilesScanDirs(exePath) {
+				if _, ok := knownNames[programFolderName(dir)]; ok {
+					duplicate = true
+					break
+				}
 			}
 		}
 		if duplicate {
@@ -2166,6 +2185,96 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 
 	return mainSoftwareResults
 }
+
+// programFilesWindowsComponentDirs are folders Windows itself installs under Program Files. Their
+// executables are parts of the OS, not applications.
+var programFilesWindowsComponentDirs = map[string]struct{}{
+	"internet explorer":                           {},
+	"windows defender":                            {},
+	"windows defender advanced threat protection": {},
+	"windows mail":                                {},
+	"windows media player":                        {},
+	"windows multimedia platform":                 {},
+	"windows nt":                                  {},
+	"windows photo viewer":                        {},
+	"windows portable devices":                    {},
+	"windows security":                            {},
+	"windows sidebar":                             {},
+	"windowspowershell":                           {},
+}
+
+// programFilesCommonFilesWindowsDirs are the Windows folders under Program Files\Common Files. The rest of
+// Common Files holds third-party components, which are still reported.
+var programFilesCommonFilesWindowsDirs = map[string]struct{}{
+	"microsoft shared": {},
+	"services":         {},
+	"speechengines":    {},
+	"system":           {},
+}
+
+// skipProgramFilesScanExe reports whether a scanned executable is never an application of its own:
+// uninstallers, and the Windows component folders except MsMpEng.exe, which stands for Windows Defender.
+func skipProgramFilesScanExe(exePath string) bool {
+	path := strings.ToLower(exePath)
+	filename := path[strings.LastIndex(path, `\`)+1:]
+	if strings.HasPrefix(filename, "unins") {
+		return true
+	}
+	if filename == "msmpeng.exe" {
+		return false
+	}
+	dirs := programFilesScanDirs(path)
+	if len(dirs) == 0 {
+		return false
+	}
+	if dirs[0] == "common files" {
+		if len(dirs) < 2 {
+			return false
+		}
+		_, ok := programFilesCommonFilesWindowsDirs[dirs[1]]
+		return ok
+	}
+	_, ok := programFilesWindowsComponentDirs[dirs[0]]
+	return ok
+}
+
+// programFilesScanDirs returns the folders between Program Files and the executable, outermost first.
+func programFilesScanDirs(exePath string) []string {
+	_, rel, ok := strings.Cut(strings.ToLower(exePath), `\program files\`)
+	if !ok {
+		return nil
+	}
+	parts := strings.Split(rel, `\`)
+	return parts[:len(parts)-1]
+}
+
+// programFolderName reduces a program or folder name to the form both share: lowercase letters and
+// digits, without trailing parenthesized parts or versions ("7-Zip 26.06 (x64 edition)" and "7-Zip"
+// give "7zip"). Only dotted versions and years count as versions, so "Autodesk 3ds Max 2026" keeps
+// "3ds" and "Microsoft 365 Apps" keeps "365".
+func programFolderName(name string) string {
+	name = strings.TrimSpace(name)
+	for {
+		trimmed := strings.TrimSpace(programNameTrailingParenthesized.ReplaceAllString(name, ""))
+		trimmed = strings.TrimSpace(programNameTrailingVersion.ReplaceAllString(trimmed, ""))
+		if trimmed == name {
+			break
+		}
+		name = trimmed
+	}
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+var (
+	programNameTrailingParenthesized = regexp.MustCompile(`\s*\([^()]*\)$`)
+	programNameTrailingVersion       = regexp.MustCompile(`(?i)[\s._-]+v?(\d+(\.\d+)+|(19|20)\d{2})$`)
+)
 
 // windowsDirname returns the directory portion of a Windows path (everything before the last backslash).
 func windowsDirname(path string) string {
