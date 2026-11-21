@@ -2235,9 +2235,6 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil
 	}
-	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
-		return nil
-	}
 	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}

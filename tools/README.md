@@ -245,7 +245,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `gitops-migrate/` | GitOps YAML migration | `./tools/gitops-migrate/migrate.sh <fleets_dir>` - See [README](gitops-migrate/README.md) |
 | `mailpit/` | Local email testing | Mailpit SMTP server for local dev (uses `auth.txt` config) |
 | `open/` | Test "open" package | `go run ./tools/open -url <url>` - Opens URL in default browser |
-| `percona/` | Percona testing | Percona MySQL testing configs - See [percona/test/README.md](percona/test/README.md) |
+| `percona/` | Percona Monitoring and Management | Local MySQL performance monitoring - See [percona/pmm/README.md](percona/pmm/README.md) |
 | `sentry-self-hosted/` | Self-hosted Sentry | See [sentry-self-hosted/README.md](sentry-self-hosted/README.md) |
 | `smtp4dev/` | Local SMTP testing | SMTP4Dev server with TLS certs for email testing |
 | `signoz/` | SigNoz for traces, metrics, and logs | See [signoz/README.md](signoz/README.md) |
@@ -280,7 +280,6 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `osquery-agent-options/` | Generate osquery agent options struct | `go run ./tools/osquery-agent-options <output-file>` - macOS only |
 | `run-scripts/` | Test Orbit script execution | `go run ./tools/run-scripts -exec-id <id> -content 'echo "Hello"'` |
 | **Packaging & Installers** | | |
-| `team-builder/` | Bulk fleet (formerly "team") creation + installer generation (deprecated for plain seeding — see [dibble](dibble/README.md)) | `./build_teams.sh -s teams.txt -u fleet.example.com` |
 | `wix-docker/` | Docker image for WiX (Windows MSI) | Docker build for WiX toolset |
 | **Release & Distribution** | | |
 | `fleetctl-docker/` | Docker image for fleetctl packaging | `docker run fleetdm/fleetctl package --type=pkg` |
@@ -321,4 +320,3 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `test_extensions/` | Test osquery extensions (hello_world) | `./tools/test_extensions/hello_world/build.sh` |
 | **Testing Data** | | |
 | `seed_data/` | Seed test data | Test data seeding scripts |
-| `testdata/` | Test fixtures and data | Static test fixtures |

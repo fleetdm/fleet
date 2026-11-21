@@ -28,7 +28,6 @@ func TestQueryResults(t *testing.T) {
 		{"GetForHostByQuery", testQueryResultRowsForHostByQuery},
 		{"UpdateLastFetched", testUpdateQueryResultsLastFetched},
 		{"CountForQuery", testCountResultsForQuery},
-		{"CountForQueryAndHost", testCountResultsForQueryAndHost},
 		{"Overwrite", testOverwriteQueryResultRows},
 		{"MaxRows", testQueryResultRowsDoNotExceedMaxRows},
 		{"OverwriteRespectsCap", testOverwriteQueryResultRowsRespectsCap},
@@ -444,104 +443,6 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 	counts, err = ds.ResultCountsForQueries(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, counts)
-}
-
-func testCountResultsForQueryAndHost(t *testing.T, ds *Datastore) {
-	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
-	query1 := test.NewQuery(t, ds, nil, "New Query", "SELECT 1", user.ID, true)
-	query2 := test.NewQuery(t, ds, nil, "New Query 2", "SELECT 1", user.ID, true)
-	host1 := test.NewHost(t, ds, "host1", "192.168.1.100", "1234", "UI8XB1223", time.Now())
-	host2 := test.NewHost(t, ds, "host2", "192.168.1.101", "4567", "UI8XB1224", time.Now())
-	host3 := test.NewHost(t, ds, "host3", "192.168.1.102", "8910", "UI8XB1225", time.Now())
-
-	mockTime := time.Now().UTC().Truncate(time.Second)
-
-	host1ResultRows := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query1.ID,
-			HostID:      host1.ID,
-			LastFetched: mockTime,
-			Data: ptr.RawMessage([]byte(`{
-				"model": "USB Keyboard",
-				"vendor": "Apple Inc."
-			}`)),
-		},
-		{
-			QueryID:     query1.ID,
-			HostID:      host1.ID,
-			LastFetched: mockTime,
-			Data: ptr.RawMessage([]byte(`{
-				"model": "USB Mouse",
-				"vendor": "Logitech"
-			}`)),
-		},
-	}
-	_, err := ds.OverwriteQueryResultRows(context.Background(), host1ResultRows, fleet.DefaultMaxQueryReportRows, 0)
-	require.NoError(t, err)
-
-	host1Query2 := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query2.ID,
-			HostID:      host1.ID,
-			LastFetched: mockTime,
-			Data: ptr.RawMessage([]byte(`{
-				"model": "USB Mouse",
-				"vendor": "Logitech"
-			}`)),
-		},
-	}
-	_, err = ds.OverwriteQueryResultRows(context.Background(), host1Query2, fleet.DefaultMaxQueryReportRows, 0)
-	require.NoError(t, err)
-
-	host2ResultRow := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query1.ID,
-			HostID:      host2.ID,
-			LastFetched: mockTime,
-			Data: ptr.RawMessage([]byte(`{
-				"model": "USB Mouse",
-				"vendor": "Logitech"
-			}`)),
-		},
-	}
-	_, err = ds.OverwriteQueryResultRows(context.Background(), host2ResultRow, fleet.DefaultMaxQueryReportRows, 0)
-	require.NoError(t, err)
-
-	host3ResultRow := []*fleet.ScheduledQueryResultRow{
-		{
-			QueryID:     query2.ID,
-			HostID:      host3.ID,
-			LastFetched: mockTime,
-			Data:        nil,
-		},
-	}
-	_, err = ds.OverwriteQueryResultRows(context.Background(), host3ResultRow, fleet.DefaultMaxQueryReportRows, 0)
-	require.NoError(t, err)
-
-	// Assert that Query1 returns 2
-	count, err := ds.ResultCountForQueryAndHost(context.Background(), query1.ID, host1.ID)
-	require.NoError(t, err)
-	require.Equal(t, 2, count)
-
-	// Assert that the result count is 1
-	count, err = ds.ResultCountForQueryAndHost(context.Background(), query2.ID, host1.ID)
-	require.NoError(t, err)
-	require.Equal(t, 1, count)
-
-	// Assert that host2 returns 1 row
-	count, err = ds.ResultCountForQueryAndHost(context.Background(), query1.ID, host2.ID)
-	require.NoError(t, err)
-	require.Equal(t, 1, count)
-
-	// Assert Nil Data rows are not counted
-	count, err = ds.ResultCountForQueryAndHost(context.Background(), query2.ID, host3.ID)
-	require.NoError(t, err)
-	require.Zero(t, count)
-
-	// Returns empty result when no results are found
-	count, err = ds.ResultCountForQueryAndHost(context.Background(), 999, host1.ID)
-	require.NoError(t, err)
-	require.Zero(t, count)
 }
 
 func testOverwriteQueryResultRows(t *testing.T, ds *Datastore) {

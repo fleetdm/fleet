@@ -16,10 +16,7 @@ ue.GET("/api/_version_/fleet/{resource}", endpointFunc, nil)
 `_version_` is replaced with the actual API version at runtime.
 
 ## API versioning
-- `ue.EndingAtVersion("v1")` — endpoint only available in v1 and earlier
-- `ue.StartingAtVersion("2022-04")` — endpoint available from 2022-04 onward
-- Current versions: `v1`, `2022-04`
-- New endpoints should use `StartingAtVersion("2022-04")`
+Every route is registered for all versions in `apiVersions` (`v1`, `2022-04`) plus `latest`. There's no per-endpoint version range.
 
 ## Request body size limits
 Use `ue.WithRequestBodySizeLimit(N)` for endpoints accepting large payloads (e.g., bootstrap packages, installers).

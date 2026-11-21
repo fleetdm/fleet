@@ -281,17 +281,6 @@ func (ds *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
 	})
 }
 
-func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		for _, user := range users {
-			if err := saveUserDB(ctx, tx, user); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
 // lockUserRolesDB locks the users and returns their identity and current roles. Writers that take this lock, including
 // saveUserDB's UPDATE, serialize with it; SaveTeam does not. Call it first in the transaction, because an earlier plain
 // read would fix the snapshot that the role read uses.

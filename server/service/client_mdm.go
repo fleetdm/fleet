@@ -563,16 +563,8 @@ func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
 	return c.deleteEULAIfNeeded(macOSEULATarget, dryRun)
 }
 
-func (c *Client) DeleteEULA(token string, dryRun bool) error {
-	return c.deleteEULA(token, dryRun)
-}
-
 func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
 	return c.uploadEULAIfNeeded(macOSEULATarget, eulaPath, dryRun)
-}
-
-func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
-	return c.uploadEULA(macOSEULATarget, eulaPath, dryRun)
 }
 
 func (c *Client) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {

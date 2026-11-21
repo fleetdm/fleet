@@ -1991,9 +1991,6 @@ func TestHostAuth(t *testing.T) {
 	ds.GetCategoriesForSoftwareTitlesFunc = func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
 		return map[uint][]string{}, nil
 	}
-	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
-		return nil
-	}
 	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}
@@ -5219,9 +5216,6 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
-	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
-		return nil
-	}
 	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}
@@ -5374,9 +5368,6 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
-	}
-	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
-		return nil
 	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil

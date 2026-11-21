@@ -55,7 +55,7 @@ func RegisterRemovedPaths(r *Router, versions []string, logger *slog.Logger, pat
 			methods = slices.DeleteFunc(methods, func(method string) bool { return method == overlap.Method })
 			// Register a more generic path template so it doesn't conflict with the still supported path template
 			r.Handle(Route{
-				Name:     getNameFromPathAndVerb(overlap.Method, removed.Path, ""),
+				Name:     getNameFromPathAndVerb(overlap.Method, removed.Path),
 				Methods:  []string{overlap.Method},
 				Path:     overlap.RouteTemplate,
 				Versions: allVersions,
@@ -69,7 +69,7 @@ func RegisterRemovedPaths(r *Router, versions []string, logger *slog.Logger, pat
 			verb = strings.Join(methods, "_")
 		}
 		r.Handle(Route{
-			Name:     getNameFromPathAndVerb(verb, removed.Path, ""),
+			Name:     getNameFromPathAndVerb(verb, removed.Path),
 			Methods:  methods,
 			Path:     removed.Path,
 			Versions: allVersions,

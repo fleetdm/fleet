@@ -23,7 +23,6 @@ func TestHostCertificateTemplates(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"ListAndroidHostUUIDsWithDeliverableCertificateTemplates", testListAndroidHostUUIDsWithDeliverableCertificateTemplates},
 		{"ListCertificateTemplatesForHosts", testListCertificateTemplatesForHosts},
 		{"GetCertificateTemplateForHostNoTeam", testGetCertificateTemplateForHostNoTeam},
 		{"BulkInsertAndDeleteHostCertificateTemplates", testBulkInsertAndDeleteHostCertificateTemplates},
@@ -151,95 +150,6 @@ func createEnrolledAndroidHostOnPolicy(t *testing.T, ctx context.Context, ds *Da
 	androidHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 	require.NoError(t, err)
 	return androidHost.Host
-}
-
-func testListAndroidHostUUIDsWithDeliverableCertificateTemplates(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	t.Run("android host with no host certificate templates is returned", func(t *testing.T) {
-		defer TruncateTables(t, ds)
-		setup := createCertTemplateTestSetup(t, ctx, ds, "")
-		createEnrolledAndroidHost(t, ctx, ds, "test-host-uuid", &setup.team.ID)
-
-		results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
-		require.NoError(t, err)
-		require.Len(t, results, 1)
-		require.Equal(t, "test-host-uuid", results[0])
-	})
-
-	t.Run("android host with existing host certificate templates is not returned", func(t *testing.T) {
-		defer TruncateTables(t, ds)
-		setup := createCertTemplateTestSetup(t, ctx, ds, "")
-		createEnrolledAndroidHost(t, ctx, ds, "test-host-uuid", &setup.team.ID)
-
-		// Insert host certificate template record (host already has this template)
-		_, err := ds.writer(ctx).ExecContext(ctx,
-			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, name) VALUES (?, ?, ?, ?, ?)",
-			"test-host-uuid", setup.template.ID, "challenge", fleet.MDMDeliveryPending, setup.template.Name,
-		)
-		require.NoError(t, err)
-
-		results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
-		require.NoError(t, err)
-		require.Len(t, results, 0)
-	})
-
-	t.Run("non-android host is not returned", func(t *testing.T) {
-		defer TruncateTables(t, ds)
-		setup := createCertTemplateTestSetup(t, ctx, ds, "")
-
-		// Create a macOS host instead of Android
-		host := &fleet.Host{
-			UUID:     "macos-host-uuid",
-			TeamID:   &setup.team.ID,
-			Platform: "darwin",
-		}
-		h, err := ds.NewHost(ctx, host)
-		require.NoError(t, err)
-		nanoEnroll(t, ds, h, false)
-
-		results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
-		require.NoError(t, err)
-		require.Len(t, results, 0)
-	})
-
-	t.Run("unenrolled host is not returned", func(t *testing.T) {
-		defer TruncateTables(t, ds)
-		setup := createCertTemplateTestSetup(t, ctx, ds, "")
-
-		// Create Android host without MDM enrollment
-		_, err := ds.NewHost(ctx, &fleet.Host{
-			UUID:     "unenrolled-host-uuid",
-			TeamID:   &setup.team.ID,
-			Platform: "android",
-		})
-		require.NoError(t, err)
-		// Note: not calling SetOrUpdateMDMData, so host is not enrolled
-
-		results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
-		require.NoError(t, err)
-		require.Len(t, results, 0)
-	})
-
-	t.Run("no team android host with no team certificate template is returned", func(t *testing.T) {
-		defer TruncateTables(t, ds)
-		setup := createNoTeamCertTemplateTestSetup(t, ctx, ds)
-
-		// Create an enrolled Android host with no team (TeamID = nil)
-		createEnrolledAndroidHost(t, ctx, ds, "no-team-host-uuid", nil)
-
-		results, err := ds.ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx, 0, 10)
-		require.NoError(t, err)
-		require.Len(t, results, 1, "no team host should be returned for no team certificate template")
-		require.Equal(t, "no-team-host-uuid", results[0])
-
-		// Verify the template exists with team_id = 0
-		var templateTeamID uint
-		err = ds.writer(ctx).GetContext(ctx, &templateTeamID,
-			"SELECT team_id FROM certificate_templates WHERE id = ?", setup.template.ID)
-		require.NoError(t, err)
-		require.Equal(t, uint(0), templateTeamID, "certificate template should have team_id = 0")
-	})
 }
 
 func testListCertificateTemplatesForHosts(t *testing.T, ds *Datastore) {
