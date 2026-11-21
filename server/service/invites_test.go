@@ -128,9 +128,11 @@ func TestVerifyInvite(t *testing.T) {
 	svc, ctx := newTestService(t, ms, nil, nil)
 
 	ms.InviteByTokenFunc = func(ctx context.Context, token string) (*fleet.Invite, error) {
+		if token != "abcd" {
+			return nil, &notFoundError{}
+		}
 		return &fleet.Invite{
-			ID:    1,
-			Token: "abcd",
+			ID: 1,
 			UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
 				CreateTimestamp: fleet.CreateTimestamp{
 					CreatedAt: time.Now().AddDate(-1, 0, 0),
@@ -142,10 +144,9 @@ func TestVerifyInvite(t *testing.T) {
 	_, err := svc.VerifyInvite(test.UserContext(ctx, test.UserAdmin), "abcd")
 	assert.Equal(t, err, wantErr)
 
-	wantErr = fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
-
 	_, err = svc.VerifyInvite(test.UserContext(ctx, test.UserAdmin), "bad_token")
-	assert.Equal(t, err, wantErr)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func TestDeleteInvite(t *testing.T) {
