@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -67,6 +68,9 @@ const (
 	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
 	// Runs every 1 minute.
 	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
+	// CronPolicyMembershipCleanup removes policy results that a policy change invalidated. Triggered after the
+	// change, and runs every 1h for requests a trigger missed.
+	CronPolicyMembershipCleanup CronScheduleName = "policy_membership_cleanup"
 	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
 	// Runs every 5 minutes.
 	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
@@ -153,6 +157,17 @@ func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) e
 	default:
 		return nil
 	}
+}
+
+// TriggerPolicyMembershipCleanup starts the policy_membership_cleanup schedule, so the policy results a change invalidated
+// are removed soon after the change rather than at the schedule's next hourly run. A run already in progress picks up
+// the change itself, so that conflict isn't an error.
+func TriggerPolicyMembershipCleanup(ctx context.Context, schedules CronSchedulesService) error {
+	err := schedules.TriggerCronSchedule(ctx, string(CronPolicyMembershipCleanup))
+	if _, isConflict := errors.AsType[triggerConflictError](err); isConflict {
+		return nil
+	}
+	return err
 }
 
 // ScheduleNames returns a list of the names of all cron schedules registered with the service.

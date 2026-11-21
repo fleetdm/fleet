@@ -282,3 +282,28 @@ func (m *memSoftwareInstallAttemptCounter) ResetInstallerAttempts(ctx context.Co
 	}
 	return nil
 }
+
+// immediatePolicyMembershipCleanup stands in for the policy_membership_cleanup schedule in tests: a trigger runs the
+// cleanup before returning, so a test sees the results of a policy change right after it.
+type immediatePolicyMembershipCleanup struct {
+	ds fleet.Datastore
+}
+
+// RegisterImmediatePolicyMembershipCleanup makes triggers of the policy_membership_cleanup schedule run the cleanup
+// immediately. A mocked datastore is skipped, since it only implements what a test sets.
+func RegisterImmediatePolicyMembershipCleanup(schedules *fleet.CronSchedules, ds fleet.Datastore) {
+	if _, isMock := ds.(*fleet_mock.Store); isMock {
+		return
+	}
+	schedules.Schedules[string(fleet.CronPolicyMembershipCleanup)] = immediatePolicyMembershipCleanup{ds: ds}
+}
+
+func (c immediatePolicyMembershipCleanup) Trigger(ctx context.Context) (*fleet.CronStats, bool, error) {
+	return nil, true, c.ds.CleanupPendingPolicyMembership(ctx)
+}
+
+func (c immediatePolicyMembershipCleanup) Name() string {
+	return string(fleet.CronPolicyMembershipCleanup)
+}
+
+func (c immediatePolicyMembershipCleanup) Start() {}
