@@ -1,0 +1,187 @@
+name: Atlas exemption audit
+
+# Verifies that the dependency-review exemption for GHSA-fc5q-39xc-vjpf
+# (picomatch ReDoS) is still valid. The exemption rests on two claims:
+#
+#   1. picomatch is dev-only in Atlas (never reaches the production build),
+#      so a dev-only ReDoS has no runtime attack path.
+#   2. There is no patched release upstream, so we can't upgrade it away.
+#
+# This workflow rechecks both claims. On PRs that could change (1), it runs
+# as a CI gate. Weekly, it rechecks (2) against GitHub's advisory database
+# and files an issue if either claim stops holding, so the exemption doesn't
+# silently rot.
+
+on:
+  pull_request:
+    paths:
+      - "tools/fleet-atlas/package.json"
+      - "tools/fleet-atlas/yarn.lock"
+      - ".github/workflows/dependency-review.yml"
+      - ".github/workflows/atlas-exemption-audit.yml"
+  schedule:
+    # Mondays at 12:00 UTC. Catches upstream-only changes (a patched version
+    # being published, the advisory being withdrawn, etc.) even when no one
+    # touches Atlas.
+    - cron: "0 12 * * MON"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.repository == 'fleetdm/fleet'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # only exercised on the schedule branch below
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          # better-sqlite3 (a runtime dep of Atlas) requires Node >= 22.
+          node-version: "22"
+
+      - name: Install Atlas dependencies
+        working-directory: tools/fleet-atlas
+        run: yarn install --frozen-lockfile
+
+      - name: Check picomatch stays dev-only
+        id: devonly
+        working-directory: tools/fleet-atlas
+        run: |
+          # `yarn list --prod` restricts to runtime dependencies (devDependencies
+          # omitted). If picomatch appears, the exemption's "dev-only" claim is
+          # no longer true.
+          set +e
+          output=$(yarn list --prod --pattern picomatch 2>&1)
+          set -e
+          if echo "$output" | grep -q "picomatch@"; then
+            echo "::error::picomatch is present in Atlas runtime dependencies. The GHSA-fc5q-39xc-vjpf exemption assumed dev-only. Either remove the runtime usage or revisit the exemption."
+            {
+              echo 'devonly_fail<<EOF_DEVONLY'
+              echo "$output"
+              echo 'EOF_DEVONLY'
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "picomatch not present in runtime tree — dev-only claim holds."
+
+      - name: Check advisory stays unpatched
+        id: unpatched
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub's advisory API returns the full advisory. We look at the
+          # patched_versions field for the picomatch vulnerability entry; if a
+          # non-null value appears, a fixed version exists and the "no patch
+          # available" claim no longer holds.
+          patched=$(gh api /advisories/GHSA-fc5q-39xc-vjpf \
+            --jq '.vulnerabilities[] | select(.package.name == "picomatch") | .patched_versions // ""')
+          withdrawn=$(gh api /advisories/GHSA-fc5q-39xc-vjpf --jq '.withdrawn_at // ""')
+          if [ -n "$withdrawn" ]; then
+            echo "::warning::Advisory GHSA-fc5q-39xc-vjpf was withdrawn at $withdrawn. The exemption can be removed."
+            echo "patched=withdrawn:$withdrawn" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          if [ -n "$patched" ]; then
+            echo "::error::Advisory GHSA-fc5q-39xc-vjpf now lists a patched version ($patched). Upgrade picomatch and remove the exemption."
+            echo "patched=$patched" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "GHSA-fc5q-39xc-vjpf still has no patched version — no-patch-available claim holds."
+
+      - name: File tracking issue on scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          DEVONLY_FAIL: ${{ steps.devonly.outputs.devonly_fail }}
+          PATCHED: ${{ steps.unpatched.outputs.patched }}
+        with:
+          script: |
+            const title = "Atlas picomatch exemption (GHSA-fc5q-39xc-vjpf) may be stale";
+            const runURL = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const devonlyFail = process.env.DEVONLY_FAIL || "";
+            const patched = process.env.PATCHED || "";
+
+            const reasons = [];
+            if (devonlyFail) {
+              reasons.push(
+                "**picomatch is no longer dev-only.** `yarn list --prod --pattern picomatch` found runtime matches:\n\n```\n" +
+                devonlyFail.trim() +
+                "\n```"
+              );
+            }
+            if (patched) {
+              reasons.push(
+                `**GHSA-fc5q-39xc-vjpf is now resolvable upstream.** Advisory signal: \`${patched}\`.`
+              );
+            }
+            if (reasons.length === 0) {
+              reasons.push(
+                "The audit workflow failed on a scheduled run, but neither the dev-only nor the unpatched claim produced a specific signal. Inspect the workflow run."
+              );
+            }
+
+            const body = [
+              "The `.github/workflows/atlas-exemption-audit.yml` workflow detected a change that likely invalidates the dependency-review exemption for picomatch (GHSA-fc5q-39xc-vjpf).",
+              "",
+              `Workflow run: ${runURL}`,
+              "",
+              "## What changed",
+              "",
+              ...reasons,
+              "",
+              "## What to do",
+              "",
+              "1. If picomatch is now in the runtime tree, remove the runtime dependency or rework Atlas to avoid it.",
+              "2. If a patched picomatch exists, upgrade and drop the exemption from `.github/workflows/dependency-review.yml`.",
+              "3. If the advisory was withdrawn, drop the exemption.",
+              "",
+              "---",
+              "*Automatically created by the atlas-exemption-audit workflow.*",
+            ].join("\n");
+
+            // Idempotency: don't open a duplicate open issue each Monday if the
+            // exemption stays stale. Comment on the existing one instead.
+            const { data: existing } = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:title "${title}"`,
+            });
+            const match = existing.items.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body: `Weekly audit found the exemption still looks stale. Latest run: ${runURL}`,
+              });
+              console.log(`Commented on existing issue #${match.number}`);
+              return;
+            }
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["fleet-atlas", "security"],
+            });
+            console.log(`Opened issue #${issue.number}: ${title}`);
