@@ -831,6 +831,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				} else {
 					appConfig.Integrations.GoogleWorkspace[i].ApiKey = newGW.ApiKey
 				}
+				// The merge above decodes into the saved entry, which keeps an omitted
+				// list; GitOps must treat a removed additional_domains key as empty.
+				if applyOpts.Overwrite {
+					appConfig.Integrations.GoogleWorkspace[i].AdditionalDomains = newGW.AdditionalDomains
+				}
 			}
 		}
 	}
@@ -2282,18 +2287,30 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 
 // googleWorkspaceActivity returns the activity to record when the Google
 // Workspace IdP integration is added, edited, or removed, or nil when it is
-// unchanged. Only the (non-secret) domain is compared/recorded.
+// unchanged. Only the (non-secret) fields are compared; an edit records the
+// primary domain and the synced domains it added or removed.
 func googleWorkspaceActivity(old, current []*fleet.GoogleWorkspaceIntegration) fleet.ActivityDetails {
-	oldConfigured := len(old) > 0
-	newConfigured := len(current) > 0
+	var o, c *fleet.GoogleWorkspaceIntegration
+	if len(old) > 0 {
+		o = old[0]
+	}
+	if len(current) > 0 {
+		c = current[0]
+	}
 	switch {
-	case !oldConfigured && newConfigured:
-		return fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: current[0].Domain}
-	case oldConfigured && !newConfigured:
-		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: old[0].Domain}
-	case oldConfigured && newConfigured:
-		if old[0].Domain != current[0].Domain || old[0].ImpersonatedUserEmail != current[0].ImpersonatedUserEmail {
-			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{Domain: current[0].Domain}
+	case o == nil && c != nil:
+		return fleet.ActivityTypeAddedGoogleWorkspaceIntegration{Domain: c.Domain}
+	case o != nil && c == nil:
+		return fleet.ActivityTypeDeletedGoogleWorkspaceIntegration{Domain: o.Domain}
+	case o != nil && c != nil:
+		if o.Domain != c.Domain || o.ImpersonatedUserEmail != c.ImpersonatedUserEmail ||
+			!slices.Equal(o.AdditionalDomains, c.AdditionalDomains) {
+			added, removed := diffStringSlices(o.Domains(), c.Domains())
+			return fleet.ActivityTypeEditedGoogleWorkspaceIntegration{
+				Domain:         c.Domain,
+				AddedDomains:   added,
+				RemovedDomains: removed,
+			}
 		}
 	}
 	return nil

@@ -85,6 +85,7 @@ export interface IZendeskJiraIntegrations {
 // service account with domain-wide delegation. Mutually exclusive with SCIM.
 export interface IGlobalGoogleWorkspaceIntegration {
   domain: string;
+  additional_domains?: string[];
   impersonated_user_email: string;
   api_key_json: Record<string, string>;
 }

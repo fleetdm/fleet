@@ -1,0 +1,1 @@
+- Added `additional_domains` to the Google Workspace IdP integration so users and groups from secondary domains in the same Google Workspace account are synced.

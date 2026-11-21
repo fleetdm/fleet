@@ -485,6 +485,8 @@ export interface IActivityDetails {
   custom_host_vital_id?: number;
   custom_host_vital_name?: string;
   domain?: string;
+  added_domains?: string[];
+  removed_domains?: string[];
   host_idp_username?: string;
   google_device_id?: string;
   google_email?: string;
