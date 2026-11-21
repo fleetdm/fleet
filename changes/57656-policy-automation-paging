@@ -1,0 +1,1 @@
+- Fixed paging through a policy's automation runs repeating some host rows and never returning others when a run covers several hosts.
