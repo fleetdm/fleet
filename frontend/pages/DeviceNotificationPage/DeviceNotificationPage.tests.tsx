@@ -8,6 +8,7 @@ import {
   errorDeviceNotificationActionHandler,
   errorDeviceNotificationHandler,
   installingThenSettledDeviceNotificationHandler,
+  networkErrorDeviceNotificationHandler,
   notFoundDeviceNotificationHandler,
   reminderThenInstallingDeviceNotificationHandler,
   settledDeviceNotificationHandler,
@@ -103,20 +104,47 @@ describe("DeviceNotificationPage", () => {
 
     await waitFor(() => {
       expect(postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ action: "error" })
+        expect.objectContaining({
+          action: "error",
+          payload: {
+            message: "Fleet couldn't load the notification (HTTP 404).",
+          },
+        })
       );
     });
     expect(container.querySelector(".device-notification-page")).toBeNull();
   });
 
-  it("posts `error` on a 500", async () => {
+  // Fleet Desktop records the message as the script output, so the status is
+  // what tells a 500 from an expired token in the activity details.
+  it("posts `error` with the HTTP status on a 500", async () => {
     mockServer.use(errorDeviceNotificationHandler);
 
     renderPage();
 
     await waitFor(() => {
       expect(postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({ action: "error" })
+        expect.objectContaining({
+          action: "error",
+          payload: {
+            message: "Fleet couldn't load the notification (HTTP 500).",
+          },
+        })
+      );
+    });
+  });
+
+  it("posts `error` without a status when the request gets no response", async () => {
+    mockServer.use(networkErrorDeviceNotificationHandler);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "error",
+          payload: { message: "Fleet couldn't load the notification." },
+        })
       );
     });
   });

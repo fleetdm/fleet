@@ -1466,16 +1466,17 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	if script.ExitCode == nil {
 		var expanded string
 		var failureMessage string
+		var notificationUUID string
+		var nothingToShow bool
 		// a notification's script is Fleet's own, and carries only its URL variable
 		if isNotificationScript(script) {
-			var notificationUUID string
 			notificationUUID, err = svc.notificationsSvc.NotificationUUIDForExecution(ctx, script.ExecutionID)
 			if err != nil {
 				svc.logger.ErrorContext(ctx, "failed to find the end user notification a script belongs to", "execution_id", script.ExecutionID, "err", err)
 				failureMessage = "Fleet couldn't find the notification this script belongs to."
 			}
 			if failureMessage == "" {
-				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, host.ID, notificationUUID)
+				failureMessage, nothingToShow = svc.setPatchNotificationPayloadForDisplay(ctx, host.ID, notificationUUID)
 			}
 			if failureMessage == "" {
 				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
@@ -1497,6 +1498,13 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 				ExitCode:    fleet.ExitCodeFleetVarResolutionFailed,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure")
+			}
+			// Logged rather than returned, for the same reason as above. Left open, the
+			// notification is retried and comes back here.
+			if nothingToShow {
+				if err := svc.failPatchNotificationWithNothingToShow(ctx, notificationUUID); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to fail a patch notification with no apps left", "notification_uuid", notificationUUID, "err", err)
+				}
 			}
 			script.ExitCode = new(int64(fleet.ExitCodeFleetVarResolutionFailed))
 			script.Output = failureMessage
