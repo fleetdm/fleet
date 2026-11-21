@@ -1628,6 +1628,31 @@ module.exports = {
           command.lineNumberInYaml = lineNumberForEdittingThisCommand; // Set the line number for edits.
 
 
+          if(command.faq !== undefined) {
+            if(!_.isArray(command.faq)) {
+              throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an invalid faq value. To resolve, change the faq value to be an array of objects with "question" and "answer" values and try running this script again.`);
+            }
+            for(let faqItem of command.faq) {
+              if(!_.isObject(faqItem) || !_.isString(faqItem.question) || !faqItem.question.trim() || !_.isString(faqItem.answer) || !faqItem.answer.trim()) {
+                throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an FAQ item that is missing a "question" or "answer" value. To resolve, make sure every item in this command's faq has a question and an answer, and try running this script again.`);
+              }
+              // The page is mounted by Vue, so mustache syntax would be interpreted as a template expression.
+              if(faqItem.question.match(/{{|}}/) || faqItem.answer.match(/{{|}}/)) {
+                throw new Error(`Could not build MDM command library configuration from YAML. An FAQ item for a command (${command.name}) contains Vue template syntax ({{ or }}). To resolve, remove the curly braces from the "${faqItem.question}" FAQ item and try running this script again.`);
+              }
+              // Raw HTML would be rendered as-is, so XML element names (e.g. <LocURI>) need to be wrapped in backticks.
+              if(faqItem.answer.replace(/`[^`]*`/g, '').match(/<[a-zA-Z\/!]/)) {
+                throw new Error(`Could not build MDM command library configuration from YAML. An FAQ answer for a command (${command.name}) contains HTML or an unescaped XML tag. To resolve, wrap any XML element names in backticks in the answer for "${faqItem.question}" and try running this script again.`);
+              }
+              faqItem.answerHtml = await sails.helpers.strings.toHtml.with({mdString: faqItem.answer, addIdsToHeadings: false});
+              // A plain-text version of the answer for the FAQPage structured data.
+              faqItem.answerText = _.unescape(faqItem.answerHtml.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').replace(/\s([.,;:!?)])/g, '$1').replace(/\(\s/g, '(').trim();
+              // Questions are rendered as plain text (in the accordion header and structured data), so drop any Markdown code formatting.
+              faqItem.question = faqItem.question.replace(/`/g, '').trim();
+              delete faqItem.answer;
+            }
+          }
+
           // Note: The command descriptions are escaped because they include references to XML tags (e.g., <Data>) that can cause issues with Vue.
           command.description = _.escape(command.description);
           command.command = command.command;
