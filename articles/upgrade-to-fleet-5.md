@@ -641,16 +641,16 @@ GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `DELETE /reports/:name` | Removed. Use [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). |
-| `DELETE /reports/id/:id` | Moved to [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). `DELETE /reports/id/:id` still works, but is deprecated. |
+| `DELETE /reports/id/:id` | Moved to [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). `DELETE /reports/id/:id` returns a `410` error. |
 
 `DELETE /reports/:name` returns a `410` error, except when the name is only digits (for example `42`). Then Fleet 5 deletes the report with that ID. This includes `fleetctl delete` from Fleet 4.
 
 #### What to do
 
-Make these changes before you upgrade.
+In Fleet 4, `DELETE /reports/:name` deletes by name, so you can't switch to `DELETE /reports/:id` before you upgrade. Instead, after you upgrade:
 
-1. Delete reports with `DELETE /reports/id/:id`, which works in Fleet 4 and Fleet 5. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports. After you upgrade, you can switch to `DELETE /reports/:id`.
-2. If an API-only user can only call "Delete report by name", give it "Delete report by ID" instead. If you don't, Fleet does this when you upgrade.
+1. Search for `DELETE /reports/` and delete reports with `DELETE /reports/:id`. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports.
+2. Give API-only users that delete reports the "Delete report by ID" permission in **Settings > Users**.
 
 GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
