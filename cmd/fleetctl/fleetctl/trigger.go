@@ -21,7 +21,7 @@ func triggerCommand() *cli.Command {
 				EnvVars:     []string{"NAME"},
 				Value:       "",
 				Destination: &name,
-				Usage:       "Name of the cron schedule to trigger",
+				Usage:       "Name of the scheduled job to trigger. See all jobs: https://fleetdm.com/learn-more-about/fleetctl-trigger",
 			},
 			configFlag(),
 			contextFlag(),
