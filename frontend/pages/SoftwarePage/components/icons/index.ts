@@ -268,6 +268,7 @@ import DanteController from "./png/DanteController.png";
 import Darkmodebuddy from "./png/Darkmodebuddy.png";
 import Darktable from "./png/Darktable.png";
 import Dash from "./png/Dash.png";
+import DatadogAgent from "./png/DatadogAgent.png";
 import Dataflare from "./png/Dataflare.png";
 import DataGrip from "./png/DataGrip.png";
 import Dataspell from "./png/Dataspell.png";
@@ -571,6 +572,7 @@ import Kitty from "./png/Kitty.png";
 import Klokki from "./png/Klokki.png";
 import Knime from "./png/Knime.png";
 import Knockknock from "./png/Knockknock.png";
+import KopiaUI from "./png/KopiaUI.png";
 import Krisp from "./png/Krisp.png";
 import Krita from "./png/Krita.png";
 import Lapce from "./png/Lapce.png";
@@ -624,6 +626,7 @@ import Maestral from "./png/Maestral.png";
 import Magicquit from "./png/Magicquit.png";
 import Mailspring from "./png/Mailspring.png";
 import Malwarebytes from "./png/Malwarebytes.png";
+import ManagedSoftwareCenter from "./png/ManagedSoftwareCenter.png";
 import MarkedApp from "./png/MarkedApp.png";
 import Markedit from "./png/Markedit.png";
 import Marsedit from "./png/Marsedit.png";
@@ -718,6 +721,7 @@ import Notesnook from "./png/Notesnook.png";
 import Notesollama from "./png/Notesollama.png";
 import Notion from "./png/Notion.png";
 import NotionCalendar from "./png/NotionCalendar.png";
+import NoTunes from "./png/noTunes.png";
 import NounProject from "./png/NounProject.png";
 import Nova from "./png/Nova.png";
 import Novabench from "./png/Novabench.png";
@@ -767,6 +771,7 @@ import PaintDotNet from "./png/PaintDotNet.png";
 import PaleMoon from "./png/PaleMoon.png";
 import Paletro from "./png/Paletro.png";
 import ParallelsDesktop from "./png/ParallelsDesktop.png";
+import Parsec from "./png/Parsec.png";
 import Pastebot from "./png/Pastebot.png";
 import Pcoipclient from "./png/Pcoipclient.png";
 import Pd from "./png/Pd.png";
@@ -905,6 +910,7 @@ import ScreenStudio from "./png/ScreenStudio.png";
 import Scribe from "./png/Scribe.png";
 import Scribus from "./png/Scribus.png";
 import Scrivener from "./png/Scrivener.png";
+import ScrollReverser from "./png/ScrollReverser.png";
 import Secretive from "./png/Secretive.png";
 import Securesafe from "./png/Securesafe.png";
 import Selfcontrol from "./png/Selfcontrol.png";
@@ -1106,11 +1112,13 @@ import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
+import Windscribe from "./png/Windscribe.png";
 import Windsurf from "./png/Windsurf.png";
 import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
 import Wins from "./png/Wins.png";
 import Winscp from "./png/Winscp.png";
+import Winzip from "./png/Winzip.png";
 import Wireguard from "./png/Wireguard.png";
 import Wireshark from "./png/Wireshark.png";
 import WisprFlow from "./png/WisprFlow.png";
@@ -1141,6 +1149,7 @@ import Zappy from "./png/Zappy.png";
 import Zed from "./png/Zed.png";
 import Zen from "./png/Zen.png";
 import Zeplin from "./png/Zeplin.png";
+import ZerotierOne from "./png/ZerotierOne.png";
 import Zettlr from "./png/Zettlr.png";
 import Zight from "./png/Zight.png";
 import ZoomOutlookPlugin from "./png/ZoomOutlookPlugin.png";
@@ -1363,6 +1372,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "cisco webex recorder and player": CiscoWebexRecorderAndPlayer,
   "citrix workspace": CitrixWorkspace,
+  "citrix workspace ltsr": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
   cleanclip: Cleanclip,
@@ -1427,6 +1437,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   darkmodebuddy: Darkmodebuddy,
   darktable: Darktable,
   dash: Dash,
+  "datadog agent": DatadogAgent,
   dataflare: Dataflare,
   datagrip: DataGrip,
   dataspell: Dataspell,
@@ -1742,6 +1753,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   klokki: Klokki,
   "knime analytics platform": Knime,
   knockknock: Knockknock,
+  kopiaui: KopiaUI,
   krisp: Krisp,
   krita: Krita,
   lapce: Lapce,
@@ -1795,6 +1807,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   magicquit: Magicquit,
   mailspring: Mailspring,
   "malwarebytes for mac": Malwarebytes,
+  "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,
   markedit: Markedit,
   marsedit: Marsedit,
@@ -1871,6 +1884,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
   multitouch: Multitouch,
+  munki: ManagedSoftwareCenter,
   mural: Mural,
   museeks: Museeks,
   musescore: Musescore,
@@ -1903,6 +1917,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   notesollama: Notesollama,
   notion: Notion,
   "notion calendar": NotionCalendar,
+  notunes: NoTunes,
   "noun project": NounProject,
   nova: Nova,
   novabench: Novabench,
@@ -1954,6 +1969,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
+  parsec: Parsec,
   pastebot: Pastebot,
   pd: Pd,
   "pdf expert": PdfExpert,
@@ -2097,6 +2113,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   scribe: Scribe,
   scribus: Scribus,
   scrivener: Scrivener,
+  "scroll reverser": ScrollReverser,
   secretive: Secretive,
   securesafe: Securesafe,
   selfcontrol: Selfcontrol,
@@ -2311,11 +2328,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
+  windscribe: Windscribe,
   windsurf: Windsurf,
   winlogbeat: Winlogbeat,
   winrar: Winrar,
   wins: Wins,
   winscp: Winscp,
+  winzip: Winzip,
   wireguard: Wireguard,
   wireshark: Wireshark,
   "wispr flow": WisprFlow,
@@ -2346,6 +2365,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zed: Zed,
   zen: Zen,
   zeplin: Zeplin,
+  "zerotier one": ZerotierOne,
   zettlr: Zettlr,
   zight: Zight,
   "zoom for government": Zoom,

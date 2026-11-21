@@ -111,3 +111,25 @@ func TestUpdateAppsListFileExactNameMatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, append(before, '\n'), after)
 }
+
+func TestUpdateAppsListFileRejectsSameNameOnSamePlatform(t *testing.T) {
+	ctx := t.Context()
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.MkdirAll(maintained_apps.OutputPath, 0o755))
+
+	appsList := `{"version": 2, "apps": [{"name": "Docker Desktop", "slug": "docker-desktop/darwin", "platform": "darwin"}, {"name": "Zen Browser", "slug": "zen/darwin", "platform": "darwin"}]}`
+	require.NoError(t, os.WriteFile(path.Join(maintained_apps.OutputPath, "apps.json"), []byte(appsList), 0o644))
+
+	// add a macOS app with the same name, the ingester should return an error
+	err := updateAppsListFile(ctx, &maintained_apps.FMAManifestApp{Name: "Docker Desktop", Slug: "docker/darwin"})
+	require.ErrorContains(t, err, "docker-desktop/darwin already uses on the same platform")
+
+	// add a Windows app with the same name, the ingester should add it
+	err = updateAppsListFile(ctx, &maintained_apps.FMAManifestApp{Name: "Docker Desktop", Slug: "docker/windows"})
+	require.NoError(t, err)
+
+	// refresh an existing macOS app whose incoming name matches another app, the ingester should
+	// not return an error because the name of an existing app isn't updated
+	err = updateAppsListFile(ctx, &maintained_apps.FMAManifestApp{Name: "Docker Desktop", Slug: "zen/darwin"})
+	require.NoError(t, err)
+}

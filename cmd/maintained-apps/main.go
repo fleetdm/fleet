@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -157,16 +158,35 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
+	platform := outApp.Platform()
+	platformNameSuffix := regexp.MustCompile(` for (macOS|Mac|Windows)$`)
+	foundIdx := -1
+	var existingSlugWithSameName string
+	for i, a := range outputAppsFile.Apps {
+		if a.Slug == outApp.Slug {
+			foundIdx = i
+			continue
+		}
+
+		// The Fleet-maintained apps list combines apps by name, so names must be unique per platform.
+		// The table compares names with utf8mb4_unicode_ci, but EqualFold is close enough for this check.
+		if a.Platform == platform && strings.EqualFold(platformNameSuffix.ReplaceAllString(a.Name, ""), platformNameSuffix.ReplaceAllString(outApp.Name, "")) {
+			existingSlugWithSameName = a.Slug
+		}
+	}
+
 	// Existing entries keep their hand-edited fields; only the derived name-match flag
 	// follows the input, since the server's title matching depends on it.
 	changed := true
-	if i := slices.IndexFunc(outputAppsFile.Apps, func(a maintained_apps.FMAListFileApp) bool { return a.Slug == outApp.Slug }); i >= 0 {
-		changed = outputAppsFile.Apps[i].ExactNameMatch != outApp.ExactNameMatch
-		outputAppsFile.Apps[i].ExactNameMatch = outApp.ExactNameMatch
+	if foundIdx >= 0 {
+		changed = outputAppsFile.Apps[foundIdx].ExactNameMatch != outApp.ExactNameMatch
+		outputAppsFile.Apps[foundIdx].ExactNameMatch = outApp.ExactNameMatch
 	} else {
-		platform := outApp.Platform()
 		if platform == "" {
 			return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
+		}
+		if existingSlugWithSameName != "" {
+			return ctxerr.New(ctx, fmt.Sprintf("%s uses the name %q, which %s already uses on the same platform", outApp.Slug, outApp.Name, existingSlugWithSameName))
 		}
 
 		outputAppsFile.Apps = append(outputAppsFile.Apps, maintained_apps.FMAListFileApp{

@@ -14,7 +14,7 @@ What `fleetctl generate-gitops` exports (cmd/fleetctl/fleetctl/generate_gitops.g
 | Org logos stored in Fleet | `lib/org_logo/<mode>.<ext>` + `org_logo_path_*` | `platforms/all/org-logos/` + `org_logo_path_*` | ✅ | – |
 | `server_settings` | exported, `server_url` literal | exported, `server_url: $FLEET_URL` as the template has it | ✅ | round trip |
 | `features`, `fleet_desktop`, `host_expiry_settings`, `activity_expiry_settings` | exported | exported | ✅ | round trip |
-| `webhook_settings` | exported; `failing_policies_webhook.policy_ids` moved to per-policy `webhooks_and_tickets_enabled` | same, destination URLs as variables | ⬆️ | round trip |
+| `webhook_settings` | exported; failing policies go in each policy's `webhooks_and_tickets_enabled` | same, from each policy's `automation_type`; destination URLs as variables | ⬆️ | round trip |
 | `integrations` (Jira, Zendesk, Google Calendar, Google Workspace, conditional access, certificate identity checks) | exported, tokens replaced by `# TODO` (empty values) | exported, tokens as variables; Google Workspace dropped on Free | ⬆️ | – |
 | `sso_settings` | exported, `metadata` and `metadata_url` replaced by `# TODO` | exported, `metadata` as `$FLEET_SSO_METADATA`, `metadata_url` kept (the template keeps it in plain text) | ⬆️ | round trip (`metadata_url`) |
 | `mdm.apple_server_url`, `mdm.end_user_authentication` | exported, metadata and URL as `# TODO` | exported, metadata as `$FLEET_MDM_SSO_METADATA`, URL kept | ⬆️ | – |

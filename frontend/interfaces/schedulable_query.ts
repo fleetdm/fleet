@@ -77,15 +77,15 @@ export default PropTypes.shape({
 // API shapes
 
 // Get a query by id
-/** GET /api/v1/fleet/queries/{id}` */
+/** GET /api/v1/fleet/reports/{id}` */
 export interface IGetQueryResponse {
-  query: ISchedulableQuery;
+  report: ISchedulableQuery;
 }
 
 // List global or team queries
-/**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&fleet_id={fleet_id} */
+/**  GET /api/v1/fleet/reports?order_key={column_from_queries_table}&order_direction={asc|desc}&fleet_id={fleet_id} */
 export interface IListQueriesResponse {
-  queries: ISchedulableQuery[];
+  reports: ISchedulableQuery[];
 }
 
 export interface IQueryKeyQueriesLoadAll {
@@ -100,7 +100,7 @@ export interface IQueryKeyQueriesLoadAll {
   targetedPlatform?: SelectedPlatform;
 }
 // Create a new query
-/** POST /api/v1/fleet/queries */
+/** POST /api/v1/fleet/reports */
 export interface ICreateQueryFormData {
   name: string;
   query: string;
@@ -120,7 +120,7 @@ export interface ICreateQueryFormData {
 // response is ISchedulableQuery
 
 // Edit a query by id
-/** PATCH /api/v1/fleet/queries/{id} */
+/** PATCH /api/v1/fleet/reports/{id} */
 export interface IEditQueryFormData
   extends Omit<ICreateQueryFormData, "name" | "query" | "fleet_id"> {
   id?: number;
@@ -137,18 +137,12 @@ export interface IEditQueryFormData
 
 // response is ISchedulableQuery // better way to indicate this?
 
-// Delete a query by name
-/** DELETE /api/v1/fleet/queries/{name} */
-export interface IDeleteQueryFormData {
-  fleet_id?: number; // searches for a global query if omitted
-}
-
 // Delete a query by id
-// DELETE /api/v1/fleet/queries/id/{id}
+// DELETE /api/v1/fleet/reports/{id}
 // (no body)
 
 // Delete queries by id
-/** POST /api/v1/fleet/queries/delete */
+/** POST /api/v1/fleet/reports/delete */
 export interface IDeleteQueriesFormData {
   ids: number[];
 }

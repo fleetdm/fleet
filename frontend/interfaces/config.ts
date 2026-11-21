@@ -8,7 +8,10 @@ import {
 } from "interfaces/webhook";
 
 import { IVulnExposureFilterDefaults } from "./charts";
-import { IGlobalIntegrations } from "./integration";
+import {
+  IGlobalGoogleConditionalAccessIntegration,
+  IGlobalIntegrations,
+} from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
 
 export interface ILicense {
@@ -67,14 +70,13 @@ export interface IMdmConfig {
   configured correctly. The naming is slightly confusing but at one point we
   only supported apple mdm, so thats why it's name the way it is. */
   enabled_and_configured: boolean;
-  apple_bm_default_team?: string;
   /**
    * @deprecated
-   * Refer to needsAbmTermsRenewal from AppContext instead of config.apple_bm_terms_expired.
+   * Refer to needsAbmTermsRenewal from AppContext instead of config.apple_business_terms_expired.
    * https://github.com/fleetdm/fleet/pull/21043/files#r1705977965
    */
-  apple_bm_terms_expired: boolean;
-  apple_bm_enabled_and_configured: boolean;
+  apple_business_terms_expired: boolean;
+  apple_business_enabled_and_configured: boolean;
   windows_mdm_enabled: boolean;
   enable_turn_on_windows_mdm_manually: boolean;
   windows_mdm_migration_enabled: boolean;
@@ -100,14 +102,13 @@ export interface IMdmConfig {
     macos_require_all_software: boolean | null;
     windows_require_all_software: boolean | null;
     lock_end_user_info: boolean | null;
-    enable_create_local_admin_account?: boolean;
-    end_user_local_account_type?: EndUserLocalAccountType;
-    enable_managed_local_account?: boolean;
+    macos_managed_local_account_enabled?: boolean;
+    macos_end_user_local_account_type?: EndUserLocalAccountType;
+    windows_managed_local_account_enabled?: boolean;
   };
   windows_settings?: {
     enable_disk_encryption?: boolean;
     require_bitlocker_pin?: boolean;
-    enable_managed_local_account?: boolean;
   };
   linux_settings?: {
     enable_escrow_disk_encryption_key?: boolean;
@@ -171,23 +172,20 @@ export interface IConfigFeatures {
 
 export interface IConfigServerSettings {
   server_url: string;
-  live_query_disabled: boolean;
+  live_reporting_disabled: boolean;
   enable_analytics: boolean;
   deferred_save_host: boolean;
-  query_reports_disabled: boolean;
+  discard_reports_data: boolean;
   ai_features_disabled: boolean;
   mcp_disabled: boolean;
+  ai_sessions_disabled: boolean;
 }
 
 export interface IConfig {
   org_info: {
     org_name: string;
-    /** @deprecated use `org_logo_url_dark_mode` */
-    org_logo_url: string;
-    /** @deprecated use `org_logo_url_light_mode` */
-    org_logo_url_light_background: string;
-    org_logo_url_dark_mode?: string;
-    org_logo_url_light_mode?: string;
+    org_logo_url_dark_mode: string;
+    org_logo_url_light_mode: string;
     contact_url: string;
   };
   sandbox_enabled: boolean;
@@ -233,6 +231,8 @@ export interface IConfig {
     okta_certificate: string;
     // Bypass setting
     bypass_disabled?: boolean;
+    /** Read-only. Settings are in `integrations.google_conditional_access`. */
+    google?: IConditionalAccessGoogleStatus;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
@@ -288,6 +288,7 @@ interface IFleetPartnerships {
 interface IAuthSettings {
   mdm_apple_one_time_enroll_secrets?: boolean;
   mdm_windows_one_time_enroll_secrets?: boolean;
+  mdm_android_one_time_enroll_secrets?: boolean;
 }
 
 export interface IAppleAccountProvisioning {
@@ -368,6 +369,21 @@ export interface IGitOpsModeConfig {
   exceptions: IGitOpsExceptions;
 }
 
+export type ConditionalAccessGoogleState =
+  | ""
+  | "pending"
+  | "delegation_failed"
+  | "registration_failed"
+  | "connected"
+  | "deleted";
+
+export interface IConditionalAccessGoogleStatus {
+  service_account_key_configured: boolean;
+  /** Empty while the integration is off. */
+  state: ConditionalAccessGoogleState;
+  error_message: string | null;
+}
+
 /** Check if Okta conditional access is configured (all 4 fields must be present) */
 export const isOktaConditionalAccessConfigured = (
   config: IConfig | null | undefined
@@ -388,6 +404,46 @@ export const isEntraConditionalAccessConfigured = (
   return (
     config?.conditional_access?.microsoft_entra_connection_configured ?? false
   );
+};
+
+/** Check if the Google conditional access settings are saved. The connection
+ * state is in `conditional_access.google`. Not part of
+ * `isConditionalAccessConfigured`: Google doesn't use per-fleet policy
+ * automations. */
+export const isGoogleConditionalAccessConfigured = (
+  config: IConfig | null | undefined
+): boolean => {
+  return !!config?.integrations?.google_conditional_access?.customer_id;
+};
+
+/** `saved` is the connect or edit response, or null after a delete. Spares
+ * reading the config back, which a replica that hasn't caught up can answer. */
+export const withGoogleConditionalAccess = (
+  config: IConfig,
+  saved:
+    | (IGlobalGoogleConditionalAccessIntegration &
+        IConditionalAccessGoogleStatus)
+    | null
+): IConfig => {
+  return {
+    ...config,
+    integrations: {
+      ...config.integrations,
+      google_conditional_access: saved && {
+        customer_id: saved.customer_id,
+        admin_email: saved.admin_email,
+      },
+    },
+    conditional_access: config.conditional_access && {
+      ...config.conditional_access,
+      google: {
+        service_account_key_configured:
+          saved?.service_account_key_configured ?? false,
+        state: saved?.state ?? "",
+        error_message: saved?.error_message ?? null,
+      },
+    },
+  };
 };
 
 /** Check if any conditional access provider is configured (Okta or Entra) */

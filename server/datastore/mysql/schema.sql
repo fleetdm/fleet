@@ -201,6 +201,16 @@ CREATE TABLE `android_enterprises` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `android_fleet_default_policies` (
+  `team_id` int unsigned NOT NULL,
+  `checksum` binary(16) NOT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`team_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `android_policy_requests` (
   `request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `request_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -226,11 +236,12 @@ CREATE TABLE `android_zero_touch_tokens` (
   `expires_at` datetime(6) NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `uses_fleet_policy` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_zt_global_or_team_id` (`global_or_team_id`),
   KEY `fk_zt_team_id` (`team_id`),
   CONSTRAINT `fk_zt_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -242,7 +253,7 @@ CREATE TABLE `app_config_json` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `app_config_json` VALUES (1,'{\"mdm\": {\"ios_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"macos_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": false}, \"name_template\": null, \"ipados_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"linux_settings\": {\"enable_escrow_disk_encryption_key\": false}, \"macos_settings\": {\"custom_settings\": null, \"enable_disk_encryption\": false, \"enable_escrow_disk_encryption_key\": false}, \"macos_migration\": {\"mode\": \"\", \"enable\": false, \"webhook_url\": \"\"}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"android_settings\": {\"certificates\": null, \"custom_settings\": null}, \"apple_server_url\": \"\", \"setup_experience\": {\"software\": null, \"macos_script\": null, \"lock_end_user_info\": false, \"apple_setup_assistant\": null, \"macos_bootstrap_package\": null, \"macos_manual_agent_install\": null, \"macos_require_all_software\": false, \"end_user_local_account_type\": \"admin\", \"enable_managed_local_account\": false, \"windows_require_all_software\": false, \"enable_end_user_authentication\": false, \"apple_enable_release_device_manually\": false, \"macos_enable_bootstrap_package_during_migration\": false, \"macos_enable_bootstrap_package_during_manual_enrollment\": false}, \"windows_settings\": {\"custom_settings\": null, \"require_bitlocker_pin\": false, \"enable_disk_encryption\": false, \"enable_managed_local_account\": false}, \"windows_mdm_enabled\": false, \"apple_bm_terms_expired\": false, \"apple_business_manager\": null, \"enable_disk_encryption\": false, \"enabled_and_configured\": false, \"end_user_authentication\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"issuer_uri\": \"\", \"metadata_url\": \"\"}, \"windows_entra_client_ids\": [], \"windows_entra_tenant_ids\": [], \"enable_profile_validation\": true, \"volume_purchasing_program\": null, \"apple_account_provisioning\": {\"oauth_idp_client_id\": null, \"oauth_idp_token_url\": null, \"oauth_idp_client_secret\": null}, \"windows_automatic_enrollment\": null, \"windows_mdm_migration_enabled\": false, \"windows_require_bitlocker_pin\": false, \"android_enabled_and_configured\": false, \"apple_bm_enabled_and_configured\": false, \"apple_require_hardware_attestation\": false, \"microsoft_graph_credential_invalid\": false, \"enable_turn_on_windows_mdm_manually\": false, \"macos_recovery_lock_password_enabled\": false, \"only_allow_apple_business_enrollment\": false}, \"gitops\": {\"exceptions\": {\"labels\": true, \"secrets\": true, \"software\": false}, \"repository_url\": \"\", \"gitops_mode_enabled\": false}, \"scripts\": null, \"features\": {\"historical_data\": {\"uptime\": true, \"vulnerabilities\": true}, \"enable_host_users\": true, \"enable_software_inventory\": false}, \"org_info\": {\"org_name\": \"\", \"contact_url\": \"\", \"org_logo_url\": \"\", \"org_logo_url_dark_mode\": \"\", \"org_logo_url_light_mode\": \"\", \"org_logo_url_light_background\": \"\"}, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null, \"conditional_access_enabled\": null, \"certificates_idp_client_ids\": null, \"certificates_idp_introspection_urls\": null, \"certificates_disable_host_end_user_binding\": null}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"sso_server_url\": \"\", \"enable_jit_role_sync\": false, \"enable_sso_idp_login\": false, \"enable_jit_provisioning\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"fleet_desktop\": {\"sso_enabled\": false, \"transparency_url\": \"\", \"alternative_browser_host\": \"\"}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"server_url\": \"\", \"mcp_disabled\": false, \"enable_analytics\": false, \"query_report_cap\": 0, \"scripts_disabled\": false, \"deferred_save_host\": false, \"live_query_disabled\": false, \"ai_features_disabled\": false, \"query_reports_disabled\": false}, \"webhook_settings\": {\"interval\": \"0s\", \"activities_webhook\": {\"destination_url\": \"\", \"enable_activities_webhook\": false}, \"host_status_webhook\": {\"days_count\": 0, \"destination_url\": \"\", \"host_percentage\": 0, \"enable_host_status_webhook\": false}, \"vulnerabilities_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_vulnerabilities_webhook\": false}, \"failing_policies_webhook\": {\"policy_ids\": null, \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}, \"activity_expiry_settings\": {\"activity_expiry_window\": 0, \"activity_expiry_enabled\": false, \"preserve_host_activities_on_reenrollment\": false}}','2020-01-01 01:01:01','2020-01-01 01:01:01');
+INSERT INTO `app_config_json` VALUES (1,'{\"mdm\": {\"ios_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"macos_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": false}, \"name_template\": null, \"apple_business\": null, \"apple_settings\": {\"configuration_profiles\": null, \"enable_disk_encryption\": false, \"enable_escrow_disk_encryption_key\": false}, \"ipados_updates\": {\"deadline\": null, \"deadline_days\": null, \"minimum_version\": null, \"update_new_hosts\": null}, \"linux_settings\": {\"enable_escrow_disk_encryption_key\": false}, \"macos_migration\": {\"mode\": \"\", \"enable\": false, \"webhook_url\": \"\"}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"android_settings\": {\"certificates\": null, \"configuration_profiles\": null}, \"apple_server_url\": \"\", \"setup_experience\": {\"software\": null, \"macos_script\": null, \"lock_end_user_info\": false, \"apple_setup_assistant\": null, \"macos_bootstrap_package\": null, \"macos_manual_agent_install\": null, \"macos_require_all_software\": false, \"windows_require_all_software\": false, \"enable_end_user_authentication\": false, \"macos_end_user_local_account_type\": \"admin\", \"macos_managed_local_account_enabled\": false, \"apple_enable_release_device_manually\": false, \"windows_managed_local_account_enabled\": false, \"macos_enable_bootstrap_package_during_migration\": false, \"macos_enable_bootstrap_package_during_manual_enrollment\": false}, \"windows_settings\": {\"require_bitlocker_pin\": false, \"configuration_profiles\": null, \"enable_disk_encryption\": false}, \"windows_mdm_enabled\": false, \"enable_disk_encryption\": false, \"enabled_and_configured\": false, \"end_user_authentication\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"issuer_uri\": \"\", \"metadata_url\": \"\"}, \"windows_entra_client_ids\": [], \"windows_entra_tenant_ids\": [], \"enable_profile_validation\": true, \"volume_purchasing_program\": null, \"apple_account_provisioning\": {\"oauth_idp_client_id\": null, \"oauth_idp_token_url\": null, \"oauth_idp_client_secret\": null}, \"apple_business_terms_expired\": false, \"windows_automatic_enrollment\": null, \"windows_mdm_migration_enabled\": false, \"windows_require_bitlocker_pin\": false, \"android_enabled_and_configured\": false, \"apple_require_hardware_attestation\": false, \"microsoft_graph_credential_invalid\": false, \"enable_turn_on_windows_mdm_manually\": false, \"macos_recovery_lock_password_enabled\": false, \"only_allow_apple_business_enrollment\": false, \"apple_business_enabled_and_configured\": false}, \"gitops\": {\"exceptions\": {\"labels\": true, \"secrets\": true, \"software\": false}, \"repository_url\": \"\", \"gitops_mode_enabled\": false}, \"scripts\": null, \"features\": {\"historical_data\": {\"uptime\": true, \"vulnerabilities\": true}, \"enable_host_users\": true, \"enable_software_inventory\": false}, \"org_info\": {\"org_name\": \"\", \"contact_url\": \"\", \"org_logo_url_dark_mode\": \"\", \"org_logo_url_light_mode\": \"\"}, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null, \"conditional_access_enabled\": null, \"certificates_idp_client_ids\": null, \"certificates_idp_introspection_urls\": null, \"certificates_disable_host_end_user_binding\": null}, \"sso_settings\": {\"idp_name\": \"\", \"metadata\": \"\", \"entity_id\": \"\", \"enable_sso\": false, \"issuer_uri\": \"\", \"metadata_url\": \"\", \"idp_image_url\": \"\", \"sso_server_url\": \"\", \"enable_jit_role_sync\": false, \"enable_sso_idp_login\": false, \"enable_jit_provisioning\": false}, \"agent_options\": {\"config\": {\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}, \"overrides\": {}}, \"fleet_desktop\": {\"sso_enabled\": false, \"transparency_url\": \"\", \"alternative_browser_host\": \"\"}, \"smtp_settings\": {\"port\": 587, \"domain\": \"\", \"server\": \"\", \"password\": \"\", \"user_name\": \"\", \"configured\": false, \"enable_smtp\": false, \"enable_ssl_tls\": true, \"sender_address\": \"\", \"enable_start_tls\": true, \"verify_ssl_certs\": true, \"authentication_type\": \"0\", \"authentication_method\": \"0\"}, \"server_settings\": {\"report_cap\": 0, \"server_url\": \"\", \"mcp_disabled\": false, \"enable_analytics\": false, \"scripts_disabled\": false, \"deferred_save_host\": false, \"ai_features_disabled\": false, \"discard_reports_data\": false, \"live_reporting_disabled\": false}, \"webhook_settings\": {\"interval\": \"0s\", \"activities_webhook\": {\"destination_url\": \"\", \"enable_activities_webhook\": false}, \"host_status_webhook\": {\"days_count\": 0, \"destination_url\": \"\", \"host_percentage\": 0, \"enable_host_status_webhook\": false}, \"vulnerabilities_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_vulnerabilities_webhook\": false}, \"failing_policies_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"host_expiry_window\": 0, \"host_expiry_enabled\": false}, \"vulnerability_settings\": {\"databases_path\": \"\"}, \"activity_expiry_settings\": {\"activity_expiry_window\": 0, \"activity_expiry_enabled\": false, \"preserve_host_activities_on_reenrollment\": false}}','2020-01-01 01:01:01','2020-01-01 01:01:01');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `apple_software_update_assets` (
@@ -303,19 +314,6 @@ CREATE TABLE `batch_activity_host_results` (
   KEY `idx_batch_script_execution_host_result_execution_id` (`batch_execution_id`),
   KEY `idx_bahr_host_execution_id` (`host_execution_id`),
   CONSTRAINT `batch_script_batch_id` FOREIGN KEY (`batch_execution_id`) REFERENCES `batch_activities` (`execution_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `ca_config_assets` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `type` enum('digicert','custom_scep_proxy') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `value` blob NOT NULL,
-  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_ca_config_assets_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -469,8 +467,8 @@ CREATE TABLE `cron_stats` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `errors` json DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_cron_stats_name_created_at` (`name`,`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_cron_stats_name_stats_type_created_at` (`name`,`stats_type`,`created_at`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -509,7 +507,7 @@ CREATE TABLE `default_team_config_json` (
   CONSTRAINT `default_team_config_id` CHECK ((`id` = 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `default_team_config_json` VALUES (1,'{\"mdm\": {\"macos_updates\": {\"deadline\": null, \"minimum_version\": null}, \"macos_settings\": {\"custom_settings\": null, \"enable_end_user_authentication\": false}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"setup_experience\": {\"apple_setup_assistant\": null, \"macos_bootstrap_package\": null, \"enable_end_user_authentication\": false, \"apple_enable_release_device_manually\": false}, \"windows_settings\": {\"custom_settings\": null}, \"enable_disk_encryption\": false}, \"scripts\": null, \"features\": {\"enable_host_users\": true, \"additional_queries\": null, \"detail_query_overrides\": null, \"enable_software_inventory\": true, \"enable_host_software_via_scan\": true, \"enable_host_operating_system_details\": true}, \"software\": null, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null}, \"agent_options\": null, \"webhook_settings\": {\"host_status_webhook\": null, \"failing_policies_webhook\": {\"policy_ids\": [], \"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"jitter_percent\": 0, \"host_expiry_window\": 0, \"host_expiry_enabled\": false}}','2020-01-01 01:01:01.000000','2026-11-11 11:21:18.916898');
+INSERT INTO `default_team_config_json` VALUES (1,'{\"mdm\": {\"macos_updates\": {\"deadline\": null, \"minimum_version\": null}, \"apple_settings\": {\"configuration_profiles\": null, \"enable_end_user_authentication\": false}, \"windows_updates\": {\"deadline_days\": null, \"grace_period_days\": null}, \"setup_experience\": {\"apple_setup_assistant\": null, \"macos_bootstrap_package\": null, \"enable_end_user_authentication\": false, \"apple_enable_release_device_manually\": false}, \"windows_settings\": {\"configuration_profiles\": null}, \"enable_disk_encryption\": false}, \"scripts\": null, \"features\": {\"enable_host_users\": true, \"additional_queries\": null, \"detail_query_overrides\": null, \"enable_software_inventory\": true, \"enable_host_software_via_scan\": true, \"enable_host_operating_system_details\": true}, \"software\": null, \"integrations\": {\"jira\": null, \"zendesk\": null, \"google_calendar\": null}, \"agent_options\": null, \"webhook_settings\": {\"host_status_webhook\": null, \"failing_policies_webhook\": {\"destination_url\": \"\", \"host_batch_size\": 0, \"enable_failing_policies_webhook\": false}}, \"host_expiry_settings\": {\"jitter_percent\": 0, \"host_expiry_window\": 0, \"host_expiry_enabled\": false}}','2020-01-01 01:01:01.000000','2020-01-01 01:01:01.000000');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `distributed_query_campaign_targets` (
@@ -595,15 +593,119 @@ CREATE TABLE `fleet_variables` (
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_fleet_variables_name_is_prefix` (`name`,`is_prefix`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000'),(18,'FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN',0,'2026-06-19 00:00:00.000000'),(19,'FLEET_VAR_HOST_TARGET_OS_VERSION',0,'2026-07-27 00:00:00.000000'),(20,'FLEET_VAR_HOST_TARGET_OS_DEADLINE',0,'2026-07-27 00:00:00.000000'),(21,'FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID',0,'2026-10-13 00:00:00.000000'),(22,'FLEET_VAR_EJBCA_DATA_',1,'2026-10-15 00:00:00.000000'),(23,'FLEET_VAR_EJBCA_PASSWORD_',1,'2026-10-15 00:00:00.000000'),(24,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL',0,'2026-10-15 00:00:00.000000');
+INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000'),(18,'FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN',0,'2026-06-19 00:00:00.000000'),(19,'FLEET_VAR_HOST_TARGET_OS_VERSION',0,'2026-07-27 00:00:00.000000'),(20,'FLEET_VAR_HOST_TARGET_OS_DEADLINE',0,'2026-07-27 00:00:00.000000'),(21,'FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID',0,'2026-10-13 00:00:00.000000'),(22,'FLEET_VAR_EJBCA_DATA_',1,'2026-10-15 00:00:00.000000'),(23,'FLEET_VAR_EJBCA_PASSWORD_',1,'2026-10-15 00:00:00.000000'),(24,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL',0,'2026-10-15 00:00:00.000000'),(25,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE',0,'2026-11-13 00:00:00.000000');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `google_conditional_access_device_users` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `state` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`device_user_name`),
+  KEY `idx_google_conditional_access_device_users_host_uuid` (`host_uuid`),
+  KEY `idx_google_conditional_access_device_users_state` (`state`),
+  CONSTRAINT `fk_google_conditional_access_device_users_host_uuid` FOREIGN KEY (`host_uuid`) REFERENCES `google_conditional_access_devices` (`host_uuid`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `google_conditional_access_devices` (
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `google_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `registration_token_hash` binary(32) DEFAULT NULL,
+  `registration_token_expires_at` datetime(6) DEFAULT NULL,
+  `registration_attempts` int unsigned NOT NULL DEFAULT '0',
+  `first_registration_attempt_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`host_uuid`),
+  UNIQUE KEY `idx_google_conditional_access_devices_registration_token_hash` (`registration_token_hash`),
+  UNIQUE KEY `idx_google_conditional_access_devices_google_device_id` (`google_device_id`),
+  KEY `idx_google_conditional_access_devices_customer_id` (`customer_id`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `google_conditional_access_integrations` (
+  `id` int unsigned NOT NULL DEFAULT '1',
+  `proxy_server_secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `state` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `error_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_additional` (
   `host_id` int unsigned NOT NULL,
   `additional` json DEFAULT NULL,
   PRIMARY KEY (`host_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_ai_session_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `ai_session_id` bigint unsigned NOT NULL,
+  `tool_call_index` int unsigned NOT NULL,
+  `action` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `target` varchar(256) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `decision` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `executed_at` datetime(6) DEFAULT NULL,
+  `payload` json NOT NULL,
+  `content_length` int unsigned NOT NULL DEFAULT '0',
+  `truncated` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_ai_session_events_session_call` (`ai_session_id`,`tool_call_index`),
+  CONSTRAINT `fk_host_ai_session_events_ai_session_id` FOREIGN KEY (`ai_session_id`) REFERENCES `host_ai_sessions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_ai_sessions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `agent` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  `agent_session_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  `agent_version` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `account_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `model` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `project_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `git_repository` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `git_branch` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `started_at` datetime(6) DEFAULT NULL,
+  `ended_at` datetime(6) DEFAULT NULL,
+  `user_message_count` int unsigned NOT NULL DEFAULT '0',
+  `assistant_message_count` int unsigned NOT NULL DEFAULT '0',
+  `tool_call_count` int unsigned NOT NULL DEFAULT '0',
+  `input_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `output_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `cache_read_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `cache_write_token_count` bigint unsigned NOT NULL DEFAULT '0',
+  `actions` set('read','write','execute','search','network','mcp','other') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `transcript_path` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `transcript_size` bigint unsigned NOT NULL DEFAULT '0',
+  `event_count` int unsigned NOT NULL DEFAULT '0',
+  `first_undecided_tool_call_index` int unsigned DEFAULT NULL,
+  `events_ended_at` datetime(6) DEFAULT NULL,
+  `events_empty_reads` tinyint unsigned NOT NULL DEFAULT '0',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_ai_sessions_host_agent_session` (`host_id`,`agent`,`agent_session_id`),
+  KEY `idx_host_ai_sessions_host_ended_at` (`host_id`,`ended_at`),
+  KEY `idx_host_ai_sessions_ended_at` (`ended_at`),
+  KEY `idx_host_ai_sessions_updated_at_ended_at` (`updated_at`,`ended_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -894,16 +996,6 @@ CREATE TABLE `host_emails` (
   PRIMARY KEY (`id`),
   KEY `idx_host_emails_host_id_email` (`host_id`,`email`),
   KEY `idx_host_emails_email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `host_google_device_ids` (
-  `host_id` int unsigned NOT NULL,
-  `google_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`host_id`),
-  UNIQUE KEY `idx_host_google_device_ids_google_device_id` (`google_device_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1862,10 +1954,10 @@ CREATE TABLE `in_house_apps` (
   `url` varchar(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `global_or_team_id` (`global_or_team_id`,`filename`,`platform`),
+  UNIQUE KEY `idx_in_house_apps_global_or_team_id_title_id` (`global_or_team_id`,`title_id`),
   KEY `fk_in_house_apps_title` (`title_id`),
   CONSTRAINT `fk_in_house_apps_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1969,42 +2061,12 @@ CREATE TABLE `labels` (
 INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2025-10-09 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','',1,0,NULL,NULL,NULL),(2,'2024-06-28 00:00:00','2025-10-09 00:00:00','iOS','All iOS hosts','','',1,1,NULL,NULL,NULL),(3,'2024-06-28 00:00:00','2025-10-09 00:00:00','iPadOS','All iPadOS hosts','','',1,1,NULL,NULL,NULL),(4,'2024-09-27 00:00:00','2026-08-14 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name like \'%fedora%\';','',1,0,NULL,NULL,NULL),(5,'2025-02-25 00:00:00','2025-10-09 00:00:00','Android','All Android hosts','','',1,1,NULL,NULL,NULL);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `legacy_host_filevault_profiles` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `operation_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `scope` enum('System','User') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'System',
-  `created_at` timestamp(6) NOT NULL,
-  `updated_at` timestamp(6) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `legacy_host_mdm_enroll_refs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `enroll_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_legacy_enroll_refs_host_uuid` (`host_uuid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `legacy_host_mdm_idp_accounts` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `account_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `host_id` int unsigned DEFAULT NULL,
-  `email_id` int unsigned DEFAULT NULL,
-  `email_created_at` datetime DEFAULT NULL,
-  `email_updated_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2247,18 +2309,6 @@ CREATE TABLE `mdm_apple_enrollment_profiles` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_type` (`type`),
   UNIQUE KEY `idx_token` (`token`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `mdm_apple_installers` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `size` bigint NOT NULL,
-  `manifest` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `installer` longblob,
-  `url_token` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2859,36 +2909,6 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = @saved_cs_client;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `network_interfaces` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_id` int unsigned NOT NULL,
-  `mac` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ip_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `broadcast` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ibytes` bigint NOT NULL DEFAULT '0',
-  `interface` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `ipackets` bigint NOT NULL DEFAULT '0',
-  `last_change` bigint NOT NULL DEFAULT '0',
-  `mask` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `metric` int NOT NULL DEFAULT '0',
-  `mtu` int NOT NULL DEFAULT '0',
-  `obytes` bigint NOT NULL DEFAULT '0',
-  `ierrors` bigint NOT NULL DEFAULT '0',
-  `oerrors` bigint NOT NULL DEFAULT '0',
-  `opackets` bigint NOT NULL DEFAULT '0',
-  `point_to_point` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `type` int NOT NULL DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_network_interfaces_unique_ip_host_intf` (`ip_address`,`host_id`,`interface`),
-  KEY `idx_network_interfaces_hosts_fk` (`host_id`),
-  FULLTEXT KEY `ip_address_search` (`ip_address`),
-  CONSTRAINT `network_interfaces_ibfk_1` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `notifications_end_user` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -2973,17 +2993,6 @@ CREATE TABLE `org_logo` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `osquery_options` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `override_type` int NOT NULL,
-  `override_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `options` json NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `osquery_options` VALUES (1,0,'','{\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}');
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `expires_at` timestamp NOT NULL,
@@ -3065,6 +3074,7 @@ CREATE TABLE `policies` (
   `notify_before_patching` tinyint(1) NOT NULL DEFAULT '0',
   `hidden` tinyint(1) NOT NULL DEFAULT '0',
   `patch_deadline` tinyint(1) NOT NULL DEFAULT '0',
+  `webhooks_and_tickets_enabled` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_policies_checksum` (`checksum`),
   UNIQUE KEY `idx_team_id_patch_software_title_id` (`team_id`,`patch_software_title_id`),
@@ -3084,7 +3094,7 @@ CREATE TABLE `policies` (
   CONSTRAINT `policies_ibfk_5` FOREIGN KEY (`vpp_apps_teams_id`) REFERENCES `vpp_apps_teams` (`id`),
   CONSTRAINT `policies_queries_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `ck_policies_resend_profile_uuid` CHECK (((if((`resend_apple_profile_uuid` is null),0,1) + if((`resend_windows_profile_uuid` is null),0,1)) <= 1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

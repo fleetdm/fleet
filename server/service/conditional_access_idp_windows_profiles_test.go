@@ -26,7 +26,7 @@ const conditionalAccessSCEPInstallPrefix = "./User/Vendor/MSFT/ClientCertificate
 
 // newConditionalAccessWindowsProfilesTestService returns a service whose datastore has everything the Windows
 // profiles endpoint needs. Tests override individual mocks to exercise failures.
-func newConditionalAccessWindowsProfilesTestService(t *testing.T, certPEM []byte, serverURL, secret string) (*mock.Store, fleet.Service, context.Context) {
+func newConditionalAccessWindowsProfilesTestService(t *testing.T, certPEM []byte, serverURL string) (*mock.Store, fleet.Service, context.Context) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	cfg.Server.PrivateKey = "test-private-key"
@@ -39,9 +39,6 @@ func newConditionalAccessWindowsProfilesTestService(t *testing.T, certPEM []byte
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: serverURL}}, nil
-	}
-	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{{Secret: secret}}, nil
 	}
 	return ds, svc, test.UserContext(ctx, test.UserAdmin)
 }
@@ -86,7 +83,7 @@ func autoSelectRuleFromPolicyData(t *testing.T, decodedData, elementID string) m
 
 func TestConditionalAccessGetIdPWindowsProfilesAuth(t *testing.T) {
 	t.Parallel()
-	_, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, generateTestCertPEM(t), "https://fleet.example.com", "test-secret-123")
+	_, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, generateTestCertPEM(t), "https://fleet.example.com")
 
 	testCases := []struct {
 		name       string
@@ -133,30 +130,25 @@ func TestConditionalAccessGetIdPWindowsProfiles(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		_, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, certPEM, "https://fleet.example.com:8080", "AbC+/12=")
+		_, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, certPEM, "https://fleet.example.com:8080")
 		profiles, err := svc.ConditionalAccessGetIdPWindowsProfiles(ctx)
 		require.NoError(t, err)
 
-		// The SCEP profile carries a placeholder where the admin writes a global enroll secret, so it is rejected as
-		// copied and uploads once the placeholder is replaced. The SCEP URL is left to delivery.
-		require.NotContains(t, profiles.SCEPProfile, "AbC+/12=")
-		require.Contains(t, profiles.SCEPProfile, "<Data>"+conditionalAccessWindowsChallengePlaceholder+"</Data>")
+		// Both the SCEP URL and the challenge are left to delivery, so the profile uploads as copied.
 		scepProfile := &fleet.MDMWindowsConfigProfile{Name: "Okta SCEP", SyncML: []byte(profiles.SCEPProfile)}
 		require.NoError(t, scepProfile.ValidateUserProvided(false))
-		_, err = validateWindowsProfileFleetVariables(profiles.SCEPProfile, &fleet.LicenseInfo{Tier: fleet.TierPremium}, nil)
-		require.ErrorContains(t, err, conditionalAccessChallengeInvalidMsg)
-		withSecret := strings.Replace(profiles.SCEPProfile, conditionalAccessWindowsChallengePlaceholder, "AbC+/12=", 1)
-		foundVars, err := validateWindowsProfileFleetVariables(withSecret, &fleet.LicenseInfo{Tier: fleet.TierPremium}, nil)
+		foundVars, err := validateWindowsProfileFleetVariables(profiles.SCEPProfile, &fleet.LicenseInfo{Tier: fleet.TierPremium}, nil)
 		require.NoError(t, err)
 		slices.Sort(foundVars)
 		require.Equal(t, []string{
 			string(fleet.FleetVarCertificateRenewalID),
+			string(fleet.FleetVarConditionalAccessSCEPChallenge),
 			string(fleet.FleetVarConditionalAccessSCEPURL),
 			string(fleet.FleetVarHostUUID),
 			string(fleet.FleetVarSCEPWindowsCertificateID),
 		}, foundVars)
-		scepData := syncMLTargets(t, withSecret)
-		require.Equal(t, "AbC+/12=", scepData[conditionalAccessSCEPInstallPrefix+"Challenge"])
+		scepData := syncMLTargets(t, profiles.SCEPProfile)
+		require.Equal(t, fleet.FleetVarConditionalAccessSCEPChallenge.WithPrefix(), scepData[conditionalAccessSCEPInstallPrefix+"Challenge"])
 		require.Equal(t, strings.ToUpper(hex.EncodeToString(thumbprint[:])), scepData[conditionalAccessSCEPInstallPrefix+"CAThumbprint"])
 
 		// The browser profile uploads with no Fleet variables and sets the same Chromium rule the Apple profile writes.
@@ -205,7 +197,7 @@ func TestConditionalAccessGetIdPWindowsProfilesEscaping(t *testing.T) {
 	const mtlsURL = `https://okta.example.com/?a=<b>&c="d"`
 	dev_mode.SetOverride("FLEET_DEV_OKTA_SSO_SERVER_URL", mtlsURL, t)
 
-	_, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, generateTestCertPEM(t), "https://fleet.example.com", "test-secret")
+	_, svc, ctx := newConditionalAccessWindowsProfilesTestService(t, generateTestCertPEM(t), "https://fleet.example.com")
 	profiles, err := svc.ConditionalAccessGetIdPWindowsProfiles(ctx)
 	require.NoError(t, err)
 

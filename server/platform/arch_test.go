@@ -26,6 +26,7 @@ func TestPlatformPackageDependencies(t *testing.T) {
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/license",
 			m+"/server/contexts/logging",
+			m+"/server/contexts/redact",
 			m+"/server/contexts/publicip",
 		).
 		Check()
@@ -48,6 +49,7 @@ func TestEndpointerPackageDependencies(t *testing.T) {
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/license",
 			m+"/server/contexts/logging",
+			m+"/server/contexts/redact",
 			m+"/server/contexts/publicip",
 		).
 		Check()

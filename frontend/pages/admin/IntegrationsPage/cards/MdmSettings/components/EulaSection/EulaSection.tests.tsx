@@ -168,7 +168,7 @@ describe("EulaSection", () => {
     await user.click(screen.getByRole("button", { name: "Example EULA" }));
     expect(screen.getByText("Example Windows EULA")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByText("Close"));
     expect(screen.queryByText("Example Windows EULA")).not.toBeInTheDocument();
   });
 

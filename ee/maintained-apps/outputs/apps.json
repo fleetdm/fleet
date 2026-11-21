@@ -1410,14 +1410,14 @@
       "name": "Burp Suite Community Edition",
       "slug": "burp-suite-community/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
       "name": "Burp Suite Professional",
       "slug": "burp-suite-professional/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Professional",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite Professional is a toolkit for web application security testing."
     },
     {
@@ -1720,10 +1720,24 @@
       "description": "Cisco Webex Recorder and Player plays Webex .wrf meeting recordings."
     },
     {
+      "name": "Citrix Workspace LTSR",
+      "slug": "citrix-workspace-ltsr/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace LTSR is the long-term servicing release of Citrix's unified workspace client, delivering secure access to virtual apps, desktops, and content."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
       "unique_identifier": "com.citrix.receiver.nomas",
+      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
@@ -2306,6 +2320,13 @@
       "platform": "darwin",
       "unique_identifier": "com.kapeli.dashdoc",
       "description": "Dash is an API documentation browser and code snippet manager."
+    },
+    {
+      "name": "Datadog Agent",
+      "slug": "datadog-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Datadog Agent",
+      "description": "Datadog Agent collects metrics, logs, and traces from hosts and sends them to Datadog for monitoring."
     },
     {
       "name": "Dataflare",
@@ -2894,7 +2915,7 @@
       "name": "Druva inSync",
       "slug": "druva-insync/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.druva.inSyncClient",
+      "unique_identifier": "com.druva.inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
@@ -2908,7 +2929,7 @@
       "name": "Druva inSync (GovCloud)",
       "slug": "druva-insync@govcloud/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.druva.inSyncClient",
+      "unique_identifier": "com.druva.inSync",
       "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
@@ -4430,13 +4451,6 @@
       "description": "Hyperkey is a tool to convert your caps lock key or any of your modifier keys to the hyper key."
     },
     {
-      "name": "i1Profiler",
-      "slug": "i1profiler/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.x-rite.i1Profiler",
-      "description": "i1Profiler is an automation and creative controls for photographers and designers."
-    },
-    {
       "name": "IBM Notifier",
       "slug": "ibm-notifier/darwin",
       "platform": "darwin",
@@ -5036,6 +5050,13 @@
       "platform": "darwin",
       "unique_identifier": "com.objective-see.KnockKnock",
       "description": "KnockKnock is a tool to show what is persistently installed on the computer."
+    },
+    {
+      "name": "KopiaUI",
+      "slug": "kopiaui/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.kopia.ui",
+      "description": "KopiaUI is a backup and restore tool."
     },
     {
       "name": "Krisp",
@@ -6077,11 +6098,25 @@
       "description": "Mullvad VPN is a VPN client."
     },
     {
+      "name": "Mullvad VPN",
+      "slug": "mullvad-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mullvad VPN",
+      "description": "Mullvad VPN is a VPN client."
+    },
+    {
       "name": "Multitouch",
       "slug": "multitouch/darwin",
       "platform": "darwin",
       "unique_identifier": "com.brassmonkery.Multitouch",
       "description": "Multitouch is a tool to add more gestures for Trackpad and Magic Mouse."
+    },
+    {
+      "name": "Munki",
+      "slug": "munki/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.munki.ManagedSoftwareCenter",
+      "description": "Munki is a software installation manager."
     },
     {
       "name": "MURAL",
@@ -6115,7 +6150,7 @@
       "name": "MySQL Workbench",
       "slug": "mysqlworkbench/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "unique_identifier": "com.oracle.mysqlworkbench",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
@@ -6240,6 +6275,27 @@
       "platform": "darwin",
       "unique_identifier": "com.gonitro.NitroPDFPro",
       "description": "Nitro PDF Pro is a PDF editing software."
+    },
+    {
+      "name": "Nitro PDF Pro",
+      "slug": "nitro-pdf-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Nitro PDF Pro",
+      "description": "Nitro PDF Pro is a PDF editor for creating, converting, editing, signing, and securing PDF documents."
+    },
+    {
+      "name": "Node.js 22",
+      "slug": "nodejs-22/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 22 is the 22.x long-term support release line of the Node.js JavaScript runtime."
+    },
+    {
+      "name": "Node.js 24",
+      "slug": "nodejs-24/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 24 is the 24.x long-term support release line of the Node.js JavaScript runtime."
     },
     {
       "name": "Node.js",
@@ -6370,6 +6426,13 @@
       "platform": "windows",
       "unique_identifier": "Notion 6.1.0",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "noTunes",
+      "slug": "notunes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "digital.twisted.noTunes",
+      "description": "noTunes is a menu bar utility that prevents iTunes or Apple Music from launching automatically."
     },
     {
       "name": "Noun Project",
@@ -6806,6 +6869,13 @@
       "platform": "darwin",
       "unique_identifier": "com.parallels.desktop.console",
       "description": "Parallels Desktop is virtualization software."
+    },
+    {
+      "name": "Parsec",
+      "slug": "parsec/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tv.parsec.www",
+      "description": "Parsec is a remote desktop app for low-latency streaming and remote access to computers."
     },
     {
       "name": "Pastebot",
@@ -7321,6 +7391,13 @@
       "description": "Proton Pass is a desktop client for Proton Pass."
     },
     {
+      "name": "Proton Pass",
+      "slug": "proton-pass/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Pass",
+      "description": "Proton Pass is an open-source, end-to-end encrypted password manager."
+    },
+    {
       "name": "ProtonVPN",
       "slug": "protonvpn/darwin",
       "platform": "darwin",
@@ -7421,18 +7498,18 @@
       "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/windows",
       "platform": "windows",
       "unique_identifier": "PyCharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
     },
     {
       "name": "Python 3.13 (ARM64)",
@@ -8069,6 +8146,13 @@
       "unique_identifier": "Scrivener",
       "exact_name_match": true,
       "description": "Scrivener is a word processing software with a typewriter style."
+    },
+    {
+      "name": "Scroll Reverser",
+      "slug": "scroll-reverser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pilotmoon.scroll-reverser",
+      "description": "Scroll Reverser is a menu bar utility that reverses the scrolling direction of mice and trackpads independently."
     },
     {
       "name": "Secretive",
@@ -9970,6 +10054,13 @@
       "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
     },
     {
+      "name": "Windscribe",
+      "slug": "windscribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Windscribe",
+      "description": "Windscribe is a VPN client that encrypts network traffic and blocks ads and trackers."
+    },
+    {
       "name": "Windsurf",
       "slug": "windsurf/windows",
       "platform": "windows",
@@ -10006,6 +10097,13 @@
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
     },
     {
+      "name": "WinZip",
+      "slug": "winzip/windows",
+      "platform": "windows",
+      "unique_identifier": "WinZip",
+      "description": "WinZip is a file compression utility for creating, extracting, and encrypting ZIP and other archives."
+    },
+    {
       "name": "WireGuard",
       "slug": "wireguard/windows",
       "platform": "windows",
@@ -10034,6 +10132,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.wispr-flow",
       "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
+    },
+    {
+      "name": "Wispr Flow",
+      "slug": "wispr-flow/windows",
+      "platform": "windows",
+      "unique_identifier": "Wispr Flow",
+      "description": "Wispr Flow is a voice-to-text dictation app with AI-powered auto-editing."
     },
     {
       "name": "EdrawMax",
@@ -10288,6 +10393,13 @@
       "platform": "darwin",
       "unique_identifier": "io.zeplin.osx",
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
+    },
+    {
+      "name": "ZeroTier One",
+      "slug": "zerotier-one/windows",
+      "platform": "windows",
+      "unique_identifier": "ZeroTier One",
+      "description": "ZeroTier One is a virtual networking client that connects devices over encrypted peer-to-peer networks."
     },
     {
       "name": "Zettlr",

@@ -20,6 +20,7 @@ import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManag
 import DeletedHostGoogleDeviceIdActivityItem from "./ActivityItems/DeletedHostGoogleDeviceIdActivityItem";
 import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
+import FailedResetActivityItem from "./ActivityItems/FailedResetActivityItem";
 import FailedToRotateDiskEncryptionKeyActivityItem from "./ActivityItems/FailedToRotateDiskEncryptionKey";
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
@@ -40,6 +41,7 @@ import ReadHostRecoveryLockPasswordActivityItem from "./ActivityItems/ReadHostRe
 import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ResentConfigurationProfileActivityItem from "./ActivityItems/ResentConfigurationProfileActivityItem/ResentConfigurationProfileActivityItem";
+import ResetHostActivityItem from "./ActivityItems/ResetHostActivityItem";
 import ResetPolicyActivityItem from "./ActivityItems/ResetPolicyActivityItem";
 import RetrievedHostMyDeviceURLActivityItem from "./ActivityItems/RetrievedHostMyDeviceURLActivityItem";
 import RotatedDiskEncryptionKeyActivityItem from "./ActivityItems/RotatedDiskEncryptionKey";
@@ -82,7 +84,9 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.WipedHost]: WipedHostActivityItem,
+  [ActivityType.ResetHost]: ResetHostActivityItem,
   [ActivityType.FailedWipe]: FailedWipeActivityItem,
+  [ActivityType.FailedReset]: FailedResetActivityItem,
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.RetrievedHostMyDeviceURL]: RetrievedHostMyDeviceURLActivityItem,
   [ActivityType.ReadHostRecoveryLockPassword]: ReadHostRecoveryLockPasswordActivityItem,

@@ -8,7 +8,7 @@ import createMockPolicy from "__mocks__/policyMock";
 import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { ILabelSummary } from "interfaces/label";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI from "services/entities/teams";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
@@ -41,6 +41,18 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
     labels: mockLabels,
   });
 });
+
+const selectAutomation = async (
+  user: { click: (element: Element) => Promise<void> },
+  label: string
+) => {
+  await user.click(screen.getByRole("combobox", { name: "Automation" }));
+  const option = Array.from(
+    document.querySelectorAll(".react-select__option")
+  ).find((o) => o.textContent?.startsWith(label));
+  if (!option) throw new Error(`No "${label}" automation option`);
+  await user.click(option);
+};
 
 describe("PolicyForm - component", () => {
   afterEach(() => jest.restoreAllMocks());
@@ -200,7 +212,10 @@ describe("PolicyForm - component", () => {
 
     it("disables Hide from end user when the policy uses conditional access", async () => {
       renderEditForm(
-        createMockPolicy({ fleet_id: 2, conditional_access_enabled: true }),
+        createMockPolicy({
+          fleet_id: 2,
+          automation_type: "conditional_access",
+        }),
         false
       );
 
@@ -226,31 +241,29 @@ describe("PolicyForm - component", () => {
           },
         },
       } as never);
-      jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+      jest.spyOn(policiesAPI, "update").mockResolvedValue({} as never);
       const onUpdate = jest.fn().mockResolvedValue({});
 
       const { user } = renderEditForm(
         createMockPolicy({
           fleet_id: 2,
           platform: "darwin",
-          conditional_access_enabled: true,
+          automation_type: "conditional_access",
         }),
         true,
         { onUpdate }
       );
 
-      const conditionalAccess = await screen.findByRole("checkbox", {
-        name: "conditional_access",
-      });
-      expect(conditionalAccess).toBeChecked();
-      await user.click(conditionalAccess);
+      await screen.findByText("Conditional access");
+      await selectAutomation(user, "None");
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
       expect(onUpdate.mock.calls[0][0]).toMatchObject({
         hidden: true,
-        conditional_access_enabled: false,
+        automation_type: null,
       });
+      expect(policiesAPI.update).not.toHaveBeenCalled();
     });
 
     it("offers Hide from end user for an All fleets policy", async () => {
@@ -407,9 +420,7 @@ describe("PolicyForm - component", () => {
       expect(onUpdate).not.toHaveBeenCalled();
       // The synchronous guard sets errors.query = EMPTY_QUERY_ERR, which
       // SQLEditor surfaces as its label text.
-      expect(
-        screen.getByText("Query text must be present")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Enter a query")).toBeInTheDocument();
     });
 
     // Regression test for #38348: a policy with a non-empty but syntactically
@@ -569,6 +580,72 @@ describe("PolicyForm - component", () => {
       });
     });
 
+    // A new policy has no platform selector on the page, so the save modal has
+    // to seed itself from the query's compatible platforms. Without the seed,
+    // the modal opens with every platform unchecked and every new policy needs
+    // its platforms picked by hand.
+    it("opens the new-policy save modal with compatible platforms checked", async () => {
+      // os_version is Darwin / Linux / Windows / Chrome, so every platform is
+      // compatible — all four checkboxes should be checked in the modal.
+      const compatibleQuery = "SELECT * FROM os_version;";
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: undefined,
+            lastEditedQueryName: "",
+            lastEditedQueryDescription: "",
+            lastEditedQueryBody: compatibleQuery,
+            lastEditedQueryResolution: "",
+            lastEditedQueryCritical: false,
+            // null, not "" — "" triggers the usePlatformSelector "check all
+            // four" fallback and would mask the regression (pre-fix, every
+            // checkbox would also be checked).
+            lastEditedQueryPlatform: null,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <PolicyForm
+          {...defaultProps}
+          policyIdForEdit={null}
+          storedPolicy={undefined}
+        />
+      );
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      // Modal has opened; each platform checkbox inside it is checked.
+      await waitFor(() => {
+        expect(screen.getByRole("checkbox", { name: /^macOS/ })).toBeChecked();
+      });
+      expect(screen.getByRole("checkbox", { name: /^Windows/ })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: /^Linux/ })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: /^ChromeOS/ })).toBeChecked();
+    });
+
     it("disables run button with tooltip when live queries are globally disabled", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -604,7 +681,7 @@ describe("PolicyForm - component", () => {
             config: createMockConfig({
               server_settings: {
                 ...createMockConfig().server_settings,
-                live_query_disabled: true, // Live query disabled
+                live_reporting_disabled: true, // Live reports disabled
               },
             }),
           },
@@ -1049,7 +1126,7 @@ describe("PolicyForm - component", () => {
           .spyOn(teamsAPI, "load")
           .mockReturnValue(new Promise(() => undefined));
         const updatePolicySpy = jest
-          .spyOn(teamPoliciesAPI, "update")
+          .spyOn(policiesAPI, "update")
           .mockResolvedValue({} as never);
         const teamPatchPolicy = {
           ...patchPolicy,
@@ -1077,8 +1154,7 @@ describe("PolicyForm - component", () => {
         // the synthesized automations payload.
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
-            fleet_id: 1,
-            software_title_id: 42,
+            automation_type: "software",
             patch_when_closed: false,
             notify_before_patching: false,
             patch_deadline: true,
@@ -1088,12 +1164,47 @@ describe("PolicyForm - component", () => {
         expect(onUpdate).toHaveBeenCalledTimes(1);
       });
 
+      it("keeps a manual patch policy's script before automation configuration loads", async () => {
+        jest
+          .spyOn(teamsAPI, "load")
+          .mockReturnValue(new Promise(() => undefined));
+        const updatePolicySpy = jest
+          .spyOn(policiesAPI, "update")
+          .mockResolvedValue({} as never);
+        const teamPatchPolicy = {
+          ...patchPolicy,
+          fleet_id: 1,
+          automation_type: "script" as const,
+          run_script: { id: 1, name: "Rotate keys" },
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        };
+        const onUpdate = jest.fn().mockResolvedValue({});
+        const { user } = renderPatchPolicy(
+          <PolicyForm
+            {...patchPolicyProps}
+            storedPolicy={teamPatchPolicy}
+            onUpdate={onUpdate}
+          />
+        );
+
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        await waitFor(() =>
+          expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
+            patch_when_closed: false,
+            notify_before_patching: false,
+            patch_deadline: false,
+          })
+        );
+      });
+
       it("saves Force patch with Deadline through the loaded automation configuration", async () => {
         jest.spyOn(teamsAPI, "load").mockResolvedValue({
           fleet: createMockTeam({ id: 1 }),
         } as never);
         const updatePolicySpy = jest
-          .spyOn(teamPoliciesAPI, "update")
+          .spyOn(policiesAPI, "update")
           .mockResolvedValue({} as never);
         const teamPatchPolicy = {
           ...patchPolicy,
@@ -1111,8 +1222,8 @@ describe("PolicyForm - component", () => {
           />
         );
 
-        // The conditional access checkbox renders once the configuration loads.
-        await screen.findByRole("checkbox", { name: "conditional_access" });
+        // The Automation dropdown renders once the configuration loads.
+        await screen.findByRole("combobox", { name: "Automation" });
         await user.click(screen.getByRole("radio", { name: "Force patch" }));
         await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -1159,7 +1270,7 @@ describe("PolicyForm - component", () => {
 
       it("does not carry notify_before_patching for a Windows patch policy", async () => {
         const updatePolicySpy = jest
-          .spyOn(teamPoliciesAPI, "update")
+          .spyOn(policiesAPI, "update")
           .mockResolvedValue({} as never);
         const windowsPatchPolicy = {
           ...patchPolicy,
@@ -1236,7 +1347,7 @@ describe("PolicyForm - component", () => {
             },
           },
         } as never);
-        jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+        jest.spyOn(policiesAPI, "update").mockResolvedValue({} as never);
         const onUpdate = jest.fn().mockResolvedValue({});
 
         const { user } = renderPatchPolicy(
@@ -1246,23 +1357,20 @@ describe("PolicyForm - component", () => {
             storedPolicy={{
               ...patchPolicy,
               fleet_id: 2,
-              conditional_access_enabled: true,
+              automation_type: "conditional_access",
             }}
             onUpdate={onUpdate}
           />
         );
 
-        const conditionalAccess = await screen.findByRole("checkbox", {
-          name: "conditional_access",
-        });
-        expect(conditionalAccess).toBeChecked();
-        await user.click(conditionalAccess);
+        await screen.findByText("Conditional access");
+        await selectAutomation(user, "None");
         await user.click(screen.getByRole("button", { name: "Save" }));
 
         await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
         expect(onUpdate.mock.calls[0][0]).toMatchObject({
           hidden: true,
-          conditional_access_enabled: false,
+          automation_type: null,
         });
       });
 

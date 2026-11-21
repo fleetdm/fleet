@@ -585,7 +585,7 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 		return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: missingIDs, MissingNames: missingNames}
 	}
 
-	expanded := expandDocumentVars(document, func(s string) (string, bool) {
+	expanded, _ := expandDocumentVars(document, func(s string) (string, bool) {
 		if !strings.HasPrefix(s, fleet.CustomHostVitalPrefix) {
 			return "", false
 		}

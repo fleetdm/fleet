@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -68,11 +69,7 @@ func translateTeamToID(ctx context.Context, ds fleet.Datastore, identifier strin
 }
 
 func translateHostToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
-	host, err := ds.HostByIdentifier(ctx, identifier)
-	if err != nil {
-		return 0, err
-	}
-	return host.ID, nil
+	return ds.HostIDByIdentifier(ctx, identifier, fleet.HostIDByIdentifierOptions{})
 }
 
 func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
@@ -98,7 +95,7 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 				return nil, err
 			}
 			translateFunc = translateLabelToID
-		case fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet:
+		case fleet.TranslatorTypeFleet:
 			if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 				return nil, err
 			}
@@ -111,6 +108,9 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 		default:
 			// if no supported payload type, this is bad regardless of authorization
 			svc.authz.SkipAuthorization(ctx)
+			if entry, ok := removednames.Find(removednames.KindTargetType, payload.Type, ""); ok {
+				return nil, fleet.NewInvalidArgumentError("type", entry.Message())
+			}
 			return nil, endpointer.BadRequestErr(
 				fmt.Sprintf("Type %s is unknown. ", payload.Type),
 				fleet.NewErrorf(

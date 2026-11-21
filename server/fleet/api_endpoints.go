@@ -31,8 +31,8 @@ var validHTTPMethods = map[string]struct{}{
 	http.MethodDelete: {},
 }
 
-// versionSegmentRe matches the gorilla/mux version segment that attachFleetAPIRoutes
-// inserts in place of /_version_/ (e.g. /{fleetversion:(?:v1|2022-04|latest)}/).
+// versionSegmentRe matches the version segment of a route template, which the router
+// writes in place of /_version_/ (e.g. /{fleetversion:(?:v1|2022-04|latest)}/).
 var versionSegmentRe = regexp.MustCompile(`/\{fleetversion:[^}]+\}/`)
 
 // NewAPIEndpointFromTpl creates a new APIEndpoint from the provided params.

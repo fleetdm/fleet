@@ -509,6 +509,36 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
 
+	// add a custom Maintained3 package to Unassigned, the Maintained3 FMA should show as added
+	// for Unassigned only
+	_, unassignedTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Maintained3",
+		InstallScript:    "nothing",
+		Filename:         "maintained3.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: "fleet.maintained3",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, new(uint(0)), fleet.MaintainedAppListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, 4, meta.TotalResults)
+	require.Nil(t, apps[0].TitleID)
+	require.Nil(t, apps[1].TitleID)
+	require.Equal(t, new(unassignedTitleID), apps[2].TitleID)
+	require.Nil(t, apps[3].TitleID)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, new(uint(0)))
+	require.NoError(t, err)
+	require.Equal(t, new(unassignedTitleID), gotApp.TitleID)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, &team1.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotApp.TitleID)
+
 	// Ordering: the combined-by-app view is only meaningfully sortable by name,
 	// so "name" is the one allowed order key. expectedApps is declared in
 	// ascending name order, so we derive the expected name sequences from it.
@@ -735,7 +765,7 @@ func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
 }
 
 // testListAvailableAppsByNameAndFilters verifies that the list paginates by
-// distinct app TOKEN (the slug prefix), so an app's macOS and Windows entries
+// distinct app name, so an app's macOS and Windows entries
 // are combined into one row and never split across a page boundary, while the
 // count is the number of installable platform entries (each Add button counts
 // once), and that the platform and available-only filters work server-side.
@@ -775,7 +805,7 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 	}
 
 	// Unfiltered: 6 installable platform entries (the count: alpha+delta each ship
-	// on two platforms) across 4 app tokens, 6 rows returned (the raw per-platform
+	// on two platforms) across 4 app names, 6 rows returned (the raw per-platform
 	// entries the UI combines into 4 rows).
 	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{}))
 	require.NoError(t, err)
@@ -783,7 +813,7 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 	require.Len(t, apps, 6)
 	require.False(t, meta.HasNextResults)
 
-	// Pagination is by app token: a page of 2 apps that includes a dual-platform
+	// Pagination is by app name: a page of 2 apps that includes a dual-platform
 	// app returns ALL of that app's rows, so an app is never split across a page
 	// boundary. Page 0 => Alpha (darwin+windows) + Beta (darwin) = 3 rows.
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, listOpts(fleet.ListOptions{PerPage: 2}))
@@ -850,8 +880,7 @@ func testListAvailableAppsByNameAndFilters(t *testing.T, ds *Datastore) {
 
 // testListAvailableAppsSharedName verifies that two distinct apps sharing a
 // display name (e.g. "Gemini": gemini/darwin and google-gemini/darwin) are
-// counted and listed as two separate apps. Keying on the slug token keeps them
-// distinct, so the count matches the row count and neither app is hidden.
+// both counted and both returned.
 func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -885,22 +914,39 @@ func testListAvailableAppsSharedName(t *testing.T, ds *Datastore) {
 	assertTwoGeminis(fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 	assertTwoGeminis(fleet.MaintainedAppListOptions{Platform: "darwin", ListOptions: fleet.ListOptions{IncludeMetadata: true}})
 
-	// Paginating one app at a time yields each Gemini on its own page, never
-	// splitting or dropping one.
+	// list one app name per page, the first page should hold both Geminis because they share a name
+	assertTwoGeminis(fleet.MaintainedAppListOptions{PerPage: 1, IncludeMetadata: true})
+
+	slugs := func(apps []fleet.MaintainedApp) []string {
+		out := make([]string, 0, len(apps))
+		for _, app := range apps {
+			out = append(out, app.Slug)
+		}
+		return out
+	}
+
+	// Docker Desktop and Zen Browser use a different slug token on each platform.
+	mkApp("Docker Desktop", "docker-desktop/darwin", "darwin", "com.electron.dockerdesktop")
+	mkApp("Docker Desktop", "docker/windows", "windows", "Docker Desktop")
+	mkApp("Zen Browser", "zen/darwin", "darwin", "app.zen-browser.zen")
+	mkApp("Zen Browser", "zen-browser/windows", "windows", "Zen Browser")
+
+	// list one app name per page, the first page should hold both Docker Desktop entries
 	page0, meta0, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, IncludeMetadata: true}})
 	require.NoError(t, err)
-	require.EqualValues(t, 2, meta0.TotalResults)
-	require.Len(t, page0, 1)
 	require.True(t, meta0.HasNextResults)
+	require.ElementsMatch(t, []string{"docker-desktop/darwin", "docker/windows"}, slugs(page0))
 
-	page1, meta1, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{ListOptions: fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true}})
+	// list the third page, after Docker Desktop and Gemini, it should hold both Zen Browser entries
+	page2, meta2, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{PerPage: 1, Page: 2, IncludeMetadata: true})
 	require.NoError(t, err)
-	require.EqualValues(t, 2, meta1.TotalResults)
-	require.Len(t, page1, 1)
-	require.False(t, meta1.HasNextResults)
-	require.True(t, meta1.HasPreviousResults)
-	// The two pages cover the two distinct apps.
-	require.NotEqual(t, page0[0].Slug, page1[0].Slug)
+	require.False(t, meta2.HasNextResults)
+	require.ElementsMatch(t, []string{"zen/darwin", "zen-browser/windows"}, slugs(page2))
+
+	// list with the Windows platform filter, the page should still hold both Docker Desktop entries
+	windowsPage, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, fleet.MaintainedAppListOptions{Platform: "windows", PerPage: 1, IncludeMetadata: true})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"docker-desktop/darwin", "docker/windows"}, slugs(windowsPage))
 }
 
 func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastore) {
@@ -936,6 +982,27 @@ func testListAvailableAppsSearchIgnoresPlatformSuffix(t *testing.T, ds *Datastor
 	require.Empty(t, search("for Mac"))
 	require.ElementsMatch(t, []string{"gcpw/windows"}, search("for Windows"))
 	require.ElementsMatch(t, []string{"wechat/darwin", "wechat/windows"}, search("WeChat"))
+
+	// page through a search matching two apps one app per page, the first page should hold both
+	// platforms of the merged app and the second page the single-platform app
+	mkApp("Pagedsearch One for macOS", "pagedsearch-one/darwin", "darwin", "com.example.pagedsearch-one")
+	mkApp("Pagedsearch One for Windows", "pagedsearch-one/windows", "windows", "Pagedsearch One")
+	mkApp("Pagedsearch Two", "pagedsearch-two/darwin", "darwin", "com.example.pagedsearch-two")
+	searchOpts := fleet.MaintainedAppListOptions{MatchQuery: "Pagedsearch", IncludeMetadata: true, PerPage: 1}
+	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, searchOpts)
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Equal(t, "pagedsearch-one/darwin", apps[0].Slug)
+	require.Equal(t, "pagedsearch-one/windows", apps[1].Slug)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.True(t, meta.HasNextResults)
+
+	searchOpts.Page = 1
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team.ID, searchOpts)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.Equal(t, "pagedsearch-two/darwin", apps[0].Slug)
+	require.False(t, meta.HasNextResults)
 }
 
 func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
@@ -1622,6 +1689,27 @@ func testListAvailableAppsSharedIdentifier(t *testing.T, ds *Datastore) {
 	}
 	require.Contains(t, slugs, "firefox@esr/darwin")
 	require.NotContains(t, slugs, "firefox/darwin")
+
+	// add a Firefox VPP app to another fleet, the VPP app should get the same software title as the Firefox installer
+	test.CreateInsertGlobalVPPToken(t, ds)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 43"})
+	require.NoError(t, err)
+	vppFirefox, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "Mozilla Firefox",
+		AdamID:           "firefox",
+		Platform:         fleet.MacOSPlatform,
+		BundleIdentifier: "org.mozilla.firefox",
+	}, &otherTeam.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, titleID, vppFirefox.TitleID)
+
+	// move the Firefox VPP app into this fleet, the Firefox FMA should show as added and the ESR FMA should not
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET team_id = ?, global_or_team_id = ? WHERE adam_id = 'firefox'", team.ID, team.ID)
+		return err
+	})
+	require.Equal(t, &titleID, titleIDFor(firefox.ID))
+	require.Nil(t, titleIDFor(esr.ID))
 }
 
 func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {

@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -29,30 +28,22 @@ func TestRemovedPaths(t *testing.T) {
 	require.Len(t, removedPaths(), len(removedPathTemplates))
 
 	pathVar := regexp.MustCompile(`\{\w+(:[^}]+)?\}`)
-	// Aliases write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
+	// A template can write a variable as {id:[0-9]+} and the table as {id}, and mux treats differently named variables as the same route.
 	shape := func(path string) string { return pathVar.ReplaceAllString(path, "{}") }
-	allMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions}
-	// A removed path limited to some methods only collides with aliases of those methods.
-	removedRoutes := make(map[string]struct{})
-	for _, removed := range removedPaths() {
-		methods := removed.Methods
-		if len(methods) == 0 {
-			methods = allMethods
-		}
-		for _, method := range methods {
-			removedRoutes[method+" "+shape(removed.Path)] = struct{}{}
-		}
+	// The reverse: a path entry without a template would keep its old route serving requests.
+	served := make(map[string]struct{}, len(removedPathTemplates))
+	for _, template := range removedPathTemplates {
+		served[shape(template)] = struct{}{}
 	}
-	for _, alias := range deprecatedPathAliases {
-		for _, deprecated := range alias.DeprecatedPaths {
-			assert.NotContains(t, removedRoutes, alias.Method+" "+shape(deprecated),
-				"a removed path must not also be served as an alias of %s %s", alias.Method, alias.PrimaryPath)
-		}
+	// cmd/fleet/serve.go serves /version on the root mux, outside the API router. TestRemovedRootPath covers it.
+	served["/version"] = struct{}{}
+	for _, entry := range removednames.Filter(removednames.KindPath, 0) {
+		assert.Contains(t, served, shape(entry.Old))
 	}
 
 	// A router of its own, not MakeHandler's: that one instruments every route with global Prometheus counters, which TestAPIRoutesMetrics
-	// asserts exactly. TestAPIRoutesConflicts checks these routes against the real router.
-	router := mux.NewRouter()
+	// asserts exactly. TestRouterServesEveryRoute checks them against the real router.
+	router := endpointer.NewRouter()
 	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	// Fill in the path variables with a value that matches any of them.
@@ -67,12 +58,19 @@ func TestRemovedPaths(t *testing.T) {
 					t.Parallel() // requests with different methods share the route, so -race catches state shared between them
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
-					if method == http.MethodHead || (entry.Context != "" && method != entry.Context) {
-						// This router holds only the removed paths, so a method they don't remove gets 405, not 410. HEAD is one of them.
+					removedMethod := method
+					if method == http.MethodHead {
+						removedMethod = http.MethodGet // the GET pattern serves HEAD
+					}
+					if entry.Context != "" && removedMethod != entry.Context {
+						// This router holds only the removed paths, so a method they don't remove gets 405, not 410.
 						require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 						return
 					}
 					require.Equal(t, http.StatusGone, rec.Code)
+					if method == http.MethodHead {
+						return
+					}
 
 					var body struct {
 						Message string              `json:"message"`
@@ -90,16 +88,14 @@ func TestRemovedPaths(t *testing.T) {
 	}
 }
 
-// TestRemovedPathsThroughHandler sends requests through the stdlib fast path built over the removed paths. TestRemovedPaths uses the gorilla
-// router alone, which cannot show a path the fast path serves differently. It does not use MakeHandler, whose metrics are global counters
-// that TestAPIRoutesMetrics asserts exactly; TestAPIRoutesConflicts checks these routes against the real router.
+// TestRemovedPathsThroughHandler sends requests to removed paths that sit next to a literal or a wildcard of another removed path. It
+// does not use MakeHandler, whose metrics are global counters that TestAPIRoutesMetrics asserts exactly; TestRouterServesEveryRoute
+// checks them against the real router.
 func TestRemovedPathsThroughHandler(t *testing.T) {
 	t.Parallel()
 
-	router := mux.NewRouter()
-	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
-	handler, err := newFastPathHandler(router, nil, config.TestConfig())
-	require.NoError(t, err)
+	handler := endpointer.NewRouter()
+	endpointer.RegisterRemovedPaths(handler, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	for _, c := range []struct{ path, template string }{
 		{"/api/v1/fleet/team/1/policies", "/team/{fleet_id}/policies"},
@@ -110,6 +106,10 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		{"/api/latest/fleet/packs/schedule/7", "/packs/schedule/{id}"},
 		{"/api/v1/fleet/packs/id/7", "/packs/id/{id}"},
 		{"/api/v1/fleet/packs/my-pack", "/packs/{id}"},
+		{"/api/v1/fleet/queries/run", "/queries/run"}, // a literal next to {id}
+		{"/api/latest/fleet/queries/delete", "/queries/delete"},
+		{"/api/v1/fleet/queries/my-report", "/queries/{id}"},
+		{"/api/mdm/apple/installer", "/api/mdm/apple/installer"}, // outside the Fleet API
 	} {
 		for _, method := range []string{http.MethodGet, http.MethodPost} {
 			t.Run(method+" "+c.path, func(t *testing.T) {
@@ -128,19 +128,40 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		}
 	}
 
-	// HEAD is not one of the removed methods: a HEAD pattern next to the GET pattern of a sibling is ambiguous on a stdlib mux.
-	t.Run("HEAD gets 405", func(t *testing.T) {
+	// HEAD is not one of the removed methods, but the GET pattern serves it.
+	t.Run("HEAD gets 410", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/v1/fleet/teams/1/policies/count", nil))
-		require.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+		require.Equal(t, http.StatusGone, rec.Code)
+
+		rec = httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodHead, "/api/mdm/apple/installer", nil))
+		require.Equal(t, http.StatusGone, rec.Code)
 	})
+}
+
+// TestRemovedRootPath covers /version, which the root mux serves next to /healthz instead of the API router.
+func TestRemovedRootPath(t *testing.T) {
+	t.Parallel()
+
+	handler := RemovedRootPathHandler("/version", slog.New(slog.DiscardHandler))
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(method, "/version", nil))
+			require.Equal(t, http.StatusGone, rec.Code)
+			// The error only, without the version details the endpoint used to return.
+			reason := fmt.Sprintf(`The "%s /version" endpoint is not available anymore. What to use instead: %s`, method, removednames.GuideURL)
+			assert.JSONEq(t, fmt.Sprintf(`{"message": "Gone", "errors": [{"name": "base", "reason": %q}]}`, reason), rec.Body.String())
+		})
+	}
 }
 
 // TestRemovedPathOverlaps covers the requests that the wildcard of an overlap catches without being requests to the removed path.
 func TestRemovedPathOverlaps(t *testing.T) {
 	t.Parallel()
 
-	router := mux.NewRouter()
+	router := endpointer.NewRouter()
 	endpointer.RegisterRemovedPaths(router, []string{"v1"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	for _, c := range []struct {

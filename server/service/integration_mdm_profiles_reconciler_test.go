@@ -866,7 +866,7 @@ func (s *integrationMDMTestSuite) labelGateHost(t *testing.T, host *fleet.Host, 
 	require.NoError(t, err)
 	host.LabelUpdatedAt = time.Now()
 	require.NoError(t, s.ds.UpdateHost(ctx, host))
-	require.NoError(t, s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	require.NoError(t, s.ds.AddLabelsToHost(ctx, host.ID, []uint{label.ID}))
 	return label
 }
 
@@ -892,7 +892,7 @@ func (s *integrationMDMTestSuite) TestProfileReconcilerCancelsInstallationWhenNo
 	ackUntilThenNotNow(t, mdmDevice, i)
 
 	// remove the host from the label (scope change, not a deletion), then reconcile
-	require.NoError(t, s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	require.NoError(t, s.ds.RemoveLabelsFromHost(ctx, host.ID, []uint{label.ID}))
 	s.awaitTriggerProfileSchedule(t)
 
 	// desired: the install command is cancelled; bug: the NotNow result defeats the DELETE
@@ -931,7 +931,7 @@ func (s *integrationMDMTestSuite) TestProfileUserScopedPendingInstallCancelled()
 	})
 	require.Equal(t, userEnr.ID, qid)
 
-	require.NoError(t, s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	require.NoError(t, s.ds.RemoveLabelsFromHost(ctx, host.ID, []uint{label.ID}))
 	s.awaitTriggerProfileSchedule(t)
 
 	// desired: the user-channel install is cancelled; bug: cleanup keyed by host UUID misses it
@@ -963,7 +963,7 @@ func (s *integrationMDMTestSuite) TestProfileFailedVerificationGetsRemove() {
 		return err
 	})
 
-	require.NoError(t, s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{{label.ID, host.ID}}))
+	require.NoError(t, s.ds.RemoveLabelsFromHost(ctx, host.ID, []uint{label.ID}))
 	s.awaitTriggerProfileSchedule(t)
 
 	// desired: a RemoveProfile is enqueued to pull the profile off the device
@@ -1110,13 +1110,18 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationResendConfigurationProfile
 	// A policy that resends the profile when it fails, plus one with no profile attached, to
 	// confirm only the former triggers a resend.
 	newPolicy := func(name string, profileUUID *string) *fleet.Policy {
-		var resp fleet.TeamPolicyResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", tm.ID), fleet.TeamPolicyRequest{
+		req := fleet.CreatePolicyRequest{
+			TeamID:      &tm.ID,
 			Name:        name,
 			Query:       "SELECT 1;",
 			Platform:    "darwin",
 			ProfileUUID: profileUUID,
-		}, http.StatusOK, &resp)
+		}
+		if profileUUID != nil {
+			req.AutomationType = new(fleet.PolicyAutomationConfigurationProfile)
+		}
+		var resp fleet.CreatePolicyResponse
+		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusOK, &resp)
 		require.NotNil(t, resp.Policy)
 		return resp.Policy
 	}

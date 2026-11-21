@@ -1,22 +1,22 @@
 package service
 
 import (
-	"fmt"
+	"net/url"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func (c *Client) CreateGlobalPolicy(name, query, description, resolution, platform string) error {
-	req := fleet.GlobalPolicyRequest{
+	req := fleet.CreatePolicyRequest{
 		Name:        name,
 		Query:       query,
 		Description: description,
 		Resolution:  resolution,
 		Platform:    platform,
 	}
-	verb, path := "POST", "/api/latest/fleet/global/policies"
-	var responseBody fleet.GlobalPolicyResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
+	var responseBody fleet.CreatePolicyResponse
+	return c.authenticatedRequest(req, "POST", "/api/latest/fleet/policies", &responseBody)
 }
 
 // ApplyPolicies sends the list of Policies to be applied to the
@@ -28,34 +28,22 @@ func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
-// GetPolicies retrieves the list of Policies. Inherited policies are excluded.
+// GetPolicies retrieves the policies of a scope: "All fleets" when teamID is nil, "Unassigned" when it's 0, and a fleet
+// otherwise. Inherited policies are excluded.
 func (c *Client) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
-	verb, path := "GET", ""
+	var query string
 	if teamID != nil {
-		path = fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", *teamID)
-	} else {
-		path = "/api/latest/fleet/policies"
+		query = url.Values{"fleet_id": {strconv.FormatUint(uint64(*teamID), 10)}}.Encode()
 	}
-	// The response body also works for listTeamPoliciesResponse because they contain some of the same members.
-	var responseBody fleet.ListGlobalPoliciesResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	if err != nil {
+	var responseBody fleet.ListPoliciesResponse
+	if err := c.authenticatedRequestWithQuery(nil, "GET", "/api/latest/fleet/policies", &responseBody, query); err != nil {
 		return nil, err
 	}
 	return responseBody.Policies, nil
 }
 
-// DeletePolicies deletes several policies.
-func (c *Client) DeletePolicies(teamID *uint, ids []uint) error {
-	verb, path := "POST", ""
-	req := fleet.DeleteTeamPoliciesRequest{IDs: ids}
-	if teamID != nil {
-		path = fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", *teamID)
-		req.TeamID = *teamID
-	} else {
-		path = "/api/latest/fleet/policies/delete"
-	}
-	// The response body also works for deleteTeamPoliciesResponse because they contain some of the same members.
-	var responseBody fleet.DeleteGlobalPoliciesResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
+// DeletePolicies deletes several policies, which can be in any scope.
+func (c *Client) DeletePolicies(ids []uint) error {
+	var responseBody fleet.DeletePoliciesResponse
+	return c.authenticatedRequest(fleet.DeletePoliciesRequest{IDs: ids}, "POST", "/api/latest/fleet/policies/delete", &responseBody)
 }

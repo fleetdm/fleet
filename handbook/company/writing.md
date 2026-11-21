@@ -231,7 +231,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 
 When merging a PR to the main branch of the [Fleet repo](https://github.com/fleetdm/fleet), remember that whatever you merge gets deployed live immediately. Ensure that the appropriate quality checks have been completed before merging. [Learn about the website QA process](#quality).
 
-When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https://fleetdm.com/handbook), and articles, make sure that the PR’s changes do not contain inappropriate content (goes without saying) or confidential information, and that the content represents our [brand](#brand) accordingly. When in doubt reach out to the product manager of the [website group](https://fleetdm.com/handbook/company/product-groups#website-group) in the [#g-website](https://fleetdm.slack.com/archives/C097P4TAPRR) channel on Slack.
+When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https://fleetdm.com/handbook), and articles, make sure that the PR’s changes do not contain inappropriate content (goes without saying) or confidential information, and that the content represents our [brand](#brand) accordingly. When in doubt reach out to the product manager of the [First impressions group](https://fleetdm.com/handbook/company/product-groups#first-impressions) in the [#g-website](https://fleetdm.slack.com/archives/C097P4TAPRR) channel on Slack.
 
 ### Editing a merged pull request
 
@@ -479,7 +479,7 @@ Output: valid Markdown.
 
 ## Writing mechanics
 
-Writing mechanics cover everything from capitalization and punctuation to list formatting and SQL examples. Following them keeps our content consistent and easy to read. For Markdown-specific rules, see [Writing in Fleet-flavored Markdown](#writing-in-fleet-flavored-markdown).
+Writing mechanics cover everything from capitalization and punctuation to list formatting and SQL examples. Following them keeps our content consistent and easy to read.
 
 
 ### Sentence case
@@ -598,7 +598,7 @@ To create a mailto link... oh wait, I'm not going to tell you.
 Headings and titles should:
 - Give an accurate idea of a topic's content.
 - Help guide readers through your writing so they can quickly find what they need.
-- [Make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing).
+- [Make good permalinks](https://fleetdm.com/handbook/company/writing#links-and-anchors).
 
 Each heading needs two lines of empty space separating it from the previous section and one line of empty space between the heading and related content. This helps break up blocks of text and is especially important on larger, more detailed pages. Here's an example:
 

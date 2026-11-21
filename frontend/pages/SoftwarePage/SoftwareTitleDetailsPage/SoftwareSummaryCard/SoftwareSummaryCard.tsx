@@ -18,6 +18,7 @@ import {
   getAutoUpdateTooltip,
   getDisplayedSoftwareName,
   getSelfServiceTooltip,
+  isAndroidWebApp,
   mergePolicies,
 } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
@@ -40,6 +41,10 @@ interface ISoftwareSummaryCard {
   /** Opens the page-owned Versions modal; the Actions item is gated here by
    * `canManageVersions`. */
   onClickVersions: () => void;
+  /** Bumped after an Edit appearance save so every icon of this title
+   * (summary and the web app Library row) refetches. Owned by the page. */
+  iconUploadedAt: string;
+  setIconUploadedAt: (timestamp: string) => void;
   /** Canonical "this title can hold multiple custom packages" flag. When
    * true the card hides its Self-service / Auto install / Patch chips
    * (Library accordion rows show per-package icons instead) and collapses
@@ -76,13 +81,14 @@ const SoftwareSummaryCard = ({
   router,
   refetchSoftwareTitle,
   onClickVersions,
+  iconUploadedAt,
+  setIconUploadedAt,
   canActivateMultiplePackages = false,
   canActivateMultipleVersions = false,
 }: ISoftwareSummaryCard) => {
   const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
 
-  const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
@@ -132,10 +138,11 @@ const SoftwareSummaryCard = ({
   // when both are nullish — `?? []` would mint a fresh array literal each
   // render and bust the cache (and cascade into `headerPills` below).
   const packageAutoInstallPolicies =
-    softwareTitle.software_package?.automatic_install_policies;
+    softwareTitle.packages?.[0]?.automatic_install_policies;
+  const firstAppStoreApp = softwareTitle.app_store_apps?.[0];
   const appStoreAutoInstallPolicies =
-    softwareTitle.app_store_app?.automatic_install_policies;
-  const patchPolicy = softwareTitle.software_package?.patch_policy;
+    firstAppStoreApp?.automatic_install_policies;
+  const patchPolicy = softwareTitle.packages?.[0]?.patch_policy;
   const mergedPolicies = useMemo(
     () =>
       mergePolicies({
@@ -146,10 +153,10 @@ const SoftwareSummaryCard = ({
     [packageAutoInstallPolicies, appStoreAutoInstallPolicies, patchPolicy]
   );
   const isSelfService =
-    !!softwareTitle.software_package?.self_service ||
-    !!softwareTitle.app_store_app?.self_service;
+    !!softwareTitle.packages?.[0]?.self_service ||
+    !!firstAppStoreApp?.self_service;
   // Show the Auto install pill whenever the title has any linked policy —
-  // patch-only policies live under `software_package.patch_policy` (not in
+  // patch-only policies live under `packages[0].patch_policy` (not in
   // `automatic_install_policies`), so we key off the merged set.
   const hasLinkedPolicies = mergedPolicies.length > 0;
   // If every linked policy is patch-only, surface a "Patch policy" pill
@@ -201,19 +208,20 @@ const SoftwareSummaryCard = ({
     !canActivateMultipleVersions;
   const showAutoInstallChip =
     hasValidTeamId && hasLinkedPolicies && !canActivateMultiplePackages;
-  // Gates on `app_store_app` directly since `isAppleVpp` flips false when
+  // Gates on `app_store_apps` directly since `isAppleVpp` flips false when
   // a co-existing custom package hides the VPP installer. Suppressed on
   // multi-version titles because auto-update is a per-version setting there.
+  const hasAppStoreApp = !!softwareTitle.app_store_apps?.length;
   const showAutoUpdateChip =
     hasValidTeamId &&
-    !!softwareTitle.app_store_app &&
+    hasAppStoreApp &&
     isIosOrIpadosApp &&
     !canActivateMultipleVersions &&
     !!softwareTitle.auto_update_enabled &&
     !!softwareTitle.auto_update_window_start &&
     !!softwareTitle.auto_update_window_end;
   const canEditAutoUpdateConfig =
-    !!softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
+    hasAppStoreApp && isIosOrIpadosApp && canManageSoftware;
 
   const showHeaderPills =
     !!installerKindLabel ||
@@ -304,14 +312,24 @@ const SoftwareSummaryCard = ({
     />
   );
 
+  // Android web apps can only ever have one version, so Versions is hidden
+  // and Type reads "Web app".
+  const isWebApp = isAndroidWebApp(firstAppStoreApp?.app_store_id);
+  const softwareType = isWebApp
+    ? "Web app (Android)"
+    : formatSoftwareType(softwareTitle);
+
   // Multi-version App Store titles show the admin-added version count (the
   // number of versions on the title's `app_store_apps` array) rather than
-  // the inventory version count. The `app_store_app ? 1 : 0` fallback keeps
-  // the count accurate on titles that pre-date the array in the response.
-  const versionsCount = canActivateMultipleVersions
-    ? softwareTitle.app_store_apps?.length ??
-      (softwareTitle.app_store_app ? 1 : 0)
-    : softwareTitle.versions?.length ?? 0;
+  // the inventory version count.
+  const getVersionsCount = () => {
+    if (isWebApp) return undefined;
+    if (canActivateMultipleVersions) {
+      return softwareTitle.app_store_apps?.length ?? 0;
+    }
+    return softwareTitle.versions?.length ?? 0;
+  };
+  const versionsCount = getVersionsCount();
 
   if (!installerResult) {
     return (
@@ -319,7 +337,7 @@ const SoftwareSummaryCard = ({
         <Card className={baseClass}>
           <SoftwareDetailsSummary
             displayName={softwareDisplayName}
-            type={formatSoftwareType(softwareTitle)}
+            type={softwareType}
             versions={versionsCount}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
@@ -387,7 +405,7 @@ const SoftwareSummaryCard = ({
       <Card className={baseClass}>
         <SoftwareDetailsSummary
           displayName={softwareDisplayName}
-          type={formatSoftwareType(softwareTitle)}
+          type={softwareType}
           versions={versionsCount}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
@@ -427,7 +445,7 @@ const SoftwareSummaryCard = ({
           appStoreId={appStoreId}
           vppToken={
             isPremiumTier && isAppleVpp
-              ? softwareTitle.app_store_app?.vpp_token ?? undefined
+              ? firstAppStoreApp?.vpp_token ?? undefined
               : undefined
           }
           googlePlayId={googlePlayId}
@@ -446,7 +464,7 @@ const SoftwareSummaryCard = ({
           previewInfo={{
             name: softwareDisplayName,
             titleName: softwareTitle.name,
-            type: formatSoftwareType(softwareTitle),
+            type: softwareType,
             source: softwareTitle.source,
             currentIconUrl: softwareTitle.icon_url,
             versions: softwareTitle.versions?.length ?? 0,
@@ -470,7 +488,7 @@ const SoftwareSummaryCard = ({
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
           preInstallQueryLocked={
-            softwareTitle.software_package?.patch_policy?.patch_when_closed
+            softwareTitle.packages?.[0]?.patch_policy?.patch_when_closed
           }
         />
       )}

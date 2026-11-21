@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -29,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/google/uuid"
@@ -501,12 +499,11 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			EnableScheduledQueryStats: true,
 		},
 	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	task := async.NewTask(s.ds, nil, clock.C, nil)
-	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
+	err = detailQueries["scheduled_query_stats"].DirectIngestFunc(
 		context.Background(),
 		slog.New(slog.DiscardHandler),
 		team1Host,
-		task,
+		s.ds,
 		rows,
 	)
 	require.NoError(t, err)
@@ -571,11 +568,11 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		},
 	}
 
-	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
+	err = detailQueries["scheduled_query_stats"].DirectIngestFunc(
 		context.Background(),
 		slog.New(slog.DiscardHandler),
 		globalHost,
-		task,
+		s.ds,
 		rows,
 	)
 	require.NoError(t, err)
@@ -617,15 +614,26 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		defer body.Close()
 		var resp struct {
 			Host struct {
-				PackStats []fleet.PackStats `json:"pack_stats"`
+				PackStats json.RawMessage `json:"pack_stats"`
 			} `json:"host"`
 		}
 		require.NoError(t, json.NewDecoder(body).Decode(&resp))
-		names := make([]string, 0, len(resp.Host.PackStats))
-		for _, ps := range resp.Host.PackStats {
+		var packStats []fleet.PackStats
+		require.NoError(t, json.Unmarshal(resp.Host.PackStats, &packStats))
+		names := make([]string, 0, len(packStats))
+		for _, ps := range packStats {
 			names = append(names, ps.PackName)
+			require.NotEmpty(t, ps.QueryStats)
 		}
 		require.ElementsMatch(t, []string{"Global", "Team: " + team1.Name}, names)
+
+		raw := string(resp.Host.PackStats)
+		for _, key := range []string{"report_stats", "scheduled_report_name", "scheduled_report_id", "report_name"} {
+			require.Contains(t, raw, `"`+key+`":`)
+		}
+		for _, key := range []string{"query_stats", "scheduled_query_name", "scheduled_query_id", "query_name"} {
+			require.NotContains(t, raw, `"`+key+`":`)
+		}
 	}
 
 	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", team1Host.ID), nil, http.StatusOK)

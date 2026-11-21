@@ -1,0 +1,2 @@
+- **Breaking change:** Host details `pack_stats` return `report_stats`, `scheduled_report_name`, `scheduled_report_id`, and `report_name` only, not also `query_stats`, `scheduled_query_name`, `scheduled_query_id`, and `query_name`.
+- **Breaking change:** The schedule endpoints return `report_name` only, not also `query_name`.

@@ -62,7 +62,7 @@ const SelectReportModal = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IListQueriesResponse) => data.queries,
+      select: (data: IListQueriesResponse) => data.reports,
     }
   );
 
