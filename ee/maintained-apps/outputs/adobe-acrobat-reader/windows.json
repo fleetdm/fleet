@@ -13,7 +13,8 @@
       "sha256": "345617baf5eadb2bedddf6ab485085385fef9e81f742957167b20f61e3a44f9f",
       "default_categories": [
         "Productivity"
-      ]
+      ],
+      "upgrade_code": "{AC76BA86-0000-0000-7760-7E8A45000000}"
     }
   ],
   "refs": {

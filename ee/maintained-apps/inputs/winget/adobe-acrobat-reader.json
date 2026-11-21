@@ -10,5 +10,6 @@
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",
+  "upgrade_code": "{AC76BA86-0000-0000-7760-7E8A45000000}",
   "default_categories": ["Productivity"]
 }
