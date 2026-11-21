@@ -1,0 +1,1 @@
+- Fixed whitespace-only values in the Fleet web address, SMTP sender address, SMTP server, and SMTP username settings showing a different validation result on blur than on save.
