@@ -2800,6 +2800,16 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 	require.False(t, ds.SetEscrowInFlightFuncInvoked)
 	require.False(t, ds.ReportEscrowErrorFuncInvoked)
 
+	for _, platform := range []string{"darwin", "windows"} {
+		reset()
+		unsupportedCtx := test.HostContext(ctx, &fleet.Host{ID: 1, Platform: platform})
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), &bre, platform)
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "", "", nil, "some client error", "", ""), &bre, platform)
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "passphrase", "salt", new(uint(1)), "", "", ""), &bre, platform)
+		require.False(t, ds.SetEscrowInFlightFuncInvoked)
+		require.False(t, ds.ReportEscrowErrorFuncInvoked)
+	}
+
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }
 
