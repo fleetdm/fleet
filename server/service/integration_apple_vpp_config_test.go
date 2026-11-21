@@ -24,9 +24,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -909,6 +911,89 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		require.Equal(t, adamMulti, got.Assets[0].AdamID)
 		require.Equal(t, []string{cancelDev.SerialNumber}, got.SerialNumbers)
 		require.Empty(t, got.ClientUserIds, "device-enrolled host must disassociate by serial, not clientUserId")
+	})
+
+	cancelPendingInstall := func(t *testing.T, host *fleet.Host) vpp.DisassociateAssetsRequest {
+		t.Helper()
+		s.Do("POST", "/api/latest/fleet/hosts/transfer",
+			&addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+		assocBefore := len(s.appleVPPConfigSrvConfig.Associations)
+		disassocBefore := len(s.appleVPPConfigSrvConfig.Disassociations)
+		s.DoJSON("POST",
+			fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleIDFor(adamMulti, fleet.IOSPlatform)),
+			&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
+
+		var row struct {
+			CommandUUID       string `db:"command_uuid"`
+			AssociatedEventID string `db:"associated_event_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT command_uuid, COALESCE(associated_event_id, '') AS associated_event_id
+				 FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`,
+				host.ID, adamMulti)
+		})
+		require.NotEmpty(t, row.AssociatedEventID, "test setup: this install should have reserved a license")
+
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, row.CommandUUID),
+			nil, http.StatusNoContent)
+
+		require.Len(t, s.appleVPPConfigSrvConfig.Disassociations, disassocBefore+1,
+			"cancel must trigger exactly one DisassociateAssets call")
+		got := s.appleVPPConfigSrvConfig.Disassociations[disassocBefore]
+		require.Len(t, s.appleVPPConfigSrvConfig.Associations, assocBefore+1)
+		assigned := s.appleVPPConfigSrvConfig.Associations[assocBefore]
+		require.Equal(t, assigned.SerialNumbers, got.SerialNumbers, "the release must match what the install assigned")
+		require.Equal(t, assigned.ClientUserIds, got.ClientUserIds, "the release must match what the install assigned")
+		return got
+	}
+
+	t.Run("canceling a pending VPP install on a manual-profile personal device releases the seat by serial", func(t *testing.T) {
+		dev := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+			SCEPChallenge: s.scepChallenge,
+			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+			MDMURL:        s.server.URL + apple_mdm.MDMPath + "?" + apple_mdm.FleetPersonalEnrollmentKey + "=1",
+		}, "iPhone14,6")
+		require.NoError(t, dev.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, dev.UUID)
+		require.NoError(t, err)
+
+		hostMDM, err := s.ds.GetHostMDM(ctx, host.ID)
+		require.NoError(t, err)
+		require.True(t, hostMDM.IsPersonalEnrollment)
+		require.Equal(t, fleet.PersonalEnrollmentTypeManualProfile, hostMDM.PersonalEnrollmentType)
+
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, dev.SerialNumber)
+		got := cancelPendingInstall(t, host)
+		require.Equal(t, []string{dev.SerialNumber}, got.SerialNumbers)
+		require.Empty(t, got.ClientUserIds)
+	})
+
+	t.Run("canceling a pending VPP install on an account-driven user enrollment releases the seat by client user ID", func(t *testing.T) {
+		account := &fleet.MDMIdPAccount{UUID: uuid.NewString(), Username: "vpp-cancel-adue", Email: "vpp-cancel-adue@example.com"}
+		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, account))
+		enrollToken, err := s.ds.InsertADUEEnrollmentChallenge(ctx, nil, account.UUID, time.Hour)
+		require.NoError(t, err)
+		dev := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, "iPhone14,5", enrollToken)
+		require.NoError(t, dev.Enroll())
+		host, err := s.ds.HostByIdentifier(ctx, dev.EnrollmentID())
+		require.NoError(t, err)
+
+		vppToken, err := s.ds.GetVPPTokenByTeamID(ctx, &team.ID)
+		require.NoError(t, err)
+		clientUserID := uuid.NewString()
+		require.NoError(t, s.ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
+			VPPTokenID:     vppToken.ID,
+			ManagedAppleID: account.Email,
+			ClientUserID:   clientUserID,
+			Status:         fleet.VPPClientUserStatusRegistered,
+		}))
+
+		got := cancelPendingInstall(t, host)
+		require.Equal(t, []string{clientUserID}, got.ClientUserIds)
+		require.Empty(t, got.SerialNumbers)
 	})
 
 	t.Run("install with two versions carries the first-added version's Configuration", func(t *testing.T) {

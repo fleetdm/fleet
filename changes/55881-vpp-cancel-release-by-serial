@@ -1,0 +1,1 @@
+- Fixed canceling a pending App Store app install on iPhones and iPads enrolled with a manually installed profile on a personal device, which left the license assigned in Apple Business.
