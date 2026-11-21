@@ -1335,7 +1335,8 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 // osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
 	var criticalQueriesOnly bool
-	if !svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !host.RefetchRequested && (!svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID) ||
+		svc.skipUnsavedResend(ctx, "detail", host.ID, host.DetailUpdatedAt)) {
 		// would not return anything, check if critical queries should be returned
 		if host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()) {
 			// return only those critical queries
@@ -1437,6 +1438,34 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 	return lastUpdated.Before(cutoff)
 }
 
+// unsavedResendTTL is how long a host isn't resent its detail or policy queries after a send whose results were never
+// saved (e.g. its distributed/write failed during a database stall), so failed writes don't turn every check-in into a
+// full resend.
+const unsavedResendTTL = 5 * time.Minute
+
+// skipUnsavedResend reports whether queries of the given kind were sent to the host within unsavedResendTTL and the
+// host's timestamp for them hasn't moved since, i.e. their results weren't saved. Otherwise it records this send.
+// Refetches don't use it: any write clears refetch_requested, so holding one back could drop it.
+func (svc *Service) skipUnsavedResend(ctx context.Context, kind string, hostID uint, updatedAt time.Time) bool {
+	if svc.keyValueStore == nil {
+		return false
+	}
+	key := fmt.Sprintf("distributed_resend:%s:%d", kind, hostID)
+	sentAt := strconv.FormatInt(updatedAt.UnixMicro(), 10)
+	last, err := svc.keyValueStore.Get(ctx, key)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "get unsaved resend key", "host_id", hostID, "err", err)
+		return false
+	}
+	if last != nil && *last == sentAt {
+		return true
+	}
+	if err := svc.keyValueStore.Set(ctx, key, sentAt, unsavedResendTTL); err != nil {
+		svc.logger.ErrorContext(ctx, "set unsaved resend key", "host_id", hostID, "err", err)
+	}
+	return false
+}
+
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	if !svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, nil
@@ -1536,7 +1565,8 @@ func (svc *Service) hostDueForLiveQuery(ctx context.Context, hostID uint) string
 // labelQueriesForHost and policyQueriesForHost: any single gate being due
 // means the host's next distributed/read carries work. It returns the first
 // due gate's reason ("" when none); the reason is informational only, so ties
-// are not enumerated.
+// are not enumerated. It doesn't check skipUnsavedResend, so a host held back
+// there is still notified and reads nothing.
 func (svc *Service) hostDueForDistributedRead(host *fleet.Host) string {
 	switch {
 	case host.RefetchRequested:
@@ -1685,6 +1715,10 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		// detects that and falls back to installing the item, so we don't flag the host as "no policies" (which would bump the
 		// policy timestamp).
 		return policyQueries, false, nil
+	}
+	// Setup experience can send no policies without saving the timestamp, so it isn't backed off.
+	if !host.RefetchRequested && svc.skipUnsavedResend(ctx, "policy", host.ID, host.PolicyUpdatedAt) {
+		return nil, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
 	if err != nil {

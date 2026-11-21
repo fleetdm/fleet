@@ -2635,6 +2635,113 @@ func TestLabelQueries(t *testing.T) {
 	assert.Zero(t, acc)
 }
 
+func TestDistributedReadSkipsUnsavedResend(t *testing.T) {
+	ds := new(mock.Store)
+	mockClock := clock.NewMockClock()
+	lq := live_query_mock.New(t)
+	kv := memoryKVStore()
+	var ttls []time.Duration
+	set := kv.SetFunc
+	kv.SetFunc = func(ctx context.Context, key, value string, expireTime time.Duration) error {
+		ttls = append(ttls, expireTime)
+		return set(ctx, key, value, expireTime)
+	}
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, lq, &TestServerOpts{Clock: mockClock, KeyValueStore: kv})
+
+	host := &fleet.Host{ID: 1, Platform: "linux", OsqueryHostID: new("very_random")}
+	ctx = hostctx.NewContext(ctx, host)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "SELECT 1;"}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
+	}
+	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
+
+	sent := func() (detail, policy bool) {
+		queries, _, _, err := svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		for name := range queries {
+			detail = detail || strings.HasPrefix(name, hostDetailQueryPrefix)
+			policy = policy || strings.HasPrefix(name, hostPolicyQueryPrefix)
+		}
+		return detail, policy
+	}
+
+	detail, policy := sent()
+	require.True(t, detail)
+	require.True(t, policy)
+
+	// The results were never saved (e.g. the write failed), so the next check-in doesn't resend them or look up the
+	// host's policies.
+	mockClock.AddTime(10 * time.Second)
+	ds.PolicyQueriesForHostFuncInvoked = false
+	detail, policy = sent()
+	require.False(t, detail)
+	require.False(t, policy)
+	require.False(t, ds.PolicyQueriesForHostFuncInvoked)
+
+	// If Redis fails, they're sent as before.
+	get := kv.GetFunc
+	kv.GetFunc = func(ctx context.Context, key string) (*string, error) {
+		return nil, errors.New("redis down")
+	}
+	detail, policy = sent()
+	require.True(t, detail)
+	require.True(t, policy)
+	kv.GetFunc = get
+
+	// A refetch isn't held back.
+	host.RefetchRequested = true
+	detail, policy = sent()
+	require.True(t, detail)
+	require.True(t, policy)
+	host.RefetchRequested = false
+
+	// Once a write saves the timestamps, they're sent again when next due, and held back again after that.
+	host.DetailUpdatedAt = mockClock.Now()
+	host.PolicyUpdatedAt = mockClock.Now()
+	mockClock.AddTime(2 * time.Hour)
+	detail, policy = sent()
+	require.True(t, detail)
+	require.True(t, policy)
+	detail, policy = sent()
+	require.False(t, detail)
+	require.False(t, policy)
+
+	// Setup experience can send no policies without saving the timestamp, so that doesn't hold them back afterwards.
+	host.PolicyUpdatedAt = time.Time{}
+	inSetup := true
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		if !inSetup {
+			return nil, nil
+		}
+		return []*fleet.SetupExperienceStatusResult{{SoftwareInstallerID: new(uint(1)), Status: fleet.SetupExperienceStatusPending}}, nil
+	}
+	ds.GetSetupExperiencePolicyIDsForHostFunc = func(ctx context.Context, hostUUID string) ([]uint, error) {
+		return nil, nil
+	}
+	_, policy = sent()
+	require.False(t, policy)
+	inSetup = false
+	_, policy = sent()
+	require.True(t, policy)
+
+	require.Len(t, ttls, 5)
+	for _, ttl := range ttls {
+		require.Equal(t, unsavedResendTTL, ttl)
+	}
+}
+
 func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
