@@ -1,0 +1,11 @@
+vulnProcessing:
+  dedicated: true
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: example.com/node-pool
+                operator: In
+                values:
+                  - batch

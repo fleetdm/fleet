@@ -1,0 +1,1 @@
+- Added `vulnProcessing.nodeSelector`, `vulnProcessing.tolerations` and `vulnProcessing.affinity` to the Helm chart, so the dedicated `fleet-vulnprocessing` CronJob can run on different nodes than the Fleet server. Empty values keep the previous behavior (the top-level values apply to both).

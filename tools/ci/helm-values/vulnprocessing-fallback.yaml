@@ -1,0 +1,9 @@
+nodeSelector:
+  example.com/node-pool: general
+tolerations:
+  - key: example.com/general
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+vulnProcessing:
+  dedicated: true
