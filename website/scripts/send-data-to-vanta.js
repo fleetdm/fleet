@@ -12,6 +12,27 @@ module.exports = {
   fn: async function () {
     let util = require('util');
 
+    // Returns the email of a host's end user to send to Vanta as the host's owner, or null if Fleet doesn't know it.
+    // Order of preference: the IdP username, then an email set via the API or a custom installer, then the Entra join user.
+    let getOwnerEmailForHost = (detailedHost)=>{
+      let isEmail = (value)=>{
+        return _.isString(value) && value.includes('@');
+      };
+      let endUsers = detailedHost.end_users || [];
+      let idpEndUser = _.find(endUsers, (endUser)=>{ return isEmail(endUser.idp_username); });
+      if(idpEndUser) {
+        return idpEndUser.idp_username;
+      }
+      let otherEmails = _.flatten(_.map(endUsers, (endUser)=>{ return endUser.other_emails || []; }));
+      for(let source of ['custom', 'entra_join']) {
+        let match = _.find(otherEmails, (otherEmail)=>{ return otherEmail.source === source && isEmail(otherEmail.email); });
+        if(match) {
+          return match.email;
+        }
+      }
+      return null;
+    };
+
     // Find all VantaConnection records with isConnectedToVanta: true
     let allActiveVantaConnections = await VantaConnection.find({isConnectedToVanta: true});
 
@@ -209,6 +230,7 @@ module.exports = {
             systemScreenlockPolicies: [],// Sending an empty array of screenlock policies.
             isManaged: false, // Defaulting to false
             autoUpdatesEnabled: false, // Always sending this value as false
+            owner: null,
           };
 
           // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
@@ -240,6 +262,8 @@ module.exports = {
           if(!detailedInformationAboutThisHost) {
             return;
           }
+
+          macOsHostToSyncWithVanta.owner = getOwnerEmailForHost(detailedInformationAboutThisHost.host);
 
           if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
             // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
@@ -319,6 +343,7 @@ module.exports = {
             isManaged: false, // Defaulting to false, if the host is enrolled in an MDM, we'll set this value to true.
             autoUpdatesEnabled: false, // Defaulting this value to false.
             lastEnrolledTimestamp: host.last_enrolled_at,
+            owner: null,
           };
 
           // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
@@ -345,6 +370,7 @@ module.exports = {
             return;
           }
 
+          windowsHostToSyncWithVanta.owner = getOwnerEmailForHost(detailedInformationAboutThisHost.host);
 
           if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
             // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
