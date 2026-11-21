@@ -4,12 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"howett.net/plist"
 )
+
+var appleAppStoreIDRegex = regexp.MustCompile(`^[0-9]+$`)
+
+func IsAppleAppStoreID(id string) bool {
+	return appleAppStoreIDRegex.MatchString(id)
+}
 
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in

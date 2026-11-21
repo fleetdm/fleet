@@ -1,0 +1,8 @@
+name: Unassigned
+controls:
+policies:
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      configuration:
+        path: ../team_vpp_ios_config.xml
