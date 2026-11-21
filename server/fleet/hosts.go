@@ -1892,6 +1892,25 @@ func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) e
 	return nil
 }
 
+// ValidateWipeRequest returns the error for a wipe request refused because of the host's pending or completed lock,
+// unlock or wipe actions, or nil when the wipe can proceed. It covers the Android wipe paths outside ee; the ee
+// WipeHost uses checkHostCanBeWiped, which adds the Windows Reset cases, so keep the two in step.
+func (s *HostLockWipeStatus) ValidateWipeRequest() error {
+	switch {
+	case s.IsPendingLock():
+		return NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete.")
+	case s.IsPendingUnlock():
+		return NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete.")
+	case s.IsPendingWipe():
+		return NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online.")
+	case s.IsLocked():
+		return NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked.")
+	case s.IsWiped():
+		return NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict)
+	}
+	return nil
+}
+
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
 	if h == nil {
 		return []byte("null"), nil
