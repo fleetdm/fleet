@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.58.0",
+      "version": "1.58.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.dia';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.dia' AND version_compare(bundle_short_version, '1.58.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.dia' AND version_compare(bundle_short_version, '1.58.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'company.thebrowser.dia' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.diabrowser.com/release/Dia-1.58.0-91297.zip",
+      "installer_url": "https://releases.diabrowser.com/release/Dia-1.58.1-91403.zip",
       "install_script_ref": "78882d7d",
       "uninstall_script_ref": "28b10847",
-      "sha256": "cf84011cdc2c37ad1bc9ff14b04bb5758c9a80ecfe244f865bcadb17101a80bd",
+      "sha256": "738346f55d1a595061c5609ebe68a64c387e52ed7971106ec7ec8adefc1bb765",
       "default_categories": [
         "Browsers"
       ]
