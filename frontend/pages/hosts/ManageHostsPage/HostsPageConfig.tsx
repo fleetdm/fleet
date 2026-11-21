@@ -45,15 +45,6 @@ export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
 ] as const;
 
-// TODO: refactor to use this type as the location.query prop of the page
-export type ManageHostsPageQueryParams = Record<
-  | "page"
-  | "order_key"
-  | "order_direction"
-  | typeof MANAGE_HOSTS_PAGE_FILTER_KEYS[number],
-  string
->;
-
 export const LABEL_SLUG_PREFIX = "labels/";
 
 export const DEFAULT_SORT_HEADER = "display_name";

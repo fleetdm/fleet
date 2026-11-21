@@ -36,18 +36,6 @@ $max-width: 2560px;
   justify-content: space-between;
 }
 
-//  Used to keep the settings description sticky under the main nav and sub nav.
-// TODO: figure out how to calculate these values with variables. Will be tedious to change otherwise
-@mixin sticky-settings-description {
-  position: sticky;
-  // this is the current spacing needed to keep the description looking correct under the sub nav when scrolling.
-  top: 104px;
-  z-index: 2;
-  background-color: $core-fleet-white;
-  margin: 0;
-  padding: $pad-xxlarge 0 54px 0;
-}
-
 // Used to create a list item with the item data (name, created at, etc...) on
 // the left and the item actions (download, delete, etc...) on the right.
 @mixin list-item {
@@ -123,13 +111,6 @@ $max-width: 2560px;
   &:focus {
     cursor: default;
   }
-}
-
-@mixin disabled-checkbox {
-  background-color: $ui-fleet-black-25;
-  border-color: $ui-fleet-black-25;
-  pointer-events: none;
-  cursor: default;
 }
 
 @mixin grey-text {
@@ -467,21 +448,6 @@ $max-width: 2560px;
         font-weight: initial;
       }
     }
-  }
-}
-
-@mixin tab-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: $pad-xsmall;
-  padding: $pad-xxlarge;
-  gap: $pad-large;
-  font-size: $small;
-  p {
-    margin: 0;
-    @include help-text;
   }
 }
 

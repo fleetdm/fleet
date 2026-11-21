@@ -1,7 +1,3 @@
-// for legacy legacy query stats interface
-import PropTypes from "prop-types";
-
-import { IFormField } from "./form_field";
 import { ILabelQuery } from "./label";
 import {
   CommaSeparatedPlatformString,
@@ -66,13 +62,6 @@ export const isPerformanceImpactIndicator = (
 };
 
 // legacy
-export default PropTypes.shape({
-  user_time_p50: PropTypes.number,
-  user_time_p95: PropTypes.number,
-  system_time_p50: PropTypes.number,
-  system_time_p95: PropTypes.number,
-  total_executions: PropTypes.number,
-});
 
 // API shapes
 
@@ -145,23 +134,6 @@ export interface IEditQueryFormData
 /** POST /api/v1/fleet/reports/delete */
 export interface IDeleteQueriesFormData {
   ids: number[];
-}
-
-export interface IDeleteQueriesResponse {
-  deleted: number; // number of queries deleted
-}
-
-export interface IEditQueryFormFields {
-  name: IFormField<string>;
-  description: IFormField<string>;
-  query: IFormField<string>;
-  observer_can_run: IFormField<boolean>;
-  discard_data: IFormField<boolean>;
-  frequency: IFormField<number>;
-  automations_enabled: IFormField<boolean>;
-  platforms: IFormField<CommaSeparatedPlatformString>;
-  min_osquery_version: IFormField<string>;
-  logging: IFormField<QueryLoggingOption>;
 }
 
 export type QueryLoggingOption =

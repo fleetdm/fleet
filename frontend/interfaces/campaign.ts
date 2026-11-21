@@ -1,16 +1,4 @@
-import PropTypes from "prop-types";
-
 import { IHost } from "./host";
-
-export default PropTypes.shape({
-  uiHostCounts: PropTypes.shape({
-    total: PropTypes.number,
-    successful: PropTypes.number, // Does not include ChromeOS results that are partially successful
-    failed: PropTypes.number,
-  }),
-  id: PropTypes.number,
-  online: PropTypes.number,
-});
 
 export interface ICampaignError {
   host_id: number;

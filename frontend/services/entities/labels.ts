@@ -199,12 +199,6 @@ export default {
     return sendRequest("PATCH", LABEL(labelId), updateAttrs);
   },
 
-  specByName: (labelName: string) => {
-    const { LABEL_SPEC_BY_NAME } = endpoints;
-    const path = LABEL_SPEC_BY_NAME(labelName);
-    return sendRequest("GET", path);
-  },
-
   getLabel: (labelId: number): Promise<IGetLabelResponse> => {
     const { LABEL } = endpoints;
     return sendRequest("GET", LABEL(labelId));

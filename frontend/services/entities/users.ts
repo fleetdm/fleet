@@ -127,13 +127,6 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  enable: (user: IUser, enabled: boolean) => {
-    const { ENABLE_USER } = endpoints;
-
-    return sendRequest("POST", ENABLE_USER(user.id), {
-      enabled,
-    }).then((response) => helpers.addGravatarUrlToResource(response.user));
-  },
   forgotPassword: ({ email }: IForgotPassword) => {
     const { FORGOT_PASSWORD } = endpoints;
 
@@ -209,14 +202,5 @@ export default {
     return sendRequest("PATCH", path, body).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
-  },
-  updateAdmin: (user: IUser, admin: boolean) => {
-    const { UPDATE_USER_ADMIN } = endpoints;
-
-    return sendRequest(
-      "POST",
-      UPDATE_USER_ADMIN(user.id),
-      admin
-    ).then((response) => helpers.addGravatarUrlToResource(response.user));
   },
 };

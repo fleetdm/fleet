@@ -1,24 +1,6 @@
-import PropTypes from "prop-types";
-
 import { IApiEndpointRef } from "./api_endpoint";
 import { IUserSettings } from "./config";
-import teamInterface, { ITeam } from "./team";
-
-export default PropTypes.shape({
-  created_at: PropTypes.string,
-  updated_at: PropTypes.string,
-  id: PropTypes.number,
-  name: PropTypes.string,
-  email: PropTypes.string,
-  role: PropTypes.string,
-  force_password_reset: PropTypes.bool,
-  gravatar_url: PropTypes.string,
-  sso_enabled: PropTypes.bool,
-  mfa_enabled: PropTypes.bool,
-  global_role: PropTypes.string,
-  api_only: PropTypes.bool,
-  fleets: PropTypes.arrayOf(teamInterface),
-});
+import { ITeam } from "./team";
 
 export const USERS_ROLES = [
   "admin",

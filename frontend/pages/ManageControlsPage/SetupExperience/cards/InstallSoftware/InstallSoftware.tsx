@@ -51,12 +51,6 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "ipados",
   "android",
 ];
-export interface InstallSoftwareLocation {
-  pathname: string;
-  query: {
-    fleet_id?: string;
-  };
-}
 
 const InstallSoftware = ({
   currentTeamId,

@@ -11,14 +11,6 @@ export interface IMdmApple {
   renew_date: string;
 }
 
-export interface IMdmAppleBm {
-  default_fleet?: string;
-  apple_id: string;
-  org_name: string;
-  mdm_server_url: string;
-  renew_date: string;
-}
-
 export type ITokenFleet = {
   fleet_id: number;
   name: string;
@@ -372,8 +364,6 @@ export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
 export const FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME = "Fleetd configuration";
 export const FLEET_WINDOWS_ENROLL_SECRET_PROFILE_DISPLAY_NAME =
   "Fleetd enroll secret";
-export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
-  "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
   "fleet-host-certificate-template";
 

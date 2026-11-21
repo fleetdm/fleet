@@ -633,13 +633,11 @@ Current custom hooks include:
 
 - [`useBlockNavigation`](../hooks/useBlockNavigation.ts) — Attaches a `beforeunload` handler while its `block` argument is true, prompting the user before tab close / hard navigation.
 - [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
-- [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
 - [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.
 - [`useGitOpsMode`](../hooks/useGitOpsMode.ts) — Reports whether GitOps mode is enabled (optionally per-entity, honoring exceptions) and returns the repo URL.
 - [`useIsMobileWidth`](../hooks/useIsMobileWidth.tsx) — Tracks whether the viewport is below the 768px mobile breakpoint via `matchMedia`.
 - [`usePlatformCompatibility`](../hooks/usePlatformCompatibility.tsx) — Debounced check of a SQL string for queryable-platform compatibility, with getter and renderer.
 - [`usePlatformSelector`](../hooks/usePlatformSelector.tsx) — Manages platform-checkbox state (darwin/windows/linux/chrome) and renders the platform selector UI.
-- [`useQueryTargets`](../hooks/useQueryTargets.ts) — `react-query` wrapper that fetches and groups target hosts/labels/teams for a query.
 - [`useSoftwareInstallerMeta`](../hooks/useSoftwareInstallerMeta.ts) — Derives normalized metadata (installer type, FMA/VPP/Android flags, permissions, GitOps state) from a software title.
 - [`useTeamIdParam`](../hooks/useTeamIdParam.ts) — Reads/writes the `fleet_id` URL param, resolving the current fleet and handling param strip/replace rules on fleet change.
 - [`useToggleSidePanel`](../hooks/useToggleSidePanel.ts) — Simple open/closed state with toggle and explicit setter for a side panel.

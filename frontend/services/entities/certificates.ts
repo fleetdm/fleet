@@ -28,10 +28,6 @@ type IAddCertAuthorityResponse = ICertificateAuthorityPartial;
 
 type IGetCertAuthorityResponse = ICertificateAuthority;
 
-interface IRequestCertAuthorityResponse {
-  certificate: string;
-}
-
 export type IAddCertAuthorityFormData =
   | { digicert: ICertificatesDigicert }
   | { ndes_scep_proxy: ICertificatesNDES }
@@ -113,10 +109,6 @@ export default {
     return sendRequest("DELETE", CERTIFICATE_AUTHORITY(id));
   },
 
-  requestCertificate: (id: number): Promise<IRequestCertAuthorityResponse> => {
-    const { CERTIFICATE_AUTHORITY_REQUEST_CERT } = endpoints;
-    return sendRequest("GET", CERTIFICATE_AUTHORITY_REQUEST_CERT(id));
-  },
   getCerts: ({
     fleet_id,
     page,

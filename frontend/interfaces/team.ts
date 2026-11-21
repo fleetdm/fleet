@@ -1,27 +1,12 @@
-import PropTypes from "prop-types";
-
 import {
   IAppleDeviceUpdates,
   IConfigFeatures,
   IWebhookSettings,
 } from "./config";
-import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
+import { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { EndUserLocalAccountType, ITokenFleet } from "./mdm";
 import { UserRole } from "./user";
-
-export default PropTypes.shape({
-  id: PropTypes.number.isRequired,
-  created_at: PropTypes.string,
-  name: PropTypes.string.isRequired,
-  description: PropTypes.string,
-  agent_options: PropTypes.object, // eslint-disable-line react/forbid-prop-types
-  role: PropTypes.any, // eslint-disable-line react/forbid-prop-types
-  // role value is included when the team is in the context of a user
-  user_count: PropTypes.number,
-  host_count: PropTypes.number,
-  secrets: PropTypes.arrayOf(enrollSecretInterface),
-});
 
 /**
  * The id, name, description, and host count for a team entity
@@ -138,18 +123,6 @@ export interface INewTeamUsersFormData {
 export interface IRemoveTeamUserFormData {
   users: { id?: number }[];
 }
-interface INewTeamSecret {
-  fleet_id: number;
-  secret: string;
-  created_at?: string;
-}
-export interface INewTeamSecretFormData {
-  secrets: INewTeamSecret[];
-}
-export interface IRemoveTeamSecretFormData {
-  secrets: { secret: string }[];
-}
-
 export const API_ALL_TEAMS_ID = undefined;
 export const APP_CONTEXT_ALL_TEAMS_ID = -1;
 export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
