@@ -474,12 +474,15 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"disk_space_unix": {
 		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
+		// On composefs (bootc) hosts "/" is a read-only overlay reporting the metadata image's size;
+		// the root filesystem is at /sysroot.
 		Query: fmt.Sprintf(`
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
 					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts %s GROUP BY device)) AS gigs_all_disk_space
-		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
+		FROM mounts WHERE path IN ('/', '/sysroot')
+		ORDER BY CASE WHEN path = '/' AND type != 'overlay' THEN 0 WHEN path = '/sysroot' THEN 1 ELSE 2 END LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskSpace,
 	},
@@ -3464,13 +3467,19 @@ func directIngestMunkiInfo(ctx context.Context, logger *slog.Logger, host *fleet
 }
 
 func directIngestDiskEncryptionLinux(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	encrypted := false
+	// On composefs (bootc) hosts "/" is an overlay with no block device, so it has no row; the root
+	// filesystem is at /sysroot.
+	var hasRoot, rootEncrypted, sysrootEncrypted bool
 	for _, row := range rows {
-		if row["path"] == "/" && row["encrypted"] == "1" {
-			encrypted = true
-			break
+		switch row["path"] {
+		case "/":
+			hasRoot = true
+			rootEncrypted = rootEncrypted || row["encrypted"] == "1"
+		case "/sysroot":
+			sysrootEncrypted = sysrootEncrypted || row["encrypted"] == "1"
 		}
 	}
+	encrypted := rootEncrypted || (!hasRoot && sysrootEncrypted)
 
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
 }
