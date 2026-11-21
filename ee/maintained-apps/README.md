@@ -130,6 +130,15 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 | `ignore_upgrade_code`    | boolean       | Set to `true` when the vendor gives every MSI build a new `UpgradeCode` (e.g., QGIS). Fleet links a Windows Fleet-maintained app to its software title by upgrade code, so a per-build code would move the app to a new title with each update. With this set, the title is linked by `unique_identifier` instead, so give each app that sets it a distinct `unique_identifier`.  |
 | `requires_client_os`     | boolean       | Set to `true` when the installer refuses to run on Windows Server SKUs (e.g., Dell Display and Peripheral Manager). Fleet's ingestion ignores this field; CI reads it to route validation to the `windows-11-arm` runner (the only GitHub-hosted client-OS Windows runner) instead of the default Windows Server x64 runner.  |
 
+#### Windows dependencies
+
+When the winget manifest lists `Dependencies.PackageDependencies` for the selected installer, the ingester adds a block to the top of the install script that installs each supported runtime if the host doesn't have it (or has a version older than the manifest's `MinimumVersion`), then runs the app's own script. There's nothing to add to the input file.
+
+- Supported: Microsoft Visual C++ Redistributable 2015+ (`Microsoft.VCRedist.2015+.<arch>`), Microsoft .NET Desktop Runtime (`Microsoft.DotNet.DesktopRuntime.<major>`), and Microsoft Edge WebView2 Runtime (`Microsoft.EdgeWebView2Runtime`). Other dependencies are logged and skipped. To add one, extend `lookupSupportedDependency` in `ingesters/winget/dependencies.go` and the detection in `dependencies.ps1`.
+- The download URL and SHA-256 come from the dependency's own winget manifest and are pinned in the script, so they refresh whenever the app is regenerated. The host downloads the runtime from Microsoft, not from Fleet.
+- If a dependency can't be installed, the script exits `1` before the app's installer runs, and the reason is in the install output.
+- CI runners already have these runtimes, so validation there only covers the "already installed" path. Test a missing runtime on a clean host.
+
 #### Windows troubleshooting
 
 - App not found in Fleet UI: ensure `apps.json` was updated by the generator and your override URL is correct
