@@ -1454,6 +1454,7 @@ FROM file
 WHERE (
     path LIKE 'C:\Program Files\%\%.exe'
     OR path LIKE 'C:\Program Files\%\%\%.exe'
+    OR path LIKE 'C:\ProgramData\Microsoft\Windows Defender\Platform\%\MsMpEng.exe'
   )
   AND path NOT LIKE 'C:\Program Files\WindowsApps\%'
 ```
