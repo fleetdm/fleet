@@ -7910,3 +7910,63 @@ func TestWebhookAndTicketPolicyResults(t *testing.T) {
 	require.Equal(t, map[uint]*bool{1: new(false)}, got)
 	require.Zero(t, teamLoads)
 }
+
+// TestProcessScriptsForNewlyFailingPoliciesScriptPlatform verifies that policy
+// automations skip scripts whose file extension is incompatible with the host
+// platform, regardless of the extension's letter case (e.g. RUN.SH must be
+// skipped on Windows hosts just like run.sh).
+func TestProcessScriptsForNewlyFailingPoliciesScriptPlatform(t *testing.T) {
+	const (
+		policyID = uint(1)
+		scriptID = uint(7)
+		hostID   = uint(42)
+	)
+
+	tests := []struct {
+		name       string
+		scriptName string
+		platform   string
+		wantRun    bool
+	}{
+		{"lowercase sh skipped on windows", "run.sh", "windows", false},
+		{"uppercase sh skipped on windows", "RUN.SH", "windows", false},
+		{"lowercase ps1 skipped on darwin", "win.ps1", "darwin", false},
+		{"uppercase ps1 skipped on darwin", "WIN.PS1", "darwin", false},
+		{"uppercase ps1 runs on windows", "WIN.PS1", "windows", true},
+		{"lowercase sh runs on darwin", "run.sh", "darwin", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+			svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+			ds.GetPoliciesWithAssociatedScriptFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error) {
+				return []fleet.PolicyScriptData{{ID: policyID, ScriptID: scriptID}}, nil
+			}
+			ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+				return &fleet.Script{ID: scriptID, Name: tt.scriptName}, nil
+			}
+			ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+				return nil, nil
+			}
+			ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) (bool, error) {
+				return false, nil
+			}
+			ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("echo hi"), nil
+			}
+			ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+				return &fleet.HostScriptResult{HostID: request.HostID, ExecutionID: "exec-id"}, nil
+			}
+
+			orbitKey := "orbit-key"
+			policyFailed := false
+			failing := map[uint]*bool{policyID: &policyFailed}
+			newlyFailing := map[uint]struct{}{policyID: {}}
+			require.NoError(t, svcImpl.processScriptsForNewlyFailingPolicies(ctx, hostID, nil, tt.platform, &orbitKey, nil, failing, newlyFailing))
+			require.Equal(t, tt.wantRun, ds.NewHostScriptExecutionRequestFuncInvoked)
+		})
+	}
+}

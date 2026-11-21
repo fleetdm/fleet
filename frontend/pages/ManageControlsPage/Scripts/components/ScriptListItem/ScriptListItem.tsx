@@ -28,7 +28,7 @@ interface IScriptListItemProps {
 const getFileRenderDetails = (
   fileName: string
 ): { graphicName: ISupportedGraphicNames; platform: string | null } => {
-  const fileExtension = fileName.split(".").pop();
+  const fileExtension = fileName.split(".").pop()?.toLowerCase();
 
   switch (fileExtension) {
     case "py":

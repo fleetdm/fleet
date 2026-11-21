@@ -89,6 +89,19 @@ describe("ScriptListItem", () => {
     expect(screen.getByText(/Windows/)).toBeInTheDocument();
   });
 
+  it("Renders the correct platform when the script extension is upper-case", () => {
+    render(
+      <ScriptListItem
+        script={{ ...WINDOWS_SCRIPT, name: "TEST_WIN_SCRIPT.PS1" }}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onClickScript={onClickScript}
+      />
+    );
+
+    expect(screen.getByText(/Windows/)).toBeInTheDocument();
+  });
+
   it("labels each action button with the script name for screen readers", () => {
     render(
       <ScriptListItem

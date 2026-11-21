@@ -1,0 +1,1 @@
+- Fixed batch script runs marking every host as incompatible when a script's file extension is upper-case (e.g. `.PY`), and fixed policy automations not skipping upper-case `.SH`/`.PS1` scripts on incompatible platforms.
