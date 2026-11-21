@@ -147,7 +147,7 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `GET /global/schedule` and `GET /fleets/:id/schedule` | [`GET /reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet. Scheduled reports have an `interval` greater than `0`. |
-| `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
+| `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, `logging`, and `automations_enabled` (and `fleet_id` for a fleet). No copy. |
 | `PATCH /global/schedule/:id` and `PATCH /fleets/:id/schedule/:report_id` | [`PATCH /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
 | `DELETE /global/schedule/:id` and `DELETE /fleets/:id/schedule/:report_id` | [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
 
@@ -158,7 +158,7 @@ The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also 
 Fleet 4 already supports reports with an `interval`, so change them before you upgrade.
 
 1. Search for the old paths: `grep -rnE '/schedule\b' .`
-2. Create or update reports with an `interval` instead. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
+2. Create or update reports with an `interval` instead. The old schedule endpoints always created the report with `automations_enabled` set to `true`, but `POST /reports` sets it to `false` unless you send it. A report with `automations_enabled` set to `false` isn't put on hosts' schedules with `differential` logging, and with `snapshot` logging its results are collected but not sent to the log destination. Send `automations_enabled` set to `true`, or the migrated schedules stop reporting. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
 
 GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
