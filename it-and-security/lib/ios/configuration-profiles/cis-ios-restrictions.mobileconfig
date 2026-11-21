@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>allowScreenShot</key>
+			<false/>
+			<key>allowFilesUSBDriveAccess</key>
+			<false/>
+			<key>allowFilesNetworkDriveAccess</key>
+			<false/>
+			<key>allowUntrustedTLSPrompt</key>
+			<false/>
+			<key>allowHostPairing</key>
+			<false/>
+			<key>allowOpenFromManagedToUnmanaged</key>
+			<false/>
+			<key>allowManagedToWriteUnmanagedContacts</key>
+			<false/>
+			<key>allowUnmanagedToReadManagedContacts</key>
+			<false/>
+			<key>forceAirDropUnmanaged</key>
+			<true/>
+			<key>allowAssistantWhileLocked</key>
+			<false/>
+			<key>allowLockScreenControlCenter</key>
+			<false/>
+			<key>allowLockScreenNotificationsView</key>
+			<false/>
+			<key>allowLockScreenTodayView</key>
+			<false/>
+			<key>allowPassbookWhileLocked</key>
+			<false/>
+			<key>allowEnterpriseAppTrust</key>
+			<false/>
+			<key>allowDiagnosticSubmission</key>
+			<false/>
+			<key>forceLimitAdTracking</key>
+			<true/>
+			<key>forceEncryptedBackup</key>
+			<true/>
+			<key>forceWatchWristDetection</key>
+			<true/>
+			<key>forceAuthenticationBeforeAutoFill</key>
+			<true/>
+			<key>safariForceFraudWarning</key>
+			<true/>
+			<key>PayloadDescription</key>
+			<string>CIS Benchmark Level 1 and Level 2 restrictions for institution-owned iOS/iPadOS devices</string>
+			<key>PayloadDisplayName</key>
+			<string>CIS Restrictions</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.applicationaccess.7C1F3E2A-9B4D-4F6E-8A21-3D5C9E0B7F14</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadUUID</key>
+			<string>7C1F3E2A-9B4D-4F6E-8A21-3D5C9E0B7F14</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>CIS iOS restrictions</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis.ios.restrictions</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>2E8A4B6C-1D3F-4A5B-9C7E-6F0A1B2C3D4E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
