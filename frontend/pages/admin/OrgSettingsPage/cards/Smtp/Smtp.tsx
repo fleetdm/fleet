@@ -47,13 +47,13 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
   } = data;
 
   if (enableSMTP) {
-    if (!smtpSenderAddress) {
+    if (!smtpSenderAddress.trim()) {
       errors.smtpSenderAddress = "Enter a sender address";
     } else if (!isValidEmail(smtpSenderAddress.trim())) {
       errors.smtpSenderAddress = "Enter a valid sender address";
     }
 
-    if (!smtpServer) {
+    if (!smtpServer.trim()) {
       errors.smtpServer = "Enter an SMTP server";
     }
     if (!smtpPort) {
@@ -61,14 +61,17 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
     }
 
     if (smtpAuthenticationType === "authtype_username_password") {
-      if (!smtpUsername) {
+      if (!smtpUsername.trim()) {
         errors.smtpUsername = "Enter an SMTP username";
       }
       if (!smtpPassword) {
         errors.smtpPassword = "Enter an SMTP password";
       }
     }
-  } else if (smtpSenderAddress && !isValidEmail(smtpSenderAddress.trim())) {
+  } else if (
+    smtpSenderAddress.trim() &&
+    !isValidEmail(smtpSenderAddress.trim())
+  ) {
     // Even when SMTP is disabled, a filled-in sender address must be a valid
     // email so the value is ready when SMTP flips on.
     errors.smtpSenderAddress = "Enter a valid sender address";
