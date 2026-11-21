@@ -28,7 +28,7 @@ When a host fails the selected policy, this will trigger the script to run on th
 
 ## Via the API
 
-Script policy automation can be managed by setting the `script_id` field on the Fleet REST API's [Add team policy](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy) or [Edit team policy](https://fleetdm.com/docs/rest-api/rest-api#edit-team-policy) endpoints.
+Script policy automation can be managed by setting `automation_type` to `"script"` and `script_id` on the Fleet REST API's [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) or [Update policy](https://fleetdm.com/docs/rest-api/rest-api#update-policy) endpoints.
 
 ## Via GitOps
 

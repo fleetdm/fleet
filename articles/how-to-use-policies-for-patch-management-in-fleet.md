@@ -65,7 +65,7 @@ For all available options, see the [GitOps reference documentation](https://flee
 
 ### Via the API
 
-Set `type` to `"patch"` and provide `patch_software_title_id` when [adding a fleet policy](https://fleetdm.com/docs/rest-api/rest-api#create-fleet-policy).
+Set `type` to `"patch"` and provide `software_title_id` when [creating a policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy). To have Fleet install the update, also set `automation_type` to `"software"`.
 
 ## Manual policies for custom packages
 
@@ -125,10 +125,10 @@ would deploy Slack to your endpoints the moment it comes out of the box, ensurin
 
 Fleet Premium customers can leverage the REST API for both approaches:
 
-- **Patch policies**: Set `type` to `"patch"` with `patch_software_title_id` when [adding a fleet policy](https://fleetdm.com/docs/rest-api/rest-api#create-fleet-policy).
-- **Manual policies**: Use `software_title_id` to link a policy to software that installs on failure.
+- **Patch policies**: Set `type` to `"patch"` with `software_title_id` when [creating a policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy). To have Fleet install the update, also set `automation_type` to `"software"`.
+- **Manual policies**: Set `automation_type` to `"software"` and use `software_title_id` to link a policy to software that installs on failure.
 
-See the [Upload software](https://fleetdm.com/docs/rest-api/rest-api#add-package) and [Create fleet policy](https://fleetdm.com/docs/rest-api/rest-api#create-fleet-policy) API docs.
+See the [Upload software](https://fleetdm.com/docs/rest-api/rest-api#add-package) and [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) API docs.
 
 ## Curious about GitOps?
 
