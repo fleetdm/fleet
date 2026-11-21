@@ -1,4 +1,4 @@
-import { omit, pick } from "lodash";
+import { noop, omit, pick } from "lodash";
 import React, {
   useContext,
   useState,
@@ -84,7 +84,7 @@ import {
   isLinuxLike,
   isWindows,
 } from "interfaces/platform";
-import { IHostPolicy } from "interfaces/policy";
+import { IHostPolicy, IPolicy } from "interfaces/policy";
 import {
   IHostSoftware,
   resolveUninstallStatus,
@@ -114,6 +114,7 @@ import hostAPI, {
   IGetHostCertificatesResponse,
   IGetHostCertsApiParams,
 } from "services/entities/hosts";
+import policiesAPI from "services/entities/policies";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import {
   formatMdmCommandNameForActivityItem,
@@ -155,7 +156,6 @@ import LabelsCard from "../cards/Labels";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import MunkiIssuesCard from "../cards/MunkiIssues";
 import PoliciesCard from "../cards/Policies";
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import SoftwareInventoryCard from "../cards/Software";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import UserCard from "../cards/User";
@@ -201,6 +201,14 @@ import SelectReportModal from "./modals/SelectReportModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import UnlockModal from "./modals/UnlockModal";
 import WipeModal from "./modals/WipeModal";
+
+const policyHasAutomation = (policy: IPolicy) =>
+  !!policy.install_software ||
+  !!policy.run_script ||
+  !!policy.patch_software ||
+  !!policy.resend_configuration_profile ||
+  !!policy.calendar_events_enabled ||
+  !!policy.conditional_access_enabled;
 
 const baseClass = "host-details";
 
@@ -333,7 +341,6 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [
@@ -377,9 +384,6 @@ const HostDetailsPage = ({
 
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
-  const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
-    null
-  );
   const [
     packageInstallDetails,
     setPackageInstallDetails,
@@ -963,12 +967,31 @@ const HostDetailsPage = ({
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
-  const togglePolicyDetailsModal = useCallback(
-    (policy: IHostPolicy) => {
-      setPolicyDetailsModal(!showPolicyDetailsModal);
-      setSelectedPolicy(policy);
+  // Opens the policy's automation runs. When the policy has an automation,
+  // the runs are filtered to this host.
+  const onClickPolicy = useCallback(
+    async (policy: IHostPolicy) => {
+      let hasAutomation = false;
+      try {
+        // Host policies don't include their script, software, or profile
+        // automations, so load the full policy.
+        const { policy: fullPolicy } = await queryClient.fetchQuery(
+          ["policy", policy.id],
+          () => policiesAPI.load(policy.id)
+        );
+        hasAutomation = policyHasAutomation(fullPolicy);
+      } catch {
+        // Open the policy without the host filter.
+      }
+      router.push(
+        getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
+          // Inherited policies have no fleet, so keep the host's fleet.
+          fleet_id: policy.fleet_id ?? host?.fleet_id,
+          query: hasAutomation ? host?.display_name : undefined,
+        })
+      );
     },
-    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+    [queryClient, router, host?.fleet_id, host?.display_name]
   );
 
   const toggleBootstrapPackageModal = useCallback(() => {
@@ -1005,11 +1028,6 @@ const HostDetailsPage = ({
   const toggleClearPasscodeModal = useCallback(() => {
     setShowClearPasscodeModal(!showClearPasscodeModal);
   }, [showClearPasscodeModal, setShowClearPasscodeModal]);
-
-  const onCancelPolicyDetailsModal = useCallback(() => {
-    setPolicyDetailsModal(false);
-    setSelectedPolicy(null);
-  }, [setPolicyDetailsModal, setSelectedPolicy]);
 
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
@@ -2199,8 +2217,8 @@ const HostDetailsPage = ({
                   <PoliciesCard
                     policies={host?.policies || []}
                     isLoading={isLoadingHost}
-                    togglePolicyDetailsModal={togglePolicyDetailsModal}
-                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
+                    togglePolicyDetailsModal={onClickPolicy}
+                    closePolicyDetailsModal={noop}
                     hostPlatform={host.platform}
                     currentTeamId={currentTeam?.id}
                     canManagePolicies={canManagePolicies}
@@ -2253,12 +2271,6 @@ const HostDetailsPage = ({
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
               hostsTeamId={host.fleet_id}
-            />
-          )}
-          {!!host && showPolicyDetailsModal && (
-            <PolicyDetailsModal
-              onCancel={onCancelPolicyDetailsModal}
-              policy={selectedPolicy}
             />
           )}
           {!!host && showReleaseFromABModal && (
