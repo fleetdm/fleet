@@ -133,7 +133,6 @@ parasails.registerComponent('aiToolGraphic', {
     </div>
     <div purpose="cursor-animation" role="img" aria-label="A Cursor agent connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Cursor checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Cursor writes the changes and opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-if="selectedAiTool === 'cursor'">
       <div purpose="cursor-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="cursor-sidebar">
           <div purpose="cursor-window-controls">
             <img alt="" src="/images/ai-demo/icon-cursor-panel-left-15x15.svg">
@@ -230,7 +229,6 @@ parasails.registerComponent('aiToolGraphic', {
     </div>
     <div purpose="copilot-animation" role="img" aria-label="A GitHub Copilot session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Copilot checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Copilot commits the changes and opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'github-copilot'">
       <div purpose="copilot-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="copilot-sidebar">
           <div purpose="copilot-title-bar">
             <img alt="" src="/images/ai-demo/icon-github-copilot-panel-left-16x16.svg">
@@ -309,7 +307,6 @@ parasails.registerComponent('aiToolGraphic', {
     </div>
     <div purpose="codex-animation" role="img" aria-label="A Codex session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Codex checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Codex edits the files and opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'codex'">
       <div purpose="codex-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="codex-title-bar">
           <div purpose="codex-window-controls">
             <img alt="" src="/images/ai-demo/icon-codex-arrow-left-15x15.svg">
@@ -409,7 +406,6 @@ parasails.registerComponent('aiToolGraphic', {
     </div>
     <div purpose="slack-animation" role="img" aria-label="A Slack thread in the #ask-fleet channel. An admin asks what it takes to meet CIS Level 2 on their Macs. Fleet reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'slack'">
       <div purpose="slack-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="slack-title-bar">
           <img alt="" src="/images/ai-demo/icon-slack-back-20x20.svg">
           <img alt="" src="/images/ai-demo/icon-slack-forward-20x20.svg">
@@ -495,50 +491,86 @@ parasails.registerComponent('aiToolGraphic', {
     </div>
     <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks what it takes to meet CIS Level 2 on their Windows devices. Fleet reports that 2,184 of 2,350 Windows hosts pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are Credential Guard, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'teams'">
       <div purpose="teams-window" aria-hidden="true">
-        <picture purpose="teams-chrome">
-          <source media="(max-width: 767px)" srcset="/images/teams-chat-window-mobile-492x576.svg">
-          <source media="(max-width: 991px)" srcset="/images/teams-chat-window-tablet-844x576.svg">
-          <img alt="" src="/images/teams-chat-window-1044x520.svg">
-        </picture>
-        <div purpose="teams-conversation" ref="demoConversation">
-          <div purpose="teams-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
-            <div purpose="teams-first-message">
-              <p><strong>@Fleet</strong> what do we need for CIS level 2 on our Windows devices?</p>
+        <div purpose="teams-title-bar">
+          <img purpose="teams-logo" alt="" src="/images/ai-demo/icon-teams-logo-28x28.svg">
+          <div purpose="teams-title-nav">
+            <img alt="" src="/images/ai-demo/icon-teams-back-21x21.svg">
+            <img alt="" src="/images/ai-demo/icon-teams-forward-21x21.svg">
+            <span purpose="teams-search"><img alt="" src="/images/ai-demo/icon-teams-search-18x18.svg"><span>Search</span></span>
+          </div>
+        </div>
+        <div purpose="teams-body">
+          <div purpose="teams-app-bar">
+            <span purpose="teams-app-bar-item"><img alt="" src="/images/ai-demo/icon-teams-bell-21x21.svg"></span>
+            <span purpose="teams-app-bar-item" class="selected"><img alt="" src="/images/ai-demo/icon-teams-chat-21x21.svg"></span>
+            <span purpose="teams-app-bar-item"><img alt="" src="/images/ai-demo/icon-teams-calendar-21x21.svg"></span>
+            <span purpose="teams-app-bar-item"><img alt="" src="/images/ai-demo/icon-teams-calls-21x21.svg"></span>
+            <span purpose="teams-app-bar-item"><img alt="" src="/images/ai-demo/icon-teams-files-21x21.svg"></span>
+            <span purpose="teams-app-bar-item"><img alt="" src="/images/ai-demo/icon-teams-more-21x21.svg"></span>
+            <span purpose="teams-app-bar-item"><img alt="" src="/images/ai-demo/icon-teams-apps-21x21.svg"></span>
+          </div>
+          <div purpose="teams-sidebar">
+            <div purpose="teams-sidebar-header">
+              <span purpose="teams-sidebar-title">Chat</span>
+              <span purpose="teams-icon-button"><img alt="" src="/images/ai-demo/icon-teams-filter-17x17.svg"></span>
+              <span purpose="teams-icon-button"><img alt="" src="/images/ai-demo/icon-teams-compose-15x15.svg"></span>
             </div>
-            <div purpose="teams-first-reply" v-show="demoStep >= 2">
-              <div purpose="teams-typing" v-show="demoStep === 2">
-                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
-                <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
-              </div>
-              <div purpose="teams-reply" v-show="demoStep >= 3">
-                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
-                <div purpose="teams-reply-body">
-                  <span purpose="teams-sender">Fleet</span>
-                  <div purpose="teams-reply-bubble">
-                    <p>2,184 of 2,350 Windows hosts pass Level 1. Level 2 adds 38 settings. The biggest gaps are Credential Guard, telemetry limits, and unneeded services.</p>
+            <span purpose="teams-sidebar-label">Recent</span>
+            <div purpose="teams-sidebar-item"><span purpose="teams-placeholder-avatar"></span><span purpose="teams-placeholder-bar"></span></div>
+            <div purpose="teams-sidebar-item" class="selected"><img alt="" src="/images/icon-fleet-avatar-28x28.svg"><span purpose="teams-chat-name">Fleet</span></div>
+            <div purpose="teams-sidebar-item"><span purpose="teams-placeholder-avatar"></span><span purpose="teams-placeholder-bar"></span></div>
+            <span purpose="teams-sidebar-label">Chats</span>
+            <div purpose="teams-sidebar-item"><span purpose="teams-placeholder-avatar"></span><span purpose="teams-placeholder-bar"></span></div>
+            <div purpose="teams-sidebar-item"><span purpose="teams-placeholder-avatar"></span><span purpose="teams-placeholder-bar"></span></div>
+            <div purpose="teams-sidebar-item"><span purpose="teams-placeholder-avatar"></span><span purpose="teams-placeholder-bar"></span></div>
+          </div>
+          <div purpose="teams-main">
+            <div purpose="teams-header">
+              <img alt="" src="/images/icon-fleet-avatar-28x28.svg">
+              <span purpose="teams-chat-title">Fleet</span>
+              <span purpose="teams-tab">Chat</span>
+            </div>
+            <div purpose="teams-conversation" ref="demoConversation">
+              <div purpose="teams-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
+                <div purpose="teams-first-message">
+                  <p><strong>@Fleet</strong> what do we need for CIS level 2 on our Windows devices?</p>
+                </div>
+                <div purpose="teams-first-reply" v-show="demoStep >= 2">
+                  <div purpose="teams-typing" v-show="demoStep === 2">
+                    <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                    <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
                   </div>
-                  <div purpose="teams-follow-up" v-show="demoStep >= 4">
-                    <div purpose="teams-reply-bubble">
-                      <p>Want me to propose changes that close those gaps?</p>
+                  <div purpose="teams-reply" v-show="demoStep >= 3">
+                    <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                    <div purpose="teams-reply-body">
+                      <span purpose="teams-sender">Fleet</span>
+                      <div purpose="teams-reply-bubble">
+                        <p>2,184 of 2,350 Windows hosts pass Level 1. Level 2 adds 38 settings. The biggest gaps are Credential Guard, telemetry limits, and unneeded services.</p>
+                      </div>
+                      <div purpose="teams-follow-up" v-show="demoStep >= 4">
+                        <div purpose="teams-reply-bubble">
+                          <p>Want me to propose changes that close those gaps?</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div purpose="teams-second-message" v-show="demoStep >= 5">
-              <p>Yes</p>
-            </div>
-            <div purpose="teams-second-reply" v-show="demoStep >= 6">
-              <div purpose="teams-typing" v-show="demoStep === 6">
-                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
-                <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
-              </div>
-              <div purpose="teams-reply" v-show="demoStep >= 7">
-                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
-                <div purpose="teams-reply-body">
-                  <span purpose="teams-sender">Fleet</span>
-                  <div purpose="teams-reply-bubble">
-                    <p>Done. I’ve proposed 3 new profiles and 38 policies <span purpose="teams-link">for your review</span>.</p>
+                <div purpose="teams-second-message" v-show="demoStep >= 5">
+                  <p>Yes</p>
+                </div>
+                <div purpose="teams-second-reply" v-show="demoStep >= 6">
+                  <div purpose="teams-typing" v-show="demoStep === 6">
+                    <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                    <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
+                  </div>
+                  <div purpose="teams-reply" v-show="demoStep >= 7">
+                    <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                    <div purpose="teams-reply-body">
+                      <span purpose="teams-sender">Fleet</span>
+                      <div purpose="teams-reply-bubble">
+                        <p>Done. I’ve proposed 3 new profiles and 38 policies <span purpose="teams-link">for your review</span>.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -549,7 +581,6 @@ parasails.registerComponent('aiToolGraphic', {
     </div>
     <div purpose="claude-code-animation" role="img" aria-label="A Claude Code session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Claude checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Claude opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else>
       <div purpose="claude-code-window" aria-hidden="true">
-        <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
         <div purpose="claude-code-sidebar">
           <div purpose="claude-code-title-bar">
             <img alt="" src="/images/ai-demo/icon-claude-code-sidebar-18x18.svg">
