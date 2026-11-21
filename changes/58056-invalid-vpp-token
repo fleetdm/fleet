@@ -1,0 +1,1 @@
+* Fixed an internal server error when uploading a file that is not a valid Apple Business content token.
