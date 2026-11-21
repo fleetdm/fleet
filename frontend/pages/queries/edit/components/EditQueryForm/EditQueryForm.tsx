@@ -301,6 +301,14 @@ const EditQueryForm = ({
   useEffect(() => {
     if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
       setCompatiblePlatforms(lastEditedQueryBody);
+      // Surface a syntax error in the stored query as soon as it loads.
+      if (lastEditedQueryBody?.trim()) {
+        const { errors: loadErrors } = validateQuerySQL(lastEditedQueryBody);
+        setErrors((prev) => ({
+          ...prev,
+          query: loadErrors.query ?? undefined,
+        }));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryIdForEdit, lastEditedQueryId, isStoredQueryLoading]);
