@@ -1,0 +1,1 @@
+* Added support for nested groups in the Google Workspace integration. A user who belongs to a group only through a nested child group now shows that parent group in their IdP host vitals, so labels and policies scoped to it apply.
