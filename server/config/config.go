@@ -494,6 +494,11 @@ type LambdaConfig struct {
 // CloudStorageConfig groups the configs of cloud object stores.
 type CloudStorageConfig struct {
 	Azure AzureConfig `yaml:"azure"`
+	// StreamInstallerDownloads, when true, makes Fleet stream the software
+	// installers it downloads (and the staged uploads it finalizes) straight to
+	// the S3 or Azure software installers store instead of buffering them in a
+	// local temporary file. Requires the S3 or Azure software installers store.
+	StreamInstallerDownloads bool `yaml:"stream_installer_downloads"`
 }
 
 // S3Config defines config to enable file carving storage to an S3 bucket
@@ -845,6 +850,22 @@ func (f FleetConfig) SoftwareInstallersSignedURLEnabled() bool {
 	default:
 		return false
 	}
+}
+
+// ValidateStreamInstallerDownloads returns an error if streaming installer
+// downloads is enabled without an S3 or Azure software installers store.
+func (f FleetConfig) ValidateStreamInstallerDownloads() error {
+	if !f.CloudStorage.StreamInstallerDownloads {
+		return nil
+	}
+	backend, err := f.SoftwareInstallersBackend()
+	if err != nil {
+		return err
+	}
+	if backend != StorageBackendS3 && backend != StorageBackendAzure {
+		return errors.New("Couldn't configure. cloud_storage.stream_installer_downloads requires s3_software_installers_bucket or cloud_storage.azure.files_container to be set.")
+	}
+	return nil
 }
 
 // StagedUploadAvailable reports whether clients can upload packages straight
@@ -2137,6 +2158,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("cloud_storage.azure.files_container", "", "Azure Storage container where to store uploaded software installers")
 	man.addConfigString("cloud_storage.azure.files_container_url", "", "Azure Blob Storage endpoint override (leave blank for the default https://<account>.blob.core.windows.net; used for Azurite/testing)")
 	man.addConfigBool("cloud_storage.azure.files_signed_url", false, "Hand out SAS-signed URLs for installer/in-house app/bootstrap downloads instead of proxying bytes")
+	man.addConfigBool("cloud_storage.stream_installer_downloads", false, "Stream downloaded software installers straight to the S3 or Azure software installers store instead of a local temporary file")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -2604,13 +2626,16 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
 		S3: man.loadS3Config(),
-		CloudStorage: CloudStorageConfig{Azure: AzureConfig{
-			SoftwareInstallersAccountName:  man.getConfigString("cloud_storage.azure.files_account_name"),
-			SoftwareInstallersAccountKey:   man.getConfigString("cloud_storage.azure.files_account_key"),
-			SoftwareInstallersContainer:    man.getConfigString("cloud_storage.azure.files_container"),
-			SoftwareInstallersContainerURL: man.getConfigString("cloud_storage.azure.files_container_url"),
-			SoftwareInstallersSignedURL:    man.getConfigBool("cloud_storage.azure.files_signed_url"),
-		}},
+		CloudStorage: CloudStorageConfig{
+			Azure: AzureConfig{
+				SoftwareInstallersAccountName:  man.getConfigString("cloud_storage.azure.files_account_name"),
+				SoftwareInstallersAccountKey:   man.getConfigString("cloud_storage.azure.files_account_key"),
+				SoftwareInstallersContainer:    man.getConfigString("cloud_storage.azure.files_container"),
+				SoftwareInstallersContainerURL: man.getConfigString("cloud_storage.azure.files_container_url"),
+				SoftwareInstallersSignedURL:    man.getConfigBool("cloud_storage.azure.files_signed_url"),
+			},
+			StreamInstallerDownloads: man.getConfigBool("cloud_storage.stream_installer_downloads"),
+		},
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
 		},

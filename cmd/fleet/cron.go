@@ -2786,6 +2786,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	streamInstallerDownloads bool,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2805,7 +2806,8 @@ func newMaintainedAppsAutoUpdateSchedule(
 			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
 			defer cancel()
 
-			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
+			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger,
+				eeservice.WithStreamInstallerDownloads(streamInstallerDownloads))
 		}),
 	)
 

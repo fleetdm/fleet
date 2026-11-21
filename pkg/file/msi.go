@@ -2,7 +2,6 @@ package file
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -14,10 +13,11 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-func ExtractMSIMetadata(tfr *fleet.TempFileReader) (_ *InstallerMetadata, err error) {
-	// compute its hash
-	h := sha256.New()
-	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
+func ExtractMSIMetadata(tfr fleet.InstallerReader) (_ *InstallerMetadata, err error) {
+	sum, err := installerSHA256(tfr)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := tfr.Rewind(); err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func ExtractMSIMetadata(tfr *fleet.TempFileReader) (_ *InstallerMetadata, err er
 		Version:     strings.TrimSpace(props["ProductVersion"]),
 		PackageIDs:  []string{strings.TrimSpace(props["ProductCode"])},
 		UpgradeCode: strings.TrimSpace(props["UpgradeCode"]),
-		SHASum:      h.Sum(nil),
+		SHASum:      sum,
 	}, nil
 }
 

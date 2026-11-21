@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 	"net/http"
@@ -45,7 +46,7 @@ type InstallerMetadata struct {
 // ExtractInstallerMetadata extracts the software name and version from the
 // installer file and returns them along with the sha256 hash of the bytes. The
 // format of the installer is determined based on the magic bytes of the content.
-func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+func ExtractInstallerMetadata(tfr fleet.InstallerReader) (*InstallerMetadata, error) {
 	br := bufio.NewReader(tfr)
 	extension, err := typeFromBytes(br)
 	if err != nil {
@@ -302,13 +303,16 @@ func ExtractTarGz(path string, destDir string, maxFileSize int64, logger zerolog
 	}
 }
 
-func SHA256FromTempFileReader(tfr *fleet.TempFileReader) (string, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, tfr); err != nil {
+// SHA256FromTempFileReader returns the hex-encoded SHA256 of the installer
+// content and rewinds the reader. A hash already known by the reader (see
+// fleet.KnownSHA256er) is returned without reading the content.
+func SHA256FromTempFileReader(tfr fleet.InstallerReader) (string, error) {
+	sum, err := installerSHA256(tfr)
+	if err != nil {
 		return "", err
 	}
 
-	hashString := hex.EncodeToString(h.Sum(nil))
+	hashString := hex.EncodeToString(sum)
 
 	if err := tfr.Rewind(); err != nil {
 		return "", err
@@ -354,4 +358,53 @@ func asMemberTooLarge(err error) error {
 func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
 	b, err := io.ReadAll(limitReader(r, limit))
 	return b, asMemberTooLarge(err)
+}
+
+// installerSHA256 returns the SHA256 of r's content, reusing the hash already
+// known by r if any (see fleet.KnownSHA256er). Otherwise it reads r to the end,
+// so the caller must rewind it if needed.
+func installerSHA256(r io.Reader) ([]byte, error) {
+	if k, ok := r.(fleet.KnownSHA256er); ok {
+		if sum := k.KnownSHA256(); sum != nil {
+			return sum, nil
+		}
+	}
+	h := sha256.New()
+	if _, err := io.Copy(h, r); err != nil {
+		return nil, fmt.Errorf("hashing installer: %w", err)
+	}
+	return h.Sum(nil), nil
+}
+
+// sequentialHasher computes the SHA256 of a reader consumed by a sequential
+// parser, unless the reader already knows its hash, in which case it is not
+// read past what the parser needs.
+type sequentialHasher struct {
+	r     io.Reader
+	h     hash.Hash
+	known []byte
+}
+
+// newSequentialHasher returns the reader the parser must read from, and the
+// hasher whose finish method returns the content's SHA256.
+func newSequentialHasher(r io.Reader) (io.Reader, *sequentialHasher) {
+	if k, ok := r.(fleet.KnownSHA256er); ok {
+		if sum := k.KnownSHA256(); sum != nil {
+			return r, &sequentialHasher{known: sum}
+		}
+	}
+	h := sha256.New()
+	tee := io.TeeReader(r, h)
+	return tee, &sequentialHasher{r: tee, h: h}
+}
+
+// finish reads the rest of the content if needed and returns its SHA256.
+func (s *sequentialHasher) finish() ([]byte, error) {
+	if s.known != nil {
+		return s.known, nil
+	}
+	if _, err := io.Copy(io.Discard, s.r); err != nil {
+		return nil, err
+	}
+	return s.h.Sum(nil), nil
 }

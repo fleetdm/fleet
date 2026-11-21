@@ -683,7 +683,7 @@ type UploadSoftwareInstallerPayload struct {
 	InstallScript        string
 	PreInstallQuery      string
 	PostInstallScript    string
-	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	InstallerFile        InstallerReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
 	StagedUploadID       string          // when set, InstallerFile is read from this staged upload
 	StorageID            string
 	Filename             string
@@ -793,7 +793,7 @@ type UpdateSoftwareInstallerPayload struct {
 	// used for authorization and persisted as author
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
-	InstallerFile *TempFileReader
+	InstallerFile InstallerReader
 	// when set, InstallerFile is read from this staged upload
 	StagedUploadID string
 	// update the installer with these fields (*not* PATCH semantics at that point; while the
@@ -1331,6 +1331,15 @@ func (r *TempFileReader) Rewind() error {
 		return err
 	}
 	return nil
+}
+
+// Size returns the size of the file in bytes.
+func (r *TempFileReader) Size() (int64, error) {
+	fi, err := r.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return fi.Size(), nil
 }
 
 // Close closes the TempFileReader and deletes the underlying temp file unless

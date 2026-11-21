@@ -2743,7 +2743,7 @@ func TestConditionalGETBehavior(t *testing.T) {
 			t.Cleanup(srv.Close)
 
 			const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
-			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/test.sh", tt.ifNoneMatch, maxSize)
+			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/test.sh", tt.ifNoneMatch, maxSize, nil)
 			if tt.expectErr {
 				require.Error(t, err)
 				return
@@ -4181,7 +4181,7 @@ func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
 			t.Cleanup(func() { fleethttp.SetNetworkBlockingMode(fleethttp.BlockingDisabled) })
 
 			before := hits.Load()
-			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", maxSize)
+			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", maxSize, nil)
 			if tfr != nil {
 				t.Cleanup(func() { tfr.Close() })
 			}
@@ -4223,7 +4223,7 @@ func TestDownloadInstallerURLStall(t *testing.T) {
 		})
 
 		start := time.Now()
-		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize, nil)
 		require.Nil(t, tfr)
 		require.ErrorIs(t, err, errInstallerDownloadStalled)
 		require.ErrorContains(t, err, "no data received")
@@ -4236,7 +4236,7 @@ func TestDownloadInstallerURLStall(t *testing.T) {
 		})
 
 		start := time.Now()
-		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize, nil)
 		require.Nil(t, tfr)
 		require.ErrorIs(t, err, errInstallerDownloadStalled)
 		require.ErrorContains(t, err, "no data received")
@@ -4256,7 +4256,7 @@ func TestDownloadInstallerURLStall(t *testing.T) {
 			}
 		})
 
-		resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize, nil)
 		require.NoError(t, err)
 		t.Cleanup(func() { tfr.Close() })
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -4264,6 +4264,83 @@ func TestDownloadInstallerURLStall(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, body, size)
 	})
+}
+
+func TestDownloadInstallerURLStreaming(t *testing.T) {
+	content := []byte("#!/bin/sh\necho streamed\n")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(content)
+	}))
+	t.Cleanup(srv.Close)
+
+	t.Run("streams to a staging object", func(t *testing.T) {
+		store := mocksoftware.NewMemStreamingInstallerStore()
+		resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", 1024, store)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		rir, ok := tfr.(*fleet.RemoteInstallerReader)
+		require.True(t, ok)
+		require.Equal(t, 1, store.StagingCount())
+
+		// The reader outlives the download request.
+		got, err := io.ReadAll(rir)
+		require.NoError(t, err)
+		require.Equal(t, content, got)
+		wantSum := sha256.Sum256(content)
+		require.Equal(t, wantSum[:], rir.KnownSHA256())
+
+		require.NoError(t, putInstallerToStore(t.Context(), store, "storage-id", rir))
+		require.Equal(t, content, store.Installers["storage-id"])
+		require.Zero(t, store.StagingCount())
+		require.NoError(t, rir.Close())
+	})
+
+	t.Run("too large", func(t *testing.T) {
+		store := mocksoftware.NewMemStreamingInstallerStore()
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", int64(len(content)-1), store)
+		require.Nil(t, tfr)
+		require.ErrorContains(t, err, "The maximum file size is")
+		require.Zero(t, store.StagingCount())
+	})
+
+	t.Run("closing an unpromoted download deletes it", func(t *testing.T) {
+		store := mocksoftware.NewMemStreamingInstallerStore()
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.sh", "", 1024, store)
+		require.NoError(t, err)
+		require.Equal(t, 1, store.StagingCount())
+		require.NoError(t, tfr.Close())
+		require.Zero(t, store.StagingCount())
+	})
+}
+
+// The stall timer must only run while a read waits on the network: a
+// consumer that takes long between reads (e.g. uploading to a slow installer
+// store when streaming) isn't a stalled download.
+func TestStallResetReaderIgnoresTimeBetweenReads(t *testing.T) {
+	var fired atomic.Bool
+	timer := time.AfterFunc(time.Hour, func() { fired.Store(true) })
+	defer timer.Stop()
+	r := stallResetReader{r: strings.NewReader("12345678"), timer: timer, timeout: 50 * time.Millisecond}
+
+	buf := make([]byte, 4)
+	for range 2 {
+		_, err := r.Read(buf)
+		require.NoError(t, err)
+		time.Sleep(150 * time.Millisecond)
+	}
+	require.False(t, fired.Load())
+
+	// A read that blocks longer than the timeout still fires it.
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { _ = pw.Close() })
+	r.r = pr
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		_, _ = pw.Write([]byte("x"))
+	}()
+	_, err := r.Read(buf)
+	require.NoError(t, err)
+	require.True(t, fired.Load())
 }
 
 func TestFillSoftwareInstallerPayloadFromExistingUpgradeCode(t *testing.T) {

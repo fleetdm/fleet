@@ -3,6 +3,7 @@ package maintained_apps
 import (
 	"context"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -18,12 +20,51 @@ import (
 // InstallerTimeout is the timeout duration for downloading and adding a maintained app.
 const InstallerTimeout = 15 * time.Minute
 
-// DownloadInstaller downloads the maintained app installer located at the given URL.
+// DownloadInstaller downloads the maintained app installer located at the
+// given URL to a temp file.
 func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) (*fleet.TempFileReader, string, error) {
+	var tfr *fleet.TempFileReader
+	filename, err := downloadInstaller(ctx, installerURL, client, func(body io.Reader) error {
+		var err error
+		tfr, err = fleet.NewTempFileReader(body, nil)
+		return err
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return tfr, filename, nil
+}
+
+// DownloadInstallerToStore downloads the maintained app installer located at
+// the given URL. If store is not nil, the installer is streamed to a staging
+// object of store instead of a temp file. The caller must close the returned
+// reader.
+func DownloadInstallerToStore(ctx context.Context, installerURL string, client *http.Client, store fleet.StreamingInstallerStore) (fleet.InstallerReadCloser, string, error) {
+	if store == nil {
+		tfr, filename, err := DownloadInstaller(ctx, installerURL, client)
+		if err != nil {
+			return nil, "", err
+		}
+		return tfr, filename, nil
+	}
+	var rir *fleet.RemoteInstallerReader
+	filename, err := downloadInstaller(ctx, installerURL, client, func(body io.Reader) error {
+		var err error
+		rir, err = fleet.StageInstaller(ctx, ctx, store, body, file.NewTarGzStreamValidator())
+		return err
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return rir, filename, nil
+}
+
+// downloadInstaller requests installerURL and hands the response body to save.
+func downloadInstaller(ctx context.Context, installerURL string, client *http.Client, save func(body io.Reader) error) (string, error) {
 	// validate the URL before doing the request
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
-		return nil, "", fleet.NewInvalidArgumentError(
+		return "", fleet.NewInvalidArgumentError(
 			"fleet_maintained_app.url",
 			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) is invalid", installerURL),
 		)
@@ -31,7 +72,7 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
 	if err != nil {
-		return nil, "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
+		return "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
 	}
 	// Vendor CDNs disagree on which clients to allow: some Cloudflare-fronted
 	// hosts 403 a User-Agent that starts with "Go-http-client", while Akamai
@@ -41,12 +82,12 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "", ctxerr.Wrapf(ctx, err, "performing request for URL %s", installerURL)
+		return "", ctxerr.Wrapf(ctx, err, "performing request for URL %s", installerURL)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, "", fleet.NewInvalidArgumentError(
+		return "", fleet.NewInvalidArgumentError(
 			"fleet_maintained_app.url",
 			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) doesn't exist. Please make sure that URLs are publicy accessible to the internet.", installerURL),
 		)
@@ -54,18 +95,17 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 
 	// Allow all 2xx and 3xx status codes in this pass.
 	if resp.StatusCode > 400 {
-		return nil, "", fleet.NewInvalidArgumentError(
+		return "", fleet.NewInvalidArgumentError(
 			"fleet_maintained_app.url",
 			fmt.Sprintf("Couldn't download maintained app installer. URL (%q) received response status code %d.", installerURL, resp.StatusCode),
 		)
 	}
 
-	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
-	if err != nil {
-		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
+	if err := save(resp.Body); err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
 	}
 
-	return tfr, FilenameFromResponse(resp), nil
+	return FilenameFromResponse(resp), nil
 }
 
 func installerUserAgent() string {

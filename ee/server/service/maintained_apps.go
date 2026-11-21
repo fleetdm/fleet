@@ -86,7 +86,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		timeout, _ = time.ParseDuration(v)
 	}
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
+	installerTFR, filename, err := maintained_apps.DownloadInstallerToStore(ctx, app.InstallerURL, client, svc.streamingInstallerStore())
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
@@ -232,7 +232,7 @@ func (svc *Service) AddFleetMaintainedApp(
 
 	// Save in S3
 	if err := svc.storeSoftware(ctx, payload); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
+		return 0, ctxerr.Wrap(ctx, err, "store maintained app installer")
 	}
 
 	// Create activity
