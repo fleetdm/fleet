@@ -1,0 +1,1 @@
+- Fixed Windows Fleet-maintained app software titles that included a stale version (for example, "Postman x64 11.75.4"). Existing titles are renamed in place, so adding the app to another fleet or re-running GitOps doesn't create a duplicate title.
