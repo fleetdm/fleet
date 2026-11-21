@@ -111,39 +111,40 @@ It may make sense to have per-role pages (e.g. cse, csa). But only when the role
   
 
 
-## Board meeting and OKR planning
+## OKR planning
 
 The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
 
-**Two weeks prior (virtual):**
+OKR planning happens during the first week of the third month of every quarter.
+
+- The CEO and Head of People meet for 30 minutes to brainstorm high-level themes for OKR planning.
+- OKR planning (entire E-Group, over Zoom, everyone comes prepared) for 3.5 hours.
+- OKR finalization (CEO, EA, and Head of People to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already) for 30 minutes.
+- The Head of People asks the e-group to work with their teams to ratify, understand, and raise any objections or initial edits to the OKRs, all the way down to the ICs.
+
+
+## Board meeting
+
+The board meeting happens in the first week of every quarter.
+
+**Two weeks prior:**
   - The CEO and CFO discuss the board meeting with the CEO's coach.
-  - The EA programs the CEO to ask each executive for 2-3 charts and 1-2 questions for board members ahead of the board meeting.
+  - The CEO works on the beginning and end of their slides.
+  - Once the CEO has those, the CEO asks each executive for 2-3 charts that align with the narrative in the CEO's slides.
   - The CEO and Head of People finalize the agenda, ensuring there is a clear DRI for all sessions and 30-minute time blocks built in for "running your life."
   - The Head of People adds the agenda to the calendar and invites all attendees.
 
-**Day 1 _Prepare_ (in-person):**
-  - Board deck finalization:
-  - The CEO preps keynote on plane, absorbs graphs in the airport, and derives top-level OKRs in the hotel.
-  - T-Group arrives midday.
-  - Last-minute edits with the team in the evening.
-  - OKR brainstorming right after (+async for the E-Group who aren't physically there). 
+**Mock board meeting:**
+  - The team holds a mock board meeting no later than the day before the board meeting.
 
-**Day 2 _Board meeting_ (in-person):**
-  - Mock board meeting
+**Day of the board meeting:**
+  - Morning sync
   - Real board meeting
-  - Closed session
-  - Dinner with the board
+  - Closed sessions
+  - Dinner with the board (only if it's in person)
 
-**Day 3 _Travel_:**
-  - Leave, catch up with daily work, recover, and think.
-
-**Day 4 _Plan and finalize_ (virtual):**
-  - OKR planning (entire E-Group, over Zoom, everyone comes prepared) for 3.5 hours.
-  - OKR finalization (CEO, EA, Head of People, and GTM Systems Architect to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
-
-**Day 5 _Communicate_ (virtual):**
-  - Each manager will work with their team to ratify, understand, and raise any objections or initial edits to the OKRs, all the way down to the ICs.
-  - CEO, EA and Head of People will meet for 1 hour to decide the location of the next board meeting and email board members.
+**Next board meeting location:**
+  - The CEO, EA, and Head of People meet for 30 minutes to decide the location of the next board meeting and email board members.
 
 
 ## Key reviews
