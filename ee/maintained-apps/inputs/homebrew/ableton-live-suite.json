@@ -4,5 +4,6 @@
   "unique_identifier": "com.ableton.live",
   "token": "ableton-live-suite",
   "installer_format": "dmg",
+  "parenthesized_build_version": true,
   "default_categories": ["Productivity"]
 }
