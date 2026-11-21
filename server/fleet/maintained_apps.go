@@ -30,6 +30,13 @@ type MaintainedApp struct {
 	// only renames when an upgrade code is present). Windows software ingestion merges
 	// onto TitleID, and this is that title's name.
 	TitleName string `json:"-" db:"title_name"`
+
+	// ExactNameMatch is set for a Windows app whose program reports exactly
+	// UniqueIdentifier as its name. Only programs named exactly one of
+	// WinMatchPrefixes then join the app's title, so a different product whose name
+	// merely starts with the app's ("Microsoft Teams Meeting Add-in for Microsoft
+	// Office") keeps its own.
+	ExactNameMatch bool `json:"-" db:"exact_name_match"`
 }
 
 // WinMatchPrefixes returns the candidate program-name prefixes for matching a reported
