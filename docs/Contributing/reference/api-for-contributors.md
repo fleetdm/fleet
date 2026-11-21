@@ -5437,7 +5437,7 @@ The public generator at https://fleetdm.com/configuration-generator uses separat
 
 Every generation request authenticates in one of two ways:
 
-- **Fleet Premium:** send the Fleet license key as `fleetLicenseKey` in the body. fleetdm.com verifies the key's signature. A valid, unexpired key with tier `premium`, `trial`, or the deprecated `basic` has no generation limit.
+- **Fleet Premium:** send the Fleet license key as `fleetLicenseKey` in the body. fleetdm.com verifies the key's signature. A valid, unexpired key with tier `premium`, `trial`, or the deprecated `basic` gets the Fleet Premium monthly limit. The limit is counted per license key, so Fleet servers that share a key share it.
 - **Fleet Free, or an expired license:** send `Authorization: Bearer <fleetServerSecret>`. Get the secret once from [Register Fleet instance](#register-fleet-instance). Each registration has its own monthly limit.
 
 ### Register Fleet instance
@@ -5505,7 +5505,7 @@ Doesn't count toward the monthly profile limit, but has its own monthly cap. Ret
 
 `POST https://fleetdm.com/api/profile-generator/v1/profile`
 
-Each request that reaches the AI service counts toward the monthly limit, including declines. Requests rejected before that, like invalid input or failed authentication, don't count. Requests the AI service fails to answer, like during an outage, don't count.
+The monthly limit is 15 for each registration and 300 for each license key. Each request that reaches the AI service counts toward it, including declines. Requests rejected before that, like invalid input or failed authentication, don't count. Requests the AI service fails to answer, like during an outage, don't count.
 
 #### Parameters
 
@@ -5548,12 +5548,13 @@ Returned when the request has neither a valid license key nor a valid `fleetServ
 
 `Status: 429`
 
-Returned when this registration has used its monthly limit. `resetsAt` is the start of the next month (UTC).
+Returned when the registration or license key has used its monthly limit. `resetsAt` is the start of the next month (UTC). `limit` is the monthly profile limit for the credential, including when the name and description cap is the one that was reached.
 
 ```json
 {
   "error": "generationLimitReached",
-  "resetsAt": "2026-12-01T00:00:00.000Z"
+  "resetsAt": "2026-12-01T00:00:00.000Z",
+  "limit": 300
 }
 ```
 
