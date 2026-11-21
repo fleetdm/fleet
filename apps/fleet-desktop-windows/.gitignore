@@ -1,0 +1,12 @@
+# Build output
+bin/
+obj/
+Installer/bin/
+Installer/obj/
+
+# IDE
+.vs/
+*.user
+
+# macOS noise (when browsing the repo from a Mac)
+.DS_Store
