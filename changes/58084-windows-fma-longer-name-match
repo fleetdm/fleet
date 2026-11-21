@@ -1,0 +1,1 @@
+- Fixed Windows software being filed under a Fleet-maintained app whose name is a shorter prefix of the program's name, when the program's own Fleet-maintained app wasn't added. For example, a host with only Notion Calendar showed the Notion app as installed at Notion Calendar's version.
