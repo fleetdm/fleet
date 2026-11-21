@@ -99,6 +99,18 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:jetbrains:fleet:1.64.0:*:*:*:*:windows:*:*", cpe)
 
+	// An Adobe deployment package's placeholder registration gets no CPE; a real version still does.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Photoshop", Version: "1.0.0000", Vendor: "Adobe Systems Incorporated", Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Empty(t, cpe)
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Photoshop", Version: "27.0", Vendor: "Adobe Systems Incorporated", Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:adobe:photoshop:27.0:*:*:*:*:windows:*:*", cpe)
+
 	// Does not error on Unicode Names
 	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
