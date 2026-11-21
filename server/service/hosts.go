@@ -5385,9 +5385,9 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
 	}
 
-	// Early exit rotation and view activity if the password is not verified. Also clears it out to enforce the API contract.
-	if password.Status == nil || *password.Status != fleet.MDMDeliveryVerified {
-		password.Password = nil
+	// we want to in most cases return the known password if applied on the device, even if another is in-flight.
+	// the only scenario we don't want to return one, is when we don't have a password set at all (initial set in flight)
+	if password.Password == nil {
 		password.AutoRotateAt = nil
 		return password, nil
 	}
@@ -5403,6 +5403,11 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
+	}
+
+	// early return before auto rotation, if the password is not verified, as we only rotate verified passwords.
+	if password.Status == nil || *password.Status != fleet.MDMDeliveryVerified {
+		return password, nil
 	}
 
 	// Schedule auto-rotation by marking the password as viewed.

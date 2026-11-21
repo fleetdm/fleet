@@ -136,6 +136,9 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 		INSERT INTO host_recovery_key_passwords (host_uuid, pending_encrypted_password, status, operation_type, pending_set_command_uuid)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
+			-- Must come before deleted = 0: MySQL applies assignments left to right. A retried
+			-- rotation keeps it so the prior password stays readable; a re-enrollment drops it.
+			verify_command_uuid = IF(deleted = 1, NULL, verify_command_uuid),
 			pending_encrypted_password = VALUES(pending_encrypted_password),
 			status = VALUES(status),
 			operation_type = VALUES(operation_type),
@@ -143,7 +146,6 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 			deleted = 0,
 			auto_rotate_at = NULL,
 			set_command_uuid = NULL,
-			verify_command_uuid = NULL,
 			pending_set_command_uuid = VALUES(pending_set_command_uuid),
 			pending_verify_command_uuid = NULL
 	`
@@ -160,7 +162,14 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 }
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, status, updated_at, auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	// verify_command_uuid is only set once Fleet verifies a password on the current enrollment, and is
+	// cleared on re-enrollment, so it tells a still-valid password apart from one left over from before.
+	const stmt = `
+		SELECT
+			CASE WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL THEN encrypted_password END AS encrypted_password,
+			status, updated_at, auto_rotate_at
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
 		EncryptedPassword []byte                   `db:"encrypted_password"`
@@ -200,7 +209,7 @@ func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, host
 			status,
 			operation_type,
 			COALESCE(error_message, '') AS detail,
-			(encrypted_password IS NOT NULL AND status <=> 'verified') AS password_available
+			encrypted_password IS NOT NULL AND (status <=> 'verified' OR verify_command_uuid IS NOT NULL) AS password_available
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
 
