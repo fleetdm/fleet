@@ -603,3 +603,116 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 		assert.False(t, androidAPIClient.EnterprisesListFuncInvoked)
 	})
 }
+
+func TestIsEnterpriseAlive(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+
+	newSvc := func(t *testing.T, getEnterprise func(context.Context) (*android.Enterprise, error), listFn func(context.Context, string) ([]*androidmanagement.Enterprise, error)) (android.Service, *android_mock.Client) {
+		t.Helper()
+		apiClient := &android_mock.Client{}
+		apiClient.InitCommonMocks()
+		apiClient.EnterprisesListFunc = listFn
+
+		fleetDS := InitCommonDSMocks()
+		fleetDS.Store.GetEnterpriseFunc = getEnterprise
+
+		svc, err := NewServiceWithClient(logger, fleetDS, apiClient, "test-private-key", &fleetDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+		require.NoError(t, err)
+		return svc, apiClient
+	}
+
+	t.Run("no enterprise row - returns false without calling Google", func(t *testing.T) {
+		svc, apiClient := newSvc(t,
+			func(context.Context) (*android.Enterprise, error) { return nil, &notFoundError{} },
+			nil,
+		)
+
+		alive, err := svc.IsEnterpriseAlive(ctx)
+		require.NoError(t, err)
+		assert.False(t, alive)
+		assert.False(t, apiClient.EnterprisesListFuncInvoked)
+	})
+
+	t.Run("enterprise in list - returns true", func(t *testing.T) {
+		svc, apiClient := newSvc(t,
+			func(context.Context) (*android.Enterprise, error) {
+				return &android.Enterprise{EnterpriseID: "live-id"}, nil
+			},
+			func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+				return []*androidmanagement.Enterprise{
+					{Name: "enterprises/other-id"},
+					{Name: "enterprises/live-id"},
+				}, nil
+			},
+		)
+
+		alive, err := svc.IsEnterpriseAlive(ctx)
+		require.NoError(t, err)
+		assert.True(t, alive)
+		assert.True(t, apiClient.EnterprisesListFuncInvoked)
+	})
+
+	t.Run("enterprise missing from list - returns false", func(t *testing.T) {
+		svc, _ := newSvc(t,
+			func(context.Context) (*android.Enterprise, error) {
+				return &android.Enterprise{EnterpriseID: "gone-id"}, nil
+			},
+			func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+				return []*androidmanagement.Enterprise{{Name: "enterprises/other-id"}}, nil
+			},
+		)
+
+		alive, err := svc.IsEnterpriseAlive(ctx)
+		require.NoError(t, err)
+		assert.False(t, alive)
+	})
+
+	t.Run("suffix collision does not count as alive", func(t *testing.T) {
+		// The direct Google client lists every enterprise in the GCP project, so an
+		// unrelated enterprise whose ID ends with ours must not match.
+		svc, _ := newSvc(t,
+			func(context.Context) (*android.Enterprise, error) {
+				return &android.Enterprise{EnterpriseID: "ABC123"}, nil
+			},
+			func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+				return []*androidmanagement.Enterprise{{Name: "enterprises/XABC123"}}, nil
+			},
+		)
+
+		alive, err := svc.IsEnterpriseAlive(ctx)
+		require.NoError(t, err)
+		assert.False(t, alive)
+	})
+
+	t.Run("proxy 404 - treated as confirmed missing", func(t *testing.T) {
+		svc, _ := newSvc(t,
+			func(context.Context) (*android.Enterprise, error) {
+				return &android.Enterprise{EnterpriseID: "any-id"}, nil
+			},
+			func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+				return nil, &googleapi.Error{Code: http.StatusNotFound, Message: "no enterprises for server URL"}
+			},
+		)
+
+		alive, err := svc.IsEnterpriseAlive(ctx)
+		require.NoError(t, err)
+		assert.False(t, alive)
+	})
+
+	t.Run("transient failure - surfaces error without asserting alive/dead", func(t *testing.T) {
+		svc, _ := newSvc(t,
+			func(context.Context) (*android.Enterprise, error) {
+				return &android.Enterprise{EnterpriseID: "any-id"}, nil
+			},
+			func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+				return nil, &googleapi.Error{Code: http.StatusInternalServerError, Message: "backend blip"}
+			},
+		)
+
+		alive, err := svc.IsEnterpriseAlive(ctx)
+		require.Error(t, err)
+		assert.False(t, alive)
+	})
+}

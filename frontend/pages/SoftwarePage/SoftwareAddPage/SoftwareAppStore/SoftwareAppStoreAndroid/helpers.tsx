@@ -1,4 +1,4 @@
-import { ReactElement } from "react";
+import React, { ReactElement } from "react";
 
 import { getErrorReason } from "interfaces/errors";
 
@@ -9,11 +9,32 @@ import {
   formatAlreadyAvailableInstallMessage,
 } from "../../helpers";
 
+const ANDROID_RECONNECT_PATH =
+  "Settings > Integrations > Mobile device management";
+
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (e: unknown): string | ReactElement => {
   const reason = getErrorReason(e);
 
-  if (reason.includes("find ID on the Play Store")) {
+  // Dead Android Enterprise: bold the nav path so admins can spot it in a long toast.
+  if (reason.includes(ANDROID_RECONNECT_PATH)) {
+    const [before, after] = reason.split(ANDROID_RECONNECT_PATH);
+    return (
+      <>
+        {before}
+        <strong>{ANDROID_RECONNECT_PATH}</strong>
+        {after}
+      </>
+    );
+  }
+
+  // Backend's Android managed-Play copy already starts with "Couldn't add software." —
+  // pass through so we don't double-prefix.
+  if (
+    reason.includes(
+      "isn't available in your organization's managed Google Play"
+    )
+  ) {
     return reason;
   }
 
