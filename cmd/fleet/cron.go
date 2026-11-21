@@ -1359,6 +1359,28 @@ func newAppleMDMWorkerSchedule(
 	return s, nil
 }
 
+// newPolicyMembershipCleanupSchedule runs the policy result cleanups that policy changes requested. It is separate from
+// cleanups_then_aggregation so that a change can trigger it without running every other cleanup.
+func newPolicyMembershipCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronPolicyMembershipCleanup)
+		defaultInterval = 1 * time.Hour
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("pending_policy_membership_cleanup", func(ctx context.Context) error {
+			return ds.CleanupPendingPolicyMembership(ctx)
+		}),
+	)
+	return s, nil
+}
+
 func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2786,6 +2808,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	cronSchedules fleet.CronSchedulesService,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2805,7 +2828,12 @@ func newMaintainedAppsAutoUpdateSchedule(
 			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
 			defer cancel()
 
-			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
+			err := eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
+			// Patch policies whose query changed had their results cleanup requested.
+			if triggerErr := fleet.TriggerPolicyMembershipCleanup(ctx, cronSchedules); triggerErr != nil {
+				logger.ErrorContext(ctx, "trigger policy membership cleanup", "err", triggerErr)
+			}
+			return err
 		}),
 	)
 
