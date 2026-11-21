@@ -1562,6 +1562,7 @@ var HostLinuxOSs = []string{
 	"cachyos",
 	"omarchy",
 	"amd-ryzen-ai-developer-platform",
+	"chainguard",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1578,6 +1579,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"coreos":      {},
 	"cachyos":     {},
 	"omarchy":     {},
+	"chainguard":  {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
