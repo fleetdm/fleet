@@ -139,7 +139,7 @@ module.exports.custom = {
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'noahtalerman', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
     'docs/solutions': 'ddribeiro',
-    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
+    'docs/solutions/cis': 'sharon-fdm',//« Built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': 'allenhouchins',
@@ -262,7 +262,7 @@ module.exports.custom = {
     'docs/solutions': ['ddribeiro', 'allenhouchins'],
     'docs/API/rest-api.md': ['rachaelshaw', 'noahtalerman', 'lukeheath'],// (REST API reference)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
-    'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw', 'noahtalerman'],
+    'docs/solutions/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw', 'noahtalerman'],
     'server/api_endpoints/api_endpoints.yml': ['rachaelshaw', 'noahtalerman'],// « API endpoint display names in the Fleet UI (API-only users)
 
     // Fleet's internal IT and security (+dogfooding)

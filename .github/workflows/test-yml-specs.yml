@@ -7,11 +7,11 @@ on:
       - patch-*
       - prepare-*
     paths:
-      - 'ee/cis/**.yml'
+      - 'docs/solutions/cis/**.yml'
       - '.github/workflows/test-yml-specs.yml'
   pull_request:
     paths:
-      - 'ee/cis/**.yml'
+      - 'docs/solutions/cis/**.yml'
       - '.github/workflows/test-yml-specs.yml'
   workflow_dispatch: # Manual
 
