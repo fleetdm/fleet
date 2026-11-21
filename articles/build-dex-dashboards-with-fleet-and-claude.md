@@ -4,7 +4,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 
 - Hardware lifecycle: which computers to replace, repair, or leave alone.
 - Software usage: which installed apps nobody opens.
-- Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft, how many Macs run the latest update for their macOS version, and which Macs have a macOS update waiting to install. Rollouts in progress can show only the apps you have patch policies for.
+- Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft, how many Macs run the latest update for their macOS version, how many computers run each OS version, and which Macs have a macOS update waiting to install. Rollouts in progress can show only the apps you have patch policies for.
 - AI governance: which AI tools people use, how much coding agents are used and with which models, how they're set up, and which settings put data at risk.
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
@@ -345,7 +345,7 @@ The history files stay where they are, so the dashboards keep their history.
 - [Claude Code routines](https://code.claude.com/docs/en/routines)
 - [Claude Code cloud environments](https://code.claude.com/docs/en/cloud-environments)
 - [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user)
-- [Use custom host vitals in scripts and configuration profiles](https://fleetdm.com/guides/custom-host-vitals)
+- [Custom host vitals](https://fleetdm.com/guides/custom-host-vitals)
 - [Carbon intensity of electricity generation (Our World in Data, from Ember)](https://ourworldindata.org/grapher/carbon-intensity-electricity)
 
 <meta name="articleTitle" value="Build DEX dashboards with Fleet and Claude">

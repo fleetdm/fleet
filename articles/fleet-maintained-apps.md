@@ -6,8 +6,6 @@ In Fleet, you can install Fleet-maintained apps on macOS and Windows hosts witho
 
 Fleet maintains installation metadata for [a number of apps](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json), letting you add them to your own Fleet instance and install them on your hosts without any additional configuration.
 
-For Windows apps that support both machine and user scope, Fleet provides the machine-scoped app. This way, end users with standard (non-admin) access can't uninstall required apps.
-
 ## Important notes on CPU architecture
 
 ### macOS
@@ -26,7 +24,11 @@ Currently, the macOS versions of these apps are Apple Silicon-only rather than u
 
 ### Windows
 
-Fleet prefers 64-bit x86 versions of applications when available. Installing on Arm hosts (e.g. in a VM on an Apple Silicon machine) may not work or have other unintended consequences.
+Most Windows apps are x64. On Arm hosts, Windows 11 runs them through its built-in emulator, Prism. [Learn more](https://learn.microsoft.com/en-us/windows/arm/apps-on-arm-x86-emulation).
+
+Some apps also have an Arm version, marked "(ARM64)" in the name, for example "Docker Desktop (ARM64)". These only install on Arm hosts.
+
+Fleet installs Windows apps for all users (machine scope) when the app supports it. Otherwise, Fleet installs the app for the signed-in user. If more than one user is signed in, Fleet installs the app for one of them.
 
 ## Add a Fleet-maintained app
 

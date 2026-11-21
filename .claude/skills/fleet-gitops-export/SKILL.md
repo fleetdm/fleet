@@ -24,6 +24,7 @@ The scripts in `scripts/` (next to this file) do the deterministic work. Your jo
 - `export` and `validate` can run for several minutes on a large instance: `export` makes a request for every profile, script, and software title, and `validate` runs the validator and the dry run. Give them the longest command timeout your agent allows, or run them in the background and wait for them to finish. Every step is safe to re-run.
 - Work files go in a temp folder outside the repo, which each command prints. If a later step says that folder doesn't exist (a new session, a reboot), pass `--work <folder>` to every command with the folder an earlier command printed, if it's still there. Otherwise start again at step 2, which needs the user's OK to reuse the directory.
 - If your commands run in a sandbox, `fleetctl` needs network access to the Fleet server, and the target directory must be writable.
+- `export` compares package scripts with [Fleet's default install and uninstall scripts](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts). It reads them from the Fleet repository when the skill runs inside it, and from `raw.githubusercontent.com` otherwise. If it can't read them, it prints a `WARN` and writes those scripts as custom scripts; allow access to that address and run `export` again.
 
 ## Workflow
 

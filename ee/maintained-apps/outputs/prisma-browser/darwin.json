@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "157.19.6.79",
+      "version": "158.19.3.37",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.talon-sec.Work';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.talon-sec.Work' AND version_compare(bundle_short_version, '157.19.6.79') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.talon-sec.Work' AND version_compare(bundle_short_version, '158.19.3.37') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.talon-sec.Work' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.talon-sec.com/releases/Prisma%20Access%20Browser/mac/packaged/universal/Prisma%20Access%20Browser-157.19.6.79-3df06572.pkg",
+      "installer_url": "https://updates.talon-sec.com/releases/Prisma%20Access%20Browser/mac/packaged/universal/Prisma%20Access%20Browser-158.19.3.37-e38426ec.pkg",
       "install_script_ref": "737f6296",
       "uninstall_script_ref": "3b3783b1",
-      "sha256": "912fe9680c228ebbbb93b8de6e8899e8653b92e20e512eaffe5bb952063f467e",
+      "sha256": "718c0d6a1a4c357171b8fd16aef31eae465a3216602ad39565cba652a7c71de7",
       "default_categories": [
         "Browsers"
       ]

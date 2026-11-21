@@ -1,15 +1,16 @@
-# Fleet uninstalls app by finding all related product codes for the specified upgrade code
+# Each ZeroTier One release has a new ProductCode, so this script finds every
+# installed version by ZeroTier One's UpgradeCode and uninstalls each one.
+$ErrorActionPreference = 'Stop'
+$upgradeCode = '{B0E2A5F3-88B6-4E77-B922-CB4739B4C4C8}'
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product
 
-# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,
-# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.
+# 3010 = reboot required, 1641 = reboot initiated
 $successCodes = @(0, 3010, 1641)
 
-foreach ($product_code in $inst.RelatedProducts("$UPGRADE_CODE")) {
+foreach ($product_code in $inst.RelatedProducts($upgradeCode)) {
     $process = Start-Process msiexec -ArgumentList @("/quiet", "/x", $product_code, "/norestart") -PassThru
 
-    # Wait for process with timeout
     $completed = $process.WaitForExit($timeoutSeconds * 1000)
 
     if (-not $completed) {
@@ -17,12 +18,10 @@ foreach ($product_code in $inst.RelatedProducts("$UPGRADE_CODE")) {
         Exit 1603  # ERROR_UNINSTALL_FAILURE
     }
 
-    # If the uninstall failed, bail
     if ($successCodes -notcontains $process.ExitCode) {
         Write-Output "Uninstall for $($product_code) exited $($process.ExitCode)"
         Exit $process.ExitCode
     }
 }
 
-# All uninstalls succeeded; exit success
 Exit 0

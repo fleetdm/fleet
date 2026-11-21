@@ -26,7 +26,7 @@ type DeviceStatusTagConfig = Record<
 const RESET_TAG: IDeviceStatusTag = {
   title: "Reset",
   tagType: "error",
-  generateTooltip: () => "Host was reset.",
+  generateTooltip: () => "Host is resetting.",
 };
 
 export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
@@ -123,7 +123,11 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
       "Host will wipe when it comes online. If the host is online, it will wipe the next time it checks in to Fleet.",
   },
   reset: RESET_TAG,
-  reset_wipe_pending: RESET_TAG,
+  reset_wipe_pending: {
+    ...RESET_TAG,
+    generateTooltip: () =>
+      "Host is resetting. If the reset doesn't complete, the host will wipe.",
+  },
   resetting: {
     title: "Reset pending",
     tagType: "error",

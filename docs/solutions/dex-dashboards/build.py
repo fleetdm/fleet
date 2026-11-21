@@ -542,14 +542,16 @@ def keep_software_row(source, name, path, bundle_id):
     if source == "apps":
         return (path.startswith("/Applications/") and not bundle_id.startswith("com.apple.")) or name in AI_INVENTORY_APPS
     if source == "programs":
-        return bool(path) or name in AI_INVENTORY_APPS
+        return True
     if source in ("deb_packages", "rpm_packages"):
         return name in LINUX_DESKTOP_APPS
     return False
 
 
-def tracked_apps(snap, hid, plat):
-    """User-facing apps on one host: {key: (name, version, vendor, last_opened, bundle_id)}."""
+def tracked_apps(snap, hid, plat, need_path=True):
+    """User-facing apps on one host: {key: (name, version, vendor, last_opened, bundle_id)}.
+    need_path=False also counts Windows programs with no install folder, such as ones
+    installed from an MSI (Chrome, Zoom), which have a version but no usage data."""
     out = {}
     for name, ver, source, bid, last, path, vendor in software_rows(snap, hid):
         name = html.unescape(name)
@@ -562,7 +564,7 @@ def tracked_apps(snap, hid, plat):
         elif plat == "windows":
             # Fleet matches Windows prefetch data to a program by its install
             # folder, so a program without one never gets a last-opened time.
-            if source != "programs" or not path or WINDOWS_BUILTIN_RE.search(name):
+            if source != "programs" or (need_path and not path) or WINDOWS_BUILTIN_RE.search(name):
                 continue
             if re.search(r"microsoft", vendor or "", re.I) and not MICROSOFT_SEATS_RE.search(name):
                 continue
@@ -660,27 +662,59 @@ def linux_os(os_version):
     return f"{name} {'.'.join(parts)}", ver
 
 
+# Windows program names often carry their version, architecture, locale, or install
+# scope ("7-Zip 24.08 (x64)", "Zoom Workplace (64-bit)", "Microsoft 365 - en-us",
+# "Microsoft Visual Studio Code (User)"), which would split one app into several titles.
+WIN_NAME_SUFFIX_RE = re.compile(
+    r"\s*\((?:\s*(?:x64|x86|x86_64|amd64|arm64|64-bit|32-bit|user|machine|[a-z]{2}-[a-z]{2})\s*)+\)"
+    r"|\s+-\s+[a-z]{2}-[a-z]{2}\s*$"
+    r"|(?<=[-_ ])(?:x64|x86|amd64|arm64)(?=[-_ ]|$)", re.I)
+WIN_NAME_VERSION_RE = re.compile(r"\s*\bv?\d+(?:\.\d+)+\b")
+
+
+def win_title_name(name):
+    """'7-Zip 24.08 (x64)' -> '7-Zip': one title for every version and build of an app."""
+    out = WIN_NAME_VERSION_RE.sub("", WIN_NAME_SUFFIX_RE.sub("", name)).strip(" -_")
+    return out or name
+
+
 def patch_titles(snap, hid, h):
-    """Version per tracked title for one host: apps plus the OS."""
+    """{title key: (name, version, keys its patch policies match)} for one host: apps plus the OS."""
     out = {}
     plat = platform_of(h)
     if not plat:
         return out
-    for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat).items():
+    groups = {}
+    for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat, need_path=False).items():
         if app_kind(name, bid) == "support":
             continue
         if plat == "linux" and key.removeprefix("linux:") not in LINUX_VENDOR_PACKAGES:
             continue
-        out[("app:" + key) if plat == "macos" else key] = (name, ver)
+        if plat == "macos":
+            out["app:" + key] = (name, ver, {"app:" + key})
+        elif plat == "linux":
+            out[key] = (name, ver, {key})
+        elif ver:
+            title = win_title_name(name)
+            # Names that differ only in spacing are one app, like an MSI's own entry
+            # ("OktaVerify-x64-7.2.3.0") next to "Okta Verify".
+            groups.setdefault(re.sub(r"[^a-z0-9+]", "", title.lower()), []).append((title, ver, key))
+    for entries in groups.values():
+        title = max((e[0] for e in entries), key=lambda t: (t.count(" "), -len(t), t))
+        ver = entries[0][1]
+        for e in entries[1:]:
+            if vcmp(e[1], ver) > 0:
+                ver = e[1]
+        out["win:" + title] = (title, ver, {e[2] for e in entries})
     osv = h.get("os_version") or ""
     if plat == "macos" and osv:
-        out["os:macOS"] = ("macOS", osv.replace("macOS ", "").strip())
+        out["os:macOS"] = ("macOS", osv.replace("macOS ", "").strip(), {"os:macOS"})
     elif plat == "windows" and (w := windows_os(osv)):
         # One title per Windows version, so a computer on an older release counts as behind.
         product = re.match(r"Windows \d+", w[0]).group(0)
-        out["os:" + product] = (product, w[1])
+        out["os:" + product] = (product, w[1], {"os:" + product})
     elif plat == "linux" and (lx := linux_os(osv)):
-        out["os:" + lx[0]] = lx
+        out["os:" + lx[0]] = (*lx, {"os:" + lx[0]})
     return out
 
 
@@ -733,7 +767,8 @@ PATCH_TARGET_RE = re.compile(r"version_compare\s*\(\s*(?:bundle_short_version|ve
 
 
 def patch_targets(snap, keys):
-    """{title key: the newest version a patch policy for that app asks for}."""
+    """{title key: the newest version a patch policy for that app asks for}, from
+    {title key: the keys its policies match, like each Windows program name it merges}."""
     out = {}
     for p in (snap.get("policies") or {}).values():
         query = p.get("query") or ""
@@ -742,8 +777,8 @@ def patch_targets(snap, keys):
         if not (match := patch_policy_matcher(p.get("platform") or "", query)):
             continue
         ver = target.group(1).replace("''", "'")
-        for key in keys:
-            if match(key) and (key not in out or vcmp(ver, out[key]) > 0):
+        for key, raws in keys.items():
+            if any(match(r) for r in raws) and (key not in out or vcmp(ver, out[key]) > 0):
                 out[key] = ver
     return out
 
@@ -759,20 +794,29 @@ def os_line(key, v):
 
 def os_bar(snap, key):
     """The vendor's newest release for an OS title, as (newest, {release: its latest},
-    {release: its name}, source), or None without a vendor source."""
+    {release: its name}, source, {release: its hotpatch build}), or None without a vendor source."""
     if key == "os:macOS" and (mac := vendor(snap, "macos")):
         majors = mac["majors"]
         top = max(majors.values(), key=lambda r: vkey(r["latest"]))
         # A major Apple no longer updates has no latest to be patched to.
         return (top["latest"], {m: r["latest"] for m, r in majors.items() if r.get("supported", True)},
-                {m: r["name"] for m, r in majors.items()}, "Apple")
+                {m: r["name"] for m, r in majors.items()}, "Apple", {})
     if key.startswith("os:Windows") and (win := vendor(snap, "windows")):
         product = key[3:] + " "
         builds = {t[len(product):]: b for t, b in win["releases"].items() if t.startswith(product)}
+        hot = (win.get("hotpatch") or {}).items()
         if builds:
             return (max(builds.values(), key=vkey), {os_line(key, b): b for b in builds.values()},
-                    {os_line(key, b): r for r, b in builds.items()}, "Microsoft")
+                    {os_line(key, b): r for r, b in builds.items()}, "Microsoft",
+                    {os_line(key, b): b for t, b in hot if t.startswith(product)})
     return None
+
+
+def on_hotpatch(t, v):
+    """Whether v is the month's hotpatch build for its release. An exact match: a build between
+    the hotpatch and the monthly update, such as last month's optional preview, lacks the fixes."""
+    hp = (t.get("hotpatch") or {}).get(os_line(t["key"], v))
+    return bool(hp) and vcmp(v, hp) == 0
 
 
 def update_name(month):
@@ -893,10 +937,10 @@ def build_patch(snap, hist):
         vs.update(mac["releases"])
         vs.update({r["latest"]: r["released"] for r in mac["majors"].values() if r["released"]})
     if win := vendor(snap, "windows"):
-        for release, build in win["releases"].items():
+        for release, build in [*win["releases"].items(), *(win.get("hotpatch") or {}).items()]:
             versions.setdefault("os:" + release.rsplit(" ", 1)[0], {})[build] = win["released"]
 
-    current = {}
+    current, match_keys = {}, {}
     for hid, h in hosts.items():
         if is_virtual(h):
             continue
@@ -904,8 +948,9 @@ def build_patch(snap, hist):
         current[hid] = titles
         prev_host = state.get(hid) or {}
         new_host = {}
-        for key, (name, ver) in titles.items():
+        for key, (name, ver, raws) in titles.items():
             names[key] = name
+            match_keys.setdefault(key, set()).update(raws)
             vs = versions.setdefault(key, {})
             beta = key == "os:macOS" and hid in beta_hosts
             if ver not in vs:
@@ -940,18 +985,21 @@ def build_patch(snap, hist):
     by_title = {}
     for hid in active:
         covers = patched.get(hid)
-        for key, (name, ver) in current[hid].items():
-            by_title.setdefault(key, []).append([int(hid), ver, 1] if covers and covers(key) else [int(hid), ver])
-    targets = patch_targets(snap, by_title)
+        for key, (name, ver, raws) in current[hid].items():
+            by_title.setdefault(key, []).append([int(hid), ver, 1] if covers and any(covers(r) for r in raws) else [int(hid), ver])
+    targets = patch_targets(snap, {k: match_keys[k] for k in by_title})
     recent = (today - dt.timedelta(days=45)).isoformat()
     titles, index = [], {}
     for key, hv in sorted(by_title.items()):
-        if len(hv) < 2:
+        # OS titles are kept at any size so the page's OS versions panel counts every computer.
+        if len(hv) < 2 and not key.startswith("os:"):
             continue
         t = {"key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app",
              "p": platform_of(hosts[str(hv[0][0])]), "i": hv, "source": None}
         if bar := os_bar(snap, key):
-            t["newest"], t["lines"], t["line_names"], t["source"] = bar
+            t["newest"], t["lines"], t["line_names"], t["source"], hot = bar
+            if hot:
+                t["hotpatch"] = hot
             if t["source"] == "Microsoft":
                 # Windows OS update deadlines make each month's update mandatory but never move a
                 # computer to a newer release, so each one is measured against its own release.
@@ -1005,12 +1053,13 @@ def build_patch(snap, hist):
         for hid, v, *_ in t["i"]:
             # Patched: on the latest update for the release it runs, even when a newer release exists.
             latest = lines.get(os_line(t["key"], v)) if t["type"] == "os" else None
-            current_v = int(vcmp(v, latest if t.get("per_release") and latest else t["newest"]) >= 0)
+            hot = t["type"] == "os" and on_hotpatch(t, v)
+            current_v = int(hot or vcmp(v, latest if t.get("per_release") and latest else t["newest"]) >= 0)
             if t["type"] == "app":
                 count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current_v)
             else:
                 count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current_v,
-                           os_patched=int(vcmp(v, latest) >= 0) if latest else current_v)
+                           os_patched=int(hot or vcmp(v, latest) >= 0) if latest else current_v)
     for rows in events.values():
         for hid, day_i, _ in rows:
             if day_i == today_i and str(hid) in hosts:
