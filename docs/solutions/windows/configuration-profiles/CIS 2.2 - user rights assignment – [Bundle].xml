@@ -1,0 +1,468 @@
+<Replace>
+  <!-- CIS 2.2.1 (L1) Ensure 'Access Credential Manager as a trusted caller' is set to 'No One' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.2 (L1) Ensure 'Access this computer from the network' is set to 'Administrators, Remote Desktop Users' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-32-555</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.3 (L1) Ensure 'Act as part of the operating system' is set to 'No One' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ActAsPartOfTheOperatingSystem</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.4 (L1) Ensure 'Adjust memory quotas for a process' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AdjustMemoryQuotasForProcess</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-20</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.5 (L1) Ensure 'Allow log on locally' is set to 'Administrators, Users' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AllowLocalLogOn</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-32-545</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.6 (L1) Ensure 'Allow log on through Remote Desktop Services' is set to 'Administrators, Remote Desktop Users' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AllowLogOnThroughRemoteDesktop</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-32-555</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.7 (L1) Ensure 'Back up files and directories' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/BackupFilesAndDirectories</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.8 (L1) Ensure 'Change the system time' is set to 'Administrators, LOCAL SERVICE' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ChangeSystemTime</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.9 (L1) Ensure 'Change the time zone' is set to 'Administrators, LOCAL SERVICE, Users' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ChangeTimeZone</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-32-545</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.10 (L1) Ensure 'Create a pagefile' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreatePageFile</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.11 (L1) Ensure 'Create a token object' is set to 'No One' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateToken</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.12 (L1) Ensure 'Create global objects' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateGlobalObjects</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-20&#xF000;*S-1-5-6</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.13 (L1) Ensure 'Create permanent shared objects' is set to 'No One' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreatePermanentSharedObjects</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.14 (L1) Ensure 'Create symbolic links' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateSymbolicLinks</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.15 (L1) Ensure 'Debug programs' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DebugPrograms</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.16 (L1) Ensure 'Deny access to this computer from the network' is set to 'Guests, Local account' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyAccessFromNetwork</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546&#xF000;*S-1-2-0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.17 (L1) Ensure 'Deny log on as a batch job' is set to 'Guests' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyLogOnAsBatchJob</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.18 (L1) Ensure 'Deny log on as a service' is set to 'Guests' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyLogOnAsService</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.19 (L1) Ensure 'Deny log on locally' is set to 'Guests' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyLocalLogOn</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.20 (L1) Ensure 'Deny log on through Remote Desktop Services' is set to 'Guests, Local account' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyRemoteDesktopServicesLogOn</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546&#xF000;*S-1-2-0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.21 (L1) Ensure 'Enable computer and user accounts to be trusted for delegation' is set to 'No One' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/EnableDelegation</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.22 (L1) Ensure 'Force shutdown from a remote system' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/RemoteShutdown</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.23 (L1) Ensure 'Generate security audits' is set to 'LOCAL SERVICE, NETWORK SERVICE' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/GenerateSecurityAudits</LocURI>
+    </Target>
+    <Data>*S-1-5-19&#xF000;*S-1-5-20</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.24 (L1) Ensure 'Impersonate a client after authentication' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ImpersonateClient</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-20&#xF000;*S-1-5-6</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.25 (L1) Ensure 'Increase scheduling priority' is set to 'Administrators, Window Manager\Window Manager Group' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/IncreaseSchedulingPriority</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-90-0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.26 (L1) Ensure 'Load and unload device drivers' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LoadUnloadDeviceDrivers</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.27 (L1) Ensure 'Lock pages in memory' is set to 'No One' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LockMemory</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.28 (L2) Ensure 'Log on as a batch job' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LogOnAsBatchJob</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.29 (L2) Ensure 'Log on as a service' is configured (restrict to minimum) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LogOnAsService</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.30 (L1) Ensure 'Manage auditing and security log' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ManageAuditingAndSecurityLog</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.31 (L1) Ensure 'Modify an object label' is set to 'No One' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ModifyObjectLabel</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.32 (L1) Ensure 'Modify firmware environment values' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ModifyFirmwareEnvironment</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.33 (L1) Ensure 'Perform volume maintenance tasks' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ManageVolume</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.34 (L1) Ensure 'Profile single process' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ProfileSingleProcess</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.35 (L1) Ensure 'Profile system performance' is set to 'Administrators, NT SERVICE\WdiServiceHost' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ProfileSystemPerformance</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-80-3139157870-2983391045-3678747466-658725712-1809340420</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.36 (L1) Ensure 'Replace a process level token' is set to 'LOCAL SERVICE, NETWORK SERVICE' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ReplaceProcessLevelToken</LocURI>
+    </Target>
+    <Data>*S-1-5-19&#xF000;*S-1-5-20</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.37 (L1) Ensure 'Restore files and directories' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/RestoreFilesAndDirectories</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.38 (L1) Ensure 'Shut down the system' is set to 'Administrators, Users' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ShutDownTheSystem</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-32-545</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- CIS 2.2.39 (L1) Ensure 'Take ownership of files or other objects' is set to 'Administrators' -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/TakeOwnership</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
