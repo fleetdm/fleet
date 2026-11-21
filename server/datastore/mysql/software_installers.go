@@ -70,6 +70,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     -- on this value. A post-activation policy toggle applies to future
     -- activations, not to already-queued/in-flight installs.
     hsi.override_pre_install_query AS override_pre_install_query,
+    si.storage_id AS installer_sha256,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -101,6 +102,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
     si.app_open_query AS app_open_query,
     COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query,
+    si.storage_id AS installer_sha256,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script

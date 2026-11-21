@@ -51,6 +51,9 @@ type SoftwareInstallDetails struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// SoftwareInstallerURL contains the details to download the software installer from CDN.
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+	// InstallerSHA256 is the SHA-256 the installer is stored under, so fleetd can
+	// reject an incomplete download before running the install script.
+	InstallerSHA256 string `json:"installer_sha256,omitempty" db:"installer_sha256"`
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
 

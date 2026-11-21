@@ -419,6 +419,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID1, exec1.InstallerID)
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
 	require.False(t, exec1.SelfService)
+	require.Equal(t, "storage1", exec1.InstallerSHA256)
 	assert.Equal(t, "goodbye MONSTER", exec1.UninstallScript)
 	// Check that regular install has MaxRetries = 0
 	require.EqualValues(t, 0, exec1.MaxRetries, "Regular install should have MaxRetries = 0")
@@ -448,6 +449,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID3, exec2.InstallerID)
 	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
 	require.True(t, exec2.SelfService)
+	require.Equal(t, "storage3", exec2.InstallerSHA256)
 
 	// Create install request, don't fulfil it, delete and restore host.
 	// Should not appear in list of pending installs for that host.

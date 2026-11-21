@@ -1,0 +1,1 @@
+* fleetd now checks a downloaded software installer against the SHA-256 Fleet stored it under before running the install script. If a download from the signed URL doesn't match, fleetd downloads it again from the Fleet server; if that doesn't match either, the install fails with "Software installer download failed" instead of running the script on an incomplete file.
