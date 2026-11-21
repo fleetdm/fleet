@@ -2,7 +2,7 @@
 
 #### [Releases](https://fleetdm.com/releases) &nbsp; · &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new) &nbsp; · &nbsp; [Docs](https://fleetdm.com/docs) &nbsp; · &nbsp; [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source) &nbsp; · &nbsp; [Art](https://fleetdm.com/logos)
 
-Open-source platform for IT and security teams with thousands of computers. Designed for APIs, GitOps, webhooks, YAML, and humans.
+Open-source platform for IT and security teams with thousands of computers and other devices. Designed for APIs, GitOps, webhooks, YAML, and humans.
 
 <a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f835ec29-1cb9-49ba-a0f3-395ffd9d5c9f" alt="A glass city in the clouds"/></a>
 
@@ -66,7 +66,7 @@ Fleet Device Management's [company handbook](https://fleetdm.com/handbook/compan
 ## Chat
 The Fleet community is full of [kind and helpful people](https://fleetdm.com/handbook/company#empathy). Whether or not you are a paying customer, if you need help, just [reach out](https://fleetdm.com/support).
 
-## Contributing &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; 
+## Contributing &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; 
 
 Contributions are welcome, whether you answer questions on [Slack](https://fleetdm.com/slack) / [GitHub](https://github.com/fleetdm/fleet/issues) / [LinkedIn](https://linkedin.com/company/fleetdm), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing). The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
 
