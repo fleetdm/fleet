@@ -1,0 +1,1 @@
+* Added `sync_full_sync_interval_seconds`, `sync_push_notifications_full_sync_interval_seconds`, and `sync_push_server` columns to the `santa_status` fleetd table.
