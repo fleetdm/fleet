@@ -1,0 +1,20 @@
+[
+  {
+    "cve": "CVE-2024-6286",
+    "reason": "NVD lists the LTSR fix as 2203.1; Citrix reports it as resolved in 2402.",
+    "match": { "criteria_contains": ":ltsr:", "versionEndExcluding": "2203.1" },
+    "set": { "versionEndExcluding": "2402" }
+  },
+  {
+    "cve": "CVE-2025-63389",
+    "reason": "NVD gives only versionEndIncluding 0.12.3, so resolved_in_version is empty; the fix shipped in 0.12.4.",
+    "match": { "criteria_contains": ":ollama:ollama:", "versionEndExcluding": null },
+    "set": { "versionEndExcluding": "0.12.4" }
+  },
+  {
+    "cve": "CVE-2026-40217",
+    "reason": "NVD bounds litellm by the advisory date (through 2026-04-08), so every version matches; GHSA-wxxx-gvqv-xp7p and VulnCheck agree on >= 1.81.8, < 1.83.10.",
+    "match": { "criteria_contains": ":litellm:litellm:", "versionEndIncluding": "2026-04-08" },
+    "set": { "versionStartIncluding": "1.81.8", "versionEndIncluding": null, "versionEndExcluding": "1.83.10" }
+  }
+]

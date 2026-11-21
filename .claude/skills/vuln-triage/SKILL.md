@@ -136,7 +136,7 @@ Always run the baseline. Add the conditional fetches that apply to this routing:
 
 Reconcile:
 - **NVD agrees with other sources** → if Fleet still misdetects, the bug is in Fleet logic (steps 6–8).
-- **NVD disagrees with the others** (wrong vendor, missing product, version range too broad) → upstream NVD data is wrong. Fix layer is `cpe_matching_rules.go` or the dictionary `Override()` pattern, **not** Fleet logic.
+- **NVD disagrees with the others** (wrong vendor, missing product, version range too broad) → upstream NVD data is wrong. Fix layer is `cve_overrides.json` (wrong version bounds) or `cpe_matching_rules.go`, **not** Fleet logic.
 - **CVE not in NVD but present in GHSA/OSV** → NVD coverage gap for this ecosystem; this is a systemic concern (step 9), not a CustomCVE candidate by default.
 
 Capture the disagreement in the final report.
@@ -149,7 +149,10 @@ If nvdvuln reproduces the bad CVE, narrow the cause:
 - **Wrong vendor/product mapping** — edit [`server/vulnerabilities/nvd/cpe_translations.json`](server/vulnerabilities/nvd/cpe_translations.json) in this repo. The matching logic lives in `cpe_translations.go`. Note: running Fleet servers pull this file from `github.com/fleetdm/nvd` releases, which is republished from the in-repo source daily — the edit lands here, not in `fleetdm/nvd`.
 - **sanitize stripping the wrong substring** — open `server/vulnerabilities/nvd/sanitize.go`, look at `sanitizeSoftwareName` and `productVariations`. Reason about why the variation set landed on the wrong product.
 - **Detail query producing the wrong row** — open `server/service/osquery_utils/queries.go` and check `SoftwareOverrideMatch` for the platform. macOS Firefox is the canonical example.
-- **NVD upstream data is wrong** (confirmed in step 5) — feed override at `server/vulnerabilities/nvd/tools/cvefeed/dictionary.go` (`Override()`) and `OverrideVuln` in `vuln.go`.
+- **NVD upstream data is wrong** (confirmed in step 5):
+  - **Wrong version bounds** (too broad, a date where a version belongs, missing fixed version) — add an entry to [`server/vulnerabilities/nvd/sync/cve_overrides.json`](server/vulnerabilities/nvd/sync/cve_overrides.json). `match` selects CPE matches by `criteria_contains` plus bound values (left out = any, `null` = not set); `set` writes bounds (left out = keep, `null` = remove). Match on the wrong value so the entry stops applying once NVD fixes the record, and cite the corrected source in `reason`. Entries are applied to the stored feeds on every feed generation, so they reach Fleet servers in the next published feed without a server release. `TestCVEOverridesFileIsValid` rejects malformed entries.
+  - **Wrong CPE for a platform or product** — a rule in `GetKnownNVDBugRules` (`cpe_matching_rules.go`); this ships with a Fleet release.
+  - Report the bad record to NVD (`nvd@nist.gov`) as well, so the override can be removed later.
 
 ## Step 7: FP triage (non-NVD sources)
 
@@ -196,7 +199,7 @@ This skill is **diagnose-then-apply-on-approval**: print the exact file + line +
 - Propose first, apply on approval. Never skip the propose step.
 - For `cpe_translations.json`: the file is in this repo at `server/vulnerabilities/nvd/cpe_translations.json` (republished daily into `fleetdm/nvd` releases for running servers to pull). Propose the diff against the in-repo file.
 - For systemic fixes: produce a written recommendation rather than a diff. Identify the routing table edit needed in this SKILL.md.
-- For one-off overrides (CPE matching rule, CustomCVE rule, sanitize regex, feed override): propose a precise diff to the in-repo file.
+- For one-off overrides (CPE matching rule, CustomCVE rule, sanitize regex, `cve_overrides.json` entry): propose a precise diff to the in-repo file.
 
 ## Step 11: Report
 
