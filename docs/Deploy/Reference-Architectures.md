@@ -45,6 +45,25 @@ Fleet supports single-writer database setups: one writable primary with read rep
 
 Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Redis configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#redis) documentation.
 
+### Temporary storage
+
+Fleet writes software packages to a temporary folder while it processes them. This happens when you add or edit a package, and when GitOps downloads packages from a URL. During a GitOps run, Fleet keeps every downloaded package in the temporary folder until the run finishes.
+
+Fleet uses the operating system's temporary folder, usually `/tmp`. To use a different folder, set the `TMPDIR` environment variable on the Fleet server.
+
+As a best practice, make sure this folder is on disk, not in memory. If it's in memory, large packages use up the server's RAM and can make Fleet crash or hang. Some platforms keep `/tmp` in memory by default, including Google Cloud Run and some Linux distributions that mount `/tmp` as tmpfs.
+
+We recommend free space of at least:
+
+- 2x the size of your largest package, and
+- the total size of all packages added or updated in your largest GitOps run.
+
+The default maximum package size is 10 GiB ([`server_max_installer_size`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-max-installer-size)). For most deployments, 20 GiB of temporary storage is enough.
+
+- **AWS (Fargate):** `/tmp` is on disk by default (20 GiB per task). No change needed for most deployments.
+- **GCP (Cloud Run):** `/tmp` is in memory by default. As a best practice, turn on a disk-backed `/tmp` with `tmp_volume_config` in [Fleet's GCP Terraform](https://github.com/fleetdm/fleet-terraform/tree/main/gcp#disk-backed-tmp-opt-in). Check your ephemeral disk quota first.
+- **Kubernetes:** Fleet's Helm chart mounts an `emptyDir` volume at `/tmp`. It uses the node's disk. Make sure nodes have enough free disk space.
+
 ## Systemd
 
 ### Run with systemd
@@ -473,6 +492,8 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 - Cloud Run (Fleet backend)
 - Cloud SQL MySQL 8.0 (Fleet database)
 - Memorystore Redis (Fleet cache & live report orchestrator)
+
+As a best practice, turn on a disk-backed `/tmp`. See [Temporary storage](#temporary-storage).
 
 GCP support for add/install software and file carve features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
