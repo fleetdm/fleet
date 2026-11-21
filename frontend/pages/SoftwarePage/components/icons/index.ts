@@ -625,6 +625,7 @@ import Macwhisper from "./png/Macwhisper.png";
 import Maestral from "./png/Maestral.png";
 import Magicquit from "./png/Magicquit.png";
 import Mailspring from "./png/Mailspring.png";
+import MakeMeAdmin from "./png/MakeMeAdmin.png";
 import Malwarebytes from "./png/Malwarebytes.png";
 import ManagedSoftwareCenter from "./png/ManagedSoftwareCenter.png";
 import MarkedApp from "./png/MarkedApp.png";
@@ -1807,6 +1808,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   maestral: Maestral,
   magicquit: Magicquit,
   mailspring: Mailspring,
+  "make me admin": MakeMeAdmin,
   "malwarebytes for mac": Malwarebytes,
   "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,
