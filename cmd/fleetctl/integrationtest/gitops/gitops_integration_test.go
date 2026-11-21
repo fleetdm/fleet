@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
@@ -316,12 +317,48 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsCustomHostVitals() {
 		}
 	}
 
+	// Changing only the letter case renames the vital in place: it keeps its
+	// ID and every host's value, a script that references it doesn't block the
+	// change, and nothing is reported as deleted or created.
+	hostValues := make(map[uint]string)
+	for i, value := range []string{"A-123", "B-456"} {
+		host := test.NewHost(t, s.DS, fmt.Sprintf("gitops-chv-host-%d", i), "1",
+			fmt.Sprintf("gitops-chv-key-%d", i), fmt.Sprintf("gitops-chv-uuid-%d", i), time.Now())
+		t.Cleanup(func() { require.NoError(t, s.DS.DeleteHost(context.Background(), host.ID)) })
+		require.NoError(t, s.DS.SetHostCustomHostVitalValue(ctx, host.ID, assetTagID, value))
+		hostValues[host.ID] = value
+	}
+	caseScript, err := s.DS.NewScript(ctx, &fleet.Script{
+		Name:           "print-asset-tag.sh",
+		ScriptContents: fmt.Sprintf("echo $%s%d", fleet.CustomHostVitalPrefix, assetTagID),
+	})
+	require.NoError(t, err)
+	for _, rename := range []struct{ from, to string }{{"Asset tag", "ASSET TAG"}, {"ASSET TAG", "Asset tag"}} {
+		globalFileCase := s.customHostVitalsGlobalYAML("  - name: " + rename.to + "\n  - name: Role\n")
+		out = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileCase, "--dry-run"})
+		assert.Contains(t, out, fmt.Sprintf("[+] would've renamed custom host vital '%s' to '%s'", rename.from, rename.to))
+		assert.NotContains(t, out, "would've deleted")
+		assert.NotContains(t, out, "would've created")
+
+		out = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileCase})
+		assert.Contains(t, out, fmt.Sprintf("[+] renaming custom host vital '%s' to '%s'", rename.from, rename.to))
+		assert.NotContains(t, out, "deleting")
+		assert.NotContains(t, out, "creating")
+		require.ElementsMatch(t, []string{rename.to, "Role"}, names(listVitals()))
+		for hostID, value := range hostValues {
+			hostVitals, err := s.DS.GetHostCustomHostVitals(ctx, hostID)
+			require.NoError(t, err)
+			require.Contains(t, hostVitals, fleet.HostCustomHostVital{CustomHostVitalID: assetTagID, Name: rename.to, Value: value})
+		}
+	}
+	require.NoError(t, s.DS.DeleteScript(ctx, caseScript.ID))
+
 	// A dry run still sends the request to the server (with DryRun set), so
 	// server-side validation -- like the collation-aware duplicate-name check,
 	// which is not enforced by the local diff -- is still exercised without
 	// persisting.
 	globalFileDupe := s.customHostVitalsGlobalYAML("  - name: Asset tag\n  - name: asset tag\n")
-	_, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileDupe, "--dry-run"})
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileDupe, "--dry-run"})
 	require.ErrorContains(t, err, "duplicate custom host vital names")
 	require.ElementsMatch(t, []string{"Asset tag", "Role"}, names(listVitals()))
 
