@@ -102,7 +102,8 @@ function Get-FleetEnrollmentHealth {
   if (-not $e) { return 'None' }
   $acct = "HKLM:\SOFTWARE\Microsoft\Provisioning\OMADM\Accounts\$($e.Id)\Protected"
   $addr = [string](Get-ItemProperty -LiteralPath "$acct\AddrInfo" -ErrorAction SilentlyContinue).Addr
-  if ($addr -and $addr -notmatch [Regex]::Escape(([Uri]$FleetServerUrl).Host)) { return 'WrongServer' }
+  $u = $null; $want = [Uri]$FleetServerUrl
+  if ($addr -and (-not [Uri]::TryCreate($addr, 'Absolute', [ref]$u) -or $u.Host -ne $want.Host -or $u.Port -ne $want.Port)) { return 'WrongServer' }
   $conn = Get-ItemProperty -LiteralPath "$acct\ConnInfo" -ErrorAction SilentlyContinue
   if ($conn -and $null -ne $conn.LastSessionResult -and [int]$conn.LastSessionResult -eq 0) { return 'Synced' }
   return 'Pending'
@@ -119,9 +120,10 @@ function Wait-FleetSynced([int]$seconds) {
 }
 
 function Finish-FleetEnrolled([string]$how) {
+  # Optional (Fleet shows MDM On sooner). Skipped when it could outlast the deadline.
+  if ((Get-SecondsLeft) -ge 45) { [void](Request-Refetch) }
   $h = Wait-FleetSynced 90
   Show-Enrollments 'MDM enrollments after'
-  [void](Request-Refetch)
   switch ($h) {
     'Synced'      { Finish 0 "$how First management session with Fleet succeeded." }
     'WrongServer' { Finish 1 "Enrolled in a Fleet server other than $FleetServerUrl. Check `$FleetServerUrl." }
@@ -240,9 +242,10 @@ try {
   # An empty POST returns "Windows MDM isn't turned on" when MDM is off, and a
   # SOAP fault when it's on.
   $disco = Invoke-Http POST $discoveryUrl '' 'application/soap+xml; charset=utf-8'
-  if ($disco.Status -eq 0) { Finish 3 "Can't reach Fleet's Windows MDM discovery endpoint: $($disco.Body)" }
-  if ($disco.Status -eq 404) { Finish 3 'Fleet returned 404 for the Windows MDM discovery endpoint. Check $FleetServerUrl.' }
   if ($disco.Body -match "Windows MDM isn.t turned on") { Finish 3 'Windows MDM is turned off in Fleet. Turn it on in Settings > Integrations > MDM before migrating.' }
+  if ($disco.Status -ne 200 -or $disco.Body -notmatch 'Envelope') {
+    Finish 3 "Unexpected response from Fleet's Windows MDM discovery endpoint (HTTP $($disco.Status)). Check `$FleetServerUrl and anything in front of Fleet (proxy, load balancer, WAF)."
+  }
 
   $mdmPolicy = Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM' -ErrorAction SilentlyContinue
   if ($mdmPolicy -and $mdmPolicy.AutoEnrollMDM -eq 1) {
@@ -277,7 +280,8 @@ try {
     $limit = (Get-Date).AddSeconds([Math]::Min(90, (Get-SecondsLeft)))
     do {
       Start-Sleep -Seconds 5
-      $left = @(Get-Enrollments | Where-Object { $_.Active -or $_.FleetSeesOn })
+      # Ignore a new Fleet enrollment (fleetd can enroll the host during this wait).
+      $left = @(Get-Enrollments | Where-Object { ($_.Active -or $_.FleetSeesOn) -and $_.ProviderID -ne 'Fleet' })
     } while ($left.Count -gt 0 -and (Get-Date) -lt $limit)
 
     if ($left.Count -gt 0) {
@@ -291,6 +295,8 @@ try {
       Log 'WARNING: Entra join was present before unenroll and is not reported now. Check dsregcmd /status on this host.'
     }
   }
+
+  if (Test-FleetEnrolled) { Finish-FleetEnrolled 'Enrolled in Fleet MDM by fleetd.' }
 
   # A stale key that Fleet counts as MDM On blocks enrollment even when no
   # MDM is active.
@@ -344,6 +350,7 @@ try {
   Finish-FleetEnrolled 'Enrolled in Fleet MDM by fleetd.'
 } catch {
   $msg = "Unexpected error: $($_.Exception.Message)"
+  if (Test-FleetEnrolled) { Finish 8 "$msg Enrolled in Fleet MDM, but not confirmed. Rerun later to confirm." }
   if ($script:unmanaged) { Fail-Unmanaged 7 $msg }
   Finish 1 "$msg No changes made."
 }
