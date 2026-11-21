@@ -48,10 +48,10 @@ Fleet can report on hundreds of attributes across your devices and ships with [C
 Fleet is open source and transparent about what it can and can't see. End users can verify exactly how the agent works and what data their company collects. Fleet collects only the data needed to manage and secure devices, not private activity like keystrokes, emails, or webcams.
 
 #### Good neighbors
-Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Apple, Microsoft 365, Okta, Entra, PingID, Cisco Duo, Dell, Lenovo, HP, Snowflake, Elastic, Datadog, Splunk, GitHub Actions, Vanta, Secureframe, Drata, Jira, ServiceNow, Oomnitza, Zendesk, and more. Fleet also works great with tools such as Munki, Chef, Puppet, Ansible, Sophos, Crowdstrike, and SentinelOne.
+Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Apple, Microsoft 365, Okta _(including [conditional access on every platform](https://fleetdm.com/releases/fleet-4-95-0#okta-conditional-access-for-windows))_, Entra _(including [conditional access on macOS and Windows](https://fleetdm.com/guides/entra-conditional-access-integration))_, PingID, Cisco Duo, Windows Autopilot ([optional](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot)), Dell, Lenovo, HP, Snowflake, Elastic, Datadog, Splunk, GitHub, GitLab, Claude, Codex, Gemini, Copilot, Slack, Teams, Vanta, Secureframe, Drata, Jira, ServiceNow, Oomnitza, Zendesk, and more. Fleet also works great with tools such as Munki, Chef, Puppet, Ansible, Sophos, Crowdstrike, and SentinelOne.
 
 #### Lighter than air
-Fleet is lightweight and modular. You can use it for MDM without using it for security, and vice versa. You can turn off features you are not using.
+Fleet is lightweight and modular. You can use it for MDM without using it for security telemetry, and vice versa. You can turn off features you are not using.
 
 #### Free as in free
 The free version of Fleet will [always be free](https://fleetdm.com/pricing). Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
