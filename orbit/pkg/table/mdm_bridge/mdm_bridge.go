@@ -16,8 +16,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
-	"github.com/google/uuid"
+	"github.com/digitalocean/go-smbios/smbios"
 	"github.com/hillu/go-ntdll"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -31,12 +30,14 @@ var (
 	modmdmregistration = windows.NewLazySystemDLL("mdmregistration.dll")
 	modmdmlocalmgmt    = windows.NewLazySystemDLL("mdmlocalmanagement.dll")
 	modkernel32        = windows.NewLazySystemDLL("kernel32.dll")
+	modembeddedmode    = windows.NewLazySystemDLL("embeddedmodesvcapi.dll")
 
 	procIsDeviceRegisteredWithManagement  = modmdmregistration.NewProc("IsDeviceRegisteredWithManagement")
 	procSendSyncMLcommand                 = modmdmlocalmgmt.NewProc("ApplyLocalManagementSyncML")
 	procRegisterDeviceWithLocalManagement = modmdmlocalmgmt.NewProc("RegisterDeviceWithLocalManagement")
 	proclstrlenW                          = modkernel32.NewProc("lstrlenW")
 	procRtlMoveMemory                     = modkernel32.NewProc("RtlMoveMemory")
+	procIsEmbeddedModeAllowed             = modembeddedmode.NewProc("IsEmbeddedModeAllowed")
 
 	// Synchronization mutex
 	mu sync.Mutex
@@ -44,8 +45,11 @@ var (
 	// MDM Management stack initialization executor
 	mdmManagementStackInit sync.Once
 
-	// SHA256 hash of device SMBIOS UUID
-	uuidHash []byte
+	// Value written to the EmbeddedMode Flags registry entry to allow MDM command execution without an MDM server. The
+	// local management API (Register/ApplyLocalManagementSyncML) returns ERROR_NOT_SUPPORTED unless
+	// IsEmbeddedModeAllowed reports true, which happens only while Flags holds a SHA-256 of host-specific SMBIOS bytes.
+	flagsValue     []byte
+	flagsValueInit sync.Once
 )
 
 const (
@@ -355,7 +359,7 @@ func isValidMDMcommand(inputCMD string) (bool, error) {
 }
 
 // executeMDMcommand executes syncML MDM commands against the OS MDM stack and returns the status of the command execution
-func executeMDMcommand(inputCMD string) (string, error) {
+func executeMDMcommand(inputCMD string) (output string, err error) {
 	// Synchronizing MDM command execution
 	mu.Lock()
 	defer mu.Unlock()
@@ -372,6 +376,11 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	if err := enableCmdExecution(); err != nil {
 		return "", err
 	}
+	defer func() {
+		if disableErr := disableCmdExecution(); disableErr != nil && err == nil {
+			output, err = "", disableErr
+		}
+	}()
 
 	// Close MDM management mutex if neeeded - this is a hack to enable multiple MDM management calls
 	handle, err := windows.OpenMutex(windows.MUTEX_ALL_ACCESS, false, windows.StringToUTF16Ptr(mdmMutexName))
@@ -410,11 +419,6 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	// freeing OS allocated heap memory
 	_, err = windows.LocalFree(windows.Handle(unsafe.Pointer(outputStrBuffer)))
 	if err != nil {
-		return "", err
-	}
-
-	// Disabling MDM command executions
-	if err := disableCmdExecution(); err != nil {
 		return "", err
 	}
 
@@ -507,81 +511,72 @@ func closeManagementMutex() error {
 	return nil
 }
 
-// getUUIDhash returns the SHA256 hash of the host SMBIOS UUID
-func getUUIDhash() ([]byte, error) {
-	// Get UUID string first
-	uuidStr, _, err := platform.GetSMBiosUUID()
+// getFlagsValue returns the EmbeddedMode Flags value that Windows accepts: SHA-256 of the type 1 UUID as found by Windows' own
+// SMBIOS walk. If that differs from the spec-compliant UUID, IsEmbeddedModeAllowed picks between them, so a Windows build that
+// fixes its walk keeps working.
+func getFlagsValue() ([]byte, error) {
+	stream, _, err := smbios.Stream()
 	if err != nil {
-		return nil, errors.New("there was a problem retrieving the UUID")
+		return nil, fmt.Errorf("opening SMBIOS table: %w", err)
 	}
-
-	// Parse UUID string into uuid.UUID type
-	uuidMachine, err := uuid.Parse(uuidStr)
+	defer stream.Close()
+	smbiosTable, err := io.ReadAll(stream)
 	if err != nil {
-		return nil, errors.New("there was a problem parsing the UUID")
+		return nil, fmt.Errorf("reading SMBIOS table: %w", err)
 	}
 
-	// Grabbing the UUID bytes in the expected endianness
-	var uuidBytes bytes.Buffer
-	uuidBytes.WriteByte(uuidMachine[3])
-	uuidBytes.WriteByte(uuidMachine[2])
-	uuidBytes.WriteByte(uuidMachine[1])
-	uuidBytes.WriteByte(uuidMachine[0])
-	uuidBytes.WriteByte(uuidMachine[5])
-	uuidBytes.WriteByte(uuidMachine[4])
-	uuidBytes.WriteByte(uuidMachine[7])
-	uuidBytes.WriteByte(uuidMachine[6])
-	uuidBytes.WriteByte(uuidMachine[8])
-	uuidBytes.WriteByte(uuidMachine[9])
-	uuidBytes.WriteByte(uuidMachine[10])
-	uuidBytes.WriteByte(uuidMachine[11])
-	uuidBytes.WriteByte(uuidMachine[12])
-	uuidBytes.WriteByte(uuidMachine[13])
-	uuidBytes.WriteByte(uuidMachine[14])
-	uuidBytes.WriteByte(uuidMachine[15])
-
-	// Returning the SHA256 hash of the UUID bytes
-	h := sha256.New()
-	_, errhash := h.Write(uuidBytes.Bytes())
-	if errhash != nil {
-		return nil, errors.New("there was a problem generating the SHA256 hash")
+	windowsUUID := findSMBIOSUUID(smbiosTable, true)
+	if windowsUUID == nil {
+		windowsUUID = embeddedModeFallback
 	}
-	return h.Sum(nil), nil
+	windowsHash := sha256.Sum256(windowsUUID)
+	specUUID := findSMBIOSUUID(smbiosTable, false)
+	if specUUID == nil || bytes.Equal(specUUID, windowsUUID) {
+		return windowsHash[:], nil
+	}
+	specHash := sha256.Sum256(specUUID)
+
+	// The walks disagree, so ask Windows. It re-reads Flags on every IsEmbeddedModeAllowed call. Probe failures fall back to
+	// Windows' walk rather than failing, since this runs once per process.
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, flagsRegistryLocation, registry.SET_VALUE)
+	if err == nil && procIsEmbeddedModeAllowed.Find() == nil {
+		defer k.Close()
+		// Remove the probe value; enableCmdExecution writes the chosen one before each command.
+		defer func() { _ = k.DeleteValue(flagsRegistryName) }()
+		for i, candidate := range [][]byte{windowsHash[:], specHash[:]} {
+			if err := k.SetBinaryValue(flagsRegistryName, candidate); err != nil {
+				break
+			}
+			var allowed int32
+			if hr, _, _ := procIsEmbeddedModeAllowed.Call(uintptr(unsafe.Pointer(&allowed))); hr != 0 {
+				break
+			}
+			if allowed != 0 {
+				log.Info().Bool("windows_walk", i == 0).Msg("mdm_bridge: SMBIOS walks disagree, Windows confirmed the EmbeddedMode Flags value")
+				return candidate, nil
+			}
+		}
+	}
+	log.Warn().Msg("mdm_bridge: SMBIOS walks disagree and Windows confirmed neither EmbeddedMode Flags value, using Windows' walk")
+	return windowsHash[:], nil
 }
 
 // enableCmdExecution initializes the registry flags required for OS MDM execution
 func enableCmdExecution() error {
-	// initialize MDM stack management by generating SHA256 hash of SMBIOS UUID and calling RegisterDeviceWithLocalManagement()
-	// this is wrapped by sync.Once so it only executes once
-	mdmManagementStackInit.Do(func() {
-		// calling RegisterDeviceWithLocalManagement() to initialize the MDM stack,
-		// The code below is just using returnCode to determine if the call was successful or not. The err
-		// variable returns the status above call dispatching, so it is unnecessary and actually introduces
-		// confusion about the status of the call.
-		// This is a best effort call as MDM management stack could have been initialized already by other components
-		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {
-			log.Error().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
-		}
-
-		// generate SHA256 hash of UUID bytes
-		workHash, err := getUUIDhash()
+	flagsValueInit.Do(func() {
+		value, err := getFlagsValue()
 		if err != nil {
-			log.Error().Err(err).Msg("there was an issue generating the UUID hash")
+			log.Error().Err(err).Msg("there was an issue generating the EmbeddedMode Flags value")
 			return
 		}
-
-		// making the UUID hash to be globally accessible
-		if len(workHash) > 0 {
-			uuidHash = workHash
-		}
+		flagsValue = value
 	})
 
-	// Sanity check on availability of UUID hash
-	if len(uuidHash) == 0 {
-		return errors.New("there was a problem with UUID SHA256 hash generation")
+	if len(flagsValue) == 0 {
+		return errors.New("there was a problem generating the EmbeddedMode Flags value")
 	}
 
-	// UUID hash is already there, so we just need to write the registry to enable MDM commands
+	// Flags value is already there, so we just need to write the registry to enable MDM commands
 	// execution. Registry flag is set and unset on each command execution to isolate the MDM command
 	// execution to this logic only
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, flagsRegistryLocation, registry.QUERY_VALUE|registry.SET_VALUE)
@@ -589,13 +584,21 @@ func enableCmdExecution() error {
 		return err
 	}
 
-	if err := k.SetBinaryValue(flagsRegistryName, uuidHash); err != nil {
+	if err := k.SetBinaryValue(flagsRegistryName, flagsValue); err != nil {
 		return err
 	}
 
 	if err := k.Close(); err != nil {
 		return err
 	}
+
+	// Registering is gated by Flags too, so it must follow the write above. ApplyLocalManagementSyncML fails with
+	// ERROR_INVALID_STATE until a registration succeeds, which Windows persists.
+	mdmManagementStackInit.Do(func() {
+		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {
+			log.Error().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
+		}
+	})
 
 	return nil
 }
