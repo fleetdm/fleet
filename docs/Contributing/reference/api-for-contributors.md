@@ -2848,6 +2848,7 @@ Some routes are always exempt from SSO and others are exempt while a host is sti
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution) (`POST /api/v1/fleet/device/{token}/migrate_mdm`) — *always exempt*
 - [Get device's transparency URL](#get-devices-transparency-url) (`GET /api/v1/fleet/device/{token}/transparency`) — *always exempt*
 - [Initiate Fleet Desktop single sign-on](#initiate-fleet-desktop-single-sign-on) (`POST /api/v1/fleet/device/{token}/sso`) — *always exempt; starts the sign-in flow*
+- [Exchange Fleet Desktop single sign-on code](#exchange-fleet-desktop-single-sign-on-code) (`POST /api/v1/fleet/device/{token}/sso/exchange`) — *always exempt; finishes the sign-in flow in the Fleet Desktop macOS app*
 - `GET /api/v1/fleet/device/{token}` — *exempt during [setup experience](https://fleetdm.com/guides/setup-experience)*
 - `POST /api/v1/fleet/device/{token}/refetch` — *exempt during setup experience*
 - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles) (`GET /api/v1/fleet/device/{token}/device_mapping`, deprecated) — *exempt during setup experience*
@@ -2974,9 +2975,10 @@ Starts the SAML authentication flow for the Fleet Desktop "My device" page. Retu
 
 ##### Parameters
 
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
+| Name            | Type    | In   | Description                        |
+| --------------- | ------- | ---- | ---------------------------------- |
+| token           | string  | path | The device's authentication token. |
+| native_callback | boolean | query | Set to `true` when a native app runs the IdP sign-in outside the browser that holds the device page. See [Native callback](#native-callback). Default is `false`. |
 
 ##### Example
 
@@ -3026,7 +3028,64 @@ Both cookies use the `__Host-` prefix, which scopes them to a single host name. 
 
 Pointing `fleet_desktop.alternative_browser_host` or `mdm.apple_server_url` at a different host than `server_settings.server_url` makes single sign-on for Fleet Desktop unusable. Neither cookie reaches the leg that needs to read it. Rather than send the end user into a redirect loop, this endpoint fails with `400`.
 
+##### Native callback
+
+The Fleet Desktop macOS app shows the device page in an embedded web view. An IdP's security key (YubiKey) and passkey prompts don't work there, because WebKit only allows WebAuthn in a web view for domains the app is associated with. So the app runs the IdP sign-in in the system's web authentication session (`ASWebAuthenticationSession`) instead. That session is a different browser from the web view: it never receives the handshake cookie, and a session cookie set there wouldn't reach the device page.
+
+With `native_callback=true`, the flow changes to bridge the two:
+
+1. This endpoint sets no handshake cookie. Instead, it sets `RelayState` to `fleet_desktop_native:` followed by the SSO session ID, which the IdP echoes back with the assertion.
+2. The callback, `POST /api/v1/fleet/mdm/sso/callback`, reads the session ID from `RelayState` instead of the cookie. It only accepts this for a session that was started with `native_callback`. For any other session, the handshake cookie is still the only thing that ties the callback to the browser that started it. Because `RelayState` is visible to anyone who sees the IdP URL, the callback only consumes the SSO session after the assertion verifies, so a response that doesn't verify can't cancel a sign-in in progress.
+3. The callback sets no cookies. It creates the device SSO session and replies `303` to `fleet://sso-callback?code=<code>`. The app's authentication session completes on the `fleet` scheme and passes the code to the device page.
+4. The device page sends the code to [Exchange Fleet Desktop single sign-on code](#exchange-fleet-desktop-single-sign-on-code), which sets the `__Host-FLEET_DESKTOP_SESSION` cookie in the web view.
+
+Every callback failure redirects to `fleet://sso-callback?error=<reason>`, so the app's sign-in window always closes. Reasons are `session_expired`, `error`, `sso_disabled`, and `server_error`.
+
+The device page only uses this flow when the app exposes its sign-in bridge (`window.webkit.messageHandlers.fleetDesktopSSO`). Browsers, older versions of the app, and the embedded flow against older Fleet servers are unchanged.
+
 Only this endpoint sets the `fleet_desktop` SSO initiator, and it sets it server-side. `POST /api/v1/fleet/mdm/sso` is unauthenticated and reads its initiator and host UUID from the request body, so it rejects this initiator with `400`. Accepting it there would create a device SSO session for any host UUID, without the caller ever holding that host's device token.
+
+#### Exchange Fleet Desktop single sign-on code
+_Available in Fleet Premium_
+
+Finishes a Fleet Desktop single sign-on flow that was started with `native_callback`. Trades the one-time code from the `fleet://sso-callback` redirect for the device SSO session cookie.
+
+`POST /api/v1/fleet/device/{token}/sso/exchange`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+| code  | string | body | **Required.** The `code` query parameter of the `fleet://sso-callback` redirect. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/sso/exchange`
+
+##### Request body
+
+```json
+{
+  "code": "Zm9vYmFyYmF6cXV4Zm9vYmFyYmF6cXV4"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+This endpoint sets the `__Host-FLEET_DESKTOP_SESSION` cookie that carries the device SSO session.
+
+A code can be used once, within 2 minutes, and only with the device token of the host that started the flow.
+
+##### Error responses
+
+| Status | When |
+| ------ | ---- |
+| `400`  | The code is missing, unknown, expired, already used, or belongs to another host. |
+| `401`  | The device token is invalid or expired. |
+| `402`  | Fleet Premium is required. |
 
 #### Get device's software
 

@@ -1240,7 +1240,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 
 	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
 
-	profileToken, enrollmentRef, eulaToken, originalURL, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
+	profileToken, enrollmentRef, eulaToken, originalURL, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse, false)
 	if err != nil {
 		logging.WithErr(ctx, err)
 		if errors.Is(err, sso.ErrSessionNotFound) {
@@ -1323,29 +1323,9 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		return u.String(), byodSessionID, "", 0
 
 	case ssoRequestData.Initiator == fleet.SSOInitiatorFleetDesktop:
-		// Re-check the feature is still on: an admin may have disabled it between
-		// initiation and this callback, and a session minted now would outlive
-		// that change by its whole TTL.
-		appConfig, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get app config for device sso callback"))
-			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
-		}
-		if !appConfig.FleetDesktop.SSOEnabled {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, errors.New("fleet desktop sso is disabled"), "device sso callback"))
-			return deviceSSOErrorURL(originalURL, "sso_disabled"), "", "", 0
-		}
-
-		host, err := svc.ds.HostByUUID(ctx, ssoRequestData.HostUUID)
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get host for device sso callback"))
-			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
-		}
-
-		deviceSSOSessionID, deviceSSOSessionTTL, err := svc.createDeviceSSOSession(ctx, host, enrollmentRef)
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "create device sso session"))
-			return deviceSSOErrorURL(originalURL, "server_error"), "", "", 0
+		deviceSSOSessionID, deviceSSOSessionTTL, failureReason := svc.deviceSSOSessionFromCallback(ctx, ssoRequestData.HostUUID, enrollmentRef)
+		if failureReason != "" {
+			return deviceSSOErrorURL(originalURL, failureReason), "", "", 0
 		}
 		return originalURL, "", deviceSSOSessionID, int(deviceSSOSessionTTL.Seconds())
 
@@ -1354,10 +1334,16 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	}
 }
 
+// verifyBeforeConsume keeps the SSO session until the SAML response has been
+// verified. A cookie-bound session is consumed up front, since only the
+// browser that started it can name it. A native callback's session ID travels
+// in RelayState, so anyone who saw the IdP URL could otherwise post a junk
+// response and cancel a sign-in that is still in progress.
 func (svc *Service) mdmSSOHandleCallbackAuth(
 	ctx context.Context,
 	sessionID string,
 	samlResponse []byte,
+	verifyBeforeConsume bool,
 ) (profileToken string, enrollmentReference string,
 	eulaToken string, originalURL string, ssoRequestData sso.SSORequestData, err error,
 ) {
@@ -1392,7 +1378,11 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		serverURL,
 		acsURL.String(),
 	}
-	session, err := svc.ssoSessionStore.Fullfill(sessionID)
+	loadSession := svc.ssoSessionStore.Fullfill
+	if verifyBeforeConsume {
+		loadSession = svc.ssoSessionStore.Get
+	}
+	session, err := loadSession(sessionID)
 	if err != nil {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "validate request in session")
 	}
@@ -1463,6 +1453,12 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(reason))
+	}
+
+	if verifyBeforeConsume {
+		if _, err := svc.ssoSessionStore.Fullfill(sessionID); err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "consume verified sso session")
+		}
 	}
 
 	isAppleMDMSSO := ssoRequestData.Initiator == fleet.SSOInitiatorAppleMDMSSO

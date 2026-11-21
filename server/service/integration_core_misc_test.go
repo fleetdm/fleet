@@ -502,6 +502,10 @@ func (s *integrationTestSuite) TestInitiateDeviceSSOFreeTier() {
 
 	// invalid device token behaves like every other device-authenticated route
 	s.DoRawNoAuth("POST", "/api/latest/fleet/device/bozo-token/sso", nil, http.StatusUnauthorized)
+
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/device-sso-token/sso/exchange", []byte(`{"code":"abc"}`), http.StatusPaymentRequired)
+	assert.Contains(t, extractServerErrorText(res.Body), fleet.ErrMissingLicense.Error())
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/bozo-token/sso/exchange", []byte(`{"code":"abc"}`), http.StatusUnauthorized)
 }
 
 func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {

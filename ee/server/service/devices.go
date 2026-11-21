@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/url"
@@ -18,7 +19,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 )
@@ -428,6 +431,13 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 const (
 	deviceSSOSessionKeyPrefix = "device_sso_session:"
 	deviceSSOSessionIDLength  = 24
+
+	deviceSSOCodeKeyPrefix     = "device_sso_code:"
+	deviceSSOCodeUsedKeyPrefix = "device_sso_code_used:"
+	deviceSSOCodeLength        = 24
+	// deviceSSOCodeTTL only has to cover the app receiving the callback and
+	// the page posting the code back.
+	deviceSSOCodeTTL = 2 * time.Minute
 )
 
 // createDeviceSSOSession mints a new device SSO session for host.
@@ -571,7 +581,7 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 	return ctxerr.Wrap(ctx, fleet.NewDeviceSSORequiredError("no device sso session"), "require device sso session")
 }
 
-func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
+func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string, nativeCallback bool) (*fleet.DeviceSSOInitiation, error) {
 	// the device middleware already authenticated the host via its device token.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -635,17 +645,179 @@ func (svc *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*f
 		uint(sessionDuration.Seconds()), //nolint:gosec // dismiss G115
 		fleet.SSORelayState(fleet.SSOInitiatorFleetDesktop),
 		sso.SSORequestData{
-			HostUUID:  host.UUID,
-			Initiator: fleet.SSOInitiatorFleetDesktop,
+			HostUUID:       host.UUID,
+			Initiator:      fleet.SSOInitiatorFleetDesktop,
+			NativeCallback: nativeCallback,
 		},
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "InitiateDeviceSSO creating authorization")
 	}
 
-	return &fleet.DeviceSSOInitiation{
+	initiation := &fleet.DeviceSSOInitiation{
 		IdPURL:          idpURL,
-		SessionID:       sessionID,
 		SessionDuration: sessionDuration,
-	}, nil
+	}
+	// The native callback finds the session through RelayState, so there is no
+	// handshake cookie to set.
+	if !nativeCallback {
+		initiation.SessionID = sessionID
+	}
+	return initiation, nil
+}
+
+// deviceSSOSessionFromCallback mints the device SSO session that a verified
+// Fleet Desktop callback has earned. A non-empty failureReason is the
+// sso_error value to send back instead.
+func (svc *Service) deviceSSOSessionFromCallback(ctx context.Context, hostUUID, idpAccountUUID string) (sessionID string, ttl time.Duration, failureReason string) {
+	// Re-check the feature is still on: an admin may have disabled it between
+	// initiation and this callback, and a session minted now would outlive
+	// that change by its whole TTL.
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get app config for device sso callback"))
+		return "", 0, "server_error"
+	}
+	if !appConfig.FleetDesktop.SSOEnabled {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, errors.New("fleet desktop sso is disabled"), "device sso callback"))
+		return "", 0, "sso_disabled"
+	}
+
+	host, err := svc.ds.HostByUUID(ctx, hostUUID)
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "get host for device sso callback"))
+		return "", 0, "server_error"
+	}
+
+	sessionID, ttl, err = svc.createDeviceSSOSession(ctx, host, idpAccountUUID)
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "create device sso session"))
+		return "", 0, "server_error"
+	}
+	return sessionID, ttl, ""
+}
+
+func deviceSSONativeErrorURL(reason string) string {
+	return apple_mdm.FleetDesktopSSOCallbackURL + "?error=" + url.QueryEscape(reason)
+}
+
+func (svc *Service) DeviceSSONativeCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
+	// skipauth: User context does not yet exist. Unauthenticated users may
+	// hit the MDM SSO callback.
+	svc.authz.SkipAuthorization(ctx)
+
+	logging.WithLevel(logging.WithNoUser(ctx), slog.LevelInfo)
+
+	// The endpoint passes no response when it couldn't decode one.
+	if len(samlResponse) == 0 {
+		return deviceSSONativeErrorURL("error")
+	}
+
+	// RelayState is whatever the browser posts, and it stood in for the
+	// handshake cookie here. Only a session started for a native callback may
+	// be completed that way; any other flow relies on the cookie to tie the
+	// callback to the browser that started it. Checked before anything is
+	// consumed or written, so a forged RelayState can't disturb another flow.
+	session, err := svc.ssoSessionStore.Get(sessionID)
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "load sso session for native callback"))
+		if errors.Is(err, sso.ErrSessionNotFound) {
+			return deviceSSONativeErrorURL("session_expired")
+		}
+		return deviceSSONativeErrorURL("error")
+	}
+	if session.RequestData.Initiator != fleet.SSOInitiatorFleetDesktop || !session.RequestData.NativeCallback {
+		logging.WithErr(ctx, ctxerr.New(ctx, "sso session was not started for a native callback"))
+		return deviceSSONativeErrorURL("error")
+	}
+
+	_, idpAccountUUID, _, _, ssoRequestData, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse, true)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		if errors.Is(err, sso.ErrSessionNotFound) {
+			return deviceSSONativeErrorURL("session_expired")
+		}
+		return deviceSSONativeErrorURL("error")
+	}
+
+	deviceSSOSessionID, _, failureReason := svc.deviceSSOSessionFromCallback(ctx, ssoRequestData.HostUUID, idpAccountUUID)
+	if failureReason != "" {
+		return deviceSSONativeErrorURL(failureReason)
+	}
+
+	code, err := server.GenerateRandomURLSafeText(deviceSSOCodeLength)
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "generate device sso code"))
+		return deviceSSONativeErrorURL("server_error")
+	}
+	if err := svc.keyValueStore.Set(ctx, deviceSSOCodeKeyPrefix+code, deviceSSOSessionID, deviceSSOCodeTTL); err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "store device sso code"))
+		return deviceSSONativeErrorURL("server_error")
+	}
+	return apple_mdm.FleetDesktopSSOCallbackURL + "?code=" + url.QueryEscape(code)
+}
+
+// claimKey sets key and reports whether this call was the one to set it. The
+// Redis store does that atomically across Fleet servers; a store without an
+// atomic set falls back to get then set.
+func claimKey(ctx context.Context, kv fleet.KeyValueStore, key string, ttl time.Duration) (bool, error) {
+	if atomic, ok := kv.(interface {
+		SetIfNotExists(ctx context.Context, key string, value string, expireTime time.Duration) (bool, error)
+	}); ok {
+		return atomic.SetIfNotExists(ctx, key, "1", ttl)
+	}
+	existing, err := kv.Get(ctx, key)
+	if err != nil || existing != nil {
+		return false, err
+	}
+	return true, kv.Set(ctx, key, "1", ttl)
+}
+
+func (svc *Service) ExchangeDeviceSSOCode(ctx context.Context, code string) (string, time.Duration, error) {
+	// skipauth: the device middleware already authenticated the host via its device token.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return "", 0, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+	}
+
+	invalidCode := &fleet.BadRequestError{Message: "Invalid or expired single sign-on code."}
+	// Codes are deviceSSOCodeLength random bytes, base64-encoded.
+	if code == "" || len(code) > 2*deviceSSOCodeLength {
+		return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
+	}
+
+	sessionID, err := svc.keyValueStore.Get(ctx, deviceSSOCodeKeyPrefix+code)
+	if err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "get device sso code")
+	}
+	if sessionID == nil {
+		return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
+	}
+
+	session, err := svc.validateDeviceSSOSession(ctx, *sessionID)
+	if err != nil {
+		if _, ok := errors.AsType[*fleet.AuthRequiredError](err); ok {
+			return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
+		}
+		return "", 0, ctxerr.Wrap(ctx, err, "validating device sso session for code")
+	}
+	if session.HostID != host.ID {
+		svc.logger.WarnContext(ctx, "device sso code belongs to another host",
+			"host_id", host.ID, "session_host_id", session.HostID)
+		return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
+	}
+
+	// Claimed only after the host check: a wrong host must not be able to burn
+	// another host's sign-in.
+	claimed, err := claimKey(ctx, svc.keyValueStore, deviceSSOCodeUsedKeyPrefix+code, deviceSSOCodeTTL)
+	if err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "claim device sso code")
+	}
+	if !claimed {
+		return "", 0, ctxerr.Wrap(ctx, invalidCode, "exchange device sso code")
+	}
+
+	return *sessionID, session.ExpiresAt.Sub(svc.clock.Now()), nil
 }

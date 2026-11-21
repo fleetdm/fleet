@@ -3708,6 +3708,11 @@ type callbackMDMSSORequest struct {
 	sessionID    string
 	relayState   fleet.SSORelayState
 	samlResponse []byte
+	// nativeCallback is set when RelayState, not the handshake cookie, names
+	// the SSO session: a Fleet Desktop flow that returns to the native app.
+	nativeCallback bool
+	// decodeErr is why a native callback has no samlResponse.
+	decodeErr error
 }
 
 // TODO: these errors will result in JSON being returned, but we should
@@ -3716,6 +3721,19 @@ type callbackMDMSSORequest struct {
 // affect many users.
 func (callbackMDMSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	sessionID, samlResponse, relayState, err := decodeCallbackRequest(ctx, r)
+	// decodeCallbackRequest parsed what it could of the form, even on failure.
+	nativeSessionID, nativeCallback := fleet.ParseSSONativeRelayState(r.FormValue("RelayState"))
+	if nativeCallback {
+		// A browser that happens to hold a handshake cookie for another flow
+		// must not have it used here. A decoding failure still has to answer
+		// the app, or its sign-in window is left open on a JSON error.
+		return &callbackMDMSSORequest{
+			sessionID:      nativeSessionID,
+			samlResponse:   samlResponse,
+			nativeCallback: true,
+			decodeErr:      err,
+		}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -3731,6 +3749,9 @@ type callbackMDMSSOResponse struct {
 	byodEnrollCookieValue    string
 	deviceSSOSessionID       string
 	deviceSSOSessionDuration int
+	// nativeCallback leaves the browser's cookies alone: it is the system
+	// browser, and none of this flow's cookies live there.
+	nativeCallback bool
 }
 
 func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
@@ -3739,6 +3760,9 @@ func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.Respons
 }
 
 func (r callbackMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+	if r.nativeCallback {
+		return
+	}
 	deleteSSOCookie(w)
 	if r.byodEnrollCookieValue != "" {
 		setBYODCookie(w, r.byodEnrollCookieValue, int(shared_mdm.BYODIdPSessionTTL.Seconds()))
@@ -3755,6 +3779,15 @@ func (r callbackMDMSSOResponse) Error() error { return nil }
 
 func callbackMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	callbackRequest := request.(*callbackMDMSSORequest)
+	if callbackRequest.nativeCallback {
+		if callbackRequest.decodeErr != nil {
+			logging.WithErr(ctx, callbackRequest.decodeErr)
+		}
+		return callbackMDMSSOResponse{
+			redirectURL:    svc.DeviceSSONativeCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse),
+			nativeCallback: true,
+		}, nil
+	}
 	redirectURL, byodCookieValue, deviceSSOSessionID, deviceSSOSessionDuration := svc.MDMSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
 
 	// Relay state is carried by the browser through the IdP and back, is used
