@@ -1,0 +1,1 @@
+- Added support for providing the fleetctl API token with the `FLEET_API_TOKEN` environment variable. When set, it takes precedence over the `token` value in the fleetctl config file.
