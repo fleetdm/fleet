@@ -3703,6 +3703,16 @@ type Datastore interface {
 	// direction. The count is what was deleted before any failure.
 	CleanupHostSoftwareInstalls(ctx context.Context, olderThan time.Time) (int64, error)
 
+	// CleanupVPPAppInstallAttempts deletes attempt log rows that finished before olderThan.
+	CleanupVPPAppInstallAttempts(ctx context.Context, olderThan time.Time) (int64, error)
+	// RefreshVPPAppInstallStateBatch refreshes up to limit keys after afterKey and returns the last key refreshed.
+	RefreshVPPAppInstallStateBatch(ctx context.Context, afterKey string, limit int) (string, int, error)
+	// DeleteOrphanVPPAppInstallState deletes install state rows whose host no longer exists.
+	DeleteOrphanVPPAppInstallState(ctx context.Context) (int64, error)
+	// The backfill cursor is kept in Redis; the bare mysql datastore doesn't persist it.
+	GetVPPAppInstallStateBackfillCursor(ctx context.Context) (string, error)
+	SetVPPAppInstallStateBackfillCursor(ctx context.Context, cursor string) error
+
 	// SaveInHouseAppUpdates persists new values to an existing in house app.
 	SaveInHouseAppUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
 

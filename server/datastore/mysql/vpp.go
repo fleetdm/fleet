@@ -285,18 +285,17 @@ upcoming AS (
 	GROUP BY ua.host_id, vaua.vpp_app_team_id
 ),
 
--- select the latest successful, failed and unfinished install of each host and version, reading only the index
+-- select the latest successful, failed and unfinished install of each host and version
 -- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
 latest_installs AS (
 	SELECT
 		host_id,
 		vpp_app_team_id,
-		MAX(IF(verification_at IS NOT NULL, id, NULL)) AS installed_id,
-		MAX(IF(verification_at IS NULL AND verification_failed_at IS NOT NULL, id, NULL)) AS failed_id,
-		MAX(IF(verification_at IS NULL AND verification_failed_at IS NULL, id, NULL)) AS unfinished_id
-	FROM host_vpp_software_installs
-	WHERE vpp_app_team_id IN (:version_ids) AND canceled = 0 AND removed = 0
-	GROUP BY vpp_app_team_id, host_id
+		installed_install_id AS installed_id,
+		failed_install_id AS failed_id,
+		unfinished_install_id AS unfinished_id
+	FROM host_vpp_app_installs FORCE INDEX (idx_hvai_version_host)
+	WHERE vpp_app_team_id IN (:version_ids)
 ),
 
 -- select the installs of each host and version in the version's fleet, counting unfinished Android installs as pending because Android installs bypass upcoming activities
@@ -307,9 +306,10 @@ attempts AS (
 		li.installed_id,
 		li.failed_id,
 		IF(vat.platform = 'android', li.unfinished_id, NULL) AS pending_id
+	-- Start with the selected versions instead of probing state for every host.
 	FROM latest_installs li
-	JOIN hosts h ON h.id = li.host_id
-	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
+	STRAIGHT_JOIN hosts h ON h.id = li.host_id
+	STRAIGHT_JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
 	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
 
 	UNION ALL
@@ -318,12 +318,13 @@ attempts AS (
 	SELECT
 		hvsi.host_id,
 		NULL,
-		MAX(IF(hvsi.verification_at IS NOT NULL, hvsi.id, NULL)),
-		MAX(IF(hvsi.verification_at IS NULL AND hvsi.verification_failed_at IS NOT NULL, hvsi.id, NULL)),
+		MAX(hvsi.installed_install_id),
+		MAX(hvsi.failed_install_id),
 		NULL
-	FROM host_vpp_software_installs hvsi
-	JOIN (SELECT DISTINCT adam_id, platform FROM vpp_apps_teams WHERE id IN (:version_ids)) app ON app.adam_id = hvsi.adam_id AND app.platform = hvsi.platform
-	WHERE hvsi.vpp_app_team_id IS NULL AND hvsi.canceled = 0 AND hvsi.removed = 0
+	-- Restrict deleted-version buckets to the selected apps before reading state.
+	FROM (SELECT DISTINCT adam_id, platform FROM vpp_apps_teams WHERE id IN (:version_ids)) app
+	STRAIGHT_JOIN host_vpp_app_installs hvsi FORCE INDEX (idx_hvai_app_host) ON app.adam_id = hvsi.adam_id AND app.platform = hvsi.platform
+	WHERE hvsi.vpp_app_team_id IS NULL
 	GROUP BY hvsi.host_id
 ),
 
@@ -1715,7 +1716,11 @@ VALUES
 		user *fleet.User
 		act  *fleet.ActivityInstalledAppStoreApp
 	)
+	keys := []hostVPPAppKey{{hostID, appID.AdamID, string(appID.Platform)}}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := lockVPPAppInstallKeys(ctx, tx, keys); err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, insStmt,
 			hostID, appID.AdamID, appID.Platform, commandUUID, userID, opts.SelfService, opts.PolicyID,
 			ptr.UintOrNilIfZero(opts.VPPAppTeamID), ptr.UintOrNilIfZero(opts.VPPTokenID),
@@ -1723,6 +1728,16 @@ VALUES
 			return ctxerr.Wrap(ctx, err, "insert failed vpp install")
 		}
 
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, tx, &ids, `SELECT id FROM host_vpp_software_installs WHERE command_uuid = ?`, commandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "select failed vpp install")
+		}
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, "failed"); err != nil {
+			return err
+		}
+		if err := refreshVPPAppInstallState(ctx, tx, keys); err != nil {
+			return err
+		}
 		var err error
 		user, act, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx,
 			&mdm.CommandResults{CommandUUID: commandUUID, Status: fleet.MDMAppleStatusError})
@@ -2787,6 +2802,14 @@ WHERE verification_command_uuid = ?
 }
 
 func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error {
+	return ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ?`, installUUID)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		return ds.setVPPInstallAsVerified(ctx, tx, hostID, installUUID, verificationUUID, keys)
+	})
+}
+
+func (ds *Datastore) setVPPInstallAsVerified(ctx context.Context, tx sqlx.ExtContext, hostID uint, installUUID, verificationUUID string, keys []hostVPPAppKey) error {
 	stmt := `
 UPDATE host_vpp_software_installs
 SET verification_at = CURRENT_TIMESTAMP(6),
@@ -2794,17 +2817,31 @@ verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmt, verificationUUID, installUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "set vpp install as verified")
-		}
+	ids, keys, err := lockVPPAppInstallRequests(ctx, tx, keys,
+		`SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ?`, installUUID)
+	if err != nil {
+		return err
+	}
+	ids, err = vppAppInstallAttemptIDs(ctx, tx, ids, "verification_at IS NULL")
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, stmt, verificationUUID, installUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set vpp install as verified")
+	}
 
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
-		}
+	if err := appendVPPAppInstallAttempts(ctx, tx, ids, "installed"); err != nil {
+		return err
+	}
+	if err := refreshVPPAppInstallState(ctx, tx, keys); err != nil {
+		return err
+	}
 
-		return nil
-	})
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error {
@@ -2815,9 +2852,27 @@ verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ?`, installUUID)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		ids, keys, err := lockVPPAppInstallRequests(ctx, tx, keys,
+			`SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ?`, installUUID)
+		if err != nil {
+			return err
+		}
+		ids, err = vppAppInstallAttemptIDs(ctx, tx, ids, "verification_failed_at IS NULL")
+		if err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, stmt, verificationUUID, installUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "set vpp install as failed")
+		}
+
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, "failed"); err != nil {
+			return err
+		}
+		if err := refreshVPPAppInstallState(ctx, tx, keys); err != nil {
+			return err
 		}
 
 		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
@@ -2869,7 +2924,16 @@ WHERE name = ?
 AND state = ?
 `
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs
+			WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform != 'android'`)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		ids, keys, err := lockVPPAppInstallRequests(ctx, tx, keys,
+			`SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs
+			WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform != 'android'`)
+		if err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, clearVPPUpcomingActivitiesStmt, "vpp_app_install"); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear apple vpp install upcoming activities")
 		}
@@ -2890,7 +2954,10 @@ AND state = ?
 			return ctxerr.Wrap(ctx, err, "delete apple pending jobs")
 		}
 
-		return nil
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, "failed"); err != nil {
+			return err
+		}
+		return refreshVPPAppInstallState(ctx, tx, keys)
 	})
 }
 
@@ -2907,20 +2974,43 @@ SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 'android'
 `
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs
+			WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 'android'`)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		ids, keys, err := lockVPPAppInstallRequests(ctx, tx, keys,
+			`SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs
+			WHERE verification_failed_at IS NULL AND verification_at IS NULL AND platform = 'android'`)
+		if err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, installVPPFailStmt); err != nil {
 			return ctxerr.Wrap(ctx, err, "set all android vpp install as failed")
 		}
-		return nil
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, "failed"); err != nil {
+			return err
+		}
+		return refreshVPPAppInstallState(ctx, tx, keys)
 	})
 }
 
+const pendingVPPAppInstallRequestsForHostQuery = `
+SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs
+WHERE verification_failed_at IS NULL AND verification_at IS NULL AND host_id = ?`
+
 func (ds *Datastore) MarkAllPendingVPPInstallsAsFailedForAndroidHost(ctx context.Context, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
-	return ds.markAllPendingVPPInstallsAsFailedForHost(ctx, ds.writer(ctx), hostID, "android", softwareTypeVPP)
+	err = ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), pendingVPPAppInstallRequestsForHostQuery, hostID)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		var err error
+		users, activities, err = ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, hostID, "android", softwareTypeVPP, keys)
+		return err
+	})
+	return users, activities, err
 }
 
 func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext,
-	hostID uint, hostPlatform string, softwareType softwareType,
+	hostID uint, hostPlatform string, softwareType softwareType, keys []hostVPPAppKey,
 ) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
 	var tableName string
 	switch softwareType {
@@ -2930,6 +3020,18 @@ func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Contex
 		tableName = "host_vpp_software_installs"
 	default:
 		return nil, nil, ctxerr.New(ctx, fmt.Sprintf("softwareType %s not supported", softwareType))
+	}
+
+	var ids []uint
+	if softwareType == softwareTypeVPP {
+		ids, _, err = lockVPPAppInstallRequests(ctx, tx, keys, pendingVPPAppInstallRequestsForHostQuery, hostID)
+		if err != nil {
+			return nil, nil, err
+		}
+		ids, err = vppAppInstallAttemptIDs(ctx, tx, ids, "canceled = 0")
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// The activities returned to the caller are derived solely from failedCmds, which
@@ -2964,6 +3066,15 @@ WHERE
 `
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf(installFailStmt, tableName), hostID); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+	}
+
+	if softwareType == softwareTypeVPP {
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, "failed"); err != nil {
+			return nil, nil, err
+		}
+		if err := refreshVPPAppInstallState(ctx, tx, keys); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// We want to clear this table out, because otherwise we'll stop future installs from verifying.
@@ -3346,7 +3457,23 @@ func (ds *Datastore) GetHostVPPInstallByCommandUUID(ctx context.Context, command
 }
 
 func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.HostVPPSoftwareInstallLite) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	if vppInstall == nil {
+		return ctxerr.New(ctx, "vpp install is required for retry")
+	}
+
+	return ds.withVPPAppInstallKeyRetry(ctx, func() ([]hostVPPAppKey, error) {
+		return discoverVPPAppInstallKeys(ctx, ds.writer(ctx), `SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ? AND host_id = ?`,
+			vppInstall.InstallCommandUUID, vppInstall.HostID)
+	}, func(tx sqlx.ExtContext, keys []hostVPPAppKey) error {
+		ids, keys, err := lockVPPAppInstallRequests(ctx, tx, keys,
+			`SELECT id, host_id, adam_id, platform FROM host_vpp_software_installs WHERE command_uuid = ? AND host_id = ?`,
+			vppInstall.InstallCommandUUID, vppInstall.HostID)
+		if err != nil {
+			return err
+		}
+		if err := appendVPPAppInstallAttempts(ctx, tx, ids, "retried"); err != nil {
+			return err
+		}
 		newCommandUUID := uuid.New().String()
 
 		if _, err := tx.ExecContext(ctx, `UPDATE host_vpp_software_installs
@@ -3359,7 +3486,7 @@ func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.Host
 			return ctxerr.Wrap(ctx, err, "updating upcoming activities with new execution id")
 		}
 
-		_, err := tx.ExecContext(ctx, `UPDATE setup_experience_status_results
+		_, err = tx.ExecContext(ctx, `UPDATE setup_experience_status_results
 			SET nano_command_uuid = ?
 			WHERE nano_command_uuid = ? AND host_uuid = (SELECT uuid FROM hosts WHERE id = ?)
 			AND status NOT IN (?, ?, ?)`,
@@ -3369,6 +3496,9 @@ func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.Host
 			return ctxerr.Wrap(ctx, err, "updating setup experience status result with new command uuid")
 		}
 
+		if err := refreshVPPAppInstallState(ctx, tx, keys); err != nil {
+			return err
+		}
 		return ds.nanoEnqueueVPPInstall(ctx, tx, vppInstall.HostID, []string{newCommandUUID})
 	})
 }
@@ -3837,14 +3967,8 @@ ORDER BY vat.id
 	return versionsByTitleIDByFleetID, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
-	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPInstallWithUpcoming)
-	if len(hostIDs) == 0 {
-		return installByHostIDByTitleID, nil
-	}
-
-	// Apps missing from a host's inventory have nothing to configure, so only read installs of apps the host has in inventory
-	const latestInstallsStmt = `
+// Apps missing from a host's inventory have nothing to configure, so only read installs of apps the host has in inventory
+const hostAppStoreAppInstallVersionsQuery = `
 SELECT
 	app.title_id,
 	h.id AS host_id,
@@ -3864,13 +3988,12 @@ FROM
 	-- canceled and failed installs didn't change the app on the host, so read the latest install that wasn't either
 	JOIN LATERAL (
 		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_resend
-		FROM host_vpp_software_installs hvsi
+		FROM host_vpp_app_installs state FORCE INDEX (PRIMARY)
+		STRAIGHT_JOIN host_vpp_software_installs hvsi FORCE INDEX (PRIMARY) ON hvsi.id = state.unfailed_install_id
 		WHERE
-			hvsi.host_id = h.id AND
-			hvsi.adam_id = app.adam_id AND
-			hvsi.platform = app.platform AND
-			hvsi.canceled = 0 AND
-			hvsi.verification_failed_at IS NULL
+			state.host_id = h.id AND
+			state.adam_id = app.adam_id AND
+			state.platform = app.platform
 		ORDER BY hvsi.created_at DESC, hvsi.id DESC
 		LIMIT 1
 	) latest ON TRUE
@@ -3887,7 +4010,14 @@ WHERE
 			s.title_id = app.title_id
 	)
 `
-	latestInstallsQuery, latestInstallsArgs, err := sqlx.In(latestInstallsStmt, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
+
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPInstallWithUpcoming, error) {
+	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPInstallWithUpcoming)
+	if len(hostIDs) == 0 {
+		return installByHostIDByTitleID, nil
+	}
+
+	latestInstallsQuery, latestInstallsArgs, err := sqlx.In(hostAppStoreAppInstallVersionsQuery, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}

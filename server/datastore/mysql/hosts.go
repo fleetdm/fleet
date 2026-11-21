@@ -424,6 +424,7 @@ var hostRefs = []string{
 	// command UUID and can access the request/response without this table's entry.
 	"host_in_house_software_installs",
 	"host_vpp_software_installs",
+	"host_vpp_app_installs",
 	"host_android_software_installs",
 	"host_last_known_locations",
 	"host_issues",

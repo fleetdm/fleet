@@ -90,6 +90,7 @@ func TestAndroid(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -4298,6 +4299,7 @@ func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
 		_, err = q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_app_team_id = NULL WHERE command_uuid = 'setup-unassigned-deleted-version'`)
 		return err
 	})
+	refreshVPPAppInstallStateForTest(t, ds)
 
 	// read the setup experience apps, only the Unassigned host's pending install should be returned, the fleet host's
 	// app version is in another fleet and the deleted app version's install has no version
@@ -4315,6 +4317,7 @@ func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE command_uuid = 'setup-unassigned'`)
 		return err
 	})
+	refreshVPPAppInstallStateForTest(t, ds)
 	setupAppsByHostID, err = ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID})
 	require.NoError(t, err)
 	setupApps = setupAppsByHostID[unassignedHost.Host.ID]
@@ -5073,6 +5076,7 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 				_, err := q.ExecContext(ctx, "UPDATE host_vpp_software_installs SET "+set+" WHERE command_uuid = ?", cmdUUID)
 				return err
 			})
+			refreshVPPAppInstallStateForTest(t, ds)
 		}
 
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

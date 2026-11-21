@@ -57,6 +57,7 @@ func TestActivity(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -2558,6 +2559,7 @@ func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
 			`UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE command_uuid = ?`, verifiedExec)
 		return err
 	})
+	refreshVPPAppInstallStateForTest(t, ds)
 
 	// hInHouse: an in-house app install blocks the queue by the same rule, and on iOS, so this
 	// also covers the platform independence of the whole mechanism
@@ -3365,11 +3367,13 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
          VALUES (?, 'A001', ?, ?, 'darwin', NOW())`,
 		h1.ID, vppSuccessCmdUUID, policy.ID)
 	require.NoError(t, err)
+	refreshVPPAppInstallStateForTest(t, ds)
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, policy_id, platform, verification_at)
          VALUES (?, 'A002', ?, ?, 'darwin', NOW())`,
 		h1.ID, vppFailureCmdUUID, policy.ID)
 	require.NoError(t, err)
+	refreshVPPAppInstallStateForTest(t, ds)
 
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_app_store_app",

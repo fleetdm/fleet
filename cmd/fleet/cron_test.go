@@ -403,6 +403,80 @@ func TestCleanupHostSoftwareInstallsCronJob(t *testing.T) {
 	})
 }
 
+func TestCleanupVPPAppInstallAttemptsCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("non-positive retention disables the job", func(t *testing.T) {
+		for _, retention := range []time.Duration{0, -time.Hour} {
+			ds := new(mock.Store)
+			require.NoError(t, cleanupVPPAppInstallAttemptsCronJob(t.Context(), ds, logger, retention))
+			require.False(t, ds.CleanupVPPAppInstallAttemptsFuncInvoked)
+		}
+	})
+
+	t.Run("passes the cutoff derived from the retention", func(t *testing.T) {
+		ds := new(mock.Store)
+		var cutoff time.Time
+		ds.CleanupVPPAppInstallAttemptsFunc = func(ctx context.Context, olderThan time.Time) (int64, error) {
+			cutoff = olderThan
+			return 7, nil
+		}
+		before := time.Now()
+		require.NoError(t, cleanupVPPAppInstallAttemptsCronJob(t.Context(), ds, logger, 30*24*time.Hour))
+		require.True(t, ds.CleanupVPPAppInstallAttemptsFuncInvoked)
+		require.WithinDuration(t, before.Add(-30*24*time.Hour), cutoff, time.Minute)
+	})
+}
+
+func TestBackfillVPPAppInstallStateCronJob(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("disabled does nothing", func(t *testing.T) {
+		ds := new(mock.Store)
+		require.NoError(t, backfillVPPAppInstallStateCronJob(t.Context(), ds, logger, false))
+		require.False(t, ds.RefreshVPPAppInstallStateBatchFuncInvoked)
+	})
+
+	t.Run("resumes from the cursor and resets it when the pass completes", func(t *testing.T) {
+		ds := new(mock.Store)
+		var saved []string
+		ds.GetVPPAppInstallStateBackfillCursorFunc = func(ctx context.Context) (string, error) { return "1:ios:a", nil }
+		ds.SetVPPAppInstallStateBackfillCursorFunc = func(ctx context.Context, cursor string) error {
+			saved = append(saved, cursor)
+			return nil
+		}
+		var after []string
+		ds.RefreshVPPAppInstallStateBatchFunc = func(ctx context.Context, afterKey string, limit int) (string, int, error) {
+			after = append(after, afterKey)
+			if len(after) == 1 {
+				return "2:ios:b", limit, nil
+			}
+			return "3:ios:c", 1, nil
+		}
+		ds.DeleteOrphanVPPAppInstallStateFunc = func(ctx context.Context) (int64, error) { return 0, nil }
+		require.NoError(t, backfillVPPAppInstallStateCronJob(t.Context(), ds, logger, true))
+		require.Equal(t, []string{"1:ios:a", "2:ios:b"}, after)
+		require.Equal(t, []string{"2:ios:b", ""}, saved)
+		require.True(t, ds.DeleteOrphanVPPAppInstallStateFuncInvoked)
+	})
+
+	t.Run("hitting the batch cap saves the cursor and skips orphans", func(t *testing.T) {
+		ds := new(mock.Store)
+		var last string
+		ds.GetVPPAppInstallStateBackfillCursorFunc = func(ctx context.Context) (string, error) { return "", nil }
+		ds.SetVPPAppInstallStateBackfillCursorFunc = func(ctx context.Context, cursor string) error {
+			last = cursor
+			return nil
+		}
+		ds.RefreshVPPAppInstallStateBatchFunc = func(ctx context.Context, afterKey string, limit int) (string, int, error) {
+			return "9:ios:z", limit, nil
+		}
+		require.NoError(t, backfillVPPAppInstallStateCronJob(t.Context(), ds, logger, true))
+		require.Equal(t, "9:ios:z", last)
+		require.False(t, ds.DeleteOrphanVPPAppInstallStateFuncInvoked)
+	})
+}
+
 func TestCleanupHostScriptResultsCronJob(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
