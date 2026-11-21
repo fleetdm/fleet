@@ -1,0 +1,1 @@
+- Fixed API error responses (such as 401 and 400) being sent with `Content-Type: text/plain` even though the body is JSON; they now send `application/json`.
