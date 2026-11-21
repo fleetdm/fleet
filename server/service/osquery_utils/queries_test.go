@@ -3377,7 +3377,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 
 	returnEnrollmentsUpdated := true
 	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
-	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string, _ string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
 		return returnEnrollmentsUpdated, nil
@@ -5673,7 +5673,7 @@ func (e *notFoundErrorForTest) IsNotFound() bool { return true }
 func newLinkWindowsHostMDMEnrollmentStore(device *fleet.MDMWindowsEnrolledDevice) *mock.Store {
 	ds := new(mock.Store)
 	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
-	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string, _ string) (bool, error) {
 		return true, nil
 	}
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -5721,7 +5721,7 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 				return nil
 			}
 
-			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "", "device-1", false)
 			require.NoError(t, err)
 			require.True(t, updated)
 			assert.Equal(t, tc.wantDEPCleared, depCleared)
@@ -5748,7 +5748,7 @@ func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
 				return tc.replaceErr
 			}
 
-			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "", "device-1", false)
 			if tc.replaceErr != nil {
 				require.ErrorIs(t, err, tc.replaceErr)
 			} else {
@@ -5778,7 +5778,7 @@ func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{ID: 7, MDMEnrollUserID: tc.enrollUser})
-			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string, _ string) (bool, error) {
 				return !tc.alreadyLinked, nil
 			}
 			ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
@@ -5786,7 +5786,7 @@ func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
 				return nil
 			}
 
-			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", tc.fleetdOnDevice)
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "", "device-1", tc.fleetdOnDevice)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantDeleted, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 		})
@@ -5820,7 +5820,7 @@ func TestLinkWindowsHostMDMEnrollmentMovesAutopilotRecord(t *testing.T) {
 				return tc.moveErr == nil, tc.moveErr
 			}
 
-			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "", "device-1", false)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantMove, ds.MoveWindowsAutopilotRecordToHostFuncInvoked)
 		})
