@@ -1,0 +1,1 @@
+- Fixed missed vulnerabilities for the `@anthropic-ai/claude-code` and `cline` npm packages, which now match NVD's `anthropic:claude_code` and `cline:cline` CPEs.
