@@ -1,13 +1,17 @@
 package apple_mdm
 
 import (
+	"bytes"
 	"context"
+	"encoding/xml"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	micromdmplist "github.com/micromdm/plist"
 	"github.com/stretchr/testify/require"
 	"howett.net/plist"
 )
@@ -321,4 +325,117 @@ func TestSubstituteThenBuildRoundTrip(t *testing.T) {
 	configDict, ok := command["Configuration"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "uuid-x", configDict["UUID"])
+}
+
+func TestValidatedAppConfigurationEmbedsInInstallApplication(t *testing.T) {
+	const (
+		xmlDecl  = `<?xml version="1.0" encoding="UTF-8"?>`
+		doctype  = `<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">`
+		bareDict = `<dict><key>ServerURL</key><string>https://example.com</string></dict>`
+	)
+	fullWrapper := xmlDecl + "\n" + doctype + "\n<plist version=\"1.0\">\n" + bareDict + "\n</plist>"
+
+	build := func(cfg string) []byte {
+		return BuildInstallApplicationCommand(InstallApplicationParams{
+			CommandUUID:   "uuid",
+			HostPlatform:  "ios",
+			ITunesStoreID: "1",
+			Configuration: []byte(cfg),
+		})
+	}
+
+	t.Run("accepted configurations round-trip through the command", func(t *testing.T) {
+		cases := []struct{ name, config string }{
+			{"bare dict", bareDict},
+			{"full Apple wrapper", fullWrapper},
+			{"plist without a declaration", `<plist version="1.0">` + bareDict + `</plist>`},
+			{"comment before a bare dict", "<!-- header -->\n" + bareDict},
+			{"comment after a bare dict", bareDict + "\n<!-- trailer -->"},
+			{"comments inside plist around the dict", "<plist version=\"1.0\">\n<!-- before -->\n" + bareDict + "\n<!-- after -->\n</plist>"},
+			{"deepest nesting allowed", strings.Repeat("<dict><key>k</key>", 99) + "<string>leaf</string>" + strings.Repeat("</dict>", 99)},
+			{"pretty-printed managed app configuration", xmlDecl + "\n" + doctype + `
+<plist version="1.0">
+<dict>
+	<key>ServerURL</key>
+	<string>https://app.example.com</string>
+	<key>SyncIntervalMinutes</key>
+	<integer>15</integer>
+	<key>RetryOffset</key>
+	<integer>-3</integer>
+	<key>BrandingOpacity</key>
+	<real>0.85</real>
+	<key>LicenseExpiry</key>
+	<date>2026-01-01T00:00:00Z</date>
+	<key>Payload</key>
+	<data>TWFuYWdlZCBhcHAgY29uZmlndXJhdGlvbg==</data>
+	<key>DisableAnalytics</key>
+	<true/>
+	<key>AllowScreenshots</key>
+	<false/>
+	<key>Proxies</key>
+	<array>
+		<dict>
+			<key>Host</key>
+			<string>proxy.example.com</string>
+			<key>Port</key>
+			<integer>8080</integer>
+		</dict>
+	</array>
+</dict>
+</plist>`},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				require.NoError(t, fleet.ValidateAppleAppConfiguration([]byte(c.config)))
+
+				var want map[string]any
+				require.NoError(t, micromdmplist.Unmarshal([]byte(c.config), &want))
+
+				var parsed map[string]any
+				require.NoError(t, micromdmplist.Unmarshal(build(c.config), &parsed))
+				command, ok := parsed["Command"].(map[string]any)
+				require.True(t, ok, "Command should be a dict")
+				require.Equal(t, want, command["Configuration"])
+			})
+		}
+	})
+
+	t.Run("the validator rejects only what the builder can't embed", func(t *testing.T) {
+		cases := []struct{ name, config string }{
+			{"comment after the plist end tag", fullWrapper + "\n<!-- trailer -->"},
+			{"comment between the declaration and the DOCTYPE", xmlDecl + "\n<!-- header -->\n" + doctype + "\n<plist version=\"1.0\">" + bareDict + "</plist>"},
+			{"space in the plist end tag", `<plist version="1.0">` + bareDict + `</plist >`},
+			{"UTF-8 byte order mark", "\xEF\xBB\xBF" + fullWrapper},
+			{"DOCTYPE with an internal subset", `<!DOCTYPE plist [<!ENTITY x "y">]>` + bareDict},
+			{"character reference after the plist end tag", `<plist version="1.0">` + bareDict + `</plist>&#32;`},
+			{"root prefix bound to the empty namespace", `<plist:dict xmlns:plist=""><key>K</key><string>v</string></plist:dict>`},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				require.Error(t, fleet.ValidateAppleAppConfiguration([]byte(c.config)))
+
+				cmd := build(c.config)
+				var parsed map[string]any
+				decodeErr := micromdmplist.Unmarshal(cmd, &parsed)
+				require.True(t, decodeErr != nil || countPlistElements(cmd) > 1,
+					"the builder embeds this config faithfully, so the validator must accept it:\n%s", cmd)
+			})
+		}
+	})
+}
+
+// countPlistElements counts <plist> start tags up to the first XML syntax
+// error.
+func countPlistElements(doc []byte) int {
+	dec := xml.NewDecoder(bytes.NewReader(doc))
+	n := 0
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			return n
+		}
+		if se, ok := tok.(xml.StartElement); ok && se.Name.Local == "plist" {
+			n++
+		}
+	}
 }
