@@ -23,20 +23,23 @@ Fleet is used in production by IT and security teams managing thousands of devic
 - Linux (all distros)
 - macOS
 - Windows
-- Chromebooks
-- iOS and Android (BYOD or corporate-owned)
-- Amazon Web Services (AWS)
-- Google Cloud (GCP)
-- Azure (Microsoft cloud)
-- Data centers
-- Containers (kube, etc)
+- VDIs / claws
+- ChromeOS
+- BYOD smartphones (iOS and Android)
+- Work phones and tablets
+- Long-lived servers (incl. HPC)
+- Ephemeral servers
+- Self-service machines (tvOS, iPads, Android tablets, other kiosks, etc)
 - Linux-based IoT devices
+- Frontline mobile devices (iOS/iPadOS/Android)
+  1. Full, official support for rugged handheld and tablet support (e.g. scanners) is coming soon
+  2. Are you experienced with Zebra or Brady/Honeywell device management?  Contributions welcome!  Also, the company behind Fleet [is hiring](https://fleetdm.com/handbook/company#open-positions).
 
 #### Infrastructure as code
-Manage your fleet with [GitOps](https://fleetdm.com/docs/configuration/yaml-files), or use the GUI, REST API, webhook events, and the [fleetctl command-line tool](https://fleetdm.com/download).
+Manage your fleet with [an AI harness](https://fleetdm.com/workshops) and [GitOps](https://fleetdm.com/docs/configuration/yaml-files), or use the GUI, [REST API](https://fleetdm.com/docs/api/rest-api), webhook events, and the [fleetctl command-line tool](https://fleetdm.com/download).
 
 #### Linux support
-First-class support for all major distros. Linux gets the same attention and visibility as macOS and Windows.
+First-class support for [all major distros](https://fleetdm.com/linux). Linux gets the same attention and visibility as [macOS](https://fleetdm.com/apple) and [Windows](https://fleetdm.com/windows).
 
 #### Visibility and compliance
 Fleet can report on hundreds of attributes across your devices and ships with [CIS benchmarks for macOS and Windows](https://fleetdm.com/docs/using-fleet/cis-benchmarks) and comprehensive operating system, hardware, and software data. Check out the [table reference documentation](https://fleetdm.com/tables) to see what's available.
@@ -45,7 +48,7 @@ Fleet can report on hundreds of attributes across your devices and ships with [C
 Fleet is open source and transparent about what it can and can't see. End users can verify exactly how the agent works and what data their company collects. Fleet collects only the data needed to manage and secure devices, not private activity like keystrokes, emails, or webcams.
 
 #### Good neighbors
-Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more. Fleet also works with tools such as Munki, Chef, Puppet, Ansible, CrowdStrike, and SentinelOne.
+Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Apple, Microsoft 365, Okta, Entra, PingID, Cisco Duo, Dell, Lenovo, HP, Snowflake, Elastic, Datadog, Splunk, GitHub Actions, Vanta, Secureframe, Drata, Jira, ServiceNow, Oomnitza, Zendesk, and more. Fleet also works great with tools such as Munki, Chef, Puppet, Ansible, Sophos, Crowdstrike, and SentinelOne.
 
 #### Lighter than air
 Fleet is lightweight and modular. You can use it for MDM without using it for security, and vice versa. You can turn off features you are not using.
