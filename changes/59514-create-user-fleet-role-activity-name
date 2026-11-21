@@ -1,0 +1,1 @@
+* Fixed the `changed_user_fleet_role` activity logged when creating a user with fleet roles so it includes the fleet name.

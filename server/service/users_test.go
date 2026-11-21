@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -2125,4 +2126,42 @@ func TestListUsersComputesStatus(t *testing.T) {
 	require.Equal(t, fleet.UserStatusInactive, lr.Users[3].Status)
 	// ...and team 2 was still stripped from the response.
 	require.Empty(t, lr.Users[3].Teams)
+}
+
+func TestCreateUserTeamRoleActivityHasTeamName(t *testing.T) {
+	admin := &fleet.User{ID: 1, Name: "Fleet Admin", Email: "admin@foo.com", GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	ms := new(mock.Store)
+	ms.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{ID: 7, Name: "Workstations"}}, nil
+	}
+	ms.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
+		return nil, &notFoundErr{}
+	}
+	ms.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+		user.ID = 4
+		return user, nil
+	}
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ms, nil, nil, opts)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	var teamRole *fleet.ActivityTypeChangedUserTeamRole
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+		if a, ok := act.(fleet.ActivityTypeChangedUserTeamRole); ok {
+			teamRole = &a
+		}
+		return nil
+	}
+
+	_, _, err := svc.CreateUser(ctx, fleet.UserPayload{
+		Email:    ptr.String("new@example.com"),
+		Name:     ptr.String("New User"),
+		Password: ptr.String(test.GoodPassword),
+		Teams:    &[]fleet.UserTeam{{Team: fleet.Team{ID: 7}, Role: fleet.RoleObserver}},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, teamRole)
+	require.Equal(t, uint(7), teamRole.TeamID)
+	require.Equal(t, "Workstations", teamRole.TeamName)
 }
