@@ -332,7 +332,7 @@ func downloadNewVersionIfEligible(
 		}
 	}
 	if extension == "" {
-		extension = extensionFromFilename(filename)
+		extension = maintainedAppExtensionFromFilename(filename)
 	}
 
 	payload := &fleet.UploadSoftwareInstallerPayload{

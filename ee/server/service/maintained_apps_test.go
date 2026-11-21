@@ -410,6 +410,63 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
 }
 
+func TestAddFleetMaintainedAppHashSuffixedInstallerURL(t *testing.T) {
+	const installerPath = "/appdmg_osx.zip.984652b88a9737e3f4e77c656d9ffa67d5042c2c"
+
+	ds := new(mock.Store)
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "Steam",
+			Slug:             "steam/darwin",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.valvesoftware.steam",
+		}, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("abc"))
+	}))
+	defer installerServer.Close()
+	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
+		require.Equal(t, strings.TrimPrefix(installerPath, "/"), payload.Filename)
+		require.Equal(t, "zip", payload.Extension)
+		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
+	}
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		manifest := ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "6.1",
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerServer.URL + installerPath,
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             noCheckHash,
+			}},
+			Refs: map[string]string{"foobaz": "#!/bin/sh\necho hi"},
+		}
+		_ = json.NewEncoder(w).Encode(manifest)
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	svc := newTestService(t, ds)
+
+	authCtx := authz_ctx.AuthorizationContext{}
+	ctx := authz_ctx.NewContext(t.Context(), &authCtx)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	_, err := svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
+	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
+	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
+}
+
 // TestAddFleetMaintainedAppReconcilesWindowsTitles covers the wiring, not the merge
 // itself: adding a maintained app must kick the Windows title reconcile so software
 // already inventoried under a versioned title picks up the installer straight away

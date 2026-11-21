@@ -1,0 +1,1 @@
+- Fixed adding or auto-updating a Fleet-maintained app failing with "422 Validation Failed" when its installer URL ends in a suffix after the file extension (for example, Steam for macOS).

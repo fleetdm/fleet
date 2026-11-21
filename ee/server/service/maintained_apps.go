@@ -106,7 +106,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		app.SHA256 = gotHash
 	}
 
-	extension := extensionFromFilename(filename)
+	extension := maintainedAppExtensionFromFilename(filename)
 
 	installScript = file.Dos2UnixNewlines(installScript)
 	if installScript == "" {
