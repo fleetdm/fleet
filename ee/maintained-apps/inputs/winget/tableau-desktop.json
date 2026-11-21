@@ -1,11 +1,12 @@
 {
   "name": "Tableau Desktop",
   "slug": "tableau-desktop/windows",
-  "package_identifier": "Tableau.Desktop",
+  "latest_installer_url": "https://www.tableau.com/downloads/desktop/pc64",
   "unique_identifier": "Tableau",
   "open_process_names": ["tableau.exe"],
   "fuzzy_match_name": "Tableau 20%",
   "program_publisher": "Salesforce, Inc",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher IN ('Salesforce, Inc', 'Tableau Software, LLC');",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/tableau_desktop_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/tableau_desktop_uninstall.ps1",
   "installer_arch": "x64",
