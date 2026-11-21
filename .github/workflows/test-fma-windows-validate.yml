@@ -80,11 +80,12 @@ jobs:
             has_google_chrome = (Test-Slug "google-chrome")
             has_7zip          = (Test-Slug "7-zip")
             has_firefox       = (Test-Slug "firefox", "firefox@esr")
-            has_nodejs        = (Test-Slug "nodejs")
+            has_nodejs        = (Test-Slug "nodejs", "nodejs-22")
             has_powershell    = (Test-Slug "powershell")
             has_r             = (Test-Slug "r")
             has_git           = (Test-Slug "git")
             has_python313     = (Test-Slug "python-3.13")
+            has_python314     = (Test-Slug "python-3.14")
           }
           foreach ($key in $flags.Keys) {
             "$key=$($flags[$key].ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -319,6 +320,7 @@ jobs:
           )
 
           $found = $false
+          $failed = $false
           foreach ($path in $uninstallPaths) {
             $entries = Get-ItemProperty $path -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "Node.js*" -and $_.Publisher -like "*Node.js Foundation*" }
             foreach ($entry in $entries) {
@@ -341,22 +343,36 @@ jobs:
                   if ($uninstallString -match "/[XI]\{([A-F0-9\-]+)\}") {
                     $guid = $matches[1]
                     Write-Host "Uninstalling Node.js MSI with GUID: $guid"
-                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow
-                    Write-Host "Successfully removed Node.js via MSI uninstaller"
+                    $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList "/X{$guid}", "/quiet", "/norestart" -Wait -NoNewWindow -PassThru
+                    if ($proc.ExitCode -in 0, 3010, 1641) {
+                      Write-Host "Removed Node.js via MSI uninstaller (exit $($proc.ExitCode))"
+                    } else {
+                      Write-Host "::error::Node.js MSI uninstall of {$guid} exited $($proc.ExitCode)"
+                      $failed = $true
+                    }
                   } else {
-                    Write-Host "Could not parse uninstall string format: $uninstallString"
+                    Write-Host "::error::Could not parse Node.js uninstall string: $uninstallString"
+                    $failed = $true
                   }
                 } catch {
-                  Write-Host "Failed to remove Node.js: $($_.Exception.Message)"
+                  Write-Host "::error::Failed to remove Node.js: $($_.Exception.Message)"
+                  $failed = $true
                 }
               } else {
-                Write-Host "Node.js uninstall string not found in registry entry"
+                Write-Host "::error::Node.js uninstall string not found in registry entry"
+                $failed = $true
               }
             }
           }
 
           if (-not $found) {
             Write-Host "Node.js uninstall path not found in registry"
+          }
+
+          # A Node.js MSI left registered makes the Node.js FMAs test an upgrade (or a
+          # downgrade, which the MSI refuses with 1603) instead of a clean install.
+          if ($failed) {
+            exit 1
           }
 
           # Force-remove leftover Node.js directory in case files remain after MSI removal
@@ -674,6 +690,21 @@ jobs:
           # python.org installer fails over the same or a newer patch release (1603 /
           # 1638), so remove both architectures with the FMA's own uninstall scripts.
           foreach ($script in "python_3_13_uninstall.ps1", "python_3_13_arm64_uninstall.ps1") {
+            $path = "fleet\ee\maintained-apps\inputs\winget\scripts\$script"
+            if (-not (Test-Path $path)) { continue }
+            & $path
+            Write-Host "$script exited $LASTEXITCODE"
+          }
+          exit 0
+        shell: powershell
+
+      - name: Remove pre-installed Python 3.14
+        if: steps.check-windows-apps.outputs.has_python314 == 'true'
+        run: |
+          # The toolcache ships a Python 3.14 that can be newer than the FMA's patch
+          # release, and the python.org installer won't downgrade it (1603). Remove it
+          # the same way as Python 3.13 above.
+          foreach ($script in "python_3_14_uninstall.ps1", "python_3_14_arm64_uninstall.ps1") {
             $path = "fleet\ee\maintained-apps\inputs\winget\scripts\$script"
             if (-not (Test-Path $path)) { continue }
             & $path
