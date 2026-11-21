@@ -29,19 +29,20 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 		)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
+	// Vendor CDNs disagree on which clients to allow, so no single User-Agent
+	// works for every installer URL: Akamai (downloads.tableau.com) 403s one
+	// without a known HTTP library token, while www.crestron.com 403s any that
+	// contains "Go-http-client". Retry a 403 once without the Go token.
+	resp, err := getInstaller(ctx, client, installerURL, installerUserAgent())
 	if err != nil {
-		return nil, "", ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
+		return nil, "", err
 	}
-	// Vendor CDNs disagree on which clients to allow: some Cloudflare-fronted
-	// hosts 403 a User-Agent that starts with "Go-http-client", while Akamai
-	// (downloads.tableau.com) 403s any User-Agent without a known HTTP library
-	// token. Leading with fleet/<version> and keeping the Go token satisfies both.
-	req.Header.Set("User-Agent", installerUserAgent())
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, "", ctxerr.Wrapf(ctx, err, "performing request for URL %s", installerURL)
+	if resp.StatusCode == http.StatusForbidden {
+		resp.Body.Close()
+		resp, err = getInstaller(ctx, client, installerURL, fallbackInstallerUserAgent())
+		if err != nil {
+			return nil, "", err
+		}
 	}
 	defer resp.Body.Close()
 
@@ -68,8 +69,26 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	return tfr, FilenameFromResponse(resp), nil
 }
 
+func getInstaller(ctx context.Context, client *http.Client, installerURL, userAgent string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, installerURL, nil)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "creating request for URL %s", installerURL)
+	}
+	req.Header.Set("User-Agent", userAgent)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "performing request for URL %s", installerURL)
+	}
+	return resp, nil
+}
+
 func installerUserAgent() string {
-	return "fleet/" + version.Version().Version + " Go-http-client/1.1"
+	return fallbackInstallerUserAgent() + " Go-http-client/1.1"
+}
+
+func fallbackInstallerUserAgent() string {
+	return "fleet/" + version.Version().Version
 }
 
 func FilenameFromResponse(resp *http.Response) string {

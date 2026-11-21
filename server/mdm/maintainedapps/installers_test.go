@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -51,21 +52,68 @@ func TestInstallerFilenameExtraction(t *testing.T) {
 }
 
 func TestDownloadInstallerUserAgent(t *testing.T) {
-	// Mimics both CDN rules: Cloudflare-fronted hosts that reject Go's default
-	// User-Agent, and Akamai hosts that reject any User-Agent lacking a known
-	// HTTP library token.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ua := r.UserAgent()
-		if strings.HasPrefix(ua, "Go-http-client") || !strings.Contains(ua, "Go-http-client/") {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		_, _ = w.Write([]byte("ok"))
-	}))
-	defer srv.Close()
+	fleetUA := "fleet/" + version.Version().Version
+	goTokenUA := fleetUA + " Go-http-client/1.1"
 
-	client := fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
-	_, _, err := DownloadInstaller(context.Background(), srv.URL+"/installer.pkg", client)
-	require.NoError(t, err)
-	require.Equal(t, "fleet/"+version.Version().Version+" Go-http-client/1.1", installerUserAgent())
+	// Each case mimics one vendor CDN's User-Agent rule.
+	cases := []struct {
+		name    string
+		allow   func(ua string) bool
+		wantErr string
+		wantUAs []string
+	}{
+		{
+			// Akamai (downloads.tableau.com)
+			name:    "requires an HTTP library token",
+			allow:   func(ua string) bool { return strings.Contains(ua, "Go-http-client/") },
+			wantUAs: []string{goTokenUA},
+		},
+		{
+			// Cloudflare-fronted hosts (monotypeapp.monotype.com)
+			name:    "rejects Go's default User-Agent",
+			allow:   func(ua string) bool { return !strings.HasPrefix(ua, "Go-http-client") },
+			wantUAs: []string{goTokenUA},
+		},
+		{
+			// www.crestron.com
+			name:    "rejects the Go token anywhere",
+			allow:   func(ua string) bool { return !strings.Contains(strings.ToLower(ua), "go-http-client") },
+			wantUAs: []string{goTokenUA, fleetUA},
+		},
+		{
+			name:    "forbidden for every User-Agent",
+			allow:   func(string) bool { return false },
+			wantErr: "received response status code 403",
+			wantUAs: []string{goTokenUA, fleetUA},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var mu sync.Mutex
+			var gotUAs []string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				gotUAs = append(gotUAs, r.UserAgent())
+				mu.Unlock()
+				if !c.allow(r.UserAgent()) {
+					w.WriteHeader(http.StatusForbidden)
+					return
+				}
+				_, _ = w.Write([]byte("ok"))
+			}))
+			defer srv.Close()
+
+			client := fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
+			tfr, _, err := DownloadInstaller(t.Context(), srv.URL+"/installer.msi", client)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+				require.NoError(t, tfr.Close())
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			require.Equal(t, c.wantUAs, gotUAs)
+		})
+	}
 }
