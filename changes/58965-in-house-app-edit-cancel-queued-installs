@@ -1,0 +1,1 @@
+- Fixed editing an in-house iOS/iPadOS app (installer file, target labels, or managed app configuration) leaving installs still queued on hosts uncanceled, so they were later sent with the new settings.
