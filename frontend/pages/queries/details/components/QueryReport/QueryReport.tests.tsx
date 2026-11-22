@@ -259,7 +259,7 @@ describe("QueryReport", () => {
 
 describe("Report column preferences", () => {
   const queryReport = {
-    query_id: 6,
+    report_id: 6,
     results: [
       {
         host_id: 1,
