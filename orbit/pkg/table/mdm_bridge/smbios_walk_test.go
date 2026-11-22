@@ -11,7 +11,7 @@ import (
 
 // smbiosStructure builds an SMBIOS structure: header (type, length, zero handle), formatted data, then the string set.
 func smbiosStructure(structType byte, formatted []byte, strs ...string) []byte {
-	out := append([]byte{structType, byte(4 + len(formatted)), 0, 0}, formatted...)
+	out := append([]byte{structType, byte(4 + len(formatted)), 0, 0}, formatted...) // #nosec G115 -- test fixtures are far below 255 bytes
 	for _, str := range strs {
 		out = append(append(out, str...), 0)
 	}
