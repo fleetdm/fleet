@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.18.8",
+      "version": "1.19.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Sandboxie-Plus %' AND publisher = 'http://xanasoft.com/';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Sandboxie-Plus %' AND publisher = 'http://xanasoft.com/' AND version_compare(version, '1.18.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Sandboxie-Plus %' AND publisher = 'http://xanasoft.com/' AND version_compare(version, '1.19.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('sandman.exe','sbiectrl.exe'));"
       },
-      "installer_url": "https://github.com/sandboxie-plus/Sandboxie/releases/download/v1.18.8/Sandboxie-Plus-x64-v1.18.8.exe",
+      "installer_url": "https://github.com/sandboxie-plus/Sandboxie/releases/download/v1.19.1/Sandboxie-Plus-x64-v1.19.1.exe",
       "install_script_ref": "fe100d1e",
       "uninstall_script_ref": "b5901fcf",
-      "sha256": "f27078ff74a07906fd51476079e1a7a8f5e20c8bb75a9d2ae86169d47179ae76",
+      "sha256": "443b528766f4e6448632fd94afa7df5d9e1c52e13940db79139d4070da3aa384",
       "default_categories": [
         "Security"
       ]
