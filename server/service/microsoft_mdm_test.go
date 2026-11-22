@@ -3677,9 +3677,11 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 			device := &fleet.MDMWindowsEnrolledDevice{
 				ID: enrollmentID, MDMDeviceID: deviceID, PollScheduleRelaxed: c.relaxed, FleetdSyncCapable: c.syncCapable,
 			}
-			require.NoError(t, svc.reconcileWindowsMDMPollSchedule(t.Context(), device))
+			didEnqueue, err := svc.reconcileWindowsMDMPollSchedule(t.Context(), device)
+			require.NoError(t, err)
 
 			require.Equal(t, c.wantEnqueue, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
+			require.Equal(t, c.wantEnqueue, didEnqueue, "the reconcile must report whether it enqueued")
 			if c.wantEnqueue {
 				assertEnqueuedInterval(t, enqueued, c.wantInterval)
 				require.NotNil(t, intendedRelaxed)
