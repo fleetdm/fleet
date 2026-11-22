@@ -36,6 +36,11 @@ env:
   AWS_MAX_ATTEMPTS: "10"
   AWS_RETRY_MODE: standard
 
+  # R2 only accepts its own region IDs (empty and us-east-1 alias to "auto"). Pinning "auto"
+  # stops the AWS CLI inheriting the GitHub runner's auto-detected AWS region (observed:
+  # us-west-2), which R2 rejects with InvalidRegionName on ListObjectsV2.
+  AWS_REGION: "auto"
+
   # Dry-run mode: enabled via input OR automatically for non-main branches
   DRY_RUN: ${{ github.event.inputs.dry_run == 'true' || github.ref != 'refs/heads/main' }}
 
@@ -64,6 +69,12 @@ jobs:
           echo "Found $FILE_COUNT files to sync"
 
       - name: Sync to R2 Bucket (${{ env.DRY_RUN == 'true' && 'DRY RUN' || 'LIVE' }})
+        env:
+          # Total attempts for the whole sync: 1 initial run plus up to 4 retries.
+          SYNC_MAX_ATTEMPTS: "5"
+          # Exponential backoff, in seconds: base * 2^(attempt-1), capped per sleep.
+          SYNC_RETRY_BASE_DELAY: "10"
+          SYNC_RETRY_MAX_DELAY: "60"
         run: |
           set -euo pipefail
 
@@ -79,20 +90,36 @@ jobs:
             echo "🔍 DRY RUN MODE - No files will be uploaded"
           fi
 
-          aws s3 sync "${SYNC_ARGS[@]}" \
-            ./ee/maintained-apps/outputs \
-            s3://${{ env.R2_BUCKET }}/manifests \
-            --endpoint-url="${R2_ENDPOINT}" || {
-            EXIT_CODE=$?
-            echo "❌ Sync failed with exit code: $EXIT_CODE" >&2
-            exit $EXIT_CODE
-          }
+          # Retry the whole sync because transient R2 errors - e.g. ServiceUnavailable on
+          # PutObject ("Reduce your concurrent request rate") - are not covered by the AWS
+          # CLI's own AWS_MAX_ATTEMPTS retries. InvalidRegionName is prevented by AWS_REGION.
+          for (( ATTEMPT=1; ATTEMPT<=SYNC_MAX_ATTEMPTS; ATTEMPT++ )); do
+            if aws s3 sync "${SYNC_ARGS[@]}" \
+              ./ee/maintained-apps/outputs \
+              s3://${{ env.R2_BUCKET }}/manifests \
+              --endpoint-url="${R2_ENDPOINT}"; then
+              echo "✅ Sync succeeded on attempt ${ATTEMPT} of ${SYNC_MAX_ATTEMPTS} total attempts"
+              if [ "${DRY_RUN}" = "true" ]; then
+                echo "✅ Dry run completed - review output above for files that would be synced"
+              else
+                echo "✅ Sync completed successfully!"
+              fi
+              break
+            else
+              EXIT_CODE=$?
+              if (( ATTEMPT >= SYNC_MAX_ATTEMPTS )); then
+                echo "❌ Sync failed with exit code: $EXIT_CODE after $ATTEMPT of $SYNC_MAX_ATTEMPTS total attempts" >&2
+                exit $EXIT_CODE
+              fi
 
-          if [ "${DRY_RUN}" = "true" ]; then
-            echo "✅ Dry run completed - review output above for files that would be synced"
-          else
-            echo "✅ Sync completed successfully!"
-          fi
+              DELAY=$(( SYNC_RETRY_BASE_DELAY * 2 ** (ATTEMPT - 1) ))
+              if (( DELAY > SYNC_RETRY_MAX_DELAY )); then
+                DELAY=${SYNC_RETRY_MAX_DELAY}
+              fi
+              echo "⚠️ Sync attempt ${ATTEMPT}/${SYNC_MAX_ATTEMPTS} failed with exit code ${EXIT_CODE}, retrying in ${DELAY}s" >&2
+              sleep "${DELAY}"
+            fi
+          done
 
       - name: Notify Slack on Failure
         if: failure()

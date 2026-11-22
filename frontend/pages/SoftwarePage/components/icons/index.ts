@@ -625,6 +625,7 @@ import Macwhisper from "./png/Macwhisper.png";
 import Maestral from "./png/Maestral.png";
 import Magicquit from "./png/Magicquit.png";
 import Mailspring from "./png/Mailspring.png";
+import MakeMeAdmin from "./png/MakeMeAdmin.png";
 import Malwarebytes from "./png/Malwarebytes.png";
 import ManagedSoftwareCenter from "./png/ManagedSoftwareCenter.png";
 import MarkedApp from "./png/MarkedApp.png";
@@ -898,6 +899,7 @@ import RustDesk from "./png/RustDesk.png";
 import RustRover from "./png/RustRover.png";
 import Sabnzbd from "./png/Sabnzbd.png";
 import SafeExamBrowser from "./png/SafeExamBrowser.png";
+import SandboxiePlus from "./png/SandboxiePlus.png";
 import Sanesidebuttons from "./png/Sanesidebuttons.png";
 import Santa from "./png/Santa.png";
 import ScaleFt from "./png/ScaleFt.png";
@@ -1007,6 +1009,7 @@ import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
+import TableauReader from "./png/TableauReader.png";
 import TablePlus from "./png/TablePlus.png";
 import Tabtab from "./png/Tabtab.png";
 import Tailscale from "./png/Tailscale.png";
@@ -1806,6 +1809,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   maestral: Maestral,
   magicquit: Magicquit,
   mailspring: Mailspring,
+  "make me admin": MakeMeAdmin,
   "malwarebytes for mac": Malwarebytes,
   "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,
@@ -2100,6 +2104,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sabnzbd: Sabnzbd,
   safari: Safari,
   "safe exam browser": SafeExamBrowser,
+  "sandboxie-plus": SandboxiePlus,
   sanesidebuttons: Sanesidebuttons,
   santa: Santa,
   "sbarex qlmarkdown": Qlmarkdown,
@@ -2212,6 +2217,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
+  "tableau reader": TableauReader,
   tableplus: TablePlus,
   tabtab: Tabtab,
   tailscale: Tailscale,
@@ -2371,6 +2377,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
+  "zoom vdi universal plugin": Zoom,
   zotero: Zotero,
   zulip: Zulip,
   zwift: Zwift,

@@ -4938,8 +4938,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRetriesSkipHostsOut
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(body), http.StatusNoContent)
 	}
 	changePolicyToLabelB := func(host *fleet.Host, policyURL string) {
-		labelBScope := fleet.ModifyTeamPolicyRequest{LabelsIncludeAny: []string{labelB.Name}}
-		s.DoJSON("PATCH", policyURL, labelBScope, http.StatusOK, &fleet.ModifyTeamPolicyResponse{})
+		labelBScope := map[string]any{"labels_include_any": []string{labelB.Name}}
+		s.DoJSON("PATCH", policyURL, labelBScope, http.StatusOK, &fleet.ModifyPolicyResponse{})
 	}
 	moveHostToOtherFleet := func(host *fleet.Host, policyURL string) {
 		transfer := addHostsToTeamRequest{TeamID: &otherFleet.ID, HostIDs: []uint{host.ID}}
@@ -4975,7 +4975,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationRetriesSkipHostsOut
 		policyPayload.LabelsIncludeAny = []string{labelA.Name}
 		policy, err := s.ds.NewTeamPolicy(ctx, ptr.ValOrZero(c.fleetID), nil, policyPayload)
 		require.NoError(t, err, c.name)
-		policyURL := fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", ptr.ValOrZero(c.fleetID), policy.ID)
+		policyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID)
 
 		// fail the policy on the host, the first script/install run should be queued
 		failedPolicy := genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(false)})
