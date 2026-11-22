@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.19.0",
+      "version": "4.19.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Rocket.Chat %' AND publisher = 'Rocket.Chat Support';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Rocket.Chat %' AND publisher = 'Rocket.Chat Support' AND version_compare(version, '4.19.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Rocket.Chat %' AND publisher = 'Rocket.Chat Support' AND version_compare(version, '4.19.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rocket.chat.exe');"
       },
-      "installer_url": "https://github.com/RocketChat/Rocket.Chat.Electron/releases/download/4.19.0/rocketchat-4.19.0-win-x64.exe",
+      "installer_url": "https://github.com/RocketChat/Rocket.Chat.Electron/releases/download/4.19.3/rocketchat-4.19.3-win-x64.exe",
       "install_script_ref": "43df056b",
       "uninstall_script_ref": "f7307e8d",
-      "sha256": "28b9a29b51dc632a46ab767bbec482db42bb1ea1d670c8c932ae16f2cec46e0d",
+      "sha256": "3e0a321dc4cd04504d867e900d01ed3c7dc5637aac9c6ae63f6230aa1eb788d3",
       "default_categories": [
         "Communication"
       ]
