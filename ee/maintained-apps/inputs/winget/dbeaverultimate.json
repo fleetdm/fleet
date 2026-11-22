@@ -3,6 +3,7 @@
   "slug": "dbeaverultimate/windows",
   "package_identifier": "DBeaver.DBeaver.Ultimate",
   "unique_identifier": "DBeaverUltimate",
+  "open_process_names": ["dbeaver.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaverultimate_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaverultimate_uninstall.ps1",

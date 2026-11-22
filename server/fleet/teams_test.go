@@ -2,11 +2,11 @@ package fleet
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +34,30 @@ func TestValidateUserRoles(t *testing.T) {
 			payload: UserPayload{
 				GlobalRole: ptr.String(RoleGitOps),
 				APIOnly:    ptr.Bool(true),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: nil,
+		},
+		{
+			name:   "global-gitops-create-not-premium-not-api-only",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: new(RoleGitOps),
+				APIOnly:    new(false),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrAPIOnlyRole),
+		},
+		{
+			name:   "team-gitops-create-not-premium",
+			create: true,
+			payload: UserPayload{
+				Teams:   &[]UserTeam{{Role: RoleGitOps}},
+				APIOnly: new(true),
 			},
 			license: LicenseInfo{
 				Tier: TierFree,
@@ -288,9 +312,8 @@ func TestTeamMDMCopy(t *testing.T) {
 				Deadline:       optjson.SetString("2020-01-01"),
 			},
 			MacOSSetup: MacOSSetup{
-				BootstrapPackage:            optjson.SetString("bootstrap"),
 				EnableEndUserAuthentication: true,
-				MacOSSetupAssistant:         optjson.SetString("assistant"),
+				ManualAgentInstall:          optjson.SetBool(true),
 			},
 		}
 		clone := tm.Copy()
@@ -302,7 +325,6 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy MacOSSettings", func(t *testing.T) {
 		tm := &TeamMDM{
 			MacOSSettings: MacOSSettings{
-				CustomSettings:                []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 				EnableDiskEncryption:          optjson.SetBool(false),
 				EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
 			},
@@ -310,10 +332,6 @@ func TestTeamMDMCopy(t *testing.T) {
 		clone := tm.Copy()
 		require.NotSame(t, tm, clone)
 		require.Equal(t, tm, clone)
-		require.NotEqual(t,
-			reflect.ValueOf(tm.MacOSSettings.CustomSettings).Pointer(),
-			reflect.ValueOf(clone.MacOSSettings.CustomSettings).Pointer(),
-		)
 	})
 
 	t.Run("copy HostNameTemplate", func(t *testing.T) {
@@ -345,7 +363,6 @@ func TestTeamConfigCopy(t *testing.T) {
 				FailingPoliciesWebhook: FailingPoliciesWebhookSettings{
 					Enable:         true,
 					DestinationURL: "https://policies.example.com",
-					PolicyIDs:      []uint{1, 2, 3},
 					HostBatchSize:  100,
 				},
 			},
@@ -359,18 +376,13 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.NotSame(t, tc.WebhookSettings.HostStatusWebhook, clone.WebhookSettings.HostStatusWebhook)
 		require.Equal(t, tc.WebhookSettings.HostStatusWebhook, clone.WebhookSettings.HostStatusWebhook)
 
-		// Verify deep copy of PolicyIDs slice
-		require.NotEqual(t,
-			reflect.ValueOf(tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs).Pointer(),
-			reflect.ValueOf(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs).Pointer(),
-		)
-		require.Equal(t, tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		require.Equal(t, tc.WebhookSettings.FailingPoliciesWebhook, clone.WebhookSettings.FailingPoliciesWebhook)
 
 		// Modify original and verify clone is unaffected
 		tc.WebhookSettings.HostStatusWebhook.Enable = false
-		tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs[0] = 999
+		tc.WebhookSettings.FailingPoliciesWebhook.DestinationURL = "https://changed.example.com"
 		require.True(t, clone.WebhookSettings.HostStatusWebhook.Enable)
-		require.Equal(t, uint(1), clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs[0])
+		require.Equal(t, "https://policies.example.com", clone.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 	})
 
 	t.Run("deep copy features", func(t *testing.T) {
@@ -379,10 +391,6 @@ func TestTeamConfigCopy(t *testing.T) {
 				EnableHostUsers:         true,
 				EnableSoftwareInventory: true,
 				AdditionalQueries:       ptr.RawMessage([]byte(`{"query": "test"}`)),
-				DetailQueryOverrides: map[string]*string{
-					"key1": ptr.String("value1"),
-					"key2": ptr.String("value2"),
-				},
 			},
 		}
 
@@ -394,18 +402,11 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.NotSame(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 		require.Equal(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 
-		// Verify deep copy of DetailQueryOverrides map
-		require.NotEqual(t,
-			reflect.ValueOf(tc.Features.DetailQueryOverrides).Pointer(),
-			reflect.ValueOf(clone.Features.DetailQueryOverrides).Pointer(),
-		)
-		require.Equal(t, tc.Features.DetailQueryOverrides, clone.Features.DetailQueryOverrides)
-
 		// Modify original and verify clone is unaffected
 		tc.Features.EnableHostUsers = false
-		*tc.Features.DetailQueryOverrides["key1"] = "modified"
+		(*tc.Features.AdditionalQueries)[0] = 'X'
 		require.True(t, clone.Features.EnableHostUsers)
-		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
+		require.JSONEq(t, `{"query": "test"}`, string(*clone.Features.AdditionalQueries))
 	})
 }
 
@@ -441,4 +442,88 @@ func TestTeamMarshalJSONMacOSSetupDefaults(t *testing.T) {
 		require.Equal(t, "standard", got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 		require.True(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	})
+}
+
+func TestTeamNameKey(t *testing.T) {
+	sameKey := [][]string{
+		{"Workstations", "workstations", "WORKSTATIONS", "Work-stations", "Work stations", "workstations!", "WORK_STATIONS", "Workstations 💻", " Workstations\t"},
+		{"Laptops 💻", "Laptops", "Laptops 🚀", "💻 Laptops"},
+		{"ABC", "abc", "ＡＢＣ", "a.b.c", "Ⓐⓑⓒ"},
+		{"Renee", "Reneé", "Rene\u0065\u0301", "RENÉE"},
+		{"straße", "strasse", "STRASSE", "Straẞe"},
+		{"開発チーム", "開発・チーム", "開発チーム。", "「開発チーム」"},
+		{"ﬁre", "FIRE", "f-i-r-e"},
+		{"Ångström", "angstrom", "A\u030angstro\u0308m"},
+		{"ǅ", "DŽ", "dž", "dz"},
+		{"Workstations 2", "workstations2", "Workstations (2)", "Workstations ②"},
+		{"राम", "राम!", "रा-म", "राम 🚀", "「राम」"},
+		{"กิน", "กิน.", " กิน "},
+		{"Мой", "мой", "МОЙ!", "мо\u0438\u0306"},
+		{"Việt Nam", "Viet Nam", "VIETNAM", "viê\u0323t-nam"},
+	}
+	keys := make(map[string]string)
+	for _, names := range sameKey {
+		want := TeamNameKey(names[0])
+		require.NotEmpty(t, want, names[0])
+		require.NotContains(t, keys, want, "%q has the same key as %q", names[0], keys[want])
+		keys[want] = names[0]
+		for _, name := range names[1:] {
+			assert.Equal(t, want, TeamNameKey(name), "%q and %q", names[0], name)
+		}
+	}
+
+	// Names the teams.name collation also tells apart. Outside Latin script a combining mark can make a different
+	// letter or word, so it is part of the key.
+	distinct := []string{
+		"Workstations", "Workstation", "Workstations 2", "Servers", "開発", "開発チーム", "2026", "2027", "Ingeniería 1", "Ingeniería 2",
+		"राम", "रम", "काम", "कम", "กิน", "กัน", "мой", "мои", "їжак", "іжак", "آب", "اب",
+	}
+	keys = make(map[string]string)
+	for _, name := range distinct {
+		key := TeamNameKey(name)
+		require.NotEmpty(t, key, name)
+		require.NotContains(t, keys, key, "%q has the same key as %q", name, keys[key])
+		keys[key] = name
+	}
+
+	for _, name := range []string{"", " ", "\t\n", "🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "___", "「」", "・・・", "。", "👩‍💻", "\u0301", "$€£", "+-=", "🏳️‍🌈", "\u093e", "\u0e34\u0e34", "🚀\u093e", "- \u0306"} {
+		assert.Empty(t, TeamNameKey(name), "%q", name)
+	}
+	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀", "a", "1", "١", "½", "Ⅻ", "é", "ß", "ー", "🚀1"} {
+		assert.NotEmpty(t, TeamNameKey(name), "%q", name)
+	}
+
+	assert.Equal(t, "workstations", TeamNameKey("Work-Stations"))
+	assert.Equal(t, "strasse", TeamNameKey("Straße"))
+	assert.Equal(t, "開発チーム2", TeamNameKey("開発・チーム 2"))
+	// A mark only counts right after its letter: here the breve follows a space and the digit.
+	assert.Equal(t, "и1", TeamNameKey("и \u0306 1\u0306"))
+}
+
+func TestReservedTeamNameReason(t *testing.T) {
+	for name, want := range map[string]string{
+		"Unassigned":      `"Unassigned" is a reserved fleet name`,
+		"unassigned":      `"unassigned" is a reserved fleet name`,
+		"ALL FLEETS":      `"ALL FLEETS" is a reserved fleet name`,
+		"No team":         `"No team" is a reserved fleet name`,
+		"all teams":       `"all teams" is a reserved fleet name`,
+		"Un-assigned":     `"Un-assigned" is too similar to the reserved name "Unassigned"`,
+		"Ünassigned":      `"Ünassigned" is too similar to the reserved name "Unassigned"`,
+		"Unassigned 🚀":    `"Unassigned 🚀" is too similar to the reserved name "Unassigned"`,
+		"Ｕｎａｓｓｉｇｎｅｄ":      `"Ｕｎａｓｓｉｇｎｅｄ" is too similar to the reserved name "Unassigned"`,
+		"All_fleets":      `"All_fleets" is too similar to the reserved name "All fleets"`,
+		"allfleets":       `"allfleets" is too similar to the reserved name "All fleets"`,
+		"No-team":         `"No-team" is too similar to the reserved name "No team"`,
+		"all-teams":       `"all-teams" is too similar to the reserved name "All teams"`,
+		"All teams!":      `"All teams!" is too similar to the reserved name "All teams"`,
+		"Unassigned 2":    "",
+		"Unassigned Macs": "",
+		"Not assigned":    "",
+		"All fleet":       "",
+		"Fleets":          "",
+		"Workstations":    "",
+		"🚀":               "",
+	} {
+		assert.Equal(t, want, ReservedTeamNameReason(name), name)
+	}
 }

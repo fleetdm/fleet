@@ -56,12 +56,13 @@
     which lets any device an SSH rule admits use tailscaled's root privileges to reach Unix
     sockets on this host. Also fails when the state can't be read (TPM-sealed, mem:, kube:,
     or no file at the path), because Tailscale SSH can't be ruled out.
-  resolution: |
-    If you are failing this policy, drop a note in #help-it. Then, IT will run the disable-tailscale-ssh-forwarding-linux.sh
-    script (it-and-security/lib/linux/scripts/disable-tailscale-ssh-forwarding-linux.sh) on this host. It sets
+  resolution: >-
+    No action needed from you. IT runs the disable-tailscale-ssh-forwarding-linux.sh script
+    (it-and-security/lib/linux/scripts/disable-tailscale-ssh-forwarding-linux.sh) on failing hosts. It sets
     TS_SSH_DISABLE_FORWARDING=1 for tailscaled with a systemd drop-in and restarts tailscaled, which drops Tailscale
-    connections on this host for a few seconds. Tailscale SSH sessions keep working; forwarding is refused. If nobody
-    needs Tailscale SSH on this host, IT can run `tailscale set --ssh=false` instead.
+    connections on the host for a few seconds. Tailscale SSH sessions keep working; forwarding is refused. If nobody
+    needs Tailscale SSH on the host, IT can run `tailscale set --ssh=false` instead.
+  hidden: true
   platform: linux
   calendar_events_enabled: false
 
@@ -133,11 +134,13 @@
     TS_SSH_DISABLE_FORWARDING=1 with no other line setting a different value (tailscaled
     applies the lines in order), or when its launchd environment sets it. Fails when Tailscale
     SSH is on and forwarding is allowed.
-  resolution: |
-    If you are failing this policy, drop a note in #help-it. Then, IT will run the disable-tailscale-ssh-forwarding-macos.sh
-    script (it-and-security/lib/macos/scripts/disable-tailscale-ssh-forwarding-macos.sh) on this Mac. It sets
+  resolution: >-
+    No action needed from you. IT runs the disable-tailscale-ssh-forwarding-macos.sh script
+    (it-and-security/lib/macos/scripts/disable-tailscale-ssh-forwarding-macos.sh) on failing hosts. It sets
     TS_SSH_DISABLE_FORWARDING=1 in /etc/tailscale/tailscaled-env.txt and restarts the open-source tailscaled, which
-    drops Tailscale connections on this Mac for a few seconds. If nobody needs Tailscale SSH on this Mac, IT can run
-    `tailscale set --ssh=false` instead. The Tailscale app from the App Store or tailscale.com never fails this policy.
+    drops Tailscale connections on the Mac for a few seconds. If nobody needs Tailscale SSH on the Mac, IT can run
+    `tailscale set --ssh=false` instead. The Tailscale app from the App Store or tailscale.com never fails this
+    policy.
+  hidden: true
   platform: darwin
   calendar_events_enabled: false

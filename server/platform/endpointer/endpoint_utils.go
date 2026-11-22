@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"reflect"
 	"slices"
 	"strconv"
@@ -30,10 +29,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
-type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
+type HandlerRoutesFunc func(r *Router, opts []kithttp.ServerOption)
 
 // ParseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func ParseTag(tag string) (string, bool, error) {
@@ -53,6 +51,25 @@ func ParseTag(tag string) (string, bool, error) {
 type fieldPair struct {
 	Sf reflect.StructField
 	V  reflect.Value
+}
+
+// expectsJSONBody reports whether a request field makes the JSON body (and its
+// cross-site Content-Type check) required. A field tagged only `json:"-"` is
+// server-internal state shielded from the body, not a request input, so it
+// must not force GET requests to carry one. `json:"-"` combined with a url or
+// query tag keeps counting, since some requests rely on it for the
+// Content-Type check.
+func expectsJSONBody(sf reflect.StructField) bool {
+	jsonTag, ok := sf.Tag.Lookup("json")
+	if !ok {
+		return false
+	}
+	if jsonTag != "-" {
+		return true
+	}
+	_, hasURL := sf.Tag.Lookup("url")
+	_, hasQuery := sf.Tag.Lookup("query")
+	return hasURL || hasQuery
 }
 
 // allFields returns all the fields for a struct, including the ones from embedded structs
@@ -263,8 +280,7 @@ func BadRequestErr(publicMsg string, internalErr error) error {
 }
 
 func UintFromRequest(r *http.Request, name string) (uint64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -276,8 +292,7 @@ func UintFromRequest(r *http.Request, name string) (uint64, error) {
 }
 
 func IntFromRequest(r *http.Request, name string) (int64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -288,17 +303,13 @@ func IntFromRequest(r *http.Request, name string) (int64, error) {
 	return u, nil
 }
 
+// StringFromRequest returns the named path variable, which the router has already decoded.
 func StringFromRequest(r *http.Request, name string) (string, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return "", ErrBadRoute
 	}
-	unescaped, err := url.PathUnescape(s)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	return unescaped, nil
+	return s, nil
 }
 
 func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string, optional bool) error {
@@ -580,13 +591,20 @@ func MakeDecoder(
 ) kithttp.DecodeRequestFunc {
 	// Infer alias rules from `renameto` struct tags on the request type.
 	aliasRules := ExtractAliasRules(iface)
+	removedRules := ExtractRemovedKeyRules(iface)
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
 		}
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
+		rdType := indirectType(reflect.TypeOf(iface))
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			if r.URL.RawQuery != "" && !SkipsRemovedNamesScan(r.URL.Path) {
+				if err := RejectRemovedQueryParams(r.URL.Query(), rdType); err != nil {
+					return nil, err
+				}
+			}
 			if maxRequestBodySize != -1 {
 				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 			}
@@ -632,6 +650,14 @@ func MakeDecoder(
 					Gzipped:        gzipped,
 				}
 			}
+
+			// Checked even when decoding failed, since an upload that sends team_id instead of fleet_id can fail there first. r.Form
+			// also holds the query string, where uploads used to accept team_id too.
+			if r.MultipartForm != nil && !SkipsRemovedNamesScan(r.URL.Path) {
+				if err := RejectRemovedFormFields(r.Form); err != nil {
+					return nil, err
+				}
+			}
 			return ret, err
 		}
 	}
@@ -642,6 +668,13 @@ func MakeDecoder(
 	}
 
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		scanRemovedNames := !SkipsRemovedNamesScan(r.URL.Path)
+		if scanRemovedNames && r.URL.RawQuery != "" {
+			if err := RejectRemovedQueryParams(r.URL.Query(), t); err != nil {
+				return nil, err
+			}
+		}
+
 		v := reflect.New(t)
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
@@ -672,11 +705,37 @@ func MakeDecoder(
 				}
 			}
 
+			// A body without a size limit is not buffered here, and one over maxRemovedNamesScanSize is decoded unscanned and streamed.
+			if scanRemovedNames && maxRequestBodySize != -1 && (isBodyDecoder == nil || !isBodyDecoder(v)) {
+				// The Content-Length hint is client-controlled, so it is capped, and a gzipped body's is its compressed size.
+				var data bytes.Buffer
+				if cl := r.ContentLength; cl > 0 && !gzipped {
+					data.Grow(int(min(cl, maxRemovedNamesPresize, maxRequestBodySize)))
+				}
+				n, err := data.ReadFrom(io.LimitReader(body, maxRemovedNamesScanSize+1))
+				if err != nil {
+					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+						return nil, platform_http.PayloadTooLargeError{
+							ContentLength:  r.Header.Get("Content-Length"),
+							MaxRequestSize: maxRequestBodySize,
+							Gzipped:        gzipped,
+						}
+					}
+					return nil, jsonDecodeErr(err)
+				}
+				if n <= maxRemovedNamesScanSize {
+					if err := RejectRemovedJSONKeys(data.Bytes(), t); err != nil {
+						return nil, err
+					}
+				}
+				body = io.MultiReader(&data, body)
+			}
+
 			// Insert the JSON key rewriter into the reader pipeline
 			// (after gzip decompression, before JSON decoding) to rename
-			// deprecated field names and detect alias conflicts.
-			if len(aliasRules) > 0 {
-				rewriter = NewJSONKeyRewriteReader(body, aliasRules)
+			// deprecated field names, detect alias conflicts and reject removed keys.
+			if len(aliasRules) > 0 || len(removedRules) > 0 {
+				rewriter = NewJSONKeyRewriteReader(body, aliasRules, removedRules...)
 				//nolint:errcheck // nothing to do on .Close() error.
 				defer rewriter.Close()
 				body = rewriter
@@ -686,6 +745,9 @@ func MakeDecoder(
 				req := v.Interface()
 				err := jsonUnmarshal(body, req)
 				if err != nil {
+					if rke, ok := errors.AsType[*RemovedKeyError](err); ok {
+						return nil, rke
+					}
 					// Check for alias conflict errors from the rewriter.
 					var ace *AliasConflictError
 					if errors.As(err, &ace) {
@@ -739,7 +801,7 @@ func MakeDecoder(
 
 			}
 
-			_, jsonExpected := fp.Sf.Tag.Lookup("json")
+			jsonExpected := expectsJSONBody(fp.Sf)
 			if jsonExpected && nilBody {
 				return nil, &platform_http.BadRequestError{Message: "Expected JSON Body"}
 			}
@@ -759,6 +821,9 @@ func MakeDecoder(
 		if isBodyDecoder != nil && isBodyDecoder(v) {
 			err := decodeBody(ctx, r, v, body)
 			if err != nil {
+				if rke, ok := errors.AsType[*RemovedKeyError](err); ok {
+					return nil, rke
+				}
 				// Check for alias conflict errors from the rewriter.
 				var ace *AliasConflictError
 				if errors.As(err, &ace) {
@@ -908,94 +973,12 @@ func CSPNonce(ctx context.Context) (string, error) {
 	return nonce()
 }
 
-// handlerKey identifies a registered handler by HTTP method and unversioned path template.
-type handlerKey struct {
-	method string
-	path   string // unversioned path template, e.g. "/api/_version_/fleet/fleets"
-}
-
-// HandlerRegistry stores HTTP handlers by method+path during endpoint registration,
-// enabling lookup for deprecated path alias registration.
-type HandlerRegistry struct {
-	handlers map[handlerKey]http.Handler
-}
-
-// NewHandlerRegistry creates an empty HandlerRegistry.
-func NewHandlerRegistry() *HandlerRegistry {
-	return &HandlerRegistry{handlers: make(map[handlerKey]http.Handler)}
-}
-
-// DeprecatedPathAlias maps a primary (canonical) path to one or more deprecated
-// paths that should serve the same handler.
-type DeprecatedPathAlias struct {
-	Method          string
-	PrimaryPath     string   // canonical path (must already be registered)
-	DeprecatedPaths []string // old paths to alias
-}
-
-// deprecatedPathInfoKey is the context key for deprecated URL path info.
-type deprecatedPathInfoKey struct{}
-
-// deprecatedPathInfo holds the deprecated and canonical paths for logging.
-type deprecatedPathInfo struct {
-	deprecatedPath string
-	primaryPath    string
-}
-
-// LogDeprecatedPathAlias is a kithttp.RequestFunc (ServerBefore function)
-// that checks if the request is using a deprecated URL path alias and, if so,
-// elevates the log level to Warn and adds deprecation info to the request log.
-// It must run after the LoggingContext is created (i.e. after SetRequestsContexts).
-func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Context {
-	if !platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
-		return ctx
-	}
-	info, ok := ctx.Value(deprecatedPathInfoKey{}).(deprecatedPathInfo)
-	if !ok {
-		return ctx
-	}
-	logging.WithLevel(ctx, slog.LevelWarn)
-	logging.WithExtras(
-		ctx,
-		"deprecated_path", info.deprecatedPath,
-		"deprecation_warning", fmt.Sprintf("API `%s` is deprecated, use `%s` instead", info.deprecatedPath, info.primaryPath),
-	)
-	return ctx
-}
-
-// RegisterDeprecatedPathAliases registers deprecated URL path aliases that point
-// to the same handler as the canonical path, and wraps them in a handler that
-// can log deprecation warnings.
-func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
-	allVersions := append(append([]string{}, versions...), "latest")
-	versionRegex := strings.Join(allVersions, "|")
-	for _, alias := range aliases {
-		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
-		if handler == nil {
-			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", alias.Method, alias.PrimaryPath))
-		}
-		for _, path := range alias.DeprecatedPaths {
-			// Replace the version placeholder in the deprecated path with a regex that matches all versions,
-			// so that the same handler can be used for all versions of the deprecated path.
-			pathForHandler := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
-			info := deprecatedPathInfo{deprecatedPath: path, primaryPath: alias.PrimaryPath}
-			// Wrap the handler to inject deprecation info into the context for logging.
-			wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
-				handler.ServeHTTP(w, r.WithContext(ctx))
-			})
-			nameAndVerb := getNameFromPathAndVerb(alias.Method, path, "")
-			r.Handle(pathForHandler, wrappedHandler).Name(nameAndVerb).Methods(alias.Method)
-		}
-	}
-}
-
 type CommonEndpointer[H any] struct {
 	EP            Endpointer[H]
 	MakeDecoderFn func(iface any, requestBodyLimit int64) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
 	Opts          []kithttp.ServerOption
-	Router        *mux.Router
+	Router        *Router
 	Versions      []string
 
 	// AuthMiddleware is a pre-built authentication middleware.
@@ -1009,12 +992,6 @@ type CommonEndpointer[H any] struct {
 	// HTTPPreAuthMiddleware wraps the final http.Handler, running BEFORE the
 	// kithttp decode-body step.
 	HTTPPreAuthMiddleware func(http.Handler) http.Handler
-
-	// HandlerRegistry, if set, records handlers by method+path for deprecated
-	// path alias lookup. The pointer is shared across shallow copies (created
-	// by builder methods like WithAltPaths) so all registrations land in the
-	// same map.
-	HandlerRegistry *HandlerRegistry
 
 	startingAtVersion string
 	endingAtVersion   string
@@ -1260,25 +1237,20 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		versions = append(versions, "latest")
 	}
 
-	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
-	handler := pathHandler(versionedPath)
-	if e.usePathPrefix {
-		e.Router.PathPrefix(versionedPath).Handler(handler).Name(nameAndVerb).Methods(verb)
-	} else {
-		e.Router.Handle(versionedPath, handler).Name(nameAndVerb).Methods(verb)
+	route := Route{
+		Name:     getNameFromPathAndVerb(verb, path, e.startingAtVersion),
+		Methods:  []string{verb},
+		Path:     path,
+		Versions: slices.Clone(versions), // versions can share e.Versions' backing array
+		Prefix:   e.usePathPrefix,
 	}
-	if e.HandlerRegistry != nil {
-		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
-	}
+	handler := pathHandler(route.Template())
+	e.Router.Handle(route, handler)
 	for _, alias := range e.alternativePaths {
-		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
-		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		if e.usePathPrefix {
-			e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
-		} else {
-			e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
-		}
+		aliasRoute := route
+		aliasRoute.Name = getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
+		aliasRoute.Path = alias
+		e.Router.Handle(aliasRoute, pathHandler(aliasRoute.Template()))
 	}
 }
 

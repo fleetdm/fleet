@@ -390,7 +390,13 @@ type mdmAgent struct {
 	supplementalOSVersionExtra string
 	isPersonalEnrollment       bool
 	apnsPushURL                string
+	apnsTopic                  string
 }
+
+// defaultMDMAPNSTopic is what simulated Apple devices send as their APNs topic when
+// -mdm_apns_topic isn't set. Fleet loads its one APNs certificate whatever the topic, so a
+// shared placeholder is enough to keep it at a single push provider, like production.
+const defaultMDMAPNSTopic = "com.apple.mgmt.External.osquery-perf"
 
 // delayCancelableMDMAck holds the fetch→acknowledge window open for
 // cancelable MDM commands (lock, wipe, clear passcode, enable lost mode) so
@@ -619,6 +625,9 @@ type agent struct {
 
 	softwareInstaller softwareInstaller
 
+	// aiSessions is nil when the host reports no AI agent sessions.
+	aiSessions *aiSessionsSim
+
 	linuxUniqueSoftwareVersion bool
 	linuxUniqueSoftwareTitle   bool
 
@@ -792,6 +801,7 @@ func newAgent(
 	softwareAdobePluginsCount softwareExtraEntityCount,
 	softwareGoBinariesCount entityCount,
 	softwareAIToolsCount softwareAIToolsCount,
+	aiSessions aiSessionsConfig,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -802,6 +812,7 @@ func newAgent(
 	mdmProbWindows float64,
 	mdmUserProb float64,
 	mdmSCEPChallenge string,
+	mdmAPNSTopic string,
 	liveQueryFailProb float64,
 	liveQueryNoResultsProb float64,
 	disableScriptExec bool,
@@ -849,7 +860,7 @@ func newAgent(
 			SCEPChallenge: mdmSCEPChallenge,
 			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 			MDMURL:        serverAddress + apple_mdm.MDMPath,
-		}, "MacBookPro16,1")
+		}, "MacBookPro16,1", mdmtest.WithPushTopic(mdmAPNSTopic))
 		// Have the osquery agent match the MDM device serial number and UUID.
 		serialNumber = macMDMClient.SerialNumber
 		hostUUID = macMDMClient.UUID
@@ -939,6 +950,11 @@ func newAgent(
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 		configTLSETag:            configTLSETag,
+	}
+
+	// AI agent sessions come from fleetd tables, so only fleetd hosts report them.
+	if deviceAuthToken != nil && rand.Float64() < aiSessions.prob { //nolint:gosec // ignore weak randomizer
+		agent.aiSessions = newAISessionsSim(aiSessions, agentOS, rand.Int63(), time.Now()) //nolint:gosec // ignore weak randomizer
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
@@ -1103,32 +1119,47 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	go func() {
 		configTicker := time.NewTicker(a.ConfigInterval)
 		defer configTicker.Stop()
+		// The fallback poll is checked at osquery's local config refresh
+		// against orbit (wstransport.LocalConfigRefresh), not at the
+		// config interval, which would round its deadline up.
+		fallbackTicker := time.NewTicker(min(a.ConfigInterval, 10*time.Second))
+		defer fallbackTicker.Stop()
 
-		// lastFetch is the last successful fetch: a failed one is retried
-		// on the next tick, as orbit does.
-		var lastFetch time.Time
-		if initialConfigErr == nil {
-			lastFetch = time.Now()
-		}
+		// A failed fetch is retried at the config interval, also while
+		// connected, as orbit does.
+		lastAttempt, lastFailed := time.Now(), initialConfigErr != nil
+		// jitter randomizes each fallback poll interval by ±50%, as orbit
+		// does (see wstransport.fallbackPollInterval).
+		jitter := rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		for {
 			fallback := false
 			select {
 			case <-configTicker.C:
 				// With orbit serving the config over a connected WebSocket,
-				// ticks are only the fallback poll.
-				if poll := a.osqueryConfigFallbackInterval(); poll > 0 {
-					if time.Since(lastFetch) < poll {
-						continue
-					}
+				// the fallback ticker polls instead.
+				if a.osqueryConfigFallbackInterval() > 0 {
+					continue
+				}
+			case <-fallbackTicker.C:
+				poll := a.osqueryConfigFallbackInterval()
+				if poll == 0 {
+					continue
+				}
+				wait := a.ConfigInterval
+				if !lastFailed {
+					d := max(a.ConfigInterval, poll)
+					lo := max(a.ConfigInterval, d/2)
+					wait = lo + time.Duration(float64(d+d/2-lo)*jitter)
 					fallback = true
+				}
+				if time.Since(lastAttempt) < wait {
+					continue
 				}
 			case <-a.osqueryConfigNudge:
 			}
-			if err := a.fetchConfig(fallback); err != nil {
-				lastFetch = time.Time{}
-			} else {
-				lastFetch = time.Now()
-			}
+			lastFailed = a.fetchConfig(fallback) != nil
+			lastAttempt = time.Now()
+			jitter = rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		}
 	}()
 
@@ -3316,7 +3347,7 @@ func (a *agent) goBinDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\go\bin\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/go/bin/"
 	default:
 		return "/home/fleet/go/bin/"
@@ -3376,7 +3407,7 @@ func (a *agent) aiHomeDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/"
 	default:
 		return "/home/fleet/"
@@ -3440,7 +3471,7 @@ func (a *agent) softwareAITools() []map[string]string {
 	}
 
 	// Template apps are reported identically by every simulated Mac, so their paths always match.
-	if a.os == "darwin" {
+	if a.os == "macos" {
 		marked := 0
 		for _, app := range macOSSoftware {
 			if marked >= c.markedApps {
@@ -4385,6 +4416,19 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.softwareAITools()
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"ai_agent_sessions" || name == hostDetailQueryPrefix+"ai_agent_session_events":
+		if a.deviceAuthToken == nil {
+			// Plain osquery has no fleetd tables, so the query's discovery fails.
+			return true, nil, nil, nil, nil
+		}
+		if a.aiSessions != nil {
+			if name == hostDetailQueryPrefix+"ai_agent_sessions" {
+				results = a.aiSessions.sessionsRows(time.Now())
+			} else {
+				results = a.aiSessions.eventsRows(query, time.Now())
+			}
+		}
+		return true, results, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -4551,28 +4595,7 @@ func scheduledQueryResults(packName, queryName string, numResults int) []byte {
 }`)
 }
 
-func (a *agent) connCheck() error {
-	request, err := http.NewRequest("GET", a.serverAddress+"/version", nil)
-	if err != nil {
-		panic(err)
-	}
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return errors.New(http.StatusText(response.StatusCode))
-	}
-	return nil
-}
-
 func (a *agent) submitLogs(results []resultLog) error {
-	// Connection check to prevent unnecessary JSON marshaling when the server is down.
-	if err := a.connCheck(); err != nil {
-		return fmt.Errorf("/version check failed: %w", err)
-	}
-
 	var resultLogs []byte
 	for i, result := range results {
 		if i > 0 {
@@ -4612,7 +4635,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 		SCEPChallenge: mdmSCEPChallenge,
 		SCEPURL:       a.serverAddress + apple_mdm.SCEPPath,
 		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
-	}, a.model)
+	}, a.model, mdmtest.WithPushTopic(a.apnsTopic))
 	mdmClient.UUID = udid
 	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
 	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
@@ -4825,6 +4848,13 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
+		aiSessionsProb          = flag.Float64("ai_sessions_prob", 0.0, "Probability of a fleetd host reporting AI agent sessions (Fleet Premium only asks for them)")
+		aiSessionsInitialCount  = flag.Int("ai_sessions_initial_count", 100, "Number of AI agent sessions, from the last 7 days, a host reporting them has when it starts")
+		aiSessionsPerDay        = flag.Float64("ai_sessions_per_day", 10, "Number of new AI agent sessions a host reporting them gets each day")
+		aiSessionsLongProb      = flag.Float64("ai_sessions_long_prob", 0.02, "Probability of an AI agent session having thousands of tool calls, which take several detail refreshes to collect")
+		aiSessionsDeletedProb   = flag.Float64("ai_sessions_deleted_prob", 0.02, "Probability of an AI agent session's transcript being deleted from the host after Fleet collected the session")
+		aiSessionsUncountedProb = flag.Float64("ai_sessions_uncounted_prob", 0.02, "Probability of an AI agent session counting tool calls fleetd doesn't return")
+
 		homebrewKegPercent = flag.Int("software_homebrew_keg_percent", 80,
 			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
 		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
@@ -4871,6 +4901,7 @@ func main() {
 		mdmUserProb                  = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
 		mdmAPNSURL                   = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
 		mdmSCEPChallenge             = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmAPNSTopic                 = flag.String("mdm_apns_topic", defaultMDMAPNSTopic, "APNs topic simulated Apple MDM devices send at check-in. Set it to the UID of Fleet's APNs certificate (com.apple.mgmt.External.<uuid>) to match real devices. The default is a placeholder shared by all simulated devices; an empty value gives each device its own topic (and Fleet one push provider per device)")
 		mdmProfileFailureProb        = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 		mdmCancelableCommandAckDelay = flag.Duration("mdm_cancelable_command_ack_delay", 0, "Delay between fetching a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and acknowledging it, opening a window to test command cancellation")
 		mdmIOSBYODProb               = flag.Float64("mdm_ios_byod_prob", 0.0, "Probability of a simulated iOS/iPadOS device (os_templates iphone_14.6/ipad_13.18/iphone_17) reporting as a personal (BYOD) enrollment, which omits the newer device vitals fields from its DeviceInformation ack [0, 1]")
@@ -4975,6 +5006,17 @@ func main() {
 	if *commonAIToolsCount < 0 || *uniqueAIToolsCount < 0 || *aiToolsMarkedAppsCount < 0 {
 		log.Fatalf("Arguments common_ai_tools_count, unique_ai_tools_count and ai_tools_marked_apps_count cannot be negative")
 	}
+	aiSessions := aiSessionsConfig{
+		prob:          *aiSessionsProb,
+		initialCount:  *aiSessionsInitialCount,
+		perDay:        *aiSessionsPerDay,
+		longProb:      *aiSessionsLongProb,
+		deletedProb:   *aiSessionsDeletedProb,
+		uncountedProb: *aiSessionsUncountedProb,
+	}
+	if err := aiSessions.validate(); err != nil {
+		log.Fatal(err)
+	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
 	}
@@ -4987,6 +5029,9 @@ func main() {
 	}
 	if *mdmProbWindows < 0 {
 		*mdmProbWindows = *mdmProb
+	}
+	if *mdmAPNSTopic != "" && !strings.HasPrefix(*mdmAPNSTopic, "com.apple.mgmt.") {
+		log.Fatalf("Argument mdm_apns_topic must be an APNs MDM topic (com.apple.mgmt.External.<uuid>), got %q", *mdmAPNSTopic)
 	}
 
 	// only fail if mdm is turned on for macOS devices and the mdm_apns_url is not specified.
@@ -5105,6 +5150,7 @@ func main() {
 				mdmProfileFailureProb: *mdmProfileFailureProb,
 				cancelableCmdAckDelay: *mdmCancelableCommandAckDelay,
 				apnsPushURL:           *mdmAPNSURL,
+				apnsTopic:             *mdmAPNSTopic,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -5203,6 +5249,7 @@ func main() {
 				unique:     *uniqueAIToolsCount,
 				markedApps: *aiToolsMarkedAppsCount,
 			},
+			aiSessions,
 			entityCount{
 				common: *commonUserCount,
 				unique: *uniqueUserCount,
@@ -5217,6 +5264,7 @@ func main() {
 			*mdmProbWindows,
 			*mdmUserProb,
 			*mdmSCEPChallenge,
+			*mdmAPNSTopic,
 			*liveQueryFailProb,
 			*liveQueryNoResultsProb,
 			*disableScriptExec,

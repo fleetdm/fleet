@@ -3,6 +3,7 @@ import React from "react";
 
 import { createMockMdmConfig } from "__mocks__/configMock";
 import {
+  createMockAppStoreAppVersion,
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
@@ -79,7 +80,7 @@ describe("BootstrapPackage", () => {
       createGetConfigHandler({
         mdm: createMockMdmConfig({
           enabled_and_configured: true,
-          apple_bm_enabled_and_configured: false,
+          apple_business_enabled_and_configured: false,
         }),
       })
     );
@@ -176,9 +177,9 @@ describe("BootstrapPackage", () => {
       createSetupExperienceSoftwareHandler({
         software_titles: [
           createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
+            packages: [
+              createMockSoftwarePackage({ install_during_setup: true }),
+            ],
           }),
         ],
       })
@@ -200,6 +201,36 @@ describe("BootstrapPackage", () => {
       screen.getByLabelText("Install during manual enrollment")
     ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  it("disables the custom agent option when an app_store_apps version has install_during_setup", async () => {
+    setupDefaultBackendMocks();
+    mockServer.use(
+      createSetupExperienceSoftwareHandler({
+        software_titles: [
+          createMockSoftwareTitle({
+            packages: null,
+            app_store_apps: [
+              createMockAppStoreAppVersion({ install_during_setup: false }),
+              createMockAppStoreAppVersion({ install_during_setup: true }),
+            ],
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
+
+    await screen.findByText("Advanced options");
+    await user.click(screen.getByText("Advanced options"));
+
+    expect(screen.getByLabelText("Deploy custom agent")).toBeDisabled();
   });
 
   it("only disables the custom agent option if there is already a run script added", async () => {

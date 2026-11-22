@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -27,6 +28,8 @@ import (
 var (
 	ErrUnsupportedType = errors.New("unsupported file type")
 	ErrInvalidTarball  = errors.New("not a valid .tar.gz archive")
+	// ErrInvalidInstaller marks malformed installer content so callers can report a bad upload.
+	ErrInvalidInstaller = errors.New("invalid installer")
 )
 
 type InstallerMetadata struct {
@@ -312,4 +315,43 @@ func SHA256FromTempFileReader(tfr *fleet.TempFileReader) (string, error) {
 	}
 
 	return hashString, nil
+}
+
+// Caps on how many decompressed bytes of one archive member are read into
+// memory. The upload limit only bounds the compressed size, so without these a
+// small, highly compressible installer can expand to gigabytes. They are vars
+// so tests can lower them.
+var (
+	// maxPlistSize also bounds plist nesting depth: howett.net/plist recurses
+	// without a limit and a deeply nested plist overflows the stack, which
+	// can't be recovered.
+	maxPlistSize int64 = 256 << 10
+	// maxMetadataMemberSize applies to xar Distribution and PackageInfo and
+	// the deb control file. xml.Unmarshal turns each short element into a much
+	// larger struct, so a 16 MiB member of empty elements costs about 770 MiB.
+	maxMetadataMemberSize int64 = 2 << 20
+	// maxXARTOCSize bounds the same amplification for empty <file/> entries:
+	// 16 MiB of them costs about 254 MiB.
+	maxXARTOCSize int64 = 4 << 20
+)
+
+var errMemberTooLarge = fmt.Errorf("%w: archive member exceeds size limit", ErrInvalidInstaller)
+
+// limitReader errors once more than limit bytes have been read, unlike
+// io.LimitReader which silently truncates. Pass the error to asMemberTooLarge.
+func limitReader(r io.Reader, limit int64) io.Reader {
+	return http.MaxBytesReader(nil, io.NopCloser(r), limit)
+}
+
+// asMemberTooLarge turns the overflow error from limitReader into errMemberTooLarge.
+func asMemberTooLarge(err error) error {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		return errMemberTooLarge
+	}
+	return err
+}
+
+func readAllLimited(r io.Reader, limit int64) ([]byte, error) {
+	b, err := io.ReadAll(limitReader(r, limit))
+	return b, asMemberTooLarge(err)
 }

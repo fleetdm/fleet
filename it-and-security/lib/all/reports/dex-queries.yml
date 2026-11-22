@@ -470,6 +470,25 @@
   automations_enabled: true
   logging: snapshot
   interval: 3600
+- name: DEX - System experience - Pending macOS updates
+  description: macOS software updates staged for automatic install, with target build and version compared to the currently installed OS.
+  query: |
+    SELECT
+      p.value AS product_key,
+      split(p.value, '_', 2) AS target_build,
+      split(p.value, '_', 3) AS payload,
+      split(p.value, '_', 4) AS target_version,
+      split(p.value, '_', 5) AS update_type,
+      o.version AS current_version,
+      o.build AS current_build
+    FROM plist p, os_version o
+    WHERE p.path = '/Library/Preferences/com.apple.SoftwareUpdate.plist'
+      AND p.key = 'AutoInstallProductKeys'
+      AND p.value LIKE 'MSU_UPDATE_%';
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 28800
 - name: DEX - Application experience - Windows application crashes (7 days)
   description: Application crashes and hangs from Windows Event Log. Identifies problematic applications affecting user productivity.
   query: |
@@ -804,6 +823,36 @@
         'path', path, 'risk_flags', risk_flags, 'running', running, 'detail', detail
       )) AS tools
     FROM ai_tools;
+  interval: 3600
+  platform: darwin,linux,windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - AI governance - AI agent usage per host
+  description: Sessions, tool calls, and tokens of AI coding agents (Claude Code, Codex CLI, Gemini CLI, Copilot CLI, and Cursor) over the last 30 days, per day, agent, model, and sign-in type, packed into one row per host. Only the domain of a sign-in email leaves the computer, never usernames, paths, or repositories. Read by the AI governance DEX dashboard. Needs fleetd 1.64.0 or later.
+  query: |
+    SELECT
+      COUNT(*) AS usage_rows,
+      json_group_array(json_object(
+        'day', day, 'agent', agent, 'model', model, 'account', account, 'users', users,
+        'sessions', sessions, 'prompts', prompts, 'tool_calls', tool_calls,
+        'input', input, 'output', output, 'cache_read', cache_read, 'cache_write', cache_write
+      )) AS usage
+    FROM (
+      SELECT
+        date(ended_at, 'unixepoch') AS day, agent, model,
+        CASE
+          WHEN account_identifier LIKE '%@%' THEN '@' || lower(substr(account_identifier, instr(account_identifier, '@') + 1))
+          WHEN agent = 'copilot_cli' AND account_identifier != '' THEN 'github'
+          ELSE account_identifier
+        END AS account,
+        COUNT(DISTINCT username) AS users, COUNT(*) AS sessions,
+        SUM(user_messages) AS prompts, SUM(tool_calls) AS tool_calls,
+        SUM(input_tokens) AS input, SUM(output_tokens) AS output,
+        SUM(cache_read_tokens) AS cache_read, SUM(cache_write_tokens) AS cache_write
+      FROM ai_agent_sessions
+      WHERE ended_at >= strftime('%s', 'now') - 30 * 86400
+      GROUP BY day, agent, model, account
+    );
   interval: 3600
   platform: darwin,linux,windows
   automations_enabled: false

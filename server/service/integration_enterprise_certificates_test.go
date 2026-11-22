@@ -178,7 +178,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 
 	// Delete the team via API (this should delete all certificate templates on the team)
 	var deleteResp deleteTeamResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID), nil, http.StatusOK, &deleteResp)
 
 	// Verify the certificate templates were deleted
 	_, err = s.ds.GetCertificateTemplateById(ctx, certificateTemplateID1)
@@ -304,13 +304,13 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name),
 		0,
 	)
 
 	// list specs
 	var listCertifcatesResp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Len(t, listCertifcatesResp.Certificates, 2)
 	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
 
@@ -417,29 +417,37 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	// batch delete certificate templates
 	var delBatchResp deleteCertificateTemplateSpecsResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
-		"team_id": team.ID,
+		"ids":      []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+		"fleet_id": team.ID,
 	}, http.StatusOK, &delBatchResp)
 
 	// Verify activity was created for deleting certificates
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name),
 		0,
 	)
 
 	// list specs
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
 	require.Empty(t, listCertifcatesResp.Certificates)
 
 	activitiesBeforeNoTeam := s.listActivities()
 
-	// certificate templates for "No team"
+	// the old "No team" name is rejected with the Fleet 5 migration message
+	res := s.Do("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{Name: "Old Name Template", Team: "No team", CertificateAuthorityId: ca.ID, SubjectName: "CN=$FLEET_VAR_HOST_UUID"},
+		},
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `"No team" was removed in Fleet 5. Use "Unassigned" instead.`)
+
+	// certificate templates for "Unassigned"
 	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
 		Specs: []*fleet.CertificateRequestSpec{
 			{
 				Name:                   "No Team Template 1",
-				Team:                   "No team",
+				Team:                   "Unassigned",
 				CertificateAuthorityId: ca.ID,
 				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
 			},
@@ -463,7 +471,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
 	s.lastActivityMatches(
 		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		`{"fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`,
+		`{"fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -571,8 +579,8 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	observerTargetCertID := findCertID(savedNoTeamCertTemplates, "No Team Template 1")
 	// Delete with observer
 	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{observerTargetCertID},
-		"team_id": uint(0), // "No team"
+		"ids":      []uint{observerTargetCertID},
+		"fleet_id": uint(0), // "No team"
 	}, http.StatusForbidden)
 	resp.Body.Close()
 
@@ -606,11 +614,11 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
 	// Delete with team 1 id and certificate from team 2
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{team2CertResp.ID},
-		"team_id": team.ID,
+		"ids":      []uint{team2CertResp.ID},
+		"fleet_id": team.ID,
 	}, http.StatusForbidden, &forbiddenDelResp)
 	var listTeam2Resp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team2ID),
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", team2ID),
 		nil, http.StatusOK, &listTeam2Resp)
 	require.Len(t, listTeam2Resp.Certificates, 1)
 	require.Equal(t, "Team 2 Cert", listTeam2Resp.Certificates[0].Name)
@@ -640,7 +648,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 			findCertID(noTeamCertificatesResp.Certificates, "No Team Template 2"),
 			findCertID(noTeamCertificatesResp.Certificates, "No Team Template 3"),
 		},
-		"team_id": uint(0),
+		"fleet_id": uint(0),
 	}, http.StatusOK, &delBatchResp)
 
 	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)

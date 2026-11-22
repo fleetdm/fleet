@@ -135,7 +135,7 @@ const HostReportCard = ({
     if (doesNotStoreResults) {
       return (
         <ReportBanner
-          iconName="info-outline"
+          iconName="info"
           message="Results from this report are not stored in Fleet."
         />
       );
@@ -144,7 +144,7 @@ const HostReportCard = ({
     if (isAwaitingResults) {
       return (
         <ReportBanner
-          iconName="pending-outline"
+          iconName="pending"
           message={`Fleet is awaiting results from ${hostName}.`}
         />
       );
@@ -163,7 +163,7 @@ const HostReportCard = ({
       const additionalCount = report.n_host_results - 1;
       return (
         <ReportBanner
-          iconName="info-outline"
+          iconName="info"
           message={`${additionalCount} additional ${pluralize(
             additionalCount,
             "result"
@@ -199,7 +199,7 @@ const HostReportCard = ({
           <div className={`${baseClass}__header-right`}>
             {report.report_clipped && (
               <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
-                <Icon size="small" name="warning" color={ICON_COLOR} />
+                <Icon name="warning" color={ICON_COLOR} />
                 Report clipped
               </Tag>
             )}

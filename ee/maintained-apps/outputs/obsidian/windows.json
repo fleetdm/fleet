@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.15.0",
+      "version": "1.15.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name = 'Obsidian' OR name LIKE 'Obsidian %') AND publisher = 'Obsidian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Obsidian' OR name LIKE 'Obsidian %') AND publisher = 'Obsidian') AND version_compare(version, '1.15.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name = 'Obsidian' OR name LIKE 'Obsidian %') AND publisher = 'Obsidian') AND version_compare(version, '1.15.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'obsidian.exe');"
       },
-      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.0/Obsidian-1.15.0.exe",
+      "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.1/Obsidian-1.15.1.exe",
       "install_script_ref": "b9f2d8ad",
       "uninstall_script_ref": "bf621308",
-      "sha256": "b0f60c75a12f96d54cb16b9fc32919966f2ebf029d9af75d67a19ba6555e1da0",
+      "sha256": "218c7d30acc065355ce94719dd996d5e2a2347cde3811ea5dc29380583f02b58",
       "default_categories": [
         "Productivity"
       ]

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -8,25 +9,18 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"golang.org/x/text/unicode/norm"
 )
 
 // PolicyPayload holds data for policy creation.
-//
-// If QueryID is not nil, then Name, Query and Description are ignored
-// (such fields are fetched from the queries table).
 type PolicyPayload struct {
-	// QueryID allows creating a policy from an existing query.
-	//
-	// Using QueryID is the old way of creating policies.
-	// Use Query, Name and Description instead.
-	QueryID *uint
-	// Name is the name of the policy (ignored if QueryID != nil).
+	// Name is the name of the policy.
 	Name string
-	// Query is the policy query (ignored if QueryID != nil).
+	// Query is the policy query.
 	Query string
 	// Critical marks the policy as high impact.
 	Critical bool
-	// Description is the policy description text (ignored if QueryID != nil).
+	// Description is the policy description text.
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
@@ -66,6 +60,12 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
+	// WebhooksAndTicketsEnabled sends hosts that start failing the policy to the webhook, Jira, or Zendesk
+	// destination of the policy's scope.
+	WebhooksAndTicketsEnabled bool
+	// AutomationType is the policy's one automation, from the create request. The service turns it into the automation
+	// fields above; the datastore doesn't read it.
+	AutomationType *PolicyAutomation
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden bool
 
@@ -91,22 +91,14 @@ type PolicyPayload struct {
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
-//
-// If QueryID is not nil, then Name, Query and Description are ignored
-// (such fields are fetched from the queries table).
 type NewTeamPolicyPayload struct {
-	// QueryID allows creating a policy from an existing query.
-	//
-	// Using QueryID is the old way of creating policies.
-	// Use Query, Name and Description instead.
-	QueryID *uint
-	// Name is the name of the policy (ignored if QueryID != nil).
+	// Name is the name of the policy.
 	Name string
-	// Query is the policy query (ignored if QueryID != nil).
+	// Query is the policy query.
 	Query string
 	// Critical marks the policy as high impact.
 	Critical bool
-	// Description is the policy description text (ignored if QueryID != nil).
+	// Description is the policy description text.
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
@@ -135,6 +127,8 @@ type NewTeamPolicyPayload struct {
 	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
+	// AutomationType is the policy's one automation. Without it, the automation fields above are used as is.
+	AutomationType *PolicyAutomation
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden bool
 
@@ -156,14 +150,13 @@ type NewTeamPolicyPayload struct {
 var (
 	errPolicyEmptyName                               = errors.New("policy name cannot be empty")
 	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
 	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
 	ErrPolicyConflictingIncludeLabels                = errors.New("policy can include at most one of labels_include_any or labels_include_all")
 	ErrPolicyConflictingExcludeLabels                = errors.New("policy can include at most one of labels_exclude_any or labels_exclude_all")
 	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
 	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
 	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
-	errPatchPolicyRequiresTeam                       = errors.New("If the \"type\" is \"patch\", the \"team\" field is required.")
+	errPatchPolicyRequiresTeam                       = errors.New("If the \"type\" is \"patch\", the \"fleet\" field is required.")
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
@@ -219,9 +212,6 @@ func (p PolicyPayload) Verify() error {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
-		if p.QueryID != nil {
-			return errPolicyPatchAndQuerySet
-		}
 		if !emptyString(p.Query) {
 			return errPolicyPatchAndQuerySet
 		}
@@ -237,17 +227,11 @@ func (p PolicyPayload) Verify() error {
 		return nil
 	}
 
-	if p.QueryID != nil {
-		if p.Query != "" {
-			return errPolicyIDAndQuerySet
-		}
-	} else {
-		if err := verifyPolicyName(p.Name); err != nil {
-			return err
-		}
-		if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
-			return err
-		}
+	if err := verifyPolicyName(p.Name); err != nil {
+		return err
+	}
+	if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
+		return err
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
@@ -407,10 +391,10 @@ type ModifyPolicyPayload struct {
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
 	Critical *bool `json:"critical" premium:"true"`
-	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Set from automation_type.
 	//
 	// Only applies to team policies.
-	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
+	CalendarEventsEnabled *bool `json:"-"`
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	// Value 0 will unset the current installer from the policy.
 	//
@@ -441,10 +425,15 @@ type ModifyPolicyPayload struct {
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
 	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
 	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
-	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access. Set from
+	// automation_type.
 	//
 	// Only applies to team policies.
-	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+	ConditionalAccessEnabled *bool    `json:"-"`
+	_                        struct{} `json:"-" removedkey:"calendar_events_enabled,conditional_access_enabled"`
+	// AutomationType replaces the policy's automation, or removes it when null. When it's not set, only the item of the
+	// policy's current automation can change.
+	AutomationType optjson.Any[PolicyAutomation] `json:"automation_type,omitzero"`
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden *bool `json:"hidden" premium:"true"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
@@ -529,7 +518,7 @@ type PolicyData struct {
 	AuthorEmail string `json:"author_email" db:"author_email"`
 	// TeamID is the ID of the team the policy belongs to.
 	// If TeamID is nil, then this is a global policy.
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
 	// Platform is a comma-separated string to indicate the target platforms.
@@ -555,6 +544,9 @@ type PolicyData struct {
 	ScriptID                 *uint   `json:"-" db:"script_id"`
 	ResendAppleProfileUUID   *string `json:"-" db:"resend_apple_profile_uuid"`
 	ResendWindowsProfileUUID *string `json:"-" db:"resend_windows_profile_uuid"`
+	// WebhooksAndTicketsEnabled sends hosts that start failing the policy to the webhook, Jira, or
+	// Zendesk destination of the policy's scope.
+	WebhooksAndTicketsEnabled bool `json:"-" db:"webhooks_and_tickets_enabled"`
 
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
@@ -671,6 +663,42 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.ResendAppleProfileUUID and PolicyData.ResendWindowsProfileUUID
 	ResendConfigurationProfile *PolicyProfile `json:"resend_configuration_profile,omitempty"`
+
+	// AutomationType is the policy's automation, nil when it has none. It's derived from the automation fields when
+	// the policy is marshaled.
+	AutomationType *PolicyAutomation `json:"automation_type"`
+}
+
+func (p Policy) MarshalJSON() ([]byte, error) {
+	type policy Policy
+	return json.Marshal(policy(p.withAutomationType()))
+}
+
+func (p Policy) withAutomationType() Policy {
+	p.AutomationType = nil
+	if automations := p.Automations(); len(automations) > 0 {
+		p.AutomationType = &automations[0]
+	}
+	return p
+}
+
+// policyMethodless is Policy without MarshalJSON, for encodings that set automation_type themselves.
+type policyMethodless Policy
+
+// apiPolicy is a policy as the policy endpoints return it: automation_type replaced the calendar and conditional
+// access booleans there. Host policy lists and the failing policies webhook still include them.
+type apiPolicy struct {
+	*policyMethodless
+	CalendarEventsEnabled    *struct{} `json:"calendar_events_enabled,omitempty"`
+	ConditionalAccessEnabled *struct{} `json:"conditional_access_enabled,omitempty"`
+}
+
+func newAPIPolicy(p *Policy) *apiPolicy {
+	if p == nil {
+		return nil
+	}
+	q := policyMethodless(p.withAutomationType())
+	return &apiPolicy{policyMethodless: &q}
 }
 
 type PolicyCalendarData struct {
@@ -714,6 +742,12 @@ type PolicyLite struct {
 	Description string `db:"description"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `db:"resolution"`
+}
+
+// PolicyIDAndTeam identifies a policy and its fleet. TeamID is nil for "All fleets" policies and 0 for "Unassigned".
+type PolicyIDAndTeam struct {
+	ID     uint  `db:"id"`
+	TeamID *uint `db:"team_id"`
 }
 
 func (p Policy) AuthzType() string {
@@ -809,7 +843,7 @@ type PolicySpec struct {
 	// Resolution describes how to solve a failing policy.
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.
-	Team string `json:"team,omitempty" renameto:"fleet"`
+	Team string `json:"fleet,omitempty"`
 	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.
@@ -841,6 +875,9 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// WebhooksAndTicketsEnabled sends hosts that start failing the policy to the webhook, Jira, or Zendesk
+	// destination of the policy's scope.
+	WebhooksAndTicketsEnabled bool `json:"webhooks_and_tickets_enabled"`
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden bool `json:"hidden"`
 	// ContinuousAutomationsEnabled indicates whether software/script automations
@@ -950,13 +987,15 @@ func (p PolicySpec) VerifyLabelScopes() error {
 func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
 	teams := make(map[string]map[string]struct{})
 	for _, spec := range specs {
-		if team, ok := teams[spec.Team]; ok {
-			if _, ok = team[spec.Name]; ok {
+		// Names are stored NFC-normalized, so names that differ only in normalization are the same policy.
+		teamName, name := norm.NFC.String(spec.Team), norm.NFC.String(spec.Name)
+		if team, ok := teams[teamName]; ok {
+			if _, ok = team[name]; ok {
 				return spec.Name
 			}
-			team[spec.Name] = struct{}{}
+			team[name] = struct{}{}
 		} else {
-			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
+			teams[teamName] = map[string]struct{}{name: {}}
 		}
 	}
 	return ""
@@ -1009,6 +1048,85 @@ const (
 	PolicyAutomationTypeOther             PolicyAutomationType = "other"
 	PolicyAutomationTypeNone              PolicyAutomationType = ""
 )
+
+// PolicyListFilter narrows a list or count of policies. Empty fields don't filter.
+type PolicyListFilter struct {
+	AutomationType PolicyAutomation
+	Type           string
+	Platform       string
+}
+
+func (f PolicyListFilter) Validate() error {
+	if f.AutomationType != "" && !f.AutomationType.IsValid() {
+		return NewInvalidArgumentError("automation_type", fmt.Sprintf("unknown automation_type %q", f.AutomationType))
+	}
+	if f.Type != "" && f.Type != PolicyTypeDynamic && f.Type != PolicyTypePatch {
+		return NewInvalidArgumentError("type", fmt.Sprintf("type must be %q or %q", PolicyTypeDynamic, PolicyTypePatch))
+	}
+	return ValidatePolicyPlatformFilter(f.Platform)
+}
+
+// PolicyAutomation is what Fleet does when a host fails a policy. A policy has at most one.
+type PolicyAutomation string
+
+// Listed in the order that decides which automation a policy with more than one shows.
+const (
+	PolicyAutomationConditionalAccess    PolicyAutomation = "conditional_access"
+	PolicyAutomationSoftware             PolicyAutomation = "software"
+	PolicyAutomationScript               PolicyAutomation = "script"
+	PolicyAutomationConfigurationProfile PolicyAutomation = "configuration_profile"
+	PolicyAutomationCalendar             PolicyAutomation = "calendar"
+	PolicyAutomationWebhookOrTicket      PolicyAutomation = "webhook_or_ticket"
+)
+
+func (a PolicyAutomation) IsValid() bool {
+	switch a {
+	case PolicyAutomationConditionalAccess, PolicyAutomationSoftware, PolicyAutomationScript,
+		PolicyAutomationConfigurationProfile, PolicyAutomationCalendar, PolicyAutomationWebhookOrTicket:
+		return true
+	}
+	return false
+}
+
+// Automations returns the policy's automations. Policies saved before the one-automation rule can have more than one.
+func (p PolicyData) Automations() []PolicyAutomation {
+	return policyAutomations(p.ConditionalAccessEnabled, p.SoftwareInstallerID != nil || p.VPPAppsTeamsID != nil,
+		p.ScriptID != nil, p.ResendAppleProfileUUID != nil || p.ResendWindowsProfileUUID != nil,
+		p.CalendarEventsEnabled, p.WebhooksAndTicketsEnabled)
+}
+
+// Automations returns the automations the payload gives the new policy.
+func (p PolicyPayload) Automations() []PolicyAutomation {
+	return policyAutomations(p.ConditionalAccessEnabled, p.SoftwareInstallerID != nil || p.VPPAppsTeamsID != nil,
+		p.ScriptID != nil, p.ProfileUUID != nil && *p.ProfileUUID != "", p.CalendarEventsEnabled, p.WebhooksAndTicketsEnabled)
+}
+
+// Automations returns the automations the spec gives the policy.
+func (p PolicySpec) Automations() []PolicyAutomation {
+	return policyAutomations(p.ConditionalAccessEnabled, p.SoftwareTitleID != nil && *p.SoftwareTitleID != 0,
+		p.ScriptID != nil && *p.ScriptID != 0, p.ProfileUUID != nil && *p.ProfileUUID != "", p.CalendarEventsEnabled,
+		p.WebhooksAndTicketsEnabled)
+}
+
+func policyAutomations(conditionalAccess, software, script, profile, calendar, webhookOrTicket bool) []PolicyAutomation {
+	var automations []PolicyAutomation
+	for _, a := range []struct {
+		on         bool
+		automation PolicyAutomation
+	}{
+		{conditionalAccess, PolicyAutomationConditionalAccess},
+		{software, PolicyAutomationSoftware},
+		{script, PolicyAutomationScript},
+		{profile, PolicyAutomationConfigurationProfile},
+		{calendar, PolicyAutomationCalendar},
+		{webhookOrTicket, PolicyAutomationWebhookOrTicket},
+	} {
+		if a.on {
+			automations = append(automations, a.automation)
+		}
+	}
+	return automations
+}
 
 // resendProfile holds the resolved values for a policy's
 // resend_apple_profile_uuid / resend_windows_profile_uuid columns. At most one of

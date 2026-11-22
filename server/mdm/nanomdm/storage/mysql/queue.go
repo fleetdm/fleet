@@ -208,21 +208,31 @@ func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*md
 	}
 	err := m.reader(r.Context).QueryRowxContext(
 		r.Context, fmt.Sprintf(
-			// The query should use the ANTIJOIN (NOT EXISTS) optimization on the nano_command_results table.
+			// Completed commands stay in the queue, so all of them are visited before the next pending one is found. The
+			// next command is picked from indexes alone and nano_commands, whose rows hold the command payload, is read
+			// only for the picked command. Without the hint the optimizer reads nano_command_results through its
+			// primary key, which holds the result payloads.
 			`
 SELECT c.command_uuid, c.request_type, c.command, c.subtype
-FROM nano_enrollment_queue AS q
+FROM (
+    SELECT q.command_uuid
+    FROM nano_enrollment_queue AS q
+    WHERE q.id = %s
+        AND q.active = 1
+        AND NOT EXISTS (
+            SELECT 1
+            FROM nano_command_results r FORCE INDEX (idx_ncr_lookup)
+            WHERE r.id = q.id
+                AND r.command_uuid = q.command_uuid
+                AND (r.status != 'NotNow' OR %t)
+        )
+    ORDER BY
+        q.priority DESC,
+        q.created_at
+    LIMIT 1
+) AS n
     INNER JOIN nano_commands AS c
-        ON q.command_uuid = c.command_uuid
-    LEFT JOIN nano_command_results r
-        ON r.command_uuid = q.command_uuid AND r.id = q.id AND (r.status != 'NotNow' OR %t)
-WHERE q.id = %s
-    AND q.active = 1
-    AND r.status IS NULL
-ORDER BY
-    q.priority DESC,
-    q.created_at
-LIMIT 1;`, skipNotNow, id,
+        ON c.command_uuid = n.command_uuid;`, id, skipNotNow,
 		), args...,
 	).Scan(&command.CommandUUID, &command.Command.Command.RequestType, &command.Raw, &command.Subtype)
 	if errors.Is(err, sql.ErrNoRows) {

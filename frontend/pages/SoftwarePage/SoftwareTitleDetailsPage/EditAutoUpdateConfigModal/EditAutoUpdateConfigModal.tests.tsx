@@ -4,7 +4,7 @@ import React from "react";
 
 import {
   createMockSoftwareTitleDetails,
-  createMockAppStoreApp,
+  createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
 import createMockUser from "__mocks__/userMock";
 import { ILabelSummary } from "interfaces/label";
@@ -383,11 +383,13 @@ describe("Edit Auto Update Config Modal", () => {
       render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
-            app_store_app: createMockAppStoreApp({
-              labels_include_any: [
-                { name: mockLabels[1].name, id: mockLabels[1].id },
-              ],
-            }),
+            app_store_apps: [
+              createMockAppStoreAppVersion({
+                labels_include_any: [
+                  { name: mockLabels[1].name, id: mockLabels[1].id },
+                ],
+              }),
+            ],
           })}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
@@ -416,11 +418,13 @@ describe("Edit Auto Update Config Modal", () => {
       const { user } = render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
-            app_store_app: createMockAppStoreApp({
-              labels_include_any: [
-                { name: mockLabels[1].name, id: mockLabels[1].id },
-              ],
-            }),
+            app_store_apps: [
+              createMockAppStoreAppVersion({
+                labels_include_any: [
+                  { name: mockLabels[1].name, id: mockLabels[1].id },
+                ],
+              }),
+            ],
           })}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
@@ -530,11 +534,13 @@ describe("Edit Auto Update Config Modal", () => {
       const { user } = render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
-            app_store_app: createMockAppStoreApp({
-              labels_include_any: [
-                { name: mockLabels[1].name, id: mockLabels[1].id },
-              ],
-            }),
+            app_store_apps: [
+              createMockAppStoreAppVersion({
+                labels_include_any: [
+                  { name: mockLabels[1].name, id: mockLabels[1].id },
+                ],
+              }),
+            ],
           })}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
@@ -564,11 +570,13 @@ describe("Edit Auto Update Config Modal", () => {
       const { user } = render(
         <EditAutoUpdateConfigModal
           softwareTitle={createMockSoftwareTitleDetails({
-            app_store_app: createMockAppStoreApp({
-              labels_include_any: [
-                { name: mockLabels[1].name, id: mockLabels[1].id },
-              ],
-            }),
+            app_store_apps: [
+              createMockAppStoreAppVersion({
+                labels_include_any: [
+                  { name: mockLabels[1].name, id: mockLabels[1].id },
+                ],
+              }),
+            ],
           })}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}

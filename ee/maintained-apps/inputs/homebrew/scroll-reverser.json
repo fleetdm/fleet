@@ -1,0 +1,10 @@
+{
+  "name": "Scroll Reverser",
+  "unique_identifier": "com.pilotmoon.scroll-reverser",
+  "token": "scroll-reverser",
+  "installer_format": "zip",
+  "slug": "scroll-reverser/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

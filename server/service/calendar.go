@@ -3,12 +3,10 @@ package service
 import (
 	"context"
 	"net/http"
-	"net/url"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/gorilla/mux"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 type calendarWebhookRequest struct {
@@ -20,15 +18,11 @@ type calendarWebhookRequest struct {
 // DecodeRequest implement requestDecoder interface to take full control of decoding the request
 func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	var req calendarWebhookRequest
-	eventUUID, ok := mux.Vars(r)["event_uuid"]
+	eventUUID, ok := platform_http.PathVar(r, "event_uuid")
 	if !ok {
 		return nil, endpointer.ErrBadRoute
 	}
-	unescaped, err := url.PathUnescape(eventUUID)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	req.eventUUID = unescaped
+	req.eventUUID = eventUUID
 
 	req.googleChannelID = r.Header.Get("X-Goog-Channel-Id")
 	req.googleResourceState = r.Header.Get("X-Goog-Resource-State")

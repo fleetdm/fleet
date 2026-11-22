@@ -3,6 +3,7 @@
   "slug": "pgadmin4/windows",
   "package_identifier": "PostgreSQL.pgAdmin",
   "unique_identifier": "pgAdmin 4",
+  "open_process_names": ["pgadmin4.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/pgadmin4_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/pgadmin4_uninstall.ps1",

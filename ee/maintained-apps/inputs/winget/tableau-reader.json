@@ -3,6 +3,7 @@
   "slug": "tableau-reader/windows",
   "package_identifier": "Tableau.Reader",
   "unique_identifier": "Tableau Reader",
+  "open_process_names": ["tabreader.exe"],
   "fuzzy_match_name": "Tableau Reader 20%",
   "program_publisher": "Salesforce, Inc",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/tableau_reader_install.ps1",

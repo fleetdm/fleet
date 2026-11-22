@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
@@ -66,6 +67,15 @@ func newMockHostProvider() *mockHostProvider {
 
 func (m *mockHostProvider) AddHost(h *activity.Host) {
 	m.hosts[h.ID] = h
+}
+
+func (m *mockHostProvider) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	if id, err := strconv.ParseUint(identifier, 10, 0); err == nil {
+		if _, ok := m.hosts[uint(id)]; ok {
+			return uint(id), nil
+		}
+	}
+	return 0, platform_mysql.NotFound("Host").WithName(identifier)
 }
 
 func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {

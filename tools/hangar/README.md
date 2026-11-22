@@ -92,6 +92,31 @@ wails3 generate bindings -clean=true -ts
   notarize first (`task darwin:sign:notarize`) for real hosts — an ad-hoc build installs cleanly
   only because a pkg install skips the quarantine flag.
 
+- **fleetd packages.** The Installers tab runs `fleetctl package` for every platform and
+  architecture (macOS `.pkg`; `.msi`, `.deb`, `.rpm` and Arch `.pkg.tar.zst` for amd64 and arm64)
+  for a fleetctl context: it reads the context's Fleet server for its `server_url` and fleets, and
+  bakes in the picked fleet's enroll secret. If the server can't be read (down, expired token,
+  untrusted certificate), or there's no context, the Fleet URL and secret are typed in instead.
+  Packages land in `<file server directory>/packages/<context>/` when python http.server has a
+  directory set, and the tab's *Start sharing* runs that same python http.server (one folder and
+  port, set in Settings), with install commands per package. Without a directory they go in
+  `<server 1's repo>/packages/` (gitignored) and aren't shared, since python would serve the whole
+  repo. A context pointing at one of Hangar's servers builds with that server's own `fleetctl`.
+  The selected platforms build at the same time, one `fleetctl package` each, so a full set takes
+  about as long as the slowest `.msi`; each log line is tagged with its platform. `.msi` builds
+  need Docker.
+- **Mock APNs.** osquery-perf won't start simulated macOS hosts that can enroll in MDM, or any
+  iOS/iPadOS host, without a mock APNs server (`--mdm_apns_url`). The osquery-perf tab's *Mock
+  APNs* card runs one for the run's target server: `cmd/apple-apns-mock` from server 1's clone, on
+  that server's Redis. Start stays off until that clone has the mock, the Redis answers `PING` and
+  the port is free, so it can't start into an immediate exit. A `fleet serve` started while the
+  mock runs pushes to it through `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL`; Fleet reads that only at
+  startup, so starting the mock restarts a running serve, and the Server tab offers a restart
+  after it stops. Fleet sends every Apple push to that one URL, so while serve pushes to the mock,
+  real Apple devices on that server get none. Start all doesn't start it, and its card is on the
+  Server tab only while it runs. See [the mock's design
+  doc](../../docs/Contributing/mdm/apple/apple-apns-mock.md).
+
 ## Versioning
 
 `build/config.yml`'s `info.version` is the **single place** to set the release — bump it there
@@ -125,7 +150,7 @@ leaves hosts reporting the old version.
 Two different things live in `~/Library/Logs/com.fleetdm.fleet-hangar/`:
 
 - **`<channel>.log`** — the output of the processes Hangar spawns (`fleet-serve-s1`, `scep-scep1`,
-  `tuf-build`, ...). This is what the Logs tab shows, and its *Reveal in Finder* button opens this
+  `tuf-build`, `installers-build`, ...). This is what the Logs tab shows, and its *Reveal in Finder* button opens this
   folder. Rotated at 16 MB, one generation kept as `.log.1`.
 - **`hangar.log`** — Hangar's own diagnostics: startup, the macOS sleep/wake and screen-change
   events it saw, which quit path it took, a heartbeat every five minutes, and — because file

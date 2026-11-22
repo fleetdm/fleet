@@ -6,13 +6,13 @@
 import { astify } from "utilities/osquery_sql_parser";
 import type { ParserSyntaxError } from "utilities/osquery_sql_parser";
 
-export const EMPTY_QUERY_ERR = "Query text must be present";
+export const EMPTY_QUERY_ERR = "Enter a query";
 export const INVALID_SYNTAX_ERR = "Syntax error. Please review before saving.";
 
 export const invalidSyntaxOnLineErr = (line: number, column: number) =>
   `Syntax error on line ${line}, column ${column}. Please review before saving.`;
 export const expectedSelectErr = (line: number) =>
-  `Expected a SELECT statement on line ${line}.`;
+  `Expected a SELECT statement on line ${line}. Please review before saving.`;
 
 export interface IValidateQueryResult {
   isValid: boolean;

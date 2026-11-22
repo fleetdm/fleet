@@ -64,12 +64,12 @@ const setupQueryHandlers = () => {
   mockServer.use(
     http.get(baseUrl(`/reports/${QUERY_ID}`), () =>
       HttpResponse.json({
-        query: createMockSchedulableQuery({ id: QUERY_ID, team_id: null }),
+        report: createMockSchedulableQuery({ id: QUERY_ID, fleet_id: null }),
       })
     ),
     http.get(baseUrl(`/reports/${QUERY_ID}/report`), () =>
       HttpResponse.json(
-        createMockQueryReport({ query_id: QUERY_ID, results: [] })
+        createMockQueryReport({ report_id: QUERY_ID, results: [] })
       )
     )
   );
@@ -114,9 +114,9 @@ describe("QueryDetailsPage - renders fresh query data (regression #43310)", () =
     mockServer.use(
       http.get(baseUrl(`/reports/${QUERY_ID}`), () =>
         HttpResponse.json({
-          query: createMockSchedulableQuery({
+          report: createMockSchedulableQuery({
             id: QUERY_ID,
-            team_id: null,
+            fleet_id: null,
             name: "Fresh report name",
             description: "Fresh report description",
             query: "SELECT 'fresh';",
@@ -127,7 +127,7 @@ describe("QueryDetailsPage - renders fresh query data (regression #43310)", () =
       ),
       http.get(baseUrl(`/reports/${QUERY_ID}/report`), () =>
         HttpResponse.json(
-          createMockQueryReport({ query_id: QUERY_ID, results: [] })
+          createMockQueryReport({ report_id: QUERY_ID, results: [] })
         )
       )
     );
@@ -176,16 +176,16 @@ describe("QueryDetailsPage - renders fresh query data (regression #43310)", () =
     mockServer.use(
       http.get(baseUrl(`/reports/${QUERY_ID}`), () =>
         HttpResponse.json({
-          query: createMockSchedulableQuery({
+          report: createMockSchedulableQuery({
             id: QUERY_ID,
-            team_id: null,
+            fleet_id: null,
             observer_can_run: true,
           }),
         })
       ),
       http.get(baseUrl(`/reports/${QUERY_ID}/report`), () =>
         HttpResponse.json(
-          createMockQueryReport({ query_id: QUERY_ID, results: [] })
+          createMockQueryReport({ report_id: QUERY_ID, results: [] })
         )
       )
     );
@@ -273,9 +273,9 @@ const setupReportHandlers = ({
     http.get(baseUrl(`/reports/${QUERY_ID}`), () => {
       metadataCalls += 1;
       return HttpResponse.json({
-        query: createMockSchedulableQuery({
+        report: createMockSchedulableQuery({
           id: QUERY_ID,
-          team_id: null,
+          fleet_id: null,
           ...queryOverrides,
         }),
       });
@@ -284,7 +284,7 @@ const setupReportHandlers = ({
       const results = reportSequence(reportCalls);
       reportCalls += 1;
       return HttpResponse.json(
-        createMockQueryReport({ query_id: QUERY_ID, results })
+        createMockQueryReport({ report_id: QUERY_ID, results })
       );
     })
   );

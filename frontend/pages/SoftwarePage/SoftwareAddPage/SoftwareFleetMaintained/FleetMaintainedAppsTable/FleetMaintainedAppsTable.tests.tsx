@@ -81,25 +81,71 @@ describe("combineAppsByPlatform", () => {
     expect(combined.displayName).toBe("Google Credential Provider for Windows");
   });
 
-  it("keeps two distinct apps that share a display name as separate rows", () => {
-    // MacPaw Gemini and Google Gemini share the name "Gemini" but have
-    // different slug tokens, so they must not collapse into one row.
+  it("combines macOS and Windows entries whose names differ only by case into one row", () => {
     const combined = combineAppsByPlatform([
-      app({ id: 1, name: "Gemini", slug: "gemini/darwin", platform: "darwin" }),
+      app({
+        id: 1,
+        name: "Github Desktop",
+        slug: "github/darwin",
+        platform: "darwin",
+      }),
       app({
         id: 2,
-        name: "Gemini",
-        slug: "google-gemini/darwin",
+        name: "GitHub Desktop",
+        slug: "github-desktop/windows",
+        platform: "windows",
+      }),
+    ]);
+
+    expect(combined).toHaveLength(1);
+    expect(combined[0].displayName).toBe("Github Desktop");
+    expect(combined[0].windows?.id).toBe(2);
+  });
+
+  it("shows Foo and Foo Desktop as separate rows when they share a slug token but not a name", () => {
+    const combined = combineAppsByPlatform([
+      app({
+        id: 1,
+        name: "Foo",
+        slug: "foo/darwin",
         platform: "darwin",
+      }),
+      app({
+        id: 2,
+        name: "Foo Desktop",
+        slug: "foo/windows",
+        platform: "windows",
       }),
     ]);
 
     expect(combined).toHaveLength(2);
-    // Each row keeps its own macOS entry (neither Gemini is hidden/overwritten).
-    expect(combined.map((c) => c.macos?.id).sort()).toEqual([1, 2]);
-    expect(combined.map((c) => c.macos?.slug).sort()).toEqual([
-      "gemini/darwin",
-      "google-gemini/darwin",
-    ]);
+    expect(combined[0].name).toBe("Foo");
+    expect(combined[1].name).toBe("Foo Desktop");
+  });
+
+  it("combines Docker Desktop's macOS and Windows entries into one row when their slug tokens differ", () => {
+    const macos = app({
+      id: 1,
+      name: "Docker Desktop",
+      slug: "docker-desktop/darwin",
+      platform: "darwin",
+    });
+    const windows = app({
+      id: 2,
+      name: "Docker Desktop",
+      slug: "docker/windows",
+      platform: "windows",
+    });
+
+    // pass the entries in both orders, each order should give one row that keeps both slugs
+    [
+      [macos, windows],
+      [windows, macos],
+    ].forEach((entries) => {
+      const combined = combineAppsByPlatform(entries);
+      expect(combined).toHaveLength(1);
+      expect(combined[0].macos?.slug).toBe("docker-desktop/darwin");
+      expect(combined[0].windows?.slug).toBe("docker/windows");
+    });
   });
 });

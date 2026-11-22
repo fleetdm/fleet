@@ -43,91 +43,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Deprecated: use the new GetABMTokens API endpoint.
-func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	appCfg, err := svc.AppConfigObfuscated(ctx)
-	if err != nil {
-		return nil, err
-	}
-	mdmServerURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return nil, err
-	}
-
-	tokens, err := svc.ds.ListABMTokens(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "GetAppleBM: listing ABM tokens")
-	}
-
-	if len(tokens) == 0 {
-		return nil, &notFoundError{}
-	}
-
-	if len(tokens) > 1 {
-		return nil, errors.New("This API endpoint has been deprecated. Please use the new GET /ab_tokens API endpoint documented here: https://fleetdm.com/learn-more-about/apple-business-manager-tokens-api")
-	}
-
-	abmToken := tokens[0]
-
-	var appleBM fleet.AppleBM
-	// transfer the abmToken metadata info to the appleBM struct
-	appleBM.AppleID = abmToken.AppleID
-	appleBM.OrgName = abmToken.OrganizationName
-	appleBM.RenewDate = abmToken.RenewAt
-	appleBM.DefaultTeam = appCfg.MDM.DeprecatedAppleBMDefaultTeam
-	appleBM.MDMServerURL = mdmServerURL
-
-	return &appleBM, nil
-}
-
-func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
-	}
-
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host lite")
-	}
-
-	// TODO: define and use right permissions according to the spec.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	_, err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
-	}
-
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host lite")
-	}
-
-	// TODO: define and use right permissions according to the spec.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	err = svc.mdmAppleCommander.EraseDevice(ctx, host, uuid.New().String())
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
@@ -355,6 +270,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	var didUpdateWindowsManagedLocalAccount bool
+	if payload.EnableManagedLocalAccountWindows != nil && ac.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value != *payload.EnableManagedLocalAccountWindows {
+		ac.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(*payload.EnableManagedLocalAccountWindows)
+		didUpdateWindowsManagedLocalAccount = true
+		didUpdate = true
+	}
+
 	if didUpdateFromValidation, err := payload.Validate(&ac.MDM.MacOSSetup); err != nil {
 		return err
 	} else if didUpdateFromValidation {
@@ -372,6 +294,11 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 		if didUpdateMacOSManagedLocalAccount {
 			if err := svc.logEnableManagedLocalAccountActivity(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", nil, nil); err != nil {
+				return err
+			}
+		}
+		if didUpdateWindowsManagedLocalAccount {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value, "windows", nil, nil); err != nil {
 				return err
 			}
 		}
@@ -447,7 +374,8 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return fleet.ErrMDMNotConfigured
 	}
 
-	if payload.RequireAllSoftwareWindows != nil && *payload.RequireAllSoftwareWindows && !ac.MDM.WindowsEnabledAndConfigured {
+	if ((payload.RequireAllSoftwareWindows != nil && *payload.RequireAllSoftwareWindows) ||
+		(payload.EnableManagedLocalAccountWindows != nil && *payload.EnableManagedLocalAccountWindows)) && !ac.MDM.WindowsEnabledAndConfigured {
 		return fleet.ErrWindowsMDMNotConfigured
 	}
 
@@ -1672,9 +1600,6 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 }
 
 func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *uint, appleDevice fleet.AppleDevice, updates fleet.AppleOSUpdateSettings) error {
-	const (
-		softwareUpdateIdentSuffix = `-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105`
-	)
 	var (
 		softwareUpdateIdentifier string
 		osUpdatesProfileName     string
@@ -1682,15 +1607,15 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 	)
 	switch appleDevice {
 	case fleet.MacOS:
-		softwareUpdateIdentifier = "macos" + softwareUpdateIdentSuffix
+		softwareUpdateIdentifier = apple_mdm.MacOSDDMSoftwareUpdateIdentifier
 		osUpdatesProfileName = mdm.FleetMacOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelMacOS14Plus // OS update DDMs are supported on macOS 14+ devices.
 	case fleet.IOS:
-		softwareUpdateIdentifier = "ios" + softwareUpdateIdentSuffix
+		softwareUpdateIdentifier = apple_mdm.IOSDDMSoftwareUpdateIdentifier
 		osUpdatesProfileName = mdm.FleetIOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelIOS
 	case fleet.IPadOS:
-		softwareUpdateIdentifier = "ipados" + softwareUpdateIdentSuffix
+		softwareUpdateIdentifier = apple_mdm.IpadOSDDMSoftwareUpdateIdentifier
 		osUpdatesProfileName = mdm.FleetIPadOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelIPadOS
 	default:
@@ -1794,7 +1719,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 	}
 	// the manual profile isn't tied to a device, so it can only carry the static challenge
 	if !svc.config.MDM.AppleSCEPStaticChallengeEnabled {
-		return nil, &fleet.BadRequestError{Message: fleet.ManualEnrollmentStaticChallengeDisabledErrMsg}
+		return nil, &fleet.NotAllowedByDefaultDeprecationError{Method: "GET", Endpoint: "/enrollment_profiles/manual"}
 	}
 
 	topic, err := assets.APNSTopic(ctx, svc.ds)
@@ -1852,21 +1777,22 @@ func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken)
 		idxByOrg[entry.OrganizationName] = i
 	}
 
-	abmTeamName := func(name string) string {
-		if name == fleet.TeamNameNoTeam {
+	// Unassigned is ID 0. Going by ID keeps a fleet created as "Unassigned" before that name was reserved.
+	abmTeamName := func(tm fleet.ABMTokenTeam) string {
+		if tm.ID == 0 {
 			return ""
 		}
-		return name
+		return tm.Name
 	}
 
 	for _, tok := range tokens {
 		entry := fleet.MDMAppleABMAssignmentInfo{
 			OrganizationName: tok.OrganizationName,
 			Default:          tok.IsDefault,
-			MacOSTeam:        abmTeamName(tok.MacOSTeam.Name),
-			IOSTeam:          abmTeamName(tok.IOSTeam.Name),
-			IpadOSTeam:       abmTeamName(tok.IPadOSTeam.Name),
-			BYODTeam:         abmTeamName(tok.BYODTeam.Name),
+			MacOSTeam:        abmTeamName(tok.MacOSTeam),
+			IOSTeam:          abmTeamName(tok.IOSTeam),
+			IpadOSTeam:       abmTeamName(tok.IPadOSTeam),
+			BYODTeam:         abmTeamName(tok.BYODTeam),
 		}
 
 		if i, ok := idxByOrg[tok.OrganizationName]; ok {
@@ -1885,7 +1811,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 		return nil, ctxerr.Wrap(ctx, err, "decrypting uploaded ABM token")
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -1920,7 +1846,7 @@ func (svc *Service) UploadABMToken(ctx context.Context, token io.Reader) (*fleet
 }
 
 func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -1972,7 +1898,7 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 }
 
 func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -2001,7 +1927,7 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 }
 
 func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -2011,20 +1937,20 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	// validate the team IDs
-	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.MacOSDefaultTeamID = nil
-	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.IOSDefaultTeamID = nil
-	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.IPadOSDefaultTeamID = nil
-	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
+	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
 	token.BYODDefaultTeamID = nil
 
 	if macOSTeamID != nil && *macOSTeamID != 0 {
 		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *macOSTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *macOSTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of macOS team"),
 			}
 		}
@@ -2038,7 +1964,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		iOSTeam, err := svc.ds.TeamLite(ctx, *iOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *iOSTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *iOSTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iOS team"),
 			}
 		}
@@ -2051,7 +1977,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		iPadOSTeam, err := svc.ds.TeamLite(ctx, *iPadOSTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *iPadOSTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *iPadOSTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iPadOS team"),
 			}
 		}
@@ -2064,7 +1990,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		byodTeam, err := svc.ds.TeamLite(ctx, *byodTeamID)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("team with ID %d not found", *byodTeamID),
+				Message:     fmt.Sprintf("fleet with ID %d not found", *byodTeamID),
 				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of BYOD team"),
 			}
 		}
@@ -2093,7 +2019,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 }
 
 func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefault *bool) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -2154,7 +2080,7 @@ func (svc *Service) SetABMTokenDefault(ctx context.Context, tokenID uint, isDefa
 }
 
 func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -2182,7 +2108,7 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 }
 
 func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader) (encryptedToken []byte, decryptedToken *client.OAuth1Tokens, err error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
 
@@ -2266,11 +2192,8 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 }
 
 func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, commandUUID string) error {
-	// The selective-list gate (rather than host read) admits gitops, which can
-	// send raw MDM commands via POST /commands/run — whoever can send a
-	// command can cancel one. Mirrors authorizeAllHostsTeams on that endpoint.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return err
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
 	}
 
 	host, err := svc.ds.HostLite(ctx, hostID)
@@ -2282,7 +2205,7 @@ func (svc *Service) CancelHostMDMCommand(ctx context.Context, hostID uint, comma
 	// MDM commands, so host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "cancel host mdm command")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// Non-Apple hosts have no nano queue rows; without this guard they would

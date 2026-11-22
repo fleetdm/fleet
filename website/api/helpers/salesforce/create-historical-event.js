@@ -135,8 +135,6 @@ module.exports = {
       };
     }
 
-    require('assert')(sails.config.custom.salesforceIntegrationPasskey);
-    require('assert')(sails.config.custom.salesforceIntegrationUsername);
     require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
 
     // Normalize the provided linkedin url.
@@ -159,11 +157,7 @@ module.exports = {
 
 
       // login to Salesforce
-      let jsforce = require('jsforce');
-      let salesforceConnection = new jsforce.Connection({
-        loginUrl : 'https://fleetdm.my.salesforce.com'
-      });
-      await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+      let salesforceConnection = await sails.helpers.salesforce.getConnection();
 
       return await salesforceConnection.sobject('fleet_website_page_views__c')
       .create({

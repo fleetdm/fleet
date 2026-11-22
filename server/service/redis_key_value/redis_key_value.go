@@ -41,6 +41,22 @@ func (r *RedisKeyValue) Set(ctx context.Context, key string, value string, expir
 	return nil
 }
 
+// SetIfNotExists sets the given key to the given value with the given expiration, only if the key doesn't exist. It reports
+// whether the key was set, atomically across Fleet servers.
+func (r *RedisKeyValue) SetIfNotExists(ctx context.Context, key string, value string, expireTime time.Duration) (bool, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	_, err := redigo.String(conn.Do("SET", r.testPrefix+prefix+key, value, "PX", expireTime.Milliseconds(), "NX"))
+	if errors.Is(err, redigo.ErrNil) {
+		return false, nil
+	}
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "redis failed to set if not exists")
+	}
+	return true, nil
+}
+
 // Get returns the value for a given key.
 // It returns (nil, nil) if the key doesn't exist.
 func (r *RedisKeyValue) Get(ctx context.Context, key string) (*string, error) {

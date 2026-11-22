@@ -27,6 +27,8 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// per-team for specific policy IDs, different configurations for different
 	// teams:
 	//
+	// Policies with WebhooksAndTicketsEnabled are the enabled ones:
+	//
 	// pol-global-{1-3}: global policies (only 1 and 2 is enabled), ids 1-2-3
 	// pol-teamA-{4-6}: team A policies (only 4 and 5 is enabled), ids 4-5-6
 	// pol-teamB-{7-9}: team B policies (only 7 and 8 is enabled), ids 7-8-9
@@ -45,22 +47,22 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// Zendesk integration, team D a webhook.
 
 	pols := map[uint]*fleet.PolicyData{
-		1:  {ID: 1, Name: "pol-global-1"},
-		2:  {ID: 2, Name: "pol-global-2"},
+		1:  {ID: 1, Name: "pol-global-1", WebhooksAndTicketsEnabled: true},
+		2:  {ID: 2, Name: "pol-global-2", WebhooksAndTicketsEnabled: true},
 		3:  {ID: 3, Name: "pol-global-3"},
-		4:  {ID: 4, Name: "pol-teamA-4", TeamID: ptr.Uint(1)},
-		5:  {ID: 5, Name: "pol-teamA-5", TeamID: ptr.Uint(1)},
+		4:  {ID: 4, Name: "pol-teamA-4", TeamID: new(uint(1)), WebhooksAndTicketsEnabled: true},
+		5:  {ID: 5, Name: "pol-teamA-5", TeamID: new(uint(1)), WebhooksAndTicketsEnabled: true},
 		6:  {ID: 6, Name: "pol-teamA-6", TeamID: ptr.Uint(1)},
-		7:  {ID: 7, Name: "pol-teamB-7", TeamID: ptr.Uint(2)},
-		8:  {ID: 8, Name: "pol-teamB-8", TeamID: ptr.Uint(2)},
+		7:  {ID: 7, Name: "pol-teamB-7", TeamID: new(uint(2)), WebhooksAndTicketsEnabled: true},
+		8:  {ID: 8, Name: "pol-teamB-8", TeamID: new(uint(2)), WebhooksAndTicketsEnabled: true},
 		9:  {ID: 9, Name: "pol-teamB-9", TeamID: ptr.Uint(2)},
-		10: {ID: 10, Name: "pol-teamC-10", TeamID: ptr.Uint(3)},
+		10: {ID: 10, Name: "pol-teamC-10", TeamID: new(uint(3)), WebhooksAndTicketsEnabled: true},
 		// intentionally omit 11 for testing the edge case where a policy failure is received for a
 		// non-existent policy (see below)
-		12: {ID: 12, Name: "pol-teamD-12", TeamID: ptr.Uint(4)},
-		13: {ID: 13, Name: "pol-teamD-13", TeamID: ptr.Uint(4)},
+		12: {ID: 12, Name: "pol-teamD-12", TeamID: new(uint(4)), WebhooksAndTicketsEnabled: true},
+		13: {ID: 13, Name: "pol-teamD-13", TeamID: new(uint(4)), WebhooksAndTicketsEnabled: true},
 		14: {ID: 14, Name: "pol-teamD-14", TeamID: ptr.Uint(4)},
-		15: {ID: 15, Name: "pol-teamE-15", TeamID: ptr.Uint(5)},
+		15: {ID: 15, Name: "pol-teamE-15", TeamID: new(uint(5)), WebhooksAndTicketsEnabled: true},
 	}
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
 		pd, ok := pols[id]
@@ -72,11 +74,6 @@ func TestTriggerFailingPolicies(t *testing.T) {
 
 	teams := map[uint]*fleet.TeamLite{
 		1: {ID: 1, Name: "teamA", Config: fleet.TeamConfigLite{
-			WebhookSettings: fleet.TeamWebhookSettings{
-				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-					PolicyIDs: []uint{4, 5},
-				},
-			},
 			Integrations: fleet.TeamIntegrations{
 				Jira: []*fleet.TeamJiraIntegration{
 					{URL: "http://j.com", ProjectKey: "A", EnableFailingPolicies: true},
@@ -84,11 +81,6 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 		}},
 		2: {ID: 2, Name: "teamB", Config: fleet.TeamConfigLite{
-			WebhookSettings: fleet.TeamWebhookSettings{
-				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-					PolicyIDs: []uint{7, 8},
-				},
-			},
 			Integrations: fleet.TeamIntegrations{
 				Zendesk: []*fleet.TeamZendeskIntegration{
 					{URL: "http://z.com", GroupID: 1, EnableFailingPolicies: true},
@@ -98,8 +90,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		4: {ID: 4, Name: "teamD", Config: fleet.TeamConfigLite{
 			WebhookSettings: fleet.TeamWebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-					Enable:    true,
-					PolicyIDs: []uint{12, 13},
+					Enable: true,
 				},
 			},
 			Integrations: fleet.TeamIntegrations{
@@ -112,11 +103,6 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 		}},
 		5: {ID: 5, Name: "teamE", Config: fleet.TeamConfigLite{
-			WebhookSettings: fleet.TeamWebhookSettings{
-				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-					PolicyIDs: []uint{15},
-				},
-			},
 			Integrations: fleet.TeamIntegrations{
 				Zendesk: []*fleet.TeamZendeskIntegration{
 					{URL: "http://notexist", GroupID: 999, EnableFailingPolicies: true},
@@ -136,8 +122,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	ac := &fleet.AppConfig{
 		WebhookSettings: fleet.WebhookSettings{
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-				Enable:    true,
-				PolicyIDs: []uint{1, 2},
+				Enable: true,
 			},
 		},
 		Integrations: fleet.Integrations{
@@ -260,4 +245,29 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	}
 	// order of calls is undefined
 	require.ElementsMatch(t, wantCalls, triggerCalls)
+}
+
+func TestTriggerFailingPoliciesGlobalAutomationOff(t *testing.T) {
+	ds := new(mock.Store)
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{ID: id, Name: "global", WebhooksAndTicketsEnabled: true}, nil
+	}
+	// The global webhook and integrations are off, so a global policy with the automation on sends nothing.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	failingPolicySet := service.NewMemFailingPolicySet()
+	require.NoError(t, failingPolicySet.AddHost(1, fleet.PolicySetHost{ID: 1, Hostname: "host1.example"}))
+
+	err := TriggerFailingPoliciesAutomation(t.Context(), ds, slog.New(slog.DiscardHandler), failingPolicySet,
+		func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+			t.Fatalf("unexpected automation for policy %d", pol.ID)
+			return nil
+		})
+	require.NoError(t, err)
+
+	sets, err := failingPolicySet.ListSets()
+	require.NoError(t, err)
+	require.Empty(t, sets)
 }

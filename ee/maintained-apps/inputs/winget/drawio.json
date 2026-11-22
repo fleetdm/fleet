@@ -3,6 +3,7 @@
   "slug": "drawio/windows",
   "package_identifier": "JGraph.Draw",
   "unique_identifier": "draw.io",
+  "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/drawio_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/drawio_uninstall.ps1",
   "installer_arch": "x64",

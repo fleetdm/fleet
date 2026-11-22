@@ -128,12 +128,13 @@
     Fails when a package is older than the fix, or when the PHP branch has no known vendor fix
     (for example PHP 8.1 on Amazon Linux 2023, RHEL 9 php:8.4, or a self-built PHP).
     Only distro packages are checked. Containers and FrankenPHP bring their own PHP.
-  resolution: |
-    If you are failing this policy, drop a note in #help-it. Then, IT will run the remediate-php2shell-linux.sh
-    script (it-and-security/lib/linux/scripts/remediate-php2shell-linux.sh) on this host. It upgrades the PHP
-    packages with apt, dnf, yum, zypper, or apk and restarts PHP-FPM, and Apache when mod_php is loaded, so no
-    worker keeps the old code. If the policy stays failing, the host runs a PHP branch with no vendor fix
-    (switch to a supported branch) or a repository mirror hasn't synced yet.
+  resolution: >-
+    No action needed from you. IT runs the remediate-php2shell-linux.sh script
+    (it-and-security/lib/linux/scripts/remediate-php2shell-linux.sh) on failing hosts. It upgrades the PHP packages
+    with apt, dnf, yum, zypper, or apk and restarts PHP-FPM, and Apache when mod_php is loaded, so no worker keeps
+    the old code. If the policy keeps failing, the host runs a PHP branch with no vendor fix (IT reaches out to
+    switch to a supported branch) or a repository mirror hasn't synced yet.
+  hidden: true
   platform: linux
   calendar_events_enabled: false
 
@@ -158,12 +159,12 @@
     which Homebrew no longer updates. A Mac is only exposed when it serves web requests with
     PHP (for example php-fpm or Apache with mod_php from Homebrew), but the fix is the same.
     MAMP and other bundled PHP runtimes aren't covered by this policy.
-  resolution: |
-    If you are failing this policy, drop a note in #help-it. Then, IT will run the remediate-php2shell-macos.sh
-    script (it-and-security/lib/macos/scripts/remediate-php2shell-macos.sh) on this host. It runs brew update and
-    brew upgrade for each installed PHP formula as the Homebrew owner and restarts PHP services managed by
-    brew services. If you have php@8.1 or older, replace it with a supported formula, or uninstall it if you
-    don't need it.
+  resolution: >-
+    No action needed from you. IT runs the remediate-php2shell-macos.sh script
+    (it-and-security/lib/macos/scripts/remediate-php2shell-macos.sh) on failing hosts. It runs brew update and brew
+    upgrade for each installed PHP formula as the Homebrew owner and restarts PHP services managed by brew services.
+    If the host has php@8.1 or older, IT reaches out to replace it with a supported formula or uninstall it.
+  hidden: true
   platform: darwin
   calendar_events_enabled: false
 
@@ -198,11 +199,12 @@
     (C:\php*, Program Files\PHP, XAMPP, WAMP, Laragon, Chocolatey, inetpub) and every running
     php.exe, php-cgi.exe, or php-win.exe reports a file version at or above 8.5.12, 8.4.27,
     8.3.36, or 8.2.35. PHP 8.1 and older Windows builds have no fix and always fail.
-  resolution: |
-    If you are failing this policy, drop a note in #help-it. Then, IT will download the fixed build for the same
-    branch and architecture from https://windows.php.net/download/, replace the PHP directory, and restart IIS
-    (iisreset) or the Apache service so php-cgi.exe workers load the new build. For XAMPP, WAMP, or Laragon,
-    install the bundle's updated PHP. Until then, IT can run the mitigate-php2shell-windows.ps1 script
+  resolution: >-
+    No action needed from you. IT downloads the fixed build for the same branch and architecture from
+    https://windows.php.net/download/, replaces the PHP directory, and restarts IIS (iisreset) or the Apache service
+    so php-cgi.exe workers load the new build. For XAMPP, WAMP, or Laragon, IT installs the bundle's updated PHP.
+    Until then, IT can run the mitigate-php2shell-windows.ps1 script
     (it-and-security/lib/windows/scripts/mitigate-php2shell-windows.ps1) to disable session upload progress.
+  hidden: true
   platform: windows
   calendar_events_enabled: false

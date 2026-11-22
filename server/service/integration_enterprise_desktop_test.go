@@ -36,11 +36,11 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(`{
 		"org_info":{
-			"org_logo_url": "http://example.com/logo",
+			"org_logo_url_dark_mode": "http://example.com/logo",
 			"contact_url": "http://example.com/contact"
 		}
 	}`), http.StatusOK, &acResp)
-	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL) //nolint:staticcheck // set through the deprecated org_logo_url key above
+	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURLDarkMode)
 	require.Equal(t, "http://example.com/contact", acResp.OrgInfo.ContactURL)
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -65,11 +65,13 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, err)
 
 	// add a global policy
-	gpParams := fleet.GlobalPolicyRequest{
-		QueryID:    &qr.ID,
-		Resolution: "some global resolution",
+	gpParams := fleet.CreatePolicyRequest{
+		Name:        qr.Name,
+		Query:       qr.Query,
+		Description: qr.Description,
+		Resolution:  "some global resolution",
 	}
-	gpResp := fleet.GlobalPolicyResponse{}
+	gpResp := fleet.CreatePolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
@@ -103,19 +105,21 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, err)
 
 	s.token = s.getTestToken(email, password)
-	tpParams := fleet.TeamPolicyRequest{
+	tpParams := fleet.CreatePolicyRequest{
+		TeamID:      &team.ID,
 		Name:        "TestQueryEnterpriseTeamPolicy",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 		Platform:    "darwin",
 	}
-	tpResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
+	tpResp := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", tpParams, http.StatusOK, &tpResp)
 
 	// add a hidden policy to the team, failing on the host
-	hiddenResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), fleet.TeamPolicyRequest{
+	hiddenResp := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:   &team.ID,
 		Name:     "TestQueryEnterpriseHiddenTeamPolicy",
 		Query:    "select * from osquery;",
 		Platform: "darwin",
@@ -189,7 +193,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
-	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURLDarkMode)
 	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	// hidden policies are left out by default, but still counted
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)

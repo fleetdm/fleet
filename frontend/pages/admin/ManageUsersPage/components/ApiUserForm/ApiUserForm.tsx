@@ -6,6 +6,7 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import useApiEndpoints from "hooks/useApiEndpoints";
 import useFormValidation from "hooks/useFormValidation";
 import { IApiEndpointRef } from "interfaces/api_endpoint";
 import { ITeam } from "interfaces/team";
@@ -16,7 +17,11 @@ import { roleOptions } from "../../helpers/userManagementHelpers";
 import ApiAccessSection from "../ApiAccessSection";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 
-import { ApiUserFormState, validateApiUserForm } from "./helpers";
+import {
+  ApiUserFormState,
+  dropUnlistedEndpoints,
+  validateApiUserForm,
+} from "./helpers";
 
 export interface IApiUserFormData {
   name: string;
@@ -49,8 +54,14 @@ const ApiUserForm = ({
 }: IApiUserFormProps) => {
   const isNewUser = defaultData === undefined;
 
+  // Only stored grants can be missing from the catalog; anything picked in the
+  // selector comes from it.
+  const { data: apiEndpointCatalog } = useApiEndpoints({
+    enabled: !!isPremiumTier && !!defaultData?.api_endpoints?.length,
+  });
+
   const validate = (data: ApiUserFormState) =>
-    validateApiUserForm(data, { isPremiumTier });
+    validateApiUserForm(data, { isPremiumTier, apiEndpointCatalog });
 
   const {
     formData,
@@ -62,8 +73,7 @@ const ApiUserForm = ({
   } = useFormValidation<ApiUserFormState>({
     initialFormData: {
       name: defaultData?.name ?? "",
-      global_role: (defaultData?.global_role ??
-        (isPremiumTier ? "gitops" : "observer")) as UserRole,
+      global_role: (defaultData?.global_role ?? "gitops") as UserRole,
       isGlobalUser: !defaultData?.fleets?.length,
       fleets: defaultData?.fleets ?? [],
       // null (all endpoints) and undefined (field not set / free tier) both mean
@@ -80,7 +90,9 @@ const ApiUserForm = ({
     // instance. When "All" is selected, send null to signal full access.
     let apiEndpoints: IApiEndpointRef[] | null | undefined;
     if (isPremiumTier) {
-      apiEndpoints = data.isSpecificEndpoints ? data.api_endpoints : null;
+      apiEndpoints = data.isSpecificEndpoints
+        ? dropUnlistedEndpoints(data.api_endpoints, apiEndpointCatalog)
+        : null;
     }
 
     return onSubmit({

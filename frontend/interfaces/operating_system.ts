@@ -8,10 +8,8 @@ export interface IOperatingSystemKernels {
 }
 export interface IOperatingSystemVersion {
   os_version_id: number;
-  /** name often includes "<name> <version>" */
-  name: string;
-  name_only: string;
-  version: string;
+  os_name: string;
+  os_version: string;
   platform: string; // TODO: More specific
   hosts_count: number;
   generated_cpes?: string[];
@@ -34,11 +32,3 @@ export const OS_END_OF_LIFE_LINK_BY_PLATFORM: Record<string, string> = {
   darwin: "https://endoflife.date/macos",
   windows: "https://endoflife.date/windows",
 } as const;
-
-export const formatOperatingSystemDisplayName = (name: string) => {
-  let displayName = name;
-  if (displayName.startsWith("Microsoft Windows")) {
-    displayName = displayName.replace("Microsoft Windows", "Windows");
-  }
-  return displayName;
-};

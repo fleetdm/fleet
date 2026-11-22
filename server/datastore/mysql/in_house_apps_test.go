@@ -40,7 +40,6 @@ func TestInHouseApps(t *testing.T) {
 		{"GetUnverifiedInHouseAppInstallsForHost", testGetUnverifiedInHouseAppInstallsForHost},
 		{"InHouseAppConfigCRUDFlow", testInHouseAppConfigCRUDFlow},
 		{"InHouseAppConfigSiblingRows", testInHouseAppConfigSiblingRows},
-		{"InHouseAppConfigHasChanged", testHasInHouseAppConfigurationChanged},
 		{"InHouseAppInstallTokens", testInHouseAppInstallTokens},
 		{"SummaryUpcomingPerHostNoDropout", testInHouseSummaryUpcomingPerHostNoDropout},
 		{"BatchSetInHouseInstallersInstallDuringSetup", testBatchSetInHouseInstallersInstallDuringSetup},
@@ -131,10 +130,10 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 
 	// Try to upload in house app again, expect duplicate error
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payload)
-	require.ErrorContains(t, err, fmt.Sprintf(`In-house app %q already exists`, payload.Filename))
+	require.ErrorContains(t, err, fmt.Sprintf(`In-house app %q already exists`, payload.Title))
 	// Try to upload in house app with different version or name but same bundle id
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &payloadV2)
-	require.ErrorContains(t, err, fmt.Sprintf(`In-house app %q already exists`, payloadV2.Filename))
+	require.ErrorContains(t, err, fmt.Sprintf(`In-house app %q already exists`, payloadV2.Title))
 
 	// Get new in house app
 	installer, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleID)
@@ -317,6 +316,27 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	_, titleSameName, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadSameName)
 	require.NoError(t, err)
 	require.NotEqual(t, titleIDWithTitle, titleSameName)
+
+	// Upload an app with a different bundle id but a filename already used in the fleet, it
+	// should create a new in-house app for a new software title
+	payloadSameFilename := fleet.UploadSoftwareInstallerPayload{
+		TeamID:           &team.ID,
+		UserID:           user1.ID,
+		Title:            "Same Filename",
+		Filename:         payloadSameName.Filename,
+		BundleIdentifier: "com.same.filename",
+		StorageID:        "testing6",
+		Extension:        "ipa",
+		Version:          "1.0.0",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	}
+	_, titleSameFilename, err := ds.MatchOrCreateSoftwareInstaller(ctx, &payloadSameFilename)
+	require.NoError(t, err)
+	require.NotEqual(t, titleSameName, titleSameFilename)
+	installerSameFilename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, titleSameFilename)
+	require.NoError(t, err)
+	require.Equal(t, payloadSameFilename.Filename, installerSameFilename.Name)
+	require.Equal(t, payloadSameFilename.BundleIdentifier, installerSameFilename.BundleIdentifier)
 }
 
 func testInHouseAppsMultipleTeams(t *testing.T, ds *Datastore) {
@@ -861,9 +881,10 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	// change ipa2 self-service and add categories
 	ipa2.SelfService = !ipa2.SelfService
 	ipa2.Categories = []string{"👬 Communication", "🖥️ Productivity"}
-	catIDs, err := ds.GetSoftwareCategoryIDs(ctx, team.ID, ipa2.Categories)
+	catIDsByName, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team.ID, ipa2.Categories)
 	require.NoError(t, err)
-	ipa2.CategoryIDs = catIDs
+	require.Len(t, catIDsByName, 2)
+	ipa2.CategoryIDs = []uint{catIDsByName[ipa2.Categories[0]], catIDsByName[ipa2.Categories[1]]}
 
 	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
@@ -1201,6 +1222,72 @@ func testBatchSetInHouseInstallers(t *testing.T, ds *Datastore) {
 	pendingHost2, _, err = ds.ListHostUpcomingActivities(ctx, host2.ID, fleet.ListOptions{PerPage: 10})
 	require.NoError(t, err)
 	require.Empty(t, pendingHost2)
+
+	// batch-set ipa1 with a new filename in the team and in unassigned, the existing in-house app
+	// of each title should be updated instead of a second one being added
+	for _, batchTeamID := range []*uint{&team.ID, nil} {
+		var globalOrTeamID uint
+		if batchTeamID != nil {
+			globalOrTeamID = *batchTeamID
+		}
+		ipa1Payloads := func(filename string) []*fleet.UploadSoftwareInstallerPayload {
+			return []*fleet.UploadSoftwareInstallerPayload{
+				{
+					StorageID:        ipa1.StorageID,
+					Filename:         filename,
+					Title:            ipa1.Title,
+					Source:           "ios_apps",
+					Version:          ipa1.Version,
+					UserID:           user1.ID,
+					Platform:         "ios",
+					URL:              "https://example.com/1",
+					ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+					BundleIdentifier: ipa1.BundleIdentifier,
+					SelfService:      ipa1.SelfService,
+				},
+				{
+					StorageID:        ipa1.StorageID,
+					Filename:         filename,
+					Title:            ipa1.Title,
+					Source:           "ipados_apps",
+					Version:          ipa1.Version,
+					UserID:           user1.ID,
+					Platform:         "ipados",
+					URL:              "https://example.com/1",
+					ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+					BundleIdentifier: ipa1.BundleIdentifier,
+					SelfService:      ipa1.SelfService,
+				},
+			}
+		}
+
+		err = ds.BatchSetInHouseAppsInstallers(ctx, batchTeamID, ipa1Payloads(ipa1.Filename))
+		require.NoError(t, err)
+		appsBeforeRename, err := ds.GetSoftwareInstallers(ctx, globalOrTeamID)
+		require.NoError(t, err)
+		require.Len(t, appsBeforeRename, 2)
+		iosTitleID := *appsBeforeRename[0].TitleID
+		ipadosTitleID := *appsBeforeRename[1].TitleID
+		iosAppBeforeRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, iosTitleID)
+		require.NoError(t, err)
+		ipadosAppBeforeRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, ipadosTitleID)
+		require.NoError(t, err)
+
+		err = ds.BatchSetInHouseAppsInstallers(ctx, batchTeamID, ipa1Payloads("ipa1-renamed.ipa"))
+		require.NoError(t, err)
+		appsAfterRename, err := ds.GetSoftwareInstallers(ctx, globalOrTeamID)
+		require.NoError(t, err)
+		require.Len(t, appsAfterRename, 2)
+		iosAppAfterRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, iosTitleID)
+		require.NoError(t, err)
+		ipadosAppAfterRename, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, batchTeamID, ipadosTitleID)
+		require.NoError(t, err)
+
+		require.Equal(t, iosAppBeforeRename.InstallerID, iosAppAfterRename.InstallerID)
+		require.Equal(t, "ipa1-renamed.ipa", iosAppAfterRename.Name)
+		require.Equal(t, ipadosAppBeforeRename.InstallerID, ipadosAppAfterRename.InstallerID)
+		require.Equal(t, "ipa1-renamed.ipa", ipadosAppAfterRename.Name)
+	}
 
 	// remove everything
 	err = ds.BatchSetInHouseAppsInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
@@ -1826,7 +1913,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	activitySvc := NewTestActivityService(t, ds)
 
 	// no past activities yet
-	acts, _, err := activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	acts, _, err := activitySvc.ListHostPastActivities(ctx, fmt.Sprint(iosHost.ID), activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 0)
 
@@ -1847,7 +1934,7 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	createInHouseAppInstallResult(t, ds, iosHost, ipaCmd, "Acknowledged")
 
 	// past activity for the failed install (ordered by created_at DESC - newest first)
-	acts, _, err = activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
+	acts, _, err = activitySvc.ListHostPastActivities(ctx, fmt.Sprint(iosHost.ID), activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 2)
 	// newest: created by createInHouseAppInstallResult with nil user
@@ -1916,7 +2003,6 @@ func setupTestInHouseApp(t *testing.T, ds *Datastore, filename string) (iosID, i
 		Filename:        filename,
 		BundleID:        "com.example." + filename,
 		StorageID:       uuid.NewString(),
-		Platform:        string(fleet.IOSPlatform),
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -1933,13 +2019,6 @@ func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	// NotFound on empty table.
 	_, err := ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.ErrorContains(t, err, "not found")
-	err = ds.DeleteInHouseAppConfiguration(ctx, iosID)
-	require.ErrorContains(t, err, "not found")
-
-	// BulkGet: empty input returns nil map without a query.
-	got, err := ds.BulkGetInHouseAppConfigurations(ctx, nil)
-	require.NoError(t, err)
-	require.Nil(t, got)
 
 	// Insert: one row per in_house_app_id (parent already pins team and platform).
 	iosCfg := []byte(testIOSPlist)
@@ -1955,25 +2034,12 @@ func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, ipadCfg, gotIPad)
 
-	// BulkGet: returns matched rows, ignores unknown ids.
-	bulk, err := ds.BulkGetInHouseAppConfigurations(ctx, []uint{iosID, 999999})
-	require.NoError(t, err)
-	require.Len(t, bulk, 1)
-	require.Equal(t, iosCfg, bulk[iosID])
-
 	// Update: upsert overwrites.
 	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
 	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, updated))
 	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.NoError(t, err)
 	require.Equal(t, updated, gotIOS)
-
-	// Delete iOS only — iPadOS row survives.
-	require.NoError(t, ds.DeleteInHouseAppConfiguration(ctx, iosID))
-	_, err = ds.GetInHouseAppConfiguration(ctx, iosID)
-	require.ErrorContains(t, err, "not found")
-	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
-	require.NoError(t, err)
 
 	// Cascade: dropping the parent in_house_apps row removes the config row.
 	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
@@ -1994,7 +2060,6 @@ func testInHouseAppConfigSiblingRows(t *testing.T, ds *Datastore) {
 		Filename:        "siblings.ipa",
 		BundleID:        "com.example.siblings",
 		StorageID:       uuid.NewString(),
-		Platform:        string(fleet.IOSPlatform),
 		Configuration:   cfg,
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
@@ -2011,34 +2076,6 @@ func testInHouseAppConfigSiblingRows(t *testing.T, ds *Datastore) {
 	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadID)
 	require.NoError(t, err, "iPadOS row must also have the configuration set at upload time")
 	require.Equal(t, cfg, gotIPad)
-}
-
-func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	appID, _ := setupTestInHouseApp(t, ds, "test.ipa")
-
-	stored := []byte(`<dict><key>v</key><integer>1</integer></dict>`)
-	require.NoError(t, ds.updateInHouseAppConfigurationTx(testCtx(), ds.writer(testCtx()), appID, stored))
-
-	cases := []struct {
-		desc      string
-		incoming  []byte
-		compareID uint
-		want      bool
-	}{
-		{"identical", stored, appID, false},
-		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), appID, true},
-		{"empty incoming against existing means delete", nil, appID, true},
-		{"empty incoming against non-existing", nil, 999999, false},
-		{"non-empty against non-existing", stored, 999999, true},
-	}
-	for _, c := range cases {
-		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HasInHouseAppConfigurationChanged(ctx, c.compareID, c.incoming)
-			require.NoError(t, err)
-			require.Equal(t, c.want, got)
-		})
-	}
 }
 
 func testInHouseAppInstallTokens(t *testing.T, ds *Datastore) {
