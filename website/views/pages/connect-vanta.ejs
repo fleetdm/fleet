@@ -1,11 +1,11 @@
 <div id="connect-vanta" class="container d-flex flex-row justify-content-center" v-cloak>
   <div style="max-width: 620px;">
     <h1>Connect Fleet and Vanta</h1>
-    <p>This page allows you to set up an integration between Fleet and Vanta. Once set up, Fleet will submit host and user information to Vanta for compliance purposes.</p>
+    <p>This page allows you to set up an integration between Fleet and Vanta. Once set up, Fleet will submit host and user information to Vanta for compliance purposes. See the <a href="/guides/connect-fleet-to-vanta" target="_blank">Connect Fleet to Vanta guide</a> for how the integration works and how your API token is handled.</p>
     <div purpose="vanta-notes">
       <p class="font-weight-bold">Please note:</p>
       <ul>
-        <li>Vanta only supports up to 1000 hosts.</li>
+        <li>Fleet's Vanta integration supports up to 1,000 hosts.</li>
         <li>The integration currently only supports macOS and Windows hosts.</li>
         <li>We are currently unable to provide screen lock status. In Vanta, all hosts will appear as false. <a href="/queries/screen-lock-enabled-mac-os" target="_blank">Use this query for macOS hosts</a>, and <a href="/queries/screen-lock-enabled-windows" target="_blank">this query for Windows hosts</a> to see the true list of hosts with screen lock turned on via MDM.</li>
         <li>This integration is only available to Fleet Premium customers.</li>

@@ -86,7 +86,12 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 		{"CertificateTemplates", testCertificateTemplates},
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
+		{"BuildAndSendFleetAgentConfigSavesTheAgentInstall", testBuildAndSendFleetAgentConfigSavesTheAgentInstall},
+		{"BuildFleetAgentConfigWithOneTimeEnrollSecrets", testBuildFleetAgentConfigWithOneTimeEnrollSecrets},
+		{"ReconcilerSendsOneTimeEnrollSecrets", testReconcilerSendsOneTimeEnrollSecrets},
+		{"SendFleetAgentConfigReportsFailures", testSendFleetAgentConfigReportsFailures},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
+		{"CertificateTemplatesHeldUntilHostPolicyApplied", testCertificateTemplatesHeldUntilHostPolicyApplied},
 		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
 		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
 		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
@@ -94,6 +99,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"RejectedProfileRedeliveredAfterFixAndPolicyReset", testRejectedProfileRedeliveredAfterFixAndPolicyReset},
 		{"PolicyResetDuringBatchIsNotOverwritten", testPolicyResetDuringBatchIsNotOverwritten},
 		{"PolicyResetDuringFirstDeliveryIsNotOverwritten", testPolicyResetDuringFirstDeliveryIsNotOverwritten},
+		{"FleetDefaultPolicies", testFleetDefaultPolicies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -243,7 +249,7 @@ func testReconcileProfilesWithClientDisablesRetry(t *testing.T, ds fleet.Datasto
 	err = ReconcileProfilesWithClient(ctx, ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{
 		Package:       "com.fleetdm.agent",
 		SigningSHA256: "abc123def456",
-	}, 0)
+	}, 0, nil)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -1026,6 +1032,12 @@ func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, tea
 	return host
 }
 
+// applyHostSpecificPolicy records that the host's device applied its host-specific policy.
+func applyHostSpecificPolicy(t *testing.T, ds fleet.Datastore, host *fleet.AndroidHost) {
+	host.Device.AppliedPolicyID = &host.Host.UUID
+	require.NoError(t, ds.UpdateAndroidHost(t.Context(), host, false, false))
+}
+
 func createNonAndroidHost(t *testing.T, ds fleet.Datastore, suffixID int) *fleet.Host {
 	hostUUID := uuid.NewString()
 	host := &fleet.Host{
@@ -1118,7 +1130,11 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// Create Android hosts in the team
 	host1 := createAndroidHostInTeam(t, ds, 1, &team.ID)
+	applyHostSpecificPolicy(t, ds, host1)
 	host2 := createAndroidHostInTeam(t, ds, 2, &team.ID)
+	applyHostSpecificPolicy(t, ds, host2)
+	// still on the default policy, so its host-specific policy may not exist in AMAPI yet
+	defaultPolicyHost := createAndroidHostInTeam(t, ds, 3, &team.ID)
 
 	// Add host certificate templates for host 2 with 'delivered' status to exclude it from processing
 	// (only 'pending' status templates are picked up by reconcileCertificateTemplates)
@@ -1178,6 +1194,14 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	// verify host1 is targetted by the api call
 	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host1.Host.UUID), capturedPolicyName)
+
+	// the host still on the default policy is left pending for the setup experience to deliver
+	var defaultPolicyHostStatuses []string
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &defaultPolicyHostStatuses,
+			`SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, defaultPolicyHost.Host.UUID)
+	})
+	require.Equal(t, []string{string(fleet.CertificateTemplatePending), string(fleet.CertificateTemplatePending)}, defaultPolicyHostStatuses)
 	require.Len(t, capturedPolicies, 1)
 
 	// Verify the managed configuration contains certificate template IDs with status and operation
@@ -1233,6 +1257,84 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return sqlx.GetContext(ctx, q, &countHost1, query, host1.Host.UUID)
 	})
 	require.Equal(t, 2, countHost1)
+}
+
+// testCertificateTemplatesHeldUntilHostPolicyApplied verifies that a newly enrolled host, whose
+// device is still on the default policy, gets its profiles but not its certificates: its
+// host-specific policy may not exist in AMAPI yet, and the setup experience delivers them.
+func testCertificateTemplatesHeldUntilHostPolicyApplied(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      new("Test SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+	certTemplate, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Certificate",
+	})
+	require.NoError(t, err)
+
+	host := createAndroidHostInTeam(t, ds, 1, &team.ID)
+
+	profile := androidProfileForTest("p1")
+	profile.TeamID = &team.ID
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, *profile, nil)
+	require.NoError(t, err)
+
+	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, certTemplate.ID, team.ID)
+	require.NoError(t, err)
+
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	hostPolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host.Host.UUID)
+	var calls []string
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		calls = append(calls, "patch "+policyName)
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		calls = append(calls, "modify applications "+policyName)
+		return &androidmanagement.Policy{}, nil
+	}
+
+	certStatuses := func() []string {
+		var statuses []string
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &statuses, `SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, host.Host.UUID)
+		})
+		return statuses
+	}
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"patch " + hostPolicyName}, calls)
+	require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, certStatuses())
+
+	// once the device reports its host-specific policy, the next pass delivers the certificate
+	applyHostSpecificPolicy(t, ds, host)
+	calls = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"modify applications " + hostPolicyName}, calls)
+	require.Equal(t, []string{string(fleet.CertificateTemplateDelivered)}, certStatuses())
 }
 
 // testBuildAndSendFleetAgentConfigForEnrollment tests the enrollment flow where we send
@@ -1315,6 +1417,207 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 }
 
+func testBuildAndSendFleetAgentConfigSavesTheAgentInstall(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "agent-install-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "agent-install-secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+	host := createAndroidHostInTeam(t, ds, 400, &team.ID)
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{Version: 7}, nil
+	}
+	svc := &Service{
+		logger:           slog.New(slog.DiscardHandler),
+		fleetDS:          ds,
+		ds:               ds.(fleet.AndroidDatastore),
+		androidAPIClient: client,
+		androidAgentConfig: config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
+	}
+
+	// send the host's Fleet agent configuration, the agent's install should be saved as pending in policy version 7
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false)
+	require.NoError(t, err)
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	agentInstall := installsByHostID[host.Host.ID]["com.fleetdm.agent"]
+	require.NotNil(t, agentInstall)
+	require.Equal(t, android.AppStatusForceInstalled, agentInstall.InstallType)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, agentInstall.Status)
+	require.Equal(t, new(int64(7)), agentInstall.InPolicyVersion)
+}
+
+func testBuildFleetAgentConfigWithOneTimeEnrollSecrets(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "one-time-secret-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "shared-team-secret", TeamID: &team.ID}})) // nolint:gosec // test value
+	host := createAndroidHostInTeam(t, ds, 500, &team.ID)
+
+	var sentSecrets []string
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		require.Len(t, policies, 1)
+		var managedConfig android.AgentManagedConfiguration
+		require.NoError(t, json.Unmarshal(policies[0].ManagedConfiguration, &managedConfig))
+		sentSecrets = append(sentSecrets, managedConfig.EnrollSecret)
+		return &androidmanagement.Policy{}, nil
+	}
+	newSvc := func(oneTimeEnrollSecrets bool) *Service {
+		return &Service{
+			logger:           slog.New(slog.DiscardHandler),
+			fleetDS:          ds,
+			ds:               ds.(fleet.AndroidDatastore),
+			androidAPIClient: client,
+			androidAgentConfig: config.AndroidAgentConfig{
+				Package:       "com.fleetdm.agent",
+				SigningSHA256: "abc123def456",
+			},
+			oneTimeEnrollSecrets: oneTimeEnrollSecrets,
+		}
+	}
+	policySecret := func(svc *Service) string {
+		policy, err := svc.BuildFleetAgentApplicationPolicy(ctx, host.Host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+		var managedConfig android.AgentManagedConfiguration
+		require.NoError(t, json.Unmarshal(policy.ManagedConfiguration, &managedConfig))
+		return managedConfig.EnrollSecret
+	}
+
+	svc := newSvc(true)
+	require.NoError(t, svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false))
+	require.Len(t, sentSecrets, 1)
+	secret := sentSecrets[0]
+	require.NotEqual(t, "shared-team-secret", secret)
+	row, err := ds.GetHostOneTimeEnrollSecret(ctx, secret)
+	require.NoError(t, err)
+	require.Equal(t, host.Host.ID, *row.HostID)
+	require.Equal(t, "android", row.Platform)
+
+	// Every path that builds the configuration carries the same secret until the agent uses it.
+	require.Equal(t, secret, policySecret(svc))
+
+	_, err = ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: host.Host.UUID, HardwareSerial: host.Host.UUID, Platform: "android"}),
+		fleet.WithEnrollOrbitNodeKey(uuid.NewString()),
+		fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID),
+	)
+	require.NoError(t, err)
+	fresh := policySecret(svc)
+	require.NotEqual(t, secret, fresh)
+	require.NotEqual(t, "shared-team-secret", fresh)
+
+	// Switch off: the fleet's shared secret, as before.
+	require.Equal(t, "shared-team-secret", policySecret(newSvc(false)))
+}
+
+func testSendFleetAgentConfigReportsFailures(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "send-failure-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "send-failure-secret", TeamID: &team.ID}})) // nolint:gosec // test value
+	host := createAndroidHostInTeam(t, ds, 700, &team.ID)
+	amapiErr := errors.New("amapi unavailable")
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return nil, amapiErr
+	}
+	svc := reconciler.agentService()
+
+	// The enrollment path tolerates the failure; the resend path reports it so its job is retried.
+	require.NoError(t, svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false))
+	require.ErrorIs(t, svc.SendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), host.Host.UUID), amapiErr)
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("Send failure CA"),
+		URL: new("http://localhost:8080/scep"), Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name: "send-failure-template", TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=Test",
+	})
+	require.NoError(t, err)
+	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
+	require.NoError(t, err)
+	templateStatuses := func(t *testing.T) []string {
+		var statuses []string
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &statuses, `SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, host.Host.UUID)
+		})
+		return statuses
+	}
+
+	t.Run("a failed send with certificate templates is reported and the templates go back to pending", func(t *testing.T) {
+		require.NoError(t, svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, true))
+		require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, templateStatuses(t))
+		require.ErrorIs(t, svc.SendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), host.Host.UUID), amapiErr)
+		require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, templateStatuses(t))
+	})
+
+	t.Run("templates go back to pending when the configuration can't be built", func(t *testing.T) {
+		// With one-time secrets on, building the configuration mints a secret, which fails for a host that isn't Android.
+		reconciler.OneTimeEnrollSecrets = true
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET platform = 'darwin' WHERE id = ?`, host.Host.ID)
+			return err
+		})
+		require.Error(t, reconciler.agentService().BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, true))
+		require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, templateStatuses(t))
+	})
+}
+
+// testReconcilerSendsOneTimeEnrollSecrets covers the reconciler's own paths that build the Fleet agent configuration, which
+// must not put the fleet's shared secret back after the Android service sent a one-time one.
+func testReconcilerSendsOneTimeEnrollSecrets(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "reconciler-one-time-team"})
+	require.NoError(t, err)
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "shared-team-secret", TeamID: &team.ID}})) // nolint:gosec // test value
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      new("Test SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+	template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name: "cert-template", TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=Test",
+	})
+	require.NoError(t, err)
+	host := createAndroidHostInTeam(t, ds, 600, &team.ID)
+	applyHostSpecificPolicy(t, ds, host)
+	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, template.ID, team.ID)
+	require.NoError(t, err)
+
+	var sentSecret string
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		require.Len(t, policies, 1)
+		var managedConfig android.AgentManagedConfiguration
+		require.NoError(t, json.Unmarshal(policies[0].ManagedConfiguration, &managedConfig))
+		sentSecret = managedConfig.EnrollSecret
+		return &androidmanagement.Policy{}, nil
+	}
+
+	WithReconcileOneTimeEnrollSecrets(true)(reconciler)
+	require.NoError(t, reconciler.reconcileCertificateTemplates(ctx))
+	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.NotEmpty(t, sentSecret)
+	require.NotEqual(t, "shared-team-secret", sentSecret)
+	row, err := ds.GetHostOneTimeEnrollSecret(ctx, sentSecret)
+	require.NoError(t, err)
+	require.Equal(t, host.Host.ID, *row.HostID)
+
+	// The app list the reconciler sends includes the agent built the same way, with the same secret.
+	applications, err := reconciler.buildApplicationsWithAgent(ctx, &androidAppList{host: host.Host})
+	require.NoError(t, err)
+	require.Len(t, applications, 1)
+	var managedConfig android.AgentManagedConfiguration
+	require.NoError(t, json.Unmarshal(applications[0].ManagedConfiguration, &managedConfig))
+	require.Equal(t, sentSecret, managedConfig.EnrollSecret)
+}
+
 // testCertificateTemplatesIncludesExistingVerified tests that when a host has existing
 // certificates in various statuses AND a new pending certificate, the agent config sent
 // to AMAPI includes ALL certificate templates, not just the new pending one.
@@ -1390,6 +1693,7 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 
 	// Create an Android host in the team
 	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
+	applyHostSpecificPolicy(t, ds, host)
 
 	// Insert certificate templates with various statuses
 	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
@@ -1832,4 +2136,96 @@ func TestSubstituteProfileVarsForHostCustomHostVitals(t *testing.T) {
 		require.True(t, ok)
 		require.Contains(t, detail, "no value set for this host")
 	})
+}
+
+// testFleetDefaultPolicies runs the default policy sync against the database: only label-less passcode
+// profiles count, a labels-only edit takes the passcode out, and a re-created enterprise gets the policies again.
+func testFleetDefaultPolicies(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-team"})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-other-team"})
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "default-policy-label", Query: "select 1"})
+	require.NoError(t, err)
+	labels := []fleet.ConfigurationProfileLabel{{LabelID: label.ID, LabelName: label.Name, RequireAll: true}}
+
+	newProfile := func(teamID uint, name string, minLength int, labels []fleet.ConfigurationProfileLabel) *fleet.MDMAndroidConfigProfile {
+		p := androidProfileWithPayloadForTest(name, fmt.Sprintf(`{"passwordPolicies": [{"passwordMinimumLength": %d}]}`, minLength))
+		p.TeamID = &teamID
+		p.LabelsIncludeAll = labels
+		created, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
+		require.NoError(t, err)
+		return created
+	}
+	pin := newProfile(team.ID, "a pin", 6, nil)
+	// Sorts last, so it would win if labeled profiles counted.
+	newProfile(team.ID, "z labeled pin", 12, labels)
+	newProfile(otherTeam.ID, "other pin", 8, nil)
+	unassignedPin := newProfile(0, "unassigned pin", 4, nil)
+
+	var patched map[string]*androidmanagement.Policy
+	client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, _ androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		patched[policyName] = policy
+		return policy, nil
+	}
+	// Through the whole reconcile, so the sync being wired into it is tested too.
+	run := func() {
+		patched = map[string]*androidmanagement.Policy{}
+		_, err := reconciler.ReconcileProfiles(ctx, "", 0)
+		require.NoError(t, err)
+	}
+	sent := func(teamID uint) *androidmanagement.Policy {
+		policyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), android.FleetDefaultPolicyID(teamID))
+		policy := patched[policyName]
+		if policy == nil {
+			t.Fatalf("%s wasn't sent", policyName)
+		}
+		return policy
+	}
+	minLength := func(teamID uint) int64 {
+		policy := sent(teamID)
+		require.Len(t, policy.PasswordPolicies, 1)
+		return policy.PasswordPolicies[0].PasswordMinimumLength
+	}
+
+	run()
+	require.Len(t, patched, 3)
+	assert.Equal(t, int64(6), minLength(team.ID))
+	assert.Equal(t, int64(8), minLength(otherTeam.ID))
+	assert.Equal(t, int64(4), minLength(0))
+
+	run()
+	require.Empty(t, patched, "nothing changed")
+
+	// Turning Android MDM off and on creates a new enterprise without the policies, so they're sent again.
+	require.NoError(t, ds.DeleteAllEnterprises(ctx))
+	run()
+	require.Len(t, patched, 3)
+	assert.Equal(t, int64(6), minLength(team.ID))
+	assert.Equal(t, int64(8), minLength(otherTeam.ID))
+	assert.Equal(t, int64(4), minLength(0))
+
+	// A labels-only edit makes the profile apply after setup only, and doesn't touch the other policies.
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: pin.ProfileUUID, Name: pin.Name, TeamID: &team.ID, LabelsIncludeAll: labels,
+	}, nil)
+	require.NoError(t, err)
+	run()
+	require.Len(t, patched, 1)
+	require.Empty(t, sent(team.ID).PasswordPolicies)
+	require.NotNil(t, sent(team.ID).StatusReportingSettings)
+
+	// A deleted fleet's zero-touch token enrolls hosts into Unassigned, so its policy takes Unassigned's
+	// passcode, and follows it.
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+	run()
+	require.Len(t, patched, 1)
+	assert.Equal(t, int64(4), minLength(team.ID))
+
+	require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, unassignedPin.ProfileUUID))
+	run()
+	require.Len(t, patched, 2)
+	assert.Empty(t, sent(0).PasswordPolicies)
+	assert.Empty(t, sent(team.ID).PasswordPolicies)
 }

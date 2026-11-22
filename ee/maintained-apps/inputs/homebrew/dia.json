@@ -1,0 +1,8 @@
+{
+  "name": "Dia",
+  "unique_identifier": "company.thebrowser.dia",
+  "token": "thebrowsercompany-dia",
+  "installer_format": "zip",
+  "slug": "dia/darwin",
+  "default_categories": ["Browsers"]
+}

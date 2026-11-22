@@ -2,16 +2,23 @@ import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { IMdmProfile } from "interfaces/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
 import ProfileListItem from "./ProfileListItem";
 
+// jsdom has no layout, so control whether the name renders truncated.
+jest.mock("hooks/useCheckTruncatedElement", () => ({
+  useCheckTruncatedElement: jest.fn(),
+}));
+const mockedUseCheckTruncatedElement = jest.mocked(useCheckTruncatedElement);
+
 const render = createCustomRenderer();
 
 const baseProfile: IMdmProfile = {
   profile_uuid: "d123",
-  team_id: 0,
+  fleet_id: 0,
   name: "My DDM profile",
   platform: "darwin",
   identifier: "com.example.test",
@@ -34,45 +41,76 @@ const renderItem = (profile: IMdmProfile) =>
   );
 
 describe("ProfileListItem", () => {
+  beforeEach(() => {
+    mockedUseCheckTruncatedElement.mockReturnValue(false);
+  });
+
   it("shows the user-scope indicator for user-scoped profiles", () => {
     renderItem({ ...baseProfile, scope: "User" });
-    expect(screen.getByTestId("user-icon")).toBeInTheDocument();
+    expect(screen.getByText("User-scoped")).toBeInTheDocument();
   });
 
   it("does not show the indicator for system-scoped profiles", () => {
     renderItem({ ...baseProfile, scope: "System" });
-    expect(screen.queryByTestId("user-icon")).not.toBeInTheDocument();
+    expect(screen.queryByText("User-scoped")).not.toBeInTheDocument();
   });
 
   it("does not show the indicator for iOS/iPadOS profiles (no user channel)", () => {
     renderItem({ ...baseProfile, platform: "ios", scope: "User" });
-    expect(screen.queryByTestId("user-icon")).not.toBeInTheDocument();
+    expect(screen.queryByText("User-scoped")).not.toBeInTheDocument();
   });
 
-  it("shows a renamed mobileconfig's PayloadDisplayName and UUID on hover", async () => {
-    const { user } = renderItem({
-      ...baseProfile,
-      name: "Renamed profile",
-      payload_display_name: "Original display name",
-    });
+  it("opens the details modal when the row is clicked", async () => {
+    const onClickInfo = jest.fn();
+    const { user } = render(
+      <ProfileListItem
+        isPremium={false}
+        profile={baseProfile}
+        onClickInfo={onClickInfo}
+        onClickEdit={noop}
+        onClickDelete={noop}
+      />
+    );
 
-    await user.hover(screen.getByText("Renamed profile"));
-
-    await waitFor(() => {
-      expect(screen.getByText(/PayloadDisplayName:/)).toBeInTheDocument();
-    });
-    expect(screen.getByText("Original display name")).toBeInTheDocument();
-    expect(screen.getByText("d123")).toBeInTheDocument();
+    await user.click(screen.getByText("Uploaded", { exact: false }));
+    expect(onClickInfo).toHaveBeenCalledWith(baseProfile);
   });
 
-  it("shows only the UUID on hover when there's no PayloadDisplayName", async () => {
+  it("does not open the details modal when an action is clicked", async () => {
+    const onClickInfo = jest.fn();
+    const onClickEdit = jest.fn();
+    const { user } = render(
+      <ProfileListItem
+        isPremium={false}
+        profile={baseProfile}
+        onClickInfo={onClickInfo}
+        onClickEdit={onClickEdit}
+        onClickDelete={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Edit/ }));
+    expect(onClickEdit).toHaveBeenCalled();
+    expect(onClickInfo).not.toHaveBeenCalled();
+  });
+
+  it("shows no name tooltip when the name fits", async () => {
+    const { user } = renderItem(baseProfile);
+
+    await user.hover(screen.getByText("My DDM profile"));
+
+    expect(screen.queryByText(/^Name:/)).not.toBeInTheDocument();
+  });
+
+  it("shows the full name on hover when the name is truncated", async () => {
+    mockedUseCheckTruncatedElement.mockReturnValue(true);
     const { user } = renderItem(baseProfile);
 
     await user.hover(screen.getByText("My DDM profile"));
 
     await waitFor(() => {
-      expect(screen.getByText("d123")).toBeInTheDocument();
+      expect(screen.getByText(/^Name:/)).toBeInTheDocument();
     });
-    expect(screen.queryByText(/PayloadDisplayName:/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("My DDM profile")).toHaveLength(2);
   });
 });

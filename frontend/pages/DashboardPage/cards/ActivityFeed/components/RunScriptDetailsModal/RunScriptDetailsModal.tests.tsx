@@ -53,6 +53,28 @@ describe("RunScriptDetailsModal", () => {
     );
   });
 
+  it("strips the fleetctl 'go check Host details' pointer from the host-timeout message", async () => {
+    mockScriptsAPI.getScriptResult.mockResolvedValue(
+      createMockScriptResult({
+        exit_code: null,
+        host_timeout: true,
+        message:
+          "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results.",
+      })
+    );
+
+    renderModal();
+
+    const statusMessage = await screen.findByText(/didn't hear back/);
+    expect(statusMessage.textContent).not.toContain("Go to Fleet");
+    expect(statusMessage.textContent).not.toContain(
+      "Host details > Activities"
+    );
+    expect(statusMessage.textContent).toContain(
+      "Fleet doesn't know if the script ran because it didn't receive the result."
+    );
+  });
+
   it("uses the configured timeout instead of a duration in script output", async () => {
     mockScriptsAPI.getScriptResult.mockResolvedValue(
       createMockScriptResult({

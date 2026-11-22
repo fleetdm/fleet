@@ -15,5 +15,8 @@
     overflow-y: auto;
     background-color: $ui-off-white;
     font-family: "SourceCodePro", $monospace;
+    // otherwise a long unbroken line like base64 wraps below its indentation,
+    // leaving a blank line behind
+    word-break: break-all;
   }
 }

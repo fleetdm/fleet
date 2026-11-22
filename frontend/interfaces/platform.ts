@@ -98,6 +98,7 @@ export const HOST_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin", // Zorin OS (Ubuntu-based)
   "debian",
+  "parrot", // Parrot OS (Debian-based)
   "rhel", // covers Fedora
   "centos",
   "sles",
@@ -201,6 +202,7 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
 export const LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin",
+  "omarchy", // Omarchy 4+; earlier versions report "arch"
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (

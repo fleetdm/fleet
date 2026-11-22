@@ -1,10 +1,7 @@
 package fleet
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/Masterminds/semver/v3"
 )
 
 // OperatingSystem is an operating system uniquely identified according to its name and version.
@@ -35,25 +32,64 @@ func (os OperatingSystem) IsWindows() bool {
 	return strings.ToLower(os.Platform) == "windows"
 }
 
-var macOSNudgeLastVersion = semver.MustParse("14")
+const (
+	// ArchLinuxOSName is the OS inventory name of Arch Linux and of the names in archGroupedOSNames.
+	ArchLinuxOSName = "Arch Linux"
+	// ArchLinuxPlatform is the platform the Arch Linux operating system always reports, whichever of its hosts'
+	// platforms (arch, archarm) its inventory rows have.
+	ArchLinuxPlatform = "arch"
+)
 
-// RequiresNudge returns whether the target platform is darwin and
-// below version 14. Starting at macOS 14 nudge is no longer required,
-// as the mechanism to notify users about updates is built in.
-func (os *OperatingSystem) RequiresNudge() (bool, error) {
-	if os.Platform != "darwin" {
-		return false, nil
+// archGroupedOSNames are the OS names the OS inventory records as "Arch Linux", so they group with it in the OS list
+// and on the dashboard.
+var archGroupedOSNames = map[string]struct{}{
+	"Arch Linux ARM": {},
+}
+
+// InventoryOSName returns the name the OS inventory records for an operating system that reports name.
+func InventoryOSName(name string) string {
+	if _, ok := archGroupedOSNames[name]; ok {
+		return ArchLinuxOSName
 	}
+	return name
+}
 
-	// strip Rapid Security Response suffix (e.g. version 13.3.7 (a)) if any
-	version, err := VersionToSemverVersion(os.Version)
-	if err != nil {
-		return false, fmt.Errorf("parsing macos version \"%s\": %w", os.Version, err)
+// HostAPIOS returns the os_name and os_version host API responses carry, from the host's OS inventory row and its stored
+// display string (hosts.os_version). Hosts the inventory groups under "Arch Linux" keep their own reported name and
+// version, which the display string holds as "<name> <version>". CachyOS and Omarchy hosts that still have the "Arch
+// Linux" row an earlier Fleet recorded for them read as Arch Linux until they report again, like the OS list counts.
+func HostAPIOS(inventoryName, inventoryVersion, display string) (name, version string) {
+	if inventoryName == ArchLinuxOSName {
+		for reported := range archGroupedOSNames {
+			if v, ok := strings.CutPrefix(display, reported+" "); ok {
+				return reported, v
+			}
+		}
 	}
+	return APIOSName(inventoryName), inventoryVersion
+}
 
-	if version.LessThan(macOSNudgeLastVersion) {
-		return true, nil
+// APIOSName returns an OS inventory name the way the API shows it. Windows names drop the "Microsoft " prefix that the
+// inventory keeps, because OS vulnerabilities are matched on the stored name.
+func APIOSName(inventoryName string) string {
+	if strings.HasPrefix(inventoryName, "Microsoft Windows") {
+		return strings.TrimPrefix(inventoryName, "Microsoft ")
 	}
+	return inventoryName
+}
 
-	return false, nil
+// InventoryOSNames returns the OS inventory names that an os_name filter value matches. A Windows name matches with or
+// without "Microsoft ", so filters written before Windows names dropped it keep working. The prefix check ignores case,
+// like the name column does.
+func InventoryOSNames(name string) []string {
+	if strings.HasPrefix(strings.ToLower(name), "windows") {
+		return []string{name, "Microsoft " + name}
+	}
+	return []string{name}
+}
+
+// IsArchGroupedOSName reports whether name is a reported OS name the OS inventory records as "Arch Linux".
+func IsArchGroupedOSName(name string) bool {
+	_, ok := archGroupedOSNames[name]
+	return ok
 }

@@ -3,10 +3,10 @@ import React from "react";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 
-import IOSUpdateScreenshot from "../../../../../../assets/images/ios-updates-preview.png";
-import IPadOSUpdateScreenshot from "../../../../../../assets/images/ipados-updates-preview.png";
-import MacOSUpdateScreenshot from "../../../../../../assets/images/macos-updates-preview.png";
-import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
+import IOSUpdateScreenshot from "../../../../../assets/images/ios-updates-preview.png";
+import IPadOSUpdateScreenshot from "../../../../../assets/images/ipados-updates-preview.png";
+import MacOSUpdateScreenshot from "../../../../../assets/images/macos-updates-preview.png";
+import WindowsUpdateScreenshot from "../../../../../assets/images/windows-nudge-screenshot.png";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "os-requirement-preview";
@@ -28,7 +28,7 @@ const OSRequirementDescription = ({
           </p>
           <CustomLink
             text="Learn more"
-            url="https://fleetdm.com/learn-more-about/os-updates"
+            url="https://fleetdm.com/learn-more-about/os-updates-apple"
             newTab
           />
         </>
@@ -44,22 +44,23 @@ const OSRequirementDescription = ({
             are forced regardless of active hours.
           </p>
           <CustomLink
-            text="Learn more about Windows updates in Fleet"
-            url="https://fleetdm.com/learn-more-about/os-updates"
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/os-updates-windows"
             newTab
           />
         </>
       );
     case "ios":
-      return (
-        <>
-          <h3>End user experience</h3>
-        </>
-      );
     case "ipados":
       return (
         <>
           <h3>End user experience</h3>
+          <p>End users are notified an hour before the deadline.</p>
+          <CustomLink
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/os-updates-apple"
+            newTab
+          />
         </>
       );
     default:

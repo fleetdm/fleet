@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/redact"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
@@ -235,7 +236,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&scriptContents,
 			`SELECT 'script' AS entity, s.name,
-			COALESCE(t.name, 'No team') AS team_name, sc.contents
+			COALESCE(t.name, 'Unassigned') AS team_name, sc.contents
 			FROM script_contents sc
 			JOIN scripts s ON s.script_content_id = sc.id
 			LEFT JOIN teams t ON t.id = s.team_id;`,
@@ -260,7 +261,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleConfigurationProfileContents,
 			`SELECT 'apple_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.mobileconfig AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.mobileconfig AS contents
 			FROM mdm_apple_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
@@ -284,7 +285,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleDeclarationContents,
 			`SELECT 'apple_declaration' AS entity, d.name,
-			COALESCE(t.name, 'No team') AS team_name, d.raw_json AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, d.raw_json AS contents
 			FROM mdm_apple_declarations d
 			LEFT JOIN teams t ON t.id = d.team_id;`,
 		); err != nil {
@@ -308,7 +309,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&windowsProfileContents,
 			`SELECT 'windows_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.syncml AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.syncml AS contents
 			FROM mdm_windows_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
@@ -408,13 +409,20 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
-	expanded := expandDocumentVars(document, func(s string) (string, bool) {
+	expanded, substituted := expandDocumentVars(document, func(s string) (string, bool) {
 		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
 			return "", false
 		}
 		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
 		return val, ok
 	})
+
+	// Callers validate the expanded document, and their errors can quote it. Both
+	// forms are recorded: parsers quote the unescaped value, others the bytes as written.
+	for _, secret := range secrets {
+		redact.Record(ctx, secret.Value)
+	}
+	redact.Record(ctx, substituted...)
 
 	return expanded, secrets, nil
 }
@@ -426,13 +434,15 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 // variable was handled; unhandled variables are left in place. Shared by
 // ExpandEmbeddedSecrets ($FLEET_SECRET_) and ExpandCustomHostVitals
 // ($FLEET_HOST_VITAL_) so the format escaping has a single implementation.
-func expandDocumentVars(document string, resolve func(name string) (string, bool)) string {
+// It also returns the escaped values it substituted.
+func expandDocumentVars(document string, resolve func(name string) (string, bool)) (string, []string) {
 	// XML detection is aggressive because Windows profiles do not begin with <?xml.
 	trimmed := strings.TrimSpace(document)
 	documentIsXML := strings.HasPrefix(trimmed, "<")
 	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
-	return fleet.MaybeExpand(document, func(s string, _, _ int) (string, bool) {
+	var substituted []string
+	expanded := fleet.MaybeExpand(document, func(s string, _, _ int) (string, bool) {
 		val, ok := resolve(s)
 		if !ok {
 			return "", false
@@ -447,8 +457,10 @@ func expandDocumentVars(document string, resolve func(name string) (string, bool
 			}
 			val = b.String()
 		}
+		substituted = append(substituted, val)
 		return val, true
 	})
+	return expanded, substituted
 }
 
 // jsonEscapeString returns the JSON-escaped interior of a string value
@@ -522,7 +534,7 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 }
 
 // ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
-// The enrollmentID (typically UDID/host UUID) is used to look up host-specific secrets.
+// The enrollmentID is the enrollment's device channel ID (the UDID, or the EnrollmentID for ADUE).
 func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
 	// Check for host secret placeholders
 	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
@@ -568,6 +580,21 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
 			}
 			secretValues[secretType] = token
+		case fleet.HostSecretSCEPChallenge:
+			challenge, err := ds.findOrCreateAppleEnrollmentSCEPChallenge(ctx, enrollmentID, fleet.AppleMDMCertPurposeSCEPRenewal,
+				fleet.AppleSCEPRenewalChallengeTTL, fleet.GenerateRandom32ByteEntropyURLSafeToken)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting scep renewal challenge for enrollment %s", enrollmentID)
+			}
+			secretValues[secretType] = challenge
+		case fleet.HostSecretConditionalAccessSCEPChallenge:
+			// The device channel ID is the UDID, which the Okta profile's SAN carries as %HardwareUUID%.
+			challenge, err := ds.findOrCreateAppleEnrollmentSCEPChallenge(ctx, enrollmentID, fleet.ConditionalAccessSCEPChallengePurpose,
+				fleet.ConditionalAccessSCEPChallengeTTL, newConditionalAccessSCEPChallengeToken)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting conditional access scep challenge for enrollment %s", enrollmentID)
+			}
+			secretValues[secretType] = challenge
 		case fleet.HostSecretFileVaultKey:
 			key, err := ds.getHostDiskEncryptionKeyDecrypted(ctx, enrollmentID)
 			if err != nil {
@@ -621,7 +648,7 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 // mintPSSODeviceRegistrationToken mints a Fleet-signed Platform SSO device
 // registration token bound to hostUUID, using the PSSO signing key asset. The
 // token is not stored: it is minted fresh for the requesting host each time the
-// profile is delivered, so it never lands in the database or on /mdm/commands.
+// profile is delivered, so it never lands in the database or on /commands.
 func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUUID string) (string, error) {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey}, nil)
 	if err != nil {

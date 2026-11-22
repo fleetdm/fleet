@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // SMTP settings names returned from API, these map to SMTPAuthType and
@@ -103,6 +102,10 @@ type ConditionalAccessSettings struct {
 	OktaAudienceURI                 optjson.String `json:"okta_audience_uri"`
 	OktaCertificate                 optjson.String `json:"okta_certificate"`
 	BypassDisabled                  optjson.Bool   `json:"bypass_disabled"`
+
+	// Google is the read-only Google connection state, filled from the integration
+	// table and the stored key on GET and never persisted.
+	Google *ConditionalAccessGoogleStatus `json:"google,omitempty"`
 }
 
 // OktaConfigured returns true if all Okta conditional access fields are configured.
@@ -170,10 +173,10 @@ type VulnerabilitySettings struct {
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
 	Default          bool   `json:"default,omitempty"`
-	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
-	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam        string `json:"macos_fleet"`
+	IOSTeam          string `json:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_fleet"`
+	BYODTeam         string `json:"byod_fleet"`
 }
 
 // CleanRemovedTeam unassigns removedTeamName, which for ABM is spelled as a
@@ -201,29 +204,7 @@ func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
 // between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams" renameto:"fleets"`
-}
-
-func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
-	// "" spells "no fleet" here (see UpdateVPPTokenTeams), so renaming from it
-	// would claim every unassigned platform.
-	if oldName == "" {
-		return false
-	}
-
-	var renamed bool
-	for i, t := range m.Teams {
-		if t == oldName {
-			m.Teams[i], renamed = newName, true
-		}
-	}
-	return renamed
-}
-
-func (m *MDMAppleVolumePurchasingProgramInfo) CleanRemovedTeam(removedTeamName string) bool {
-	before := len(m.Teams)
-	m.Teams = slices.DeleteFunc(m.Teams, func(t string) bool { return t == removedTeamName })
-	return len(m.Teams) != before
+	Teams    []string `json:"fleets"`
 }
 
 // MDM is part of AppConfig and defines the mdm settings.
@@ -234,19 +215,16 @@ type MDM struct {
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
 
-	// Deprecated: use AppleBusinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
-
 	// AppleBusinessManager defines the associations between AB tokens
 	// and the fleets used to assign hosts when they're ingested from Apple
 	// Business.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business" removedkey:"apple_business_manager" renamescope:"mdm"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
 	// manually via the PATCH /config API, it's only set automatically when
 	// the server starts.
-	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
+	AppleBMEnabledAndConfigured bool `json:"apple_business_enabled_and_configured" removedkey:"apple_bm_enabled_and_configured" renamescope:"mdm"`
 
 	// AppleBMTermsExpired is set to true if an Apple Business request
 	// failed due to Apple's terms and conditions having changed and need the
@@ -258,7 +236,7 @@ type MDM struct {
 	// It is set to true as soon as one of the ABM tokens receives this error
 	// code, and is set to false only once all ABM tokens have agreed to the new
 	// terms.
-	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
+	AppleBMTermsExpired bool `json:"apple_business_terms_expired" removedkey:"apple_bm_terms_expired" renamescope:"mdm"`
 
 	// EnabledAndConfigured is set to true if Fleet has been
 	// configured with the required APNS and SCEP certificates. It can't be set
@@ -279,10 +257,10 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                     MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSettings                  MacOSSettings            `json:"apple_settings" removedkey:"macos_settings" renamescope:"mdm"`
+	MacOSSetup                     MacOSSetup               `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
-	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
+	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
@@ -294,6 +272,9 @@ type MDM struct {
 	// (BYOD) enrollment are blocked. When combined with AppleRequireHardwareAttestation,
 	// new SCEP issuance is also blocked so only ACME-attested devices can enroll or renew.
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
+	// EnableProfileValidation turns on schema validation of admin-uploaded
+	// configuration profiles. Defaults to true.
+	EnableProfileValidation bool `json:"enable_profile_validation"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -313,21 +294,19 @@ type MDM struct {
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
 	// with the similarly named macOS-specific fields.
-	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
+	WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled" removedkey:"windows_enabled_and_configured" renamescope:"mdm"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
 	HostNameTemplate optjson.String `json:"name_template"`
 
-	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword optjson.Bool `json:"macos_recovery_lock_password_enabled" removedkey:"enable_recovery_lock_password" renamescope:"mdm"`
 
 	// RequireBitLockerPIN is deprecated: use
 	// WindowsSettings.RequireBitLockerPIN, which it mirrors.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
-
-	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
 	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
@@ -344,6 +323,8 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+
+	_ struct{} `removedkey:"apple_bm_default_team" renamescope:"mdm"`
 }
 
 // IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments
@@ -556,7 +537,8 @@ func (m *MDM) normalizeDiskEncryptionSettings() {
 	)
 	m.EnableDiskEncryption = optjson.SetBool(flat)
 	m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN = normalizeBitLockerPINFields(
-		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN)
+		m.RequireBitLockerPIN, m.WindowsSettings.RequireBitLockerPIN,
+	)
 }
 
 // normalizeBitLockerPINFields keeps the deprecated windows_require_bitlocker_pin
@@ -704,7 +686,7 @@ type AppleOSUpdateSettings struct {
 	UpdateNewHosts optjson.Bool `json:"update_new_hosts"`
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
-	// Deadline the required installation date for Nudge to enforce the required
+	// Deadline is the required installation date to enforce the required
 	// operating system version.
 	Deadline optjson.String `json:"deadline"`
 	// DeadlineDays is the number of days after an OS version's release date
@@ -846,12 +828,6 @@ func (w WindowsUpdates) Validate() error {
 
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
-	// CustomSettings is a slice of configuration profile file paths.
-	//
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for profiles is in MySQL.)
-	CustomSettings []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
-
 	// EnableDiskEncryption enforces FileVault on macOS hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 	// EnableEscrowDiskEncryptionKey makes Fleet escrow the FileVault recovery
@@ -859,7 +835,7 @@ type MacOSSettings struct {
 	EnableEscrowDiskEncryptionKey optjson.Bool `json:"enable_escrow_disk_encryption_key"`
 
 	// Assets is a slice of Apple DDM asset (com.apple.asset) declaration file
-	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
+	// paths. Like the profiles, assets are not stored on the AppConfig/team
 	// spec: this field is only populated while parsing a GitOps file so the
 	// assets can be applied via their own batch endpoint. It is intentionally
 	// omitted from FromMap; ToMap includes it only so the key passes the team
@@ -869,13 +845,8 @@ type MacOSSettings struct {
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
-func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
-	return s.CustomSettings
-}
-
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"custom_settings":                   s.CustomSettings,
 		"enable_disk_encryption":            s.EnableDiskEncryption,
 		"enable_escrow_disk_encryption_key": s.EnableEscrowDiskEncryptionKey,
 		"assets":                            s.Assets,
@@ -886,9 +857,6 @@ type WithMDMProfileSpecs interface {
 	GetMDMProfileSpecs() []MDMProfileSpec
 }
 
-// Compile-time interface check
-var _ WithMDMProfileSpecs = MacOSSettings{}
-
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
 // the map (ie. the key was present even if empty) or an error. If the
@@ -896,98 +864,6 @@ var _ WithMDMProfileSpecs = MacOSSettings{}
 // MacOSSettings so that its fields are replaced only if present in the map.
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
-
-	extractLabelField := func(parentMap map[string]any, fieldName string) ([]string, error) {
-		v, ok := parentMap[fieldName]
-		if !ok || v == nil {
-			return nil, nil
-		}
-		labels, ok := v.([]any)
-		if !ok {
-			return nil, &json.UnmarshalTypeError{
-				Value: fmt.Sprintf("%T", v),
-				Type:  reflect.TypeFor[[]string](),
-				Field: "macos_settings.custom_settings." + fieldName,
-			}
-		}
-		var ret []string
-		for _, label := range labels {
-			strLabel, ok := label.(string)
-			if !ok {
-				return nil, &json.UnmarshalTypeError{
-					Value: fmt.Sprintf("%T", label),
-					Type:  reflect.TypeFor[string](),
-					Field: "macos_settings.custom_settings." + fieldName,
-				}
-			}
-			ret = append(ret, strLabel)
-		}
-		return ret, nil
-	}
-
-	extractStringField := func(parentMap map[string]any, fieldName string) (string, error) {
-		v, ok := parentMap[fieldName]
-		if !ok || v == nil {
-			return "", nil
-		}
-		str, ok := v.(string)
-		if !ok {
-			return "", &json.UnmarshalTypeError{
-				Value: fmt.Sprintf("%T", v),
-				Type:  reflect.TypeFor[string](),
-				Field: "macos_settings.custom_settings." + fieldName,
-			}
-		}
-		return str, nil
-	}
-
-	if v, ok := m["custom_settings"]; ok {
-		set["custom_settings"] = true
-
-		vals, ok := v.([]interface{})
-		if v == nil || ok {
-			csSpecs := make([]MDMProfileSpec, 0, len(vals))
-			for _, v := range vals {
-				if m, ok := v.(map[string]interface{}); ok {
-					var spec MDMProfileSpec
-					var err error
-					if spec.Path, err = extractStringField(m, "path"); err != nil {
-						return nil, err
-					}
-					if spec.Name, err = extractStringField(m, "name"); err != nil {
-						return nil, err
-					}
-					if spec.Description, err = extractStringField(m, "description"); err != nil {
-						return nil, err
-					}
-
-					if spec.Labels, err = extractLabelField(m, "labels"); err != nil {
-						return nil, err
-					}
-					if spec.LabelsIncludeAll, err = extractLabelField(m, "labels_include_all"); err != nil {
-						return nil, err
-					}
-					if spec.LabelsExcludeAny, err = extractLabelField(m, "labels_exclude_any"); err != nil {
-						return nil, err
-					}
-					if spec.LabelsIncludeAny, err = extractLabelField(m, "labels_include_any"); err != nil {
-						return nil, err
-					}
-
-					csSpecs = append(csSpecs, spec)
-				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
-					csSpecs = append(csSpecs, MDMProfileSpec{Path: m})
-				} else {
-					return nil, &json.UnmarshalTypeError{
-						Value: fmt.Sprintf("%T", v),
-						Type:  reflect.TypeOf(s.CustomSettings),
-						Field: "macos_settings.custom_settings",
-					}
-				}
-			}
-			s.CustomSettings = csSpecs
-		}
-	}
 
 	// a nil value means the key was explicitly null (the optjson fields
 	// marshal unset values as null), which is treated as "not provided"
@@ -999,7 +875,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_disk_encryption",
+				Field: "apple_settings.enable_disk_encryption",
 			}
 		}
 		s.EnableDiskEncryption = optjson.SetBool(b)
@@ -1013,7 +889,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			return nil, &json.UnmarshalTypeError{
 				Value: fmt.Sprintf("%T", v),
 				Type:  reflect.TypeFor[bool](),
-				Field: "macos_settings.enable_escrow_disk_encryption_key",
+				Field: "apple_settings.enable_escrow_disk_encryption_key",
 			}
 		}
 		s.EnableEscrowDiskEncryptionKey = optjson.SetBool(b)
@@ -1024,23 +900,58 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
-	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
-	LockEndUserInfo             optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	Script                      optjson.String                     `json:"script" renameto:"macos_script"`
-	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
-	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
-	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
+	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
+	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
+	EnableReleaseDeviceManually                       optjson.Bool                       `json:"apple_enable_release_device_manually" removedkey:"enable_release_device_manually" renamescope:"setup_experience"`
+	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall                                optjson.Bool                       `json:"macos_manual_agent_install" removedkey:"manual_agent_install" renamescope:"setup_experience"`
+	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"setup_experience"`
+	RequireAllSoftwareWindows                         bool                               `json:"windows_require_all_software" removedkey:"require_all_software_windows" renamescope:"setup_experience"`
+	MacOSEnableBootstrapPackageDuringManualEnrollment bool                               `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
+	MacOSEnableBootstrapPackageDuringMigration        bool                               `json:"macos_enable_bootstrap_package_during_migration"`
+	EnableManagedLocalAccount                         optjson.Bool                       `json:"macos_managed_local_account_enabled" removedkey:"enable_managed_local_account,enable_create_local_admin_account" renamescope:"setup_experience"`
+	EndUserLocalAccountType                           optjson.String                     `json:"macos_end_user_local_account_type" removedkey:"end_user_local_account_type" renamescope:"setup_experience"`
+	// EnableManagedLocalAccountWindows turns on the hidden managed local admin account created by fleetd on Windows
+	// hosts during Autopilot/OOBE enrollment.
+	EnableManagedLocalAccountWindows optjson.Bool `json:"windows_managed_local_account_enabled"`
+}
+
+// NewlyEnabledBootstrapPackageSettings returns the setup_experience keys of the settings that need a
+// bootstrap package and are turned on in s but not in old.
+func (mos MacOSSetup) NewlyEnabledBootstrapPackageSettings(old MacOSSetup) []string {
+	var keys []string
+	if mos.MacOSEnableBootstrapPackageDuringManualEnrollment && !old.MacOSEnableBootstrapPackageDuringManualEnrollment {
+		keys = append(keys, "macos_enable_bootstrap_package_during_manual_enrollment")
+	}
+	if mos.MacOSEnableBootstrapPackageDuringMigration && !old.MacOSEnableBootstrapPackageDuringMigration {
+		keys = append(keys, "macos_enable_bootstrap_package_during_migration")
+	}
+	return keys
+}
+
+// validateBootstrapPackageSettings checks that the bootstrap package settings turned on compared to
+// old come with a bootstrap package in the same payload.
+func (mos *MacOSSetupSpec) validateBootstrapPackageSettings(old MacOSSetup) error {
+	keys := mos.NewlyEnabledBootstrapPackageSettings(old)
+	if len(keys) == 0 || (mos.BootstrapPackage.Valid && mos.BootstrapPackage.Value != "") {
+		return nil
+	}
+	return BootstrapPackageRequiredError(keys)
+}
+
+// BootstrapPackageRequiredError returns the error for bootstrap package settings (setup_experience
+// keys) that can't be turned on without a bootstrap package.
+func BootstrapPackageRequiredError(keys []string) *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+	for _, key := range keys {
+		invalid.Append("setup_experience."+key, fmt.Sprintf("Couldn't enable %s. To use this option, first specify a bootstrap package.", key))
+	}
+	return invalid
 }
 
 // Validate checks the payload is in a valid state.
 // If needed to compare against old values (for partial patches) use ValidateAgainst instead.
-func (mos *MacOSSetup) Validate() error {
+func (mos *MacOSSetupSpec) Validate() error {
 	if mos == nil {
 		return nil
 	}
@@ -1049,31 +960,39 @@ func (mos *MacOSSetup) Validate() error {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
+	if err := mos.validateBootstrapPackageSettings(MacOSSetup{}); err != nil {
+		return err
+	}
+
 	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
-		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+		return NewInvalidArgumentError("macos_end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
 	}
 
 	if PrimaryAccountType(mos.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
-		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
+		return NewInvalidArgumentError("macos_managed_local_account_enabled", fmt.Sprintf(`macos_managed_local_account_enabled is required to be enabled when using %q for the macos_end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
 	}
 
 	return nil
 }
 
 // ValidateAgainst checks the payload is in a valid state, comparing against old values if needed for partial patches.
-func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
+func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup, hasBootstrapPackage bool) error {
 	if mos == nil {
 		return nil
 	}
 
-	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && !hasBootstrapPackage {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
 	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
-		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+		return NewInvalidArgumentError("macos_end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
 	}
 
+	// Only when the payload touches the pair, so an already invalid stored pair doesn't block unrelated settings.
+	if !mos.EnableManagedLocalAccount.Set && !mos.EndUserLocalAccountType.Set {
+		return nil
+	}
 	accountType := mos.EndUserLocalAccountType
 	if !accountType.Set || !accountType.Valid || accountType.Value == "" {
 		accountType = old.EndUserLocalAccountType
@@ -1083,7 +1002,7 @@ func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
 		enableManagedLocalAccount = old.EnableManagedLocalAccount
 	}
 	if PrimaryAccountType(accountType.Value).RequiresLocalAdminAccount() && (!enableManagedLocalAccount.Valid || !enableManagedLocalAccount.Value) {
-		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, accountType.Value))
+		return NewInvalidArgumentError("macos_managed_local_account_enabled", fmt.Sprintf(`macos_managed_local_account_enabled is required to be enabled when using %q for the macos_end_user_local_account_type`, accountType.Value))
 	}
 
 	return nil
@@ -1093,20 +1012,11 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	if mos == nil {
 		return
 	}
-	if !mos.BootstrapPackage.Valid {
-		mos.BootstrapPackage = optjson.SetString("")
-	}
-	if !mos.MacOSSetupAssistant.Valid {
-		mos.MacOSSetupAssistant = optjson.SetString("")
-	}
 	if !mos.EnableReleaseDeviceManually.Valid {
 		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	if !mos.LockEndUserInfo.Valid {
 		mos.LockEndUserInfo = optjson.SetBool(mos.EnableEndUserAuthentication)
-	}
-	if !mos.Script.Valid {
-		mos.Script = optjson.SetString("")
 	}
 	if !mos.Software.Valid {
 		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
@@ -1119,6 +1029,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.EndUserLocalAccountType.Valid {
 		mos.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+	if !mos.EnableManagedLocalAccountWindows.Valid {
+		mos.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 }
 
@@ -1215,12 +1128,6 @@ type AppConfig struct {
 
 	GitOpsConfig GitOpsConfig `json:"gitops"`
 
-	// Scripts is a slice of script file paths.
-	//
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for scripts is in MySQL.)
-	Scripts optjson.Slice[string] `json:"scripts"`
-
 	YaraRules []YaraRule `json:"yara_rules,omitempty"`
 
 	// ConditionalAccess holds the Okta conditional access settings that are stored in AppConfig.
@@ -1305,16 +1212,6 @@ func (c *AppConfig) Copy() *AppConfig {
 		copy(aq, *c.Features.AdditionalQueries)
 		clone.Features.AdditionalQueries = &aq
 	}
-	if c.Features.DetailQueryOverrides != nil {
-		clone.Features.DetailQueryOverrides = make(map[string]*string, len(c.Features.DetailQueryOverrides))
-		for k, v := range c.Features.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.Features.DetailQueryOverrides[k] = s
-		}
-	}
 	clone.Features.VulnerabilityExposureHistoricalReporting = c.Features.VulnerabilityExposureHistoricalReporting.Copy()
 	if c.AgentOptions != nil {
 		ao := make(json.RawMessage, len(*c.AgentOptions))
@@ -1330,10 +1227,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
 
-	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
-		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
-		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	}
 	if c.Integrations.Jira != nil {
 		clone.Integrations.Jira = make([]*JiraIntegration, len(c.Integrations.Jira))
 		for i, j := range c.Integrations.Jira {
@@ -1370,6 +1263,10 @@ func (c *AppConfig) Copy() *AppConfig {
 			}
 		}
 	}
+	if c.Integrations.GoogleConditionalAccess != nil {
+		gca := *c.Integrations.GoogleConditionalAccess
+		clone.Integrations.GoogleConditionalAccess = &gca
+	}
 	if c.Integrations.CertificatesIdPIntrospectionURLs.Value != nil {
 		clone.Integrations.CertificatesIdPIntrospectionURLs.Value = slices.Clone(c.Integrations.CertificatesIdPIntrospectionURLs.Value)
 	}
@@ -1388,50 +1285,11 @@ func (c *AppConfig) Copy() *AppConfig {
 	// 	clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
 	// }
 
-	if c.MDM.MacOSSettings.CustomSettings != nil {
-		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
-		for i, mps := range c.MDM.MacOSSettings.CustomSettings {
-			clone.MDM.MacOSSettings.CustomSettings[i] = *mps.Copy()
-		}
-	}
-
-	if c.Scripts.Set {
-		scripts := make([]string, len(c.Scripts.Value))
-		copy(scripts, c.Scripts.Value)
-		clone.Scripts = optjson.SetSlice(scripts)
-	}
-
-	if c.MDM.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]MDMProfileSpec, len(c.MDM.WindowsSettings.CustomSettings.Value))
-		for i, mps := range c.MDM.WindowsSettings.CustomSettings.Value {
-			windowsSettings[i] = *mps.Copy()
-		}
-		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
-	}
-
-	if c.MDM.AndroidSettings.CustomSettings.Set {
-		androidSettings := make([]MDMProfileSpec, len(c.MDM.AndroidSettings.CustomSettings.Value))
-		for i, mps := range c.MDM.AndroidSettings.CustomSettings.Value {
-			androidSettings[i] = *mps.Copy()
-		}
-		clone.MDM.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
-	}
-
 	if c.MDM.AppleBusinessManager.Set {
 		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
 		copy(abm, c.MDM.AppleBusinessManager.Value)
 		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
 
-	}
-
-	if c.MDM.VolumePurchasingProgram.Set {
-		vpp := make([]MDMAppleVolumePurchasingProgramInfo, len(c.MDM.VolumePurchasingProgram.Value))
-		for i, s := range c.MDM.VolumePurchasingProgram.Value {
-			vpp[i].Location = s.Location
-			vpp[i].Teams = make([]string, len(s.Teams))
-			copy(vpp[i].Teams, s.Teams)
-		}
-		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
 	}
 
 	if c.MDM.MacOSSetup.Software.Set {
@@ -1454,6 +1312,13 @@ func (c *AppConfig) Copy() *AppConfig {
 	// ConditionalAccess: deep copy the pointer to avoid shared state
 	if c.ConditionalAccess != nil {
 		conditionalAccess := *c.ConditionalAccess
+		if c.ConditionalAccess.Google != nil {
+			google := *c.ConditionalAccess.Google
+			if google.ErrorMessage != nil {
+				google.ErrorMessage = new(*google.ErrorMessage)
+			}
+			conditionalAccess.Google = &google
+		}
 		clone.ConditionalAccess = &conditionalAccess
 	}
 
@@ -1596,8 +1461,8 @@ type FailingPoliciesWebhookSettings struct {
 	Enable bool `json:"enable_failing_policies_webhook"`
 	// DestinationURL is the webhook's URL.
 	DestinationURL string `json:"destination_url"`
-	// PolicyIDs is a list of policy IDs for which the webhook will be configured.
-	PolicyIDs []uint `json:"policy_ids"`
+	// Each policy's webhooks_and_tickets_enabled replaced the list of policy IDs.
+	_ struct{} `json:"-" removedkey:"policy_ids" renamescope:"failing_policies_webhook"`
 	// HostBatchSize allows sending multiple requests in batches of hosts for each policy.
 	// A value of 0 means no batching.
 	HostBatchSize int `json:"host_batch_size"`
@@ -1647,6 +1512,7 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+	c.MDM.EnableProfileValidation = true
 }
 
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
@@ -1707,8 +1573,8 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
-	if !c.MDM.WindowsSettings.EnableManagedLocalAccount.Valid {
-		c.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(false)
+	if !c.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Valid {
+		c.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(false)
 	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
@@ -1759,47 +1625,12 @@ func (c *AppConfig) assignDeprecatedFields() {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName string `json:"org_name"`
-	// Deprecated: use OrgLogoURLDarkMode.
-	OrgLogoURL string `json:"org_logo_url"`
-	// Deprecated: use OrgLogoURLLightMode.
-	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
-	OrgLogoURLDarkMode        string `json:"org_logo_url_dark_mode"`
-	OrgLogoURLLightMode       string `json:"org_logo_url_light_mode"`
+	OrgName             string `json:"org_name"`
+	OrgLogoURLDarkMode  string `json:"org_logo_url_dark_mode" removedkey:"org_logo_url" renamescope:"org_info"`
+	OrgLogoURLLightMode string `json:"org_logo_url_light_mode" removedkey:"org_logo_url_light_background" renamescope:"org_info"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`
-}
-
-// Keep deprecated fields (OrgLogoURL and OrgLogoURLLightBackground) in sync
-// with the new fields (OrgLogoURLDarkMode and OrgLogoURLLightMode).
-func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
-	invalid := &InvalidArgumentError{}
-
-	switch {
-	case o.OrgLogoURL != "" && o.OrgLogoURLDarkMode != "" && o.OrgLogoURL != o.OrgLogoURLDarkMode:
-		invalid.Append("org_logo_url",
-			"cannot specify both org_logo_url and org_logo_url_dark_mode with different values")
-	case o.OrgLogoURL == "" && o.OrgLogoURLDarkMode != "":
-		o.OrgLogoURL = o.OrgLogoURLDarkMode
-	case o.OrgLogoURLDarkMode == "" && o.OrgLogoURL != "":
-		o.OrgLogoURLDarkMode = o.OrgLogoURL
-	}
-
-	switch {
-	case o.OrgLogoURLLightBackground != "" && o.OrgLogoURLLightMode != "" && o.OrgLogoURLLightBackground != o.OrgLogoURLLightMode:
-		invalid.Append("org_logo_url_light_background",
-			"cannot specify both org_logo_url_light_background and org_logo_url_light_mode with different values")
-	case o.OrgLogoURLLightBackground == "" && o.OrgLogoURLLightMode != "":
-		o.OrgLogoURLLightBackground = o.OrgLogoURLLightMode
-	case o.OrgLogoURLLightMode == "" && o.OrgLogoURLLightBackground != "":
-		o.OrgLogoURLLightMode = o.OrgLogoURLLightBackground
-	}
-
-	if invalid.HasErrors() {
-		return invalid
-	}
-	return nil
 }
 
 // orgLogoServingPathPrefix is the relative path Fleet writes into the
@@ -1822,11 +1653,8 @@ func AbsolutizeLogoURL(u, serverURL string) string {
 	return strings.TrimRight(serverURL, "/") + u
 }
 
-// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
-// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to both logo URL fields on OrgInfo in place.
 func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
-	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
-	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
 	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
 	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
 }
@@ -1852,14 +1680,17 @@ const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 // ServerSettings contains general settings about the Fleet application.
 type ServerSettings struct {
 	ServerURL            string `json:"server_url"`
-	LiveQueryDisabled    bool   `json:"live_query_disabled" renameto:"live_reporting_disabled"`
+	LiveQueryDisabled    bool   `json:"live_reporting_disabled" removedkey:"live_query_disabled" renamescope:"server_settings"`
 	EnableAnalytics      bool   `json:"enable_analytics"`
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
-	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
-	ScriptsDisabled      bool   `json:"scripts_disabled"`
+	QueryReportsDisabled bool   `json:"discard_reports_data" removedkey:"query_reports_disabled" renamescope:"server_settings"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
-	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
+	MCPDisabled          bool   `json:"mcp_disabled"`
+	QueryReportCap       int    `json:"report_cap" removedkey:"query_report_cap" renamescope:"server_settings"`
+	// AISessionsDisabled stops Fleet from collecting AI agent sessions and their tool calls from hosts. Those
+	// already collected are kept until they expire.
+	AISessionsDisabled bool `json:"ai_sessions_disabled"`
 }
 
 const DefaultMaxQueryReportRows int = 1000
@@ -1903,8 +1734,7 @@ type ActivityExpirySettings struct {
 type Features struct {
 	EnableHostUsers         bool                   `json:"enable_host_users"`
 	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
-	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"` //nolint:apiparamcheck // osquery host-details queries
 	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	// VulnerabilityExposureHistoricalReporting holds the GitOps-managed default
@@ -2007,16 +1837,6 @@ func (f *Features) Copy() *Features {
 		aq := make(json.RawMessage, len(*f.AdditionalQueries))
 		copy(aq, *f.AdditionalQueries)
 		clone.AdditionalQueries = &aq
-	}
-	if f.DetailQueryOverrides != nil {
-		clone.DetailQueryOverrides = make(map[string]*string, len(f.DetailQueryOverrides))
-		for k, v := range f.DetailQueryOverrides {
-			var s *string
-			if v != nil {
-				s = ptr.String(*v)
-			}
-			clone.DetailQueryOverrides[k] = s
-		}
 	}
 
 	clone.VulnerabilityExposureHistoricalReporting = f.VulnerabilityExposureHistoricalReporting.Copy()
@@ -2180,7 +2000,7 @@ type ListOptions struct {
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
 	// Used to request the pagination metadata in the response.
-	IncludeMetadata bool
+	IncludeMetadata bool `json:"-"`
 
 	// The following fields are for tests, to ensure a deterministic sort order
 	// when the single-column order key is not unique.
@@ -2314,7 +2134,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id,omitempty" db:"team_id"`
 }
 
 func (e *EnrollSecret) GetTeamID() *uint {
@@ -2383,6 +2203,8 @@ type AuthSettings struct {
 	MDMAppleOneTimeEnrollSecrets bool `json:"mdm_apple_one_time_enroll_secrets,omitempty"`
 	// MDMWindowsOneTimeEnrollSecrets mirrors the mdm.windows_one_time_enroll_secrets server configuration.
 	MDMWindowsOneTimeEnrollSecrets bool `json:"mdm_windows_one_time_enroll_secrets,omitempty"`
+	// MDMAndroidOneTimeEnrollSecrets mirrors the mdm.android_one_time_enroll_secrets server configuration.
+	MDMAndroidOneTimeEnrollSecrets bool `json:"mdm_android_one_time_enroll_secrets,omitempty"`
 }
 
 // LicenseInfo contains information about the Fleet license.
@@ -2442,6 +2264,10 @@ const (
 	HeaderLicenseKey          = "X-Fleet-License"
 	HeaderLicenseValueExpired = "Expired"
 )
+
+// HeaderClientVersion carries the version of the fleetctl that sends the request. Fleet can rely on it, unlike the User-Agent, which
+// admins can override with custom headers.
+const HeaderClientVersion = "X-Fleet-Client-Version"
 
 type Logging struct {
 	Debug  bool          `json:"debug"`
@@ -2560,7 +2386,7 @@ type DeviceGlobalConfig struct {
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured             bool `json:"enabled_and_configured"`
-	RequireAllSoftware               bool `json:"require_all_software_macos"`
+	RequireAllSoftware               bool `json:"macos_require_all_software"`
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
 }
 
@@ -2583,13 +2409,8 @@ func (v *Version) AuthzType() string {
 }
 
 type WindowsSettings struct {
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
-
-	// EnableManagedLocalAccount turns on the hidden managed local admin account created by
-	// fleetd on Windows hosts during Autopilot/OOBE enrollment.
-	EnableManagedLocalAccount optjson.Bool `json:"enable_managed_local_account"`
+	// Fleet 5 moved the managed local account setting to setup_experience.
+	_ struct{} `json:"-" removedkey:"enable_managed_local_account" renamescope:"windows_settings"`
 
 	// EnableDiskEncryption enforces BitLocker on Windows hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
@@ -2616,26 +2437,9 @@ type WindowsAutomaticEnrollment struct {
 	DefaultFleet string `json:"default_fleet"`
 }
 
-func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
-	return ws.CustomSettings.Value
-}
-
-// Compile-time interface check
-var _ WithMDMProfileSpecs = WindowsSettings{}
-
 type AndroidSettings struct {
-	// NOTE: These are only present here for informational purposes.
-	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings" renameto:"configuration_profiles"`
-	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
+	Certificates optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
 }
-
-func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
-	return ws.CustomSettings.Value
-}
-
-// Compile-time interface check
-var _ WithMDMProfileSpecs = AndroidSettings{}
 
 // only letters, numbers, spaces, dashes, and underscores
 var certificateNamePattern = regexp.MustCompile(`^[\w\s-]+$`)

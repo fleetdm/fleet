@@ -1,14 +1,21 @@
 const { Client } = require("@modelcontextprotocol/sdk/client/index.js");
-const { SSEClientTransport } = require("@modelcontextprotocol/sdk/client/sse.js");
+const { StreamableHTTPClientTransport } = require("@modelcontextprotocol/sdk/client/streamableHttp.js");
 
 // Maximum characters to return from any single tool call.
 // Keeps tool results from blowing up the Claude context window.
 const MAX_TOOL_RESULT_CHARS = 20000;
 
+// Only this error proves the MCP server never started the call, so retrying
+// can't run it twice (e.g. a second live query).
+function wasNeverAccepted(err) {
+  return err.message === "Not connected";
+}
+
 class McpClient {
-  constructor({ url, authToken }) {
+  constructor({ url, authToken, toolTimeoutMs }) {
     this.url = url;
     this.authToken = authToken;
+    this.toolTimeoutMs = toolTimeoutMs;
     this.client = null;
     this.tools = [];
     this._localTools = new Map(); // name → { definition, handler }
@@ -36,7 +43,7 @@ class McpClient {
     if (this.authToken) {
       headers.Authorization = `Bearer ${this.authToken}`;
     }
-    const transport = new SSEClientTransport(new URL(this.url), {
+    const transport = new StreamableHTTPClientTransport(new URL(this.url), {
       requestInit: { headers },
     });
 
@@ -90,15 +97,20 @@ class McpClient {
       }
     }
     console.log(`[mcp] Calling tool: ${name}(${JSON.stringify(args).slice(0, 200)})`);
+    const options = this.toolTimeoutMs ? { timeout: this.toolTimeoutMs } : undefined;
     let result;
     try {
-      result = await this.client.callTool({ name, arguments: args });
+      result = await this.client.callTool({ name, arguments: args }, undefined, options);
     } catch (err) {
-      // Connection may have dropped mid-call — try one reconnect
-      console.warn(`[mcp] Tool call failed (${err.message}), reconnecting and retrying...`);
+      if (!wasNeverAccepted(err)) {
+        throw err;
+      }
+      console.warn(
+        `[mcp] Tool call was not accepted (${err.message}), reconnecting and retrying...`
+      );
       this._connected = false;
       await this.connect();
-      result = await this.client.callTool({ name, arguments: args });
+      result = await this.client.callTool({ name, arguments: args }, undefined, options);
     }
 
     // MCP returns content as an array of content blocks

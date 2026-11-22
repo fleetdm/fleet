@@ -12,18 +12,17 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
 // GetRoutes returns a function that registers ACME routes on the router using the provided
 // authMiddleware.
 func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
-	return func(r *mux.Router, opts []kithttp.ServerOption) {
+	return func(r *eu.Router, opts []kithttp.ServerOption) {
 		attachFleetAPIRoutes(r, svc, authMiddleware, opts)
 	}
 }
 
-func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
+func attachFleetAPIRoutes(r *eu.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
 	opts = append(opts, kithttp.ServerErrorEncoder(acmeErrorEncoder))
 	ae := newEndpointerWithNoAuth(svc, authMiddleware, opts, r)
 	// ACME endpoints use path identifier and JWS authn/z, so we use a middleware to mark

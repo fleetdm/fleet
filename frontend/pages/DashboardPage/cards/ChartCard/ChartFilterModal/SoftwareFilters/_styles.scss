@@ -70,28 +70,6 @@
     gap: $pad-xsmall;
   }
 
-  &__pill {
-    display: inline-flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    padding: 4px $pad-small;
-    border: 1px solid $ui-fleet-black-25;
-    border-radius: $border-radius;
-    background: $core-fleet-white;
-    font-size: $xx-small;
-    color: $core-fleet-black;
-    cursor: pointer;
-
-    &:hover {
-      border-color: $ui-fleet-black-50;
-    }
-
-    .fleeticon {
-      font-size: 10px;
-      color: $ui-fleet-black-50;
-    }
-  }
-
   &__results-list {
     @include scrollable-checkbox-list(280px);
   }

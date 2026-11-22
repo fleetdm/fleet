@@ -9,6 +9,8 @@
 			<string>test</string>
 			<key>PayloadType</key>
 			<string>com.apple.universalcontrol</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-2.8.1.check-disabled</string>
 			<key>PayloadUUID</key>

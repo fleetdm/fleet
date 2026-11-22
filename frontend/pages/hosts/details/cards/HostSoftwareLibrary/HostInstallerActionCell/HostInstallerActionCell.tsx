@@ -200,7 +200,7 @@ export const HostInstallerActionButton = ({
         disabled={disabled}
         size="small"
       >
-        <Icon name={icon} color="ui-fleet-black-75" size="small" />
+        <Icon name={icon} color="ui-fleet-black-75" />
         <span data-testid={testId}>{text}</span>
       </Button>
     </TooltipWrapper>
@@ -223,7 +223,7 @@ export const HostInstallerActionCell = ({
   const {
     id,
     status,
-    software_package,
+    package: pkg,
     app_store_app,
     ui_status,
     installed_versions,
@@ -287,16 +287,16 @@ export const HostInstallerActionCell = ({
     software.source
   );
   const uninstallScriptAvailable =
-    !sourceMayLackUninstallScript || !!software_package?.has_uninstall_script;
+    !sourceMayLackUninstallScript || !!pkg?.has_uninstall_script;
 
   const isIpaPackage =
     (software.source === "ios_apps" || software.source === "ipados_apps") &&
-    !!software_package;
+    !!pkg;
 
   const canUninstallSoftware =
     !app_store_app &&
     !isIpaPackage &&
-    !!software_package &&
+    !!pkg &&
     uninstallScriptAvailable &&
     // Show uninstall button even when the status is installed but the host's
     // inventory has no matching title ID with the installer.
@@ -323,7 +323,7 @@ export const HostInstallerActionCell = ({
     status,
     appStoreApp: app_store_app,
     hostMDMEnrolled,
-    softwarePackage: software_package,
+    softwarePackage: pkg,
     isMyDevicePage,
     installedVersionsDetected,
   });
@@ -439,7 +439,7 @@ export const HostInstallerActionCell = ({
           baseClass={baseClass}
           disabled={false}
           onClick={onClickOpenInstructionsAction}
-          icon="info-outline"
+          icon="info"
           text="How to open"
           testId={`${baseClass}__instructions-button--test`}
         />

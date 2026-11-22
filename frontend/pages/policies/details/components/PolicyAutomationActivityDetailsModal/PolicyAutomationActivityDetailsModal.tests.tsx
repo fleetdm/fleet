@@ -335,6 +335,54 @@ describe("PolicyAutomationActivityDetailsModal", () => {
     });
   });
 
+  describe("skipped install (deadline variant)", () => {
+    it("shows the deadline explanation and reveals the pre-install output under Details", async () => {
+      const deadlineSkip: IPolicyAutomationActivity = {
+        id: 5,
+        created_at: "2026-06-12T15:04:05Z",
+        type: ActivityType.InstalledSoftware,
+        fleet_initiated: true,
+        details: {
+          policy_id: 123,
+          software_title: "1Password",
+          skipped_install: true,
+          patch_deadline: true,
+        },
+        host_id: 42,
+        host_display_name: "Rachael's MacBook Pro",
+        status: "error",
+        output: null,
+        pre_install_output: "",
+        post_install_output: null,
+      };
+
+      render(
+        <PolicyAutomationActivityDetailsModal
+          currentPolicyId={123}
+          activity={deadlineSkip}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByText(
+          "The app was open. Fleet will notify the end user 1 hour before the patch deadline."
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Pre-install query output:")
+      ).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: /Details/ }));
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Fleet notifies the end user 1 hour before the patch deadline/
+        )
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("skipped install (notify variant)", () => {
     it("shows the notify explanation and reveals the pre-install output under Details", async () => {
       const skipActivity: IPolicyAutomationActivity = {

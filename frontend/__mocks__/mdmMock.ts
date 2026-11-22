@@ -2,6 +2,7 @@ import { IHostMdmData } from "interfaces/host";
 import {
   IMdmSolution,
   IMdmProfile,
+  IMdmVppToken,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
 
@@ -33,7 +34,7 @@ export const createMockMdmSummaryMdmSolution = (
 
 const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {
   profile_uuid: "123-abc",
-  team_id: 0,
+  fleet_id: 0,
   name: "Test Profile",
   platform: "darwin",
   identifier: "com.test.profile",
@@ -48,6 +49,22 @@ export const createMockMdmProfile = (
   overrides?: Partial<IMdmProfile>
 ): IMdmProfile => {
   return { ...DEFAULT_MDM_PROFILE_DATA, ...overrides };
+};
+
+const DEFAULT_VPP_TOKEN_MOCK: IMdmVppToken = {
+  id: 1,
+  org_name: "Acme Inc.",
+  location: "Acme location",
+  renew_date: "2030-01-01T00:00:00Z",
+  country_code: "us",
+  created_at: null,
+  fleets: [],
+};
+
+export const createMockVppToken = (
+  overrides?: Partial<IMdmVppToken>
+): IMdmVppToken => {
+  return { ...DEFAULT_VPP_TOKEN_MOCK, ...overrides };
 };
 
 const DEFAULT_HOST_MDM_DATA: IHostMdmData = {

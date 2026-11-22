@@ -157,7 +157,7 @@
         transform: rotate(180deg);
         transition: transform 0.25s ease;
         path {
-          stroke: $ui-fleet-black-75-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -176,7 +176,7 @@
     .dropdown__custom-arrow .dropdown__icon {
       svg {
         path {
-          stroke: $ui-fleet-black-75-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -189,7 +189,7 @@
     &.is-open {
       .dropdown__custom-arrow .dropdown__icon {
         svg path {
-          stroke: $ui-fleet-black-75-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
       .dropdown__custom-value .dropdown__icon {
@@ -225,7 +225,7 @@
     overflow: hidden;
     max-height: 198px; // Fits 4 options without scrolling
     border: 0;
-    margin: 1px 0 0;
+    margin: 3px 0 0;
     padding: $pad-small;
     animation: fade-in 150ms ease-out;
   }

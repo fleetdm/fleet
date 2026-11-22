@@ -25,8 +25,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"go.step.sm/crypto/jose"
 )
@@ -35,6 +35,7 @@ import (
 type integrationTestSuite struct {
 	*testutils.TestDB
 	ds     *mysql.Datastore
+	svc    *service.Service
 	server *httptest.Server
 
 	attestCA    *x509.Certificate
@@ -88,7 +89,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	svc := service.NewService(ds, pool, providers, tdb.Logger, opts)
 
 	// Create router with routes
-	router := mux.NewRouter()
+	router := endpointer.NewRouter()
 	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint { return next } // no-op auth middleware for testing
 	routesFn := service.GetRoutes(svc, authMiddleware)
 	routesFn(router, nil)
@@ -100,6 +101,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 
 	suite.TestDB = tdb
 	suite.ds = ds
+	suite.svc = svc
 	suite.server = server
 	suite.attestCA = cert
 	suite.attestCAKey = key

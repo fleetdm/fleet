@@ -47,6 +47,21 @@ useQuery(
 - Build query strings with `buildQueryStringFromParams()` from `frontend/utilities/url/`
 - Build full paths with `getPathWithQueryParams(path, params)` — auto-filters undefined/null values
 
+## Read after write
+Never follow a write with a `GET` to learn what the write did. The `GET` can be answered by a read replica, or by another server instance's cache (app config is cached per instance for 1 second), and return the state from before the write: a success toast over a page that hasn't changed.
+
+- Update state from the write's response: `setConfig(await configAPI.update(changes))`, or `queryClient.setQueryData(key, response)` in a mutation's `onSuccess`.
+- When the result is known without a response (a delete, a toggle), set it locally.
+- If the endpoint doesn't return the state the UI needs, change the endpoint to return it, read on the primary (`ctxdb.RequirePrimary(ctx, true)`), instead of adding a follow-up `GET`.
+- Invalidating queries after a mutation (see React Query) is for data the response doesn't describe, like a paginated list the new row belongs to. It is not a way to read back what was just written.
+- Exception: after a failed write that may have partly applied, a reload is fine as a best effort. The error carries no state, and a stale answer only leaves the page as it was.
+
+Anti-pattern:
+```ts
+await teamsAPI.update(changes, teamId);
+const { team } = await teamsAPI.load(teamId); // may predate the write
+```
+
 ## Permission Checking
 Use helpers from `frontend/utilities/permissions/permissions.ts`:
 - Global roles: `permissions.isGlobalAdmin(user)`, `isGlobalMaintainer(user)`, `isOnGlobalTeam(user)`
@@ -134,7 +149,7 @@ Anti-pattern:
 Arrowless `TooltipWrapper` is `bottom-start` with left-aligned bubble text. Only override `position` or `text-align` when the anchor uses `showArrow` (pointed callout).
 
 ## Interfaces & Types
-- Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`
+- Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `ILabel`
 - Legacy pattern: some files export both PropTypes (default export) and TypeScript interfaces (named export)
 - New code should use TypeScript interfaces only
 - API interface naming: use `*FormData` for form-driven request bodies, `*ApiParams`/`*QueryParams` for request params, `*Response` for API responses, `*QueryKey` when typing a React Query key. Avoid `*Body`, `*PostBody`, `*Payload`, `*Request` for API request bodies. `*PreviewPayload` is fine for outgoing webhook shapes (matches the "Preview payload" UI terminology).
@@ -176,3 +191,7 @@ Mechanics (`renderWithSetup` vs `createCustomRenderer`, MSW handlers, entity moc
 - `console.log` is allowed (`no-console` is off) — useful for debugging, but clean up before merging
 - `react-hooks/exhaustive-deps` is enforced as a warning — include all dependencies in hook dependency arrays
 - Run `make lint-js` or `yarn lint` and `npx prettier --check frontend/` before submitting
+
+## Readability
+- **Never nest ternaries.** Use flat `{cond && (...)}` blocks, or extract a helper function that returns early (`const content = getContent();`). Applies to JSX and plain TS.
+- **Prefer `const` + extracted helpers over `let` + reassignment.** When you have conditional branches that each set the same variable, pull them into a small `getFoo()` function that returns early.

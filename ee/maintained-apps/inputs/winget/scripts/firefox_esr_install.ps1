@@ -2,7 +2,6 @@
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 
 $exeFilePath = "${env:INSTALLER_PATH}"
-$installDir = "C:\Program Files\Mozilla Firefox"
 
 try {
 
@@ -13,14 +12,19 @@ $process = Start-Process -FilePath "$exeFilePath" -ArgumentList "/S /RegisterDef
 
 # Wait for the installer to exit so operations that run right after (uninstall,
 # upgrade) don't race it. Its post-install background tasks can keep it alive,
-# so cap the wait and accept a landed firefox.exe as success.
+# so cap the wait and accept a registered Firefox ESR as success.
 if ($process.WaitForExit(300000)) {
   $exitCode = $process.ExitCode
   Write-Host "Install exit code: $exitCode"
   Exit $exitCode
 }
 
-if (Test-Path "$installDir\firefox.exe") {
+# Not firefox.exe: release Firefox installs to the same folder.
+$esrEntry = Get-ItemProperty @(
+  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+) -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Mozilla Firefox*ESR*' }
+if ($esrEntry) {
   Write-Host "Installer still running after 300s; Firefox ESR is installed"
   Exit 0
 }

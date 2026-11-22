@@ -23,9 +23,7 @@ This file was copied (on December 2023) from https://github.com/fleetdm/kolide-k
 package version
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"runtime"
 )
 
@@ -77,15 +75,4 @@ func PrintFull() {
 	fmt.Printf("  build date: \t%s\n", v.BuildDate)
 	fmt.Printf("  build user: \t%s\n", v.BuildUser)
 	fmt.Printf("  go version: \t%s\n", v.GoVersion)
-}
-
-// Handler returns an HTTP Handler which returns JSON formatted version information.
-func Handler() http.Handler {
-	v := Version()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		enc.Encode(v) //nolint:errcheck
-	})
 }

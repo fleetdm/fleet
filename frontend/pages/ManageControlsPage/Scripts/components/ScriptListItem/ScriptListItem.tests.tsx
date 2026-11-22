@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
 import { createCustomRenderer, renderWithSetup } from "test/test-utils";
@@ -12,9 +13,15 @@ jest.mock("services/entities/scripts", () => ({
   default: { downloadScript: jest.fn() },
 }));
 
+// jsdom has no layout, so control whether the name renders truncated.
+jest.mock("hooks/useCheckTruncatedElement", () => ({
+  useCheckTruncatedElement: jest.fn(),
+}));
+const mockedUseCheckTruncatedElement = jest.mocked(useCheckTruncatedElement);
+
 const MAC_SCRIPT: IScript = {
   id: 1,
-  team_id: 1,
+  fleet_id: 1,
   name: "test_mac_script.sh",
   created_at: "2021-01-01",
   updated_at: "2021-01-01",
@@ -22,7 +29,7 @@ const MAC_SCRIPT: IScript = {
 
 const WINDOWS_SCRIPT: IScript = {
   id: 1,
-  team_id: 1,
+  fleet_id: 1,
   name: "test_win_script.ps1",
   created_at: "2021-01-01",
   updated_at: "2021-01-01",
@@ -35,6 +42,25 @@ describe("ScriptListItem", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it("shows the full name on hover when the name is truncated", async () => {
+    mockedUseCheckTruncatedElement.mockReturnValue(true);
+    const { user } = renderWithSetup(
+      <ScriptListItem
+        script={MAC_SCRIPT}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onClickScript={onClickScript}
+      />
+    );
+
+    await user.hover(screen.getByText(MAC_SCRIPT.name));
+
+    await waitFor(() => {
+      expect(screen.getByText(/^Name:/)).toBeInTheDocument();
+    });
+    expect(screen.getAllByText(MAC_SCRIPT.name)).toHaveLength(2);
   });
 
   it("Renders a Script list item with correct platform for macOS", () => {
@@ -192,5 +218,65 @@ describe("ScriptListItem", () => {
       expect(scriptAPI.downloadScript).toHaveBeenCalledWith(MAC_SCRIPT.id);
       expect(onClickScript).not.toHaveBeenCalled();
     });
+
+    it("exposes the row as a keyboard-focusable button so Enter opens the Edit modal", async () => {
+      const { user, container } = renderWithGitOps();
+
+      const row = container.querySelector(".list-item") as HTMLElement;
+      expect(row).toHaveAttribute("role", "button");
+      expect(row).toHaveAttribute("tabindex", "0");
+
+      row.focus();
+      await user.keyboard("{Enter}");
+      expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
+    });
+
+    it("does not open the Edit modal when Enter is pressed on the Download button", async () => {
+      (scriptAPI.downloadScript as jest.Mock).mockResolvedValue("script body");
+      const { user } = renderWithGitOps();
+
+      screen.getByTestId("download-icon").closest("button")?.focus();
+      await user.keyboard("{Enter}");
+
+      expect(scriptAPI.downloadScript).toHaveBeenCalledWith(MAC_SCRIPT.id);
+      expect(onClickScript).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("as a technician", () => {
+    it("exposes the row as a keyboard-focusable button so Enter opens the Edit modal", async () => {
+      const { user, container } = renderWithSetup(
+        <ScriptListItem
+          script={MAC_SCRIPT}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onClickScript={onClickScript}
+          isTechnician
+        />
+      );
+
+      const row = container.querySelector(".list-item") as HTMLElement;
+      expect(row).toHaveAttribute("role", "button");
+      expect(row).toHaveAttribute("tabindex", "0");
+
+      row.focus();
+      await user.keyboard("{Enter}");
+      expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
+    });
+  });
+
+  it("does not expose the row as a button when action buttons are keyboard-reachable", () => {
+    const { container } = render(
+      <ScriptListItem
+        script={MAC_SCRIPT}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onClickScript={onClickScript}
+      />
+    );
+
+    const row = container.querySelector(".list-item");
+    expect(row).not.toHaveAttribute("role", "button");
+    expect(row).not.toHaveAttribute("tabindex");
   });
 });

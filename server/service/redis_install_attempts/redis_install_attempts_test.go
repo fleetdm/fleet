@@ -32,7 +32,7 @@ func TestRedisInstallAttempts(t *testing.T) {
 
 func setupRedis(t testing.TB, cluster, redir bool) *redisInstallAttemptCounter {
 	pool := redistest.SetupRedis(t, t.Name(), cluster, redir, true)
-	return NewTest(t, pool)
+	return NewTest(t, pool, SoftwareInstallerPrefix)
 }
 
 func testRecordAndCount(t *testing.T, counter *redisInstallAttemptCounter) {

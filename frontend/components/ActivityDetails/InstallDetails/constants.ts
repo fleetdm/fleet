@@ -11,15 +11,15 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   SoftwareInstallDetailsStatus,
   IconNames
 > = {
-  pending_install: "pending-outline",
+  pending_install: "pending",
   installed: "success",
   uninstalled: "success",
   failed_install: "error",
-  pending_uninstall: "pending-outline",
+  pending_uninstall: "pending",
   failed_uninstall: "error",
   // Same "!" glyph as a failure, but the call site renders it muted grey
   // (ui-fleet-black-50): a skip is deferred (app was open), not an error.
-  skipped_install: "error-outline",
+  skipped_install: "error",
 } as const;
 
 export const SKIPPED_INSTALL_DETAILS_PREFIX =
@@ -35,6 +35,8 @@ export const SKIPPED_PRE_INSTALL_OUTPUT =
   "Query didn't return result or failed\nThe app was open";
 export const SKIPPED_PRE_INSTALL_OUTPUT_NOTIFY =
   "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.";
+export const SKIPPED_PRE_INSTALL_OUTPUT_DEADLINE =
+  "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch deadline.";
 export const PRE_INSTALL_QUERY_FAIL_OUTPUT =
   "Query didn't return result or failed\nInstall stopped";
 
@@ -72,7 +74,7 @@ export const SCRIPT_DETAILS_STATUS_ICONS: Record<
   SoftwareInstallStatus,
   IconNames
 > = {
-  pending_install: "pending-outline",
+  pending_install: "pending",
   installed: "success",
   failed_install: "error",
 } as const;

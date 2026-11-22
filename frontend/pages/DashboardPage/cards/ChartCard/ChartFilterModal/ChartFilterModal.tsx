@@ -8,7 +8,6 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import SearchField from "components/forms/fields/SearchField";
-import Icon from "components/Icon";
 import Modal from "components/Modal";
 import {
   ANY_SEVERITY_VALUE,
@@ -19,6 +18,7 @@ import {
 } from "components/SeverityFilter";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import Tag from "components/Tag";
 import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 import { IHost } from "interfaces/host";
 import { ILabelSummary } from "interfaces/label";
@@ -405,15 +405,15 @@ const ChartFilterModal = ({
       {selectedHosts.length > 0 && (
         <div className={`${baseClass}__pills`}>
           {selectedHosts.map((host) => (
-            <button
+            <Tag
               key={host.id}
-              type="button"
-              className={`${baseClass}__pill`}
-              onClick={() => removeHost(host.id)}
+              type="dismissible"
+              size="small"
+              dismissLabel={`Remove ${host.display_name}`}
+              onDismiss={() => removeHost(host.id)}
             >
               {host.display_name}
-              <Icon name="close" />
-            </button>
+            </Tag>
           ))}
         </div>
       )}

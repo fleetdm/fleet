@@ -9,7 +9,6 @@ const buildPagesItems = (
   derived: IDerivedContext
 ): ICommandItem[] => {
   const {
-    search,
     canAccessControls,
     canAccessSettings,
     isPremiumTier,
@@ -158,20 +157,6 @@ const buildPagesItems = (
         "personal",
       ],
     },
-
-    // Packs page — only visible when searching for "packs" or similar.
-    // The companion "Add new pack" item lives in commands.ts.
-    ...(/packs|create new pack|add new pack/.test(search.toLowerCase())
-      ? [
-          {
-            id: "packs",
-            label: "Packs",
-            group: "Pages" as const,
-            path: paths.MANAGE_PACKS,
-            keywords: ["packs", "legacy", "scheduled queries"],
-          },
-        ]
-      : []),
   ];
 };
 

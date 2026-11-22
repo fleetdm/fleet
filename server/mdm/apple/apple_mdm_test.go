@@ -6,6 +6,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"io"
 	"log/slog"
@@ -13,10 +14,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -25,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1001,6 +1005,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
+		}
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
@@ -1035,6 +1042,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
+		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
 		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
@@ -1092,6 +1102,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return map[string]bool{hostUUID: false}, nil
@@ -1148,6 +1161,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return map[string]bool{hostUUID: false}, nil
@@ -1197,6 +1213,22 @@ type mockRecoveryLockCommander struct {
 	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	rotateRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	verifyRecoveryLockFn func(ctx context.Context, hostUUID, cmdUUID string) error
+	verifyClearFn        func(ctx context.Context, hostUUID, cmdUUID string) error
+}
+
+func (m *mockRecoveryLockCommander) VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	if m.verifyRecoveryLockFn != nil {
+		return m.verifyRecoveryLockFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
+	if m.verifyClearFn != nil {
+		return m.verifyClearFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -1220,6 +1252,81 @@ func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, host
 	return nil
 }
 
+func TestSendRecoveryLockVerifyCommands(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	claims := []fleet.HostRecoveryLockVerifyClaim{
+		{HostUUID: "install-host", OperationType: fleet.MDMOperationTypeInstall, VerifyCommandUUID: "verify-1"},
+		{HostUUID: "remove-host", OperationType: fleet.MDMOperationTypeRemove, VerifyCommandUUID: "verify-2"},
+	}
+
+	t.Run("sends the verify matching each operation", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return claims, nil
+		}
+		var verified, verifiedClear []string
+		commander := &mockRecoveryLockCommander{
+			verifyRecoveryLockFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				verified = append(verified, hostUUID+"/"+cmdUUID)
+				return nil
+			},
+			verifyClearFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				verifiedClear = append(verifiedClear, hostUUID+"/"+cmdUUID)
+				return nil
+			},
+		}
+
+		require.NoError(t, sendRecoveryLockVerifyCommands(ctx, ds, commander, logger))
+		require.Equal(t, []string{"install-host/verify-1"}, verified)
+		require.Equal(t, []string{"remove-host/verify-2"}, verifiedClear)
+		require.False(t, ds.UnclaimHostForRecoveryLockVerifyFuncInvoked)
+	})
+
+	t.Run("a verify that wasn't enqueued is unclaimed, one whose push failed is kept", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return claims, nil
+		}
+		var unclaimed []string
+		ds.UnclaimHostForRecoveryLockVerifyFunc = func(ctx context.Context, hostUUID, verifyCommandUUID string) error {
+			unclaimed = append(unclaimed, hostUUID+"/"+verifyCommandUUID)
+			return nil
+		}
+		commander := &mockRecoveryLockCommander{
+			verifyRecoveryLockFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				return errors.New("enqueue failed")
+			},
+			verifyClearFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				// as enqueueAndNotify returns it once the command is persisted
+				return ctxerr.Wrap(ctx, &NotificationFailedError{
+					err: &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}},
+				}, "sending notifications")
+			},
+		}
+
+		err := sendRecoveryLockVerifyCommands(ctx, ds, commander, logger)
+		require.ErrorContains(t, err, "enqueue failed")
+		require.Equal(t, []string{"install-host/verify-1"}, unclaimed)
+	})
+
+	t.Run("a push failure that isn't per device keeps the claim", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return claims[:1], nil
+		}
+		commander := &mockRecoveryLockCommander{
+			verifyRecoveryLockFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				return ctxerr.Wrap(ctx, &NotificationFailedError{err: errors.New("push certificate expired")}, "sending notifications")
+			},
+		}
+
+		require.NoError(t, sendRecoveryLockVerifyCommands(ctx, ds, commander, logger))
+		require.False(t, ds.UnclaimHostForRecoveryLockVerifyFuncInvoked)
+	})
+}
+
 func TestSendClearRecoveryLockCommands(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
@@ -1233,6 +1340,9 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
+		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
 		}
 		// No hosts need SET
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
@@ -1272,6 +1382,9 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
+		}
+		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
+			return nil, nil
 		}
 		// No hosts need SET
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
@@ -1531,4 +1644,93 @@ func TestParseAppleMDMCertificateBindingExtension(t *testing.T) {
 			require.Nil(t, binding)
 		})
 	}
+}
+
+func TestSilentMigrationRenewalProfile(t *testing.T) {
+	const static = "static/><challenge"
+	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)
+	profileWith := func(challenge, description string) string {
+		var c, d strings.Builder
+		require.NoError(t, xml.EscapeText(&c, []byte(challenge)))
+		require.NoError(t, xml.EscapeText(&d, []byte(description)))
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>PayloadContent</key><array>
+<dict><key>PayloadType</key><string>com.apple.security.scep</string>
+<key>PayloadContent</key><dict><key>Challenge</key><string>` + c.String() + `</string><key>Keysize</key><integer>2048</integer></dict></dict>
+<dict><key>PayloadType</key><string>com.apple.mdm</string><key>ServerURL</key><string>https://example.com/mdm/apple/mdm</string></dict>
+</array>
+<key>PayloadDescription</key><string>` + d.String() + `</string>
+<key>PayloadType</key><string>Configuration</string>
+</dict></plist>`
+	}
+	// returns the SCEP Challenge and PayloadDescription of a renewal profile
+	parse := func(t *testing.T, profile []byte) (string, string) {
+		var root map[string]any
+		err := plist.Unmarshal(profile, &root)
+		require.NoError(t, err)
+		scep := root["PayloadContent"].([]any)[0].(map[string]any)["PayloadContent"].(map[string]any)
+		require.EqualValues(t, 2048, scep["Keysize"])
+		return scep["Challenge"].(string), root["PayloadDescription"].(string)
+	}
+
+	cases := []struct {
+		name      string
+		challenge string
+	}{
+		{"variable", fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix()},
+		{"variable with braces", fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces()},
+		{"legacy static challenge", static},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := SilentMigrationRenewalProfile([]byte(profileWith(c.challenge, "desc")), static)
+			require.NoError(t, err)
+			challenge, desc := parse(t, got)
+			require.Equal(t, placeholder, challenge)
+			require.Equal(t, "desc", desc)
+		})
+	}
+
+	t.Run("signed profile is unwrapped", func(t *testing.T) {
+		cert, key, err := NewSCEPCACertKey()
+		require.NoError(t, err)
+		signedData, err := pkcs7.NewSignedData([]byte(profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), "desc")))
+		require.NoError(t, err)
+		require.NoError(t, signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+		signed, err := signedData.Finish()
+		require.NoError(t, err)
+
+		got, err := SilentMigrationRenewalProfile(signed, static)
+		require.NoError(t, err)
+		challenge, _ := parse(t, got)
+		require.Equal(t, placeholder, challenge)
+	})
+
+	t.Run("works without a static challenge", func(t *testing.T) {
+		got, err := SilentMigrationRenewalProfile([]byte(profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), "desc")), "")
+		require.NoError(t, err)
+		challenge, _ := parse(t, got)
+		require.Equal(t, placeholder, challenge)
+	})
+
+	t.Run("only the SCEP Challenge is replaced", func(t *testing.T) {
+		got, err := SilentMigrationRenewalProfile([]byte(profileWith(static, "uses "+static)), static)
+		require.NoError(t, err)
+		challenge, desc := parse(t, got)
+		require.Equal(t, placeholder, challenge)
+		require.Equal(t, "uses "+static, desc)
+	})
+
+	t.Run("profile without a recognized Challenge is rejected", func(t *testing.T) {
+		_, err := SilentMigrationRenewalProfile([]byte(profileWith("other-challenge", "")), static)
+		require.Error(t, err)
+		_, err = SilentMigrationRenewalProfile([]byte(profileWith("other-challenge", "")), "")
+		require.Error(t, err)
+		// the marker outside the Challenge field doesn't count
+		_, err = SilentMigrationRenewalProfile([]byte(profileWith("other-challenge", fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())), static)
+		require.Error(t, err)
+		_, err = SilentMigrationRenewalProfile([]byte("not a plist"), static)
+		require.Error(t, err)
+	})
 }

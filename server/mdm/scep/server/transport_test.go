@@ -15,23 +15,41 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/gorilla/mux"
 	"github.com/smallstep/scep"
+	"github.com/stretchr/testify/require"
 )
 
+// TestCACaps also checks that MakeHTTPHandler leaves r.Pattern alone: otelhttp reads it after the handler returns to set
+// http.route on metrics.
 func TestCACaps(t *testing.T) {
-	server, _, teardown := newServer(t)
+	_, svc, teardown := newServer(t)
 	defer teardown()
-	url := server.URL + "/scep?operation=GetCACaps"
-	resp, err := http.Get(url) //nolint:gosec
-	if err != nil {
-		t.Fatal(err)
+	handler := scepserver.MakeHTTPHandler(scepserver.MakeServerEndpoints(svc), svc, slog.New(slog.DiscardHandler))
+
+	cases := []struct {
+		method     string
+		wantStatus int
+	}{
+		{http.MethodGet, http.StatusOK},
+		{http.MethodHead, http.StatusOK},
+		{http.MethodPost, http.StatusOK},
+		{http.MethodPut, http.StatusMethodNotAllowed},
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Error("expected", http.StatusOK, "got", resp.StatusCode)
+	for _, c := range cases {
+		t.Run(c.method, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(t.Context(), c.method, "/scep?operation=GetCACaps", nil)
+			req.Pattern = "/scep"
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			require.Equal(t, c.wantStatus, rec.Code)
+			require.Equal(t, "/scep", req.Pattern)
+		})
 	}
 }
 
@@ -269,6 +287,79 @@ func TestInvalidReqs(t *testing.T) {
 	}
 }
 
+// berGuardService rejects PKIOperation messages the way Fleet's SCEP services do, with a
+// fleet.BadRequestError.
+type berGuardService struct {
+	scepserver.Service
+}
+
+func (s berGuardService) PKIOperation(ctx context.Context, data []byte) ([]byte, error) {
+	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+	return s.Service.PKIOperation(ctx, data)
+}
+
+func TestPKIOperationFleetBadRequestError(t *testing.T) {
+	_, svc, teardown := newServer(t)
+	defer teardown()
+
+	guarded := berGuardService{Service: svc}
+	var logBuf bytes.Buffer
+	slogLogger := slog.New(slog.NewTextHandler(&logBuf, nil))
+	r := http.NewServeMux()
+	r.Handle("/scep", scepserver.MakeHTTPHandler(scepserver.MakeServerEndpoints(guarded), guarded, slogLogger))
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	// Each 0x30 0x80 opens an indefinite-length SEQUENCE, so this nests one level past MaxBERDepth.
+	body := bytes.Repeat([]byte{0x30, 0x80}, cryptoutil.MaxBERDepth+1)
+	resp, err := http.Post(server.URL+"/scep?operation=PKIOperation", "application/octet-stream", bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(respBody)); got != "invalid request body" {
+		t.Errorf("expected body %q, got %q", "invalid request body", got)
+	}
+	// The response only carries the public message, so the BER depth error must reach the log.
+	if logs := logBuf.String(); !strings.Contains(logs, "SCEP request failed") || !strings.Contains(logs, "status=400") ||
+		!strings.Contains(logs, "internal=") || !strings.Contains(logs, "depth") {
+		t.Errorf("expected the internal error to be logged, got %q", logs)
+	}
+}
+
+func TestPKIOperationMalformedBody(t *testing.T) {
+	server, _, teardown := newServer(t)
+	defer teardown()
+
+	resp, err := http.Post(server.URL+"/scep?operation=PKIOperation", "application/octet-stream", strings.NewReader("hello")) //nolint:gosec
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(respBody)); got != "invalid request body" {
+		t.Errorf("expected body %q, got %q", "invalid request body", got)
+	}
+}
+
 func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server, scepserver.Service, func()) {
 	var err error
 	var depot depot.Depot // cert storage
@@ -293,7 +384,7 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 	slogLogger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
 	scepHandler := scepserver.MakeHTTPHandler(e, svc, slogLogger)
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)
 	teardown := func() {
@@ -318,4 +409,59 @@ func loadTestFile(t *testing.T, path string) []byte {
 		t.Fatal(err)
 	}
 	return data
+}
+
+type identifierRecordingService struct {
+	scepserver.ServiceWithIdentifier
+	identifier string
+}
+
+func (s *identifierRecordingService) GetCACaps(_ context.Context, identifier string) ([]byte, error) {
+	s.identifier = identifier
+	return []byte("POSTPKIOperation"), nil
+}
+
+// TestHTTPHandlerWithIdentifierRouting checks which requests the SCEP proxy routes reach the service, and that the identifier path
+// value is decoded once.
+func TestHTTPHandlerWithIdentifierRouting(t *testing.T) {
+	svc := &identifierRecordingService{}
+	handler := scepserver.MakeHTTPHandlerWithIdentifier(scepserver.MakeServerEndpointsWithIdentifier(svc), "/mdm/scep/proxy/",
+		slog.New(slog.DiscardHandler))
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	cases := []struct {
+		name           string
+		method         string
+		path           string
+		wantStatus     int
+		wantIdentifier string
+	}{
+		{"get", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusOK, "host,profile,NDES"},
+		{"get with pkiclient.exe suffix", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2CNDES/pkiclient.exe", http.StatusOK,
+			"host,profile,NDES"},
+		{"escaped slash stays in the identifier", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2Fname", http.StatusOK,
+			"host,profile,ca/name"},
+		{"head", http.MethodHead, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusOK, "host,profile,NDES"},
+		{"post", http.MethodPost, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusOK, "host,profile,NDES"},
+		{"post with pkiclient.exe suffix", http.MethodPost, "/mdm/scep/proxy/host%2Cprofile%2CNDES/pkiclient.exe", http.StatusOK,
+			"host,profile,NDES"},
+		{"missing identifier", http.MethodGet, "/mdm/scep/proxy/", http.StatusNotFound, ""},
+		{"unknown suffix", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2CNDES/other", http.StatusNotFound, ""},
+		{"unsupported method", http.MethodPut, "/mdm/scep/proxy/host%2Cprofile%2CNDES", http.StatusMethodNotAllowed, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc.identifier = ""
+			req, err := http.NewRequestWithContext(t.Context(), c.method, server.URL+c.path+"?operation=GetCACaps", nil)
+			require.NoError(t, err)
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			_, _ = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+
+			require.Equal(t, c.wantStatus, resp.StatusCode)
+			require.Equal(t, c.wantIdentifier, svc.identifier)
+		})
+	}
 }

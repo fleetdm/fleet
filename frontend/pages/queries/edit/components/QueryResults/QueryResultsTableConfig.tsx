@@ -24,12 +24,6 @@ const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
     // reformat title and insert at start of headers array
     newHeaders.unshift({ ...displayNameHeader, id: "Host" });
   }
-  // TODO: Remove after v5 when host_hostname is removed rom API response.
-  const hostNameIndex = columns.findIndex((h) => h.id === "host_hostname");
-  if (hostNameIndex >= 0) {
-    newHeaders.splice(hostNameIndex, 1);
-  }
-  // end remove
   return newHeaders;
 };
 
@@ -68,10 +62,17 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
             );
           }
 
+          // Wrap in an element so React never removes a bare text node that a
+          // DOM-mutating browser extension may have moved, which throws
+          // NotFoundError on removeChild as live results stream in.
           const val = cellProps?.cell?.value;
-          return !!val?.length && val.length > 300
-            ? internallyTruncateText(val)
-            : val ?? null;
+          return (
+            <span>
+              {!!val?.length && val.length > 300
+                ? internallyTruncateText(val)
+                : val ?? null}
+            </span>
+          );
         },
         Filter: DefaultColumnFilter,
         disableSortBy: false,

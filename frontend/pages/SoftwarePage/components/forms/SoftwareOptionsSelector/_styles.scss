@@ -55,4 +55,11 @@
     gap: $medium;
   }
 
+  &--disabled {
+    .form-field__label,
+    .software-options-selector__label-name {
+      color: $ui-fleet-black-50;
+    }
+  }
+
 }

@@ -14,13 +14,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type putSetupExperienceSoftwareRequest struct {
 	Platform string `json:"platform"`
-	TeamID   uint   `json:"team_id" renameto:"fleet_id"`
+	TeamID   uint   `json:"fleet_id"`
 	TitleIDs []uint `json:"software_title_ids"`
 }
 
@@ -56,7 +55,7 @@ type getSetupExperienceSoftwareRequest struct {
 	// Platforms can be a comma separated list
 	Platforms string `query:"platform,optional"`
 	fleet.ListOptions
-	TeamID uint `query:"team_id" renameto:"fleet_id"`
+	TeamID uint `query:"fleet_id"`
 }
 
 func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
@@ -91,7 +90,7 @@ func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform st
 }
 
 type getSetupExperienceScriptRequest struct {
-	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint  `query:"fleet_id,optional"`
 	Alt    string `query:"alt,optional"`
 }
 
@@ -138,7 +137,7 @@ type setSetupExperienceScriptRequest struct {
 func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var decoded setSetupExperienceScriptRequest
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -146,7 +145,7 @@ func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *htt
 		}
 	}
 
-	val := r.MultipartForm.Value["fleet_id"]
+	val := r.Form["fleet_id"]
 	if len(val) > 0 {
 		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {
@@ -197,7 +196,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 }
 
 type deleteSetupExperienceScriptRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type deleteSetupExperienceScriptResponse struct {
@@ -378,7 +377,7 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       s.Name,
-					SoftwareDisplayName: softwareDisplayName,
+					SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 					SoftwareTitleID:     ptr.ValOrZero(s.SoftwareTitleID),
 				}); err != nil {
 					return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
@@ -442,9 +441,13 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	// we may need to cancel the rest of the setup experience.
 	if updated && err == nil && status == fleet.SetupExperienceStatusFailure {
 		// Look up the host by UUID to get its platform and team.
-		host, getHostUUIDErr := ds.HostByIdentifier(ctx, hostUUID)
+		hostID, getHostUUIDErr := ds.HostIDBySetupExperienceUUID(ctx, hostUUID)
 		if getHostUUIDErr != nil {
 			return updated, fmt.Errorf("getting host by UUID: %w", getHostUUIDErr)
+		}
+		host, getHostErr := ds.Host(ctx, hostID)
+		if getHostErr != nil {
+			return updated, fmt.Errorf("getting host: %w", getHostErr)
 		}
 		cancelErr := maybeCancelPendingSetupExperienceSteps(ctx, ds, host, newActivityFn)
 		if cancelErr != nil {

@@ -1,4 +1,5 @@
 import React from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
@@ -8,6 +9,7 @@ import Slider from "components/forms/fields/Slider";
 import FormField from "components/forms/FormField";
 import InfoBanner from "components/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import { ITextFieldProps, TextFieldName } from "hooks/useFormValidation";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion, SoftwareCategory } from "interfaces/software";
 import { CategoriesSelector } from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector/SoftwareOptionsSelector";
@@ -205,17 +207,12 @@ export const versionToFormData = (
 interface IVersionFormFieldsProps {
   formData: IVersionFormData;
   /** From `useFormValidation`. Text inputs (Name, Configuration, times). */
-  setField: <K extends keyof IVersionFormData & string>(
-    name: K,
-    value: IVersionFormData[K]
-  ) => void;
+  getTextFieldProps: (name: TextFieldName<IVersionFormData>) => ITextFieldProps;
   /** From `useFormValidation`. Compound / toggle-complete controls
    * (Checkbox, Slider, category multi-select, Target radio/dropdown, label
    * selector merges). */
   commitFields: (changes: Partial<IVersionFormData>) => void;
   getError: (name: string) => string | undefined;
-  clearFieldError: (name: string) => void;
-  validateField: (name: string) => void;
   /** Platform of the title's App Store app. Drives configuration mode
    * (XML for iOS/iPadOS, JSON for Android) and gates the auto-update
    * and self-service sections (iOS/iPadOS only). */
@@ -231,23 +228,54 @@ interface IVersionFormFieldsProps {
    * button (iOS/iPadOS when self-service is on). Opens the title-level
    * self-service preview modal. */
   onClickPreviewEndUserExperience: () => void;
+  /** Android web apps hold a single version: hide Name, Configuration, and
+   * the multiple-versions targeting banner. */
+  isWebApp?: boolean;
+  /** When true, every control is disabled and removed from the tab order
+   * (text inputs, Editor via `readOnly`, Slider, Checkbox, radios, label
+   * dropdown, category checkboxes). */
+  disabled?: boolean;
 }
 
 const VersionFormFields = ({
   formData,
-  setField,
+  getTextFieldProps,
   commitFields,
   getError,
-  clearFieldError,
-  validateField,
   platform,
   appDisplayName,
   labels,
   teamId,
   onClickPreviewEndUserExperience,
+  isWebApp = false,
+  disabled = false,
 }: IVersionFormFieldsProps) => {
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
+
+  const configFieldProps = getTextFieldProps("configuration");
+
+  // 3s pause after the last keystroke surfaces the configuration error
+  // without flashing mid-edit, matching the SQL editor's behavior. Blur and
+  // submit still validate immediately via useFormValidation.
+  const debounceValidateConfig = useDebouncedCallback(() => {
+    configFieldProps.onBlur();
+  }, 3000);
+
+  const onChangeConfiguration = (value: string) => {
+    configFieldProps.onChange(value);
+    // Clear any existing error immediately; the 3s debounce re-adds it if
+    // the content is still invalid once the user stops typing.
+    configFieldProps.onFocus();
+    debounceValidateConfig();
+  };
+
+  const onBlurConfiguration = () => {
+    // Blur-time validation runs now; drop the pending debounced copy so it
+    // can't fire after the user refocuses and clears the error.
+    debounceValidateConfig.cancel();
+    configFieldProps.onBlur();
+  };
 
   const onSelectCategory = ({
     name,
@@ -292,26 +320,28 @@ const VersionFormFields = ({
 
   return (
     <div className={baseClass}>
-      <InputField
-        label="Name"
-        name="name"
-        value={formData.name}
-        onChange={(next: string) => setField("name", next)}
-        onFocus={() => clearFieldError("name")}
-        onBlur={() => validateField("name")}
-        error={getError("name")}
-        placeholder="e.g. Production"
-        autofocus
-        inputOptions={{ maxLength: 255 }}
-      />
+      {!isWebApp && (
+        <>
+          <InputField
+            {...getTextFieldProps("name")}
+            label="Name"
+            placeholder="e.g. Production"
+            autofocus
+            inputOptions={{ maxLength: 255 }}
+            disabled={disabled}
+          />
 
-      <Editor
-        label="Configuration"
-        mode={editorMode}
-        value={formData.configuration}
-        onChange={(next: string) => setField("configuration", next)}
-        helpText={configHelpText}
-      />
+          <Editor
+            {...configFieldProps}
+            onChange={onChangeConfiguration}
+            onBlur={onBlurConfiguration}
+            label="Configuration"
+            mode={editorMode}
+            helpText={configHelpText}
+            readOnly={disabled}
+          />
+        </>
+      )}
 
       {isIosOrIpados && (
         <Slider
@@ -319,6 +349,7 @@ const VersionFormFields = ({
           onChange={() => commitFields({ selfService: !formData.selfService })}
           activeText="Self-service"
           inactiveText="Self-service"
+          disabled={disabled}
         />
       )}
 
@@ -330,6 +361,7 @@ const VersionFormFields = ({
           teamId={teamId}
           label="Category"
           previewButtonLabel="View end user experience"
+          disabled={disabled}
         />
       )}
 
@@ -342,6 +374,7 @@ const VersionFormFields = ({
             </p>
             <Checkbox
               value={formData.autoUpdateEnabled}
+              disabled={disabled}
               onChange={(next: boolean) =>
                 commitFields({ autoUpdateEnabled: next })
               }
@@ -352,30 +385,18 @@ const VersionFormFields = ({
             {formData.autoUpdateEnabled && (
               <div className={`${baseClass}__auto-update-window`}>
                 <InputField
+                  {...getTextFieldProps("autoUpdateWindowStart")}
                   label="Window start (host local time)"
-                  name="auto-update-window-start"
                   type="time"
-                  value={formData.autoUpdateWindowStart}
-                  onChange={(next: string) =>
-                    setField("autoUpdateWindowStart", next)
-                  }
-                  onFocus={() => clearFieldError("autoUpdateWindowStart")}
-                  onBlur={() => validateField("autoUpdateWindowStart")}
-                  error={getError("autoUpdateWindowStart")}
                   placeholder="00:00"
+                  disabled={disabled}
                 />
                 <InputField
+                  {...getTextFieldProps("autoUpdateWindowEnd")}
                   label="Window end (host local time)"
-                  name="auto-update-window-end"
                   type="time"
-                  value={formData.autoUpdateWindowEnd}
-                  onChange={(next: string) =>
-                    setField("autoUpdateWindowEnd", next)
-                  }
-                  onFocus={() => clearFieldError("autoUpdateWindowEnd")}
-                  onBlur={() => validateField("autoUpdateWindowEnd")}
-                  error={getError("autoUpdateWindowEnd")}
                   placeholder="04:00"
+                  disabled={disabled}
                 />
               </div>
             )}
@@ -394,11 +415,21 @@ const VersionFormFields = ({
         labels={labels}
         dropdownHelpText={generateHelpText(false, formData.customTarget)}
         error={getError("labelTargets")}
+        disableOptions={disabled}
         labelInfoBanner={
-          <InfoBanner icon="info-outline">
-            If multiple versions target the same host, Fleet will deploy the one
-            that was added first.
-          </InfoBanner>
+          isWebApp ? undefined : (
+            <InfoBanner icon="info">
+              If multiple versions target the same host, Fleet will deploy the
+              one that was added first.
+              <br />
+              Want to roll out a new version to multiple hosts?{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
+                text="Learn how"
+                newTab
+              />
+            </InfoBanner>
+          )
         }
       />
     </div>

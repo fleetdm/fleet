@@ -47,7 +47,11 @@ func TestNewBasicFileStructure(t *testing.T) {
 			".github/fleet-gitops/action.yml",
 			".gitlab-ci.yml",
 			"README.md",
+			"AGENTS.md",
 			"CLAUDE.md",
+			"GEMINI.md",
+			".agents/skills/fleet-gitops/SKILL.md",
+			".agents/skills/fleet-gitops/scripts/validate.py",
 			".claude/skills/fleet-gitops/SKILL.md",
 			"fleets/workstations.yml",
 			"labels/apple-silicon-macos-hosts.yml",
@@ -70,6 +74,26 @@ func TestNewBasicFileStructure(t *testing.T) {
 			return nil
 		})
 		require.NoError(t, err)
+	})
+
+	t.Run("generates valid YAML files", func(t *testing.T) {
+		var checked int
+		err := filepath.WalkDir(outDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if ext := filepath.Ext(path); d.IsDir() || (ext != ".yml" && ext != ".yaml") {
+				return nil
+			}
+			content, err := os.ReadFile(path) //nolint:gosec // G122: reading files this test just wrote to its own temp dir
+			require.NoError(t, err)
+			var parsed any
+			assert.NoError(t, yaml.Unmarshal(content, &parsed), "invalid YAML in %s", path)
+			checked++
+			return nil
+		})
+		require.NoError(t, err)
+		require.NotZero(t, checked)
 	})
 
 	t.Run("replaces and escapes org_name template var", func(t *testing.T) {
@@ -169,6 +193,23 @@ func TestNewCIFleetURLNormalization(t *testing.T) {
 			})
 		}
 	}
+}
+
+// The generated GitLab job applies on pushes and on schedules; without a
+// resource_group two overlapping applies can finish out of order and roll the
+// fleet back to the older config. The GitHub workflow has a concurrency group.
+func TestNewGitLabJobSerialized(t *testing.T) {
+	outDir := filepath.Join(t.TempDir(), "out")
+	_, err := runNewCommand(t, "--org-name", "Test", "--dir", outDir)
+	require.NoError(t, err)
+
+	gitlab, err := os.ReadFile(filepath.Join(outDir, ".gitlab-ci.yml"))
+	require.NoError(t, err)
+	var jobs map[string]struct {
+		ResourceGroup string `json:"resource_group"`
+	}
+	require.NoError(t, yaml.Unmarshal(gitlab, &jobs))
+	assert.NotEmpty(t, jobs["fleet-gitops"].ResourceGroup)
 }
 
 func TestNewDirFlag(t *testing.T) {

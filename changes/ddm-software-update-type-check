@@ -1,0 +1,1 @@
+- Fixed batch profile uploads (GitOps) not recognizing Apple OS update declarations and Windows OS update profiles written with escaped characters, which skipped the OS update checks.

@@ -340,19 +340,28 @@ func ingestWindowsAutopilotDevicesDB(
 	devices []*fleet.HostAutopilotDevice,
 ) error {
 	// Resolution is keyed on the Autopilot device ID. Windows serials are not unique. Only devices that no Autopilot record already
-	// resolves need a serial lookup, so the rest are left out of the query.
+	// resolves need a further lookup, so the rest are left out of the queries.
+	unresolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	serials := make([]string, 0, len(devices))
 	for _, dev := range devices {
 		if _, ok := ingest.hostIDByZTD[dev.AutopilotDeviceID]; ok {
 			continue
 		}
-		serials = append(serials, dev.HardwareSerial)
+		unresolved = append(unresolved, dev)
+		// A placeholder serial is shared by unrelated machines, so it can never adopt a host.
+		if !fleet.IsPlaceholderHardwareSerial(dev.HardwareSerial) {
+			serials = append(serials, dev.HardwareSerial)
+		}
 	}
-	// Hosts carrying this serial that no Autopilot record has claimed yet. Adopting one covers the machine that was
-	// already enrolled in Fleet before it was registered in Autopilot; without it we would create a duplicate host.
-	// Hosts already claimed by a different Autopilot record are excluded, which is what keeps two records for one
-	// serial on two hosts.
-	// Doing the read inside the TX to make sure we have the latest host data and to eliminate races.
+	// An unresolved device may already be enrolled in Fleet, from before it was registered in Autopilot (or before the tenant was
+	// connected). Adopting its host rather than creating a duplicate is tried first through the IDs its Windows MDM enrollment
+	// recorded, which identify the device exactly, then through its serial.
+	hostIDByEnrollment, contradictedHostIDs, err := unclaimedHostIDsByMDMEnrollmentDB(ctx, tx, unresolved)
+	if err != nil {
+		return err
+	}
+	// Hosts carrying this serial that no Autopilot record has claimed yet. Hosts already claimed by a different Autopilot record
+	// are excluded.
 	unclaimedBySerial, err := unclaimedHostIDsBySerialDB(ctx, tx, serials)
 	if err != nil {
 		return err
@@ -360,58 +369,53 @@ func ingestWindowsAutopilotDevicesDB(
 
 	// host_autopilot_devices is keyed by host_id. Track device claims in memory to make sure a one-to-one match.
 	claimed := make(map[uint]struct{}, len(devices))
+	// A host whose enrollment contradicts a device's Autopilot record belongs to some other device, so a serial match must not
+	// adopt it either.
+	for hostID := range contradictedHostIDs {
+		claimed[hostID] = struct{}{}
+	}
 	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
-	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(devices))
+	resolve := func(dev *fleet.HostAutopilotDevice, hostID uint) {
+		copied := *dev
+		copied.HostID = hostID
+		claimed[hostID] = struct{}{}
+		resolved = append(resolved, &copied)
+	}
+	bySerial := make([]*fleet.HostAutopilotDevice, 0, len(unresolved))
 	for _, dev := range devices {
 		if hostID, ok := ingest.hostIDByZTD[dev.AutopilotDeviceID]; ok {
-			copied := *dev
-			copied.HostID = hostID
-			claimed[hostID] = struct{}{}
-			resolved = append(resolved, &copied)
+			resolve(dev, hostID)
 			continue
 		}
+		if hostID, ok := hostIDByEnrollment[dev.AutopilotDeviceID]; ok {
+			resolve(dev, hostID)
+			continue
+		}
+		bySerial = append(bySerial, dev)
+	}
+	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(bySerial))
+	for _, dev := range bySerial {
 		if hostID, ok := popUnclaimedHostID(unclaimedBySerial, dev.HardwareSerial, claimed); ok {
-			copied := *dev
-			copied.HostID = hostID
-			claimed[hostID] = struct{}{}
-			resolved = append(resolved, &copied)
+			resolve(dev, hostID)
 			continue
 		}
 		toCreate = append(toCreate, dev)
 	}
 
 	if len(toCreate) > 0 {
-		createSerials := make([]string, 0, len(toCreate))
-		for _, dev := range toCreate {
-			createSerials = append(createSerials, dev.HardwareSerial)
-		}
-		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, ingest.defaultTeamID, toCreate); err != nil {
-			return err
-		}
-		// This query returns the host ids of newly created hosts.
-		created, err := unclaimedHostIDsBySerialDB(ctx, tx, createSerials)
+		created, err := insertPendingWindowsAutopilotHostsDB(ctx, tx, ingest, toCreate, claimed)
 		if err != nil {
 			return err
 		}
-		newHostIDs := make([]uint, 0, len(toCreate))
-		newHosts := make([]fleet.Host, 0, len(toCreate))
-		for _, dev := range toCreate {
-			hostID, ok := popUnclaimedHostID(created, dev.HardwareSerial, claimed)
-			if !ok {
-				// Should not happen: we just inserted one host per device. Skip rather than write host_id 0.
-				ingest.logger.ErrorContext(ctx, "no host resolved for a just-created autopilot device, skipping it",
-					"autopilot_device_id", dev.AutopilotDeviceID, "hardware_serial", dev.HardwareSerial)
-				ctxerr.Handle(ctx, ctxerr.New(ctx, "no host resolved for a just-created autopilot device"))
-				continue
-			}
-			copied := *dev
-			copied.HostID = hostID
-			claimed[hostID] = struct{}{}
-			resolved = append(resolved, &copied)
-			newHostIDs = append(newHostIDs, hostID)
+		newHostIDs := make([]uint, 0, len(created))
+		newHosts := make([]fleet.Host, 0, len(created))
+		for _, dev := range created {
+			claimed[dev.HostID] = struct{}{}
+			resolved = append(resolved, dev)
+			newHostIDs = append(newHostIDs, dev.HostID)
 			// The model is what makes the display name render as "model (serial)"
 			newHosts = append(newHosts, fleet.Host{
-				ID: hostID, HardwareSerial: copied.HardwareSerial, HardwareModel: copied.HardwareModel,
+				ID: dev.HostID, Hostname: pendingAutopilotHostname(dev), HardwareSerial: dev.HardwareSerial, HardwareModel: dev.HardwareModel,
 			})
 		}
 		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, ingest.serverURL, ingest.mdmID, newHostIDs); err != nil {
@@ -472,6 +476,102 @@ func hostIDsByAutopilotDeviceIDDB(ctx context.Context, q sqlx.QueryerContext, zt
 	return byID, nil
 }
 
+// unclaimedHostIDsByMDMEnrollmentDB matches devices to the unclaimed Windows hosts, through the IDs the host's Windows
+// MDM enrollment recorded: the Autopilot device ID (ZTDID) the device supplied at enrollment, and the Entra device ID
+// from the token Microsoft signed for it. Both are the same values Microsoft Graph returns for the Autopilot record.
+//
+// It returns the matches keyed by Autopilot device ID, and the hosts whose enrollment matched a device on one ID but
+// contradicted it on the other.
+func unclaimedHostIDsByMDMEnrollmentDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	devices []*fleet.HostAutopilotDevice,
+) (matched map[string]uint, contradicted map[uint]struct{}, err error) {
+	ztdIDs := make([]string, 0, len(devices))
+	entraIDs := make([]any, 0, len(devices))
+	for _, dev := range devices {
+		if dev.AutopilotDeviceID != "" {
+			ztdIDs = append(ztdIDs, dev.AutopilotDeviceID)
+		}
+		if entraID, ok := fleet.ParseNonNilUUID(dev.EntraDeviceID); ok {
+			entraIDs = append(entraIDs, entraID[:])
+		}
+	}
+	if len(ztdIDs) == 0 && len(entraIDs) == 0 {
+		return map[string]uint{}, map[uint]struct{}{}, nil
+	}
+
+	var conditions []string
+	var args []any
+	if len(ztdIDs) > 0 {
+		conditions = append(conditions, "e.ztd_registration_id IN (?)")
+		args = append(args, ztdIDs)
+	}
+	if len(entraIDs) > 0 {
+		conditions = append(conditions, "e.entra_device_id IN (?)")
+		args = append(args, entraIDs)
+	}
+	stmt, args, err := sqlx.In(`
+SELECT e.ztd_registration_id, COALESCE(BIN_TO_UUID(e.entra_device_id), '') AS entra_device_id, h.id AS host_id
+FROM mdm_windows_enrollments e
+JOIN hosts h ON h.uuid = e.host_uuid AND h.platform = 'windows'
+LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, " OR ")+`)`, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build IN clause for autopilot ids on windows mdm enrollments")
+	}
+	var rows []struct {
+		ZTDRegistrationID string `db:"ztd_registration_id"`
+		EntraDeviceID     string `db:"entra_device_id"`
+		HostID            uint   `db:"host_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select hosts by autopilot ids on windows mdm enrollments")
+	}
+
+	// sameID reports whether two IDs are both present and equal, and contradicts whether both are present and differ.
+	sameID := func(a, b string) bool { return a != "" && b != "" && strings.EqualFold(a, b) }
+	contradicts := func(a, b string) bool { return a != "" && b != "" && !strings.EqualFold(a, b) }
+
+	matched = make(map[string]uint, len(devices))
+	contradicted = make(map[uint]struct{})
+	devicesByHost := make(map[uint]int, len(devices))
+	for _, dev := range devices {
+		entraID := ""
+		if parsed, ok := fleet.ParseNonNilUUID(dev.EntraDeviceID); ok {
+			entraID = parsed.String()
+		}
+		var hostID uint
+		refused := false
+		for _, row := range rows {
+			if !sameID(row.ZTDRegistrationID, dev.AutopilotDeviceID) && !sameID(row.EntraDeviceID, entraID) {
+				continue
+			}
+			if contradicts(row.ZTDRegistrationID, dev.AutopilotDeviceID) || contradicts(row.EntraDeviceID, entraID) {
+				// Keep scanning so every contradicting host is reported.
+				contradicted[row.HostID] = struct{}{}
+				refused = true
+				continue
+			}
+			if hostID != 0 && hostID != row.HostID {
+				refused = true
+			}
+			hostID = row.HostID
+		}
+		if hostID != 0 && !refused {
+			matched[dev.AutopilotDeviceID] = hostID
+			devicesByHost[hostID]++
+		}
+	}
+	for deviceID, hostID := range matched {
+		if devicesByHost[hostID] > 1 {
+			delete(matched, deviceID)
+			contradicted[hostID] = struct{}{}
+		}
+	}
+	return matched, contradicted, nil
+}
+
 // unclaimedHostIDsBySerialDB returns, per serial, the Windows hosts that no live Autopilot record points at, in id
 // order. Scoped to Windows because a macOS host can carry a colliding serial and must never be claimed.
 func unclaimedHostIDsBySerialDB(ctx context.Context, tx sqlx.ExtContext, serials []string) (map[string][]uint, error) {
@@ -503,27 +603,107 @@ ORDER BY h.id`, serials)
 	return bySerial, nil
 }
 
-// insertPendingWindowsAutopilotHostsDB creates the bare host rows. The never-timestamp sentinel on last_enrolled_at and
-// detail_updated_at marks the host as never having checked in
-func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, teamID *uint, devices []*fleet.HostAutopilotDevice) error {
-	if len(devices) == 0 {
-		return nil
+// insertPendingWindowsAutopilotHostsDB creates a pending host for each device that resolved to no existing host, and returns
+// copies of the devices with HostID set to their new host.
+func insertPendingWindowsAutopilotHostsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	ingest windowsAutopilotIngest,
+	devices []*fleet.HostAutopilotDevice,
+	claimed map[uint]struct{},
+) ([]*fleet.HostAutopilotDevice, error) {
+	var bySerial, byInsertID []*fleet.HostAutopilotDevice
+	for _, dev := range devices {
+		if fleet.IsPlaceholderHardwareSerial(dev.HardwareSerial) {
+			byInsertID = append(byInsertID, dev)
+		} else {
+			bySerial = append(bySerial, dev)
+		}
 	}
 
+	created := make([]*fleet.HostAutopilotDevice, 0, len(devices))
+	if len(bySerial) > 0 {
+		if _, err := insertPendingWindowsAutopilotHostRowsDB(ctx, tx, ingest.defaultTeamID, bySerial); err != nil {
+			return nil, err
+		}
+		serials := make([]string, 0, len(bySerial))
+		for _, dev := range bySerial {
+			serials = append(serials, dev.HardwareSerial)
+		}
+		unclaimed, err := unclaimedHostIDsBySerialDB(ctx, tx, serials)
+		if err != nil {
+			return nil, err
+		}
+		for _, dev := range bySerial {
+			hostID, ok := popUnclaimedHostID(unclaimed, dev.HardwareSerial, claimed)
+			if !ok {
+				// Should not happen: we just inserted one host per device. Skip rather than write host_id 0.
+				ingest.logger.ErrorContext(ctx, "no host resolved for a just-created autopilot device, skipping it",
+					"autopilot_device_id", dev.AutopilotDeviceID, "hardware_serial", dev.HardwareSerial)
+				ctxerr.Handle(ctx, ctxerr.New(ctx, "no host resolved for a just-created autopilot device"))
+				continue
+			}
+			// Mark the claim now so the next device sharing this serial takes a different new host.
+			claimed[hostID] = struct{}{}
+			copied := *dev
+			copied.HostID = hostID
+			created = append(created, &copied)
+		}
+	}
+
+	for _, dev := range byInsertID {
+		res, err := insertPendingWindowsAutopilotHostRowsDB(ctx, tx, ingest.defaultTeamID, []*fleet.HostAutopilotDevice{dev})
+		if err != nil {
+			return nil, err
+		}
+		hostID, err := res.LastInsertId()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "last insert id for pending windows autopilot host")
+		}
+		copied := *dev
+		copied.HostID = uint(hostID) //nolint:gosec // dismiss G115, an auto-increment ID is never negative
+		created = append(created, &copied)
+	}
+	return created, nil
+}
+
+// pendingAutopilotHostname is the hostname a pending host gets when Autopilot reports no serial. The host is named
+// "model (serial)" otherwise, which needs both. osquery replaces it with the real hostname once the device enrolls.
+func pendingAutopilotHostname(dev *fleet.HostAutopilotDevice) string {
+	switch {
+	case dev.HardwareSerial != "":
+		return ""
+	case dev.HardwareModel != "":
+		return dev.HardwareModel
+	default:
+		return dev.AutopilotDeviceID
+	}
+}
+
+// insertPendingWindowsAutopilotHostRowsDB inserts the bare host rows. The never-timestamp sentinel on last_enrolled_at and
+// detail_updated_at marks the host as never having checked in. The serial is stored as Autopilot reports it, placeholders
+// included, so the host shows as "model (serial)" before it boots.
+func insertPendingWindowsAutopilotHostRowsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	teamID *uint,
+	devices []*fleet.HostAutopilotDevice,
+) (sql.Result, error) {
 	stmt := `
-INSERT INTO hosts (hardware_serial, hardware_model, hardware_vendor, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
+INSERT INTO hosts (hostname, hardware_serial, hardware_model, hardware_vendor, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
 VALUES %s`
 
-	args := make([]any, 0, len(devices)*4)
+	args := make([]any, 0, len(devices)*5)
 	for _, dev := range devices {
-		args = append(args, dev.HardwareSerial, dev.HardwareModel, dev.HardwareVendor, teamID)
+		args = append(args, pendingAutopilotHostname(dev), dev.HardwareSerial, dev.HardwareModel, dev.HardwareVendor, teamID)
 	}
 	values := strings.TrimSuffix(strings.Repeat(
-		"(?, ?, ?, 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(devices)), ",")
-	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
+		"(?, ?, ?, ?, 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(devices)), ",")
+	res, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
 	}
-	return nil
+	return res, nil
 }
 
 // upsertWindowsAutopilotHostMDMInfoDB marks the hosts as pending: enrolled=0 with installed_from_dep=1 renders as
@@ -669,6 +849,61 @@ func (ds *Datastore) UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.
 		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph credential status")
 	}
 	return nil
+}
+
+// MoveWindowsAutopilotRecordToHost handles an Autopilot device that enrolled as a host other than the pending host the sync
+// created for it, typically one that was in Fleet before it was registered, whose enrollment then carried no ID the sync could
+// adopt it by. Nothing ever claims that pending host. Once an enrollment carrying the device's Autopilot device ID is linked to
+// hostID, the record moves there and the pending host is deleted.
+func (ds *Datastore) MoveWindowsAutopilotRecordToHost(ctx context.Context, hostID uint, autopilotDeviceID, entraDeviceID string) (bool, error) {
+	if autopilotDeviceID == "" {
+		return false, nil
+	}
+	var moved bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		moved = false
+		var pending []struct {
+			HostID        uint   `db:"host_id"`
+			EntraDeviceID string `db:"entra_device_id"`
+		}
+		// The target join keeps a host that already carries a live record of its own (the table is keyed by host) from taking this one.
+		if err := sqlx.SelectContext(ctx, tx, &pending, `
+SELECT had.host_id, had.entra_device_id
+FROM host_autopilot_devices had
+JOIN hosts h ON h.id = had.host_id
+LEFT JOIN host_autopilot_devices target ON target.host_id = ? AND target.deleted_at IS NULL
+WHERE had.autopilot_device_id = ? AND had.deleted_at IS NULL AND had.host_id != ?
+	AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL
+	AND target.host_id IS NULL
+LIMIT 2
+FOR UPDATE`, hostID, autopilotDeviceID, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "select pending host carrying autopilot record")
+		}
+		if len(pending) != 1 {
+			return nil
+		}
+		recordEntraID, recordHasEntraID := fleet.ParseNonNilUUID(pending[0].EntraDeviceID)
+		enrollmentEntraID, enrollmentHasEntraID := fleet.ParseNonNilUUID(entraDeviceID)
+		if recordHasEntraID && enrollmentHasEntraID && recordEntraID != enrollmentEntraID {
+			return nil
+		}
+
+		// A tombstone the host carries from an earlier registration has to go first.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM host_autopilot_devices WHERE host_id = ? AND deleted_at IS NOT NULL`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete tombstoned autopilot record")
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE host_autopilot_devices SET host_id = ? WHERE host_id = ?`, hostID, pending[0].HostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "move autopilot record")
+		}
+		if err := deleteHosts(ctx, tx, []uint{pending[0].HostID}); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending host replaced by enrolled host")
+		}
+		moved = true
+		ds.logger.InfoContext(ctx, "moved autopilot record from a pending host to the enrolled host it belongs to",
+			"autopilot_device_id", autopilotDeviceID, "pending_host_id", pending[0].HostID, "host_id", hostID)
+		return nil
+	})
+	return moved, err
 }
 
 // HostIDByAutopilotDeviceID resolves a pending Autopilot host from the Autopilot device ID (the ZTDID). The device

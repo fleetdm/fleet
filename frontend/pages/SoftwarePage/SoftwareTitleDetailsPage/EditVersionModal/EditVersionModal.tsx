@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
@@ -6,6 +7,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
@@ -37,6 +39,9 @@ interface IEditVersionModalProps {
   /** Other version names on this title, used for client-side uniqueness
    * validation. Excludes the version being edited. */
   siblingVersionNames: string[];
+  /** Android web apps hold a single version, so the modal only edits
+   * targets (no Name or Configuration). */
+  isWebApp?: boolean;
   onExit: () => void;
   onSuccess: () => void;
 }
@@ -47,10 +52,12 @@ const EditVersionModal = ({
   version,
   titleDisplayName,
   siblingVersionNames,
+  isWebApp = false,
   onExit,
   onSuccess,
 }: IEditVersionModalProps) => {
   const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   // Submitting an unmodified scaffold is treated as "no configuration".
   const emptyScaffold = getEmptyConfigScaffold(version.platform);
@@ -81,11 +88,9 @@ const EditVersionModal = ({
 
   const {
     formData,
-    setField,
+    getTextFieldProps,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IVersionFormData>({
@@ -116,10 +121,13 @@ const EditVersionModal = ({
 
     try {
       await softwareAPI.editAppStoreAppVersion(softwareId, teamId, version.id, {
-        name: data.name,
+        // Web apps don't expose Name or Configuration; omit so they're unchanged.
+        ...(!isWebApp && {
+          name: data.name,
+          configuration: configurationPayload,
+        }),
         self_service: data.selfService,
         categories: data.categories,
-        configuration: configurationPayload,
         ...buildLabelsForPayload(data, "clear"),
         auto_update_enabled: data.autoUpdateEnabled,
         auto_update_window_start:
@@ -134,7 +142,8 @@ const EditVersionModal = ({
 
       notify.success(
         <>
-          Successfully updated <strong>{data.name}</strong>.
+          Successfully updated{" "}
+          <strong>{isWebApp ? titleDisplayName : data.name}</strong>.
         </>
       );
       queryClient.invalidateQueries({
@@ -157,29 +166,35 @@ const EditVersionModal = ({
     <>
       <Modal
         className={baseClass}
-        title="Edit version"
+        title={isWebApp ? "Edit targets" : "Edit version"}
         onExit={onExit}
-        width="large"
+        width={isWebApp ? "medium" : "large"}
       >
         <form
           className={`${baseClass}__form`}
           onSubmit={handleSubmit(onValidSubmit)}
         >
-          <VersionFormFields
-            formData={formData}
-            setField={setField}
-            commitFields={commitFields}
-            getError={getError}
-            clearFieldError={clearFieldError}
-            validateField={validateField}
-            platform={version.platform}
-            appDisplayName={titleDisplayName}
-            labels={labels ?? []}
-            teamId={teamId}
-            onClickPreviewEndUserExperience={() =>
-              setShowPreviewEndUserExperience(true)
-            }
-          />
+          <div
+            className={classnames(`${baseClass}__form-content`, {
+              [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+            })}
+          >
+            <VersionFormFields
+              formData={formData}
+              getTextFieldProps={getTextFieldProps}
+              commitFields={commitFields}
+              getError={getError}
+              platform={version.platform}
+              appDisplayName={titleDisplayName}
+              labels={labels ?? []}
+              teamId={teamId}
+              onClickPreviewEndUserExperience={() =>
+                setShowPreviewEndUserExperience(true)
+              }
+              isWebApp={isWebApp}
+              disabled={gitOpsModeEnabled}
+            />
+          </div>
 
           <div className="modal-cta-wrap">
             <GitOpsModeTooltipWrapper

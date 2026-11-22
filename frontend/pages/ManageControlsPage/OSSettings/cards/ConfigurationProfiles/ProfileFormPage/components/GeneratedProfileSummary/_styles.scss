@@ -1,0 +1,74 @@
+.generated-profile-summary {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
+  &__row {
+    display: flex;
+    align-items: flex-start;
+    gap: $pad-small;
+  }
+
+  &__name {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  &__description {
+    margin: 0;
+    max-width: 640px;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    overflow-wrap: anywhere;
+    // keeps the line breaks the admin typed
+    white-space: pre-wrap;
+  }
+
+  &__chip {
+    padding: 0 $pad-xsmall;
+    font-family: "SourceCodePro", $monospace;
+    font-size: $xx-small;
+    background-color: $ui-off-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+  }
+
+  &__field {
+    width: 100%;
+    box-sizing: border-box;
+    padding: $pad-small $pad-medium;
+    font-family: inherit;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    resize: vertical;
+
+    &:focus {
+      outline: none;
+      border-color: $ui-fleet-black-75-down;
+    }
+  }
+
+  &__placeholder-lines {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__placeholder {
+    height: 12px;
+    max-width: 640px;
+    border-radius: $border-radius;
+    background-color: $ui-fleet-black-10;
+
+    &--title {
+      height: 20px;
+      max-width: 220px;
+    }
+
+    &--short {
+      max-width: 400px;
+    }
+  }
+}

@@ -1,0 +1,23 @@
+.profile-advanced-options {
+  @include vertical-form-layout;
+
+  // Keeps the toggle at its own width; stretched by the column, it would
+  // span the page.
+  &__toggle {
+    align-self: flex-start;
+  }
+
+  &__options {
+    @include flex-column-16px-gap;
+  }
+
+  // Sized to its options, per the design, not the page width. A fixed
+  // width, since the GitOps tooltip wrapper hugs its content.
+  &__deploy-dropdown {
+    width: 240px;
+  }
+
+  &__deploy-static {
+    font-size: $x-small;
+  }
+}

@@ -16,17 +16,12 @@
 //     another host, so cross-host isolation is structural — no cohort
 //     signatures, membership generations, or CAS validation are needed.
 //
-// Deployments with user-created 2017 packs bypass the short circuit entirely
-// (pack targeting drifts with label membership and pack content is
-// host-specific in unbounded ways).
-//
 // # Why a plain "delete the ETag on change" scheme is NOT correct
 //
 // Fleet builds the osquery config through two stacked PER-INSTANCE in-memory
 // caches:
 //
 //  1. cached_mysql (server/datastore/cached_mysql): AppConfig (1s TTL),
-//     ListPacksForHost (1m), ListScheduledQueriesInPack (1m),
 //     TeamAgentOptions (1m), ...
 //  2. svc.packConfigCache (server/service/service.go): the marshaled pack
 //     JSON keyed by (teamID, queryReportsDisabled), 1m TTL, filled FROM
@@ -97,17 +92,15 @@
 //
 // # Gate state (cache-mode selection)
 //
-// Two small cached answers drive mode selection, each with a bounded TTL and
-// reset hooks (see server/datastore/etag_invalidate):
+// One small cached answer drives mode selection, with a bounded TTL and reset
+// hooks (see server/datastore/etag_invalidate): the label scopes, i.e. which
+// scopes have label-scoped reports (shared vs per-host mode). It is reset on
+// query CRUD and label deletion.
 //
-//   - legacy-packs flag: deployment-wide hard bypass; reset on pack CRUD.
-//   - label scopes: which scopes have label-scoped reports (shared vs
-//     per-host mode); reset on query CRUD and label deletion.
-//
-// The loaders are cheap deployment-level queries, but a Redis miss must not
+// The loader is a cheap deployment-level query, but a Redis miss must not
 // become one database query per concurrent config request — and the miss window
-// widens exactly when the database is degraded. Each gate therefore uses
-// NON-BLOCKING leader election (one CAS flag per gate per Fleet instance): the
+// widens exactly when the database is degraded. The gate therefore uses
+// NON-BLOCKING leader election (one CAS flag per Fleet instance): the
 // winner runs the loader, and losers return fleet.ErrConfigETagGateLoading
 // immediately rather than waiting or querying. Callers treat that as "state
 // unknown" and bypass for the request. A blocking singleflight is deliberately
@@ -116,7 +109,7 @@
 //
 // # Key layout
 //
-// Seven keys, all sharing the {cfgetag} hash tag (see Redis Cluster below).
+// Six keys, all sharing the {cfgetag} hash tag (see Redis Cluster below).
 // Record values are "<gen>|<etag>" for shared records and
 // "<gen>|<scope>|<platform>|<etag>" for per-host ones, so a read revalidates
 // the generation — and, per host, the scope and platform — before trusting the
@@ -127,7 +120,6 @@
 //	{cfgetag}:host-quarantine:<hostID>         per-host publish quarantine, TTL 30s
 //	{cfgetag}:gen                              generation counter, no TTL
 //	{cfgetag}:fence                            deployment write fence, TTL 3m
-//	{cfgetag}:legacy-packs                     cached gate answer, TTL 5m
 //	{cfgetag}:scope-modes                      cached gate answer, TTL 5m
 //
 // Only the two record families carry the Fleet version, and the split is not

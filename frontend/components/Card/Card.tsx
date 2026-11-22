@@ -7,7 +7,7 @@ import { Link } from "react-router";
 
 const baseClass = "card";
 
-type CardColor = "white" | "grey" | "yellow";
+type CardColor = "white" | "grey" | "yellow" | "red";
 type PaddingSize =
   | "small"
   | "medium"

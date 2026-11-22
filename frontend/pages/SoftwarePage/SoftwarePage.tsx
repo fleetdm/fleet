@@ -7,6 +7,7 @@ import AutomationsButton from "components/buttons/AutomationsButton";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TeamsHeader from "components/TeamsHeader";
@@ -17,7 +18,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
 import { SelectedPlatform } from "interfaces/platform";
-import { SOFTWARE_TYPES } from "interfaces/software";
+import { getSoftwareTypes } from "interfaces/software";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import PATHS from "router/paths";
@@ -35,6 +36,7 @@ import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 import {
   buildSoftwareFiltersQueryParams,
   getSoftwareFiltersFromQueryParams,
+  removePremiumOnlyFilters,
   ISoftwareFilters,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
 
@@ -87,7 +89,7 @@ const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 // The OS tab defaults to sorting by version (latest first) instead, once a
 // single platform is selected — see getOSTabSortHeader below.
-const OS_TAB_DEFAULT_SORT_HEADER = "version";
+const OS_TAB_DEFAULT_SORT_HEADER = "os_version";
 // Increased from 20 to 50 per design spec (#32128). Load test the software
 // endpoints before shipping to confirm acceptable response times at this threshold.
 const DEFAULT_PAGE_SIZE = 50;
@@ -95,12 +97,14 @@ const DEFAULT_PAGE = 0;
 
 /** Comparing OS versions across different platforms isn't meaningful, so the
  * OS tab's "All platforms" view can't sort by version — the Version column
- * itself is unclickable there. But `order_key=version` could still reach
+ * itself is unclickable there. But `order_key=os_version` could still reach
  * this page via a crafted/bookmarked URL, or a stale one restored by
  * browser back/forward, bypassing that UI restriction entirely (this page
  * is server-driven — whatever order_key is used here becomes the API
  * request). Guard against that specific combination rather than trusting
- * order_key verbatim whenever platform is "all". */
+ * order_key verbatim whenever platform is "all". Links saved before the API
+ * renamed this sort key still say `order_key=version`, which the API now
+ * rejects, so the OS tab reads it as `os_version`. */
 export const getOSTabSortHeader = (
   pathname: string,
   platform: string,
@@ -111,13 +115,21 @@ export const getOSTabSortHeader = (
     isOnOSTab && platform !== "all"
       ? OS_TAB_DEFAULT_SORT_HEADER
       : DEFAULT_SORT_HEADER;
-  if (!orderKeyParam) {
+  const orderKey =
+    isOnOSTab && orderKeyParam === "version"
+      ? OS_TAB_DEFAULT_SORT_HEADER
+      : orderKeyParam;
+  if (!orderKey) {
     return defaultSortHeader;
   }
-  if (isOnOSTab && platform === "all" && orderKeyParam === "version") {
+  if (
+    isOnOSTab &&
+    platform === "all" &&
+    orderKey === OS_TAB_DEFAULT_SORT_HEADER
+  ) {
     return defaultSortHeader;
   }
-  return orderKeyParam;
+  return orderKey;
 };
 
 const baseClass = "software-page";
@@ -202,7 +214,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // Library uses a self-service toggle (boolean), not the old dropdown filter
   const selfServiceOnly = queryParams?.self_service === "true";
 
-  const softwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
+  const parsedSoftwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
+  const softwareFilters = isPremiumTier
+    ? parsedSoftwareFilters
+    : removePremiumOnlyFilters(parsedSoftwareFilters);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -254,7 +269,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     },
     {
       enabled: isRouteOk,
-      select: (data) => ("team" in data ? data.team : data),
+      select: (data) => ("fleet" in data ? data.fleet : data),
     }
   );
 
@@ -262,27 +277,40 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
   // Open manage automations modal via deep-link (e.g. from the command
-  // palette). Mirror the in-page action's gate: software automations
-  // are global-admin only, and only available on All fleets (or the
-  // single fleet in Primo). Wait for config to load before deciding,
-  // then always strip the param so a team-scoped or unauthorized load
-  // doesn't leave it stuck in the URL.
+  // palette). Capture the intent synchronously on mount: the inventory
+  // table's own URL rewrite runs on its first render and drops params it
+  // doesn't recognize, so by the time softwareConfig finishes loading
+  // the flag is already gone from the URL. Mirror the in-page action's
+  // gate: global-admin only, All fleets (or the single fleet in Primo).
+  const [pendingDeepLinkAutomations, setPendingDeepLinkAutomations] = useState(
+    () => queryParams?.manage_automations === "1"
+  );
+
+  // Strip the param from the URL as soon as we see it so a race with
+  // other URL writers can't leave it stuck, and a refresh doesn't
+  // re-trigger the modal. Also catches palette triggers after first mount
+  // (the initializer only runs once; SoftwarePage persists across tabs).
   useEffect(() => {
     if (queryParams?.manage_automations !== "1") return;
+    setPendingDeepLinkAutomations(true);
+    const rest = { ...queryParams };
+    delete rest.manage_automations;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [queryParams, location.pathname, router]);
+
+  useEffect(() => {
+    if (!pendingDeepLinkAutomations) return;
     if (!isSoftwareConfigLoaded) return;
     if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
       setShowManageAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = queryParams;
-    router.replace({ pathname: location.pathname, query: rest });
+    setPendingDeepLinkAutomations(false);
   }, [
-    queryParams,
+    pendingDeepLinkAutomations,
     isSoftwareConfigLoaded,
     isAllTeamsSelected,
     isPrimoMode,
     isGlobalAdmin,
-    location.pathname,
-    router,
   ]);
 
   const toggleManageAutomationsModal = useCallback(() => {
@@ -509,24 +537,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </Tabs>
         </TabNav>
         <div key={location?.pathname} className="tab-nav-routed-content">
-          {React.cloneElement(children, {
-            router,
-            isSoftwareEnabled: Boolean(
-              softwareConfig?.features?.enable_software_inventory
-            ),
-            perPage: DEFAULT_PAGE_SIZE,
-            orderDirection: sortDirection,
-            orderKey: sortHeader,
-            currentPage: page,
-            teamId: teamIdForApi,
-            // TODO: move down into the Software Titles component
-            platform,
-            query,
-            showExploitedVulnerabilitiesOnly,
-            selfServiceOnly,
-            filters: softwareFilters,
-            onAddFiltersClick: toggleSoftwareFiltersModal,
-          })}
+          {/* Until the tier is known, softwareFilters can't tell a Premium-only
+          filter in the URL from one to drop on Free. */}
+          {isPremiumTier === undefined ? (
+            <Spinner />
+          ) : (
+            React.cloneElement(children, {
+              router,
+              isSoftwareEnabled: Boolean(
+                softwareConfig?.features?.enable_software_inventory
+              ),
+              perPage: DEFAULT_PAGE_SIZE,
+              orderDirection: sortDirection,
+              orderKey: sortHeader,
+              currentPage: page,
+              teamId: teamIdForApi,
+              // TODO: move down into the Software Titles component
+              platform,
+              query,
+              showExploitedVulnerabilitiesOnly,
+              selfServiceOnly,
+              filters: softwareFilters,
+              onAddFiltersClick: toggleSoftwareFiltersModal,
+            })
+          )}
         </div>
       </div>
     );
@@ -582,7 +616,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             onSubmit={onApplyFilters}
             filters={softwareFilters}
             isPremiumTier={isPremiumTier || false}
-            availableTypes={SOFTWARE_TYPES}
+            availableTypes={getSoftwareTypes({ premium: isPremiumTier })}
+            showAiToolFilter
           />
         )}
       </>

@@ -3,6 +3,7 @@
   "slug": "nagstamon/windows",
   "package_identifier": "HenriWahl.Nagstamon",
   "unique_identifier": "Nagstamon",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

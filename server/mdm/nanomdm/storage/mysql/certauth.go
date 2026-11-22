@@ -60,7 +60,7 @@ func (s *MySQLStorage) EnrollmentFromHash(ctx context.Context, hash string) (str
 	var id string
 	err := s.db.QueryRowContext(
 		ctx,
-		`SELECT id FROM cert_auth_associations WHERE sha256 = ? LIMIT 1;`,
+		`SELECT id FROM nano_cert_auth_associations WHERE sha256 = ? LIMIT 1;`,
 		hash,
 	).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {

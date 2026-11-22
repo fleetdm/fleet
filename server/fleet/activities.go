@@ -109,6 +109,9 @@ func (a ActivityTypeDisabledActivityAutomations) ActivityName() string {
 	return "disabled_activity_automations"
 }
 
+// The 2017 pack activity types below are no longer emitted. They're kept so
+// existing activities still render.
+
 type ActivityTypeCreatedPack struct {
 	ID   uint   `json:"pack_id"`
 	Name string `json:"pack_name"`
@@ -144,8 +147,8 @@ func (a ActivityTypeAppliedSpecPack) ActivityName() string {
 type ActivityTypeCreatedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	TeamID   *int64  `json:"fleet_id,omitempty"`
+	TeamName *string `json:"fleet_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedPolicy) ActivityName() string {
@@ -155,8 +158,8 @@ func (a ActivityTypeCreatedPolicy) ActivityName() string {
 type ActivityTypeEditedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	TeamID   *int64  `json:"fleet_id,omitempty"`
+	TeamName *string `json:"fleet_name,omitempty"`
 }
 
 func (a ActivityTypeEditedPolicy) ActivityName() string {
@@ -166,8 +169,8 @@ func (a ActivityTypeEditedPolicy) ActivityName() string {
 type ActivityTypeDeletedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	TeamID   *int64  `json:"fleet_id,omitempty"`
+	TeamName *string `json:"fleet_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedPolicy) ActivityName() string {
@@ -177,8 +180,8 @@ func (a ActivityTypeDeletedPolicy) ActivityName() string {
 type ActivityTypeResetPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   *int64  `json:"team_id,omitempty" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	TeamID   *int64  `json:"fleet_id,omitempty"`
+	TeamName *string `json:"fleet_name,omitempty"`
 	// HostID and HostDisplayName are set only when the reset was scoped to a single host.
 	HostID          *uint   `json:"host_id,omitempty"`
 	HostDisplayName *string `json:"host_display_name,omitempty"`
@@ -205,10 +208,10 @@ func (a ActivityTypeAppliedSpecPolicy) ActivityName() string {
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
-	TeamID   int64   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
+	TeamID   int64   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
@@ -216,10 +219,10 @@ func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID       uint    `json:"query_id" renameto:"report_id"`
-	Name     string  `json:"query_name" renameto:"report_name"`
-	TeamID   int64   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	ID       uint    `json:"report_id"`
+	Name     string  `json:"report_name"`
+	TeamID   int64   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name,omitempty"`
 }
 
 func (a ActivityTypeEditedSavedQuery) ActivityName() string {
@@ -227,9 +230,9 @@ func (a ActivityTypeEditedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name     string  `json:"query_name" renameto:"report_name"`
-	TeamID   int64   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	Name     string  `json:"report_name"`
+	TeamID   int64   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
@@ -237,9 +240,9 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs      []uint  `json:"query_ids" renameto:"report_ids"`
-	Teamid   int64   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name,omitempty" renameto:"fleet_name"`
+	IDs      []uint  `json:"report_ids"`
+	Teamid   int64   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
@@ -255,21 +258,21 @@ func (a ActivityTypeAppliedSpecSavedQuery) ActivityName() string {
 }
 
 type ActivityTypeCreatedTeam struct {
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
-	Name string `json:"team_name" renameto:"fleet_name"`
+	ID   uint   `json:"fleet_id"`
+	Name string `json:"fleet_name"`
 }
 
 func (a ActivityTypeCreatedTeam) ActivityName() string {
-	return "created_team"
+	return "created_fleet"
 }
 
 type ActivityTypeDeletedTeam struct {
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
-	Name string `json:"team_name" renameto:"fleet_name"`
+	ID   uint   `json:"fleet_id"`
+	Name string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedTeam) ActivityName() string {
-	return "deleted_team"
+	return "deleted_fleet"
 }
 
 type TeamActivityDetail struct {
@@ -278,16 +281,16 @@ type TeamActivityDetail struct {
 }
 
 type ActivityTypeAppliedSpecTeam struct {
-	Teams []TeamActivityDetail `json:"teams" renameto:"fleets"`
+	Teams []TeamActivityDetail `json:"fleets"`
 }
 
 func (a ActivityTypeAppliedSpecTeam) ActivityName() string {
-	return "applied_spec_team"
+	return "applied_spec_fleet"
 }
 
 type ActivityTypeTransferredHostsToTeam struct {
-	TeamID           *uint    `json:"team_id" renameto:"fleet_id"`
-	TeamName         *string  `json:"team_name" renameto:"fleet_name"`
+	TeamID           *uint    `json:"fleet_id"`
+	TeamName         *string  `json:"fleet_name"`
 	HostIDs          []uint   `json:"host_ids"`
 	HostDisplayNames []string `json:"host_display_names"`
 }
@@ -298,8 +301,8 @@ func (a ActivityTypeTransferredHostsToTeam) ActivityName() string {
 
 type ActivityTypeEditedAgentOptions struct {
 	Global   bool    `json:"global"`
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEditedAgentOptions) ActivityName() string {
@@ -308,8 +311,8 @@ func (a ActivityTypeEditedAgentOptions) ActivityName() string {
 
 type ActivityTypeLiveQuery struct {
 	TargetsCount uint             `json:"targets_count"`
-	QuerySQL     string           `json:"query_sql" renameto:"query"`
-	QueryName    *string          `json:"query_name,omitempty" renameto:"report_name"`
+	QuerySQL     string           `json:"query"`
+	QueryName    *string          `json:"report_name,omitempty"`
 	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 
@@ -443,13 +446,13 @@ type ActivityTypeChangedUserTeamRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	Role      string `json:"role"`
-	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	TeamID    uint   `json:"fleet_id"`
+	TeamName  string `json:"fleet_name"`
 	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
-	return "changed_user_team_role"
+	return "changed_user_fleet_role"
 }
 
 type ActivityTypeDeletedUserTeamRole struct {
@@ -457,13 +460,13 @@ type ActivityTypeDeletedUserTeamRole struct {
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
 	Role      string `json:"role"`
-	TeamID    uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName  string `json:"team_name" renameto:"fleet_name"`
+	TeamID    uint   `json:"fleet_id"`
+	TeamName  string `json:"fleet_name"`
 	JIT       bool   `json:"jit,omitempty"`
 }
 
 func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
-	return "deleted_user_team_role"
+	return "deleted_user_fleet_role"
 }
 
 type ActivityTypeFleetEnrolled struct {
@@ -562,8 +565,8 @@ func (a ActivityTypeMDMUnenrolled) HostIDs() []uint {
 }
 
 type ActivityTypeEditedMacOSMinVersion struct {
-	TeamID         *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName       *string `json:"team_name" renameto:"fleet_name"`
+	TeamID         *uint   `json:"fleet_id"`
+	TeamName       *string `json:"fleet_name"`
 	MinimumVersion string  `json:"minimum_version"`
 	Deadline       string  `json:"deadline"`
 }
@@ -573,8 +576,8 @@ func (a ActivityTypeEditedMacOSMinVersion) ActivityName() string {
 }
 
 type ActivityTypeEnabledMacosUpdateNewHosts struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEnabledMacosUpdateNewHosts) ActivityName() string {
@@ -582,8 +585,8 @@ func (a ActivityTypeEnabledMacosUpdateNewHosts) ActivityName() string {
 }
 
 type ActivityTypeDisabledMacosUpdateNewHosts struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDisabledMacosUpdateNewHosts) ActivityName() string {
@@ -591,8 +594,8 @@ func (a ActivityTypeDisabledMacosUpdateNewHosts) ActivityName() string {
 }
 
 type ActivityTypeEditedWindowsUpdates struct {
-	TeamID          *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName        *string `json:"team_name" renameto:"fleet_name"`
+	TeamID          *uint   `json:"fleet_id"`
+	TeamName        *string `json:"fleet_name"`
 	DeadlineDays    *int    `json:"deadline_days"`
 	GracePeriodDays *int    `json:"grace_period_days"`
 }
@@ -602,8 +605,8 @@ func (a ActivityTypeEditedWindowsUpdates) ActivityName() string {
 }
 
 type ActivityTypeEditedIOSMinVersion struct {
-	TeamID         *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName       *string `json:"team_name" renameto:"fleet_name"`
+	TeamID         *uint   `json:"fleet_id"`
+	TeamName       *string `json:"fleet_name"`
 	MinimumVersion string  `json:"minimum_version"`
 	Deadline       string  `json:"deadline"`
 }
@@ -613,8 +616,8 @@ func (a ActivityTypeEditedIOSMinVersion) ActivityName() string {
 }
 
 type ActivityTypeEditedIPadOSMinVersion struct {
-	TeamID         *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName       *string `json:"team_name" renameto:"fleet_name"`
+	TeamID         *uint   `json:"fleet_id"`
+	TeamName       *string `json:"fleet_name"`
 	MinimumVersion string  `json:"minimum_version"`
 	Deadline       string  `json:"deadline"`
 }
@@ -636,16 +639,16 @@ func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-type ActivityTypeViewedHostRecoveryLockPassword struct {
+type ActivityTypeReadHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
-	return "viewed_host_recovery_lock_password"
+func (a ActivityTypeReadHostRecoveryLockPassword) ActivityName() string {
+	return "read_host_recovery_lock_password"
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+func (a ActivityTypeReadHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
@@ -665,8 +668,8 @@ func (a ActivityTypeRetrievedHostMyDeviceURL) HostIDs() []uint {
 type ActivityTypeCreatedMacosProfile struct {
 	ProfileName       string  `json:"profile_name"`
 	ProfileIdentifier string  `json:"profile_identifier"`
-	TeamID            *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName          *string `json:"team_name" renameto:"fleet_name"`
+	TeamID            *uint   `json:"fleet_id"`
+	TeamName          *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeCreatedMacosProfile) ActivityName() string {
@@ -676,8 +679,8 @@ func (a ActivityTypeCreatedMacosProfile) ActivityName() string {
 type ActivityTypeDeletedMacosProfile struct {
 	ProfileName       string  `json:"profile_name"`
 	ProfileIdentifier string  `json:"profile_identifier"`
-	TeamID            *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName          *string `json:"team_name" renameto:"fleet_name"`
+	TeamID            *uint   `json:"fleet_id"`
+	TeamName          *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedMacosProfile) ActivityName() string {
@@ -685,8 +688,8 @@ func (a ActivityTypeDeletedMacosProfile) ActivityName() string {
 }
 
 type ActivityTypeEditedMacosProfile struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 	// ProfileName and ProfileIdentifier are set only when a single profile
 	// was edited in place; fleetctl/GitOps batch edits omit them.
 	ProfileName       string `json:"profile_name,omitempty"`
@@ -699,8 +702,8 @@ func (a ActivityTypeEditedMacosProfile) ActivityName() string {
 
 type ActivityTypeChangedMacosSetupAssistant struct {
 	Name     string  `json:"name"`
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeChangedMacosSetupAssistant) ActivityName() string {
@@ -709,42 +712,18 @@ func (a ActivityTypeChangedMacosSetupAssistant) ActivityName() string {
 
 type ActivityTypeDeletedMacosSetupAssistant struct {
 	Name     string  `json:"name"`
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedMacosSetupAssistant) ActivityName() string {
 	return "deleted_macos_setup_assistant"
 }
 
-// ActivityTypeEnabledMacosDiskEncryption is deprecated, superseded by
-// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
-// activities still render.
-type ActivityTypeEnabledMacosDiskEncryption struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
-}
-
-func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
-	return "enabled_macos_disk_encryption"
-}
-
-// ActivityTypeDisabledMacosDiskEncryption is deprecated, superseded by
-// ActivityTypeEditedDiskEncryptionSettings; kept only so historical
-// activities still render.
-type ActivityTypeDisabledMacosDiskEncryption struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
-}
-
-func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
-	return "disabled_macos_disk_encryption"
-}
-
 // ActivityTypeEditedDiskEncryptionSettings is recorded once per platform whose
-// effective disk encryption settings changed. It replaces the deprecated
-// ActivityTypeEnabledMacosDiskEncryption / ActivityTypeDisabledMacosDiskEncryption
-// pair.
+// effective disk encryption settings changed. Activities recorded before Fleet
+// 4.92, when one setting covered every platform, were migrated to this type
+// with a null platform.
 type ActivityTypeEditedDiskEncryptionSettings struct {
 	FleetID   *uint   `json:"fleet_id"`
 	FleetName *string `json:"fleet_name"`
@@ -773,8 +752,8 @@ func (a ActivityTypeSetHostRecoveryLockPassword) WasFromAutomation() bool {
 }
 
 type ActivityTypeEnabledRecoveryLockPasswords struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEnabledRecoveryLockPasswords) ActivityName() string {
@@ -782,8 +761,8 @@ func (a ActivityTypeEnabledRecoveryLockPasswords) ActivityName() string {
 }
 
 type ActivityTypeDisabledRecoveryLockPasswords struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
@@ -845,8 +824,8 @@ func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {
 }
 
 type ActivityTypeEnabledManagedLocalAccount struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 	Platform string  `json:"platform,omitempty"`
 }
 
@@ -855,8 +834,8 @@ func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
 }
 
 type ActivityTypeDisabledManagedLocalAccount struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 	Platform string  `json:"platform,omitempty"`
 }
 
@@ -942,18 +921,34 @@ func (a ActivityTypeDisabledHistoricalDataset) ActivityName() string {
 
 type ActivityTypeAddedBootstrapPackage struct {
 	BootstrapPackageName string  `json:"bootstrap_package_name"`
-	TeamID               *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName             *string `json:"team_name" renameto:"fleet_name"`
+	TeamID               *uint   `json:"fleet_id"`
+	TeamName             *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeAddedBootstrapPackage) ActivityName() string {
 	return "added_bootstrap_package"
 }
 
+type ActivityTypeAddedEndUserAgreement struct {
+	Platform MDMEULAPlatform `json:"platform"`
+}
+
+func (a ActivityTypeAddedEndUserAgreement) ActivityName() string {
+	return "added_end_user_agreement"
+}
+
+type ActivityTypeDeletedEndUserAgreement struct {
+	Platform MDMEULAPlatform `json:"platform"`
+}
+
+func (a ActivityTypeDeletedEndUserAgreement) ActivityName() string {
+	return "deleted_end_user_agreement"
+}
+
 type ActivityTypeDeletedBootstrapPackage struct {
 	BootstrapPackageName string  `json:"bootstrap_package_name"`
-	TeamID               *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName             *string `json:"team_name" renameto:"fleet_name"`
+	TeamID               *uint   `json:"fleet_id"`
+	TeamName             *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedBootstrapPackage) ActivityName() string {
@@ -961,8 +956,8 @@ func (a ActivityTypeDeletedBootstrapPackage) ActivityName() string {
 }
 
 type ActivityTypeEnabledMacosSetupEndUserAuth struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEnabledMacosSetupEndUserAuth) ActivityName() string {
@@ -970,8 +965,8 @@ func (a ActivityTypeEnabledMacosSetupEndUserAuth) ActivityName() string {
 }
 
 type ActivityTypeDisabledMacosSetupEndUserAuth struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDisabledMacosSetupEndUserAuth) ActivityName() string {
@@ -1053,8 +1048,8 @@ func (a ActivityTypeRanCustomMDMCommand) HostOnly() bool {
 
 type ActivityTypeAddedScript struct {
 	ScriptName string  `json:"script_name"`
-	TeamID     *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName   *string `json:"team_name" renameto:"fleet_name"`
+	TeamID     *uint   `json:"fleet_id"`
+	TeamName   *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeAddedScript) ActivityName() string {
@@ -1063,8 +1058,8 @@ func (a ActivityTypeAddedScript) ActivityName() string {
 
 type ActivityTypeUpdatedScript struct {
 	ScriptName string  `json:"script_name"`
-	TeamID     *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName   *string `json:"team_name" renameto:"fleet_name"`
+	TeamID     *uint   `json:"fleet_id"`
+	TeamName   *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeUpdatedScript) ActivityName() string {
@@ -1073,8 +1068,8 @@ func (a ActivityTypeUpdatedScript) ActivityName() string {
 
 type ActivityTypeDeletedScript struct {
 	ScriptName string  `json:"script_name"`
-	TeamID     *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName   *string `json:"team_name" renameto:"fleet_name"`
+	TeamID     *uint   `json:"fleet_id"`
+	TeamName   *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedScript) ActivityName() string {
@@ -1082,8 +1077,8 @@ func (a ActivityTypeDeletedScript) ActivityName() string {
 }
 
 type ActivityTypeEditedScript struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEditedScript) ActivityName() string {
@@ -1092,8 +1087,8 @@ func (a ActivityTypeEditedScript) ActivityName() string {
 
 type ActivityTypeCreatedWindowsProfile struct {
 	ProfileName string  `json:"profile_name"`
-	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName    *string `json:"team_name" renameto:"fleet_name"`
+	TeamID      *uint   `json:"fleet_id"`
+	TeamName    *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeCreatedWindowsProfile) ActivityName() string {
@@ -1102,8 +1097,8 @@ func (a ActivityTypeCreatedWindowsProfile) ActivityName() string {
 
 type ActivityTypeDeletedWindowsProfile struct {
 	ProfileName string  `json:"profile_name"`
-	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName    *string `json:"team_name" renameto:"fleet_name"`
+	TeamID      *uint   `json:"fleet_id"`
+	TeamName    *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedWindowsProfile) ActivityName() string {
@@ -1111,8 +1106,8 @@ func (a ActivityTypeDeletedWindowsProfile) ActivityName() string {
 }
 
 type ActivityTypeEditedWindowsProfile struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 	// ProfileName is set only when a single profile was edited in place;
 	// fleetctl/GitOps batch edits omit it.
 	ProfileName string `json:"profile_name,omitempty"`
@@ -1162,6 +1157,38 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeResetHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeResetHost) ActivityName() string {
+	return "reset_host"
+}
+
+func (a ActivityTypeResetHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+// ActivityTypeFailedReset is logged when a Windows host reports that the reset command failed, or comes back from an
+// interrupted reset without having been reset.
+type ActivityTypeFailedReset struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFailedReset) ActivityName() string {
+	return "failed_reset"
+}
+
+func (a ActivityTypeFailedReset) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedReset) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeWipeFailedHost struct {
@@ -1285,8 +1312,8 @@ func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) WasFromAutomation
 type ActivityTypeCreatedDeclarationProfile struct {
 	ProfileName string  `json:"profile_name"`
 	Identifier  string  `json:"identifier"`
-	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName    *string `json:"team_name" renameto:"fleet_name"`
+	TeamID      *uint   `json:"fleet_id"`
+	TeamName    *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeCreatedDeclarationProfile) ActivityName() string {
@@ -1296,8 +1323,8 @@ func (a ActivityTypeCreatedDeclarationProfile) ActivityName() string {
 type ActivityTypeDeletedDeclarationProfile struct {
 	ProfileName string  `json:"profile_name"`
 	Identifier  string  `json:"identifier"`
-	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName    *string `json:"team_name" renameto:"fleet_name"`
+	TeamID      *uint   `json:"fleet_id"`
+	TeamName    *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
@@ -1305,8 +1332,8 @@ func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
 }
 
 type ActivityTypeEditedDeclarationProfile struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 	// ProfileName and ProfileIdentifier are set only when a single
 	// declaration was edited in place; fleetctl/GitOps batch edits omit them.
 	ProfileName       string `json:"profile_name,omitempty"`
@@ -1319,8 +1346,8 @@ func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
 
 type ActivityTypeCreatedDeclarationAsset struct {
 	AssetName string  `json:"asset_name"`
-	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+	TeamID    *uint   `json:"fleet_id"`
+	TeamName  *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeCreatedDeclarationAsset) ActivityName() string {
@@ -1329,8 +1356,8 @@ func (a ActivityTypeCreatedDeclarationAsset) ActivityName() string {
 
 type ActivityTypeDeletedDeclarationAsset struct {
 	AssetName string  `json:"asset_name"`
-	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+	TeamID    *uint   `json:"fleet_id"`
+	TeamName  *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedDeclarationAsset) ActivityName() string {
@@ -1339,8 +1366,8 @@ func (a ActivityTypeDeletedDeclarationAsset) ActivityName() string {
 
 type ActivityTypeEditedDeclarationAsset struct {
 	AssetName string  `json:"asset_name"`
-	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+	TeamID    *uint   `json:"fleet_id"`
+	TeamName  *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEditedDeclarationAsset) ActivityName() string {
@@ -1388,7 +1415,7 @@ type ActivityTypeInstalledSoftware struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string  `json:"software_display_name"`
 	SoftwarePackage     string  `json:"software_package"`
 	HashSHA256          *string `json:"hash_sha256,omitempty"`
 	SelfService         bool    `json:"self_service"`
@@ -1400,9 +1427,16 @@ type ActivityTypeInstalledSoftware struct {
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
-	// SkippedInstall is set on a patch-when-closed skip (the app was open); Status is then "failed_install".
-	SkippedInstall  bool `json:"skipped_install,omitempty"`
-	PatchWhenClosed bool `json:"patch_when_closed"`
+	// SkippedInstall is set on any app-open skip; Status is then "failed_install".
+	SkippedInstall bool `json:"skipped_install,omitempty"`
+	// PatchWhenClosed, NotifyBeforePatching, and PatchDeadline are mutually
+	// exclusive and only one is true on a given skip. They distinguish the three
+	// skip variants so consumers can show the right explanation copy without
+	// substring-matching pre_install_output (which the automation activities
+	// endpoint returns raw, before EnhanceOutputDetails runs).
+	PatchWhenClosed      bool `json:"patch_when_closed"`
+	NotifyBeforePatching bool `json:"notify_before_patching,omitempty"`
+	PatchDeadline        bool `json:"patch_deadline,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1436,16 +1470,28 @@ func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint,
 	return a.HostID, a.CommandUUID
 }
 
+// NotifySoftwareTitle carries one app's identity in a notify-before-patching
+// activity. DisplayName is nil unless an admin set a per-team override, so the
+// renderer can distinguish "no override" from "override equals the raw name".
+type NotifySoftwareTitle struct {
+	Title       string  `json:"title"`
+	DisplayName *string `json:"display_name,omitempty"`
+	TitleID     uint    `json:"title_id,omitempty"`
+}
+
 type ActivityTypeNotifiedEndUserBeforePatching struct {
-	HostID                uint       `json:"host_id"`
-	HostDisplayName       string     `json:"host_display_name"`
-	PatchNotificationUUID string     `json:"patch_notification_uuid"`
-	SoftwareTitles        []string   `json:"software_titles"`
-	PolicyIDs             []uint     `json:"policy_ids"`
-	TimeBefore            int        `json:"time_before"`
-	InstallAt             *time.Time `json:"install_at"`
-	Status                string     `json:"status"`
-	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	PatchNotificationUUID string `json:"patch_notification_uuid"`
+	// SoftwareTitles is the legacy flat list, kept so pre-override activity rows
+	// still render. New activities also populate Software, which the UI prefers.
+	SoftwareTitles    []string              `json:"software_titles"`
+	Software          []NotifySoftwareTitle `json:"software,omitempty"`
+	PolicyIDs         []uint                `json:"policy_ids"`
+	TimeBefore        int                   `json:"time_before"`
+	InstallAt         *time.Time            `json:"install_at"`
+	Status            string                `json:"status"`
+	ScriptExecutionID string                `json:"script_execution_id,omitempty"`
 	// Notification script exit code. Lets the activities table render the failure
 	// reason (e.g. screen locked) without a per-row fetch of the script result.
 	ExitCode *int64 `json:"exit_code,omitempty"`
@@ -1467,7 +1513,7 @@ type ActivityTypeUninstalledSoftware struct {
 	HostID              uint    `json:"host_id"`
 	HostDisplayName     string  `json:"host_display_name"`
 	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string  `json:"software_display_name"`
 	ExecutionID         string  `json:"script_execution_id"`
 	SelfService         bool    `json:"self_service"`
 	Status              string  `json:"status"`
@@ -1506,8 +1552,8 @@ type ActivitySoftwareLabel struct {
 type ActivityTypeAddedSoftware struct {
 	SoftwareTitle    string                  `json:"software_title"`
 	SoftwarePackage  string                  `json:"software_package"`
-	TeamName         *string                 `json:"team_name" renameto:"fleet_name"`
-	TeamID           *uint                   `json:"team_id" renameto:"fleet_id"`
+	TeamName         *string                 `json:"fleet_name"`
+	TeamID           *uint                   `json:"fleet_id"`
 	SelfService      bool                    `json:"self_service"`
 	SoftwareTitleID  uint                    `json:"software_title_id"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
@@ -1522,8 +1568,8 @@ func (a ActivityTypeAddedSoftware) ActivityName() string {
 type ActivityTypeEditedSoftware struct {
 	SoftwareTitle       string                  `json:"software_title"`
 	SoftwarePackage     *string                 `json:"software_package"`
-	TeamName            *string                 `json:"team_name" renameto:"fleet_name"`
-	TeamID              *uint                   `json:"team_id" renameto:"fleet_id"`
+	TeamName            *string                 `json:"fleet_name"`
+	TeamID              *uint                   `json:"fleet_id"`
 	SelfService         bool                    `json:"self_service"`
 	SoftwareIconURL     *string                 `json:"software_icon_url"`
 	LabelsIncludeAny    []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
@@ -1541,8 +1587,8 @@ func (a ActivityTypeEditedSoftware) ActivityName() string {
 type ActivityTypeDeletedSoftware struct {
 	SoftwareTitle    string                  `json:"software_title"`
 	SoftwarePackage  string                  `json:"software_package"`
-	TeamName         *string                 `json:"team_name" renameto:"fleet_name"`
-	TeamID           *uint                   `json:"team_id" renameto:"fleet_id"`
+	TeamName         *string                 `json:"fleet_name"`
+	TeamID           *uint                   `json:"fleet_id"`
 	SelfService      bool                    `json:"self_service"`
 	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
@@ -1676,8 +1722,8 @@ type ActivityAddedAppStoreApp struct {
 	SoftwareTitle       string                    `json:"software_title"`
 	SoftwareTitleId     uint                      `json:"software_title_id"`
 	AppStoreID          string                    `json:"app_store_id"`
-	TeamName            *string                   `json:"team_name" renameto:"fleet_name"`
-	TeamID              *uint                     `json:"team_id" renameto:"fleet_id"`
+	TeamName            *string                   `json:"fleet_name"`
+	TeamID              *uint                     `json:"fleet_id"`
 	Platform            InstallableDevicePlatform `json:"platform"`
 	SelfService         bool                      `json:"self_service"`
 	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
@@ -1688,6 +1734,9 @@ type ActivityAddedAppStoreApp struct {
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 	VersionName         string                    `json:"version_name"`
+
+	// VPPToken is the token the app was added from. Nil for Google Play apps.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1696,10 +1745,10 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 
 type ActivityDeletedAppStoreApp struct {
 	SoftwareTitle       string                    `json:"software_title"`
-	SoftwareDisplayName *string                   `json:"software_display_name,omitempty"`
+	SoftwareDisplayName string                    `json:"software_display_name"`
 	AppStoreID          string                    `json:"app_store_id"`
-	TeamName            *string                   `json:"team_name" renameto:"fleet_name"`
-	TeamID              *uint                     `json:"team_id" renameto:"fleet_id"`
+	TeamName            *string                   `json:"fleet_name"`
+	TeamID              *uint                     `json:"fleet_id"`
 	Platform            InstallableDevicePlatform `json:"platform"`
 	SoftwareIconURL     *string                   `json:"software_icon_url"`
 	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
@@ -1720,7 +1769,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostID                  uint    `json:"host_id"`
 	HostDisplayName         string  `json:"host_display_name"`
 	SoftwareTitle           string  `json:"software_title"`
-	SoftwareDisplayName     *string `json:"software_display_name,omitempty"`
+	SoftwareDisplayName     string  `json:"software_display_name"`
 	AppStoreID              string  `json:"app_store_id"`
 	CommandUUID             string  `json:"command_uuid"`
 	Status                  string  `json:"status,omitempty"`
@@ -1733,6 +1782,9 @@ type ActivityInstalledAppStoreApp struct {
 	FailureReason           string  `json:"failure_reason,omitempty"`
 	FromConfigurationResend bool    `json:"from_configuration_resend"`
 	VersionName             string  `json:"version_name,omitempty"`
+
+	// VPPToken is the token the install used. Nil for Google Play apps and after the token is deleted.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1762,8 +1814,8 @@ type ActivityEditedAppStoreApp struct {
 	SoftwareTitle       string                    `json:"software_title"`
 	SoftwareTitleID     uint                      `json:"software_title_id"`
 	AppStoreID          string                    `json:"app_store_id"`
-	TeamName            *string                   `json:"team_name" renameto:"fleet_name"`
-	TeamID              *uint                     `json:"team_id" renameto:"fleet_id"`
+	TeamName            *string                   `json:"fleet_name"`
+	TeamID              *uint                     `json:"fleet_id"`
 	Platform            InstallableDevicePlatform `json:"platform"`
 	SelfService         bool                      `json:"self_service"`
 	SoftwareIconURL     *string                   `json:"software_icon_url"`
@@ -1776,6 +1828,9 @@ type ActivityEditedAppStoreApp struct {
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 	VersionName         string                    `json:"version_name"`
+
+	// VPPToken is the token the app was added from. Nil for Google Play apps.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
@@ -1920,6 +1975,54 @@ func (a ActivityEditedSmallstep) ActivityName() string {
 	return "edited_smallstep"
 }
 
+type ActivityAddedEJBCA struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedEJBCA) ActivityName() string {
+	return "added_ejbca"
+}
+
+type ActivityDeletedEJBCA struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedEJBCA) ActivityName() string {
+	return "deleted_ejbca"
+}
+
+type ActivityEditedEJBCA struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedEJBCA) ActivityName() string {
+	return "edited_ejbca"
+}
+
+type ActivityAddedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedGoogleCAS) ActivityName() string {
+	return "added_google_cas"
+}
+
+type ActivityDeletedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedGoogleCAS) ActivityName() string {
+	return "deleted_google_cas"
+}
+
+type ActivityEditedGoogleCAS struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedGoogleCAS) ActivityName() string {
+	return "edited_google_cas"
+}
+
 type ActivityTypeEnabledAndroidMDM struct{}
 
 func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }
@@ -1958,12 +2061,12 @@ func (a ActivityTypeCanceledMDMCommand) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallSoftware struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
-	FromSetupExperience bool    `json:"from_setup_experience"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
@@ -1979,11 +2082,11 @@ func (a ActivityTypeCanceledInstallSoftware) WasFromAutomation() bool {
 }
 
 type ActivityTypeCanceledUninstallSoftware struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledUninstallSoftware) ActivityName() string {
@@ -1995,12 +2098,12 @@ func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledInstallAppStoreApp struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
-	FromSetupExperience bool    `json:"from_setup_experience"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
+	FromSetupExperience bool   `json:"from_setup_experience"`
 }
 
 func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
@@ -2019,7 +2122,7 @@ type ActivityTypeRanScriptBatch struct {
 	ScriptName       string `json:"script_name"`
 	BatchExecutionID string `json:"batch_execution_id"`
 	HostCount        uint   `json:"host_count"`
-	TeamID           *uint  `json:"team_id" renameto:"fleet_id"`
+	TeamID           *uint  `json:"fleet_id"`
 }
 
 func (a ActivityTypeRanScriptBatch) ActivityName() string {
@@ -2030,7 +2133,7 @@ type ActivityTypeBatchScriptScheduled struct {
 	BatchExecutionID string     `json:"batch_execution_id"`
 	ScriptName       *string    `json:"script_name,omitempty"`
 	HostCount        uint       `json:"host_count"`
-	TeamID           *uint      `json:"team_id" renameto:"fleet_id"`
+	TeamID           *uint      `json:"fleet_id"`
 	NotBefore        *time.Time `json:"not_before"`
 }
 
@@ -2059,6 +2162,24 @@ type ActivityTypeDeletedConditionalAccessIntegrationMicrosoft struct{}
 
 func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName() string {
 	return "deleted_conditional_access_integration_microsoft"
+}
+
+type ActivityTypeAddedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "added_conditional_access_integration_google"
+}
+
+type ActivityTypeDeletedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "deleted_conditional_access_integration_google"
+}
+
+type ActivityTypeEditedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeEditedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "edited_conditional_access_integration_google"
 }
 
 type ActivityTypeAddedConditionalAccessOkta struct{}
@@ -2098,8 +2219,8 @@ func (a ActivityTypeDeletedGoogleWorkspaceIntegration) ActivityName() string {
 }
 
 type ActivityTypeEnabledConditionalAccessAutomations struct {
-	TeamID   *uint  `json:"team_id" renameto:"fleet_id"`
-	TeamName string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint  `json:"fleet_id"`
+	TeamName string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEnabledConditionalAccessAutomations) ActivityName() string {
@@ -2107,8 +2228,8 @@ func (a ActivityTypeEnabledConditionalAccessAutomations) ActivityName() string {
 }
 
 type ActivityTypeDisabledConditionalAccessAutomations struct {
-	TeamID   *uint  `json:"team_id" renameto:"fleet_id"`
-	TeamName string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint  `json:"fleet_id"`
+	TeamName string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDisabledConditionalAccessAutomations) ActivityName() string {
@@ -2269,16 +2390,14 @@ func (a ActivityTypeEditedCustomHostVitalValue) HostIDs() []uint {
 
 type ActivityEditedSetupExperienceSoftware struct {
 	Platform string `json:"platform"`
-	TeamID   uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName string `json:"team_name" renameto:"fleet_name"`
+	TeamID   uint   `json:"fleet_id"`
+	TeamName string `json:"fleet_name"`
 }
 
 func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 	return "edited_setup_experience_software"
 }
 
-// These activities are new, so they use the fleet_id/fleet_name field names directly rather than
-// the team_id/team_name + renameto pattern the older team-scoped activities keep for back-compat.
 type ActivityCreatedSetupExperienceScript struct {
 	FleetID    *uint   `json:"fleet_id"`
 	FleetName  *string `json:"fleet_name"`
@@ -2301,8 +2420,8 @@ func (a ActivityDeletedSetupExperienceScript) ActivityName() string {
 
 type ActivityTypeCreatedAndroidProfile struct {
 	ProfileName string  `json:"profile_name"`
-	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName    *string `json:"team_name" renameto:"fleet_name"`
+	TeamID      *uint   `json:"fleet_id"`
+	TeamName    *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeCreatedAndroidProfile) ActivityName() string {
@@ -2311,8 +2430,8 @@ func (a ActivityTypeCreatedAndroidProfile) ActivityName() string {
 
 type ActivityTypeDeletedAndroidProfile struct {
 	ProfileName string  `json:"profile_name"`
-	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName    *string `json:"team_name" renameto:"fleet_name"`
+	TeamID      *uint   `json:"fleet_id"`
+	TeamName    *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedAndroidProfile) ActivityName() string {
@@ -2320,8 +2439,8 @@ func (a ActivityTypeDeletedAndroidProfile) ActivityName() string {
 }
 
 type ActivityTypeEditedAndroidProfile struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 	// ProfileName is set only when a single profile was edited in place;
 	// fleetctl/GitOps batch edits omit it.
 	ProfileName string `json:"profile_name,omitempty"`
@@ -2332,8 +2451,8 @@ func (a ActivityTypeEditedAndroidProfile) ActivityName() string {
 }
 
 type ActivityTypeEditedAndroidCertificate struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEditedAndroidCertificate) ActivityName() string {
@@ -2360,6 +2479,44 @@ func (a ActivityTypeResentCertificate) WasFromAutomation() bool {
 	return a.Automated
 }
 
+type ActivityTypeSetHostGoogleDeviceID struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	GoogleDeviceID  string `json:"google_device_id"`
+	// GoogleEmail is the Google account that signed in. A sign-in is the only record of who
+	// bound the host; a Fleet user setting the ID names no account.
+	GoogleEmail string `json:"google_email,omitempty"`
+	// Automated is set when the end user's Google sign-in or the sync cron bound the host,
+	// not a Fleet user.
+	Automated bool `json:"-"`
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) ActivityName() string {
+	return "set_host_google_device_id"
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeSetHostGoogleDeviceID) WasFromAutomation() bool {
+	return a.Automated
+}
+
+type ActivityTypeDeletedHostGoogleDeviceID struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	GoogleDeviceID  string `json:"google_device_id"`
+}
+
+func (a ActivityTypeDeletedHostGoogleDeviceID) ActivityName() string {
+	return "deleted_host_google_device_id"
+}
+
+func (a ActivityTypeDeletedHostGoogleDeviceID) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeEditedHostIdpData struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -2372,8 +2529,8 @@ func (a ActivityTypeEditedHostIdpData) ActivityName() string {
 
 type ActivityTypeAddedCertificate struct {
 	Name     string  `json:"name"`
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeAddedCertificate) ActivityName() string {
@@ -2382,8 +2539,8 @@ func (a ActivityTypeAddedCertificate) ActivityName() string {
 
 type ActivityTypeDeletedCertificate struct {
 	Name     string  `json:"name"`
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedCertificate) ActivityName() string {
@@ -2461,8 +2618,8 @@ func (a ActivityTypeEditedWindowsEnrollmentDefaultFleet) ActivityName() string {
 }
 
 type ActivityTypeEditedEnrollSecrets struct {
-	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	TeamID   *uint   `json:"fleet_id"`
+	TeamName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEditedEnrollSecrets) ActivityName() string {
@@ -2508,11 +2665,11 @@ func (a ActivityTypeClearedPasscode) HostIDs() []uint {
 }
 
 type ActivityTypeCanceledSetupExperience struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	SoftwareTitleID     uint    `json:"software_title_id"`
+	HostID              uint   `json:"host_id"`
+	HostDisplayName     string `json:"host_display_name"`
+	SoftwareTitle       string `json:"software_title"`
+	SoftwareDisplayName string `json:"software_display_name"`
+	SoftwareTitleID     uint   `json:"software_title_id"`
 }
 
 func (a ActivityTypeCanceledSetupExperience) ActivityName() string {
@@ -2580,8 +2737,8 @@ func (a ActivityTypeDeletedLabel) ActivityName() string {
 
 type ActivityTypeAddedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
-	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+	TeamID                  *uint   `json:"fleet_id"`
+	TeamName                *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeAddedSelfServiceCategory) ActivityName() string {
@@ -2590,18 +2747,29 @@ func (a ActivityTypeAddedSelfServiceCategory) ActivityName() string {
 
 type ActivityTypeEditedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
-	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+	TeamID                  *uint   `json:"fleet_id"`
+	TeamName                *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
 	return "edited_self_service_category"
 }
 
+type ActivityTypeEditedPatchDeadlineSettings struct {
+	TeamID   *uint    `json:"fleet_id"`
+	TeamName *string  `json:"fleet_name"`
+	Days     []string `json:"days"`
+	Time     string   `json:"time"`
+}
+
+func (a ActivityTypeEditedPatchDeadlineSettings) ActivityName() string {
+	return "edited_patch_deadline_settings"
+}
+
 type ActivityTypeDeletedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
-	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
-	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+	TeamID                  *uint   `json:"fleet_id"`
+	TeamName                *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {

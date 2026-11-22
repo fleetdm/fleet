@@ -4,10 +4,8 @@ import CollectingResults from "./CollectingResults";
 import DataError from "./DataError";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
-import EmptyPacks from "./EmptyPacks";
 import EmptyPolicies from "./EmptyPolicies";
 import EmptyQueries from "./EmptyQueries";
-import EmptySchedule from "./EmptySchedule";
 import EmptySearchCheck from "./EmptySearchCheck";
 import EmptySearchExclamation from "./EmptySearchExclamation";
 import EmptySearchQuestion from "./EmptySearchQuestion";
@@ -17,6 +15,7 @@ import EmptyUsers from "./EmptyUsers";
 import FileCertificate from "./FileCertificate";
 import FileConfigurationProfile from "./FileConfigurationProfile";
 import FileJson from "./FileJson";
+import FileMd from "./FileMd";
 import FileP7m from "./FileP7m";
 import FilePdf from "./FilePdf";
 import FilePem from "./FilePem";
@@ -40,8 +39,6 @@ export const GRAPHIC_MAP = {
   "empty-software": EmptySoftware,
   "empty-hosts": EmptyHosts,
   "empty-teams": EmptyTeams,
-  "empty-packs": EmptyPacks,
-  "empty-schedule": EmptySchedule,
   "empty-search-exclamation": EmptySearchExclamation,
   "empty-search-check": EmptySearchCheck,
   "empty-search-question": EmptySearchQuestion,
@@ -51,6 +48,7 @@ export const GRAPHIC_MAP = {
   "file-ps1": FilePs1,
   "file-py": FilePy,
   "file-script": FileScript,
+  "file-md": FileMd,
   "file-pdf": FilePdf,
   "file-pkg": FilePkg,
   "file-png": FilePng,

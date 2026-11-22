@@ -93,9 +93,8 @@ be run on the union of the hosts and hosts with matching labels.
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "ID of the fleet where the named report belongs to (0 means global)",
+				Name:  fleetFlagName,
+				Usage: "ID of the fleet where the named report belongs to (0 means global)",
 			},
 			configFlag(),
 			contextFlag(),
@@ -109,7 +108,9 @@ be run on the union of the hosts and hosts with matching labels.
 				return err
 			}
 
-			if flHosts == "" && flLabels == "" {
+			hostIdentifiers := splitCommaSeparated(flHosts)
+			labels := splitCommaSeparated(flLabels)
+			if len(hostIdentifiers) == 0 && len(labels) == 0 {
 				return errors.New("No hosts or labels targeted. Please provide either --hosts or --labels.")
 			}
 
@@ -149,9 +150,6 @@ be run on the union of the hosts and hosts with matching labels.
 				output = newJsonWriter(c.App.Writer)
 			}
 
-			hostIdentifiers := strings.Split(flHosts, ",")
-			labels := strings.Split(flLabels, ",")
-
 			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
 				if strings.Contains(err.Error(), "no hosts targeted") {
@@ -188,10 +186,12 @@ be run on the union of the hosts and hosts with matching labels.
 				timeoutChan = make(chan time.Time)
 			}
 
+			var resultsReceived uint
 			for {
 				select {
 				// Print a result
 				case hostResult := <-res.Results():
+					resultsReceived++
 					s.Stop()
 
 					if err := output.WriteResult(hostResult); err != nil {
@@ -203,6 +203,28 @@ be run on the union of the hosts and hosts with matching labels.
 				// Print an error
 				case err := <-res.Errors():
 					fmt.Fprintf(os.Stderr, "Error talking to server: %s\n", err.Error())
+
+				// Exit if the live query stream closed
+				case <-res.Done():
+					s.Stop()
+					for {
+						select {
+						case err := <-res.Errors():
+							fmt.Fprintf(os.Stderr, "Error talking to server: %s\n", err.Error())
+						default:
+							status := res.Status()
+							totals := res.Totals()
+							responded := resultsReceived
+							if status != nil && status.ActualResults > responded {
+								responded = status.ActualResults
+							}
+							if totals != nil && (status != nil || resultsReceived > 0) &&
+								(totals.Total == responded || (flExit && responded >= totals.Online)) {
+								return nil
+							}
+							return errors.New("live query connection closed before report completed")
+						}
+					}
 
 				// Update status message on interval
 				case <-tick.C:
@@ -255,4 +277,14 @@ be run on the union of the hosts and hosts with matching labels.
 			}
 		},
 	}
+}
+
+func splitCommaSeparated(s string) []string {
+	var parts []string
+	for part := range strings.SplitSeq(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }

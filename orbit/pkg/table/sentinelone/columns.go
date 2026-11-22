@@ -46,7 +46,6 @@ var columnOrder = []string{
 	"launchd_sentineld_shell",
 	// Management
 	"management_server",
-	"management_site_key",
 	"management_last_seen",
 	"management_connected",
 	// Windows-only
@@ -108,7 +107,6 @@ var columnPathMap = map[string]string{
 
 	// Management section.
 	"management_server":    "management_server",
-	"management_site_key":  "management_site_key",
 	"management_last_seen": "management_last_seen",
 	"management_connected": "management_connected",
 

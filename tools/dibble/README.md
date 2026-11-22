@@ -144,7 +144,6 @@ remove them once nothing references them. Use dibble for new work.
 | `tools/loadtest/fleetd_labels/`                          | `dibble labels --count N`                    |
 | `tools/loadtest/scripts_and_profiles/`                   | `dibble scripts` + `dibble profiles`         |
 | `tools/loadtest/unified_queue/`                          | `dibble software` (enqueue path is a TODO)   |
-| `tools/mdm/apple/loadtest/`                              | `dibble teams` + `dibble profiles`           |
 | `tools/software/vulnerabilities/seed_data/`              | `dibble vulns --macos N --ubuntu N --windows N` |
 | `tools/software/vulnerabilities/performance_test/seeder/`| `dibble vulns --macos N --ubuntu N --windows N` (bulk mode) |
 | `tools/seed_data/queries/`                               | `dibble reports --count N`                   |

@@ -95,7 +95,7 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	cfg.Server.PrivateKey = "test-private-key"
-	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	// Mock valid certificate
 	certPEM := generateTestCertPEM(t)
@@ -115,12 +115,6 @@ func TestConditionalAccessGetIdPAppleProfileAuth(t *testing.T) {
 			ServerSettings: fleet.ServerSettings{
 				ServerURL: "https://fleet.example.com",
 			},
-		}, nil
-	}
-
-	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{
-			{Secret: "test-secret-123"},
 		}, nil
 	}
 
@@ -192,11 +186,21 @@ func generateTestCertPEM(t *testing.T) []byte {
 func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 	certPEM := generateTestCertPEM(t)
 
+	t.Run("free license", func(t *testing.T) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key"
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(test.UserContext(ctx, test.UserAdmin))
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.Nil(t, profileData)
+	})
+
 	t.Run("missing server private key", func(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "" // Not configured
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
@@ -210,7 +214,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -230,12 +234,6 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 			}, nil
 		}
 
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{
-				{Secret: "test-secret-456"},
-			}, nil
-		}
-
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
 		require.NoError(t, err)
 		require.NotEmpty(t, profileData)
@@ -245,12 +243,17 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		require.Contains(t, profileStr, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 		require.Contains(t, profileStr, "<!DOCTYPE plist")
 
-		// Verify URLs with port preserved
-		require.Contains(t, profileStr, "https://fleet.example.com:8080/api/fleet/conditional_access/scep")
+		// Fleet fills in the SCEP URL and a one-time challenge for each host at delivery.
+		require.Regexp(t, `<key>URL</key>\s*<string>\$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</string>`, profileStr)
+		require.Regexp(t, `<key>Challenge</key>\s*<string>\$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</string>`, profileStr)
 		require.Contains(t, profileStr, "https://okta.fleet.example.com:8080")
-
-		// Verify challenge secret
-		require.Contains(t, profileStr, "test-secret-456")
+		vars, err := validateConfigProfileFleetVariables(profileStr, &fleet.LicenseInfo{Tier: fleet.TierPremium}, &fleet.GroupedCertificateAuthorities{})
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{
+			string(fleet.FleetVarConditionalAccessSCEPURL),
+			string(fleet.FleetVarConditionalAccessSCEPChallenge),
+			string(fleet.FleetVarCertificateRenewalID),
+		}, vars)
 
 		// Verify payload identifiers
 		require.Contains(t, profileStr, "com.fleetdm.conditional-access-ca")
@@ -280,7 +283,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -297,7 +300,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -319,7 +322,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		// Valid PEM structure but invalid DER content
@@ -343,46 +346,11 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		require.Nil(t, profileData)
 	})
 
-	t.Run("no enroll secrets", func(t *testing.T) {
-		ds := new(mock.Store)
-		cfg := config.TestConfig()
-		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
-		ctx = test.UserContext(ctx, test.UserAdmin)
-
-		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
-				fleet.MDMAssetConditionalAccessCACert: {
-					Name:  fleet.MDMAssetConditionalAccessCACert,
-					Value: certPEM,
-				},
-			}, nil
-		}
-
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{
-				ServerSettings: fleet.ServerSettings{
-					ServerURL: "https://fleet.example.com",
-				},
-			}, nil
-		}
-
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{}, nil
-		}
-
-		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
-		var badReqErr *fleet.BadRequestError
-		require.ErrorAs(t, err, &badReqErr)
-		require.Contains(t, err.Error(), "global enroll secret is not configured")
-		require.Nil(t, profileData)
-	})
-
 	t.Run("server URL not configured", func(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -413,7 +381,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -435,7 +403,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 
 		profileData, err := svc.ConditionalAccessGetIdPAppleProfile(ctx)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to parse server URL")
+		require.Contains(t, err.Error(), "parse server URL")
 		require.Nil(t, profileData)
 	})
 
@@ -443,7 +411,7 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = "test-private-key"
-		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -460,12 +428,6 @@ func TestConditionalAccessGetIdPAppleProfile(t *testing.T) {
 				ServerSettings: fleet.ServerSettings{
 					ServerURL: "https://fleet.example.com",
 				},
-			}, nil
-		}
-
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{
-				{Secret: "test-secret"},
 			}, nil
 		}
 

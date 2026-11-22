@@ -8,15 +8,17 @@ import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isPresent } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { IApiError } from "interfaces/errors";
 import { ApplePlatform } from "interfaces/platform";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { getErrorMessage } from "./helpers";
 
@@ -82,7 +84,7 @@ const validateForm = (formData: IAppleOSTargetFormData) => {
   // can be at fault — validating the hidden fields would block the save on an
   // error the user can't see.
   if (formData.target === "latest") {
-    if (!validatePresence(formData.deadlineDays)) {
+    if (!isPresent(formData.deadlineDays)) {
       errors.deadlineDays = "The days after release is required.";
     } else if (!validateDeadlineDays(formData.deadlineDays)) {
       errors.deadlineDays =
@@ -94,13 +96,13 @@ const validateForm = (formData: IAppleOSTargetFormData) => {
   // Both fields are required for a custom version: "No updates enforced" is
   // how enforcement is turned off, so an empty form here isn't a way to clear
   // the settings.
-  if (!validatePresence(formData.minOsVersion)) {
+  if (!isPresent(formData.minOsVersion)) {
     errors.minOsVersion = "The minimum version is required.";
   } else if (!validateMinVersion(formData.minOsVersion)) {
     errors.minOsVersion = "Minimum version must meet criteria below.";
   }
 
-  if (!validatePresence(formData.deadline)) {
+  if (!isPresent(formData.deadline)) {
     errors.deadline = "The deadline is required.";
   } else if (!validateDeadline(formData.deadline)) {
     errors.deadline = "Deadline must meet criteria below.";
@@ -194,8 +196,8 @@ const AppleOSTargetForm = ({
   refetchAppConfig,
   refetchTeamConfig,
 }: IAppleOSTargetFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { config, isPremiumTier } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
   const [target, setTarget] = useState<AppleOSTarget>(
@@ -290,6 +292,16 @@ const AppleOSTargetForm = ({
     return <>Enrolled hosts are updated to exactly this version.</>;
   };
 
+  const profileBuilderLink = (
+    <CustomLink
+      url={getPathWithQueryParams(PATHS.CONTROLS_CUSTOM_SETTINGS_NEW, {
+        fleet_id: currentTeamId,
+        platform: "apple",
+      })}
+      text="profile builder"
+    />
+  );
+
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <DropdownWrapper
@@ -377,6 +389,19 @@ const AppleOSTargetForm = ({
         >
           Update new hosts to latest
         </Checkbox>
+      )}
+      {isPremiumTier && (
+        <p className={`${baseClass}__profile-builder-note`}>
+          Looking to customize the enforcement time or deployment rings?{" "}
+          {target === "none" ? (
+            <>Use the {profileBuilderLink} instead.</>
+          ) : (
+            <>
+              Select <b>No updates enforced</b>, and instead use the{" "}
+              {profileBuilderLink}.
+            </>
+          )}
+        </p>
       )}
       <div className="button-wrap">
         <GitOpsModeTooltipWrapper

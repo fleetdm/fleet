@@ -1,14 +1,10 @@
 # Patching end user experience
 
-![Notify end user before update](../website/assets/images/articles/patching-end-user-experience-cover-img-774x419@2x.png)
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/AXlzPls6ecQ" frameborder="0" allowfullscreen></iframe>
+</div>
 
 When a patch policy for a Fleet-maintained app fails, Fleet can update the app for you. Each patch option gives your end users a different experience. 
-
-<!-- TODO: embed explainer video. Replace VIDEO_ID with the YouTube video ID and uncomment the block below.
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/VIDEO_ID" frameborder="0" allowfullscreen></iframe>
-</div>
--->
 
 ## Choose a patch option
 
@@ -26,10 +22,10 @@ Here's what the end user sees with each option:
 | **Patch when app is closed** (default) | The app is patched silently only when the app isn't running. |
 | **Force patch** > **Patch immediately** | The patch installs as soon as the policy fails. It can interrupt the end user without notice. |
 | **Force patch** > **Notify before patching** | If the app is running, end user sees a notification that the app will close and update in 1 hour. If the app isn't running it's patched silently. |
-| **Force patch** > **Deadline** ([coming soon](https://github.com/fleetdm/fleet/issues/39176)) | Apps with this option will update every __n__ days (customizable), at the chosen time. Fleet consolidates all outdated apps into a single notification that appears one day, one hour, and 5 minutes before the deadline. Users can enable a grace period for those who were offline when the deadline was reached. |
+| **Force patch** > **Deadline** | If the app is running, the end user sees a notification 1 hour before the fleet's next patch deadline. The app closes and updates at the deadline. If the app isn't running, it's patched silently. |
 | **End user initiated (manual)** | Nothing installs on its own. The end user updates the app from Fleet Desktop > Self service when they choose. |
 
-> The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop.
+> The [Fleet Desktop](https://fleetdm.com/software-catalog/fleet-desktop-darwin) app is required to notify end users. If app is missing and **Notify before patching** or **Deadline** is selected, Fleet will skip patching on hosts that are missing Fleet Desktop. To keep the app installed but out of sight, see [Hide the Fleet Desktop app in Finder](#hide-the-fleet-desktop-app-in-finder).
 
 This chart shows what happens after a patch policy fails:
 
@@ -88,6 +84,38 @@ If the end user updates one of the listed apps from self-service during the hour
 If another patch policy fails while a timer is running, that app gets its own notification and its own 1-hour timer.
 
 
+## Force patch: deadline
+
+> Deadline is available on macOS only.
+
+This option patches apps at a deadline you choose, in each host's local time. End users get 1 hour's notice before Fleet closes and patches the app.
+
+### Set the deadline
+
+1. Go to **Software**, select a fleet, and select **Library**.
+2. Select **Settings**, then **Patch deadline**.
+3. Choose the **Days** and **Time** of the deadline.
+4. Select **Save**.
+
+The default deadline is Tuesday at 17:00. Each fleet, and "Unassigned," has its own deadline. You can also set it with the [`patch_deadline_settings`](https://fleetdm.com/docs/configuration/yaml-files#patch-deadline-settings) GitOps key.
+
+### What the end user sees
+
+When the patch policy fails, Fleet checks whether the app is running:
+
+- If the app isn't running, Fleet installs the patch. The end user isn't notified.
+- If the app is running, Fleet skips the install and waits for the next deadline. 1 hour before the deadline, Fleet Desktop shows a notification.
+
+If the install is skipped less than 1 hour before a deadline, Fleet waits for the deadline after that one.
+
+The notification is the same one end users see with [**Notify before patching**](#force-patch-notify-before-patching), and it has the same choices. All apps waiting on the same deadline appear together in one notification.
+
+Like **Notify before patching**, the 1-hour timer starts only after the notification appears on screen. If the host is offline when the notification is due, Fleet notifies the end user when the host comes back online, and patches the app 1 hour later. See [When notifications aren't shown](#when-notifications-arent-shown).
+
+> Fleet needs the host's timezone to schedule the deadline. Until Fleet collects it, apps with **Deadline** aren't patched while they're running. Fleet collects the timezone on macOS hosts running osquery 5.17.0 or later.
+
+To see a host's next deadline, go to **Hosts**, select the host, and check **Patch deadline**.
+
 ## When notifications aren't shown
 
 Fleet only starts the 1-hour timer after the end user sees the notification. Here's what happens when Fleet can't show it:
@@ -113,9 +141,34 @@ Fleet creates the patch policy with no software automation, so nothing installs 
 
 End users update the app when they choose. If the app is available in [self-service](https://fleetdm.com/guides/software-self-service), they select the Fleet icon in the menu bar, select **Self-service**, and update the app from there.
 
+
+## Hide the Fleet Desktop app in Finder
+
+Some organizations want end users to keep using the Fleet Desktop menu bar icon, or their own branded desktop app, instead of the Fleet Desktop app. The Fleet Desktop app is still required for notifications, but you can hide it in Finder. Notifications keep working, because Fleet runs the app from `/Applications/Fleet Desktop.app` by its path.
+
+1. [Deploy the Fleet Desktop app](https://fleetdm.com/guides/fleet-desktop#deploy-fleet-desktop) as a Fleet-maintained app, and don't make it available in **Self-service**.
+2. Under **Advanced options**, add this post-install script. It runs again after every update, so the new version stays hidden.
+
+```zsh
+#!/bin/zsh
+APP="/Applications/Fleet Desktop.app"
+
+if [[ ! -d "$APP" ]]; then
+  echo "Fleet Desktop app not present, nothing to hide"
+  exit 0
+fi
+
+/usr/bin/chflags hidden "$APP" || { echo "chflags failed"; exit 1; }
+echo "Hidden: $(/bin/ls -lOd "$APP")"
+```
+
+3. To hide the install policy from end users on **My device**, set [`hidden: true`](https://fleetdm.com/docs/configuration/yaml-files#policies) on it (Fleet 4.94 or later).
+
+Don't move or rename the app. Fleet only looks for it at `/Applications/Fleet Desktop.app`.
+
 <meta name="articleTitle" value="Patching end user experience">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-09-24">
+<meta name="publishedOn" value="2026-11-20">
 <meta name="description" value="See what end users experience for each Fleet-maintained app patch option, including notifications before Fleet closes and updates apps.">

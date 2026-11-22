@@ -13,7 +13,7 @@ import {
 
 const DEFAULT_SCRIPT_MOCK: IScript = {
   id: 1,
-  team_id: null,
+  fleet_id: null,
   name: "test script",
   created_at: "2020-01-01T00:00:00.000Z",
   updated_at: "2020-01-01T00:00:00.000Z",
@@ -64,7 +64,7 @@ const DEFAULT_SCRIPT_BATCH_SUMMARY_MOCK: IScriptBatchSummaryV2 = {
   batch_execution_id: "2756fff7-9a0d-4d95-a893-ec5771e839d8",
   script_id: 1,
   script_name: "fake_batch_script.sh",
-  team_id: 0,
+  fleet_id: 0,
   targeted_host_count: 100,
   ran_host_count: 50,
   pending_host_count: 15,

@@ -37,11 +37,11 @@ jobs:
     #
     # Also not run if author is dependabot (it doesn't have access to Github secrets).
     if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-    runs-on: ubuntu-8core
+    runs-on: ubuntu-22.04
     environment: Docker Hub
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -198,6 +198,11 @@ jobs:
               | unique_by(.VulnerabilityID + "|" + (.PkgName // ""))
               | sort_by(.Severity, .VulnerabilityID)
               | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              # Slack rejects section text over 3000 chars (invalid_blocks), so cap the list.
+              | (reduce .[] as $l ({kept: [], len: 0, full: false};
+                  if .full or (.len + ($l | length) + 2 > 2500) then .full = true
+                  else .kept += [$l] | .len += ($l | length) + 2 end)) as $r
+              | $r.kept + (if length > ($r.kept | length) then ["…and \(length - ($r.kept | length)) more — see job logs"] else [] end)
               | join("\\n")
             ' trivy-results.json)
           fi

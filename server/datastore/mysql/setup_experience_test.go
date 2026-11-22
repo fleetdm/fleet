@@ -46,6 +46,7 @@ func TestSetupExperience(t *testing.T) {
 		{"FirstAddedAppStoreAppVersionNoDoubleQueue", testEnqueueSetupExperienceFirstAddedAppStoreAppVersion},
 		{"InHouseApps", testSetupExperienceInHouseApps},
 		{"EnqueueInHouseApps", testEnqueueSetupExperienceInHouseApps},
+		{"HostIDBySetupExperienceUUID", testHostIDBySetupExperienceUUID},
 	}
 
 	for _, c := range cases {
@@ -1444,7 +1445,6 @@ func testEnqueueSetupExperienceInHouseApps(t *testing.T, ds *Datastore) {
 	require.Len(t, results, 1)
 	require.NotNil(t, results[0].InHouseAppID)
 	require.Equal(t, iosAppID, *results[0].InHouseAppID)
-	require.True(t, results[0].IsForInHouseApp())
 	require.True(t, results[0].IsForSoftware())
 	require.Equal(t, fleet.SetupExperienceStatusPending, results[0].Status)
 	require.NotNil(t, results[0].SoftwareTitleID)
@@ -1588,8 +1588,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
-		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID+":"+title.AppStoreApp.Platform] = title.ID
+		if len(title.AppStoreApps) > 0 {
+			titleVPP[title.AppStoreApps[0].AppStoreID+":"+string(title.AppStoreApps[0].Platform)] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}
@@ -1599,8 +1599,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for _, title := range softwareTitles {
-		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+		if len(title.AppStoreApps) > 0 {
+			titleVPP[title.AppStoreApps[0].AppStoreID] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}
@@ -1795,6 +1795,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Status:            fleet.SetupExperienceStatusPending,
 			VPPAppTeamID:      new(vppAppsTeamsID),
 			VPPAppVersionName: new(fleet.DefaultAppStoreAppVersionName),
+			VPPAppVPPTokenID:  new(tok1.ID),
 			SoftwareTitleID:   new(vppApp.TitleID),
 			Source:            new("apps"),
 		},
@@ -3279,5 +3280,41 @@ func testEnqueueSetupExperienceFirstAddedAppStoreAppVersion(t *testing.T, ds *Da
 		require.Equal(t, versionA.AppTeamID, *results[0].VPPAppTeamID)
 		require.NotNil(t, results[0].VPPAppVersionName)
 		require.Equal(t, fleet.DefaultAppStoreAppVersionName, *results[0].VPPAppVersionName)
+
+		var appTokenID *uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &appTokenID, "SELECT vpp_token_id FROM vpp_apps_teams WHERE id = ?", versionA.AppTeamID)
+		})
+		require.NotNil(t, appTokenID)
+		require.Equal(t, appTokenID, results[0].VPPAppVPPTokenID)
+	}
+}
+
+func testHostIDBySetupExperienceUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	newHost := func(platform, hostUUID, osqueryHostID string) uint {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Platform: platform, UUID: hostUUID, OsqueryHostID: &osqueryHostID, NodeKey: new(osqueryHostID + "-node-key"),
+			Hostname: hostUUID + "-hostname", DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(),
+			SeenTime: time.Now(),
+		})
+		require.NoError(t, err)
+		return host.ID
+	}
+	// fleet.HostUUIDForSetupExperience gives the osquery host ID on Windows and Linux, which can differ from the UUID.
+	windowsHost := newHost("windows", "windows-uuid", "windows-osquery-host-id")
+	// A UUID match comes first, so another host's osquery host ID can't take a Mac's UUID.
+	newHost("windows", "other-windows-uuid", "mac-uuid")
+	macHost := newHost("darwin", "mac-uuid", "mac-osquery-host-id")
+
+	for identifier, wantID := range map[string]uint{"windows-osquery-host-id": windowsHost, "windows-uuid": windowsHost, "mac-uuid": macHost} {
+		gotID, err := ds.HostIDBySetupExperienceUUID(ctx, identifier)
+		require.NoError(t, err)
+		require.Equal(t, wantID, gotID, identifier)
+	}
+
+	for _, identifier := range []string{"", "windows-uuid-hostname", "no-such-host"} {
+		_, err := ds.HostIDBySetupExperienceUUID(ctx, identifier)
+		require.True(t, fleet.IsNotFound(err), "HostIDBySetupExperienceUUID(%q): %v", identifier, err)
 	}
 }

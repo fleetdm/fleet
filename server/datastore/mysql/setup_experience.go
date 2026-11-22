@@ -875,6 +875,7 @@ SELECT
 	NULLIF(va.adam_id, '') AS vpp_app_adam_id,
 	NULLIF(va.platform, '') AS vpp_app_platform,
 	vat.name AS vpp_app_version_name,
+	vat.vpp_token_id AS vpp_app_vpp_token_id,
 	ses.script_content_id,
 	COALESCE(si.title_id, va.title_id, iha.title_id) AS software_title_id,
 	COALESCE(
@@ -1247,6 +1248,31 @@ func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context,
 	}
 	n, _ := res.RowsAffected()
 	return n > 0, nil
+}
+
+// HostIDBySetupExperienceUUID returns the ID of the host that fleet.HostUUIDForSetupExperience gives hostUUID for. That is the osquery host
+// ID on Windows and Linux, so both columns are matched, like the other setup experience queries do. A UUID match comes first, so another
+// host's osquery host ID can't take an Apple host's UUID, as when this lookup matched any host identifier.
+func (ds *Datastore) HostIDBySetupExperienceUUID(ctx context.Context, hostUUID string) (uint, error) {
+	if hostUUID == "" {
+		return 0, ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID))
+	}
+	var hostID uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, `
+		SELECT candidates.id FROM (
+			(SELECT id, 0 AS priority FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)
+			UNION ALL
+			(SELECT id, 1 AS priority FROM hosts WHERE osquery_host_id = ?)
+		) candidates
+		ORDER BY candidates.priority
+		LIMIT 1`, hostUUID, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID))
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get host id by setup experience uuid")
+	}
+	return hostID, nil
 }
 
 func (ds *Datastore) CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error {

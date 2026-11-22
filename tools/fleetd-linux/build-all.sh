@@ -30,6 +30,7 @@ fleetctl package --type=deb \
 	--disable-open-folder \
 	--outfile=fleet-osquery_amd64.deb \
     ${UPDATE_URL:+--update-url=$UPDATE_URL} \
+    ${UPDATES_ROOT:+--update-roots="$UPDATES_ROOT"} \
     ${ORBIT_CHANNEL:+--orbit-channel=$ORBIT_CHANNEL} \
     ${DESKTOP_CHANNEL:+--desktop-channel=$DESKTOP_CHANNEL} \
     ${OSQUERYD_CHANNEL:+--osqueryd-channel=$OSQUERYD_CHANNEL} \
@@ -44,6 +45,7 @@ fleetctl package --type=rpm \
 	--disable-open-folder \
 	--outfile=fleet-osquery_amd64.rpm \
     ${UPDATE_URL:+--update-url=$UPDATE_URL} \
+    ${UPDATES_ROOT:+--update-roots="$UPDATES_ROOT"} \
     ${ORBIT_CHANNEL:+--orbit-channel=$ORBIT_CHANNEL} \
     ${DESKTOP_CHANNEL:+--desktop-channel=$DESKTOP_CHANNEL} \
     ${OSQUERYD_CHANNEL:+--osqueryd-channel=$OSQUERYD_CHANNEL} \
@@ -58,6 +60,7 @@ fleetctl package --type=pkg.tar.zst \
 	--disable-open-folder \
 	--outfile=fleet-osquery_amd64.pkg.tar.zst \
     ${UPDATE_URL:+--update-url=$UPDATE_URL} \
+    ${UPDATES_ROOT:+--update-roots="$UPDATES_ROOT"} \
     ${ORBIT_CHANNEL:+--orbit-channel=$ORBIT_CHANNEL} \
     ${DESKTOP_CHANNEL:+--desktop-channel=$DESKTOP_CHANNEL} \
     ${OSQUERYD_CHANNEL:+--osqueryd-channel=$OSQUERYD_CHANNEL} \

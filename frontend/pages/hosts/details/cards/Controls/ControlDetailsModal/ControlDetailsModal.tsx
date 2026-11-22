@@ -5,6 +5,7 @@ import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
+import { WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
 import { getDetailGuidance, getDetailText } from "../detailFormatting";
 import OSSettingsActionsCell from "../OSSettingsActionsCell";
@@ -70,11 +71,20 @@ const ControlDetailsModal = ({
   // protector, the TPM is not ready, a restart is staged) and sends the actual
   // reason in the detail. Preferring the detail keeps the reason in one place,
   // server-side, instead of asserting a PIN that may not be required at all.
+  //
+  // Windows disk encryption on "Enforcing" works the same way: the server only
+  // sends a detail when it is asking the host for a new recovery key because
+  // the stored one cannot be read, and the generic copy about receiving an MDM
+  // command would describe the wrong thing. Matched on the synthetic row's
+  // UUID, since a real profile may carry the same name.
+  const isWindowsDiskEncryption =
+    control.profile_uuid === WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID;
   const detailReplacesMessage =
     !!detailText &&
     (displayOption?.statusText === "Verified" ||
       (displayOption?.statusText === "Action required" &&
-        isDiskEncryptionProfile(control.name)));
+        isDiskEncryptionProfile(control.name)) ||
+      (displayOption?.statusText === "Enforcing" && isWindowsDiskEncryption));
 
   const renderMessage = () => {
     if (detailReplacesMessage) {

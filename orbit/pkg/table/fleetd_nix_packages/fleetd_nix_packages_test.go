@@ -27,6 +27,9 @@ func TestParseStorePath(t *testing.T) {
 		{name: "dashed name", drvName: "xorg-server-21.1.13", wantName: "xorg-server", wantVer: "21.1.13", wantOK: true},
 		{name: "output", drvName: "openssl-3.0.14-bin", wantName: "openssl", wantVer: "3.0.14", wantOutput: "bin", wantOK: true},
 		{name: "lib output", drvName: "gcc-13.2.0-lib", wantName: "gcc", wantVer: "13.2.0", wantOutput: "lib", wantOK: true},
+		{name: "data output", drvName: "ffmpeg-8.1.2-data", wantName: "ffmpeg", wantVer: "8.1.2", wantOutput: "data", wantOK: true},
+		{name: "env output", drvName: "perl-5.42.3-env", wantName: "perl", wantVer: "5.42.3", wantOutput: "env", wantOK: true},
+		{name: "env output digit name", drvName: "python3-3.13.15-env", wantName: "python3", wantVer: "3.13.15", wantOutput: "env", wantOK: true},
 		{name: "unwrapped", drvName: "firefox-unwrapped-130.0", wantName: "firefox-unwrapped", wantVer: "130.0", wantOK: true},
 		{name: "python package", drvName: "python3.12-requests-2.31.0", wantName: "python3.12-requests", wantVer: "2.31.0", wantOK: true},
 		{name: "digit name", drvName: "7zz-23.01", wantName: "7zz", wantVer: "23.01", wantOK: true},
@@ -38,6 +41,9 @@ func TestParseStorePath(t *testing.T) {
 		{name: "drv", drvName: "hello-2.12.1.drv", wantOK: false},
 		{name: "tarball", drvName: "openssl-3.0.14.tar.gz", wantOK: false},
 		{name: "patch", drvName: "fix-build-1.patch", wantOK: false},
+		{name: "conf in package name", drvName: "kmod-debian-aliases.conf-30+20230601-2", wantOK: false},
+		{name: "fontconfig conf", drvName: "fc-00-nixos-cache.conf", wantOK: false},
+		{name: "dbus config dir", drvName: "dbus-1", wantOK: false},
 		{name: "non-digit version", drvName: "foo-_bar", wantOK: false},
 	}
 	for _, c := range cases {

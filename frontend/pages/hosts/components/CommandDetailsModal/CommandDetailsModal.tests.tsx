@@ -34,12 +34,12 @@ describe("getIconName", () => {
     expect(getIconName("Acknowledged")).toEqual("success");
   });
 
-  it("returns pending-outline for Apple Pending status", () => {
-    expect(getIconName("Pending")).toEqual("pending-outline");
+  it("returns pending for Apple Pending status", () => {
+    expect(getIconName("Pending")).toEqual("pending");
   });
 
-  it("returns pending-outline for Apple NotNow status", () => {
-    expect(getIconName("NotNow")).toEqual("pending-outline");
+  it("returns pending for Apple NotNow status", () => {
+    expect(getIconName("NotNow")).toEqual("pending");
   });
 
   it("returns success for Windows 200 status", () => {
@@ -54,12 +54,12 @@ describe("getIconName", () => {
     expect(getIconName("500")).toEqual("error");
   });
 
-  it("returns pending-outline for Windows 101 status", () => {
-    expect(getIconName("101")).toEqual("pending-outline");
+  it("returns pending for Windows 101 status", () => {
+    expect(getIconName("101")).toEqual("pending");
   });
 
-  it("returns pending-outline for Windows 199 status (upper pending boundary)", () => {
-    expect(getIconName("199")).toEqual("pending-outline");
+  it("returns pending for Windows 199 status (upper pending boundary)", () => {
+    expect(getIconName("199")).toEqual("pending");
   });
 
   it("returns success for Windows 399 status (upper success boundary)", () => {
@@ -255,6 +255,58 @@ describe("ModalContent", () => {
     const [payload, result] = container.querySelectorAll("textarea");
     expect(payload).toHaveValue(APPLE_PLIST);
     expect(result).toHaveValue(resultPlist);
+  });
+
+  it("shows the profile in an InstallProfile payload instead of base64", () => {
+    const profile = APPLE_PLIST.replace(
+      "<string>DeviceInformation</string>",
+      "<string>com.example.bookmarks</string>"
+    );
+    const signedProfile = Buffer.concat([
+      Buffer.from([0x30, 0x82, 0x01, 0x1c]),
+      Buffer.from(profile, "utf-8"),
+      Buffer.from([0xa0, 0x82, 0x03, 0x9b]),
+    ]).toString("base64");
+    const installProfile = APPLE_PLIST.replace(
+      "<string>DeviceInformation</string>",
+      `<string>InstallProfile</string>
+	<key>Payload</key>
+	<data>${signedProfile}</data>`
+    );
+
+    const { container } = render(
+      <ModalContent
+        data={decodeCommandResults({
+          results: [
+            createMockAppleMdmCommandResult({
+              request_type: "InstallProfile",
+              payload: btoa(installProfile),
+            }),
+          ],
+        })}
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    const [payload] = container.querySelectorAll("textarea");
+    expect(payload).toHaveValue(`<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<key>RequestType</key>
+	<string>InstallProfile</string>
+	<key>Payload</key>
+	<data>
+		<?xml version="1.0" encoding="UTF-8"?>
+		<plist version="1.0">
+		<dict>
+			<key>RequestType</key>
+			<string>com.example.bookmarks</string>
+		</dict>
+		</plist>
+	</data>
+</dict>
+</plist>`);
   });
 });
 

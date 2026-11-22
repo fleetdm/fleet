@@ -10,7 +10,7 @@ import (
 // store-wide writer on this path costs the load test throughput.
 func BenchmarkDeviceGetParallel(b *testing.B) {
 	store := newDeviceStore()
-	mux := newMux(store, nil, 0, 0)
+	mux := newMux(store, nil, 0, 0, policyOptions{})
 	path := "/v1/enterprises/" + testEnterpriseID + "/devices/fakedevice"
 
 	// Prime the enterprise so this measures steady state rather than first sight.

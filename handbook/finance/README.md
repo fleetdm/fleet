@@ -145,25 +145,15 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 - Sort by close date, then check invoice dates for any recently closed deals and enter them in the finance spreadsheet and create new rows at the top of the 'time-to-invoice' tab in the spreadsheet for each new entry.  If a company has not been invoiced yet (invoice date is blank) do not enter yet, but verify if an invoice is scheduled to be sent using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report. If it doesn't appear here, create an issue on the finance board to investigate. 
 - Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
 
-**Overdue delinquent invoices**: 
-- Download “Accounts receivable aging details” report from the accounting system.
-- Review invoices that are overdue, and check against bank transactions to make sure the latest payments are applied to the invoices.
-- Enter the number of invoices overdue in the KPI spreadsheet, and leave a comment on that cell with the names of the companies of overdue customers, if any.
 
 **Commission payroll**: 
 - Make sure commission payroll was run on time by logging into [Gusto](https://www.gusto.com) and [Plane](https://plane.com/) to check for off-cycle payrolls in line with expected commission calculated in the [Commission calculator spreadsheet](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing).
 - Log the date the commission was paid out in the "Commission payroll" column of the KPI spreadsheet.
 
+
 **Monthly accounting**: 
 - This will be the date that the monthly accounting issue for the prior month closes. If it has not yet closed, enter N/A.
 
-**Days to pay**:
-- Login to [Bill](https://www.bill.com).
-  - Under the "bills" tab on the menu bar on the left side, select "all bills".
-  - Sort by "created date."
-  - Compare the week's entries to the ["Time to pay"](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1704186727) tab in the finance metrics spreadsheet.  Insert new rows at the top for any bills that are not accounted for and enter the vendor name and the # of days between the invoice date and the created date in bill.com.  
-  - Adjust the formula in column E as necessary to calculate the last 30 day average time to pay and enter the result in the KPI spreadsheet. 
-  - If we have any invoices that have not yet been paid that are overdue, make an entry in the overdue vendor payments section and leave a comment in the cell identifying the vendor's name. 
 
 **Non-personnel monthly burn**: 
 - Copy the amount from the [numbers spreadsheet](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=1308221870&range=B3) and input in the cell for this week.
@@ -556,7 +546,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 The following stubs are included only to make links backward compatible.
 
 ##### Monitor compliance tests
-Please see [handbook/it#monitor-compliance-tests](https://fleetdm.com/handbook/it#monitor-compliance-tests)
+Please see [handbook/people#monitor-compliance-tests](https://fleetdm.com/handbook/people#monitor-compliance-tests)
 
 ### Run payroll
 Please see [handbook/people#run-payroll](https://fleetdm.com/handbook/people#run-payroll)

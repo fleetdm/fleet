@@ -1,6 +1,6 @@
 cask "druva-insync@govcloud" do
-  version "8.1.3,110967"
-  sha256 "316d9e7dc7f23f8307008de9c67504c46f38e648458b75db1ef015879106f85f"
+  version "8.1.9,111001"
+  sha256 "674474f93c3910321c1b25e3cd47398597dca6ced40fecaef2c2f12a5ab2a7f7"
 
   url "https://downloads.druva.com/downloads/inSync/MAC/#{version.csv.first}_Gov/inSync-#{version.csv.first}-r#{version.csv.second}.dmg"
   name "Druva inSync (GovCloud)"

@@ -33,6 +33,10 @@ func TestVPPAuth(t *testing.T) {
 		return assets, nil
 	}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	androidMockClient := &android_mock.Client{}
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error { return nil }
@@ -125,7 +129,7 @@ func TestVPPAuth(t *testing.T) {
 			}
 			// Note: these calls always return an error because they're attempting to unmarshal a
 			// non-existent VPP token.
-			_, err := svc.GetAppStoreApps(ctx, tt.teamID)
+			_, err := svc.GetAppStoreApps(ctx, tt.teamID, nil)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

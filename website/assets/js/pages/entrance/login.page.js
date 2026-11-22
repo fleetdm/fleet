@@ -112,6 +112,8 @@ parasails.registerPage('login', {
         if(cloudResponse.isIcpUser) {
           // For users with a hosted Render trial
           window.gtag('event','fleet_website__sign_up__icp');
+          window.uetq = window.uetq || [];
+          window.uetq.push('event', 'fleet_website__sign_up__icp', {});
           // Additional conversion tracking
           window.gtag('event', 'conversion', {
             'send_to': 'AW-10788733823/aMyECLupkeUcEP-GvJgo',
@@ -122,6 +124,8 @@ parasails.registerPage('login', {
         } else {
           // For users with a local Fleet Premium trial.
           window.gtag('event','fleet_website__sign_up__non_icp');
+          window.uetq = window.uetq || [];
+          window.uetq.push('event', 'fleet_website__sign_up__non_icp', {});
           // Additional conversion tracking
           window.gtag('event', 'conversion', {
             'send_to': 'AW-10788733823/pk3BCK_XjuUcEP-GvJgo',
@@ -130,7 +134,12 @@ parasails.registerPage('login', {
           });
         }
       }
-
+      if(cloudResponse.isIcpUser) {
+        // Track a "conversion" in LinkedIn Campaign Manager.
+        if(window.lintrk !== undefined) {
+          window.lintrk('track', { conversion_id: 31914441 });// eslint-disable-line camelcase
+        }
+      }
       // Track a "conversion" in LinkedIn Campaign Manager.
       if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase

@@ -1,17 +1,18 @@
 import React, { useState } from "react";
-import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
+import { isMacOS } from "interfaces/platform";
 import {
   getInstallablePlatform,
   ISoftwareTitleDetails,
 } from "interfaces/software";
 import {
   EndUserExperience,
+  getNextEndUserExperience,
   getPatchPolicyFlags,
   PatchOption,
   SoftwareDeploySelector,
@@ -20,9 +21,8 @@ import {
   getFleetAppPolicyDescription,
   getFleetAppPolicyName,
 } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/helpers";
+import policiesAPI from "services/entities/policies";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 const baseClass = "deploy-modal";
 
@@ -39,7 +39,7 @@ const DeployModal = ({
   onExit,
   onSuccess,
 }: IDeployModalProps) => {
-  const softwarePackage = softwareTitle.software_package;
+  const softwarePackage = softwareTitle.packages?.[0];
   const automaticInstallPolicies =
     softwarePackage?.automatic_install_policies ?? [];
   const patchPolicy = softwarePackage?.patch_policy;
@@ -61,13 +61,24 @@ const DeployModal = ({
     initialPatchOption = "force";
   }
 
-  // If a legacy policy stored both flags (invariant violation), Patch when
-  // closed wins the radio and the dropdown stays hidden — carrying "notify"
-  // in state would reveal it the moment the user picked Force patch.
-  const initialEndUserExperience: EndUserExperience =
-    patchPolicy?.notify_before_patching && !patchPolicy?.patch_when_closed
-      ? "notify"
-      : "immediate";
+  const platform = getInstallablePlatform(softwareTitle.source);
+
+  // If a legacy policy stored multiple flags (invariant violation), Patch when
+  // closed wins the radio and the dropdown stays hidden — carrying "notify" or
+  // "deadline" in state would reveal it the moment the user picked Force patch.
+  // Deadline is also the default when nothing is set on macOS, matching the
+  // add form. Non-macOS titles never show the dropdown and never send
+  // patch_deadline/notify_before_patching, so they default to "immediate".
+  const getInitialEndUserExperience = (): EndUserExperience => {
+    if (patchPolicy?.patch_when_closed) {
+      return isMacOS(platform) ? "deadline" : "immediate";
+    }
+    if (patchPolicy?.patch_deadline) return "deadline";
+    if (patchPolicy?.notify_before_patching) return "notify";
+    if (patchPolicy) return "immediate";
+    return isMacOS(platform) ? "deadline" : "immediate";
+  };
+  const initialEndUserExperience = getInitialEndUserExperience();
 
   const [forceInstall, setForceInstall] = useState(!!forceInstallPolicy);
   const [patch, setPatch] = useState(!!patchPolicy);
@@ -79,25 +90,7 @@ const DeployModal = ({
   );
   const [isSaving, setIsSaving] = useState(false);
 
-  const platform = getInstallablePlatform(softwareTitle.source);
-
   const fleetMaintainedAppId = softwarePackage?.fleet_maintained_app_id;
-  const {
-    data: fleetMaintainedApp,
-    isLoading: isLoadingFleetMaintainedApp,
-  } = useQuery(
-    ["fleet-maintained-app", fleetMaintainedAppId, teamId],
-    () =>
-      softwareAPI.getFleetMaintainedApp(
-        fleetMaintainedAppId as number,
-        String(teamId)
-      ),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!fleetMaintainedAppId && !forceInstallPolicy,
-      select: (res) => res.fleet_maintained_app,
-    }
-  );
 
   const onSave = async () => {
     setIsSaving(true);
@@ -106,6 +99,12 @@ const DeployModal = ({
     try {
       if (forceInstall !== !!forceInstallPolicy) {
         if (forceInstall) {
+          const {
+            fleet_maintained_app: fleetMaintainedApp,
+          } = await softwareAPI.getFleetMaintainedApp(
+            fleetMaintainedAppId as number,
+            String(teamId)
+          );
           if (!fleetMaintainedApp?.automatic_install_query) {
             // A plain Error wouldn't survive getErrorReason in the catch below
             // (it only unwraps API responses), so surface the toast directly
@@ -115,8 +114,8 @@ const DeployModal = ({
             );
             return;
           }
-          await teamPoliciesAPI.create({
-            team_id: teamId,
+          await policiesAPI.create({
+            fleet_id: teamId,
             name: getFleetAppPolicyName(softwareTitle.name),
             description: getFleetAppPolicyDescription(softwareTitle.name),
             query: fleetMaintainedApp.automatic_install_query,
@@ -124,44 +123,64 @@ const DeployModal = ({
             software_title_id: softwareTitle.id,
           });
         } else if (forceInstallPolicy) {
-          await teamPoliciesAPI.destroy(teamId, [forceInstallPolicy.id]);
+          await policiesAPI.destroy([forceInstallPolicy.id]);
         }
         savedAnyChange = true;
       }
 
       if (patch !== !!patchPolicy) {
         if (patch) {
-          await teamPoliciesAPI.create({
-            team_id: teamId,
+          await policiesAPI.create({
+            fleet_id: teamId,
             type: "patch",
-            patch_software_title_id: softwareTitle.id,
+            software_title_id: softwareTitle.id,
             ...(patchOption !== "manual" && {
-              software_title_id: softwareTitle.id,
+              automation_type: "software",
             }),
             ...patchFlags,
           });
         } else if (patchPolicy) {
-          await teamPoliciesAPI.destroy(teamId, [patchPolicy.id]);
+          await policiesAPI.destroy([patchPolicy.id]);
         }
         savedAnyChange = true;
-      } else if (
-        patch &&
-        patchPolicy &&
-        (patchOption !== initialPatchOption ||
+      } else if (patch && patchPolicy) {
+        // A manual patch policy can run another automation (e.g. a script),
+        // which owns automation_type and continuous; only turning patching
+        // off clears them.
+        const keepsOtherAutomation =
+          patchOption === "manual" && !patchHasAutomation;
+        const {
+          continuous_automations_enabled: continuousEnabled,
+          ...patchOnlyFlags
+        } = patchFlags;
+        // Normalize undefined to false on the stored side: legacy policies
+        // (notify_before_patching, patch_deadline) can arrive without the
+        // field at all, and strict !== would otherwise flag undefined vs
+        // false as a change and fire a no-op PATCH.
+        if (
+          patchOption !== initialPatchOption ||
           endUserExperience !== initialEndUserExperience ||
           patchHasAutomation !== (patchOption !== "manual") ||
-          patchPolicy.patch_when_closed !== patchFlags.patch_when_closed ||
-          patchPolicy.notify_before_patching !==
+          (patchPolicy.patch_when_closed ?? false) !==
+            patchFlags.patch_when_closed ||
+          (patchPolicy.notify_before_patching ?? false) !==
             patchFlags.notify_before_patching ||
-          patchPolicy.continuous_automations_enabled !==
-            patchFlags.continuous_automations_enabled)
-      ) {
-        await teamPoliciesAPI.update(patchPolicy.id, {
-          team_id: teamId,
-          software_title_id: patchOption === "manual" ? null : softwareTitle.id,
-          ...patchFlags,
-        });
-        savedAnyChange = true;
+          (patchPolicy.patch_deadline ?? false) !== patchFlags.patch_deadline ||
+          (!keepsOtherAutomation &&
+            (patchPolicy.continuous_automations_enabled ?? false) !==
+              continuousEnabled)
+        ) {
+          await policiesAPI.update(
+            patchPolicy.id,
+            keepsOtherAutomation
+              ? patchOnlyFlags
+              : {
+                  automation_type: patchOption === "manual" ? null : "software",
+                  ...patchFlags,
+                }
+          );
+          savedAnyChange = true;
+        }
       }
 
       if (savedAnyChange) {
@@ -206,11 +225,17 @@ const DeployModal = ({
               patchOption={patchOption}
               platform={platform}
               endUserExperience={endUserExperience}
+              fleetId={teamId}
               onToggleForceInstall={setForceInstall}
               onTogglePatch={setPatch}
-              onSelectPatchOption={setPatchOption}
+              onSelectPatchOption={(next) => {
+                setPatchOption(next);
+                setEndUserExperience(
+                  getNextEndUserExperience(next, endUserExperience, platform)
+                );
+              }}
               onSelectEndUserExperience={setEndUserExperience}
-              disabled={disableChildren || isLoadingFleetMaintainedApp}
+              disabled={disableChildren}
               showPatchWhenClosedNotice
               hideLabel
             />
@@ -225,7 +250,7 @@ const DeployModal = ({
               <Button
                 onClick={onSave}
                 isLoading={isSaving}
-                disabled={disableChildren || isLoadingFleetMaintainedApp}
+                disabled={disableChildren}
               >
                 Save
               </Button>

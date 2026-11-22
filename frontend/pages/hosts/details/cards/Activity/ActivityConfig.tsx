@@ -17,8 +17,10 @@ import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninst
 import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivityItem";
 import CreatedDiskEncryptionPINActivityItem from "./ActivityItems/CreatedDiskEncryptionPINActivityItem/CreatedDiskEncryptionPINActivityItem";
 import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
+import DeletedHostGoogleDeviceIdActivityItem from "./ActivityItems/DeletedHostGoogleDeviceIdActivityItem";
 import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
+import FailedResetActivityItem from "./ActivityItems/FailedResetActivityItem";
 import FailedToRotateDiskEncryptionKeyActivityItem from "./ActivityItems/FailedToRotateDiskEncryptionKey";
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
@@ -35,17 +37,19 @@ import PolicyAutomationActivityItem from "./ActivityItems/PolicyAutomationActivi
 import RanCustomMdmCommandActivityItem from "./ActivityItems/RanCustomMdmCommandActivityItem";
 import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import ReadHostDiskEncryptionKeyActivityItem from "./ActivityItems/ReadHostDiskEncryptionKey";
+import ReadHostRecoveryLockPasswordActivityItem from "./ActivityItems/ReadHostRecoveryLockPassword";
 import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ResentConfigurationProfileActivityItem from "./ActivityItems/ResentConfigurationProfileActivityItem/ResentConfigurationProfileActivityItem";
+import ResetHostActivityItem from "./ActivityItems/ResetHostActivityItem";
 import ResetPolicyActivityItem from "./ActivityItems/ResetPolicyActivityItem";
 import RetrievedHostMyDeviceURLActivityItem from "./ActivityItems/RetrievedHostMyDeviceURLActivityItem";
 import RotatedDiskEncryptionKeyActivityItem from "./ActivityItems/RotatedDiskEncryptionKey";
 import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/RotatedHostRecoveryLockPassword";
 import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
+import SetHostGoogleDeviceIdActivityItem from "./ActivityItems/SetHostGoogleDeviceIdActivityItem";
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
-import ViewedHostRecoveryLockPasswordActivityItem from "./ActivityItems/ViewedHostRecoveryLockPassword";
 import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
 
@@ -80,11 +84,15 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.WipedHost]: WipedHostActivityItem,
+  [ActivityType.ResetHost]: ResetHostActivityItem,
   [ActivityType.FailedWipe]: FailedWipeActivityItem,
+  [ActivityType.FailedReset]: FailedResetActivityItem,
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.RetrievedHostMyDeviceURL]: RetrievedHostMyDeviceURLActivityItem,
-  [ActivityType.ViewedHostRecoveryLockPassword]: ViewedHostRecoveryLockPasswordActivityItem,
+  [ActivityType.ReadHostRecoveryLockPassword]: ReadHostRecoveryLockPasswordActivityItem,
   [ActivityType.SetHostRecoveryLockPassword]: SetHostRecoveryLockPasswordActivityItem,
+  [ActivityType.SetHostGoogleDeviceId]: SetHostGoogleDeviceIdActivityItem,
+  [ActivityType.DeletedHostGoogleDeviceId]: DeletedHostGoogleDeviceIdActivityItem,
   [ActivityType.RotatedHostRecoveryLockPassword]: RotatedHostRecoveryLockPasswordActivityItem,
   [ActivityType.RotatedDiskEncryptionKey]: RotatedDiskEncryptionKeyActivityItem,
   [ActivityType.FailedToRotateDiskEncryptionKey]: FailedToRotateDiskEncryptionKeyActivityItem,
