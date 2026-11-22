@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.4.0",
+      "version": "2.3.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Amazon Redshift ODBC Driver 64-bit' AND publisher = 'Amazon Web Services, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Redshift ODBC Driver 64-bit' AND publisher = 'Amazon Web Services, Inc.' AND version_compare(version, '2.2.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon Redshift ODBC Driver 64-bit' AND publisher = 'Amazon Web Services, Inc.' AND version_compare(version, '2.3.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'amazon redshift odbc driver.exe');"
       },
-      "installer_url": "https://s3.amazonaws.com/redshift-downloads/drivers/odbc/2.2.4.0/AmazonRedshiftODBC64-2.2.4.0.msi",
+      "installer_url": "https://s3.amazonaws.com/redshift-downloads/drivers/odbc/2.3.1.0/AmazonRedshiftODBC64-2.3.1.0.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "9c65dd34",
-      "sha256": "ae7d7d32248a60019f438dc1489eea692b7f872b09e09c4033eb0425675fb30b",
+      "sha256": "e0cc7f727752a3710916ed0fb15eab65129db91e10d1596f8a9b6e8abff9bbae",
       "default_categories": [
         "Developer tools"
       ],

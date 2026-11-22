@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.2.1",
+      "version": "6.3.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'AWS VPN Client' AND publisher = 'Amazon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AWS VPN Client' AND publisher = 'Amazon' AND version_compare(version, '6.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AWS VPN Client' AND publisher = 'Amazon' AND version_compare(version, '6.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aws client vpn.exe');"
       },
-      "installer_url": "https://d3c4iklh14o4hj.cloudfront.net/WPF/6.2.1/AWS_VPN_Client.msi",
+      "installer_url": "https://d3c4iklh14o4hj.cloudfront.net/WPF/6.3.1/AWS_VPN_Client.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "a5bed570",
-      "sha256": "89b9522c723b2be6d4366ab78a592a60f7b86243edfa67bbb4977d0c4a5215ba",
+      "sha256": "c5732294669837408a81463d9bec5eb53a87550e70137dea6cd16fbb3c35fed0",
       "default_categories": [
         "Productivity"
       ],
