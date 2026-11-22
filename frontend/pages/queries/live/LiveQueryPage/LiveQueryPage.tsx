@@ -76,11 +76,11 @@ const RunQueryPage = ({
     selectedQueryTargetsByType.labels
   );
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>(
-    selectedQueryTargetsByType.teams
+    selectedQueryTargetsByType.fleets
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
 
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
@@ -102,7 +102,7 @@ const RunQueryPage = ({
   >(["query", queryId], () => queryAPI.load(queryId as number), {
     enabled: !!queryId && !editingExistingQuery,
     refetchOnWindowFocus: false,
-    select: (data) => data.query,
+    select: (data) => data.report,
     onSuccess: (returnedQuery) => {
       setLastEditedQueryId(returnedQuery.id);
       setLastEditedQueryName(returnedQuery.name);
@@ -149,7 +149,7 @@ const RunQueryPage = ({
     setSelectedQueryTargetsByType({
       hosts: targetedHosts,
       labels: targetedLabels,
-      teams: targetedTeams,
+      fleets: targetedTeams,
     });
   }, [targetedLabels, targetedHosts, targetedTeams]);
 
@@ -192,7 +192,7 @@ const RunQueryPage = ({
       setTargetedTeams,
       setTargetsTotalCount,
       isObserverCanRunQuery: storedQuery?.observer_can_run,
-      queryTeamId: storedQuery?.team_id ?? null,
+      queryTeamId: storedQuery?.fleet_id ?? null,
     };
 
     const step2Props = {

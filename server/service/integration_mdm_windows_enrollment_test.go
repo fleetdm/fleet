@@ -111,7 +111,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// enable Windows MDM
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": true }
+		"mdm": { "windows_mdm_enabled": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.False(t, acResp.MDM.WindowsMigrationEnabled)
@@ -245,7 +245,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// enable Windows MDM migration
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_migration_enabled": true, "enable_turn_on_windows_mdm_manually": false }
+		"mdm": { "windows_mdm_migration_enabled": true, "enable_turn_on_windows_mdm_manually": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.True(t, acResp.MDM.WindowsMigrationEnabled)
@@ -276,7 +276,7 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 
 	// disable Microsoft MDM
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_enabled_and_configured": false }
+		"mdm": { "windows_mdm_enabled": false }
   }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 	assert.False(t, acResp.MDM.WindowsMigrationEnabled)
@@ -311,6 +311,13 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 		require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 	}
+
+	// with Windows MDM off, migration is refused under its new name
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"mdm": {"windows_mdm_migration_enabled": true}}`),
+		http.StatusUnprocessableEntity)
+	name, reason := extractServerErrorNameReason(res.Body)
+	assert.Equal(t, "mdm.windows_mdm_migration_enabled", name)
+	assert.Contains(t, reason, "Windows MDM is not enabled")
 }
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
@@ -689,8 +696,6 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	require.NotEmpty(t, d.HostUUID)
 	require.Equal(t, windowsHost.UUID, d.HostUUID)
 }
-
-// TODO: Do we need integration tests for WindowsMDMAutomaticEnrollmentType flows?
 
 func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureToken() {
 	t := s.T()
@@ -2038,7 +2043,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"windows_migration_enabled": true
+			"windows_mdm_migration_enabled": true
 		}
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
@@ -2047,7 +2052,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"windows_migration_enabled": false
+			"windows_mdm_migration_enabled": false
 		}
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
@@ -2057,7 +2062,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	// set migrations back to true to see if they turn false when turning MDM off
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"windows_migration_enabled": true
+			"windows_mdm_migration_enabled": true
 		}
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
@@ -2076,7 +2081,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	// set to true again does not generate a new activity, was already true
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"windows_migration_enabled": true
+			"windows_mdm_migration_enabled": true
 		}
 	}`), http.StatusOK, &acResp)
 	require.True(t, acResp.MDM.WindowsEnabledAndConfigured)
@@ -2085,8 +2090,8 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"windows_enabled_and_configured": false,
-			"windows_migration_enabled": true
+			"windows_mdm_enabled": false,
+			"windows_mdm_migration_enabled": true
 		}
 	}`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
@@ -2095,7 +2100,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	// turn off Windows MDM and try to enable migrations in a distinct call
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"windows_enabled_and_configured": false
+			"windows_mdm_enabled": false
 		}
 	}`), http.StatusOK, &acResp)
 	require.False(t, acResp.MDM.WindowsEnabledAndConfigured)
@@ -2103,7 +2108,7 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"windows_migration_enabled": true
+			"windows_mdm_migration_enabled": true
 		}
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)

@@ -41,6 +41,14 @@ const DefaultOsqueryConfigPollInterval = 10 * time.Minute
 // restart disconnects every agent at once.
 const disconnectSpread = 30 * time.Second
 
+// fallbackJitter is the fraction by which each fallback poll interval is
+// randomized either way. Without it, agents that fetched together (after a
+// server restart or a global nudge) keep polling together; ±50% spreads them
+// over the whole interval by their next poll. The mean interval is kept unless
+// the poll interval is close to the disconnected one, which raises the lower
+// bound (see fallbackPollInterval).
+const fallbackJitter = 0.5
+
 // configUnchangedETag is the etag of the server's response to a current etag,
 // {"etag":"ok"}.
 const configUnchangedETag = "ok"
@@ -58,6 +66,9 @@ type ConfigFetcher struct {
 	client    configClient
 	connected func() bool
 	now       func() time.Time
+	// jitter returns a number in [0, 1) that randomizes a fallback poll
+	// interval.
+	jitter func() float64
 	// fetched is notified after each fetch attempt, once the fetcher's state
 	// reflects it, for tests.
 	fetched func()
@@ -73,6 +84,8 @@ type ConfigFetcher struct {
 	serverRefresh time.Duration
 	pollInterval  time.Duration
 	nextFetch     time.Time
+	// scheduledAt is when nextFetch was last scheduled after a fetch.
+	scheduledAt time.Time
 	// nextIsFallback reports whether the next fetch is the fallback poll of a
 	// connected agent.
 	nextIsFallback bool
@@ -96,6 +109,7 @@ func NewConfigFetcher(client configClient, connected func() bool, serverRefresh 
 		client:        client,
 		connected:     connected,
 		now:           time.Now,
+		jitter:        rand.Float64,
 		serverRefresh: serverRefresh,
 		pollInterval:  DefaultOsqueryConfigPollInterval,
 	}
@@ -119,10 +133,14 @@ func (f *ConfigFetcher) SetPollInterval(d time.Duration) {
 	defer f.mu.Unlock()
 	before := f.fallbackIntervalLocked()
 	f.pollInterval = d
-	// Bring a scheduled fallback poll forward to the shorter interval (the
+	// Reschedule a scheduled fallback poll at the shorter interval (the
 	// fetcher starts with the default one, before the server's arrives).
-	if delta := f.fallbackIntervalLocked() - before; f.nextIsFallback && delta < 0 {
-		f.nextFetch = f.nextFetch.Add(delta)
+	// It is redrawn rather than shifted: shifting a jittered schedule could
+	// put it in the past.
+	if f.nextIsFallback && f.fallbackIntervalLocked() < before {
+		if next := f.scheduledAt.Add(f.jitteredFallbackIntervalLocked()); next.Before(f.nextFetch) {
+			f.nextFetch = next
+		}
 	}
 }
 
@@ -294,9 +312,16 @@ func (f *ConfigFetcher) scheduleNextLocked(ok bool) {
 	interval := f.serverRefresh
 	f.nextIsFallback = ok && f.connected()
 	if f.nextIsFallback {
-		interval = f.fallbackIntervalLocked()
+		interval = f.jitteredFallbackIntervalLocked()
 	}
-	f.nextFetch = f.now().Add(interval)
+	f.scheduledAt = f.now()
+	f.nextFetch = f.scheduledAt.Add(interval)
+}
+
+// jitteredFallbackIntervalLocked returns a randomized fallback poll interval,
+// never shorter than the disconnected one. f.mu must be held.
+func (f *ConfigFetcher) jitteredFallbackIntervalLocked() time.Duration {
+	return fallbackPollInterval(f.fallbackIntervalLocked(), f.serverRefresh, f.jitter())
 }
 
 // fallbackIntervalLocked returns the fallback poll interval of a connected
@@ -304,6 +329,15 @@ func (f *ConfigFetcher) scheduleNextLocked(ok bool) {
 // server load. f.mu must be held.
 func (f *ConfigFetcher) fallbackIntervalLocked() time.Duration {
 	return max(f.serverRefresh, f.pollInterval)
+}
+
+// fallbackPollInterval returns d randomized by ±fallbackJitter, r in [0, 1)
+// picking where. The lower bound is raised to floor rather than clamping draws
+// below it, which would line those agents up on floor.
+func fallbackPollInterval(d, floor time.Duration, r float64) time.Duration {
+	lo := max(floor, time.Duration(float64(d)*(1-fallbackJitter)))
+	hi := time.Duration(float64(d) * (1 + fallbackJitter))
+	return lo + time.Duration(float64(hi-lo)*r)
 }
 
 // prepareConfig turns the server's config response into the config handed to

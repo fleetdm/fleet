@@ -4,8 +4,7 @@ Okta's FastPass can require a managed device, confirmed by a certificate from MD
 
 See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us/content/topics/releasenotes/ov/ov-release-notes-linux.htm) for supported Linux distributions and what's new in each release.
 
-> **Note:** You can deploy and configure Okta FastPass for Linux today (Steps 1 and 2) if you request access from Okta. Marking Linux hosts as managed (Steps 3 through 5) is in the works and needs:
-> - **Okta:** Linux support in Okta's device management platform integration. Today, Okta's **Add platform** option covers Windows and macOS only.
+> **Note:** You can deploy and configure Okta FastPass for Linux today (Steps 1 and 2). Marking Linux hosts as "managed" in Okta (Steps 3 through 5) is in the works and needs Linux support in Okta's device management platform integration. Today, Okta's **Add platform** option covers Windows and macOS only.
 
 ## Step 1: Download Okta Verify for Linux
 
@@ -20,7 +19,7 @@ See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us
 
 ## Step 3: Connect Fleet to Okta's CA
 
-> **Note:** Steps 3 through 5 mark Linux hosts as managed. This is in the works and depends on [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993) and Linux support in Okta's device management platform integration. Okta's **Add platform** option below currently covers Windows and macOS only.
+> **Note:** Steps 3 through 5 mark Linux hosts as "managed" in Okta. This is in the works and depends on Linux support in Okta's device management platform integration. Okta's **Add platform** option below currently covers Windows and macOS only.
 
 1. In Okta, head to **Security > Device integrations**, select **Add platform**, then choose **Desktop (Windows and macOS only)**.
 2. On the **Add device management platform** page, select **Use Okta as Certificate Authority** and **Dynamic SCEP URL** (verify **Generic** is selected), then select **Generate**.
@@ -32,8 +31,6 @@ See Okta's [Okta Verify for Linux release notes](https://help.okta.com/oie/en-us
 
 ## Step 4: Deploy the FastPass certificate with a script-only package
 
-> **Note:** This step depends on [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993), which adds Okta CA support to Fleet's "Request certificate" API endpoint. That endpoint currently only supports Hydrant and custom EST CAs, so the script below fails until #52993 ships. To test before then, use the script in [Test with Okta's SCEP endpoint directly](#test-with-oktas-scep-endpoint-directly).
-
 Okta Verify needs a device certificate from your Okta CA to unlock FastPass. Deploy it with a script-only software package that requests the certificate from Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) and writes it where Okta Verify expects it, so it runs alongside Okta Verify during setup experience.
 
 Okta requires a one-time SCEP challenge in each certificate request. The script puts `$FLEET_VAR_NDES_SCEP_CHALLENGE` in the CSR's `challengePassword`. Each time the script runs, Fleet gets a new challenge from Okta and replaces the variable with it. If Fleet can't get a challenge, the script fails and the error appears in the script's output.
@@ -42,24 +39,14 @@ Okta requires a one-time SCEP challenge in each certificate request. The script 
 2. In Fleet, head to **Controls > Variables** and create a variable called `REQUEST_CERTIFICATE_API_TOKEN` with the API-only user's API token as its value. The script reads it as `$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN`.
 3. Download [`request-okta-scep-certificate.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/request-okta-scep-certificate.sh), then replace `<Fleet-server-URL>` and `<Okta-CA-ID>` (the CA `id` from Step 3) with your own values.
 
-   By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard x509 certificate. The script passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `device.pem`.
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard x509 certificate. The script passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `device.pem`.
+
 4. In Fleet, head to **Software**, select **Add software > Custom package**, and upload the script (a script with no installer becomes a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages)).
 5. Head to **Controls > Setup experience > Install software**, select the **Linux** tab, and check the new script-only package so it runs automatically alongside Okta Verify during enrollment.
 
-### Test with Okta's SCEP endpoint directly
-
-Until [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993) ships, use this script to test certificate issuance. It skips Fleet's "Request certificate" API endpoint and requests the certificate straight from Okta's SCEP endpoint. It's for testing only, because the Okta SCEP password is available to every host that runs it.
-
-1. Make sure the test host can reach GitHub. The script uses [`scepclient`](https://github.com/micromdm/scep) v2.3.0 to enroll with Okta's SCEP endpoint, and installs it the first time it runs: it downloads the release binary on x86_64 hosts, and builds it with Go on arm64 hosts (the release has no arm64 binary). On Debian and Ubuntu, it installs `unzip` or `golang-go` with `apt-get` if they're missing. Ubuntu's own `scep` package isn't used: it ships v2.1.0, which fails with `pkcs7: Message digest mismatch` when it reads Okta's response.
-2. In Fleet, head to **Controls > Variables** and create a variable called `OKTA_SCEP_PASSWORD` with the password from Okta's **Add device management platform** page in Step 3. The script reads it as `$FLEET_SECRET_OKTA_SCEP_PASSWORD`.
-3. Download [`request-okta-scep-certificate-test.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/request-okta-scep-certificate-test.sh), then replace `<Okta-challenge-URL>`, `<Okta-SCEP-URL>`, and `<Okta-SCEP-username>` with the values from the same Okta page.
-4. In Fleet, head to **Controls > Scripts**, upload the script, then run it on the test host from **Host details > Actions > Run script**.
-
 ## Step 5: Renew or restore the certificate automatically
 
-> **Note:** This step renews the certificate from Step 4, so it also depends on [fleetdm/fleet#52993](https://github.com/fleetdm/fleet/issues/52993).
-
-Okta Verify for Linux isn't covered by Fleet's [automatic certificate renewal](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal). The script-only package in Step 4 only installs once, during setup experience, so it won't fix a certificate that's later deleted or expires. Wire that same package to a policy, so Fleet reinstalls it, and renews the certificate, whenever a host fails the check.
+Wire the script-only package from Step 4 to a policy automation, so Fleet reinstalls it, and renews the certificate, whenever a host fails the policy.
 
 1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect whether the certificate is missing or expires in the next 30 days:
 

@@ -47,7 +47,7 @@ The agent reads its settings from a managed configuration. Fleet uses a plain JS
 ```
 
 - `tunneled_apps` is the per-app VPN list. Only the apps listed here send traffic through Cloudflare. Add each app's package name as `app_identifier`.
-- `use_in_app_webview: true` is required by Cloudflare for always-on VPN and lockdown.
+- `use_in_app_webview: true` is required only if you turn on always-on VPN with lockdown. Lockdown requires Cloudflare One Agent version 2.5.4 or later. Without this setting, sign-in can't complete while lockdown is on.
 - `switch_locked: true` prevents users from turning the VPN off on the device. Remove it if you want users to control the connection.
 
 Cloudflare documents Android MDM settings only in [Intune's format](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/partners/intune/) (`androidenterprise#managedConfiguration`). To translate it to Fleet's format:

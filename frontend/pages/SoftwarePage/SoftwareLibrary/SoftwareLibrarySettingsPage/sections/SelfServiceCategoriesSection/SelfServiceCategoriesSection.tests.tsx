@@ -39,7 +39,7 @@ interface IWrapperProps {
   location: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string; team_id?: string; add_category?: string };
+    query: { fleet_id?: string; add_category?: string };
     hash?: string;
   };
   fleetId?: number;

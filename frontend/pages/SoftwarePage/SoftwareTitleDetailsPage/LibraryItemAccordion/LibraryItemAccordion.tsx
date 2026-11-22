@@ -16,6 +16,7 @@ import { InstallerType, SoftwareSource } from "interfaces/software";
 import {
   getAutoUpdateTooltip,
   getSelfServiceTooltip,
+  isAndroidWebApp,
 } from "pages/SoftwarePage/helpers";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
@@ -68,7 +69,7 @@ export interface ILibraryItemAccordionProps {
    * maintainer. Compute with `permissions.canWriteSoftware(user, teamId)`.
    * Gates every edit/delete affordance on the row: the label-count badge
    * (button → static span), the expanded-panel labels-click handler, the
-   * inactive-row "Select Actions > Versions and pin this version to rollback"
+   * inactive-row "Select Actions > Versions and pin it to deploy this version instead"
    * hover tooltip, and the trash button (hidden entirely when false). */
   canEditSoftware: boolean;
 
@@ -125,7 +126,7 @@ export interface ILibraryItemAccordionProps {
    * (and the absence of the Latest badge, which is FMA-only by gate). */
   canActivateMultiplePackages?: boolean;
   /** Drives the self-service icon's tooltip variant and visibility on the
-   * custom-package row. Mirrors `software_package.self_service`. */
+   * custom-package row. Mirrors `packages[].self_service`. */
   isSelfService?: boolean;
   /** Drives the auto-install icon's visibility on the custom-package row.
    * Truthy when the package has ≥1 linked auto-install policy. Custom
@@ -162,6 +163,9 @@ export interface ILibraryItemAccordionProps {
    * App Store app version rows to show a configuration-profile glyph (the
    * row represents a configuration, not an app). */
   graphicOverride?: GraphicNames;
+  /** Override the row's icon with an arbitrary node (e.g. the title's
+   * `SoftwareIcon`). Takes precedence over `graphicOverride`. */
+  iconOverride?: React.ReactNode;
 
   /** Suppress the version chip's "Updated every hour." / Play Store tooltip
    * on this row. Used by App Store app version rows where the app metadata
@@ -214,6 +218,7 @@ const LibraryItemAccordion = ({
   autoUpdateWindowEnd,
   onAutoUpdateClick,
   graphicOverride,
+  iconOverride,
   hideVersion = false,
 }: ILibraryItemAccordionProps) => {
   const [expanded, setExpanded] = useState(false);
@@ -232,8 +237,8 @@ const LibraryItemAccordion = ({
 
   const inactiveTooltip = (
     <>
-      Select <strong>Actions &gt; Versions</strong> and pin this version to
-      rollback.
+      Select <strong>Actions &gt; Versions</strong> and pin it to deploy this
+      version instead.
     </>
   );
 
@@ -637,12 +642,29 @@ const LibraryItemAccordion = ({
     );
   };
 
+  // Aria-labels mirror the modal titles so screen readers announce what the
+  // button actually opens. Multi-package custom titles and multi-version App
+  // Store titles both target one version within the title (Edit/Delete
+  // version); every other shape edits/deletes the title itself (Edit/Delete
+  // software). See EditSoftwareModal / DeleteSoftwareModal / EditVersionModal.
+  // Android web apps hold a single version, so the row edits targets and
+  // deleting it deletes the software.
+  const isWebApp = isAndroidWebApp(androidPlayStoreId);
+  const isPerVersionRow =
+    (canActivateMultiplePackages || canActivateMultipleVersions) && !isWebApp;
+  const getEditAriaLabel = () => {
+    if (isWebApp) return "Edit targets";
+    return isPerVersionRow ? "Edit version" : "Edit software";
+  };
+  const editAriaLabel = getEditAriaLabel();
+  const trashAriaLabel = isPerVersionRow ? "Delete version" : "Delete software";
+
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
       variant="secondary"
       disabled={disabled}
       onClick={onTrashClick}
-      ariaLabel="Delete this version"
+      ariaLabel={trashAriaLabel}
       className={`${baseClass}__trash-button`}
       icon="trash"
     />
@@ -686,6 +708,29 @@ const LibraryItemAccordion = ({
     }
   };
 
+  const installerDetails = (
+    <InstallerDetailsWidget
+      className={`${baseClass}__installer-details`}
+      softwareName={filename}
+      installerType={installerType}
+      version={version}
+      addedTimestamp={addedAt}
+      isFma={isFma}
+      isLatestFmaVersion={isLatestFmaVersion}
+      isScriptPackage={isScriptPackage}
+      source={source}
+      androidPlayStoreId={androidPlayStoreId}
+      hideInstallerType
+      graphicOverride={graphicOverride}
+      iconOverride={iconOverride}
+      hideVersion={hideVersion}
+      // Inactive rows surface a single hover tooltip (the rollback hint);
+      // suppress the widget's tooltips to avoid stacking two on the same
+      // target. See `InstallerDetailsWidget` for the full set silenced.
+      disableTooltips={!isActive}
+    />
+  );
+
   const headerButton = (
     <div
       role="button"
@@ -703,25 +748,21 @@ const LibraryItemAccordion = ({
       >
         <Icon name="chevron-right" color="ui-fleet-black-75" />
       </span>
-      <InstallerDetailsWidget
-        className={`${baseClass}__installer-details`}
-        softwareName={filename}
-        installerType={installerType}
-        version={version}
-        addedTimestamp={addedAt}
-        isFma={isFma}
-        isLatestFmaVersion={isLatestFmaVersion}
-        isScriptPackage={isScriptPackage}
-        source={source}
-        androidPlayStoreId={androidPlayStoreId}
-        hideInstallerType
-        graphicOverride={graphicOverride}
-        hideVersion={hideVersion}
-        // Inactive rows surface a single hover tooltip (the rollback hint);
-        // suppress the widget's tooltips to avoid stacking two on the same
-        // target. See `InstallerDetailsWidget` for the full set silenced.
-        disableTooltips={!isActive}
-      />
+      {isActive ? (
+        installerDetails
+      ) : (
+        <TooltipWrapper
+          className={`${baseClass}__inactive-tooltip`}
+          tipContent={inactiveTooltip}
+          showArrow
+          underline={false}
+          position="right"
+          tipOffset={8}
+          disableTooltip={!canEditSoftware}
+        >
+          {installerDetails}
+        </TooltipWrapper>
+      )}
       <div className={`${baseClass}__header-right`}>{renderHeaderBadges()}</div>
     </div>
   );
@@ -733,21 +774,7 @@ const LibraryItemAccordion = ({
         [`${baseClass}--expanded`]: isExpanded,
       })}
     >
-      {isActive ? (
-        headerButton
-      ) : (
-        <TooltipWrapper
-          className={`${baseClass}__inactive-tooltip`}
-          tipContent={inactiveTooltip}
-          showArrow
-          underline={false}
-          position="top"
-          tipOffset={8}
-          disableTooltip={!canEditSoftware}
-        >
-          {headerButton}
-        </TooltipWrapper>
-      )}
+      {headerButton}
 
       {isExpanded && (
         <div className={`${baseClass}__panel`}>
@@ -797,7 +824,7 @@ const LibraryItemAccordion = ({
               <Button
                 variant="secondary"
                 onClick={onEditClick}
-                ariaLabel="Edit software"
+                ariaLabel={editAriaLabel}
                 className={`${baseClass}__edit-button`}
                 icon="pencil"
               />

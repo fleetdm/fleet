@@ -1,3 +1,29 @@
+## 1.64.0 (Nov 18, 2026)
+
+* Added the `ai_agent_sessions` and `ai_agent_session_messages` tables to fleetd. They report the sessions of AI coding agents (Claude Code, Copilot CLI, Cursor CLI, Codex CLI, and Gemini CLI) in every user's home directory, including the account or authentication method each agent uses and each tool call's action, target, and outcome. Each tool call has a `tool_call_index` within its session, so a long session's tool calls can be read in pages.
+
+* Added the `amcache_application_files`, `amcache_applications`, `amcache_application_shortcuts`, `amcache_driver_binaries`, `amcache_driver_packages`, `amcache_device_pnp`, and `amcache_device_containers` tables to fleetd on Windows. They read the Windows Amcache hive for incident response investigations.
+
+* Added the `sshd_config` table on macOS and Linux to report the OpenSSH server's effective configuration (`sshd -G`), including `Match` block evaluation for a given connection.
+
+* On Windows, added reporting of the device's Autopilot device ID at enrollment, so Fleet can match the device to its pending Autopilot host without relying on the hardware serial.
+
+* Added support for osquery config notifications over the WebSocket transport. When Fleet enables this, fleetd fetches osquery's config from Fleet as soon as Fleet notifies it of a change, and at the interval Fleet sets (10 minutes by default) instead of every minute. Hosts whose `command_line_flags` set `config_plugin` to a plugin other than `tls` keep using that plugin.
+
+* fleetd no longer installs or launches its built-in Nudge for macOS 13 and older. Nudge is still available as a Fleet-maintained app.
+
+* Hardened how fleetd reports the Entra device ID on macOS for Fleet's Microsoft Entra conditional access integration.
+
+* fleetd no longer crash-loops when another osquery extension already registered a table with the same name as one of fleetd's tables. fleetd now skips its conflicting table, logs a warning, and keeps running.
+
+* Set `XDG_RUNTIME_DIR` when running dialogs and Fleet Desktop as the logged-in user, so the LUKS passphrase prompt opens on Wayland compositors whose socket isn't `wayland-0` (e.g. Hyprland on Omarchy).
+
+* Fixed the Linux setup experience opening Firefox instead of the user's default browser; `xdg-open` is now preferred and Firefox is only used when `xdg-open` is unavailable.
+
+* Fixed the `bitlocker_key_protectors` table returning an error instead of no rows on Windows hosts where BitLocker is not installed, such as Windows Server with the BitLocker feature turned off.
+
+* Fixed memory leaks in the macOS `app_icons` table that grew orbit's memory use on each query, and a crash when an app's icon image could not be loaded.
+
 ## 1.63.0 (Oct 30, 2026)
 
 * Added the following fixes and improvements for NixOS support:

@@ -1,0 +1,1 @@
+- Removed the experimental async host processing mode and its server configuration options (`osquery_enable_async_host_processing` and the `osquery_async_host_*` options). Fleet now fails to start if any of them is still set.

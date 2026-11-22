@@ -1,0 +1,1 @@
+- Removed the per-fleet and "All fleets" policy endpoints, `failing_policies_webhook.policy_ids`, and the `calendar_events_enabled`, `conditional_access_enabled`, and `patch_software_title_id` policy request fields. Use the `/policies` endpoints and `automation_type` instead.

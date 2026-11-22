@@ -1,0 +1,2 @@
+- Fixed GitOps re-applying unchanged policies holding up hosts' policy results and queued installs.
+- Fixed GitOps policy applies failing with a deadlock while hosts run policy automation scripts.

@@ -54,6 +54,12 @@ func TestRegistry_LookupNormalizes(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			name:   "HEAD takes the GET tier",
+			input:  "HEAD /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}",
+			want:   TierStandard,
+			wantOK: true,
+		},
+		{
 			name:   "unregistered route",
 			input:  "POST /not/in/registry",
 			want:   TierAlways, // zero value. Sampler interprets the !ok as the catch all.
@@ -136,7 +142,7 @@ func TestRegistry_ConcurrentReadersAndWriters(t *testing.T) {
 	wg.Wait()
 }
 
-func TestNormalizeSpanName(t *testing.T) {
+func TestCleanRouteTemplate(t *testing.T) {
 	// Unit test for the helper. Lookup integration is covered separately. These cases pin the helper's behavior independent of
 	// the map lookup.
 	cases := []struct {
@@ -170,7 +176,7 @@ func TestNormalizeSpanName(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.in, func(t *testing.T) {
-			require.Equal(t, c.want, normalizeSpanName(c.in))
+			require.Equal(t, c.want, CleanRouteTemplate(c.in))
 		})
 	}
 }

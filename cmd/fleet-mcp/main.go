@@ -45,7 +45,7 @@ func requireAPIOnlyUser(ctx context.Context, logger *slog.Logger, fleetClient *f
 		fatal(ctx, logger, "could not verify FLEET_API_KEY via GET /api/v1/fleet/me — the MCP requires a reachable Fleet and an API-only token to start", "err", err)
 	}
 	if !id.APIOnly {
-		fatal(ctx, logger, "FLEET_API_KEY must belong to an API-only Fleet user, but it belongs to a UI user — refusing to start. Create one with `fleetctl user create --api-only` (no UI session, its own audit identity, scoped to only the endpoints/teams the MCP needs) and use its API token.", "email", id.Email)
+		fatal(ctx, logger, "FLEET_API_KEY must belong to an API-only Fleet user, but it belongs to a UI user — refusing to start. Create one with `fleetctl user create --api-only` (no UI session, its own audit identity, scoped to only the endpoints/fleets the MCP needs) and use its API token.", "email", id.Email)
 	}
 	logger.InfoContext(ctx, "FLEET_API_KEY verified: API-only Fleet user", "email", id.Email)
 }

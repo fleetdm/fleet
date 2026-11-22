@@ -11,17 +11,29 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_google"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -152,7 +164,7 @@ KSCy+VfKBn4=
 
 	// Enable conditional access on the team
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
@@ -200,7 +212,7 @@ KSCy+VfKBn4=
 	})
 
 	// Disable conditional access on the team
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": false,
 		},
@@ -216,16 +228,26 @@ KSCy+VfKBn4=
 	})
 }
 
-func genDistributedReqWithEntraIDDetails(host *fleet.Host, deviceID, userPrincipalName string) submitDistributedQueryResultsRequestShim {
-	results := make(map[string]json.RawMessage)
-	results["fleet_detail_query_conditional_access_microsoft_device_id"] = json.RawMessage(fmt.Sprintf(`[{"device_id": "%s", "user_principal_name": "%s"}]`, deviceID, userPrincipalName))
-	return submitDistributedQueryResultsRequestShim{
-		NodeKey:  *host.NodeKey,
-		Results:  results,
-		Statuses: make(map[string]any),
-		Messages: make(map[string]string),
-		Stats:    map[string]*fleet.Stats{},
+// reportEntraDeviceToken reports an Entra device token for h the way fleetd does: it reads the
+// request from the orbit config and posts a token for it signed by signer. It returns the
+// request, nil if the orbit config didn't include one.
+func (s *integrationEnterpriseTestSuite) reportEntraDeviceToken(
+	signer *testEntraSigner, h *fleet.Host, deviceID, userPrincipalName string, expectedStatus int,
+) *fleet.OrbitEntraDeviceTokenRequest {
+	t := s.T()
+	var cfg fleet.OrbitConfig
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &cfg)
+	nonce := entraDeviceNonce(testConditionalAccessProxySecret, h.UUID)
+	if req := cfg.EntraDeviceTokenRequest; req != nil {
+		require.Equal(t, fleet.OrbitEntraDeviceTokenRequest{TenantID: testEntraTenantID, ClientID: testEntraClientID, Nonce: nonce}, *req)
 	}
+	token := signer.sign(t, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, deviceID, userPrincipalName, nonce, time.Now()))
+	var resp fleet.OrbitPostEntraDeviceTokenResponse
+	s.DoJSON("POST", "/api/fleet/orbit/entra_device_token", fleet.OrbitPostEntraDeviceTokenRequest{
+		OrbitNodeKey: *h.OrbitNodeKey,
+		IDToken:      token,
+	}, expectedStatus, &resp)
+	return cfg.EntraDeviceTokenRequest
 }
 
 func genDistributedReqWithEntraIDDetailsForWindows(host *fleet.Host, deviceID string) submitDistributedQueryResultsRequestShim {
@@ -241,8 +263,13 @@ func genDistributedReqWithEntraIDDetailsForWindows(host *fleet.Host, deviceID st
 }
 
 const (
-	testEntraTenantID      = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b"
-	otherTestEntraTenantID = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+	testEntraClientID                = "d6f479f6-9b7c-459d-baa4-9146b15e93bb"
+	testConditionalAccessProxySecret = "secret"
+	testEntraDeviceID                = "c57f684e-4a62-4eb7-9429-a055431e44f4"
+	testEntraDeviceID2               = "1af954af-17e2-4e74-8499-5d44b75a2a3d"
+	testEntraDeviceID3               = "fd11d67c-3f4e-4b0a-9a51-8f0f2b6c7d10"
+	testEntraTenantID                = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b"
+	otherTestEntraTenantID           = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
 )
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
@@ -406,6 +433,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	t := s.T()
+	signer := newTestEntraSigner(t)
 
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
@@ -435,28 +463,30 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	})
 	require.NoError(t, err)
 
-	var pr fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Query:                    "SELECT 1;",
-		Name:                     "Compliance check 1",
-		Platform:                 "darwin,windows",
-		ConditionalAccessEnabled: true,
+	var pr fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(t1.ID),
+		Query:          "SELECT 1;",
+		Name:           "Compliance check 1",
+		Platform:       "darwin,windows",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Query:                    "SELECT 2;",
-		Name:                     "Compliance check 2",
-		ConditionalAccessEnabled: true,
-		Platform:                 "darwin,windows",
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(t1.ID),
+		Query:          "SELECT 2;",
+		Name:           "Compliance check 2",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
+		Platform:       "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Query:                    "SELECT 3;",
-		Name:                     "Other policy",
-		Platform:                 "darwin,windows",
-		ConditionalAccessEnabled: false,
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:   new(t1.ID),
+		Query:    "SELECT 3;",
+		Name:     "Other policy",
+		Platform: "darwin,windows",
 	}, http.StatusOK, &pr)
 	p3 := pr.Policy
 
@@ -493,30 +523,28 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	windowsHost1.OrbitNodeKey = &windowsHostorbitKey
 
 	// Feature is disabled on the host's team.
-	distributedResp := submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h1, "entraDeviceID", "entraUserPrincipalName"), http.StatusOK, &distributedResp)
+	require.Nil(t, s.reportEntraDeviceToken(signer, h1, testEntraDeviceID, "entraUserPrincipalName", http.StatusBadRequest))
 	_, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Enable feature on team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
 	}, http.StatusOK, &tmResp)
 
-	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h1, "entraDeviceID", "entraUserPrincipalName"), http.StatusOK, &distributedResp)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, h1, testEntraDeviceID, "entraUserPrincipalName", http.StatusOK))
 	h1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.Nil(t, h1s.Managed)
 	require.Nil(t, h1s.Compliant)
 
-	distributedResp = submitDistributedQueryResultsResponse{}
+	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(windowsHost1, "entraDeviceIDWindows"), http.StatusOK, &distributedResp)
 	wh1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
 	require.NoError(t, err)
@@ -585,7 +613,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.False(t, *h1s.Managed) // not MDM enrolled
@@ -651,7 +679,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.True(t, *h1s.Managed) // now should be MDM enrolled
@@ -707,7 +735,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.True(t, *h1s.Managed)
@@ -749,7 +777,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID", h1s.DeviceID)
+	require.Equal(t, testEntraDeviceID, h1s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.True(t, *h1s.Managed)
@@ -801,22 +829,23 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.True(t, acResp.Integrations.ConditionalAccessEnabled.Set)
 	require.True(t, acResp.Integrations.ConditionalAccessEnabled.Value)
 
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), fleet.TeamPolicyRequest{
-		Query:                    "SELECT 1;",
-		Name:                     "Compliance check 1",
-		ConditionalAccessEnabled: true,
-		Platform:                 "darwin,windows",
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(fleet.PolicyNoTeamID),
+		Query:          "SELECT 1;",
+		Name:           "Compliance check 1",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
+		Platform:       "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 = pr.Policy
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), fleet.TeamPolicyRequest{
-		Query:                    "SELECT 2;",
-		Name:                     "Other 1",
-		ConditionalAccessEnabled: false,
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: new(fleet.PolicyNoTeamID),
+		Query:  "SELECT 2;",
+		Name:   "Other 1",
 	}, http.StatusOK, &pr)
 	p2 := pr.Policy
-	pr = fleet.TeamPolicyResponse{}
+	pr = fleet.CreatePolicyResponse{}
 
 	// Enroll to MDM to update managed status.
 	err = s.ds.SetOrUpdateMDMData(ctx,
@@ -826,11 +855,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.NoError(t, err)
 
 	// Ingest device ID and user principal name.
-	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h2, "entraDeviceID2", "entraUserPrincipalName2"), http.StatusOK, &distributedResp)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, h2, testEntraDeviceID2, "entraUserPrincipalName2", http.StatusOK))
 	h2s, err := s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID2", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID2, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName2", h2s.UserPrincipalName)
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
@@ -855,7 +883,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h2s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID2", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID2, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName2", h2s.UserPrincipalName)
 	require.NotNil(t, h2s.Managed)
 	require.True(t, *h2s.Managed)
@@ -885,7 +913,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	h2s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID2", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID2, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName2", h2s.UserPrincipalName)
 	require.NotNil(t, h2s.Managed)
 	require.True(t, *h2s.Managed)
@@ -893,11 +921,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.True(t, *h2s.Compliant) // now the host is compliant
 
 	// A change of device ID and user principal name should update and clear the managed and compliant values.
-	distributedResp = submitDistributedQueryResultsResponse{}
-	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetails(h2, "entraDeviceID3", "entraUserPrincipalName3"), http.StatusOK, &distributedResp)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, h2, testEntraDeviceID3, "entraUserPrincipalName3", http.StatusOK))
 	h2s, err = s.ds.LoadHostConditionalAccessStatus(ctx, h2.ID)
 	require.NoError(t, err)
-	require.Equal(t, "entraDeviceID3", h2s.DeviceID)
+	require.Equal(t, testEntraDeviceID3, h2s.DeviceID)
 	require.Equal(t, "entraUserPrincipalName3", h2s.UserPrincipalName)
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
@@ -935,20 +962,22 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 	require.NoError(t, err)
 
 	// Create two conditional access policies.
-	var pr fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Query:                    "SELECT 1;",
-		Name:                     "Compliance check 1",
-		ConditionalAccessEnabled: true,
-		Platform:                 "darwin,windows",
+	var pr fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(t1.ID),
+		Query:          "SELECT 1;",
+		Name:           "Compliance check 1",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
+		Platform:       "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp1 := pr.Policy
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Query:                    "SELECT 2;",
-		Name:                     "Compliance check 2",
-		ConditionalAccessEnabled: true,
-		Platform:                 "darwin,windows",
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(t1.ID),
+		Query:          "SELECT 2;",
+		Name:           "Compliance check 2",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
+		Platform:       "darwin,windows",
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 
@@ -963,7 +992,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
-			Platform:        "darwin",
+			Platform:        "windows",
 			TeamID:          teamID,
 		})
 		require.NoError(t, err)
@@ -976,7 +1005,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 
 	// Enable feature on team.
 	var tmResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), map[string]any{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", t1.ID), map[string]any{
 		"integrations": map[string]any{
 			"conditional_access_enabled": true,
 		},
@@ -986,6 +1015,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		compliantValue *bool
 		deviceIDValue  *string
 	)
+	setDone := make(chan struct{})
 	// override value to reduce test time.
 	conditionalAccessSetWaitTime = 250 * time.Millisecond
 	mockedConditionalAccessMicrosoftProxyInstance.setComplianceStatusFunc = func(
@@ -1000,24 +1030,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
 		deviceIDValue = &deviceID
 		compliantValue = &compliant
-		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{
-			MessageID: "messageID",
-		}, nil
-	}
-
-	setDone := make(chan struct{})
-
-	mockedConditionalAccessMicrosoftProxyInstance.getMessageStatusFunc = func(
-		ctx context.Context,
-		tenantID string,
-		secret string,
-		messageID string,
-	) (*conditional_access_microsoft_proxy.GetMessageStatusResponse, error) {
+		// The Windows API is synchronous, so the message status isn't polled.
 		close(setDone)
-		return &conditional_access_microsoft_proxy.GetMessageStatusResponse{
-			MessageID: "messageID",
-			Status:    "Completed",
-		}, nil
+		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{}, nil
 	}
 
 	// Check that before the distributed/write there's no device information.
@@ -1030,18 +1045,18 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		"node_key": "%[1]s",
 		"queries": {
 			"%[2]s": [{"1": "1"}],
-			"%[6]s": [],
-			"%[3]s": [{"device_id": "%[4]s", "user_principal_name": "%[5]s"}]
+			"%[5]s": [],
+			"%[3]s": [{"device_id": "%[4]s"}]
 		},
 		"messages": {},
 		"statuses": {
 			"%[2]s": 0,
-			"%[6]s": 0,
+			"%[5]s": 0,
 			"%[3]s": 0
 		}
 	}`, *h1.NodeKey,
 		hostPolicyQueryPrefix+fmt.Sprint(cp1.ID),
-		hostDetailQueryPrefix+"conditional_access_microsoft_device_id", "entraDeviceID", "entraUserPrincipalName",
+		hostDetailQueryPrefix+"conditional_access_microsoft_device_id_windows", "entraDeviceID",
 		hostPolicyQueryPrefix+fmt.Sprint(cp2.ID),
 	)
 	s.DoRaw("POST", "/api/osquery/distributed/write", []byte(rawJSON), http.StatusOK)
@@ -1062,7 +1077,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 	h1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Equal(t, "entraDeviceID", h1s.DeviceID)
-	require.Equal(t, "entraUserPrincipalName", h1s.UserPrincipalName)
+	require.Empty(t, h1s.UserPrincipalName)
 	require.NotNil(t, h1s.Managed)
 	require.False(t, *h1s.Managed) // not MDM enrolled
 	require.NotNil(t, h1s.Compliant)
@@ -1818,63 +1833,68 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	//
 
 	// conditional_access_enabled=true with platform="linux" should fail
-	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
-		"name":                       "ca-linux",
-		"query":                      "SELECT 1;",
-		"platform":                   "linux",
-		"conditional_access_enabled": true,
+	res := s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+		"fleet_id":        team1.ID,
+		"name":            "ca-linux",
+		"query":           "SELECT 1;",
+		"platform":        "linux",
+		"automation_type": "conditional_access",
 	}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
 	res.Body.Close()
 
 	// conditional_access_enabled=true with empty platform (all platforms) should fail
-	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), map[string]any{
-		"name":                       "ca-all-platforms",
-		"query":                      "SELECT 1;",
-		"platform":                   "",
-		"conditional_access_enabled": true,
+	res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+		"fleet_id":        team1.ID,
+		"name":            "ca-all-platforms",
+		"query":           "SELECT 1;",
+		"platform":        "",
+		"automation_type": "conditional_access",
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
 	res.Body.Close()
 
 	// conditional_access_enabled=true with platform="darwin" should succeed
-	var pr fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
-		Name:                     "ca-darwin",
-		Query:                    "SELECT 1;",
-		Platform:                 "darwin",
-		ConditionalAccessEnabled: true,
+	var pr fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(team1.ID),
+		Name:           "ca-darwin",
+		Query:          "SELECT 1;",
+		Platform:       "darwin",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
 	}, http.StatusOK, &pr)
 	darwinPolicyID := pr.Policy.ID
 
 	// conditional_access_enabled=true with platform="windows" should succeed
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
-		Name:                     "ca-windows",
-		Query:                    "SELECT 2;",
-		Platform:                 "windows",
-		ConditionalAccessEnabled: true,
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(team1.ID),
+		Name:           "ca-windows",
+		Query:          "SELECT 2;",
+		Platform:       "windows",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
 	}, http.StatusOK, &pr)
 	windowsPolicyID := pr.Policy.ID
 
 	// conditional_access_enabled=true with platform="darwin,windows" should succeed
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
-		Name:                     "ca-darwin-windows",
-		Query:                    "SELECT 3;",
-		Platform:                 "darwin,windows",
-		ConditionalAccessEnabled: true,
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(team1.ID),
+		Name:           "ca-darwin-windows",
+		Query:          "SELECT 3;",
+		Platform:       "darwin,windows",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
 	}, http.StatusOK, &pr)
 
 	// conditional_access_enabled=false with platform="linux" should succeed (no restriction when disabled)
-	pr = fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), fleet.TeamPolicyRequest{
-		Name:                     "no-ca-linux",
-		Query:                    "SELECT 4;",
-		Platform:                 "linux",
-		ConditionalAccessEnabled: false,
+	pr = fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:   new(team1.ID),
+		Name:     "no-ca-linux",
+		Query:    "SELECT 4;",
+		Platform: "linux",
 	}, http.StatusOK, &pr)
 	linuxPolicyID := pr.Policy.ID
 
@@ -1883,21 +1903,21 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	//
 
 	// Modify a darwin policy to enable conditional_access_enabled — should succeed (already darwin)
-	patchResp := &fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), fleet.ModifyTeamPolicyRequest{
-		ConditionalAccessEnabled: new(true),
+	patchResp := &fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", darwinPolicyID), fleet.ModifyPolicyRequest{
+		AutomationType: optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationConditionalAccess},
 	}, http.StatusOK, patchResp)
 
 	// Modify a linux policy to enable conditional_access_enabled — should fail
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, linuxPolicyID), map[string]any{
-		"conditional_access_enabled": true,
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", linuxPolicyID), map[string]any{
+		"automation_type": "conditional_access",
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `"conditional_access_enabled" is only valid on "darwin" and "windows" policies`)
 	res.Body.Close()
 
 	// Modify a darwin conditional_access policy to change platform to linux — should fail
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), map[string]any{
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", darwinPolicyID), map[string]any{
 		"platform": "linux",
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
@@ -1905,8 +1925,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	res.Body.Close()
 
 	// Modify a windows conditional_access policy to change platform to darwin — should succeed
-	patchResp = &fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, windowsPolicyID), fleet.ModifyTeamPolicyRequest{
+	patchResp = &fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", windowsPolicyID), fleet.ModifyPolicyRequest{
 		Platform: new("darwin"),
 	}, http.StatusOK, patchResp)
 
@@ -1915,8 +1935,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	//
 
 	// Create a global policy
-	createGlobal := &fleet.GlobalPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/policies", &fleet.GlobalPolicyRequest{
+	createGlobal := &fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", &fleet.CreatePolicyRequest{
 		Name:     "global-policy-ca-test",
 		Query:    "SELECT 1;",
 		Platform: "darwin",
@@ -1925,10 +1945,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 
 	// Try to enable conditional_access_enabled on a global policy — should fail
 	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), map[string]any{
-		"conditional_access_enabled": true,
+		"automation_type": "conditional_access",
 	}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `"All fleets" policy cannot have conditional_access_enabled set`)
+	require.Contains(t, errMsg, fmt.Sprintf(`%q policies can only have automation_type %q`, fleet.DisplayNameAllTeams, fleet.PolicyAutomationWebhookOrTicket))
 	res.Body.Close()
 
 	//
@@ -1996,4 +2016,1124 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 			},
 		},
 	}, http.StatusOK, &applyResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDeviceToken() {
+	t := s.T()
+	ctx := t.Context()
+	signer := newTestEntraSigner(t)
+
+	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
+		TenantID: testEntraTenantID,
+		Secret:   testConditionalAccessProxySecret,
+	}
+	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
+		TenantID:  testEntraTenantID,
+		SetupDone: true,
+	}
+	var r conditionalAccessMicrosoftCreateResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+		MicrosoftTenantID: testEntraTenantID,
+	}, http.StatusOK, &r)
+	var c conditionalAccessMicrosoftConfirmResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{}, http.StatusOK, &c)
+	require.True(t, c.ConfigurationCompleted)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
+		"integrations": map[string]any{"conditional_access_enabled": true},
+	}, http.StatusOK, &tmResp)
+
+	newHost := func(name, platform string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        name + ".local",
+			Platform:        platform,
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, h, s.ds)
+		h.OrbitNodeKey = &orbitKey
+		return h
+	}
+	mac1 := newHost("mac1", "darwin")
+	mac2 := newHost("mac2", "darwin")
+	win := newHost("win", "windows")
+
+	postToken := func(h *fleet.Host, claims jwt.MapClaims, expectedStatus int) {
+		var resp fleet.OrbitPostEntraDeviceTokenResponse
+		s.DoJSON("POST", "/api/fleet/orbit/entra_device_token", fleet.OrbitPostEntraDeviceTokenRequest{
+			OrbitNodeKey: *h.OrbitNodeKey,
+			IDToken:      signer.sign(t, claims),
+		}, expectedStatus, &resp)
+	}
+	assertDeviceID := func(h *fleet.Host, deviceID string) {
+		status, err := s.ds.LoadHostConditionalAccessStatus(ctx, h.ID)
+		if deviceID == "" {
+			require.True(t, fleet.IsNotFound(err), err)
+			return
+		}
+		require.NoError(t, err)
+		require.Equal(t, deviceID, status.DeviceID)
+	}
+
+	// Only macOS hosts get the request.
+	var cfg fleet.OrbitConfig
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *win.OrbitNodeKey)), http.StatusOK, &cfg)
+	require.Nil(t, cfg.EntraDeviceTokenRequest)
+	postToken(win, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com",
+		entraDeviceNonce(testConditionalAccessProxySecret, win.UUID), time.Now()), http.StatusBadRequest)
+	assertDeviceID(win, "")
+
+	// mac2 reporting a token minted with mac1's nonce (e.g. relayed from mac1) is rejected.
+	mac1Nonce := entraDeviceNonce(testConditionalAccessProxySecret, mac1.UUID)
+	postToken(mac2, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
+	assertDeviceID(mac2, "")
+
+	// mac2 submitting results for the Windows detail query is ignored.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(mac2, testEntraDeviceID3), http.StatusOK, &distributedResp)
+	assertDeviceID(mac2, "")
+
+	// Tokens for another tenant or app, or too old, are rejected.
+	postToken(mac1, testEntraDeviceTokenClaims(otherTestEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
+	postToken(mac1, testEntraDeviceTokenClaims(testEntraTenantID, "00000003-0000-0000-c000-000000000000", testEntraDeviceID, "user@example.com", mac1Nonce, time.Now()), http.StatusBadRequest)
+	postToken(mac1, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID, "user@example.com", mac1Nonce, time.Now().Add(-2*time.Hour)), http.StatusBadRequest)
+	assertDeviceID(mac1, "")
+
+	assertRefetchRequested := func(h *fleet.Host, want bool) {
+		hl, err := s.ds.HostLite(ctx, h.ID)
+		require.NoError(t, err)
+		require.Equal(t, want, hl.RefetchRequested)
+	}
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, mac1.ID, false))
+
+	// A valid token is stored, and a refetch is requested so policy results send compliance to Intune.
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user@example.com", http.StatusOK))
+	status, err := s.ds.LoadHostConditionalAccessStatus(ctx, mac1.ID)
+	require.NoError(t, err)
+	require.Equal(t, testEntraDeviceID, status.DeviceID)
+	require.Equal(t, "user@example.com", status.UserPrincipalName)
+	assertRefetchRequested(mac1, true)
+
+	// Reporting the same device ID and user again doesn't request another refetch.
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, mac1.ID, false))
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user@example.com", http.StatusOK))
+	assertRefetchRequested(mac1, false)
+
+	// A different user on the device does.
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID, "user2@example.com", http.StatusOK))
+	assertRefetchRequested(mac1, true)
+
+	// So does a different device ID for the same user (e.g. the device registered again).
+	require.NoError(t, s.ds.UpdateHostRefetchRequested(ctx, mac1.ID, false))
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac1, testEntraDeviceID2, "user2@example.com", http.StatusOK))
+	assertDeviceID(mac1, testEntraDeviceID2)
+	assertRefetchRequested(mac1, true)
+
+	// A device ID belongs to one host: another host's verified token for it is rejected.
+	postToken(mac2, testEntraDeviceTokenClaims(testEntraTenantID, testEntraClientID, testEntraDeviceID2, "user2@example.com",
+		entraDeviceNonce(testConditionalAccessProxySecret, mac2.UUID), time.Now()), http.StatusConflict)
+	assertDeviceID(mac2, "")
+
+	// A Windows host in another fleet can't claim it either, so its passing policy results don't
+	// update mac1's device in Entra.
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-b"})
+	require.NoError(t, err)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamB.ID), map[string]any{
+		"integrations": map[string]any{"conditional_access_enabled": true},
+	}, http.StatusOK, &tmResp)
+	var pr fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:         new(teamB.ID),
+		Query:          "SELECT 1;",
+		Name:           t.Name() + " compliance check",
+		Platform:       "windows",
+		AutomationType: new(fleet.PolicyAutomationConditionalAccess),
+	}, http.StatusOK, &pr)
+	winB := newHost("winB", "windows")
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamB.ID, []uint{winB.ID})))
+
+	var sentMu sync.Mutex
+	var sentDeviceIDs []string
+	mockedConditionalAccessMicrosoftProxyInstance.setComplianceStatusFunc = func(
+		ctx context.Context, tenantID, secret, deviceID, userPrincipalName string, mdmEnrolled bool,
+		deviceName, osName, osVersion string, compliant bool, lastCheckInTime time.Time,
+	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
+		sentMu.Lock()
+		defer sentMu.Unlock()
+		sentDeviceIDs = append(sentDeviceIDs, deviceID)
+		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{MessageID: "messageID"}, nil
+	}
+
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(winB, testEntraDeviceID2), http.StatusOK, &distributedResp)
+	assertDeviceID(winB, "")
+	assertDeviceID(mac1, testEntraDeviceID2)
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(winB, map[uint]*bool{pr.Policy.ID: new(true)}), http.StatusOK, &distributedResp)
+	require.Never(t, func() bool {
+		sentMu.Lock()
+		defer sentMu.Unlock()
+		return slices.Contains(sentDeviceIDs, testEntraDeviceID2)
+	}, time.Second, 50*time.Millisecond)
+
+	// If a Windows host reports a device ID before the macOS host it belongs to, the macOS host's
+	// verified token takes it over.
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(winB, testEntraDeviceID3), http.StatusOK, &distributedResp)
+	assertDeviceID(winB, testEntraDeviceID3)
+	require.NotNil(t, s.reportEntraDeviceToken(signer, mac2, testEntraDeviceID3, "user3@example.com", http.StatusOK))
+	assertDeviceID(mac2, testEntraDeviceID3)
+	assertDeviceID(winB, "")
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithEntraIDDetailsForWindows(winB, testEntraDeviceID3), http.StatusOK, &distributedResp)
+	assertDeviceID(winB, "")
+
+	// Disabling the feature stops the request and the ingestion.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
+		"integrations": map[string]any{"conditional_access_enabled": false},
+	}, http.StatusOK, &tmResp)
+	require.Nil(t, s.reportEntraDeviceToken(signer, mac2, testEntraDeviceID2, "user2@example.com", http.StatusBadRequest))
+	assertDeviceID(mac2, testEntraDeviceID3)
+}
+
+// newGoogleCATestKey returns a service account key JSON with a fresh RSA key.
+func newGoogleCATestKey(t *testing.T, clientEmail string) string {
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	der, err := x509.MarshalPKCS8PrivateKey(priv)
+	require.NoError(t, err)
+	b, err := json.Marshal(map[string]string{
+		"type":         "service_account",
+		"client_email": clientEmail,
+		"private_key":  string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})),
+	})
+	require.NoError(t, err)
+	return string(b)
+}
+
+// googleCATest holds the setup shared by the Google conditional access tests.
+type googleCATest struct {
+	s      *integrationEnterpriseTestSuite
+	t      *testing.T
+	client *mockedGoogleConditionalAccessClient
+}
+
+func (s *integrationEnterpriseTestSuite) newGoogleCATest() *googleCATest {
+	t := s.T()
+	g := &googleCATest{s: s, t: t, client: mockedGoogleConditionalAccessClientInstance}
+	g.client.reset()
+	t.Cleanup(func() {
+		// t.Context() is already canceled when cleanup runs.
+		ctx := context.Background()
+		g.client.reset()
+		s.token = s.getTestAdminToken()
+		appCfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appCfg.Integrations.GoogleConditionalAccess = nil
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+		g.deleteRows(ctx)
+		require.NoError(t, s.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}))
+		g.client.reset()
+	})
+	return g
+}
+
+// deleteRows deletes the integration row and every device row.
+func (g *googleCATest) deleteRows(ctx context.Context) {
+	mysqltest.ExecAdhocSQL(g.t, g.s.ds, func(q sqlx.ExtContext) error {
+		for _, stmt := range []string{
+			`DELETE FROM google_conditional_access_devices`,
+			`DELETE FROM google_conditional_access_integrations`,
+		} {
+			if _, err := q.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (g *googleCATest) connect(customerID, adminEmail, key string, wantStatus int) googleConditionalAccessResponse {
+	var resp googleConditionalAccessResponse
+	g.s.DoJSON("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID:        customerID,
+		AdminEmail:        adminEmail,
+		ServiceAccountKey: json.RawMessage(key),
+	}, wantStatus, &resp)
+	return resp
+}
+
+func (g *googleCATest) update(body string, wantStatus int) googleConditionalAccessResponse {
+	var resp googleConditionalAccessResponse
+	g.s.DoJSON("PATCH", "/api/latest/fleet/conditional_access/google", json.RawMessage(body), wantStatus, &resp)
+	return resp
+}
+
+func (g *googleCATest) status() googleConditionalAccessResponse {
+	var resp googleConditionalAccessResponse
+	g.s.DoJSON("GET", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &resp)
+	return resp
+}
+
+func (g *googleCATest) getConfig() appConfigResponse {
+	var resp appConfigResponse
+	g.s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
+	return resp
+}
+
+func (g *googleCATest) storedKey() []byte {
+	assets, err := g.s.ds.GetAllMDMConfigAssetsByName(g.t.Context(), []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}, nil)
+	if fleet.IsNotFound(err) {
+		return nil
+	}
+	require.NoError(g.t, err)
+	return assets[fleet.MDMAssetGoogleConditionalAccessServiceAccountKey].Value
+}
+
+func (g *googleCATest) requireCalls(wantChecks, wantCreates, wantDeletes []string) {
+	checks, registers, deregisters, _ := g.client.calls()
+	require.Equal(g.t, wantChecks, checks, "delegation checks")
+	require.Equal(g.t, wantCreates, registers, "fleetdm.com registrations")
+	require.Equal(g.t, wantDeletes, deregisters, "fleetdm.com deregistrations")
+}
+
+func (g *googleCATest) addedCount() int {
+	return g.s.countActivitiesOfType(fleet.ActivityTypeAddedConditionalAccessIntegrationGoogle{}.ActivityName())
+}
+
+func (g *googleCATest) deletedCount() int {
+	return g.s.countActivitiesOfType(fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}.ActivityName())
+}
+
+func (g *googleCATest) editedCount() int {
+	return g.s.countActivitiesOfType(fleet.ActivityTypeEditedConditionalAccessIntegrationGoogle{}.ActivityName())
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
+	t := s.T()
+	ctx := t.Context()
+	g := s.newGoogleCATest()
+	key := newGoogleCATestKey(t, "sa@example.iam.gserviceaccount.com")
+	otherKey := newGoogleCATestKey(t, "sa2@example.iam.gserviceaccount.com")
+
+	// Nothing configured yet.
+	st := g.status()
+	require.Empty(t, st.CustomerID)
+	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, st.ConditionalAccessGoogleStatus)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
+
+	// Invalid input is a 422 on the field (the validator has its own unit tests).
+	res := s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com",
+	}, http.StatusUnprocessableEntity)
+	name, _ := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "service_account_key", name)
+	g.requireCalls(nil, nil, nil)
+
+	// Without a server private key the key can't be stored, so nothing is called.
+	testSetEmptyPrivateKey = true
+	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
+	}, http.StatusUnprocessableEntity)
+	testSetEmptyPrivateKey = false
+	require.Contains(t, extractServerErrorText(res.Body), "private key")
+	g.requireCalls(nil, nil, nil)
+
+	// Both writes are authorized: global admins and gitops only (the policy has its own test).
+	maintainer := &fleet.User{Name: "GCA maintainer", Email: "gca-maintainer@example.com", GlobalRole: new(fleet.RoleMaintainer)}
+	require.NoError(t, maintainer.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(ctx, maintainer)
+	require.NoError(t, err)
+	s.setTokenForTest(t, maintainer.Email, test.GoodPassword)
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusForbidden)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusForbidden, &deleteGoogleConditionalAccessResponse{})
+	s.token = s.getTestAdminToken()
+	g.requireCalls(nil, nil, nil)
+
+	// A failed delegation check (e.g. a wrong customer ID) stores nothing.
+	addedBefore, deletedBefore, editedBefore := g.addedCount(), g.deletedCount(), g.editedCount()
+	g.client.checkErr = errors.New("Not Authorized to access this resource/api")
+	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Not Authorized to access this resource/api")
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	_, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.True(t, fleet.IsNotFound(err))
+	require.Nil(t, g.storedKey())
+	require.Equal(t, addedBefore, g.addedCount())
+	g.client.reset()
+
+	// A Google outage isn't blamed on the key: it's a 502, and nothing is stored.
+	g.client.checkErr = googleOutageError{}
+	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
+	}, http.StatusBadGateway)
+	require.Contains(t, extractServerErrorText(res.Body), "Couldn't verify the settings with Google")
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	_, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.True(t, fleet.IsNotFound(err))
+	require.Nil(t, g.storedKey())
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+	g.client.reset()
+
+	// Connect with the key: the integration is turned on.
+	resp := g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	require.Equal(t, "C02cajzvg", resp.CustomerID)
+	require.Equal(t, "admin@example.com", resp.AdminEmail)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, resp.State)
+	require.True(t, resp.ServiceAccountKeyConfigured)
+	require.Nil(t, resp.ErrorMessage)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	require.JSONEq(t, key, string(g.storedKey()))
+	row, err := s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.ConditionalAccessGoogleIntegration{ //nolint:gosec // test value, not a credential
+		ProxyServerSecret: "secret-C02cajzvg", State: fleet.ConditionalAccessGoogleStateConnected,
+	}, row)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	require.Equal(t, &fleet.GoogleConditionalAccessIntegration{CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", APIKeyJSON: fleet.MaskedPassword},
+		g.getConfig().Integrations.GoogleConditionalAccess)
+	for _, path := range []string{"/api/latest/fleet/config", "/api/latest/fleet/conditional_access/google"} {
+		rawBody, err := io.ReadAll(s.Do("GET", path, nil, http.StatusOK).Body)
+		require.NoError(t, err)
+		require.NotContains(t, string(rawBody), "BEGIN PRIVATE KEY", path)
+		require.NotContains(t, string(rawBody), "secret-C02cajzvg", path)
+	}
+	g.client.reset()
+
+	// Repeating the same upload makes no call and logs nothing.
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	g.requireCalls(nil, nil, nil)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+
+	// A new key re-runs the check with that key but doesn't re-register. Each change to a
+	// connected integration logs the edited activity.
+	g.connect("C02cajzvg", "admin@example.com", otherKey, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	checkKeys := g.client.delegationCheckKeys()
+	require.Len(t, checkKeys, 1)
+	require.JSONEq(t, otherKey, string(checkKeys[0]))
+	require.JSONEq(t, otherKey, string(g.storedKey()))
+	require.Equal(t, editedBefore+1, g.editedCount())
+	g.client.reset()
+
+	// Changing the admin email re-runs the check without re-registering.
+	g.connect("C02cajzvg", "admin2@example.com", otherKey, http.StatusOK)
+	g.requireCalls([]string{"admin2@example.com/C02cajzvg"}, nil, nil)
+	require.Equal(t, "admin2@example.com", g.getConfig().Integrations.GoogleConditionalAccess.AdminEmail)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
+	require.Equal(t, editedBefore+2, g.editedCount())
+	g.client.reset()
+
+	// Changing the customer ID drops the previous customer's registration and re-registers.
+	// The previous customer's device rows are left for the cron and nothing is unmarked.
+	host0 := test.NewHost(t, s.ds, "gca-host-0", "", "gca-host-0-key", uuid.NewString(), time.Now())
+	insertGoogleDeviceUsers(t, s.ds, "C02cajzvg", host0, "devices/old/deviceUsers/u1", "devices/old/deviceUsers/u2")
+
+	// If fleetdm.com can't drop the previous registration, nothing changes.
+	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusServiceUnavailable}
+	g.connect("C03other", "admin2@example.com", key, http.StatusBadGateway)
+	g.requireCalls([]string{"admin2@example.com/C03other"}, nil, []string{"C02cajzvg"})
+	_, _, _, unmanaged := g.client.calls()
+	require.Empty(t, unmanaged)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.JSONEq(t, otherKey, string(g.storedKey()))
+	require.Equal(t, "C02cajzvg", g.getConfig().Integrations.GoogleConditionalAccess.CustomerID)
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
+	require.Equal(t, editedBefore+2, g.editedCount())
+	g.client.reset()
+
+	// The customer change logs one edited activity, not a deletion and an addition.
+	addedBefore, deletedBefore, editedBefore = g.addedCount(), g.deletedCount(), g.editedCount()
+	g.connect("C03other", "admin2@example.com", key, http.StatusOK)
+	g.requireCalls([]string{"admin2@example.com/C03other"}, []string{"C03other"}, []string{"C02cajzvg"})
+	require.Equal(t, []string{"secret-C02cajzvg"}, g.client.deregisterSecrets())
+	// fleetdm.com calls the server back at the app config's server URL.
+	serverURL := g.getConfig().ServerSettings.ServerURL
+	require.NotEmpty(t, serverURL)
+	require.Equal(t, []string{serverURL, serverURL}, g.client.serverURLs())
+	_, _, _, unmanaged = g.client.calls()
+	require.Empty(t, unmanaged)
+	require.Zero(t, countGoogleDeviceRows(t, s.ds, "C03other"))
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
+	require.JSONEq(t, key, string(g.storedKey()))
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore+1, g.editedCount())
+	g.client.reset()
+
+	// DELETE drops the fleetdm.com registration first, so a failure is a 502 and changes
+	// nothing.
+	host1 := test.NewHost(t, s.ds, "gca-host-1", "", "gca-host-1-key", uuid.NewString(), time.Now())
+	host2 := test.NewHost(t, s.ds, "gca-host-2", "", "gca-host-2-key", uuid.NewString(), time.Now())
+	insertGoogleDeviceUsers(t, s.ds, "C03other", host1, "devices/d1/deviceUsers/u1", "devices/d1/deviceUsers/u2")
+	insertGoogleDeviceUsers(t, s.ds, "C03other", host2, "devices/d2/deviceUsers/u1")
+	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusServiceUnavailable}
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadGateway, &deleteGoogleConditionalAccessResponse{})
+	g.requireCalls(nil, nil, []string{"C03other"})
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.NotNil(t, g.storedKey())
+	require.NotNil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+	g.client.reset()
+
+	// Then it removes the key and the setting and marks the row deleted without the
+	// secret. Nothing is unmarked in Google, and the device rows are kept for a re-add
+	// for the same customer.
+	addedBefore, deletedBefore, editedBefore = g.addedCount(), g.deletedCount(), g.editedCount()
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.requireCalls(nil, nil, []string{"C03other"})
+	require.Equal(t, []string{"secret-C03other"}, g.client.deregisterSecrets())
+	_, _, _, unmanaged = g.client.calls()
+	require.Empty(t, unmanaged)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDeleted, row.State)
+	require.False(t, row.Registered())
+	require.Equal(t, 2, countGoogleDeviceRows(t, s.ds, "C03other"))
+	require.Nil(t, g.storedKey())
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, g.status().ConditionalAccessGoogleStatus)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
+	g.client.reset()
+
+	// Adding it back for the same customer (e.g. to rotate the key) registers again and
+	// finds the device rows kept for that customer.
+	g.connect("C03other", "admin3@example.com", otherKey, http.StatusOK)
+	g.requireCalls([]string{"admin3@example.com/C03other"}, []string{"C03other"}, nil)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.Equal(t, "admin3@example.com", g.getConfig().Integrations.GoogleConditionalAccess.AdminEmail)
+	require.Equal(t, 2, countGoogleDeviceRows(t, s.ds, "C03other"))
+	require.JSONEq(t, otherKey, string(g.storedKey()))
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	g.client.reset()
+
+	// A registration fleetdm.com no longer has doesn't block DELETE.
+	g.client.deregisterErr = &notFoundError{}
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.requireCalls(nil, nil, []string{"C03other"})
+	g.client.reset()
+
+	// Adding it back for another customer only registers it. The old device rows are
+	// left for the cron and nothing is unmarked in Google.
+	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	_, _, _, unmanaged = g.client.calls()
+	require.Empty(t, unmanaged)
+	require.Equal(t, 2, countGoogleDeviceRows(t, s.ds, "C03other"))
+	// Rows this customer had before, not cleaned up yet, count again: their names were
+	// never unmarked in Google.
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	g.client.reset()
+
+	// Start over without a row, as after the cleanup of a deleted integration.
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.deleteRows(ctx)
+	g.client.reset()
+
+	// A registration whose secret can't be saved is deregistered again. A secret longer
+	// than the column fails the save, and MySQL's "data too long" is a 422.
+	g.client.registerSecret = strings.Repeat("s", 300)
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusUnprocessableEntity)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, []string{"C02cajzvg"})
+	require.Equal(t, []string{strings.Repeat("s", 300)}, g.client.deregisterSecrets())
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Empty(t, row.ProxyServerSecret)
+	require.NotEqual(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	g.client.reset()
+
+	// Deleting an integration that never registered logs nothing, and adding it back for
+	// the same customer registers again.
+	deletedBefore = g.deletedCount()
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.requireCalls(nil, nil, nil)
+	require.Equal(t, deletedBefore, g.deletedCount())
+
+	// A fleetdm.com failure during upload is a 502 and is recorded as a registration
+	// error; the key and the setting are kept.
+	g.client.registerErr = &conditional_access_google.RelayStatusError{Code: http.StatusUnauthorized, RespErr: "fleetdm.com unavailable"}
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusBadGateway)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	require.JSONEq(t, key, string(g.storedKey()))
+	require.NotNil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+	st = g.status()
+	require.True(t, st.ServiceAccountKeyConfigured)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, st.State)
+	require.NotNil(t, st.ErrorMessage)
+	require.Contains(t, *st.ErrorMessage, "fleetdm.com unavailable")
+	g.client.reset()
+
+	// Sending the same values again retries the check and the registration, which logs
+	// the addition.
+	addedBefore, editedBefore = g.addedCount(), g.editedCount()
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	st = g.status()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, st.State)
+	require.Nil(t, st.ErrorMessage)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	g.client.reset()
+
+	// DELETE also cleans up a key left without a connection row.
+	g.deleteRows(ctx)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.requireCalls(nil, nil, nil)
+	require.Nil(t, g.storedKey())
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusBadRequest, &deleteGoogleConditionalAccessResponse{})
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUpdate() {
+	t := s.T()
+	ctx := t.Context()
+	g := s.newGoogleCATest()
+	key := newGoogleCATestKey(t, "sa@example.iam.gserviceaccount.com")
+	otherKey := newGoogleCATestKey(t, "sa2@example.iam.gserviceaccount.com")
+
+	// There is nothing to edit until the integration is added.
+	g.update(`{"admin_email": "admin2@example.com"}`, http.StatusBadRequest)
+	g.requireCalls(nil, nil, nil)
+
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	g.client.reset()
+	addedBefore, deletedBefore, editedBefore := g.addedCount(), g.deletedCount(), g.editedCount()
+
+	maintainer := &fleet.User{Name: "GCA editor", Email: "gca-editor@example.com", GlobalRole: new(fleet.RoleMaintainer)}
+	require.NoError(t, maintainer.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(ctx, maintainer)
+	require.NoError(t, err)
+	s.setTokenForTest(t, maintainer.Email, test.GoodPassword)
+	g.update(`{"admin_email": "admin2@example.com"}`, http.StatusForbidden)
+	s.token = s.getTestAdminToken()
+	g.requireCalls(nil, nil, nil)
+
+	// An update that changes nothing makes no call.
+	resp := g.update(`{}`, http.StatusOK)
+	require.Equal(t, "C02cajzvg", resp.CustomerID)
+	require.Equal(t, "admin@example.com", resp.AdminEmail)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, resp.State)
+	g.update(`{"customer_id": "C02cajzvg", "admin_email": "admin@example.com"}`, http.StatusOK)
+	g.requireCalls(nil, nil, nil)
+	require.Equal(t, editedBefore, g.editedCount())
+
+	// A given field is validated, and an empty value doesn't keep the stored one.
+	for field, body := range map[string]string{
+		"admin_email": `{"admin_email": "not-an-email"}`,
+		"customer_id": `{"customer_id": ""}`,
+	} {
+		res := s.Do("PATCH", "/api/latest/fleet/conditional_access/google", json.RawMessage(body), http.StatusUnprocessableEntity)
+		name, _ := extractServerErrorNameReason(res.Body)
+		require.Equal(t, field, name)
+	}
+	g.requireCalls(nil, nil, nil)
+
+	// The admin email alone is checked with the stored key and keeps the registration.
+	resp = g.update(`{"admin_email": "admin2@example.com"}`, http.StatusOK)
+	require.Equal(t, "C02cajzvg", resp.CustomerID)
+	require.Equal(t, "admin2@example.com", resp.AdminEmail)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, resp.State)
+	require.True(t, resp.ServiceAccountKeyConfigured)
+	g.requireCalls([]string{"admin2@example.com/C02cajzvg"}, nil, nil)
+	checkKeys := g.client.delegationCheckKeys()
+	require.Len(t, checkKeys, 1)
+	require.JSONEq(t, key, string(checkKeys[0]))
+	require.JSONEq(t, key, string(g.storedKey()))
+	settings := g.getConfig().Integrations.GoogleConditionalAccess
+	require.NotNil(t, settings)
+	require.Equal(t, "C02cajzvg", settings.CustomerID)
+	require.Equal(t, "admin2@example.com", settings.AdminEmail)
+	row, err := s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
+	g.client.reset()
+
+	// The key alone is checked with the stored settings and replaces the stored key.
+	g.update(`{"service_account_key": `+otherKey+`}`, http.StatusOK)
+	g.requireCalls([]string{"admin2@example.com/C02cajzvg"}, nil, nil)
+	checkKeys = g.client.delegationCheckKeys()
+	require.Len(t, checkKeys, 1)
+	require.JSONEq(t, otherKey, string(checkKeys[0]))
+	require.JSONEq(t, otherKey, string(g.storedKey()))
+	g.client.reset()
+
+	// A failed delegation check changes nothing.
+	g.client.checkErr = errors.New("Not Authorized to access this resource/api")
+	res := s.Do("PATCH", "/api/latest/fleet/conditional_access/google",
+		json.RawMessage(`{"admin_email": "admin3@example.com", "service_account_key": `+key+`}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Not Authorized to access this resource/api")
+	g.requireCalls([]string{"admin3@example.com/C02cajzvg"}, nil, nil)
+	require.JSONEq(t, otherKey, string(g.storedKey()))
+	require.Equal(t, "admin2@example.com", g.getConfig().Integrations.GoogleConditionalAccess.AdminEmail)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, g.status().State)
+	g.client.reset()
+
+	// So does a Google outage, which is a 502 rather than a 422.
+	g.client.checkErr = googleOutageError{}
+	g.update(`{"admin_email": "admin3@example.com"}`, http.StatusBadGateway)
+	require.Equal(t, "admin2@example.com", g.getConfig().Integrations.GoogleConditionalAccess.AdminEmail)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, g.status().State)
+	g.client.reset()
+
+	// Each successful edit logs the edited activity, and nothing else.
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore+2, g.editedCount())
+
+	// A new customer ID is checked with the stored key, drops the previous customer's
+	// registration and registers the new one, logging one edited activity.
+	resp = g.update(`{"customer_id": "C03other"}`, http.StatusOK)
+	require.Equal(t, "C03other", resp.CustomerID)
+	require.Equal(t, "admin2@example.com", resp.AdminEmail)
+	g.requireCalls([]string{"admin2@example.com/C03other"}, []string{"C03other"}, []string{"C02cajzvg"})
+	require.Equal(t, []string{"secret-C02cajzvg"}, g.client.deregisterSecrets())
+	require.JSONEq(t, otherKey, string(g.storedKey()))
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore+3, g.editedCount())
+	g.client.reset()
+
+	// A customer change whose registration fails has already dropped the previous
+	// customer's, so it logs the deletion.
+	addedBefore, deletedBefore, editedBefore = g.addedCount(), g.deletedCount(), g.editedCount()
+	g.client.registerErr = &conditional_access_google.RelayStatusError{Code: http.StatusServiceUnavailable}
+	g.update(`{"customer_id": "C02cajzvg"}`, http.StatusBadGateway)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, g.status().State)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	g.client.reset()
+
+	// An update with no changes retries the registration, which logs the addition.
+	resp = g.update(`{}`, http.StatusOK)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, resp.State)
+	require.Nil(t, resp.ErrorMessage)
+	g.requireCalls([]string{"admin2@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	g.client.reset()
+
+	// A removed integration can't be edited.
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.client.reset()
+	g.update(`{"admin_email": "admin@example.com", "service_account_key": `+key+`}`, http.StatusBadRequest)
+	g.requireCalls(nil, nil, nil)
+	require.Nil(t, g.storedKey())
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+}
+
+func insertGoogleDeviceUsers(t *testing.T, ds *mysql.Datastore, customerID string, host *fleet.Host, names ...string) {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(t.Context(),
+			`INSERT IGNORE INTO google_conditional_access_devices (host_uuid, customer_id) VALUES (?, ?)`, host.UUID, customerID); err != nil {
+			return err
+		}
+		for _, name := range names {
+			if _, err := q.ExecContext(t.Context(),
+				`INSERT INTO google_conditional_access_device_users (host_uuid, device_user_name) VALUES (?, ?)`, host.UUID, name); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func countGoogleDeviceRows(t *testing.T, ds *mysql.Datastore, customerID string) int {
+	var n int
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &n, `SELECT COUNT(*) FROM google_conditional_access_devices WHERE customer_id = ?`, customerID)
+	})
+	return n
+}
+
+// googleOutageError is Google failing on its side, such as a 503.
+type googleOutageError struct{}
+
+func (googleOutageError) Error() string       { return "Google returned HTTP 503" }
+func (googleOutageError) IsUnavailable() bool { return true }
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAppConfig() {
+	t := s.T()
+	ctx := t.Context()
+	g := s.newGoogleCATest()
+	key := newGoogleCATestKey(t, "sa@example.iam.gserviceaccount.com")
+	patch := func(body string, wantStatus int) *http.Response {
+		return s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(body), wantStatus)
+	}
+	// gitopsTurnOff sends a null setting in overwrite mode, as fleetctl gitops does when the
+	// YAML has none. Overwrite mode also resets what the payload leaves out, so the rest of
+	// the suite's config is restored afterwards.
+	gitopsTurnOff := func() {
+		before, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		s.DoRaw("PATCH", "/api/latest/fleet/config?overwrite=true",
+			[]byte(`{"integrations": {"google_conditional_access": null}}`), http.StatusOK)
+		before.Integrations.GoogleConditionalAccess = nil
+		require.NoError(t, s.ds.SaveAppConfig(ctx, before))
+	}
+	const settings = `{"integrations": {"google_conditional_access": {"customer_id": "C02cajzvg", "admin_email": "admin@example.com"}}}`
+
+	// GET config always carries the read-only status.
+	cfg := g.getConfig()
+	require.NotNil(t, cfg.ConditionalAccess.Google)
+	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, *cfg.ConditionalAccess.Google)
+
+	// The settings are validated, and rejected settings aren't stored.
+	settingsBefore := cfg.Integrations.GoogleConditionalAccess
+	res := patch(`{"integrations": {"google_conditional_access": {"customer_id": "C02cajzvg", "admin_email": "nope"}}}`,
+		http.StatusUnprocessableEntity)
+	name, _ := extractServerErrorNameReason(res.Body)
+	require.Equal(t, "integrations.google_conditional_access.admin_email", name)
+	require.Equal(t, settingsBefore, g.getConfig().Integrations.GoogleConditionalAccess)
+
+	// Turning it on without a key, with none stored, is rejected and calls nothing.
+	gitops := &fleet.User{Name: "GCA config gitops", Email: "gca-config-gitops@example.com", GlobalRole: new(fleet.RoleGitOps)}
+	require.NoError(t, gitops.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(ctx, gitops)
+	require.NoError(t, err)
+	s.setTokenForTest(t, gitops.Email, test.GoodPassword)
+	res = patch(settings, http.StatusUnprocessableEntity)
+	s.token = s.getTestAdminToken()
+	name, _ = extractServerErrorNameReason(res.Body)
+	require.Equal(t, "integrations.google_conditional_access.api_key_json", name)
+	g.requireCalls(nil, nil, nil)
+	cfg = g.getConfig()
+	require.Nil(t, cfg.Integrations.GoogleConditionalAccess)
+	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, *cfg.ConditionalAccess.Google)
+
+	// Uploading the key connects.
+	resp := g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, resp.State)
+	require.Nil(t, resp.ErrorMessage)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	require.Equal(t, fleet.ConditionalAccessGoogleStatus{ServiceAccountKeyConfigured: true, State: fleet.ConditionalAccessGoogleStateConnected}, *g.getConfig().ConditionalAccess.Google)
+	g.client.reset()
+
+	// Resending the same settings, an unrelated update, or a null object make no call and log nothing.
+	addedBefore, deletedBefore, editedBefore := g.addedCount(), g.deletedCount(), g.editedCount()
+	patch(settings, http.StatusOK)
+	patch(`{"org_info": {"org_name": "Fleet"}}`, http.StatusOK)
+	patch(`{"integrations": {"google_conditional_access": null}}`, http.StatusOK)
+	g.requireCalls(nil, nil, nil)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	require.NotNil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+
+	// Changing the admin email re-runs the check without re-registering, and logs the
+	// edited activity as the endpoints do.
+	patch(`{"integrations": {"google_conditional_access": {"admin_email": "admin2@example.com"}}}`, http.StatusOK)
+	g.requireCalls([]string{"admin2@example.com/C02cajzvg"}, nil, nil)
+	require.Equal(t, "admin2@example.com", g.getConfig().Integrations.GoogleConditionalAccess.AdminEmail)
+	row, err := s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, editedBefore+1, g.editedCount())
+	g.client.reset()
+
+	// A failing check on a config change returns 422 and leaves everything as it was.
+	g.client.checkErr = errors.New("Requested entity was not found.")
+	res = patch(`{"integrations": {"google_conditional_access": {"customer_id": "C0wrongid"}}}`, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Requested entity was not found.")
+	g.requireCalls([]string{"admin2@example.com/C0wrongid"}, nil, nil)
+	require.Equal(t, "C02cajzvg", g.getConfig().Integrations.GoogleConditionalAccess.CustomerID)
+	g.client.reset()
+
+	// A dry run checks the delegation but stores nothing.
+	s.DoRaw("PATCH", "/api/latest/fleet/config?dry_run=true", []byte(`{
+		"integrations": {"google_conditional_access": {"customer_id": "C03other"}}
+	}`), http.StatusOK)
+	g.requireCalls([]string{"admin2@example.com/C03other"}, nil, nil)
+	require.Equal(t, "C02cajzvg", g.getConfig().Integrations.GoogleConditionalAccess.CustomerID)
+	g.client.reset()
+
+	// Changing the customer ID drops the previous customer's registration and re-registers,
+	// since fleetdm.com keys the server by it. Nothing is unmarked, and the previous
+	// customer's device rows are left for the cron.
+	oldHost := test.NewHost(t, s.ds, "gca-config-old-host", "", "gca-config-old-host-key", uuid.NewString(), time.Now())
+	insertGoogleDeviceUsers(t, s.ds, "C02cajzvg", oldHost, "devices/old/deviceUsers/u1")
+	patch(`{"integrations": {"google_conditional_access": {"customer_id": "C03other"}}}`, http.StatusOK)
+	g.requireCalls([]string{"admin2@example.com/C03other"}, []string{"C03other"}, []string{"C02cajzvg"})
+	serverURL := g.getConfig().ServerSettings.ServerURL
+	require.NotEmpty(t, serverURL)
+	require.Equal(t, []string{serverURL, serverURL}, g.client.serverURLs())
+	_, _, _, unmanaged := g.client.calls()
+	require.Empty(t, unmanaged)
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	// One edited activity, not a deletion and an addition.
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore+2, g.editedCount())
+	g.client.reset()
+
+	// A gitops run without the setting turns it off like DELETE. If fleetdm.com can't drop
+	// the registration, it fails with a 502 and changes nothing.
+	host := test.NewHost(t, s.ds, "gca-config-host", "", "gca-config-host-key", uuid.NewString(), time.Now())
+	insertGoogleDeviceUsers(t, s.ds, "C03other", host, "devices/d1/deviceUsers/u1")
+	deletedBefore = g.deletedCount()
+	s.setTokenForTest(t, gitops.Email, test.GoodPassword)
+	g.client.deregisterErr = &conditional_access_google.RelayStatusError{Code: http.StatusServiceUnavailable}
+	s.DoRaw("PATCH", "/api/latest/fleet/config?overwrite=true",
+		[]byte(`{"integrations": {"google_conditional_access": null}}`), http.StatusBadGateway)
+	s.token = s.getTestAdminToken()
+	g.requireCalls(nil, nil, []string{"C03other"})
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.NotNil(t, g.storedKey())
+	require.Equal(t, "C03other", g.getConfig().Integrations.GoogleConditionalAccess.CustomerID)
+	require.Equal(t, deletedBefore, g.deletedCount())
+	g.client.reset()
+
+	// Otherwise it drops the registration, deletes the key and marks the row deleted.
+	// Nothing is unmarked, and the device rows are kept.
+	s.setTokenForTest(t, gitops.Email, test.GoodPassword)
+	gitopsTurnOff()
+	s.token = s.getTestAdminToken()
+	g.requireCalls(nil, nil, []string{"C03other"})
+	_, _, _, unmanaged = g.client.calls()
+	require.Empty(t, unmanaged)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDeleted, row.State)
+	require.False(t, row.Registered())
+	require.Nil(t, g.storedKey())
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C03other"))
+	require.Equal(t, fleet.ConditionalAccessGoogleStatus{}, *g.getConfig().ConditionalAccess.Google)
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	g.client.reset()
+
+	// Adding it back needs a key, since the removal deleted it. With one, adding it back
+	// for the same customer registers again and finds the device rows.
+	addedBefore = g.addedCount()
+	patch(`{"integrations": {"google_conditional_access": {"customer_id": "C03other", "admin_email": "admin2@example.com"}}}`,
+		http.StatusUnprocessableEntity)
+	g.requireCalls(nil, nil, nil)
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+	patch(`{"integrations": {"google_conditional_access": {"customer_id": "C03other", "admin_email": "admin2@example.com", "api_key_json": `+key+`}}}`,
+		http.StatusOK)
+	g.requireCalls([]string{"admin2@example.com/C03other"}, []string{"C03other"}, nil)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C03other"))
+	require.Equal(t, addedBefore+1, g.addedCount())
+	g.client.reset()
+
+	// Start over without a row, as after the cleanup of a deleted integration.
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.deleteRows(ctx)
+	g.client.reset()
+
+	// After a key upload that fleetdm.com failed, an unrelated config update doesn't retry,
+	// so it can't fail because of Google or fleetdm.com.
+	g.client.registerErr = errors.New("fleetdm.com unavailable")
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusBadGateway)
+	g.client.reset()
+	g.client.registerErr = errors.New("still unavailable")
+	patch(`{"org_info": {"org_name": "Fleet"}}`, http.StatusOK)
+	g.requireCalls(nil, nil, nil)
+
+	// Resending the same settings retries, and a failed retry is recorded rather than failing the update.
+	patch(settings, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	cfg = g.getConfig()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, cfg.ConditionalAccess.Google.State)
+	require.Contains(t, *cfg.ConditionalAccess.Google.ErrorMessage, "still unavailable")
+	g.client.reset()
+	// A Google outage during a retry says nothing about the delegation, so the connection
+	// state is kept for the next retry.
+	g.client.checkErr = googleOutageError{}
+	patch(settings, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	cfg = g.getConfig()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, cfg.ConditionalAccess.Google.State)
+	require.Contains(t, *cfg.ConditionalAccess.Google.ErrorMessage, "still unavailable")
+	g.client.reset()
+	g.client.checkErr = errors.New("Not Authorized to access this resource/api")
+	patch(settings, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	cfg = g.getConfig()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, cfg.ConditionalAccess.Google.State)
+	require.Contains(t, *cfg.ConditionalAccess.Google.ErrorMessage, "Not Authorized to access this resource/api")
+	g.client.reset()
+	patch(settings, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	cfg = g.getConfig()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, cfg.ConditionalAccess.Google.State)
+	require.Nil(t, cfg.ConditionalAccess.Google.ErrorMessage)
+	g.client.reset()
+
+	// Turning off an integration whose connection never completed still removes the key.
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.deleteRows(ctx)
+	g.client.registerErr = errors.New("fleetdm.com unavailable")
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusBadGateway)
+	require.NotNil(t, g.storedKey())
+	g.client.reset()
+	gitopsTurnOff()
+	g.requireCalls(nil, nil, nil)
+	require.Nil(t, g.storedKey())
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDeleted, row.State)
+
+	// In overwrite mode (GitOps) the given object replaces the settings rather than merging.
+	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
+	g.client.reset()
+	settingsBefore = g.getConfig().Integrations.GoogleConditionalAccess
+	rowBefore, err := s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	res = s.DoRaw("PATCH", "/api/latest/fleet/config?overwrite=true", []byte(`{
+		"integrations": {"google_conditional_access": {"customer_id": "C02cajzvg"}}
+	}`), http.StatusUnprocessableEntity)
+	name, _ = extractServerErrorNameReason(res.Body)
+	require.Equal(t, "integrations.google_conditional_access.admin_email", name)
+	g.requireCalls(nil, nil, nil)
+	require.Equal(t, settingsBefore, g.getConfig().Integrations.GoogleConditionalAccess)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, rowBefore, row)
+
+	// A registration that fails after a customer ID change returns the error but keeps the
+	// new settings in the config, so the config and the connection state agree and
+	// resending them retries. The other changes in the same update still get their side
+	// effects. The previous registration is gone and nothing replaced it, so the deletion
+	// is logged, and the retry logs the addition.
+	origAgentOptions := g.getConfig().AgentOptions
+	require.NotNil(t, origAgentOptions)
+	agentOptionsEdits := s.countActivitiesOfType(fleet.ActivityTypeEditedAgentOptions{}.ActivityName())
+	addedBefore, deletedBefore, editedBefore = g.addedCount(), g.deletedCount(), g.editedCount()
+	g.client.registerErr = errors.New("fleetdm.com unavailable")
+	patch(`{
+		"agent_options": {"config": {"options": {"distributed_interval": 13}}},
+		"integrations": {"google_conditional_access": {"customer_id": "C03other"}}
+	}`, http.StatusBadGateway)
+	g.requireCalls([]string{"admin@example.com/C03other"}, []string{"C03other"}, []string{"C02cajzvg"})
+	require.Equal(t, agentOptionsEdits+1, s.countActivitiesOfType(fleet.ActivityTypeEditedAgentOptions{}.ActivityName()))
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	// Forced: the suite's agent options don't all pass validation.
+	s.Do("PATCH", "/api/latest/fleet/config?force=true", json.RawMessage(`{"agent_options": `+string(*origAgentOptions)+`}`), http.StatusOK)
+	cfg = g.getConfig()
+	require.Equal(t, "C03other", cfg.Integrations.GoogleConditionalAccess.CustomerID)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, cfg.ConditionalAccess.Google.State)
+	g.client.reset()
+	patch(`{"integrations": {"google_conditional_access": {"customer_id": "C03other", "admin_email": "admin@example.com"}}}`, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C03other"}, []string{"C03other"}, nil)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, g.getConfig().ConditionalAccess.Google.State)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
+	g.client.reset()
+
+	// Changing the customer ID with no stored key is rejected and keeps the previous
+	// customer's registration.
+	require.NoError(t, s.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}))
+	patch(`{"integrations": {"google_conditional_access": {"customer_id": "C04third"}}}`, http.StatusUnprocessableEntity)
+	g.requireCalls(nil, nil, nil)
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
+	require.Equal(t, "C03other", g.getConfig().Integrations.GoogleConditionalAccess.CustomerID)
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAppConfigKey() {
+	t := s.T()
+	ctx := t.Context()
+	g := s.newGoogleCATest()
+	key := newGoogleCATestKey(t, "sa@example.iam.gserviceaccount.com")
+	withKey := func(key string) []byte {
+		return []byte(`{"integrations": {"google_conditional_access": {
+			"customer_id": "C02cajzvg", "admin_email": "admin@example.com", "api_key_json": ` + key + `}}}`)
+	}
+
+	// A gitops user can turn it on with the key, which is stored encrypted and never in the
+	// app config.
+	gitops := &fleet.User{Name: "GCA key gitops", Email: "gca-key-gitops@example.com", GlobalRole: new(fleet.RoleGitOps)}
+	require.NoError(t, gitops.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(ctx, gitops)
+	require.NoError(t, err)
+	addedBefore, editedBefore := g.addedCount(), g.editedCount()
+	s.setTokenForTest(t, gitops.Email, test.GoodPassword)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", withKey(key), http.StatusOK)
+	s.token = s.getTestAdminToken()
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	require.JSONEq(t, key, string(g.storedKey()))
+	require.Equal(t, addedBefore+1, g.addedCount())
+	stored, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.GoogleConditionalAccessIntegration{CustomerID: "C02cajzvg", AdminEmail: "admin@example.com"},
+		stored.Integrations.GoogleConditionalAccess)
+
+	// GET config shows the key masked, next to the status.
+	cfg := g.getConfig()
+	require.Equal(t, fleet.GoogleServiceAccountKey(fleet.MaskedPassword), cfg.Integrations.GoogleConditionalAccess.APIKeyJSON)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, cfg.ConditionalAccess.Google.State)
+	g.client.reset()
+
+	// Resending the same key or the masked value makes no call.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", withKey(key), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", withKey(`"********"`), http.StatusOK)
+	g.requireCalls(nil, nil, nil)
+
+	// A new key is checked and replaces the stored one, without re-registering.
+	key2 := newGoogleCATestKey(t, "sa2@example.iam.gserviceaccount.com")
+	s.DoRaw("PATCH", "/api/latest/fleet/config", withKey(key2), http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	require.JSONEq(t, key2, string(g.storedKey()))
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, editedBefore+1, g.editedCount())
+	g.client.reset()
+
+	// A new key that fails the check is rejected and the stored one is kept.
+	g.client.checkErr = errors.New("unauthorized_client")
+	key3 := newGoogleCATestKey(t, "sa3@example.iam.gserviceaccount.com")
+	res := s.DoRaw("PATCH", "/api/latest/fleet/config", withKey(key3), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "unauthorized_client")
+	require.JSONEq(t, key2, string(g.storedKey()))
 }

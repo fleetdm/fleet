@@ -3,8 +3,8 @@ import { IMdmVppToken } from "interfaces/mdm";
 
 import { fleetsForApi, valueFromToken } from "./helpers";
 
-const token = (teams: IMdmVppToken["teams"]): IMdmVppToken =>
-  createMockVppToken({ teams });
+const token = (fleets: IMdmVppToken["fleets"]): IMdmVppToken =>
+  createMockVppToken({ fleets });
 
 describe("VppFleetsSelector helpers", () => {
   describe("valueFromToken", () => {
@@ -26,8 +26,8 @@ describe("VppFleetsSelector helpers", () => {
       expect(
         valueFromToken(
           token([
-            { team_id: 0, name: "No team" },
-            { team_id: 2, name: "Pirates" },
+            { fleet_id: 0, name: "No team" },
+            { fleet_id: 2, name: "Pirates" },
           ])
         )
       ).toEqual({ allFleets: false, fleetIds: [0, 2] });

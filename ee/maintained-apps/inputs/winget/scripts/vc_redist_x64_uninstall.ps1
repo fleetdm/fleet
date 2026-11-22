@@ -51,6 +51,7 @@ foreach ($key in $keys) {
       $exe = $raw; $exeArgs = ""
   }
 
+  $bundleKey = $key
   $exitCode = Invoke-Uninstaller -exe $exe -exeArgs $exeArgs
   break
 }
@@ -65,6 +66,13 @@ if ($null -eq $exitCode) {
 }
 
 Write-Host "Uninstall exit code: $exitCode"
+# Burn also exits 3010 without changing anything while a restart from an
+# earlier install or upgrade of this bundle is pending. A completed uninstall
+# removes the bundle's entry even when it needs a restart.
+if ($exitCode -eq 3010 -and (Test-Path $bundleKey)) {
+  Write-Host "Nothing was uninstalled: a restart is pending from an earlier install or upgrade. Restart the host, then uninstall again."
+  Exit 1
+}
 # 0 = success, 3010 = success but reboot required, 1641 = reboot initiated
 if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
 Exit $exitCode

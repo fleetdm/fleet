@@ -17,17 +17,17 @@ type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
   "unlocked"
 >;
 
-// We exclude "unlocked" as we dont display any device status tag for it, and
-// "unenrolling" because Android BYOD unenroll intentionally shows no badge (#41683).
-type HostMdmDeviceStatusUIStateWithTag = Exclude<
-  HostMdmDeviceStatusUIStateNoUnlock,
-  "unenrolling"
->;
-
+// We exclude "unlocked" as we dont display any device status tag for it.
 type DeviceStatusTagConfig = Record<
-  HostMdmDeviceStatusUIStateWithTag,
+  HostMdmDeviceStatusUIStateNoUnlock,
   IDeviceStatusTag
 >;
+
+const RESET_TAG: IDeviceStatusTag = {
+  title: "Reset",
+  tagType: "error",
+  generateTooltip: () => "Host is resetting.",
+};
 
 export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locked: {
@@ -122,11 +122,30 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     generateTooltip: () =>
       "Host will wipe when it comes online. If the host is online, it will wipe the next time it checks in to Fleet.",
   },
+  reset: RESET_TAG,
+  reset_wipe_pending: {
+    ...RESET_TAG,
+    generateTooltip: () =>
+      "Host is resetting. If the reset doesn't complete, the host will wipe.",
+  },
+  resetting: {
+    title: "Reset pending",
+    tagType: "error",
+    generateTooltip: () =>
+      "Host will reset when it comes online. If the host is online, it will reset the next time it checks in to Fleet.",
+  },
   clearing_passcode: {
     title: "Clear passcode pending",
     tagType: "warning",
     generateTooltip: () =>
       "Passcode will clear when the host comes online. If the host is online, it will clear the next time it checks in to Fleet.",
+  },
+  /** Android BYOD only: Unenroll and Wipe both remove the work profile. */
+  unenrolling: {
+    title: "Unenroll pending",
+    tagType: "warning",
+    generateTooltip: () =>
+      "Host will unenroll when it comes online. If the host is online, it will unenroll the next time it checks in to Fleet.",
   },
 };
 
@@ -169,6 +188,22 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
   wiped: (
     <>
       You can&apos;t fetch data from <br /> a wiped host.
+    </>
+  ),
+  resetting: (
+    <>
+      You can&apos;t fetch data from <br /> a resetting host.
+    </>
+  ),
+  reset: (
+    <>
+      You can&apos;t fetch data from <br /> a reset host.
+    </>
+  ),
+  // Same as reset
+  reset_wipe_pending: (
+    <>
+      You can&apos;t fetch data from <br /> a reset host.
     </>
   ),
   clearing_passcode: (

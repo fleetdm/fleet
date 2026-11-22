@@ -347,10 +347,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceScriptStatusFuncInvoked = false
-				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, uuid string) (*fleet.Host, error) {
 					require.Equal(t, hostUUID, uuid)
 					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
-				}
+				})
 
 				result := fleet.SetupExperienceScriptResult{
 					HostUUID:    hostUUID,
@@ -403,10 +403,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
-				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, uuid string) (*fleet.Host, error) {
 					require.Equal(t, hostUUID, uuid)
 					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
-				}
+				})
 
 				result := fleet.SetupExperienceSoftwareInstallResult{
 					HostUUID:        hostUUID,
@@ -470,10 +470,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					return true, nil
 				}
 				ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
-				ds.HostByIdentifierFunc = func(ctx context.Context, uuid string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, uuid string) (*fleet.Host, error) {
 					require.Equal(t, hostUUID, uuid)
 					return &fleet.Host{ID: 1, UUID: uuid, Platform: "linux"}, nil
-				}
+				})
 
 				result := fleet.SetupExperienceVPPInstallResult{
 					HostUUID:      hostUUID,
@@ -506,14 +506,14 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 			require.Equal(t, fleet.SetupExperienceStatusFailure, status)
 			return true, nil
 		}
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID:       1,
 				UUID:     hostUUID,
 				Platform: "darwin",
 				TeamID:   &teamID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			require.Equal(t, teamID, tid)
 			return &fleet.TeamLite{
@@ -611,14 +611,14 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		}
 		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
 
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID:       1,
 				UUID:     hostUUID,
 				Platform: "darwin",
 				TeamID:   &teamID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			return &fleet.TeamLite{
 				ID: teamID,
@@ -707,10 +707,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.Equal(t, 1, activityCallCount, "activity should still have been emitted only once (no duplicate)")
 	})
 
-	t.Run("windows software install failure with require_all_software_windows=true emits activity and cancels", func(t *testing.T) {
+	t.Run("windows software install failure with windows_require_all_software=true emits activity and cancels", func(t *testing.T) {
 		// Mirror of "software install failure triggers cancel and activity"
 		// for a Windows host. Asserts that the same emit-once-per-host
-		// invariant holds when the gating setting is `require_all_software_windows`
+		// invariant holds when the gating setting is `windows_require_all_software`
 		// (rather than `require_all_software`, which is the macOS counterpart).
 		teamID := uint(1)
 		failedSoftwareTitleID := uint(99)
@@ -728,12 +728,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		// (see fleet.HostUUIDForSetupExperience). Set it so the cancel
 		// helper can locate setup-experience rows.
 		osqueryHostID := "windows-osquery-id"
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID: 2, UUID: hostUUID, Platform: "windows",
 				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			require.Equal(t, teamID, tid)
 			return &fleet.TeamLite{
@@ -805,7 +805,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 		require.NoError(t, err)
 		require.True(t, updated)
-		require.True(t, activityFnCalled, "Windows host with require_all_software_windows=true must emit canceled_setup_experience")
+		require.True(t, activityFnCalled, "Windows host with windows_require_all_software=true must emit canceled_setup_experience")
 		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "Windows host must cancel pending setup-experience steps")
 		require.True(t, ds.CancelHostUpcomingActivityFuncInvoked)
 
@@ -913,12 +913,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 					return true, nil
 				}
-				ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+				mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 					return &fleet.Host{
 						ID: 7, UUID: hostUUID, Platform: "windows", ComputerName: computerName,
 						TeamID: &teamID, OsqueryHostID: &osqueryHostID,
 					}, nil
-				}
+				})
 				ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 					return &fleet.TeamLite{
 						ID: teamID,
@@ -1001,7 +1001,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 
 	t.Run("software install failure with require_all=false does not emit activity or cancel", func(t *testing.T) {
 		// Spec invariant: when require_all_software (macOS) /
-		// require_all_software_windows (Windows) is false, a software
+		// windows_require_all_software (Windows) is false, a software
 		// install failure during ESP MUST NOT cancel pending steps and MUST
 		// NOT emit a canceled_setup_experience activity. The device just
 		// proceeds to the desktop and the failure is visible only in
@@ -1018,12 +1018,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		// it does NOT reach that path because of the require_all=false
 		// early-return.
 		osqueryHostID := "windows-osquery-id-noreq"
-		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		mockHostBySetupExperienceUUID(&ds.DataStore, func(ctx context.Context, identifier string) (*fleet.Host, error) {
 			return &fleet.Host{
 				ID: 3, UUID: hostUUID, Platform: "windows",
 				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
 			}, nil
-		}
+		})
 		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 			return &fleet.TeamLite{
 				ID: teamID,
@@ -1064,4 +1064,20 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked,
 			"require_all=false should early-return before listing setup-experience results")
 	})
+}
+
+// mockHostBySetupExperienceUUID has HostIDBySetupExperienceUUID and Host return the host that get gives for a setup experience UUID.
+func mockHostBySetupExperienceUUID(ds *mock.DataStore, get func(ctx context.Context, uuid string) (*fleet.Host, error)) {
+	hosts := make(map[uint]*fleet.Host)
+	ds.HostIDBySetupExperienceUUIDFunc = func(ctx context.Context, uuid string) (uint, error) {
+		host, err := get(ctx, uuid)
+		if err != nil {
+			return 0, err
+		}
+		hosts[host.ID] = host
+		return host.ID, nil
+	}
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return hosts[id], nil
+	}
 }

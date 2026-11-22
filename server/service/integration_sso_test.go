@@ -296,7 +296,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 	}
 
 	t.Run("global premium roles", func(t *testing.T) {
-		for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+		for _, role := range []string{fleet.RoleTechnician, fleet.RoleObserverPlus} {
 			// Create user.
 			u := &fleet.User{
 				Name:       "SSO User 2",
@@ -359,7 +359,6 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	newRawPwd := "new_password2!"
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       nonSSOUser.ID,
 	}, http.StatusOK, &perfPwdResetResp)
 	require.False(t, perfPwdResetResp.User.AdminForcedPasswordReset)
 
@@ -380,7 +379,6 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	newRawPwd = "new_password2!"
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       nonSSOUser.ID,
 	}, http.StatusForbidden, &perfPwdResetResp)
 }
 

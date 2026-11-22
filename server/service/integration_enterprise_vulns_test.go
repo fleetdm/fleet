@@ -122,7 +122,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 
 			// Entity endpoint kernels field should be empty
 			require.NoError(t, s.ds.UpdateOSVersions(ctx))
-			resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
+			resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, "fleet_id", fmt.Sprintf("%d", 0))
 			bodyBytes, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 			assert.Contains(t, string(bodyBytes), `"kernels": []`)
@@ -144,7 +144,6 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 			}
 
 			assert.Equal(t, 1, osVersion.HostsCount)
-			assert.Equal(t, fmt.Sprintf("%s %s", tt.os.Name, tt.os.Version), osVersion.Name)
 			assert.Equal(t, tt.os.Name, osVersion.NameOnly)
 			assert.Equal(t, tt.os.Version, osVersion.Version)
 			assert.Equal(t, tt.os.Platform, osVersion.Platform)
@@ -152,7 +151,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxOSVulns() {
 
 			// Test entity endpoint
 			var osVersionResp getOSVersionResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersion.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", fmt.Sprintf("%d", 0))
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osVersion.OSVersionID), nil, http.StatusOK, &osVersionResp, "fleet_id", fmt.Sprintf("%d", 0))
 			require.NotNil(t, osVersionResp.OSVersion.Kernels)
 			kernels := *osVersionResp.OSVersion.Kernels
 			assert.Len(t, kernels, len(tt.software))

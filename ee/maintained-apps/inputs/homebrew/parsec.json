@@ -1,0 +1,12 @@
+{
+  "name": "Parsec",
+  "unique_identifier": "tv.parsec.www",
+  "token": "parsec",
+  "installer_format": "pkg",
+  "slug": "parsec/darwin",
+  "default_categories": ["Productivity"],
+  "post_uninstall_scripts": [
+    "trash \"$LOGGED_IN_USER\" '/Users/Shared/.parsec'",
+    "trash \"$LOGGED_IN_USER\" '/Users/Shared/.parsec-persistent'"
+  ]
+}

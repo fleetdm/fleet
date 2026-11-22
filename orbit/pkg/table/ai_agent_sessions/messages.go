@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
 const (
@@ -246,8 +248,12 @@ func (r *recorder) wanted() bool {
 	return r.q != nil && !r.past && !r.q.calls.set && r.onPage()
 }
 
+// onPage also holds a block to the query's time range. Each block is checked,
+// rather than the range being skipped to or stopped at: a session's times
+// don't always follow its order.
 func (r *recorder) onPage() bool {
-	return r.msgIndex >= r.q.messages.lo && (r.msgIndex > r.q.messages.lo || r.blockIndex >= r.q.blockLo)
+	return r.msgIndex >= r.q.messages.lo && (r.msgIndex > r.q.messages.lo || r.blockIndex >= r.q.blockLo) &&
+		r.q.times.allows(unixSeconds(r.ts))
 }
 
 // Every block of a message takes a block index, whether or not it becomes a
@@ -356,7 +362,7 @@ func (r *recorder) add(m Message, content string) bool {
 		content = fitToolInput(content, r.q.maxContent)
 		m.Truncated = true
 	default:
-		content = truncateUTF8(content, r.q.maxContent)
+		content = str.TruncateBytes(content, r.q.maxContent, "")
 		if jsonLen(content) > maxNamedBlockBytes {
 			content = truncateJSON(content, maxNamedBlockBytes)
 		}
@@ -371,18 +377,6 @@ func (r *recorder) add(m Message, content string) bool {
 	r.q.rows++
 	r.out = append(r.out, m)
 	return true
-}
-
-// truncateUTF8 cuts s to at most limit bytes without splitting a rune.
-func truncateUTF8(s string, limit int) string {
-	if len(s) <= limit {
-		return s
-	}
-	cut := limit
-	for cut > 0 && !utf8.RuneStart(s[cut]) {
-		cut--
-	}
-	return s[:cut]
 }
 
 // truncateJSON cuts s so its JSON-escaped form is at most limit bytes.
@@ -401,7 +395,7 @@ func truncateJSON(s string, limit int) string {
 	return s
 }
 
-func capField(s string) string { return truncateUTF8(s, maxFieldBytes) }
+func capField(s string) string { return str.TruncateBytes(s, maxFieldBytes, "") }
 
 // textOf flattens a message body: a string, a block with a "text" field, or
 // an array of them, nested at most twice. Anything else (images, unknown
