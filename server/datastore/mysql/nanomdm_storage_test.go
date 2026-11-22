@@ -31,11 +31,12 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestEnqueueDeviceLockReplacesOrphanRef", testEnqueueDeviceLockReplacesOrphanRef},
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
-		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
+		{"TestStoreAuthenticateKeepsBootstrapToken", testStoreAuthenticateKeepsBootstrapToken},
 		{"TestRetrievePushCert", testRetrievePushCert},
 		{"TestIsPushCertStale", testIsPushCertStale},
 		{"TestStorePushCert", testStorePushCert},
 		{"TestDisable", testNanoDisable},
+		{"TestRetrieveNextCommand", testRetrieveNextCommand},
 	}
 
 	for _, c := range cases {
@@ -63,8 +64,10 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
+	listOpts := &fleet.MDMCommandListOptions{PerPage: 10, Filters: fleet.MDMCommandFilters{HostIdentifier: host.UUID}}
+
 	// no commands yet
-	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -77,23 +80,17 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has no results yet, so the status is empty
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 
 	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-
-	require.ElementsMatch(t, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    host.UUID,
-			CommandUUID: "cmd-uuid",
-			Status:      "Pending",
-			RequestType: "DeviceLock",
-			Hostname:    host.Hostname,
-			TeamID:      nil,
-		},
-	}, res)
+	require.Equal(t, host.UUID, res[0].HostUUID)
+	require.Equal(t, "cmd-uuid", res[0].CommandUUID)
+	require.Equal(t, "Pending", res[0].Status)
+	require.Equal(t, "DeviceLock", res[0].RequestType)
+	require.Equal(t, host.Hostname, res[0].Hostname)
+	require.Nil(t, res[0].TeamID)
 
 	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
@@ -117,8 +114,10 @@ func testEnqueueDeviceUnlockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
+	listOpts := &fleet.MDMCommandListOptions{PerPage: 10, Filters: fleet.MDMCommandFilters{HostIdentifier: host.UUID}}
+
 	// no commands yet
-	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Empty(t, res)
 
@@ -131,23 +130,17 @@ func testEnqueueDeviceUnlockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// command has no results yet, so the status is empty
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	res, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, listOpts)
 	require.NoError(t, err)
 	require.Len(t, res, 1)
 
 	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-
-	require.ElementsMatch(t, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    host.UUID,
-			CommandUUID: "cmd-uuid",
-			Status:      "Pending",
-			RequestType: "DisableLostMode",
-			Hostname:    host.Hostname,
-			TeamID:      nil,
-		},
-	}, res)
+	require.Equal(t, host.UUID, res[0].HostUUID)
+	require.Equal(t, "cmd-uuid", res[0].CommandUUID)
+	require.Equal(t, "Pending", res[0].Status)
+	require.Equal(t, "DisableLostMode", res[0].RequestType)
+	require.Equal(t, host.Hostname, res[0].Hostname)
+	require.Nil(t, res[0].TeamID)
 
 	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
@@ -311,12 +304,10 @@ func testEnqueueDeviceLockReplacesOrphanRef(t *testing.T, ds *Datastore) {
 	require.Equal(t, "orphan-lock-cmd-2", lockRef)
 }
 
-// testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal verifies that
-// StoreAuthenticate does NOT clear the bootstrap token when a SCEP renewal is
-// in progress (renew_command_uuid is set in nano_cert_auth_associations), and
-// DOES clear it on a normal (re-)enrollment.
-// See https://github.com/fleetdm/fleet/issues/41167
-func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T, ds *Datastore) {
+// testStoreAuthenticateKeepsBootstrapToken verifies that StoreAuthenticate never updates the bootstrap token.
+// it only gets set or updated by the SetBootstrapToken command, to avoid false clears.
+// https://github.com/fleetdm/fleet/issues/57441
+func testStoreAuthenticateKeepsBootstrapToken(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	ns, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
@@ -349,7 +340,8 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	// Helper to read bootstrap_token_b64 from nano_devices.
 	getBootstrapToken := func() sql.NullString {
 		var token sql.NullString
-		err := ds.writer(ctx).QueryRowContext(ctx,
+		err := ds.writer(ctx).QueryRowContext(
+			ctx,
 			`SELECT bootstrap_token_b64 FROM nano_devices WHERE id = ?`, deviceUUID,
 		).Scan(&token)
 		require.NoError(t, err)
@@ -361,7 +353,7 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.True(t, token.Valid)
 	require.Equal(t, bootstrapToken, token.String)
 
-	// --- Case 1: Normal re-enrollment (no SCEP renewal) should clear the bootstrap token ---
+	// --- Case 1: Normal re-enrollment (no SCEP renewal) should not clear the bootstrap token ---
 
 	authMsg := &mdm.Authenticate{
 		Enrollment: mdm.Enrollment{UDID: deviceUUID},
@@ -377,16 +369,9 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.NoError(t, err)
 
 	token = getBootstrapToken()
-	require.False(t, token.Valid, "bootstrap token should be cleared on normal re-enrollment")
+	require.True(t, token.Valid, "bootstrap token should not be cleared on normal re-enrollment")
 
-	// --- Restore the bootstrap token for the next test case ---
-
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`UPDATE nano_devices SET bootstrap_token_b64 = ?, bootstrap_token_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		bootstrapToken, deviceUUID)
-	require.NoError(t, err)
-
-	// --- Case 2: SCEP renewal in progress should preserve the bootstrap token ---
+	// --- Case 2: SCEP renewal in progress should not clear the bootstrap token ---
 
 	// Simulate SCEP renewal by inserting a nano_command and setting renew_command_uuid.
 	renewCmdUUID := uuid.NewString()
@@ -413,7 +398,7 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.True(t, token.Valid, "bootstrap token should be preserved during SCEP renewal")
 	require.Equal(t, bootstrapToken, token.String)
 
-	// --- Case 3: After SCEP renewal completes (renew_command_uuid cleared), token should be cleared again ---
+	// --- Case 3: After SCEP renewal completes (renew_command_uuid cleared), token should still not be cleared ---
 
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`UPDATE nano_cert_auth_associations SET renew_command_uuid = NULL WHERE id = ?`,
@@ -430,7 +415,7 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.NoError(t, err)
 
 	token = getBootstrapToken()
-	require.False(t, token.Valid, "bootstrap token should be cleared after SCEP renewal completes")
+	require.True(t, token.Valid, "bootstrap token should still not be cleared after SCEP renewal completes")
 }
 
 func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
@@ -548,7 +533,8 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 	var lockRef string
 	err = ds.writer(ctx).QueryRow(
 		`SELECT COALESCE(unlock_pin, ''), COALESCE(lock_ref, '') FROM host_mdm_actions WHERE host_id = ?`,
-		host.ID).Scan(&storedPIN, &lockRef)
+		host.ID,
+	).Scan(&storedPIN, &lockRef)
 	require.NoError(t, err)
 
 	// Log the results
@@ -754,4 +740,116 @@ func testNanoDisable(t *testing.T, ds *Datastore) {
 
 	// A user-channel request is rejected.
 	require.Error(t, ns.Disable(&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: userID, ParentID: host.UUID}}))
+}
+
+func testRetrieveNextCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	newEnrolledHost := func(hostUUID string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "next-cmd-" + hostUUID,
+			OsqueryHostID: new("next-cmd-osquery-" + hostUUID),
+			NodeKey:       new("next-cmd-nodekey-" + hostUUID),
+			UUID:          hostUUID,
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		return h
+	}
+	otherHost := newEnrolledHost(uuid.NewString())
+
+	enqueue := func(cmdUUID string, subtype mdm.CommandSubtype, ids ...string) {
+		cmd := &mdm.CommandWithSubtype{Subtype: subtype}
+		cmd.CommandUUID = cmdUUID
+		cmd.Command.Command.RequestType = "InstallProfile"
+		cmd.Raw = []byte("<?xml " + cmdUUID)
+		_, err := ns.EnqueueCommand(ctx, ids, cmd)
+		require.NoError(t, err)
+	}
+	report := func(id, cmdUUID, status string) {
+		err := ns.StoreCommandReport(
+			&mdm.Request{EnrollID: &mdm.EnrollID{ID: id}, Context: ctx},
+			&mdm.CommandResults{CommandUUID: cmdUUID, Status: status, Raw: []byte("<?xml")},
+		)
+		require.NoError(t, err)
+	}
+	updateQueued := func(id, cmdUUID, set string, args ...any) {
+		args = append(args, id, cmdUUID)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE nano_enrollment_queue SET `+set+` WHERE id = ? AND command_uuid = ?`, args...)
+		require.NoError(t, err)
+	}
+	next := func(id string, skipNotNow bool) *mdm.CommandWithSubtype {
+		cmd, err := ns.RetrieveNextCommand(&mdm.Request{EnrollID: &mdm.EnrollID{ID: id}, Context: ctx}, skipNotNow)
+		require.NoError(t, err)
+		return cmd
+	}
+	requireNext := func(id string, skipNotNow bool, wantCmdUUID string) {
+		t.Helper()
+		cmd := next(id, skipNotNow)
+		require.NotNil(t, cmd)
+		require.Equal(t, wantCmdUUID, cmd.CommandUUID)
+	}
+
+	// UUID enrollment IDs are inlined in the query, any other ID is passed as an argument.
+	for name, id := range map[string]string{
+		"uuid id":     uuid.NewString(),
+		"non-uuid id": "00008110-0012083A1190201E",
+	} {
+		t.Run(name, func(t *testing.T) {
+			newEnrolledHost(id)
+			cmdUUID := func(n int) string { return fmt.Sprintf("%s-cmd-%d", id, n) }
+			base := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+
+			require.Nil(t, next(id, false))
+			require.Nil(t, next(id, true))
+
+			// Enqueued newest first, so the order returned can only come from created_at.
+			enqueue(cmdUUID(3), mdm.CommandSubtypeNone, id)
+			enqueue(cmdUUID(2), mdm.CommandSubtypeNone, id)
+			enqueue(cmdUUID(1), mdm.CommandSubtypeProfileWithSecrets, id, otherHost.UUID)
+			for n := 1; n <= 3; n++ {
+				updateQueued(id, cmdUUID(n), "created_at = ?", base.Add(time.Duration(n)*time.Minute))
+			}
+
+			cmd := next(id, false)
+			require.NotNil(t, cmd)
+			require.Equal(t, cmdUUID(1), cmd.CommandUUID)
+			require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+			require.Equal(t, "<?xml "+cmdUUID(1), string(cmd.Raw))
+			require.Equal(t, mdm.CommandSubtypeProfileWithSecrets, cmd.Subtype)
+
+			// A result from another enrollment does not complete the command for this one.
+			report(otherHost.UUID, cmdUUID(1), "Acknowledged")
+			requireNext(id, false, cmdUUID(1))
+
+			report(id, cmdUUID(1), "Acknowledged")
+			requireNext(id, false, cmdUUID(2))
+			report(id, cmdUUID(2), "Error")
+			requireNext(id, false, cmdUUID(3))
+
+			report(id, cmdUUID(3), "NotNow")
+			requireNext(id, false, cmdUUID(3))
+			require.Nil(t, next(id, true))
+
+			enqueue(cmdUUID(4), mdm.CommandSubtypeNone, id)
+			updateQueued(id, cmdUUID(4), "created_at = ?", base.Add(4*time.Minute))
+			requireNext(id, false, cmdUUID(3))
+			requireNext(id, true, cmdUUID(4))
+
+			updateQueued(id, cmdUUID(4), "priority = 1")
+			requireNext(id, false, cmdUUID(4))
+
+			updateQueued(id, cmdUUID(4), "active = 0")
+			requireNext(id, false, cmdUUID(3))
+			require.Nil(t, next(id, true))
+
+			report(id, cmdUUID(3), "Acknowledged")
+			require.Nil(t, next(id, false))
+			require.Nil(t, next(id, true))
+		})
+	}
 }

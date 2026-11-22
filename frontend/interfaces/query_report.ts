@@ -12,7 +12,7 @@ export interface IQueryReportMeta {
 
 // Query report
 export interface IQueryReport {
-  query_id: number;
+  report_id: number;
   results: IQueryReportResultRow[];
   report_clipped: boolean;
   /** Total number of results matching the request, across all pages. */

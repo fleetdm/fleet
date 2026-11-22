@@ -142,7 +142,11 @@ const generateColumnConfigs = ({
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { id, team_id, observer_can_run } = cellProps.row.original;
+        const {
+          id,
+          fleet_id: queryFleetId,
+          observer_can_run,
+        } = cellProps.row.original;
         return (
           <LinkCell
             className="w400"
@@ -167,7 +171,7 @@ const generateColumnConfigs = ({
                 )}
                 {viewingTeamScope &&
                   // inherited
-                  team_id !== currentTeamId && (
+                  queryFleetId !== currentTeamId && (
                     <Tag tooltip="This report runs on all hosts." size="small">
                       Inherited
                     </Tag>
@@ -175,7 +179,7 @@ const generateColumnConfigs = ({
               </>
             }
             path={getPathWithQueryParams(PATHS.REPORT_DETAILS(id), {
-              fleet_id: team_id ?? currentTeamId,
+              fleet_id: queryFleetId ?? currentTeamId,
             })}
           />
         );
@@ -293,7 +297,7 @@ const generateColumnConfigs = ({
         const checkboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
           checkIfRowIsSelectable: (row) =>
-            (row.original.team_id ?? undefined) === currentTeamId,
+            (row.original.fleet_id ?? undefined) === currentTeamId,
         });
 
         return (
@@ -313,7 +317,7 @@ const generateColumnConfigs = ({
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const isInheritedQuery =
-          (cellProps.row.original.team_id ?? undefined) !== currentTeamId;
+          (cellProps.row.original.fleet_id ?? undefined) !== currentTeamId;
         if (viewingTeamScope && isInheritedQuery) {
           // disallow selecting inherited queries
           return <></>;

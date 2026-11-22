@@ -18,7 +18,7 @@ import (
 )
 
 type runLiveQueryRequest struct {
-	QueryIDs []uint `json:"query_ids" renameto:"report_ids"`
+	QueryIDs []uint `json:"report_ids" removedkey:"query_ids"`
 	HostIDs  []uint `json:"host_ids"`
 }
 
@@ -28,13 +28,8 @@ type runOneLiveQueryRequest struct {
 }
 
 type runLiveQueryOnHostRequest struct {
-	Identifier string `url:"identifier"`
+	Identifier string `url:"id"`
 	Query      string `json:"query"`
-}
-
-type runLiveQueryOnHostByIDRequest struct {
-	HostID uint   `url:"id"`
-	Query  string `json:"query"`
 }
 
 type summaryPayload struct {
@@ -46,13 +41,13 @@ type runLiveQueryResponse struct {
 	Summary summaryPayload `json:"summary"`
 	Err     error          `json:"error,omitempty"`
 
-	Results []fleet.QueryCampaignResult `json:"live_query_results" renameto:"live_report_results"`
+	Results []fleet.QueryCampaignResult `json:"live_report_results"`
 }
 
 func (r runLiveQueryResponse) Error() error { return r.Err }
 
 type runOneLiveQueryResponse struct {
-	QueryID            uint                `json:"query_id" renameto:"report_id"`
+	QueryID            uint                `json:"report_id"`
 	TargetedHostCount  int                 `json:"targeted_host_count"`
 	RespondedHostCount int                 `json:"responded_host_count"`
 	Results            []fleet.QueryResult `json:"results"`
@@ -127,20 +122,11 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
-	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
+	host, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostLite, error) {
+		return svc.HostLiteByID(ctx, hostID)
+	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
-	}
-
-	return runLiveQueryOnHost(svc, ctx, host, req.Query)
-}
-
-func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*runLiveQueryOnHostByIDRequest)
-
-	host, err := svc.HostLiteByID(ctx, req.HostID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %d: %s", req.HostID, err.Error())))
 	}
 
 	return runLiveQueryOnHost(svc, ctx, host, req.Query)

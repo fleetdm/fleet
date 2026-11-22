@@ -34,7 +34,7 @@ const (
 	// HostSecretPSSODeviceRegistrationToken is the host secret type for the Apple
 	// Platform SSO device registration token. The token is not stored: it is a
 	// Fleet-signed JWT minted on the fly for the requesting host at command
-	// delivery time, so it never appears in the database or on /mdm/commands.
+	// delivery time, so it never appears in the database or on /commands.
 	HostSecretPSSODeviceRegistrationToken = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
 
 	// HostSecretEnrollSecret is the host secret type for the per-device,
@@ -52,6 +52,11 @@ const (
 	// created for the enrollment the first time the profile is delivered and re-delivered unchanged until it's
 	// consumed or expires.
 	HostSecretSCEPChallenge = "SCEP_CHALLENGE" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretConditionalAccessSCEPChallenge is the host secret type for the one-time challenge of Fleet's conditional
+	// access SCEP server. It's created for the host the first time the profile is sent and re-sent unchanged until
+	// it's consumed or expires.
+	HostSecretConditionalAccessSCEPChallenge = "CONDITIONAL_ACCESS_SCEP_CHALLENGE" // nolint:gosec // G101: this is a constant identifier, not a credential
 )
 
 // HostSecretPlaceholder returns the placeholder string for a host secret type,

@@ -763,7 +763,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
 				Status:              string(fleet.SoftwareInstallFailed),
 				HostPlatform:        host.Platform,
@@ -778,7 +778,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				Source:              app.Source,
 				Status:              string(fleet.SoftwareInstallFailed),
 				FromSetupExperience: true,
@@ -943,7 +943,7 @@ func QueueAppleMDMJob(
 		"from_mdm_migration", fromMDMMigration,
 	}
 	if teamID != nil {
-		attrs = append(attrs, "team_id", *teamID)
+		attrs = append(attrs, "fleet_id", *teamID)
 	}
 	if len(enrollmentCommandUUIDs) > 0 {
 		attrs = append(attrs, "enrollment_commands", fmt.Sprintf("%v", enrollmentCommandUUIDs))

@@ -19,6 +19,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestTeams(t *testing.T) {
@@ -30,6 +31,7 @@ func TestTeams(t *testing.T) {
 	}{
 		{"GetSetDelete", testTeamsGetSetDelete},
 		{"Users", testTeamsUsers},
+		{"UpdateUsers", testTeamsUpdateUsers},
 		{"List", testTeamsList},
 		{"Summary", testTeamsSummary},
 		{"Search", testTeamsSearch},
@@ -96,12 +98,6 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.name, team.Name)
 			assert.Equal(t, tt.description, team.Description)
-
-			p, err := ds.NewPack(context.Background(), &fleet.Pack{
-				Name:    tt.name,
-				TeamIDs: []uint{team.ID},
-			})
-			require.NoError(t, err)
 
 			dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
 			dummyCP := fleet.MDMAppleConfigProfile{
@@ -340,10 +336,6 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				return nil
 			})
 
-			newP, err := ds.Pack(context.Background(), p.ID)
-			require.NoError(t, err)
-			require.Empty(t, newP.Teams)
-
 			_, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
 
@@ -356,8 +348,6 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 
 			_, err = ds.GetMDMAppleConfigProfile(context.Background(), dec.DeclarationUUID)
 			require.ErrorAs(t, err, &nfe)
-
-			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
 
 			// Check team label is gone.
 			labels, err := ds.LabelsByName(context.Background(), []string{teamLabel.Name}, fleet.TeamFilter{})
@@ -425,6 +415,80 @@ func testTeamsUsers(t *testing.T, ds *Datastore) {
 	team2, err = ds.TeamWithExtras(context.Background(), team2.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, team2Users, team2.Users)
+}
+
+func testTeamsUpdateUsers(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	users := createTestUsers(t, ds)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+	require.NoError(t, err)
+	unknownID := users[1].ID + 100000
+
+	roleIn := func(user fleet.User, teamID uint) string {
+		for _, userTeam := range user.Teams {
+			if userTeam.ID == teamID {
+				return userTeam.Role
+			}
+		}
+		return ""
+	}
+	set := func(id uint, role string) fleet.TeamUser {
+		return fleet.TeamUser{ID: id, Role: role}
+	}
+
+	_, err = ds.UpdateTeamUsers(ctx, otherTeam.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleAdmin)}, nil)
+	require.NoError(t, err)
+
+	previous, err := ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleObserver), set(users[1].ID, fleet.RoleObserver)}, nil)
+	require.NoError(t, err)
+	assert.Empty(t, roleIn(previous[users[0].ID], team.ID))
+	assert.Equal(t, fleet.RoleAdmin, roleIn(previous[users[0].ID], otherTeam.ID))
+	assert.Equal(t, users[0].Email, previous[users[0].ID].Email)
+
+	// Changing one member leaves the other member's role in place.
+	previous, err = ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleMaintainer)}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.RoleObserver, roleIn(previous[users[0].ID], team.ID))
+	got, err := ds.TeamWithExtras(ctx, team.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{fleet.RoleMaintainer, fleet.RoleObserver}, []string{got.Users[0].Role, got.Users[1].Role})
+
+	previous, err = ds.UpdateTeamUsers(ctx, team.ID, nil, []uint{users[0].ID, unknownID})
+	require.NoError(t, err)
+	require.Len(t, previous, 1)
+	assert.Equal(t, fleet.RoleMaintainer, roleIn(previous[users[0].ID], team.ID))
+	got, err = ds.TeamWithExtras(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, got.Users, 1)
+	assert.Equal(t, users[1].ID, got.Users[0].ID)
+	otherGot, err := ds.TeamWithExtras(ctx, otherTeam.ID)
+	require.NoError(t, err)
+	require.Len(t, otherGot.Users, 1)
+
+	// Whichever update runs second must see the first one's role.
+	for range 25 {
+		_, err = ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleObserver)}, nil)
+		require.NoError(t, err)
+
+		roles := []string{fleet.RoleAdmin, fleet.RoleMaintainer}
+		seen := make([]string, len(roles))
+		var g errgroup.Group
+		for i, role := range roles {
+			g.Go(func() error {
+				previous, err := ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, role)}, nil)
+				if err != nil {
+					return err
+				}
+				seen[i] = roleIn(previous[users[0].ID], team.ID)
+				return nil
+			})
+		}
+		require.NoError(t, g.Wait())
+		assert.Contains(t, seen, fleet.RoleObserver)
+		assert.False(t, seen[0] == fleet.RoleObserver && seen[1] == fleet.RoleObserver, "both updates read the role before either saved: %v", seen)
+	}
 }
 
 func testTeamsList(t *testing.T, ds *Datastore) {
@@ -876,16 +940,10 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						GracePeriodDays: optjson.SetInt(3),
 					},
 					MacOSSetup: fleet.MacOSSetup{
-						BootstrapPackage:    optjson.SetString("bootstrap"),
-						MacOSSetupAssistant: optjson.SetString("assistant"),
-						ManualAgentInstall:  optjson.SetBool(true),
-					},
-					WindowsSettings: fleet.WindowsSettings{
-						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+						ManualAgentInstall: optjson.SetBool(true),
 					},
 					AndroidSettings: fleet.AndroidSettings{
-						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-						Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+						Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 					},
 				},
 			},
@@ -929,25 +987,20 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				GracePeriodDays: optjson.SetInt(3),
 			},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:            optjson.SetString("bootstrap"),
-				MacOSSetupAssistant:         optjson.SetString("assistant"),
-				EnableReleaseDeviceManually: optjson.SetBool(false),
-				Script:                      optjson.String{Set: true},
-				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-				ManualAgentInstall:          optjson.SetBool(true),
-				LockEndUserInfo:             optjson.SetBool(false),
-				EnableManagedLocalAccount:   optjson.SetBool(false),
-				EndUserLocalAccountType:     optjson.SetString("admin"),
+				EnableReleaseDeviceManually:      optjson.SetBool(false),
+				Software:                         optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+				ManualAgentInstall:               optjson.SetBool(true),
+				LockEndUserInfo:                  optjson.SetBool(false),
+				EnableManagedLocalAccount:        optjson.SetBool(false),
+				EndUserLocalAccountType:          optjson.SetString("admin"),
+				EnableManagedLocalAccountWindows: optjson.SetBool(false),
 			},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings:            optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
-				EnableManagedLocalAccount: optjson.SetBool(false),
-				EnableDiskEncryption:      optjson.SetBool(false),
-				RequireBitLockerPIN:       optjson.SetBool(false),
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(false),
 			},
 			AndroidSettings: fleet.AndroidSettings{
-				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
-				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				Certificates: optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
 			},
 		}, mdm)
 	})
@@ -1059,6 +1112,66 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 	require.Empty(t, conflict.Description)
 	require.Nil(t, conflict.Users)
 	require.Nil(t, conflict.Secrets)
+
+	// Name key matches, which the collation doesn't see.
+	existing := make(map[string]uint)
+	for _, name := range []string{"Workstations", "Laptops 💻", "開発チーム", "Team 𝐀", "straße", "はは", "राम", "กิน", "мой"} {
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		existing[name] = tm.ID
+	}
+	for _, tc := range []struct {
+		name     string
+		conflict string
+	}{
+		{"Work-stations", "Workstations"},
+		{"Work stations", "Workstations"},
+		{"workstations!", "Workstations"},
+		{"WORK_STATIONS", "Workstations"},
+		{"Workstations 💻", "Workstations"},
+		{"Wörkstations", "Workstations"},
+		{"Ｗｏｒｋｓｔａｔｉｏｎｓ", "Workstations"},
+		{"Laptops", "Laptops 💻"},
+		{"Laptops 🚀", "Laptops 💻"},
+		{"開発・チーム", "開発チーム"},
+		{"開発チーム。", "開発チーム"},
+		{"strasse", "straße"},
+		{"Strasse!", "straße"},
+		{"Team A", "Team 𝐀"},
+		// Collation matches the name key doesn't see.
+		{"Team 𝐁", "Team 𝐀"},
+		{"ハハ", "はは"},
+		{"パパ", "はは"},
+		{"राम!", "राम"},
+		{"กิน 🚀", "กิน"},
+		{"МОЙ.", "мой"},
+		// Outside Latin script a combining mark can make a different word.
+		{"रम", ""},
+		{"रम!", ""},
+		{"กัน", ""},
+		{"мои", ""},
+		{"Workstations 2", ""},
+		{"Workstation", ""},
+		{"Laptop", ""},
+		{"開発", ""},
+		{"Team B!", ""},
+		{"Servers", ""},
+	} {
+		conflict, err := ds.TeamConflictsWithName(ctx, tc.name, 0)
+		require.NoError(t, err, tc.name)
+		if tc.conflict == "" {
+			require.Nil(t, conflict, tc.name)
+			continue
+		}
+		require.NotNil(t, conflict, tc.name)
+		require.Equal(t, tc.conflict, conflict.Name, tc.name)
+		require.Equal(t, existing[tc.conflict], conflict.ID, tc.name)
+
+		// A fleet can be renamed to a variant of its own name.
+		conflict, err = ds.TeamConflictsWithName(ctx, tc.name, existing[tc.conflict])
+		require.NoError(t, err, tc.name)
+		require.Nil(t, conflict, tc.name)
+	}
 }
 
 func testTeamsNameEmoji(t *testing.T, ds *Datastore) {
@@ -1184,7 +1297,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 	// Default config should have webhook disabled
 	assert.False(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	assert.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	assert.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 
 	// Test saving a new config
 	newConfig := &fleet.TeamConfig{
@@ -1192,7 +1304,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable:         true,
 				DestinationURL: "https://example.com/webhook",
-				PolicyIDs:      []uint{1, 2, 3},
 				HostBatchSize:  100,
 			},
 		},
@@ -1212,7 +1323,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 
 	assert.True(t, savedConfig.WebhookSettings.FailingPoliciesWebhook.Enable)
 	assert.Equal(t, "https://example.com/webhook", savedConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	assert.Equal(t, []uint{1, 2, 3}, savedConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	assert.Equal(t, 100, savedConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
 	// Test updating existing config
@@ -1221,7 +1331,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable:         false,
 				DestinationURL: "https://updated.com/webhook",
-				PolicyIDs:      []uint{4, 5},
 				HostBatchSize:  50,
 			},
 		},
@@ -1237,7 +1346,6 @@ func testDefaultTeamConfig(t *testing.T, ds *Datastore) {
 
 	assert.False(t, finalConfig.WebhookSettings.FailingPoliciesWebhook.Enable)
 	assert.Equal(t, "https://updated.com/webhook", finalConfig.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	assert.Equal(t, []uint{4, 5}, finalConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	assert.Equal(t, 50, finalConfig.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 }
 
@@ -1270,7 +1378,7 @@ func testTeamLitesByIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, "lites-a", liteA.Name)
 	noTeam := byID[0]
 	require.NotNil(t, noTeam)
-	require.Equal(t, fleet.ReservedNameNoTeam, noTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, noTeam.Name)
 	webhook := liteB.Config.WebhookSettings.HostActivitiesWebhook
 	require.NotNil(t, webhook)
 	require.Equal(t, "https://example.com/hook", webhook.DestinationURL)

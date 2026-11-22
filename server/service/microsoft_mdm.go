@@ -961,8 +961,8 @@ func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
 }
 
 // authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
-// returns the orbit node key and host uuid. For automatic enrollment, it returns the UPN (the
-// host uuid will be an empty string), and for an Entra token also the Entra device ID signed into it.
+// returns the orbit node key and host uuid. For automatic enrollment with an Entra token, it returns
+// the UPN and the Entra device ID signed into it (the host uuid will be an empty string).
 func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string,
 	entraDeviceID string, enrollType fleet.WindowsMDMEnrollType, err error,
 ) {
@@ -988,46 +988,32 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", "", 0, fmt.Errorf("token creation error %v", err)
 		}
 
-		// Validating the Binary Security Token Payload
+		// IsValidToken only accepts the programmatic enrollment type
 		err = binSecToken.IsValidToken()
 		if err != nil {
 			return "", "", "", 0, fmt.Errorf("invalid token data %v", err)
 		}
 
-		// Validating the Binary Security Token Type used on Programmatic Enrollments
-		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			if err != nil {
-				return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
-			}
-			if host == nil {
-				return "", "", "", 0, errors.New("host not found for orbit node key")
-			}
-
-			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return "", "", "", 0, errors.New("unable to retrieve host mdm info")
-			}
-
-			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-				return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
-			}
-
-			// No errors, token is authorized
-			return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
+		host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+		if err != nil {
+			return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
+		}
+		if host == nil {
+			return "", "", "", 0, errors.New("host not found for orbit node key")
 		}
 
-		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
-		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
-			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
-			if err != nil {
-				return "", "", "", 0, ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
-			}
-
-			// No errors, token is authorized
-			return upnToken, "", "", fleet.WindowsMDMEnrollTypeAutomatic, nil
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", 0, errors.New("unable to retrieve host mdm info")
 		}
+
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
+		}
+
+		// No errors, token is authorized
+		return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
 	}
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
@@ -1735,6 +1721,10 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		return nil
 	}
 
+	if enrolledDevice.LinkedHostID != nil {
+		svc.failInterruptedWindowsReset(ctx, enrolledDevice.ID, *enrolledDevice.LinkedHostID)
+	}
+
 	// Checking if fleetd is present on the device
 	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, enrolledDevice)
 	if err != nil {
@@ -1747,6 +1737,29 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		}
 	}
 	return nil
+}
+
+// failInterruptedWindowsReset logs failed_reset when a session shows the host's acknowledged reset was rolled back. It's
+// best-effort: the next session checks again.
+func (svc *Service) failInterruptedWindowsReset(ctx context.Context, enrollmentID, hostID uint) {
+	failed, err := svc.ds.MDMWindowsFailInterruptedReset(ctx, enrollmentID, hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: check for interrupted reset", "err", err, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if !failed {
+		return
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to look up host for failed_reset activity", "host_id", hostID, "err", err)
+		return
+	}
+	act := fleet.ActivityTypeFailedReset{HostID: host.ID, HostDisplayName: host.DisplayName()}
+	if err := svc.NewActivity(ctx, nil, act); err != nil {
+		svc.logger.WarnContext(ctx, "failed to create failed_reset activity", "host_id", host.ID, "err", err)
+	}
 }
 
 // Generic Alert Handlers
@@ -2044,13 +2057,17 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					svc.logger.WarnContext(ctx, "failed to look up host for wipe_failed_host activity",
 						"host_uuid", result.WipeFailed.HostUUID, "err", err)
 				} else {
-					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
+					var act fleet.ActivityDetails = fleet.ActivityTypeWipeFailedHost{
 						HostID:          host.ID,
 						HostDisplayName: host.DisplayName(),
 						HostPlatform:    host.Platform,
-					}); err != nil {
-						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
-							"host_id", host.ID, "err", err)
+					}
+					if result.WipeFailed.Reset {
+						act = fleet.ActivityTypeFailedReset{HostID: host.ID, HostDisplayName: host.DisplayName()}
+					}
+					if err := svc.NewActivity(ctx, nil, act); err != nil {
+						svc.logger.WarnContext(ctx, "failed to create activity for failed wipe or reset",
+							"activity", act.ActivityName(), "host_id", host.ID, "err", err)
 					}
 				}
 			}
@@ -2244,6 +2261,9 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 // A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
 // next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
 // fleetd wake the device again.
+//
+// A RemoteWipe is held back the same way while the device may still be acting on another one it acknowledged, and only one
+// goes out per response: Windows restarts in a loop when it gets two.
 func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
@@ -2253,10 +2273,34 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	onlyPollCmdsPending := true
+	var remoteWipeChecked, holdRemoteWipe bool
 	for _, pendingCmd := range pendingCmds {
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
 		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
 			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
+			onlyPollCmdsPending = false
+			continue
+		}
+		isRemoteWipe := fleet.LocURITargetsReservedNode(pendingCmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI)
+		if isRemoteWipe && !remoteWipeChecked {
+			remoteWipeChecked = true
+			var hostID uint
+			if enrolledDevice.LinkedHostID != nil {
+				hostID = *enrolledDevice.LinkedHostID
+			}
+			inProgress, err := svc.ds.MDMWindowsRemoteWipeInProgress(ctx, enrolledDevice.ID, hostID)
+			if err != nil {
+				// Only the RemoteWipe waits for the next session; the other commands still go out.
+				svc.logger.ErrorContext(ctx, "windows mdm: check for RemoteWipe in progress", "err", err,
+					"enrollment_id", enrolledDevice.ID)
+				ctxerr.Handle(ctx, err)
+				inProgress = true
+			}
+			holdRemoteWipe = inProgress
+		}
+		if isRemoteWipe && holdRemoteWipe {
+			svc.logger.DebugContext(ctx, "windows mdm: RemoteWipe held while the device may be acting on another one",
+				"enrollment_id", enrolledDevice.ID, "command_uuid", pendingCmd.CommandUUID)
 			onlyPollCmdsPending = false
 			continue
 		}
@@ -2276,6 +2320,9 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 		}
 		if !isPollCmd {
 			onlyPollCmdsPending = false
+		}
+		if isRemoteWipe {
+			holdRemoteWipe = true
 		}
 		for _, pcmd := range parsedCmds {
 			cmds = append(cmds, &pcmd)
@@ -2639,9 +2686,9 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
 // a terminal state, then finalizes the device down one of three paths:
 //
-//   - hard block (require_all_software_windows=true and any item failed, or the 3-hour timeout was hit): the ESP
+//   - hard block (windows_require_all_software=true and any item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with only the "Reset device" recovery option, and remaining items are canceled.
-//   - soft block (require_all_software_windows=false and an item failed, or the 3-hour timeout was hit): the ESP
+//   - soft block (windows_require_all_software=false and an item failed, or the 3-hour timeout was hit): the ESP
 //     failure screen is shown with a "Continue anyway" option so the user can proceed to the desktop and install the
 //     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
 //     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path.
@@ -2694,7 +2741,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
 	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
 	// management session, and (2) stale team_id if a host transferred teams mid-enrollment, which could let
-	// require_all_software_windows be read from the wrong team and bypass the gate.
+	// windows_require_all_software be read from the wrong team and bypass the gate.
 	//
 	// We cache the full HostLite (not just team_id) because Stage 3 also needs OsqueryHostID: setup_experience_status_results
 	// is keyed by fleet.HostUUIDForSetupExperience, which on Windows resolves to OsqueryHostID -- not the Fleet host UUID
@@ -2761,7 +2808,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return results, nil
 	}
 
-	// loadRequireAll memoizes the host -> team's require_all_software_windows lookup. It is consulted at most twice
+	// loadRequireAll memoizes the host -> team's windows_require_all_software lookup. It is consulted at most twice
 	// per checkin: once inside Stage 3 (to decide whether to short-circuit on a software failure) and once below
 	// (to drive the block/release decision).
 	var (
@@ -2904,7 +2951,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 	}
 
-	// We're past the wait gate or timed out. Look up require_all_software_windows (memoized via loadRequireAll if
+	// We're past the wait gate or timed out. Look up windows_require_all_software (memoized via loadRequireAll if
 	// Stage 3 already consulted it) to decide between block and release. Return the error on lookup failure so the
 	// device stays Active and retries on the next management session: failing open here would permanently bypass
 	// the policy after the Active->None transition below.
@@ -3058,7 +3105,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       softwareTitle,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				SoftwareTitleID:     softwareTitleID,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")

@@ -16,6 +16,7 @@ import Modal from "components/Modal";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import {
   getCustomTargetOptions,
+  getLabelsRequiredError,
   LabelScope,
 } from "components/TargetLabelSelector/labelScopes";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -60,7 +61,7 @@ const validateQueryName = (name: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!name) {
-    errors.name = "Report name must be present";
+    errors.name = "Enter a report name";
   }
 
   const valid = !size(errors);
@@ -81,6 +82,10 @@ const SaveNewQueryModal = ({
   const { config, isPremiumTier, currentTeam } = useContext(AppContext);
 
   const [name, setName] = useState("");
+  // Name is autofocused when the modal opens; skip blur validation until the
+  // user has typed in it so clicking away from an untouched field doesn't
+  // surface "Enter a report name".
+  const [nameDirty, setNameDirty] = useState(false);
   const [description, setDescription] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState(
     existingQuery?.interval ?? 3600
@@ -109,6 +114,21 @@ const SaveNewQueryModal = ({
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.entries(selectedLabels).some(
+    ([, v]) => v === true
+  );
+  const labelsRequired = !!(
+    isPremiumTier &&
+    selectedTargetType === "Custom" &&
+    !hasSelectedLabel
+  );
+  const labelsError =
+    showLabelsError && labelsRequired
+      ? getLabelsRequiredError(selectedCustomTarget)
+      : null;
 
   const {
     data: { labels } = { labels: [] },
@@ -140,6 +160,9 @@ const SaveNewQueryModal = ({
       ...selectedLabels,
       [labelName]: value,
     });
+    if (value) {
+      setShowLabelsError(false);
+    }
   };
 
   const toggleAdvancedOptions = () => {
@@ -153,34 +176,38 @@ const SaveNewQueryModal = ({
   }, [name]);
 
   useEffect(() => {
+    if (platformSelector.isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [platformSelector.isAnyPlatformSelected]);
+
+  useEffect(() => {
     setErrors(backendValidators);
   }, [backendValidators]);
-
-  // Disable saving if "Custom" targeting is selected, but no labels are selected.
-  const canSave =
-    platformSelector.isAnyPlatformSelected &&
-    (selectedTargetType === "All hosts" ||
-      Object.entries(selectedLabels).some(([, value]) => {
-        return value;
-      }));
 
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const trimmedName = name.trim();
 
-    const { valid, errors: newErrors } = validateQueryName(trimmedName);
+    const { valid: validName, errors: newErrors } = validateQueryName(
+      trimmedName
+    );
     setErrors({
       ...errors,
       ...newErrors,
     });
     setName(trimmedName);
 
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
       .join(",") as CommaSeparatedPlatformString;
 
-    if (valid) {
+    if (validName && hasPlatform && !labelsRequired) {
       const customLabelNames =
         isPremiumTier && selectedTargetType === "Custom"
           ? Object.entries(selectedLabels)
@@ -239,9 +266,23 @@ const SaveNewQueryModal = ({
       >
         <InputField
           name="name"
-          onChange={(value: string) => setName(value)}
+          onChange={(value: string) => {
+            setName(value);
+            if (!nameDirty) setNameDirty(true);
+          }}
           onBlur={() => {
-            setName(name.trim());
+            const trimmed = name.trim();
+            setName(trimmed);
+            if (nameDirty && !trimmed) {
+              setErrors({ ...errors, name: "Enter a report name" });
+            }
+          }}
+          onFocus={() => {
+            if (errors.name) {
+              const next = { ...errors };
+              delete next.name;
+              setErrors(next);
+            }
           }}
           value={name}
           error={errors.name}
@@ -333,7 +374,7 @@ const SaveNewQueryModal = ({
             </>
           }
         />
-        {platformSelector.render()}
+        {platformSelector.render(platformError)}
         {isPremiumTier && (
           <DropdownTargetLabelSelector
             selectedTargetType={selectedTargetType}
@@ -344,9 +385,13 @@ const SaveNewQueryModal = ({
             }
             selectedLabels={selectedLabels}
             className={`${baseClass}__target`}
-            onSelectTargetType={setSelectedTargetType}
+            onSelectTargetType={(val) => {
+              setSelectedTargetType(val);
+              if (val === "All hosts") setShowLabelsError(false);
+            }}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
+            labelsError={labelsError}
             suppressTitle
           />
         )}
@@ -394,7 +439,6 @@ const SaveNewQueryModal = ({
             type="submit"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
-            disabled={!canSave}
           >
             Save
           </Button>

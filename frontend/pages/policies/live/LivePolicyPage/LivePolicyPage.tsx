@@ -69,7 +69,7 @@ const LivePolicyPage = ({
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
   const teamIdForApi = currentTeamId === -1 ? undefined : currentTeamId;
 
   // Reroute users out of live flow when live queries are globally disabled

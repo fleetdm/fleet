@@ -18,7 +18,7 @@ import (
 )
 
 func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHouseAppPayload) (uint, uint, error) {
-	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND (bundle_identifier = ? OR filename = ?)`
+	selectStmt := `SELECT COUNT(id) FROM in_house_apps WHERE global_or_team_id = ? AND bundle_identifier = ?`
 
 	var tid *uint
 	var globalOrTeamID uint
@@ -42,7 +42,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 	var installerID uint
 	var count uint
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID, payload.Filename)
+		row := tx.QueryRowxContext(ctx, selectStmt, globalOrTeamID, payload.BundleID)
 		if err := row.Scan(&count); err != nil {
 			return err
 		}
@@ -52,7 +52,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			if err != nil {
 				return ctxerr.Wrap(ctx, err)
 			}
-			return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			return alreadyExists("In-house app", payload.Title).WithTeamName(teamName)
 		}
 
 		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
@@ -132,7 +132,7 @@ func (ds *Datastore) insertInHouseAppDB(ctx context.Context, tx sqlx.ExtContext,
 			if err != nil {
 				return 0, ctxerr.Wrap(ctx, err)
 			}
-			err = alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
+			err = alreadyExists("In-house app", payload.Title).WithTeamName(teamName)
 			return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
 		}
 		return 0, ctxerr.Wrap(ctx, err, "insertInHouseAppDB")
@@ -310,13 +310,6 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		}
 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			if IsDuplicate(err) {
-				teamName, err := ds.getTeamName(ctx, payload.TeamID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err)
-				}
-				return alreadyExists("In-house app", payload.Filename).WithTeamName(teamName)
-			}
 			return ctxerr.Wrap(ctx, err, "update in house app")
 		}
 
@@ -818,7 +811,7 @@ WHERE
 		HostID:              res.HostID,
 		HostDisplayName:     res.HostDisplayName,
 		SoftwareTitle:       res.SoftwareTitle,
-		SoftwareDisplayName: res.SoftwareDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(res.SoftwareDisplayName),
 		CommandUUID:         res.CommandUUID,
 		Status:              status,
 		SelfService:         res.SelfService,
@@ -1099,8 +1092,7 @@ FROM
 WHERE
 	-- this is guaranteed to select a single in-house installer, due to unique index
 	global_or_team_id = ?	AND
-	filename = ? AND
-	platform = ?
+	title_id = ?
 `
 
 	const deleteInHouseLabelsNotInList = `
@@ -1450,7 +1442,7 @@ WHERE
 			// ID (cannot use res.LastInsertID due to the upsert statement, won't
 			// give the id in case of update)
 			var installerID uint
-			if err := sqlx.GetContext(ctx, tx, &installerID, loadInHouseInstallerID, globalOrTeamID, installer.Filename, installer.Platform); err != nil {
+			if err := sqlx.GetContext(ctx, tx, &installerID, loadInHouseInstallerID, globalOrTeamID, titleID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited in-house app with name %q", installer.Filename)
 			}
 
@@ -1744,27 +1736,6 @@ LIMIT 1
 	return true, title, nil
 }
 
-func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
-	const stmt = `
-SELECT
-	BINARY COALESCE(?, '') != configuration AS has_changed
-FROM
-	in_house_app_configurations
-WHERE
-	in_house_app_id = ?
-`
-
-	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return len(newConfig) > 0, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
-	}
-	return hasChanged, nil
-}
-
 func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
 	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ?`
 
@@ -1778,10 +1749,6 @@ func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppI
 	}
 
 	return config, nil
-}
-
-func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
-	return ds.bulkGetInHouseAppConfigurations(ctx, ds.reader(ctx), inHouseAppIDs)
 }
 
 func (ds *Datastore) BulkGetInHouseAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
@@ -1820,26 +1787,6 @@ WHERE in_house_app_id IN (?)
 		m[c.InHouseAppID] = c.Configuration
 	}
 	return m, nil
-}
-
-func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
-	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete in-house app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete in-house app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
-	}
-
-	return nil
 }
 
 func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID uint, config []byte) error {

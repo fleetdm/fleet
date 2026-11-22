@@ -89,7 +89,7 @@ describe("SoftwarePage tab configuration", () => {
   describe("getOSTabSortHeader", () => {
     it("defaults to version once a single platform is selected on the OS tab", () => {
       expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "darwin", undefined)).toBe(
-        "version"
+        "os_version"
       );
     });
 
@@ -99,14 +99,23 @@ describe("SoftwarePage tab configuration", () => {
       );
     });
 
-    it("ignores a crafted/stale order_key=version on 'All platforms', instead of sending a nonsensical cross-platform version sort to the API", () => {
+    it("ignores a crafted/stale order_key=os_version on 'All platforms', instead of sending a nonsensical cross-platform version sort to the API", () => {
       // Comparing OS versions across platforms isn't meaningful, and the
       // Version column is unclickable on this view — but this page is
       // server-driven, so a URL with both params together (typed by hand,
       // bookmarked, or restored via browser back/forward) would otherwise
-      // still reach the API as a real order_key=version request.
+      // still reach the API as a real order_key=os_version request.
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "all", "os_version")).toBe(
+        "hosts_count"
+      );
       expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "all", "version")).toBe(
         "hosts_count"
+      );
+    });
+
+    it("reads a saved order_key=version on the OS tab as os_version, which the API now requires", () => {
+      expect(getOSTabSortHeader(PATHS.SOFTWARE_OS, "darwin", "version")).toBe(
+        "os_version"
       );
     });
 
@@ -132,7 +141,7 @@ const GLOBAL_ADMIN = { isGlobalAdmin: true, isOnGlobalTeam: true };
 const FLEET_ADMIN = {
   currentUser: createMockUser({
     global_role: null,
-    teams: [{ id: 7, name: "Workstations", role: "admin" }],
+    fleets: [{ id: 7, name: "Workstations", role: "admin" }],
   }) as IUser,
 };
 

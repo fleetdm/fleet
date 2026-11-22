@@ -7,9 +7,9 @@ import {
   createMockSoftwareTitleDetails,
   createMockSoftwarePackage,
   createMockSoftwarePackageIos,
-  createMockAppStoreApp,
-  createMockAppStoreAppAndroid,
-  createMockAppStoreAppIos,
+  createMockAppStoreAppVersion,
+  createMockAppStoreAppVersionAndroid,
+  createMockAppStoreAppVersionIos,
 } from "__mocks__/softwareMock";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
@@ -45,6 +45,8 @@ describe("Software Summary Card", () => {
         router={router}
         refetchSoftwareTitle={jest.fn()}
         onClickVersions={jest.fn()}
+        iconUploadedAt=""
+        setIconUploadedAt={jest.fn()}
       />
     );
     // Get the text with aria label "software display name"
@@ -67,10 +69,12 @@ describe("Software Summary Card", () => {
     });
     const fmaTitle = () =>
       createMockSoftwareTitle({
-        software_package: createMockSoftwarePackage({
-          fleet_maintained_app_id: 1,
-          fleet_maintained_app_slug: "zoom/darwin",
-        }),
+        packages: [
+          createMockSoftwarePackage({
+            fleet_maintained_app_id: 1,
+            fleet_maintained_app_slug: "zoom/darwin",
+          }),
+        ],
       });
     const renderCard = (
       renderFn: (ui: React.ReactElement) => unknown,
@@ -84,6 +88,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -97,8 +103,8 @@ describe("Software Summary Card", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: null,
-          app_store_app: createMockAppStoreAppIos(),
+          packages: null,
+          app_store_apps: [createMockAppStoreAppVersionIos()],
         })
       );
       expect(screen.getByText("App Store ID")).toBeInTheDocument();
@@ -110,8 +116,8 @@ describe("Software Summary Card", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: null,
-          app_store_app: createMockAppStoreAppAndroid(),
+          packages: null,
+          app_store_apps: [createMockAppStoreAppVersionAndroid()],
         })
       );
       expect(screen.getByText("Google Play ID")).toBeInTheDocument();
@@ -123,20 +129,39 @@ describe("Software Summary Card", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: null,
-          app_store_app: createMockAppStoreAppAndroid({
-            app_store_id: "com.google.enterprise.webapp.abc123",
-          }),
+          packages: null,
+          app_store_apps: [
+            createMockAppStoreAppVersionAndroid({
+              app_store_id: "com.google.enterprise.webapp.abc123",
+            }),
+          ],
         })
       );
       expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+    });
+
+    it("shows 'Web app (Android)' type and no Versions for Android web apps", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          source: "android_apps",
+          packages: null,
+          app_store_apps: [
+            createMockAppStoreAppVersionAndroid({
+              app_store_id: "com.google.enterprise.webapp.abc123",
+            }),
+          ],
+        })
+      );
+      expect(screen.getByText("Web app (Android)")).toBeInTheDocument();
+      expect(screen.queryByText("Versions")).not.toBeInTheDocument();
     });
 
     it("shows no GitOps IDs for custom packages", () => {
       renderCard(
         renderPremium,
         createMockSoftwareTitle({
-          software_package: createMockSoftwarePackage(),
+          packages: [createMockSoftwarePackage()],
         })
       );
       expect(
@@ -187,23 +212,27 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
 
       // Custom non-FMA macOS/Linux/Windows titles drop the Actions dropdown.
       // Per-installer Edit moves to the Library accordion row; the page-level
-      // CTA collapses to a single pencil-icon "Edit" that opens the Edit
+      // CTA collapses to a single pencil-icon "Edit appearance" that opens the Edit
       // Appearance modal directly.
       expect(screen.queryByText("Actions")).not.toBeInTheDocument();
-      const editButton = screen.getByRole("button", { name: /Edit/ });
+      const editButton = screen.getByRole("button", {
+        name: "Edit appearance",
+      });
       expect(editButton).toBeInTheDocument();
     });
 
@@ -212,13 +241,15 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "ios_apps",
-            app_store_app: createMockAppStoreAppIos(),
+            app_store_apps: [createMockAppStoreAppVersionIos()],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -235,14 +266,16 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "android_apps",
-            app_store_app: createMockAppStoreAppAndroid(),
-            software_package: null,
+            app_store_apps: [createMockAppStoreAppVersionAndroid()],
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -259,16 +292,20 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "android_apps",
-            app_store_app: createMockAppStoreAppAndroid({
-              app_store_id: "com.google.enterprise.webapp.myapp",
-            }),
-            software_package: null,
+            app_store_apps: [
+              createMockAppStoreAppVersionAndroid({
+                app_store_id: "com.google.enterprise.webapp.myapp",
+              }),
+            ],
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -285,14 +322,16 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "ios_apps",
-            software_package: createMockSoftwarePackageIos(),
-            app_store_app: null,
+            packages: [createMockSoftwarePackageIos()],
+            app_store_apps: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -308,24 +347,28 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
-            software_package: createMockSoftwarePackage(),
-            app_store_app: null,
+            packages: [createMockSoftwarePackage()],
+            app_store_apps: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
 
       // macOS in-house .pkg is a custom non-FMA, non-iOS title — collapses
-      // to the pencil Edit button. Edit configuration never applied here
+      // to the pencil "Edit appearance" button. Edit configuration never applied here
       // and the dropdown is gone entirely.
       expect(screen.queryByText("Actions")).not.toBeInTheDocument();
       expect(screen.queryByText("Edit configuration")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Edit/ })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Edit appearance" })
+      ).toBeInTheDocument();
     });
 
     it("does not display Edit configuration for macOS VPP apps", async () => {
@@ -336,14 +379,18 @@ describe("Software Summary Card", () => {
             // Explicit null — `createMockSoftwareTitle` defaults to a custom
             // package, which would otherwise hide the dropdown for
             // multi-package-capable titles.
-            software_package: null,
-            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+            packages: null,
+            app_store_apps: [
+              createMockAppStoreAppVersion({ platform: "darwin" }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -358,15 +405,19 @@ describe("Software Summary Card", () => {
       const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -398,15 +449,19 @@ describe("Software Summary Card", () => {
       const { user } = freeRender(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -419,13 +474,15 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
@@ -459,15 +516,19 @@ describe("Software Summary Card", () => {
       const { user } = gitopsRender(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -498,14 +559,18 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
-            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
-            software_package: null,
+            app_store_apps: [
+              createMockAppStoreAppVersion({ platform: "darwin" }),
+            ],
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -533,13 +598,17 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
-            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
-            software_package: null,
+            app_store_apps: [
+              createMockAppStoreAppVersion({ platform: "darwin" }),
+            ],
+            packages: null,
           })}
           softwareId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -565,15 +634,19 @@ describe("Software Summary Card", () => {
       const { user } = observerRender(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -604,15 +677,19 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -624,50 +701,58 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "apps",
-            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
-            software_package: null,
+            app_store_apps: [
+              createMockAppStoreAppVersion({ platform: "darwin" }),
+            ],
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
       expect(screen.getByText("App Store (VPP)")).toBeInTheDocument();
     });
 
-    it("renders the Play Store pill for an Android Play Store app", () => {
+    it("does not render a Play Store pill for an Android Play Store app", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
             source: "android_apps",
-            app_store_app: createMockAppStoreAppAndroid(),
-            software_package: null,
+            app_store_apps: [createMockAppStoreAppVersionAndroid()],
+            packages: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
-      expect(screen.getByText("Play Store")).toBeInTheDocument();
+      expect(screen.queryByText("Play Store")).not.toBeInTheDocument();
     });
 
     it("renders the Custom package pill for a non-FMA software package", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -681,16 +766,20 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              self_service: true,
-              fleet_maintained_app_id: 7,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                self_service: true,
+                fleet_maintained_app_id: 7,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -701,24 +790,28 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              self_service: true,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-              ],
-              patch_policy: {
-                id: 42,
-                name: "Outdated Postman",
-                patch_when_closed: false,
-                continuous_automations_enabled: false,
-              },
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                self_service: true,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                ],
+                patch_policy: {
+                  id: 42,
+                  name: "Outdated Postman",
+                  patch_when_closed: false,
+                  continuous_automations_enabled: false,
+                },
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
@@ -734,15 +827,19 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              self_service: false,
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                self_service: false,
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -753,19 +850,23 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-                { id: 2, name: "Policy B", type: "dynamic" },
-              ],
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                  { id: 2, name: "Policy B", type: "dynamic" },
+                ],
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -776,21 +877,25 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              patch_policy: {
-                id: 42,
-                name: "Outdated Postman",
-                patch_when_closed: false,
-                continuous_automations_enabled: false,
-              },
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                patch_policy: {
+                  id: 42,
+                  name: "Outdated Postman",
+                  patch_when_closed: false,
+                  continuous_automations_enabled: false,
+                },
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -802,24 +907,28 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-              ],
-              patch_policy: {
-                id: 42,
-                name: "Outdated Postman",
-                patch_when_closed: false,
-                continuous_automations_enabled: false,
-              },
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                ],
+                patch_policy: {
+                  id: 42,
+                  name: "Outdated Postman",
+                  patch_when_closed: false,
+                  continuous_automations_enabled: false,
+                },
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -831,13 +940,15 @@ describe("Software Summary Card", () => {
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage(),
+            packages: [createMockSoftwarePackage()],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -849,18 +960,22 @@ describe("Software Summary Card", () => {
       const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 99, name: "Solo policy", type: "dynamic" },
-              ],
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 99, name: "Solo policy", type: "dynamic" },
+                ],
+              }),
+            ],
           })}
           softwareId={1}
           teamId={3}
           router={pushedRouter}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -877,13 +992,15 @@ describe("Software Summary Card", () => {
       // false), but its show*Modal state must reset — otherwise it remounts
       // when the user returns to a specific fleet.
       const softwareTitle = createMockSoftwareTitle({
-        software_package: createMockSoftwarePackage({
-          fleet_maintained_app_id: 7,
-          automatic_install_policies: [
-            { id: 1, name: "Policy A", type: "dynamic" },
-            { id: 2, name: "Policy B", type: "dynamic" },
-          ],
-        }),
+        packages: [
+          createMockSoftwarePackage({
+            fleet_maintained_app_id: 7,
+            automatic_install_policies: [
+              { id: 1, name: "Policy A", type: "dynamic" },
+              { id: 2, name: "Policy B", type: "dynamic" },
+            ],
+          }),
+        ],
       });
       const { user, rerender } = render(
         <SoftwareSummaryCard
@@ -893,6 +1010,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -907,6 +1026,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
       expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
@@ -920,6 +1041,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
       expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
@@ -929,19 +1052,23 @@ describe("Software Summary Card", () => {
       const { user } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              fleet_maintained_app_id: 7,
-              automatic_install_policies: [
-                { id: 1, name: "Policy A", type: "dynamic" },
-                { id: 2, name: "Policy B", type: "dynamic" },
-              ],
-            }),
+            packages: [
+              createMockSoftwarePackage({
+                fleet_maintained_app_id: 7,
+                automatic_install_policies: [
+                  { id: 1, name: "Policy A", type: "dynamic" },
+                  { id: 2, name: "Policy B", type: "dynamic" },
+                ],
+              }),
+            ],
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -956,8 +1083,8 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
-            app_store_app: createMockAppStoreAppIos(),
-            software_package: null,
+            app_store_apps: [createMockAppStoreAppVersionIos()],
+            packages: null,
             auto_update_enabled: true,
             auto_update_window_start: "02:00",
             auto_update_window_end: "04:00",
@@ -967,6 +1094,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -978,8 +1107,8 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
-            app_store_app: createMockAppStoreAppIos(),
-            software_package: null,
+            app_store_apps: [createMockAppStoreAppVersionIos()],
+            packages: null,
             auto_update_enabled: false,
           })}
           softwareId={1}
@@ -987,6 +1116,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1016,8 +1147,8 @@ describe("Software Summary Card", () => {
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
-            app_store_app: createMockAppStoreAppIos(),
-            software_package: null,
+            app_store_apps: [createMockAppStoreAppVersionIos()],
+            packages: null,
             auto_update_enabled: true,
             auto_update_window_start: "02:00",
             auto_update_window_end: "04:00",
@@ -1027,6 +1158,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1038,15 +1171,17 @@ describe("Software Summary Card", () => {
     });
 
     it("hides all header pills (kind + Self-service / Auto install / Auto updates) on 'All fleets'", () => {
-      // Every pill derives from `app_store_app` / `software_package`, which
+      // Every pill derives from `app_store_apps` / `packages`, which
       // the backend fills from an arbitrary team on nil teamID; we hide the
       // row rather than mislabel one team's data as an "All fleets" fact.
       render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitleDetails({
             source: "ios_apps",
-            app_store_app: createMockAppStoreAppIos({ self_service: true }),
-            software_package: null,
+            app_store_apps: [
+              createMockAppStoreAppVersionIos({ self_service: true }),
+            ],
+            packages: null,
             auto_update_enabled: true,
             auto_update_window_start: "02:00",
             auto_update_window_end: "04:00",
@@ -1055,6 +1190,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1068,14 +1205,16 @@ describe("Software Summary Card", () => {
       const { container } = render(
         <SoftwareSummaryCard
           softwareTitle={createMockSoftwareTitle({
-            software_package: null,
-            app_store_app: null,
+            packages: null,
+            app_store_apps: null,
           })}
           softwareId={1}
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 

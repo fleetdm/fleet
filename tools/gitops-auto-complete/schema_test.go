@@ -236,18 +236,29 @@ func TestInvariants(t *testing.T) {
 			}
 		}
 	})
+}
 
-	// Rename aliases: old key deprecated, new key present and not deprecated.
-	t.Run("rename aliases", func(t *testing.T) {
-		p := props(def("ControlsWithTypes"))
-		old, _ := p["macos_setup"].(map[string]any)
-		if old["deprecated"] != true {
-			t.Errorf("macos_setup should be deprecated, got %v", old["deprecated"])
-		}
-		if _, ok := p["setup_experience"]; !ok {
-			t.Error("setup_experience alias missing")
-		}
-	})
+func TestRenameAliases(t *testing.T) {
+	type fake struct {
+		Old string `json:"old_key" renameto:"new_key"`
+	}
+	renames := map[string]string{}
+	collectRenames(reflect.TypeFor[fake](), map[reflect.Type]bool{}, renames)
+
+	properties := map[string]any{"old_key": map[string]any{"type": "string"}}
+	annotate([]map[string]any{{"properties": properties}}, renames)
+
+	old, _ := properties["old_key"].(map[string]any)
+	if old["deprecated"] != true {
+		t.Errorf("old_key should be deprecated, got %v", old["deprecated"])
+	}
+	alias, ok := properties["new_key"].(map[string]any)
+	if !ok {
+		t.Fatal("new_key alias missing")
+	}
+	if alias["deprecated"] != nil {
+		t.Errorf("new_key should not be deprecated, got %v", alias["deprecated"])
+	}
 }
 
 // TestSchemaUpToDate regenerates the schema and asserts the committed file matches,

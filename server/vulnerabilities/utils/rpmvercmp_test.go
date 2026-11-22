@@ -67,6 +67,9 @@ func TestRpmvercmp(t *testing.T) {
 		expected int
 		b        string
 	}{
+		{"!", LESS, "0"},
+		{"0", GREATER, "!"},
+		{"1.0__", LESS, "1.0A"},
 		{"", EQUAL, ""},
 		{"", LESS, "0"},
 		{"", LESS, "1"},

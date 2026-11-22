@@ -1,12 +1,12 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import Modal from "components/Modal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -15,9 +15,13 @@ import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
+import {
+  IConfig,
+  isGoogleConditionalAccessConfigured,
+  isOktaConditionalAccessConfigured,
+  withGoogleConditionalAccess,
+} from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
-import paths from "router/paths";
 import conditionalAccessAPI, {
   ConfirmMSConditionalAccessResponse,
 } from "services/entities/conditional_access";
@@ -30,14 +34,51 @@ import {
 import SectionCard from "../MdmSettings/components/SectionCard";
 
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
+import GoogleConditionalAccessModal from "./components/GoogleConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
+import OktaProfilesModal from "./components/OktaProfilesModal";
 
 const baseClass = "conditional-access";
+
+const troubleshootLink = (
+  <CustomLink
+    text="Learn more"
+    url="https://fleetdm.com/guides/entra-conditional-access-integration#troubleshooting"
+    newTab
+    variant="flash-message-link"
+  />
+);
+
+type ConditionalAccessProvider = "microsoft-entra" | "okta" | "google";
+
+const PROVIDER_NAMES: Record<ConditionalAccessProvider, string> = {
+  "microsoft-entra": "Microsoft Entra",
+  okta: "Okta",
+  google: "Google",
+};
+
+const PROVIDER_PLATFORMS: Record<
+  ConditionalAccessProvider,
+  { icons: IconNames[]; tip: string }
+> = {
+  "microsoft-entra": {
+    icons: ["darwin", "windows"],
+    tip: "Supported for macOS and Windows",
+  },
+  okta: {
+    icons: ["darwin", "windows"],
+    tip: "Supported for macOS and Windows",
+  },
+  google: {
+    icons: ["android", "ios", "ipados"],
+    tip: "Supported for Android, iOS, and iPadOS",
+  },
+};
 
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: (config: IConfig) => void;
-  provider: "microsoft-entra" | "okta";
+  provider: ConditionalAccessProvider;
   config: IConfig | null;
 }
 
@@ -50,17 +91,16 @@ const DeleteConditionalAccessModal = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const { gitOpsModeEnabled } = useGitOpsMode();
 
-  const providerName =
-    provider === "microsoft-entra" ? "Microsoft Entra" : "Okta";
+  const providerName = PROVIDER_NAMES[provider];
 
-  // Okta deletion writes to AppConfig (GitOps-managed). If GitOps flips on
-  // while this confirmation is open, block the write here so a stale open
-  // modal can't bypass the card-level gate. Entra deletion hits a separate
-  // table, not AppConfig, so leave it alone.
-  const oktaBlockedByGitOps = provider === "okta" && gitOpsModeEnabled;
+  // Okta and Google settings live in AppConfig (GitOps-managed). If GitOps
+  // flips on while this confirmation is open, block the write here so a stale
+  // open modal can't bypass the card-level gate. Entra deletion hits a
+  // separate table, not AppConfig, so leave it alone.
+  const blockedByGitOps = provider !== "microsoft-entra" && gitOpsModeEnabled;
 
   const handleDelete = async () => {
-    if (oktaBlockedByGitOps) {
+    if (blockedByGitOps) {
       return;
     }
     setIsDeleting(true);
@@ -69,6 +109,9 @@ const DeleteConditionalAccessModal = ({
       if (provider === "microsoft-entra") {
         await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
         updatedConfig = await configAPI.loadAll();
+      } else if (provider === "google") {
+        await conditionalAccessAPI.deleteGoogleConditionalAccess();
+        updatedConfig = config && withGoogleConditionalAccess(config, null);
       } else {
         // For Okta, clear all fields via config API
         updatedConfig = await configAPI.update({
@@ -88,18 +131,47 @@ const DeleteConditionalAccessModal = ({
       }
       notify.success(`Successfully disconnected from ${providerName}.`);
       toggleDeleteConditionalAccessModal();
-      onDelete(updatedConfig);
+      if (updatedConfig) {
+        onDelete(updatedConfig);
+      }
     } catch (e) {
       notify.error(
         `Could not disconnect from ${providerName}, please try again.`,
         { response: e }
       );
+      if (provider === "google") {
+        // The server removes the registration before the settings, so a
+        // failed delete can leave the integration half removed.
+        try {
+          onDelete(await configAPI.loadAll());
+        } catch {
+          // The failed delete is already reported.
+        }
+      }
     }
     setIsDeleting(false);
   };
 
-  const copy =
-    provider === "microsoft-entra" ? (
+  let copy: React.JSX.Element;
+  if (provider === "google") {
+    copy = (
+      <>
+        <p>
+          Before you delete, first unmark devices as managed in Google.{" "}
+          <CustomLink
+            text="Learn how"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/disable-google-conditional-access`}
+            newTab
+          />
+        </p>
+        <p>
+          If you don&apos;t, devices will stay marked as managed even after
+          deleting Google.
+        </p>
+      </>
+    );
+  } else if (provider === "microsoft-entra") {
+    copy = (
       <>
         <p>
           Before you delete, first unblock all end users.{" "}
@@ -114,7 +186,9 @@ const DeleteConditionalAccessModal = ({
           Entra.
         </p>
       </>
-    ) : (
+    );
+  } else {
+    copy = (
       <>
         <p>
           Before you delete, first unblock all end users.{" "}
@@ -130,6 +204,7 @@ const DeleteConditionalAccessModal = ({
         </p>
       </>
     );
+  }
 
   return (
     <Modal
@@ -144,7 +219,7 @@ const DeleteConditionalAccessModal = ({
           variant="alert"
           onClick={handleDelete}
           isLoading={isDeleting}
-          disabled={isDeleting || oktaBlockedByGitOps}
+          disabled={isDeleting || blockedByGitOps}
         >
           Delete
         </Button>
@@ -169,11 +244,7 @@ enum EntraPhase {
   ConsentMissing = "consent-missing",
 }
 
-interface IConditionalAccessProps {
-  router: InjectedRouter;
-}
-
-const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
+const ConditionalAccess = () => {
   // HOOKS
   const { isPremiumTier, setConfig, config } = useContext(AppContext);
 
@@ -184,9 +255,12 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
   const [showOktaModal, setShowOktaModal] = useState(false);
-  const [providerToDelete, setProviderToDelete] = useState<
-    "microsoft-entra" | "okta" | null
-  >(null);
+  const [showOktaProfilesModal, setShowOktaProfilesModal] = useState(false);
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [
+    providerToDelete,
+    setProviderToDelete,
+  ] = useState<ConditionalAccessProvider | null>(null);
 
   // Bypass disabled state
   const [bypassDisabled, setBypassDisabled] = useState(
@@ -218,20 +292,50 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
           // IT admin did not complete the consent.
           !setup_error ||
           // IT admin clicked "Cancel" in the consent dialog.
-          setup_error.includes(
-            "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
-          )
+          setup_error.includes("A Microsoft Entra admin did not consent")
         ) {
           notify.error(
-            "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
+            <>
+              Couldn&apos;t connect. Fleet didn&apos;t get permissions for
+              Entra. Please try again and accept the permissions.{" "}
+              {troubleshootLink}
+            </>
           );
         } else if (
-          setup_error.includes(
-            'No "Fleet conditional access" Entra ID group was found'
-          )
+          // Covers both the empty (HTTP 204) and unexpected-shape responses.
+          setup_error.includes("PartnerCompliancePolicies API returned")
         ) {
           notify.error(
-            `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
+            <>
+              Couldn&apos;t connect. Entra didn&apos;t create Fleet&apos;s
+              compliance policy. Have an Entra admin who&apos;s also a Fleet
+              admin select <b>Connect</b> and approve permissions in one
+              session. {troubleshootLink}
+            </>
+          );
+        } else if (
+          setup_error.includes('No "Fleet conditional access" Entra ID group')
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Create a group named &quot;Fleet
+              conditional access&quot; in Entra and try again.{" "}
+              <CustomLink
+                text="Learn how"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/create-entra-conditional-access-group`}
+                newTab
+                variant="flash-message-link"
+              />
+            </>
+          );
+        } else if (
+          setup_error.includes("Error occurred when retrieving API tokens")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Fleet couldn&apos;t access your Entra
+              tenant. Please try again. {troubleshootLink}
+            </>
           );
         } else {
           // For other kind of errors we just show a generic error.
@@ -243,7 +347,9 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
           //  - The Fleet server logs the error.
           //  - The MS proxy stores the error in its database.
           notify.error(
-            "Couldn't connect. Please contact your Fleet administrator."
+            <>
+              Couldn&apos;t connect. Entra returned an error. {troubleshootLink}
+            </>
           );
         }
       }
@@ -260,6 +366,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   } = config?.conditional_access || {};
 
   const oktaConfigured = isOktaConditionalAccessConfigured(config);
+  const googleConfigured = isGoogleConditionalAccessConfigured(config);
 
   // Check Entra configuration state
   // Note: entraPhase is intentionally included in the dependency array to allow
@@ -330,9 +437,26 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
     setShowOktaModal(!showOktaModal);
   };
 
+  const toggleOktaProfilesModal = () => {
+    setShowOktaProfilesModal(!showOktaProfilesModal);
+  };
+
   const handleOktaModalSuccess = (updatedConfig: IConfig) => {
     setShowOktaModal(false);
     setConfig(updatedConfig);
+  };
+
+  const toggleGoogleModal = () => {
+    setShowGoogleModal(!showGoogleModal);
+  };
+
+  const handleGoogleModalSuccess = (updatedConfig: IConfig) => {
+    setShowGoogleModal(false);
+    setConfig(updatedConfig);
+  };
+
+  const handleGoogleDelete = () => {
+    setProviderToDelete("google");
   };
 
   const handleEntraDelete = () => {
@@ -374,6 +498,29 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
 
   // RENDER
 
+  const renderCardHeader = (provider: ConditionalAccessProvider) => (
+    <span className={`${baseClass}__card-header`}>
+      {PROVIDER_NAMES[provider]}
+      <TooltipWrapper
+        tipContent={PROVIDER_PLATFORMS[provider].tip}
+        showArrow
+        position="right"
+        underline={false}
+      >
+        <span className={`${baseClass}__platforms`}>
+          {PROVIDER_PLATFORMS[provider].icons.map((platform) => (
+            <Icon
+              key={platform}
+              name={platform}
+              size="small-medium"
+              color="ui-fleet-black-50"
+            />
+          ))}
+        </span>
+      </TooltipWrapper>
+    </span>
+  );
+
   const renderOktaContent = () => {
     let oktaCta: React.JSX.Element;
     if (oktaConfigured) {
@@ -381,11 +528,12 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
         <div className={`${baseClass}__card-actions`}>
           <Button
             variant="subdued"
-            onClick={() =>
-              router.push(paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS_OKTA)
-            }
-            icon="pencil"
+            onClick={toggleOktaProfilesModal}
+            icon="settings"
           >
+            Profiles
+          </Button>
+          <Button variant="subdued" onClick={toggleOktaModal} icon="pencil">
             Edit
           </Button>
           <GitOpsModeTooltipWrapper
@@ -394,7 +542,6 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
                 variant="subdued"
                 onClick={handleOktaDelete}
                 icon="trash"
-                iconPosition="right"
                 disabled={disableChildren}
               >
                 Delete
@@ -410,7 +557,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
 
     return (
       <SectionCard
-        header={oktaConfigured ? undefined : "Okta"}
+        header={oktaConfigured ? undefined : renderCardHeader("okta")}
         iconName={oktaConfigured ? "success" : undefined}
         cta={oktaCta}
       >
@@ -437,7 +584,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   const renderEntraContent = () => {
     if (entraPhase === EntraPhase.ConfirmationError) {
       return (
-        <SectionCard header="Microsoft Entra">
+        <SectionCard header={renderCardHeader("microsoft-entra")}>
           <DataError />
         </SectionCard>
       );
@@ -446,7 +593,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
     if (entraPhase === EntraPhase.ConfirmingConfigured) {
       return (
         <SectionCard
-          header="Microsoft Entra"
+          header={renderCardHeader("microsoft-entra")}
           cta={
             <Button isLoading disabled>
               Connect
@@ -515,7 +662,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
         header={
           entraIsConfigured || entraIsAwaitingOAuth
             ? undefined
-            : "Microsoft Entra"
+            : renderCardHeader("microsoft-entra")
         }
         iconName={entraIconName}
         cta={entraCta}
@@ -525,11 +672,100 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
     );
   };
 
+  const renderGoogleContent = () => {
+    const header = renderCardHeader("google");
+
+    if (!googleConfigured) {
+      return (
+        <SectionCard
+          header={header}
+          cta={<Button onClick={toggleGoogleModal}>Connect</Button>}
+        >
+          Connect Google to enable conditional access.
+        </SectionCard>
+      );
+    }
+
+    const googleStatus = config?.conditional_access?.google;
+    const googleConnected = googleStatus?.state === "connected";
+    // Edit stays enabled in GitOps mode: the modal lets the admin replace the
+    // key, which the YAML doesn't need to carry.
+    const googleCta = (
+      <div className={`${baseClass}__card-actions`}>
+        <Button variant="subdued" onClick={toggleGoogleModal} icon="pencil">
+          Edit
+        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button
+              variant="subdued"
+              onClick={handleGoogleDelete}
+              icon="trash"
+              iconPosition="right"
+              disabled={disableChildren}
+            >
+              Delete
+            </Button>
+          )}
+        />
+      </div>
+    );
+
+    if (googleConnected) {
+      return (
+        <SectionCard iconName="success" cta={googleCta}>
+          <span>
+            <TooltipWrapper
+              tipContent={
+                <>
+                  <b>Customer ID:</b>{" "}
+                  {config?.integrations?.google_conditional_access?.customer_id}
+                </>
+              }
+            >
+              Google
+            </TooltipWrapper>{" "}
+            conditional access connected.
+          </span>
+        </SectionCard>
+      );
+    }
+
+    // Saved while a connection is in flight, and left behind if it never
+    // finished.
+    if (googleStatus?.state === "pending") {
+      return (
+        <SectionCard header={header} iconName="pending" cta={googleCta}>
+          Fleet is connecting to Google. If this doesn&apos;t change, edit the
+          settings and save to try again.
+        </SectionCard>
+      );
+    }
+
+    // A delete that failed after removing the registration keeps the settings.
+    if (googleStatus?.state === "deleted") {
+      return (
+        <SectionCard header={header} iconName="error" cta={googleCta}>
+          Fleet couldn&apos;t finish deleting Google conditional access. Delete
+          it again, or edit the settings and save to reconnect.
+        </SectionCard>
+      );
+    }
+
+    return (
+      <SectionCard header={header} iconName="error" cta={googleCta}>
+        {googleStatus?.error_message ||
+          "Fleet couldn't connect to Google. Edit the settings and try again."}
+      </SectionCard>
+    );
+  };
+
   const renderContent = () => {
     return (
       <div className={`${baseClass}__cards`}>
         {renderOktaContent()}
         {renderEntraContent()}
+        {renderGoogleContent()}
       </div>
     );
   };
@@ -539,9 +775,13 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
       <div className={`${baseClass}__connections`}>
         <SectionHeader title="Conditional access" />
         <p className={`${baseClass}__page-description`}>
-          Block hosts failing policies from logging in with single sign-on. Once
-          connected, enable or disable on the{" "}
-          <CustomLink url={paths.MANAGE_POLICIES} text="Policies" /> page.
+          Block access to third-party apps from hosts that don&apos;t meet your
+          requirements.{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/conditional-access`}
+            text="Learn more"
+            newTab
+          />
         </p>
         {renderContent()}
         {showEntraModal && (
@@ -554,6 +794,15 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
           <OktaConditionalAccessModal
             onCancel={toggleOktaModal}
             onSuccess={handleOktaModalSuccess}
+          />
+        )}
+        {showOktaProfilesModal && (
+          <OktaProfilesModal onExit={toggleOktaProfilesModal} />
+        )}
+        {showGoogleModal && (
+          <GoogleConditionalAccessModal
+            onCancel={toggleGoogleModal}
+            onSuccess={handleGoogleModalSuccess}
           />
         )}
         {providerToDelete && (

@@ -66,7 +66,7 @@ func (r GetLabelResponse) Error() error { return r.Err }
 
 type ListLabelsRequest struct {
 	ListOptions       ListOptions `url:"label_list_options"`
-	TeamID            *string     `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
+	TeamID            *string     `query:"fleet_id,optional"` // string because it's an int or "global"
 	IncludeHostCounts *bool       `query:"include_host_counts,optional"`
 }
 
@@ -82,7 +82,7 @@ func (r ListLabelsResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type GetLabelsSummaryRequest struct {
-	TeamID *string `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
+	TeamID *string `query:"fleet_id,optional"` // string because it's an int or "global"
 }
 
 type GetLabelsSummaryResponse struct {
@@ -100,20 +100,6 @@ type ListHostsInLabelRequest struct {
 	ID          uint            `url:"id"`
 	ListOptions HostListOptions `url:"host_options"`
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Delete Label
-////////////////////////////////////////////////////////////////////////////////
-
-type DeleteLabelRequest struct {
-	Name string `url:"name"`
-}
-
-type DeleteLabelResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r DeleteLabelResponse) Error() error { return r.Err }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Delete Label By ID
@@ -134,9 +120,16 @@ func (r DeleteLabelByIDResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type ApplyLabelSpecsRequest struct {
-	Specs       []*LabelSpec `json:"specs"`
-	TeamID      *uint        `json:"-" query:"team_id,optional" renameto:"fleet_id"`
-	NamesToMove []string     `json:"names_to_move,omitempty"`
+	Specs        []*LabelSpec  `json:"specs"`
+	TeamID       *uint         `json:"-" query:"fleet_id,optional"`
+	LabelsToMove []LabelToMove `json:"labels_to_move,omitempty"`
+}
+
+type LabelToMove struct {
+	Name string `json:"name"`
+	// Omitted when the name moves from the global level into the fleet being applied. When applying global labels,
+	// only the listed fleets' labels with that name are set aside.
+	FromFleetID *uint `json:"from_fleet_id,omitempty"`
 }
 
 type ApplyLabelSpecsResponse struct {
@@ -150,7 +143,7 @@ func (r ApplyLabelSpecsResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type GetLabelSpecsRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type GetLabelSpecsResponse struct {

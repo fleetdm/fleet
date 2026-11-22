@@ -5,21 +5,21 @@ import { IEndUserAuthentication } from "interfaces/config";
 import permissions from ".";
 
 describe("permissions - isAdminForAllUserTeams", () => {
-  const globalAdmin = createMockUser({ global_role: "admin", teams: [] });
+  const globalAdmin = createMockUser({ global_role: "admin", fleets: [] });
   const teamAdminTeam1 = createMockUser({
     global_role: null,
-    teams: [{ id: 1, name: "Team 1", role: "admin" }],
+    fleets: [{ id: 1, name: "Team 1", role: "admin" }],
   });
   const teamAdminTeam1And2 = createMockUser({
     global_role: null,
-    teams: [
+    fleets: [
       { id: 1, name: "Team 1", role: "admin" },
       { id: 2, name: "Team 2", role: "admin" },
     ],
   });
   const teamAdminTeam1ObserverTeam2 = createMockUser({
     global_role: null,
-    teams: [
+    fleets: [
       { id: 1, name: "Team 1", role: "admin" },
       { id: 2, name: "Team 2", role: "observer" },
     ],
@@ -28,7 +28,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   it("returns false when there is no current user", () => {
     const target = createMockUser({
       global_role: null,
-      teams: [{ id: 1, name: "Team 1", role: "observer" }],
+      fleets: [{ id: 1, name: "Team 1", role: "observer" }],
     });
     expect(permissions.isAdminForAllUserTeams(null, target)).toBe(false);
   });
@@ -36,7 +36,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   it("allows a global admin to manage any user", () => {
     const target = createMockUser({
       global_role: null,
-      teams: [
+      fleets: [
         { id: 1, name: "Team 1", role: "observer" },
         { id: 2, name: "Team 2", role: "admin" },
       ],
@@ -47,7 +47,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   it("allows a team admin to manage a user that only belongs to fleets they administer", () => {
     const target = createMockUser({
       global_role: null,
-      teams: [{ id: 1, name: "Team 1", role: "observer" }],
+      fleets: [{ id: 1, name: "Team 1", role: "observer" }],
     });
     expect(permissions.isAdminForAllUserTeams(teamAdminTeam1, target)).toBe(
       true
@@ -57,7 +57,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   it("prevents a team admin from managing a user that also belongs to fleets they do not administer", () => {
     const target = createMockUser({
       global_role: null,
-      teams: [
+      fleets: [
         { id: 1, name: "Team 1", role: "observer" },
         { id: 2, name: "Team 2", role: "admin" },
       ],
@@ -70,7 +70,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   it("allows a team admin of all the user's fleets to manage that user", () => {
     const target = createMockUser({
       global_role: null,
-      teams: [
+      fleets: [
         { id: 1, name: "Team 1", role: "observer" },
         { id: 2, name: "Team 2", role: "admin" },
       ],
@@ -83,7 +83,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   it("prevents a team admin of one fleet but only observer of another from managing a user that belongs to both", () => {
     const target = createMockUser({
       global_role: null,
-      teams: [
+      fleets: [
         { id: 1, name: "Team 1", role: "observer" },
         { id: 2, name: "Team 2", role: "observer" },
       ],
@@ -96,7 +96,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   it("prevents a team admin from managing a user with a global role", () => {
     const target = createMockUser({
       global_role: "observer",
-      teams: [{ id: 1, name: "Team 1", role: "observer" }],
+      fleets: [{ id: 1, name: "Team 1", role: "observer" }],
     });
     expect(permissions.isAdminForAllUserTeams(teamAdminTeam1, target)).toBe(
       false
@@ -104,7 +104,7 @@ describe("permissions - isAdminForAllUserTeams", () => {
   });
 
   it("prevents a team admin from managing a user with no fleets", () => {
-    const target = createMockUser({ global_role: null, teams: [] });
+    const target = createMockUser({ global_role: null, fleets: [] });
     expect(permissions.isAdminForAllUserTeams(teamAdminTeam1, target)).toBe(
       false
     );
@@ -122,20 +122,20 @@ describe("permissions - canWriteSoftware", () => {
   });
 
   it("allows a global admin regardless of team", () => {
-    const user = createMockUser({ global_role: "admin", teams: [] });
+    const user = createMockUser({ global_role: "admin", fleets: [] });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
     expect(permissions.canWriteSoftware(user, null)).toBe(true);
   });
 
   it("allows a global maintainer regardless of team", () => {
-    const user = createMockUser({ global_role: "maintainer", teams: [] });
+    const user = createMockUser({ global_role: "maintainer", fleets: [] });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
   });
 
   it("allows a team admin on their team", () => {
     const user = createMockUser({
       global_role: null,
-      teams: [{ id: TEAM_ID, name: "Team 1", role: "admin" }],
+      fleets: [{ id: TEAM_ID, name: "Team 1", role: "admin" }],
     });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
   });
@@ -143,7 +143,7 @@ describe("permissions - canWriteSoftware", () => {
   it("allows a team maintainer on their team", () => {
     const user = createMockUser({
       global_role: null,
-      teams: [{ id: TEAM_ID, name: "Team 1", role: "maintainer" }],
+      fleets: [{ id: TEAM_ID, name: "Team 1", role: "maintainer" }],
     });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(true);
   });
@@ -151,7 +151,7 @@ describe("permissions - canWriteSoftware", () => {
   it("denies a team admin on a different team", () => {
     const user = createMockUser({
       global_role: null,
-      teams: [{ id: 2, name: "Team 2", role: "admin" }],
+      fleets: [{ id: 2, name: "Team 2", role: "admin" }],
     });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
   });
@@ -161,7 +161,7 @@ describe("permissions - canWriteSoftware", () => {
     ["observer", "observer"],
     ["observer_plus", "observer_plus"],
   ] as const)("denies a global %s", (_label, role) => {
-    const user = createMockUser({ global_role: role, teams: [] });
+    const user = createMockUser({ global_role: role, fleets: [] });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
   });
 
@@ -172,7 +172,7 @@ describe("permissions - canWriteSoftware", () => {
   ] as const)("denies a team %s on their team", (_label, role) => {
     const user = createMockUser({
       global_role: null,
-      teams: [{ id: TEAM_ID, name: "Team 1", role }],
+      fleets: [{ id: TEAM_ID, name: "Team 1", role }],
     });
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
   });
@@ -194,7 +194,7 @@ describe("permissions - canDownloadSoftwareInstaller", () => {
     ["maintainer", "maintainer"],
     ["technician", "technician"],
   ] as const)("allows a global %s", (_label, role) => {
-    const user = createMockUser({ global_role: role, teams: [] });
+    const user = createMockUser({ global_role: role, fleets: [] });
     expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(true);
     expect(permissions.canDownloadSoftwareInstaller(user, null)).toBe(true);
   });
@@ -206,7 +206,7 @@ describe("permissions - canDownloadSoftwareInstaller", () => {
   ] as const)("allows a team %s on their team", (_label, role) => {
     const user = createMockUser({
       global_role: null,
-      teams: [{ id: TEAM_ID, name: "Team 1", role }],
+      fleets: [{ id: TEAM_ID, name: "Team 1", role }],
     });
     expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(true);
   });
@@ -214,7 +214,7 @@ describe("permissions - canDownloadSoftwareInstaller", () => {
   it("denies a team technician on a different team", () => {
     const user = createMockUser({
       global_role: null,
-      teams: [{ id: 2, name: "Team 2", role: "technician" }],
+      fleets: [{ id: 2, name: "Team 2", role: "technician" }],
     });
     expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
   });
@@ -223,7 +223,7 @@ describe("permissions - canDownloadSoftwareInstaller", () => {
     ["observer", "observer"],
     ["observer_plus", "observer_plus"],
   ] as const)("denies a global %s", (_label, role) => {
-    const user = createMockUser({ global_role: role, teams: [] });
+    const user = createMockUser({ global_role: role, fleets: [] });
     expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
   });
 
@@ -233,7 +233,7 @@ describe("permissions - canDownloadSoftwareInstaller", () => {
   ] as const)("denies a team %s on their team", (_label, role) => {
     const user = createMockUser({
       global_role: null,
-      teams: [{ id: TEAM_ID, name: "Team 1", role }],
+      fleets: [{ id: TEAM_ID, name: "Team 1", role }],
     });
     expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
   });

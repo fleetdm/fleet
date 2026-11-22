@@ -30,7 +30,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
 
   // No access prompt if currentUser data has no role
   useEffect(() => {
-    if (!currentUser?.global_role && currentUser?.teams.length === 0) {
+    if (!currentUser?.global_role && currentUser?.fleets.length === 0) {
       router.push(PATHS.NO_ACCESS);
     }
   }, [currentUser]);
@@ -46,7 +46,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     } catch (response: any) {
       if (
         response.data.message.includes(
-          "either global role or team role needs to be defined"
+          "either global role or fleet role needs to be defined"
         )
       ) {
         router.push(PATHS.NO_ACCESS);
