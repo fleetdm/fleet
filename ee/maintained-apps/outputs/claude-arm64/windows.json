@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.28899.2",
+      "version": "6.28899.6",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC' AND version_compare(version, '6.28899.2') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC' AND version_compare(version, '6.28899.6') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'claude.exe');"
       },
-      "installer_url": "https://downloads.claude.ai/releases/win32/arm64/6.28899.2/Claude-155ca43c0ad5a4bd5734795688543b65b464cf47.msix",
+      "installer_url": "https://downloads.claude.ai/releases/win32/arm64/6.28899.6/Claude-2f5fc59b2d1c672dd9dced86720c50f48cca0cf9.msix",
       "install_script_ref": "6b560c70",
       "uninstall_script_ref": "03f72055",
-      "sha256": "5750d681c1365a11f0b97e41022a2b5375f412d89000cb846985d95927c3f6b5",
+      "sha256": "da56cbef97fd93aeb1da338f7820fcd281380f696fa020b86d9489232ea9d3cc",
       "default_categories": [
         "Productivity"
       ]
