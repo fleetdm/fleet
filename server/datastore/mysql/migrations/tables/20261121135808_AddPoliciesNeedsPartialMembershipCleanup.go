@@ -20,6 +20,15 @@ func Up_20261121135808(tx *sql.Tx) error {
 			return fmt.Errorf("add needs_partial_membership_cleanup to policies: %w", err)
 		}
 	}
+	// Bumped by every cleanup request, so the schedule only clears the flags when no newer request arrived during its run.
+	if !columnExists(tx, "policies", "membership_cleanup_generation") {
+		if _, err := tx.Exec(`
+			ALTER TABLE policies
+				ADD COLUMN membership_cleanup_generation INT UNSIGNED NOT NULL DEFAULT 0 AFTER needs_partial_membership_cleanup
+		`); err != nil {
+			return fmt.Errorf("add membership_cleanup_generation to policies: %w", err)
+		}
+	}
 	return nil
 }
 

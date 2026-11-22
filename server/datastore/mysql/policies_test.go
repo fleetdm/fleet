@@ -9155,6 +9155,9 @@ func testCleanupPendingPolicyMembership(t *testing.T, ds *Datastore) {
 		pol := newTestPolicy(t, ds, user, "interrupted full", "", nil)
 		recordFailingPolicyResults(t, ds, pol.ID, newPolicyTestHosts(t, ds, 4, "interrupted-full"))
 		setFlags(t, pol.ID, true, false)
+		// An older second, so a clear that bumps updated_at can't match it by landing in the same second.
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET updated_at = DATE_SUB(updated_at, INTERVAL 1 HOUR) WHERE id = ?`, pol.ID)
+		require.NoError(t, err)
 		before := updatedAt(t, pol.ID)
 
 		require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
@@ -9255,6 +9258,60 @@ func testCleanupPendingPolicyMembership(t *testing.T, ds *Datastore) {
 
 		require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 		assert.Zero(t, policyMembershipCount(t, ds, pol.ID))
+	})
+
+	t.Run("a label change through GitOps clears the counts", func(t *testing.T) {
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "label change counts", Query: "select 1;"})
+		require.NoError(t, err)
+		spec := &fleet.PolicySpec{Name: "label change counts", Query: "select 1;", Type: fleet.PolicyTypeDynamic}
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+		var pol fleet.Policy
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &pol, `SELECT id FROM policies WHERE name = ?`, spec.Name))
+		recordFailingPolicyResults(t, ds, pol.ID, newPolicyTestHosts(t, ds, 2, "label-change-counts"))
+		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
+		require.Positive(t, policyStatsCount(t, ds, pol.ID))
+
+		spec.LabelsIncludeAny = []string{label.Name}
+		require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+		assert.Zero(t, policyStatsCount(t, ds, pol.ID))
+		_, partial := policyCleanupFlags(t, ds, pol.ID)
+		assert.True(t, partial)
+	})
+
+	t.Run("a request made during the cleanup is not lost", func(t *testing.T) {
+		orig := policyMembershipDeleteBatchSize
+		policyMembershipDeleteBatchSize = 1
+		t.Cleanup(func() { policyMembershipDeleteBatchSize = orig })
+
+		pol := newTestPolicy(t, ds, user, "request during cleanup", "", nil)
+		hosts := newPolicyTestHosts(t, ds, 2, "during-cleanup")
+		recordFailingPolicyResults(t, ds, pol.ID, hosts)
+		pol.Query = "SELECT 2;"
+		require.NoError(t, ds.SavePolicy(ctx, pol, true, true))
+
+		// Holds the cleanup after it deleted the first host's result.
+		ingestionTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+		require.NoError(t, err)
+		defer func() { _ = ingestionTx.Rollback() }()
+		_, err = ingestionTx.ExecContext(ctx, `SELECT 1 FROM policy_membership WHERE policy_id = ? AND host_id = ? FOR UPDATE`,
+			pol.ID, hosts[1].ID)
+		require.NoError(t, err)
+
+		cleanupErr := make(chan error, 1)
+		go func() { cleanupErr <- ds.CleanupPendingPolicyMembership(ctx) }()
+		require.Eventually(t, func() bool { return policyMembershipCount(t, ds, pol.ID) == 1 }, 10*time.Second, 50*time.Millisecond)
+
+		// The first host reports for the old query, behind the cleanup, and then the query changes again.
+		recordFailingPolicyResults(t, ds, pol.ID, hosts[:1])
+		pol.Query = "SELECT 3;"
+		require.NoError(t, ds.SavePolicy(ctx, pol, true, true))
+		require.NoError(t, ingestionTx.Rollback())
+
+		require.NoError(t, <-cleanupErr)
+		assert.Zero(t, policyMembershipCount(t, ds, pol.ID))
+		removeAll, partial := policyCleanupFlags(t, ds, pol.ID)
+		assert.False(t, removeAll)
+		assert.False(t, partial)
 	})
 }
 

@@ -401,9 +401,11 @@ func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
 func requestPolicyMembershipCleanup(ctx context.Context, tx sqlx.ExecerContext, policyID uint, removeAll, removeStats bool) error {
 	// Always bumping updated_at lets the hourly policy_membership reconcile see a label-only
 	// change, which doesn't otherwise update the policies row.
-	stmt := `UPDATE policies SET needs_partial_membership_cleanup = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	stmt := `UPDATE policies SET needs_partial_membership_cleanup = 1, membership_cleanup_generation = membership_cleanup_generation + 1,
+		updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	if removeAll {
-		stmt = `UPDATE policies SET needs_full_membership_cleanup = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+		stmt = `UPDATE policies SET needs_full_membership_cleanup = 1, membership_cleanup_generation = membership_cleanup_generation + 1,
+			updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	}
 	if _, err := tx.ExecContext(ctx, stmt, policyID); err != nil {
 		return ctxerr.Wrap(ctx, err, "request policy membership cleanup")
@@ -2449,7 +2451,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// may still exist, as a patch policy found by its software title.
 				_, prevFound := teamIDToPoliciesByName[teamID][spec.Name]
 				if !inserted && (!prevFound || policyRowChanged || shouldRemoveAllPolicyMemberships || labelsChanged) {
-					if err := requestPolicyMembershipCleanup(ctx, tx, policyID, shouldRemoveAllPolicyMemberships, removePolicyStats); err != nil {
+					// A label change leaves stale counts too, like a platform change.
+					if err := requestPolicyMembershipCleanup(ctx, tx, policyID, shouldRemoveAllPolicyMemberships,
+						removePolicyStats || labelsChanged); err != nil {
 						return err
 					}
 				}
@@ -2811,8 +2815,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 			WHERE
 				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
 				p.created_at < p.updated_at AND
-				p.needs_full_membership_cleanup = 0 AND
-				p.needs_partial_membership_cleanup = 0`
+				` + policyHasNoPendingMembershipCleanup
 	)
 
 	var pols []*fleet.Policy
@@ -2842,45 +2845,55 @@ func (ds *Datastore) CleanupPendingPolicyMembership(ctx context.Context) error {
 			return errors.Join(append(errs, ctxerr.Wrap(ctx, err, "cleanup pending policy membership"))...)
 		}
 
-		var pending []struct {
-			ID        uint   `db:"id"`
-			Platforms string `db:"platforms"`
-			RemoveAll bool   `db:"needs_full_membership_cleanup"`
-		}
-		if err := sqlx.SelectContext(ctx, db, &pending, `
-			SELECT id, platforms, needs_full_membership_cleanup
-			FROM policies
-			WHERE needs_full_membership_cleanup = 1 OR needs_partial_membership_cleanup = 1
-			ORDER BY id`,
+		var pendingIDs []uint
+		if err := sqlx.SelectContext(ctx, db, &pendingIDs, `
+			SELECT id FROM policies WHERE needs_full_membership_cleanup = 1 OR needs_partial_membership_cleanup = 1 ORDER BY id`,
 		); err != nil {
 			return errors.Join(append(errs, ctxerr.Wrap(ctx, err, "select policies with pending membership cleanup"))...)
 		}
 
 		// Passes repeat so requests made during one don't wait for the next run.
 		var cleaned int
-		for _, p := range pending {
-			if _, ok := failed[p.ID]; ok {
+		for _, id := range pendingIDs {
+			if _, ok := failed[id]; ok {
 				continue
 			}
 			cleaned++
 
-			var err error
-			if p.RemoveAll {
-				// A pending partial cleanup is kept and runs next pass, since it may have been
-				// requested after this cleanup passed some hosts.
-				if err = cleanupPolicyMembershipForPolicy(ctx, db, db, p.ID, ds.logger); err == nil {
-					_, err = db.ExecContext(ctx,
-						`UPDATE policies SET needs_full_membership_cleanup = 0, updated_at = updated_at WHERE id = ?`, p.ID)
-				}
-			} else {
-				if err = cleanupPolicyMembershipOnPolicyUpdate(ctx, db, db, p.ID, p.Platforms, ds.logger); err == nil {
-					_, err = db.ExecContext(ctx,
-						`UPDATE policies SET needs_partial_membership_cleanup = 0, updated_at = updated_at WHERE id = ?`, p.ID)
-				}
+			// Read right before the cleanup, so it uses the policy's current scope even if it changed earlier in this pass.
+			var p struct {
+				ID         uint   `db:"id"`
+				Platforms  string `db:"platforms"`
+				RemoveAll  bool   `db:"needs_full_membership_cleanup"`
+				Generation uint   `db:"membership_cleanup_generation"`
+			}
+			err := sqlx.GetContext(ctx, db, &p, `
+				SELECT id, platforms, needs_full_membership_cleanup, membership_cleanup_generation
+				FROM policies
+				WHERE id = ? AND (needs_full_membership_cleanup = 1 OR needs_partial_membership_cleanup = 1)`, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				continue // deleted, or a run on another server already cleaned it
+			}
+			switch {
+			case err != nil:
+				err = ctxerr.Wrap(ctx, err, "select policy with pending membership cleanup")
+			case p.RemoveAll:
+				err = cleanupPolicyMembershipForPolicy(ctx, db, db, p.ID, ds.logger)
+			default:
+				err = cleanupPolicyMembershipOnPolicyUpdate(ctx, db, db, p.ID, p.Platforms, ds.logger)
+			}
+			if err == nil {
+				// A full cleanup also covers a pending partial one. A request made during this cleanup changed the
+				// generation, so its flags stay set and the next pass runs it, since this cleanup may have already
+				// passed hosts that reported results afterwards.
+				_, err = db.ExecContext(ctx, `
+					UPDATE policies
+					SET needs_full_membership_cleanup = 0, needs_partial_membership_cleanup = 0, updated_at = updated_at
+					WHERE id = ? AND membership_cleanup_generation = ?`, p.ID, p.Generation)
 			}
 			if err != nil {
-				failed[p.ID] = struct{}{}
-				errs = append(errs, ctxerr.Wrapf(ctx, err, "cleanup pending membership for policy %d", p.ID))
+				failed[id] = struct{}{}
+				errs = append(errs, ctxerr.Wrapf(ctx, err, "cleanup pending membership for policy %d", id))
 			}
 		}
 		if cleaned == 0 {
@@ -3324,13 +3337,22 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 		return nil
 	}
 
+	// Joining policies skips writing counts when a cleanup was requested after the SELECTs above.
 	insertStmt := `INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
-	VALUES (:policy_id, :inherited_team_id, :passing_host_count, :failing_host_count)
+	SELECT p.id, v.inherited_team_id, v.passing_host_count, v.failing_host_count
+	FROM (VALUES %s) AS v (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+	JOIN policies p ON p.id = v.policy_id AND ` + policyHasNoPendingMembershipCleanup + `
 	ON DUPLICATE KEY UPDATE
 		updated_at = NOW(),
 		passing_host_count = VALUES(passing_host_count),
 		failing_host_count = VALUES(failing_host_count)`
-	_, err = sqlx.NamedExecContext(ctx, db, insertStmt, policyStats)
+	rows := make([]string, 0, len(policyStats))
+	args := make([]any, 0, len(policyStats)*4)
+	for _, ps := range policyStats {
+		rows = append(rows, "ROW(?, ?, ?, ?)")
+		args = append(args, ps.PolicyID, ps.InheritedTeamID, ps.PassingHostCount, ps.FailingHostCount)
+	}
+	_, err = db.ExecContext(ctx, fmt.Sprintf(insertStmt, strings.Join(rows, ",")), args...)
 	if err != nil {
 		// INSERT may fail due to rare race conditions. We log and proceed.
 		ds.logger.ErrorContext(ctx,

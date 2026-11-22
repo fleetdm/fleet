@@ -292,7 +292,8 @@ type immediatePolicyMembershipCleanup struct {
 // RegisterImmediatePolicyMembershipCleanup makes triggers of the policy_membership_cleanup schedule run the cleanup
 // immediately. A mocked datastore is skipped, since it only implements what a test sets.
 func RegisterImmediatePolicyMembershipCleanup(schedules *fleet.CronSchedules, ds fleet.Datastore) {
-	if _, isMock := ds.(*fleet_mock.Store); isMock {
+	switch ds.(type) {
+	case *fleet_mock.Store, *fleet_mock.DataStore:
 		return
 	}
 	schedules.Schedules[string(fleet.CronPolicyMembershipCleanup)] = immediatePolicyMembershipCleanup{ds: ds}

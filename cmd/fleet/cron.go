@@ -1368,8 +1368,10 @@ func newPolicyMembershipCleanupSchedule(
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronPolicyMembershipCleanup)
-		defaultInterval = 1 * time.Hour
+		name = string(fleet.CronPolicyMembershipCleanup)
+		// Short because a trigger is skipped while a run is in progress or on another server, and a run with nothing
+		// pending is a single SELECT on policies.
+		defaultInterval = 5 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
