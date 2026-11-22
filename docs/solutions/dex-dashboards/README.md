@@ -1,13 +1,13 @@
 # DEX dashboards
 
-Scripts that build eight dashboards from the Fleet API for macOS, Windows, and Linux: Hardware lifecycle, Software usage, Patch velocity, AI governance, Connectivity, Analytics, Sustainability, and Policies. An overview page sums up all eight and links to each one. A daily Claude Code routine runs them and publishes each page as a private claude.ai Artifact. To set them up, follow the guide: [Build DEX dashboards with Fleet and Claude](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude).
+Scripts that build nine dashboards from the Fleet API for macOS, Windows, and Linux: Experience score, Hardware lifecycle, Software usage, Patch velocity, AI governance, Connectivity, Analytics, Sustainability, and Policies. An overview page sums up all nine and links to each one. A daily Claude Code routine runs them and publishes each page as a private claude.ai Artifact. To set them up, follow the guide: [Build DEX dashboards with Fleet and Claude](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude).
 
 | File | What it does |
 |:--|:--|
 | `collect.py` | Reads hosts, software, and 15 DEX reports from the Fleet API, several requests at a time. It only sends `GET` requests, and keeps only the software rows a page reads. Leaves out devices assigned to Fleet in Apple Business that haven't enrolled yet. |
 | `vendor.py` | Reads the latest releases from outside Fleet: macOS from SOFA (`sofafeed.macadmins.io`), Windows builds from Microsoft's Security Update Guide (`api.msrc.microsoft.com`), and fleetd, osquery, and Fleet Desktop from Fleet's update server (`updates.fleetdm.com`). It only sends `GET` requests. When a source can't be reached, the pages that use it fall back to the newest version the fleet runs and say so. |
 | `build.py` | Builds each dashboard page and updates its history, or builds the overview from the dashboards' histories. Splits a page's data, or a history, into part files when it's too big for one artifact file. |
-| `run.py` | Collects, reads the latest releases, then builds all eight pages and the overview in one process, and prints the publish call for each page. The routine calls this. |
+| `run.py` | Collects, reads the latest releases, then builds all nine pages and the overview in one process, and prints the publish call for each page. The routine calls this. |
 | `bundle.py` | Packages the code above into one file for the routine and prints its sha256. |
 | `templates/` | Page templates. |
 | `dex-reports.yml` | The 15 DEX reports the dashboards read: six for Macs, three for Windows security, two for AI governance on every platform (AI tools and agent usage), and four for Sustainability (two for Macs, one each for Windows and Linux). |
@@ -34,4 +34,9 @@ A run that needs more than about 9 minutes saves what it collected under `--work
 - `DEX_WARRANTY_VITAL`: the custom host vital that holds warranty end dates as `YYYY-MM-DD`. The default is `AppleCare warranty expiration`.
 - `DEX_GRID_INTENSITY`: grams of CO2 per kWh for computers with no GeoIP country. Without it, Sustainability uses the figure for the fleet's most common country.
 - `DEX_WORKERS`: requests to Fleet at once (default 8).
+- `DEX_SCORING_FILE`: a JSON file of experience score settings, in the shape **Download settings** saves on the Experience score page. Settings saved on the published page win over it. `run.py --scoring FILE` does the same for one run.
+
+## Experience score
+
+Experience score is built last, from the other pages' data. Its history keeps each computer's signals, one character per signal per day, not its score, so the page scores every day with the current settings and a settings change applies to the past too. `build.py` keeps the same scoring in Python for the overview's card, so the two always agree. The history is capped at about 12 MB: a year of days on a small fleet, and about 54 days at 10,000 computers.
 - `DEX_COMPANY_DOMAINS`: comma-separated email domains that count as company sign-ins for coding agents. Without it, AI governance uses the domains of end users from the identity provider, leaving out personal email providers such as gmail.com.

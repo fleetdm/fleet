@@ -57,11 +57,13 @@ jobs:
           DEX_GRID_INTENSITY: ${{ vars.DEX_GRID_INTENSITY }}
           DEX_COMPANY_DOMAINS: ${{ vars.DEX_COMPANY_DOMAINS }}
           DEX_WORKERS: ${{ vars.DEX_WORKERS }}
+          # A JSON file of experience scoring settings in this repository, such as dex-scoring.json.
+          DEX_SCORING_FILE: ${{ vars.DEX_SCORING_FILE }}
           FIRST_RUN: ${{ inputs.first_run }}
         run: |
           set -uo pipefail
           # Empty variables would override the scripts' defaults.
-          for v in DEX_WARRANTY_VITAL DEX_GRID_INTENSITY DEX_COMPANY_DOMAINS DEX_WORKERS; do
+          for v in DEX_WARRANTY_VITAL DEX_GRID_INTENSITY DEX_COMPANY_DOMAINS DEX_WORKERS DEX_SCORING_FILE; do
             [ -n "${!v}" ] || unset "$v"
           done
           args=(--work "$RUNNER_TEMP/work" --site "$RUNNER_TEMP/site" --budget 6000)

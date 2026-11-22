@@ -1,4 +1,4 @@
-<title>DEX overview</title>
+<title>Overview</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,8 +32,8 @@
   <header class="top" id="top"></header>
   <div class="title-row">
     <div>
-      <h1>DEX overview</h1>
-      <p class="subtitle">How your computers are doing across every DEX dashboard: hardware, software, patching, AI tools, connectivity, energy, and policies. Each card sums up one dashboard. Open it for the computers behind the numbers.</p>
+      <h1>Overview</h1>
+      <p class="subtitle">How your computers are doing across every dashboard: the experience score, hardware, software, patching, AI tools, connectivity, energy, and policies. Each card sums up one dashboard. Open it for the computers behind the numbers.</p>
     </div>
   </div>
   <section class="hero" id="hero" aria-label="Summary"></section>
@@ -88,9 +88,24 @@ const sumSince = (rows, f, days) => {
 };
 const offMac = () => PLATFORM && PLATFORM !== "macos";
 
-// Alphabetical by title, then Policies and Analytics across the bottom, since they check compliance and the data behind the rest.
+// Experience score across the top, since it sums up the rest. Then alphabetical by title, and Policies and
+// Analytics across the bottom, since they check compliance and the data behind the rest.
 // key: the card's main number for today's row. spark: the same measure per day.
+const expPage = DATA.pages.experience || { categories: [], grades: [], target: 75 };
+const expGrade = (x) => (Number.isFinite(x) ? (expPage.grades.find(([, lo]) => x >= lo) || ["F"])[0] : null);
+// The lowest of today's scored categories, averaged over the selected computers.
+function expLowest(r) {
+  const cats = expPage.categories.filter(([c, , w]) => w > 0 && r[`n_${c}`]).map(([c, label]) => [label, r[`c_${c}`] / r[`n_${c}`] / 10]);
+  return cats.sort((a, b) => a[1] - b[1])[0];
+}
 const CARDS = [
+  { page: "experience", title: "Experience score", wide: true,
+    about: "One score from 0 to 100 for each computer, from every dashboard below, weighted the way your admins choose.",
+    label: () => "Average experience score", spark: (r) => (r.scored ? r.score10 / r.scored / 10 : NaN), yMax: 100,
+    keyFmt: (x) => (Number.isFinite(x) ? String(Math.round(x)) : "---"),
+    unit: (r) => { const g = expGrade(r.scored ? r.score10 / r.scored / 10 : NaN); return `${g ? `grade ${g}, ` : ""}${fmt.plural(r.scored, "computer")} scored`; },
+    rows: (r) => { const low = expLowest(r); return [[`Good experience (${expPage.target}+)`, fmt.pct(pct(r.good || 0, r.scored))],
+      ["Below target", fmt.n(r.scored - (r.good || 0)), r.scored - (r.good || 0)], ["Lowest category", low ? `${low[0]}, ${Math.round(low[1])}` : "---"]]; } },
   { page: "ai", title: "AI governance", about: "Which AI tools run where, and the settings that put data at risk.",
     label: () => "Using AI today", spark: (r) => r.act,
     unit: (r) => `of ${fmt.plural(r.ai, "computer")} with AI tools`,
@@ -175,6 +190,7 @@ function render() {
   const silent = now("connectivity", (r) => r.stale7);
   const high = now("ai", (r) => r.high);
   const neverSlept = now("sustainability", (r) => r.never_slept);
+  const belowTarget = DATA.pages.experience ? now("experience", (r) => r.scored - (r.good || 0)) : null;
 
   // Summary
   const parts = [];
@@ -196,7 +212,8 @@ function render() {
       railRow("Need hardware action", action, "lifecycle"),
       railRow("Not checking in", silent, "connectivity"),
       railRow("High-risk AI findings", high, "ai"),
-      railRow("Haven't slept", neverSlept, "sustainability")));
+      railRow("Haven't slept", neverSlept, "sustainability"),
+      DATA.pages.experience ? railRow("Below experience target", belowTarget, "experience") : null));
 
   // Cards
   mount("dashes", CARDS.map((c) => {

@@ -1,6 +1,6 @@
 # Build DEX dashboards with GitHub Actions
 
-The [DEX dashboards](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude) turn Fleet data into eight digital employee experience dashboards and an overview. That guide runs them as a Claude Code routine and publishes Claude artifacts. This guide runs the same scripts in a GitHub Actions workflow instead, keeps each dashboard's history on a branch in your repository, and serves the pages with GitHub Pages. You don't need a Claude account.
+The [DEX dashboards](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude) turn Fleet data into nine digital employee experience dashboards and an overview. That guide runs them as a Claude Code routine and publishes Claude artifacts. This guide runs the same scripts in a GitHub Actions workflow instead, keeps each dashboard's history on a branch in your repository, and serves the pages with GitHub Pages. You don't need a Claude account.
 
 ## How it works
 
@@ -81,6 +81,7 @@ An [environment](https://docs.github.com/en/actions/managing-workflow-runs-and-d
    - `DEX_GRID_INTENSITY`: grams of CO2 per kWh, for computers with no GeoIP country.
    - `DEX_COMPANY_DOMAINS`: comma-separated email domains that count as company sign-ins for coding agents. Without it, AI governance uses your identity provider's email domains, leaving out personal email providers such as gmail.com.
    - `DEX_WORKERS`: how many requests go to Fleet at once. The default is 8. Lower it if your Fleet server is busy during runs.
+   - `DEX_SCORING_FILE`: the path, in your repository, of a JSON file with your experience score settings. GitHub Pages can't save settings on the Experience score page, so try changes under **Scoring settings**, select **Download settings**, and commit the file. Without it, the page uses Fleet's default scoring.
 
 > **Note:** Don't add required reviewers to this environment. Every scheduled run would wait for someone to approve it.
 
