@@ -1,0 +1,8 @@
+{
+  "name": "Munki",
+  "unique_identifier": "com.googlecode.munki.ManagedSoftwareCenter",
+  "token": "munki",
+  "installer_format": "pkg",
+  "slug": "munki/darwin",
+  "default_categories": ["Productivity"]
+}

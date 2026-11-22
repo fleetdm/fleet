@@ -16,7 +16,7 @@ const serverToUiStatus = (
 ): { label: string; icon: IconNames | "spinner" } => {
   switch (status) {
     case "pending":
-      return { label: "Pending", icon: "pending-outline" };
+      return { label: "Pending", icon: "pending" };
     case "running":
       return { label: "Running", icon: "spinner" };
     case "success":
@@ -25,7 +25,7 @@ const serverToUiStatus = (
     case "cancelled":
       return { label: "Failed", icon: "error" };
     default:
-      return { label: "Pending", icon: "pending-outline" };
+      return { label: "Pending", icon: "pending" };
   }
 };
 

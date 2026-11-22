@@ -1,10 +1,29 @@
 package fleet
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestMissingSecretNames(t *testing.T) {
+	for _, err := range []error{
+		MissingSecretsError{MissingSecrets: []string{"A"}},
+		&MissingSecretsError{MissingSecrets: []string{"A"}},
+		fmt.Errorf("wrapped: %w", MissingSecretsError{MissingSecrets: []string{"A"}}),
+	} {
+		names, ok := MissingSecretNames(err)
+		require.True(t, ok, err)
+		require.Equal(t, []string{"A"}, names)
+		require.True(t, IsMissingSecretsError(err))
+	}
+
+	_, ok := MissingSecretNames(errors.New("other"))
+	require.False(t, ok)
+	require.False(t, IsMissingSecretsError(nil))
+}
 
 func TestValidateNoHostSecretVariables(t *testing.T) {
 	require.NoError(t, ValidateNoHostSecretVariables(""))

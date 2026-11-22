@@ -15,6 +15,7 @@ on:
       - webpack.config.js
       - tsconfig.json
       - tools/software/icons/**
+      - .github/workflows/test-js.yml
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -33,13 +34,13 @@ jobs:
   test-js:
     strategy:
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
       # Set the Node.js version
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -80,13 +81,13 @@ jobs:
   lint-js:
     strategy:
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
       # Set the Node.js version
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -128,12 +129,12 @@ jobs:
   lint-icons:
     strategy:
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

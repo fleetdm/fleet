@@ -12,9 +12,9 @@ import (
 func (c *Client) ApplyLabels(
 	specs []*fleet.LabelSpec,
 	teamID *uint,
-	moves []string,
+	moves []fleet.LabelToMove,
 ) error {
-	req := fleet.ApplyLabelSpecsRequest{TeamID: teamID, Specs: specs, NamesToMove: moves}
+	req := fleet.ApplyLabelSpecsRequest{TeamID: teamID, Specs: specs, LabelsToMove: moves}
 	verb, path := "POST", "/api/latest/fleet/spec/labels"
 	var responseBody fleet.ApplyLabelSpecsResponse
 
@@ -46,9 +46,9 @@ func (c *Client) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 	return responseBody.Specs, err
 }
 
-// DeleteLabel deletes the label with the matching name.
-func (c *Client) DeleteLabel(name string) error {
-	verb, path := "DELETE", "/api/latest/fleet/labels/"+url.PathEscape(name)
-	var responseBody fleet.DeleteLabelResponse
+// DeleteLabelByID deletes the label with the given ID.
+func (c *Client) DeleteLabelByID(id uint) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id)
+	var responseBody fleet.DeleteLabelByIDResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

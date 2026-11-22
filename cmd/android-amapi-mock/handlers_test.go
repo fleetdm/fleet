@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 const (
@@ -32,7 +34,7 @@ func testPolicyName(esid string) string {
 func newTestMux(t *testing.T) (*http.ServeMux, *deviceStore) {
 	t.Helper()
 	store := newDeviceStore()
-	return newMux(store, nil, 0, 0), store
+	return newMux(store, nil, 0, 0, policyOptions{}), store
 }
 
 // registerTestDevice registers a fake device through the coordination API the way
@@ -185,7 +187,7 @@ func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newDeviceStore()
 			store.requirePolicies = tc.requirePolicies
-			mux := newMux(store, nil, 0, 0)
+			mux := newMux(store, nil, 0, 0, policyOptions{})
 			registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
 			if tc.setup != nil {
 				tc.setup(t, mux)
@@ -289,6 +291,79 @@ type testDeviceState struct {
 	PolicyName          string   `json:"policy_name"`
 	PendingCommands     []string `json:"pending_commands"`
 	PendingCertificates []uint   `json:"pending_certificates"`
+	AgentEnrollSecret   string   `json:"agent_enroll_secret"`
+}
+
+// TestGetStateReportsAgentEnrollSecret covers both ways Fleet sends the agent's managed configuration: a
+// modifyPolicyApplications change, and the app list in a policy patch.
+func TestGetStateReportsAgentEnrollSecret(t *testing.T) {
+	agentConfig := func(hostUUID, secret string) android.AgentManagedConfiguration {
+		return android.AgentManagedConfiguration{ServerURL: "https://fleet.example.com", HostUUID: hostUUID, EnrollSecret: secret}
+	}
+
+	t.Run("policy action", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+		assert.Empty(t, getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+
+		rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+			certChangesBody(t, agentConfig(testESID, "one-time-1")))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "one-time-1", getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+
+		// A newer configuration replaces it.
+		rr = postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+			certChangesBody(t, agentConfig(testESID, "one-time-2")))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "one-time-2", getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+	})
+
+	t.Run("policy patch app list", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+		agentManagedConfig, err := json.Marshal(agentConfig(testESID, "from-patch"))
+		require.NoError(t, err)
+		policy, err := json.Marshal(androidmanagement.Policy{Applications: []*androidmanagement.ApplicationPolicy{
+			// Another app's free-form configuration that happens to look like the agent's comes first, as in Fleet's lists.
+			{PackageName: "com.example.other", ManagedConfiguration: []byte(`{"host_uuid":"` + testESID + `","enroll_secret":"not-the-agent"}`)},
+			{PackageName: "com.fleetdm.agent", ManagedConfiguration: agentManagedConfig},
+		}})
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("PATCH", fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, testESID), bytes.NewReader(policy)))
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+		assert.Equal(t, "from-patch", getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+	})
+
+	t.Run("custom agent package", func(t *testing.T) {
+		mux, store := newTestMux(t)
+		store.agentPackage = "com.example.fleetagent"
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+		// certChangesBody sends the configuration as com.fleetdm.agent, which isn't the agent here.
+		rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+			certChangesBody(t, agentConfig(testESID, "wrong-package")))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Empty(t, getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+	})
+
+	t.Run("reported even before a secret arrives", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("GET", "/mock/devices/"+testESID+"/state", nil))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), `"agent_enroll_secret":""`)
+	})
+
+	t.Run("another host's configuration is ignored", func(t *testing.T) {
+		mux, _ := newTestMux(t)
+		registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+		rr := postPolicyAction(t, mux, fmt.Sprintf("/v1/enterprises/%s/policies/%s:modifyPolicyApplications", testEnterpriseID, testESID),
+			certChangesBody(t, agentConfig("some-other-host", "not-ours")))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Empty(t, getTestState(t, mux, testESID, http.StatusOK).AgentEnrollSecret)
+	})
 }
 
 func getTestState(t *testing.T, mux *http.ServeMux, esid string, wantStatus int) testDeviceState {
@@ -752,7 +827,7 @@ func TestNoteEnterpriseIgnoresEmptyID(t *testing.T) {
 
 	assert.Empty(t, store.knownEnterprises())
 
-	mux := newMux(store, nil, 0, 0)
+	mux := newMux(store, nil, 0, 0, policyOptions{})
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
 	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
@@ -791,6 +866,43 @@ func TestDevicesListIncludesFakeDevices(t *testing.T) {
 	require.Len(t, resp.Devices, 1)
 	assert.Equal(t, testDeviceName, resp.Devices[0].Name)
 	assert.Empty(t, resp.NextPageToken)
+}
+
+func TestPolicyRequestGuard(t *testing.T) {
+	const hostPolicyID = "host-policy-uuid"
+	policyPath := func(pid string) string {
+		return fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, pid)
+	}
+	serve := func(mux *http.ServeMux, method, path string) int {
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest(method, path, bytes.NewReader([]byte(`{}`))))
+		return rr.Code
+	}
+
+	cases := []struct {
+		name   string
+		opts   policyOptions
+		method string
+		path   string
+		want   int
+	}{
+		{"empty policy ID in an app action is rejected", policyOptions{}, "POST", policyPath(":modifyPolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a remove action is rejected", policyOptions{}, "POST", policyPath(":removePolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a patch is rejected", policyOptions{}, "PATCH", policyPath("") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy app action is accepted by default", policyOptions{}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusOK},
+		{"default policy app action is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusBadRequest},
+		{"default policy app removal is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:removePolicyApplications"), http.StatusBadRequest},
+		{"default policy apps patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy full patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1"), http.StatusBadRequest},
+		{"default policy patch without apps is accepted", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=statusReportingSettings,kioskCustomization", http.StatusOK},
+		{"host policy app action is accepted", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusOK},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mux := newMux(newDeviceStore(), nil, 0, 0, c.opts)
+			require.Equal(t, c.want, serve(mux, c.method, c.path))
+		})
+	}
 }
 
 // Fleet's zero-touch configuration parses the expiration timestamp of the
@@ -888,4 +1000,59 @@ func TestEnrollmentTokenExpiry(t *testing.T) {
 		require.NoError(t, err, "formatted as %q", formatted)
 		require.Equal(t, 9999, parsed.Year())
 	})
+}
+
+// TestDeviceAndOperationLookupsForPubSubVerification checks the lookups Fleet makes when it
+// handles a Pub/Sub notification: a fake device reports its hardware identity, and its
+// operations report as done.
+func TestDeviceAndOperationLookupsForPubSubVerification(t *testing.T) {
+	mux, _ := newTestMux(t)
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName, nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var device androidmanagement.Device
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &device))
+	require.NotNil(t, device.HardwareInfo)
+	assert.Equal(t, testESID, device.HardwareInfo.EnterpriseSpecificId)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName+"/operations/op-1", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var op androidmanagement.Operation
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &op))
+	assert.Equal(t, testDeviceName+"/operations/op-1", op.Name)
+	assert.True(t, op.Done)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises/"+testEnterpriseID+"/devices/unknown/operations/op-1", nil))
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestWriteGoogleError(t *testing.T) {
+	notFoundBody := `{"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}`
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"google 404 passes through", &googleapi.Error{Code: http.StatusNotFound, Body: notFoundBody}, http.StatusNotFound, notFoundBody},
+		{"wrapped google 429 passes through", fmt.Errorf("get: %w", &googleapi.Error{Code: http.StatusTooManyRequests, Body: `{"error":{"code":429}}`}), http.StatusTooManyRequests, `{"error":{"code":429}}`},
+		{"google error without a body is a 502", &googleapi.Error{Code: http.StatusNotFound}, http.StatusBadGateway, ""},
+		{"non-google error is a 502", errors.New("dial tcp: connection refused"), http.StatusBadGateway, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			writeGoogleError(rr, c.err)
+			require.Equal(t, c.wantCode, rr.Code)
+			if c.wantBody != "" {
+				assert.Equal(t, c.wantBody, rr.Body.String())
+			} else {
+				assert.Contains(t, rr.Body.String(), `"BAD_GATEWAY"`)
+			}
+		})
+	}
 }

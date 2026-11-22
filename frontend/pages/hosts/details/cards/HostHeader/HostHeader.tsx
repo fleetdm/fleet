@@ -7,7 +7,10 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  INITIAL_FLEET_DATE,
+} from "utilities/constants";
 import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
@@ -40,15 +43,11 @@ const RefetchButton = ({
     "refetch-btn": !isFetching,
   });
 
-  const buttonText = isFetching
-    ? "Fetching fresh vitals...this may take a moment"
-    : "Refetch";
-
   return (
     <>
       <TooltipWrapper
         underline={false}
-        disableTooltip={!tooltip}
+        disableTooltip={!tooltip || isFetching}
         tipContent={tooltip}
         position="top"
         showArrow
@@ -61,7 +60,7 @@ const RefetchButton = ({
             variant="secondary"
             icon="refresh"
           >
-            {buttonText}
+            Refetch
           </Button>
         </div>
       </TooltipWrapper>
@@ -184,6 +183,17 @@ const HostHeader = ({
   } else if (policyValid) {
     lastFetchedAt = summaryData.policy_updated_at;
   }
+  // Both timestamps hold a 2000-01-01 placeholder until the host's first
+  // refetch, e.g. right after ADE enrollment.
+  const neverFetched = !!lastFetchedAt && lastFetchedAt < INITIAL_FLEET_DATE;
+  const showMdmCheckIn = neverFetched && hasMdmCheckIn;
+
+  let lastFetchedTip = "unavailable";
+  if (neverFetched) {
+    lastFetchedTip = "never";
+  } else if (lastFetchedAt) {
+    lastFetchedTip = internationalTimeFormat(new Date(lastFetchedAt));
+  }
 
   const withTooltip = (content: React.ReactNode) => {
     if (!hasMdmCheckIn) {
@@ -196,12 +206,7 @@ const HostHeader = ({
           <>
             <span>
               Last fetched:
-              <b>
-                {" "}
-                {lastFetchedAt
-                  ? internationalTimeFormat(new Date(lastFetchedAt))
-                  : "unavailable"}
-              </b>
+              <b> {lastFetchedTip}</b>
             </span>
             <br />
             <span>
@@ -229,11 +234,7 @@ const HostHeader = ({
   }
 
   const renderDeviceStatusTag = () => {
-    if (
-      !hostMdmDeviceStatus ||
-      hostMdmDeviceStatus === "unlocked" ||
-      hostMdmDeviceStatus === "unenrolling"
-    ) {
+    if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") {
       return null;
     }
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
@@ -286,11 +287,18 @@ const HostHeader = ({
           {renderDeviceStatusTag()}
 
           <div className={`${baseClass}__last-fetched`}>
-            {withTooltip(
-              <>
-                {"Last fetched"} {lastFetched}
-              </>
-            )}
+            {showRefetchSpinner &&
+              "Refetching... This can take up to 1 minute."}
+            {!showRefetchSpinner &&
+              withTooltip(
+                showMdmCheckIn ? (
+                  <>Last MDM check-in {humanLastSeen(lastMdmCheckIn)}</>
+                ) : (
+                  <>
+                    {"Last fetched"} {lastFetched}
+                  </>
+                )
+              )}
           </div>
         </div>
       </div>

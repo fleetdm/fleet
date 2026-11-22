@@ -41,7 +41,8 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
     isPremiumTier,
   } = ctx;
 
-  const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
+  const isAbmConfigured =
+    config?.mdm?.apple_business_enabled_and_configured ?? false;
 
   // GitOps mode disables write actions in the UI; mirrors the predicate
   // ManageFleetsPage uses to disable its Add fleet button.

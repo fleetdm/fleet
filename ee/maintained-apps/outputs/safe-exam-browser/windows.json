@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.10.1",
+      "version": "3.10.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Safe Exam Browser' AND publisher = 'ETH Zürich';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Safe Exam Browser' AND publisher = 'ETH Zürich' AND version_compare(version, '3.10.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Safe Exam Browser' AND publisher = 'ETH Zürich' AND version_compare(version, '3.10.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'safe exam browser.exe');"
       },
-      "installer_url": "https://github.com/SafeExamBrowser/seb-win-refactoring/releases/download/v3.10.1/SEB_3.10.1.864_SetupBundle.exe",
+      "installer_url": "https://github.com/SafeExamBrowser/seb-win-refactoring/releases/download/v3.10.3/SEB_3.10.3.960_SetupBundle.exe",
       "install_script_ref": "a088aa3d",
       "uninstall_script_ref": "b5cf47f2",
-      "sha256": "04ce06ef92444813f0286f5a0a98333f24a6998b777ae295bb5077ca5f4ad9bb",
+      "sha256": "716b25f77ada22bffdd223e147c3f21042d130c006347e35bd9be2c91e51730b",
       "default_categories": [
         "Browsers"
       ]

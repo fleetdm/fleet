@@ -168,7 +168,7 @@ func createSession(t *testing.T, uid uint, ds fleet.Datastore) *fleet.Session {
 
 func (s *integrationTestSuite) cleanupQuery(queryID uint) {
 	var delResp fleet.DeleteQueryByIDResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", queryID), nil, http.StatusOK, &delResp)
 }
 
 func jsonMustMarshal(t testing.TB, v any) []byte {

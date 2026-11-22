@@ -123,9 +123,8 @@ func (d *HostIdentitySCEPDepot) Put(name string, crt *x509.Certificate) error {
 	}
 
 	return common_mysql.WithRetryTxx(context.Background(), d.db, func(tx sqlx.ExtContext) error {
-		// Revoke existing certs for this host id.
-		// Note: Because the challenge is shared, it is possible for a bad actor to revoke a cert for an existing host
-		// if they have the challenge and the host identifier (CN).
+		// Revoke existing certs for this name. Issuance for a name that holds a valid cert is only reachable through a verified
+		// renewal, so what gets revoked here is the cert being replaced or ones that already expired.
 		result, err := tx.ExecContext(context.Background(), `
 			UPDATE host_identity_scep_certificates 
 			SET revoked = 1 

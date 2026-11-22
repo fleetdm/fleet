@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
 import { createCustomRenderer, renderWithSetup } from "test/test-utils";
@@ -12,9 +13,15 @@ jest.mock("services/entities/scripts", () => ({
   default: { downloadScript: jest.fn() },
 }));
 
+// jsdom has no layout, so control whether the name renders truncated.
+jest.mock("hooks/useCheckTruncatedElement", () => ({
+  useCheckTruncatedElement: jest.fn(),
+}));
+const mockedUseCheckTruncatedElement = jest.mocked(useCheckTruncatedElement);
+
 const MAC_SCRIPT: IScript = {
   id: 1,
-  team_id: 1,
+  fleet_id: 1,
   name: "test_mac_script.sh",
   created_at: "2021-01-01",
   updated_at: "2021-01-01",
@@ -22,7 +29,7 @@ const MAC_SCRIPT: IScript = {
 
 const WINDOWS_SCRIPT: IScript = {
   id: 1,
-  team_id: 1,
+  fleet_id: 1,
   name: "test_win_script.ps1",
   created_at: "2021-01-01",
   updated_at: "2021-01-01",
@@ -35,6 +42,25 @@ describe("ScriptListItem", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it("shows the full name on hover when the name is truncated", async () => {
+    mockedUseCheckTruncatedElement.mockReturnValue(true);
+    const { user } = renderWithSetup(
+      <ScriptListItem
+        script={MAC_SCRIPT}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onClickScript={onClickScript}
+      />
+    );
+
+    await user.hover(screen.getByText(MAC_SCRIPT.name));
+
+    await waitFor(() => {
+      expect(screen.getByText(/^Name:/)).toBeInTheDocument();
+    });
+    expect(screen.getAllByText(MAC_SCRIPT.name)).toHaveLength(2);
   });
 
   it("Renders a Script list item with correct platform for macOS", () => {

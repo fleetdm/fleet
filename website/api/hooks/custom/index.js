@@ -364,7 +364,7 @@ will be disabled and/or hidden in the UI.
                   return requestPath === pagePattern;
                 });
                 if (!isOnHiddenPage) {
-                  let banner = { text: bannerConfig.text, textForSmallScreens: bannerConfig.textForSmallScreens, href: bannerConfig.href };
+                  let banner = bannerConfig.forEveryone ? { text: bannerConfig.forEveryone.text, textForSmallScreens: bannerConfig.forEveryone.textForSmallScreens, href: bannerConfig.forEveryone.href } : undefined;
                   if (bannerConfig.forVisitorsInEurope) {
                     const EUROPEAN_COUNTRY_CODES = [
                       // EU member states
@@ -382,7 +382,7 @@ will be disabled and/or hidden in the UI.
                     }
                   }
                   // Don't advertise a page to someone who's already on it.
-                  if (banner.href !== requestPath) {
+                  if (banner && banner.href !== requestPath) {
                     res.locals.announcementBanner = banner;
                   }
                 }

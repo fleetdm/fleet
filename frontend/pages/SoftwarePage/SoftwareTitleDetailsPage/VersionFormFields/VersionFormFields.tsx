@@ -1,4 +1,5 @@
 import React from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
@@ -227,6 +228,9 @@ interface IVersionFormFieldsProps {
    * button (iOS/iPadOS when self-service is on). Opens the title-level
    * self-service preview modal. */
   onClickPreviewEndUserExperience: () => void;
+  /** Android web apps hold a single version: hide Name, Configuration, and
+   * the multiple-versions targeting banner. */
+  isWebApp?: boolean;
   /** When true, every control is disabled and removed from the tab order
    * (text inputs, Editor via `readOnly`, Slider, Checkbox, radios, label
    * dropdown, category checkboxes). */
@@ -243,10 +247,35 @@ const VersionFormFields = ({
   labels,
   teamId,
   onClickPreviewEndUserExperience,
+  isWebApp = false,
   disabled = false,
 }: IVersionFormFieldsProps) => {
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
+
+  const configFieldProps = getTextFieldProps("configuration");
+
+  // 3s pause after the last keystroke surfaces the configuration error
+  // without flashing mid-edit, matching the SQL editor's behavior. Blur and
+  // submit still validate immediately via useFormValidation.
+  const debounceValidateConfig = useDebouncedCallback(() => {
+    configFieldProps.onBlur();
+  }, 3000);
+
+  const onChangeConfiguration = (value: string) => {
+    configFieldProps.onChange(value);
+    // Clear any existing error immediately; the 3s debounce re-adds it if
+    // the content is still invalid once the user stops typing.
+    configFieldProps.onFocus();
+    debounceValidateConfig();
+  };
+
+  const onBlurConfiguration = () => {
+    // Blur-time validation runs now; drop the pending debounced copy so it
+    // can't fire after the user refocuses and clears the error.
+    debounceValidateConfig.cancel();
+    configFieldProps.onBlur();
+  };
 
   const onSelectCategory = ({
     name,
@@ -291,22 +320,28 @@ const VersionFormFields = ({
 
   return (
     <div className={baseClass}>
-      <InputField
-        {...getTextFieldProps("name")}
-        label="Name"
-        placeholder="e.g. Production"
-        autofocus
-        inputOptions={{ maxLength: 255 }}
-        disabled={disabled}
-      />
+      {!isWebApp && (
+        <>
+          <InputField
+            {...getTextFieldProps("name")}
+            label="Name"
+            placeholder="e.g. Production"
+            autofocus
+            inputOptions={{ maxLength: 255 }}
+            disabled={disabled}
+          />
 
-      <Editor
-        {...getTextFieldProps("configuration")}
-        label="Configuration"
-        mode={editorMode}
-        helpText={configHelpText}
-        readOnly={disabled}
-      />
+          <Editor
+            {...configFieldProps}
+            onChange={onChangeConfiguration}
+            onBlur={onBlurConfiguration}
+            label="Configuration"
+            mode={editorMode}
+            helpText={configHelpText}
+            readOnly={disabled}
+          />
+        </>
+      )}
 
       {isIosOrIpados && (
         <Slider
@@ -382,10 +417,19 @@ const VersionFormFields = ({
         error={getError("labelTargets")}
         disableOptions={disabled}
         labelInfoBanner={
-          <InfoBanner icon="info-outline">
-            If multiple versions target the same host, Fleet will deploy the one
-            that was added first.
-          </InfoBanner>
+          isWebApp ? undefined : (
+            <InfoBanner icon="info">
+              If multiple versions target the same host, Fleet will deploy the
+              one that was added first.
+              <br />
+              Want to roll out a new version to multiple hosts?{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
+                text="Learn how"
+                newTab
+              />
+            </InfoBanner>
+          )
         }
       />
     </div>

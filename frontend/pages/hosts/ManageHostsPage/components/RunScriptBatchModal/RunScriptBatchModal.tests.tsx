@@ -16,7 +16,7 @@ const baseUrl = (path: string) => {
 
 const windowsScript: IScript = {
   id: 123,
-  team_id: 1,
+  fleet_id: 1,
   name: "winscript.ps1",
   created_at: "2023-01-01T00:00:00Z",
   updated_at: "2023-01-01T00:00:00Z",
@@ -24,7 +24,7 @@ const windowsScript: IScript = {
 
 const linuxScript: IScript = {
   id: 456,
-  team_id: 1,
+  fleet_id: 1,
   name: "linuxscript.sh",
   created_at: "2023-01-01T00:00:00Z",
   updated_at: "2023-01-01T00:00:00Z",

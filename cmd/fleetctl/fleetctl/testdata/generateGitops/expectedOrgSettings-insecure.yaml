@@ -28,10 +28,10 @@ certificate_authorities:
       certificate_profile_name: some-ejbca-certificate-profile-name
       certificate_user_principal_names:
         - some-ejbca-certificate-user-principal-name
-      client_p12: ___GITOPS_COMMENT_0___
+      client_p12: ___GITOPS_COMMENT_1___
       end_entity_profile_name: some-ejbca-end-entity-profile-name
       name: some-ejbca-name
-      password: ___GITOPS_COMMENT_1___
+      password: ___GITOPS_COMMENT_2___
       trust_ca_bundle: |
         -----BEGIN CERTIFICATE-----
         some-ejbca-trust-bundle
@@ -66,9 +66,6 @@ features:
   additional_queries:
     time: "SELECT * FROM time"
     macs: "SELECT mac FROM interface_details"
-  detail_query_overrides:
-    users:
-    mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   historical_data:
     uptime: true
     vulnerabilities: true
@@ -76,6 +73,9 @@ fleet_desktop:
   alternative_browser_host: musica.alternativa
   sso_enabled: false
   transparency_url: https://fleetdm.com/transparency
+gitops:
+  gitops_mode_enabled: false
+  repository_url: https://github.com/fleetdm/fleet/tree/main/it-and-security
 host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
@@ -88,6 +88,10 @@ integrations:
     - api_key_json:
         owl: hoot
       domain: fleetdm.com
+  google_conditional_access:
+    admin_email: admin@fleetdm.com
+    api_key_json: ___GITOPS_COMMENT_0___
+    customer_id: C02cajzvg
   google_workspace:
     - api_key_json:
         owl: hoot
@@ -148,6 +152,7 @@ secrets:
   - secret: some-secret-number-two
 server_settings:
   ai_features_disabled: false
+  ai_sessions_disabled: false
   debug_host_ids:
     - 1
     - 3
@@ -157,8 +162,20 @@ server_settings:
   mcp_disabled: false
   report_cap: 1
   discard_reports_data: false
-  scripts_disabled: false
   server_url: https://dogfood.fleetdm.com
+smtp_settings:
+  authentication_method: authmethod_plain
+  authentication_type: authtype_username_password
+  domain: ""
+  enable_smtp: false
+  enable_ssl_tls: false
+  enable_start_tls: false
+  password: ""
+  port: 587
+  sender_address: ""
+  server: localhost
+  user_name: ""
+  verify_ssl_certs: false
 sso_settings:
   enable_jit_provisioning: true
   enable_sso: true

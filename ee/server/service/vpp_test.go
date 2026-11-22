@@ -31,6 +31,7 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func TestBatchAssociateVPPApps(t *testing.T) {
@@ -536,8 +537,12 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 			CountryCode: "us",
 		}}, nil
 	}
+	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "LC01"}, nil
+	}
 
 	svc := newTestService(t, ds)
+	svc.androidModule = &playStoreLookupAndroidModule{availableApplicationIDs: []string{"com.example.android"}}
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	payload := func(adamID string, platform fleet.InstallableDevicePlatform) []fleet.VPPBatchPayload {
@@ -559,9 +564,9 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	const missing = "1107542306"
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload(missing, fleet.IPadOSPlatform), true)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "requested app not available on vpp account: "+missing)
+	require.ErrorContains(t, err, fmt.Sprintf(`Couldn't apply. App %q isn't available in any VPP token. Please purchase a license in Apple Business and try again.`, missing))
 
-	// Play Store apps are not VPP assets and are not checked here.
+	// Play Store apps are not VPP assets and are not checked against VPP tokens.
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload("com.example.android", fleet.AndroidPlatform), true)
 	require.NoError(t, err)
 
@@ -572,6 +577,106 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload(missing, fleet.IPadOSPlatform), false)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+type playStoreLookupAndroidModule struct {
+	android.Service
+	availableApplicationIDs []string
+	titleByApplicationID    map[string]string
+	lookedUpApplicationIDs  []string
+}
+
+func (m *playStoreLookupAndroidModule) EnterprisesApplications(ctx context.Context, enterpriseName string, applicationID string) (*androidmanagement.Application, error) {
+	m.lookedUpApplicationIDs = append(m.lookedUpApplicationIDs, applicationID)
+	if !slices.Contains(m.availableApplicationIDs, applicationID) {
+		return nil, batchNotFoundError{}
+	}
+	title := applicationID
+	if m.titleByApplicationID[applicationID] != "" {
+		title = m.titleByApplicationID[applicationID]
+	}
+	return &androidmanagement.Application{Name: enterpriseName + "/applications/" + applicationID, Title: title}, nil
+}
+
+func TestBatchAssociateVPPAppsDryRunReportsMissingAndroidApps(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Existing fleet" {
+			return &fleet.Team{ID: 1, Name: name}, nil
+		}
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
+		return nil, nil
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "LC01"}, nil
+	}
+
+	const firstWebApp = fleet.AndroidWebAppPrefix + ".first"
+	const secondWebApp = fleet.AndroidWebAppPrefix + ".second"
+	androidModule := &playStoreLookupAndroidModule{
+		availableApplicationIDs: []string{"com.android.chrome", firstWebApp, secondWebApp},
+		titleByApplicationID:    map[string]string{firstWebApp: "Intranet", secondWebApp: "intranet"},
+	}
+	svc := newTestService(t, ds)
+	svc.androidModule = androidModule
+
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	const missing = "com.example.notinplaystore"
+	missingErr := `Couldn't add software. The application ID "` + missing + `" isn't available in Play Store.`
+	chromeVersions := []fleet.VPPBatchPayload{
+		{AppStoreID: "com.android.chrome", Platform: fleet.AndroidPlatform, VersionName: "Work"},
+		{AppStoreID: "com.android.chrome", Platform: fleet.AndroidPlatform, VersionName: "Personal"},
+	}
+	missingApp := []fleet.VPPBatchPayload{{AppStoreID: missing, Platform: fleet.AndroidPlatform}}
+
+	// Dry run two versions of an available app on an existing fleet, the app should be looked up once.
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "Existing fleet", chromeVersions, true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"com.android.chrome"}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run an app missing from Play Store on an existing fleet, the dry run should fail like the apply.
+	androidModule.lookedUpApplicationIDs = nil
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "Existing fleet", missingApp, true)
+	require.ErrorContains(t, err, missingErr)
+	require.Equal(t, []string{missing}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run an app missing from Play Store on Unassigned, the dry run should fail like the apply.
+	androidModule.lookedUpApplicationIDs = nil
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "", missingApp, true)
+	require.ErrorContains(t, err, missingErr)
+	require.Equal(t, []string{missing}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run two versions of an available app and a missing app on a new fleet, each app should be
+	// looked up once and the dry run should fail on the missing app.
+	androidModule.lookedUpApplicationIDs = nil
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New fleet", slices.Concat(chromeVersions, missingApp), true)
+	require.ErrorContains(t, err, missingErr)
+	require.Equal(t, []string{"com.android.chrome", missing}, androidModule.lookedUpApplicationIDs)
+
+	// Dry run two web apps with the same title on a new fleet, the dry run should fail like the apply.
+	androidModule.lookedUpApplicationIDs = nil
+	sameTitleWebApps := []fleet.VPPBatchPayload{
+		{AppStoreID: firstWebApp, Platform: fleet.AndroidPlatform},
+		{AppStoreID: secondWebApp, Platform: fleet.AndroidPlatform},
+	}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New fleet", sameTitleWebApps, true)
+	require.ErrorContains(t, err, `Couldn't add. Web app with this name ("intranet") already exists in this fleet.`)
+	require.Equal(t, []string{firstWebApp, secondWebApp}, androidModule.lookedUpApplicationIDs)
+
+	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
+	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
 }
 
 // A dry run for a team that does not exist yet reads every unexpired token. A
@@ -632,7 +737,7 @@ func TestBatchAssociateVPPAppsDryRunNewTeamToleratesUnreadableToken(t *testing.T
 	calls.Store(0)
 	tokens = []*fleet.VPPTokenDB{token("good", expired)}
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
-	require.ErrorContains(t, err, "VPP token expired")
+	require.ErrorContains(t, err, "Couldn't apply. All VPP tokens are expired. Please renew one and try again.")
 	require.Zero(t, calls.Load())
 
 	// An expired token next to a valid one is ignored.
@@ -892,6 +997,10 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		ds.GetDuplicateStringGroupsUnderCollationFunc = func(context.Context, []string) ([]fleet.DuplicateStringGroup, error) {
 			return nil, nil
 		}
+		ds.GetEnterpriseFunc = func(context.Context) (*android.Enterprise, error) {
+			return &android.Enterprise{EnterpriseID: "LC01"}, nil
+		}
+		svc.androidModule = &playStoreLookupAndroidModule{availableApplicationIDs: []string{"com.example.app"}}
 		return svc, ds, baseSvc
 	}
 
@@ -1279,10 +1388,29 @@ func TestAddAppStoreAppToken(t *testing.T) {
 			require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
 		})
 
-		t.Run("another token conflicts", func(t *testing.T) {
+		for _, name := range []string{"", "US copy"} {
+			t.Run("another token conflicts/name="+name, func(t *testing.T) {
+				fx := withExisting(t, new(uint(2)))
+				fx.ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+					return 1, name == "", nil
+				}
+				app := iosApp(new(uint(1)))
+				app.VersionName = name
+				_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, app)
+				require.ErrorContains(t, err, `Couldn't add software. Canva (iOS) is already added to this fleet from the "Acme Japan" VPP token.`)
+				require.Equal(t, http.StatusConflict, vppErrStatus(err))
+				require.Empty(t, fx.seenAuth)
+				require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+			})
+		}
+
+		t.Run("same token with an existing name conflicts", func(t *testing.T) {
 			fx := withExisting(t, new(uint(2)))
-			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(1))))
-			require.ErrorContains(t, err, `Couldn't add software. Canva (iOS) is already added to this fleet from the "Acme Japan" VPP token.`)
+			fx.ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+				return 1, true, nil
+			}
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+			require.ErrorContains(t, err, `A version named "Default version" already exists`)
 			require.Equal(t, http.StatusConflict, vppErrStatus(err))
 			require.Empty(t, fx.seenAuth)
 			require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
@@ -1420,6 +1548,35 @@ func TestUpdateAppStoreAppActivityToken(t *testing.T) {
 		require.ErrorContains(t, err, "db down")
 		require.False(t, ds.InsertVPPAppWithTeamFuncInvoked)
 	})
+}
+
+func TestUpdateAppStoreAppActivityKeepsStoredSettings(t *testing.T) {
+	t.Parallel()
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	calls := 0
+	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
+		calls++
+		app := &fleet.VPPAppStoreApp{AdamID: "100", Platform: fleet.IOSPlatform, Name: "Canva", VPPAppsTeamsID: 1}
+		if calls == 1 {
+			app.Configuration = json.RawMessage(`<dict></dict>`)
+			app.LabelsIncludeAny = []fleet.SoftwareScopeLabel{{LabelID: 3, LabelName: "Staging"}}
+		}
+		// later reads simulate a lagging replica that still shows no labels or configuration
+		return []*fleet.VPPAppStoreApp{app}, nil
+	}
+	ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{AppTeamID: 1}, nil
+	}
+	ds.GetVPPTokenFunc = func(context.Context, uint) (*fleet.VPPTokenDB, error) { return nil, nil }
+
+	// A partial edit (no labels, no configuration) still reports the stored ones, taken from the pre-update read.
+	_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(true)})
+	require.NoError(t, err)
+	require.Equal(t, []fleet.ActivitySoftwareLabel{{ID: 3, Name: "Staging"}}, act.LabelsIncludeAny)
+	require.JSONEq(t, `"<dict></dict>"`, string(act.Configuration))
 }
 
 const batchVPPTeamName = "📱 Mobile"
@@ -1721,7 +1878,7 @@ func TestBatchAssociateVPPAppsTokenErrors(t *testing.T) {
 				return us, batchJPToken()
 			},
 			payloads: []fleet.VPPBatchPayload{batchIOS("1", "")},
-			want:     `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`,
+			want:     `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`,
 			status:   http.StatusUnprocessableEntity,
 		},
 		{
@@ -1732,7 +1889,7 @@ func TestBatchAssociateVPPAppsTokenErrors(t *testing.T) {
 				return batchUSToken(), jp
 			},
 			payloads: []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan")},
-			want:     `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`,
+			want:     `Couldn't apply. VPP token "Acme Japan" is expired. Please renew it and try again.`,
 			status:   http.StatusUnprocessableEntity,
 		},
 		{
@@ -1845,7 +2002,7 @@ func TestBatchAssociateVPPAppsExistingAppOnExpiredToken(t *testing.T) {
 	t.Run("an app moved to the expired token's location still fails", func(t *testing.T) {
 		fx := setup(t)
 		err := fx.apply(false, batchIOS("1", "Acme Japan"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan" is expired. Please renew it and try again.`)
 	})
 }
 
@@ -1891,7 +2048,7 @@ func TestBatchAssociateVPPAppsExpandedPlatformsOnExpiredToken(t *testing.T) {
 	t.Run("a new app on the expired token still fails", func(t *testing.T) {
 		fx := setup(t)
 		err := fx.apply(false, noPlatform("2"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`)
 	})
 
 	t.Run("an explicit platform still fails", func(t *testing.T) {
@@ -1899,7 +2056,7 @@ func TestBatchAssociateVPPAppsExpandedPlatformsOnExpiredToken(t *testing.T) {
 		macOS := noPlatform("1")
 		macOS.Platform = fleet.MacOSPlatform
 		err := fx.apply(false, macOS)
-		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`)
 	})
 }
 
@@ -1951,7 +2108,7 @@ func TestBatchAssociateVPPAppsExpandedPlatformsInheritToken(t *testing.T) {
 		us.RenewDate = time.Now().Add(-24 * time.Hour)
 		fx := newBatchVPPFixture(t, us, batchJPToken())
 		err := fx.apply(false, noPlatform("2"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme US" is expired. Please renew it and try again.`)
 	})
 }
 
@@ -1997,7 +2154,7 @@ func TestBatchAssociateVPPAppsDryRunNewFleetLocation(t *testing.T) {
 		jp.RenewDate = time.Now().Add(-24 * time.Hour)
 		fx := setup(t, batchUSToken(), jp)
 		err := fx.apply(true, batchIOS("3", "Acme Japan"))
-		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan" is expired. Please renew it and try again.`)
 		require.Empty(t, fx.assetCalls)
 	})
 
@@ -2007,13 +2164,13 @@ func TestBatchAssociateVPPAppsDryRunNewFleetLocation(t *testing.T) {
 		require.NoError(t, fx.apply(true, batchIOS("2", ""), batchIOS("3", "")))
 
 		err := fx.apply(true, batchIOS("9", ""))
-		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+		require.ErrorContains(t, err, `Couldn't apply. App "9" isn't available in any VPP token. Please purchase a license in Apple Business and try again.`)
 	})
 
 	t.Run("located and unlocated apps are both checked", func(t *testing.T) {
 		fx := setup(t, batchUSToken(), batchJPToken())
 		err := fx.apply(true, batchIOS("3", "Acme Japan"), batchIOS("9", ""))
-		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+		require.ErrorContains(t, err, `Couldn't apply. App "9" isn't available in any VPP token. Please purchase a license in Apple Business and try again.`)
 		require.ElementsMatch(t, []string{"jp-secret", "us-secret"}, fx.assetCalls, "one assets call per token")
 	})
 

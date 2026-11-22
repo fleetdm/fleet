@@ -63,6 +63,9 @@ type Service struct {
 	keyValueStore           fleet.KeyValueStore
 	clock                   clock.Clock
 	installReapTimeout      time.Duration
+	// oneTimeEnrollSecrets puts a one-time, host-bound enroll secret in the Fleet agent's managed configuration instead of the
+	// host's fleet enroll secret.
+	oneTimeEnrollSecrets bool
 }
 
 func NewService(
@@ -99,6 +102,11 @@ func WithClock(clk clock.Clock) ServiceOption {
 // by the device before it is marked failed. Zero or less keeps it pending indefinitely.
 func WithInstallReapTimeout(d time.Duration) ServiceOption {
 	return func(s *Service) { s.installReapTimeout = d }
+}
+
+// WithOneTimeEnrollSecrets mirrors the mdm.android_one_time_enroll_secrets server configuration.
+func WithOneTimeEnrollSecrets(enabled bool) ServiceOption {
+	return func(s *Service) { s.oneTimeEnrollSecrets = enabled }
 }
 
 func NewServiceWithClient(
@@ -617,7 +625,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Verify the enroll secret before anything that could reveal server
 	// configuration state, so callers without a valid secret always get the
 	// same response.
-	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	verifiedSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil, fleet.NewAuthFailedError("invalid secret")
@@ -689,12 +697,25 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		personalUsageSetting = "PERSONAL_USAGE_DISALLOWED"
 	}
 
+	var teamID uint
+	if id := verifiedSecret.GetTeamID(); id != nil {
+		teamID = *id
+	}
+	policyName, err := svc.EnsureFleetDefaultPolicy(ctx, enterprise.Name(), teamID)
+	if err != nil {
+		// Enrolling without the setup passcode beats not enrolling; the host still gets it once it's
+		// moved to its own policy.
+		svc.logger.ErrorContext(ctx, "failed to ensure the fleet's android default policy, enrolling with the global one",
+			"fleet_id", teamID, "err", err)
+		policyName = fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID)
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
 		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: personalUsageSetting,
-		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
+		PolicyName:         policyName,
 		OneTimeOnly:        true,
 	}
 	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)
@@ -1534,10 +1555,33 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 			continue
 		}
 
-		_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+		policyBuiltAt := time.Now()
+		policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
 			[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
 		if err != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
+			continue
+		}
+		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, uuid)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "get android host %s", uuid))
+			continue
+		}
+		var inPolicyVersion *int64
+		if policy != nil && policy.Version > 0 {
+			inPolicyVersion = &policy.Version
+		}
+		// Save the sent Fleet agent like the Android app reconciler does, so the next status report will verify it
+		err = svc.fleetDS.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+			HostID:          androidHost.Host.ID,
+			AdamID:          packageName,
+			InstallType:     android.AppStatusForceInstalled,
+			Status:          fleet.AndroidSoftwareInstallStatusPending,
+			InPolicyVersion: inPolicyVersion,
+			PolicyBuiltAt:   policyBuiltAt,
+		}}, nil)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "save fleet agent install for host %s", uuid))
 		}
 	}
 	return errors.Join(errs...)
@@ -1572,12 +1616,11 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 		return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
 	}
 
-	enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, androidHost.Host.TeamID)
+	enrollSecret, err := svc.agentEnrollSecret(ctx, androidHost, func(teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return svc.fleetDS.GetEnrollSecrets(ctx, teamID)
+	})
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
-	}
-	if len(enrollSecrets) == 0 {
-		return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		return nil, err
 	}
 
 	// Get certificate templates for the host (all templates, regardless of status)
@@ -1606,9 +1649,31 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 	return &android.AgentManagedConfiguration{
 		ServerURL:              appConfig.ServerSettings.ServerURL,
 		HostUUID:               hostUUID,
-		EnrollSecret:           enrollSecrets[0].Secret,
+		EnrollSecret:           enrollSecret,
 		CertificateTemplateIDs: certificateTemplateIDs,
 	}, nil
+}
+
+// agentEnrollSecret returns the enroll secret for the Fleet agent's managed configuration: the host's one-time secret when
+// one-time enroll secrets are on, otherwise the first enroll secret of the host's fleet.
+func (svc *Service) agentEnrollSecret(
+	ctx context.Context, androidHost *fleet.AndroidHost, getEnrollSecrets func(teamID *uint) ([]*fleet.EnrollSecret, error),
+) (string, error) {
+	if svc.oneTimeEnrollSecrets {
+		secret, err := svc.fleetDS.MintAndroidOneTimeEnrollSecret(ctx, androidHost.Host.ID)
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "mint one-time enroll secret for android host %d", androidHost.Host.ID)
+		}
+		return secret, nil
+	}
+	enrollSecrets, err := getEnrollSecrets(androidHost.Host.TeamID)
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
+	}
+	if len(enrollSecrets) == 0 {
+		return "", ctxerr.Errorf(ctx, "no enroll secrets found for fleet %v", androidHost.Host.TeamID)
+	}
+	return enrollSecrets[0].Secret, nil
 }
 
 func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
@@ -1683,9 +1748,18 @@ func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string
 func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
 	policy *androidmanagement.Policy, metadata map[string]string,
 ) (skip bool, err error) {
+	skip, _, err = svc.patchPolicy(ctx, policyID, policyName, policy, metadata)
+	return skip, err
+}
+
+// patchPolicy is PatchPolicy that also returns the AMAPI error, which is otherwise only recorded in the
+// policy request.
+func (svc *Service) patchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (skip bool, apiErr error, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
-		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+		return false, nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
 	applied, apiErr := svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
@@ -1714,9 +1788,9 @@ func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string
 	}
 
 	if err := svc.fleetDS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+		return false, apiErr, ctxerr.Wrap(ctx, err, "save android policy request")
 	}
-	return skip, nil
+	return skip, apiErr, nil
 }
 
 func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
@@ -1795,6 +1869,18 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 // - delivering: Cron is actively sending to AMAPI
 // - delivered: AMAPI confirmed receipt
 func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+	return svc.buildAndSendFleetAgentConfig(ctx, enterpriseName, hostUUIDs, skipHostsWithoutNewCerts, false)
+}
+
+// SendFleetAgentConfig builds and sends the host's Fleet agent configuration like BuildAndSendFleetAgentConfig, but returns
+// the error when the Android Management API call fails, so the caller can retry.
+func (svc *Service) SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error {
+	return svc.buildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false, true)
+}
+
+func (svc *Service) buildAndSendFleetAgentConfig(
+	ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts, failOnSendError bool,
+) error {
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
@@ -1834,12 +1920,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
 		}
 
-		enrollSecrets, err := getEnrollSecretsForTeam(androidHost.Host.TeamID)
+		enrollSecret, err := svc.agentEnrollSecret(ctx, androidHost, getEnrollSecretsForTeam)
 		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
-		}
-		if len(enrollSecrets) == 0 {
-			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+			return nil, err
 		}
 
 		var certificateTemplateIDs []android.AgentCertificateTemplate
@@ -1855,7 +1938,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		return &android.AgentManagedConfiguration{
 			ServerURL:              appConfig.ServerSettings.ServerURL,
 			HostUUID:               hostUUID,
-			EnrollSecret:           enrollSecrets[0].Secret,
+			EnrollSecret:           enrollSecret,
 			CertificateTemplateIDs: certificateTemplateIDs,
 		}, nil
 	}
@@ -1884,6 +1967,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 				svc.logger.ErrorContext(ctx, "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
+				if failOnSendError {
+					return ctxerr.Wrapf(ctx, err, "send fleet agent config for host %s", hostUUID)
+				}
 				// Not a critical failure. We will retry installing Fleet Agent when certificates are added to the host's team
 			}
 			continue
@@ -1893,6 +1979,10 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		config, err := buildHostConfig(hostUUID, certTemplates.Templates)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to build host config", "host_uuid", hostUUID, "err", err)
+			// Put the templates back, or they wait in delivering for the stale revert.
+			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
+				svc.logger.ErrorContext(ctx, "failed to revert to pending after host config failure", "host_uuid", hostUUID, "err", revertErr)
+			}
 			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)
 		}
 
@@ -1903,6 +1993,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
 				svc.logger.ErrorContext(ctx, "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
 				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
+			}
+			if failOnSendError {
+				return ctxerr.Wrapf(ctx, err, "send fleet agent config for host %s", hostUUID)
 			}
 			continue
 		}
@@ -1920,27 +2013,29 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 // SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 // Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 // not additive/PATCH semantics.
-func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
 		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 		}
 
 		var apiErr error
 		policy := &androidmanagement.Policy{Applications: appPolicies}
 		policy, apiErr = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
 		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
-			return ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
 		}
 
 		if apiErr != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
 		}
+		hostToPolicyRequest[uuid] = policyRequest
 	}
-	return errors.Join(errs...)
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {

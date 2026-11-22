@@ -9,6 +9,7 @@ exporters:
     endpoint: "0.0.0.0:8889"
 
   debug:
+    verbosity: detailed
 
   # Jaeger ingests OTLP natively (COLLECTOR_OTLP_ENABLED=true in
   # docker-compose.yml); the dedicated jaeger exporter was removed
@@ -44,3 +45,7 @@ service:
       receivers: [otlp, spanmetrics]
       processors: [batch]
       exporters: [debug, prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

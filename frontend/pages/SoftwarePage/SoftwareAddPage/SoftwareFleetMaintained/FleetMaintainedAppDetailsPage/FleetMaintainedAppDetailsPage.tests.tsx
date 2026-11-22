@@ -2,8 +2,10 @@ import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import { createMockFleetMaintainedAppDetails } from "__mocks__/softwareMock";
+import policiesAPI from "services/entities/policies";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
+import { getPatchDeadlineSettingsHandler } from "test/handlers/patch-deadline-settings-handlers";
+import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import FleetMaintainedAppDetailsPage from "./FleetMaintainedAppDetailsPage";
@@ -16,7 +18,7 @@ describe("FleetMaintainedAppDetailsPage", () => {
     jest
       .spyOn(softwareAPI, "addFleetMaintainedApp")
       .mockResolvedValue({ software_title_id: 99 });
-    jest.spyOn(teamPoliciesAPI, "create").mockResolvedValue({} as never);
+    jest.spyOn(policiesAPI, "create").mockResolvedValue({} as never);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -47,13 +49,14 @@ describe("FleetMaintainedAppDetailsPage", () => {
         3,
         expect.objectContaining({ patch: true, patchOption: "closed" })
       );
-      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 3,
+      expect(policiesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 3,
         type: "patch",
-        patch_software_title_id: 99,
         software_title_id: 99,
+        automation_type: "software",
         patch_when_closed: true,
         notify_before_patching: false,
+        patch_deadline: false,
         continuous_automations_enabled: true,
       });
     });
@@ -62,12 +65,54 @@ describe("FleetMaintainedAppDetailsPage", () => {
       (softwareAPI.addFleetMaintainedApp as jest.Mock).mock
         .invocationCallOrder[0]
     ).toBeLessThan(
-      (teamPoliciesAPI.create as jest.Mock).mock.invocationCallOrder[0]
+      (policiesAPI.create as jest.Mock).mock.invocationCallOrder[0]
     );
   });
 
+  it("creates a deadline patch policy when Force patch is selected on macOS", async () => {
+    mockServer.use(getPatchDeadlineSettingsHandler());
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isPremiumTier: true } },
+    });
+    const { user } = render(
+      <FleetMaintainedAppDetailsPage
+        location={
+          ({ query: { fleet_id: "3" } } as unknown) as React.ComponentProps<
+            typeof FleetMaintainedAppDetailsPage
+          >["location"]
+        }
+        router={createMockRouter()}
+        routeParams={{ id: "1" }}
+      />
+    );
+
+    await user.click(await screen.findByRole("checkbox", { name: "patch" }));
+    await user.click(screen.getByRole("radio", { name: "Force patch" }));
+    // Force patch on macOS preselects Deadline.
+    expect(
+      await screen.findByText(
+        /Patch is done silently when app is closed or forced on/i
+      )
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add software" }));
+
+    await waitFor(() => {
+      expect(policiesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 3,
+        type: "patch",
+        software_title_id: 99,
+        automation_type: "software",
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: true,
+        continuous_automations_enabled: true,
+      });
+    });
+  });
+
   it("navigates to the added software when patch policy creation fails", async () => {
-    (teamPoliciesAPI.create as jest.Mock).mockRejectedValueOnce(
+    (policiesAPI.create as jest.Mock).mockRejectedValueOnce(
       new Error("Patch failed")
     );
     const render = createCustomRenderer({
@@ -92,7 +137,7 @@ describe("FleetMaintainedAppDetailsPage", () => {
 
     await waitFor(() => {
       expect(softwareAPI.addFleetMaintainedApp).toHaveBeenCalledTimes(1);
-      expect(teamPoliciesAPI.create).toHaveBeenCalledTimes(1);
+      expect(policiesAPI.create).toHaveBeenCalledTimes(1);
       expect(router.push).toHaveBeenCalledWith(
         expect.stringMatching(/\/software\/titles\/99.*fleet_id=3/)
       );

@@ -84,11 +84,12 @@ func TestSessionsNewestFirst(t *testing.T) {
 
 func TestDefaultAgeCutoff(t *testing.T) {
 	home := setup(t)
-	old := writeClaudePrompts(t, home, "old", "old prompt")
-	touch(t, old, time.Now().AddDate(0, 0, -40))
-	writeClaudePrompts(t, home, "new", "new prompt")
+	ago := func(d int) time.Time { return time.Now().AddDate(0, 0, -d) }
+	old := writeClaudeTranscript(t, home, "old", claudePromptAt(ago(40), "old prompt"))
+	touch(t, old, ago(40))
+	writeClaudeTranscript(t, home, "new", claudePromptAt(ago(0), "new prompt"))
 
-	since := func(d int) string { return strconv.FormatInt(time.Now().AddDate(0, 0, -d).Unix(), 10) }
+	since := func(d int) string { return strconv.FormatInt(ago(d).Unix(), 10) }
 
 	t.Run("default is 30 days", func(t *testing.T) {
 		require.Equal(t, []string{"new"}, column(sessionRows(t), "session_id"))
@@ -108,6 +109,34 @@ func TestDefaultAgeCutoff(t *testing.T) {
 		require.Len(t, rows, 1)
 		require.Equal(t, "old prompt", rows[0]["content"])
 	})
+}
+
+// Fleet asks for sessions started in the last 30 days with started_at >=,
+// a filter osquery applies to the rows the table returns: the table selects
+// sessions by when their transcript was last written. A session whose start
+// is unknown reports 0, so the filter leaves it out.
+func TestStartedAtFilter(t *testing.T) {
+	home := setup(t)
+	at := func(d int) time.Time { return time.Now().AddDate(0, 0, -d).UTC() }
+	rec := func(ts time.Time) string {
+		return fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"content":"hi"}}`, ts.Format(time.RFC3339Nano))
+	}
+	writeClaudeTranscript(t, home, "recent", rec(at(5)), rec(at(4)))
+	writeClaudeTranscript(t, home, "older", rec(at(40)), rec(at(10)))
+	writeClaudeTranscript(t, home, "undated", `{"type":"user","message":{"content":"hi"}}`)
+
+	since := at(30).Unix()
+	rows := sessionRows(t, cons{"started_at", table.OperatorGreaterThanOrEquals, strconv.FormatInt(since, 10)})
+	require.Len(t, rows, 3, "every session written in the window is returned, for osquery to filter")
+	require.Equal(t, "0", rowsByID(rows)["undated"]["started_at"])
+
+	var kept []string
+	for _, r := range rows {
+		if v, err := strconv.ParseInt(r["started_at"], 10, 64); err == nil && v >= since {
+			kept = append(kept, r["session_id"])
+		}
+	}
+	require.Equal(t, []string{"recent"}, kept)
 }
 
 func TestSessionIDOpensOneTranscript(t *testing.T) {
@@ -181,6 +210,38 @@ func TestFiltersReturnASubsetOfAllRows(t *testing.T) {
 				check(func(r map[string]string) bool { return idx(r) >= k }, cons{"message_index", table.OperatorGreaterThanOrEquals, v})
 				check(func(r map[string]string) bool { return idx(r) <= k }, cons{"message_index", table.OperatorLessThanOrEquals, v})
 			}
+			// A tool_call_index bound selects tool calls only, numbered the
+			// same whether or not the calls before them were decoded.
+			calls := 0
+			for _, r := range all {
+				if r["block_type"] == blockToolUse {
+					calls++
+				}
+			}
+			call := func(r map[string]string) (int, bool) {
+				if r["block_type"] != blockToolUse {
+					return 0, false
+				}
+				return intCol(t, r, "tool_call_index"), true
+			}
+			for k := 0; k <= calls; k++ {
+				v := strconv.Itoa(k)
+				check(func(r map[string]string) bool { i, ok := call(r); return ok && i >= k }, cons{"tool_call_index", table.OperatorGreaterThanOrEquals, v})
+				check(func(r map[string]string) bool { i, ok := call(r); return ok && i <= k }, cons{"tool_call_index", table.OperatorLessThanOrEquals, v})
+				check(func(r map[string]string) bool { i, ok := call(r); return ok && i == k }, eq("tool_call_index", v))
+			}
+			// A timestamp bound keeps positions and outcomes too: a result
+			// outside it still decides a call inside it.
+			stamp := func(r map[string]string) int { return intCol(t, r, "timestamp") }
+			stamps := column(all, "timestamp")
+			slices.Sort(stamps)
+			for _, v := range slices.Compact(stamps) {
+				k, err := strconv.Atoi(v)
+				require.NoError(t, err)
+				check(func(r map[string]string) bool { return stamp(r) >= k }, cons{"timestamp", table.OperatorGreaterThanOrEquals, v})
+				check(func(r map[string]string) bool { return stamp(r) <= k }, cons{"timestamp", table.OperatorLessThanOrEquals, v})
+				check(func(r map[string]string) bool { return stamp(r) == k }, eq("timestamp", v))
+			}
 		})
 	}
 }
@@ -242,23 +303,6 @@ func TestContentTruncation(t *testing.T) {
 		require.Equal(t, "0", r["truncated"])
 		require.Equal(t, long, r["content"])
 	})
-}
-
-func TestTruncateUTF8(t *testing.T) {
-	for _, tc := range []struct {
-		in    string
-		limit int
-		want  string
-	}{
-		{"hello", 10, "hello"},
-		{"hello", 5, "hello"},
-		{"hello world", 5, "hello"},
-		{"abé", 3, "ab"},
-		{"aé", 3, "aé"},
-		{"ab🙂", 4, "ab"},
-	} {
-		require.Equal(t, tc.want, truncateUTF8(tc.in, tc.limit), "%q/%d", tc.in, tc.limit)
-	}
 }
 
 func TestSizeLimit(t *testing.T) {
@@ -387,8 +431,9 @@ func TestPagingResumesInsideAMessage(t *testing.T) {
 	last := rows[len(rows)-1]
 	require.Equal(t, "0", last["message_index"], "the cut fell inside the first message")
 
-	// The documented continuation is an OR, which osquery runs as one call
-	// per side: the rest of the cut message, then the messages after it.
+	// Two queries read on: the rest of the cut message, then the messages
+	// after it. (osquery doesn't split the OR of the two into separate
+	// calls; it only passes the message_index lower bound down.)
 	seen := len(rows)
 	for page := 0; page < 10 && seen < 200; page++ {
 		*clock = clock.Add(time.Second)
@@ -542,6 +587,29 @@ func TestParseCache(t *testing.T) {
 	require.Len(t, sessionRows(t, cons{"ended_at", table.OperatorGreaterThan, strconv.FormatInt(time.Now().AddDate(0, 0, -1).Unix(), 10)}), 1)
 	require.Len(t, sessionRows(t), 2)
 	require.Equal(t, before, parsed(), "the narrower query evicted nothing")
+}
+
+func TestTopLevelString(t *testing.T) {
+	for _, tc := range []struct {
+		line, want string
+		ok         bool
+	}{
+		{`{"timestamp":"2026-08-01T10:00:00Z"}`, "2026-08-01T10:00:00Z", true},
+		{` { "a" : [1, {"timestamp":"nested"}, "x"] , "b":{"c":"timestamp"}, "timestamp" : "t" } `, "t", true},
+		{`{"a":"say \"timestamp\":\"x\"","timestamp":"t\u0041\\"}`, "tA\\", true},
+		{`{"a":-1.5e3,"b":true,"c":null,"timestamp":"t"}`, "t", true},
+		{`{"timestamp":12345}`, "", false},
+		{`{"a":"b"}`, "", false},
+		{`{"a":"b",}`, "", false},
+		{`{"a":{"b":1}`, "", false},
+		{`{"a":"unterminated`, "", false},
+		{`[1,2]`, "", false},
+		{``, "", false},
+	} {
+		got, ok := topLevelString([]byte(tc.line), "timestamp")
+		require.Equal(t, tc.ok, ok, tc.line)
+		require.Equal(t, tc.want, got, tc.line)
+	}
 }
 
 func TestScanJSONL(t *testing.T) {

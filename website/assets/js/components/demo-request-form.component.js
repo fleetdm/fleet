@@ -23,7 +23,9 @@ parasails.registerComponent('demoRequestForm', {
   data: function() {
     return {
       syncing: false,
-      formData: { /* … */ },
+      formData: {
+        submittedFromPage: window.location.pathname,
+      },
       formErrors: { /* … */ },
       cloudError: '',
       demoFormRules: {
@@ -129,6 +131,8 @@ parasails.registerComponent('demoRequestForm', {
       // Look at result from talking to api and decide what event to track.
       if(report.icp){
         if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo__icp'); }
+        window.uetq = window.uetq || [];
+        window.uetq.push('event', 'fleet_website__contact_forms__demo__icp', {});
         if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 27493081 }); } // eslint-disable-line camelcase
       } else {
         if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo'); }

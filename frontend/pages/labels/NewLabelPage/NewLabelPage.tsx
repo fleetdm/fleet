@@ -291,31 +291,21 @@ const NewLabelPage = ({
   }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
+  };
 
-    const fullValidation = validateNewLabelFormData(newFormData);
-
+  // Clear the field's error on focus to match Fleet's validation pattern
+  // (reports and policies clear name errors on focus, not on becoming valid).
+  const onFieldFocus = (fieldName: "name" | "vitalValue") => {
     setFormErrors((prev) => {
-      const next: INewLabelFormValidation = { ...prev, isValid: true };
+      if (fieldName === "name" && !prev.name) return prev;
+      if (fieldName === "vitalValue" && !prev.criteria) return prev;
 
-      // start from previous errors
-      if (prev.name) next.name = prev.name;
-      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
-      if (prev.criteria) next.criteria = prev.criteria;
-
-      // ONLY CLEAR existing error on this field if it is now valid.
-      if (fieldName === "name") {
-        if (prev.name && fullValidation.name?.isValid) {
-          next.name = undefined;
-        }
-      } else if (fieldName === "vitalValue") {
-        if (prev.criteria && fullValidation.criteria?.isValid) {
-          next.criteria = undefined;
-        }
-      }
+      const next: INewLabelFormValidation = { ...prev };
+      if (fieldName === "name") next.name = undefined;
+      if (fieldName === "vitalValue") next.criteria = undefined;
 
       const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
-
       return next;
     });
   };
@@ -426,39 +416,51 @@ const NewLabelPage = ({
     setIsUpdating(false);
   };
 
-  const debounceValidateSQL = useDebouncedCallback((queryString: string) => {
-    // A blank query is reported by formErrors as a required field instead.
-    if (!queryString.trim()) {
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax error without flashing mid-token. Blur / submit still fire
+  // immediately.
+  const debounceValidateSql = useDebouncedCallback((query: string) => {
+    if (!query.trim()) {
       setQuerySyntaxError(null);
       return;
     }
-    setQuerySyntaxError(validateQuery(queryString).error);
-  }, 500);
+    setQuerySyntaxError(validateQuery(query).error);
+  }, 3000);
 
   const onQueryChange = (newQuery: string) => {
-    const newFormData = { ...formData, labelQuery: newQuery };
-    setFormData(newFormData);
+    setFormData({ ...formData, labelQuery: newQuery });
 
-    const fullValidation = validateNewLabelFormData(newFormData);
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (querySyntaxError) {
+      setQuerySyntaxError(null);
+    }
+    debounceValidateSql(newQuery);
+  };
 
+  // Clear the labelQuery required-field error on focus, matching the pattern
+  // reports and policies use for name / query errors.
+  const onQueryFocus = () => {
     setFormErrors((prev) => {
-      const next: INewLabelFormValidation = { ...prev, isValid: true };
-
-      if (prev.name) next.name = prev.name;
-      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
-      if (prev.criteria) next.criteria = prev.criteria;
-
-      if (prev.labelQuery && fullValidation.labelQuery?.isValid) {
-        next.labelQuery = undefined;
-      }
-
+      if (!prev.labelQuery) return prev;
+      const next: INewLabelFormValidation = { ...prev, labelQuery: undefined };
       const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
-
       return next;
     });
+  };
 
-    debounceValidateSQL(newQuery);
+  // Validate SQL on blur so incomplete queries don't flash a syntax error
+  // mid-type. Also run the full form validation on blur so the required-
+  // field error ("Enter a query") still appears when the user clears the
+  // query and tabs away.
+  const onQueryBlur = () => {
+    setFormErrors(validateNewLabelFormData(formData));
+    if (!formData.labelQuery.trim()) {
+      setQuerySyntaxError(null);
+      return;
+    }
+    setQuerySyntaxError(validateQuery(formData.labelQuery).error);
   };
 
   // form rendering helpers
@@ -509,7 +511,8 @@ const NewLabelPage = ({
               error={formErrors.labelQuery?.message || querySyntaxError}
               name="query"
               onChange={onQueryChange}
-              onBlur={onInputBlur}
+              onBlur={onQueryBlur}
+              onFocus={onQueryFocus}
               value={labelQuery}
               label="Query"
               labelActionComponent={
@@ -577,6 +580,7 @@ const NewLabelPage = ({
                 name="vitalValue"
                 onChange={onInputChange}
                 onBlur={onInputBlur}
+                onFocus={() => onFieldFocus("vitalValue")}
                 value={vitalValue}
                 inputClassName={`${baseClass}__vital-value`}
                 placeholder={getVitalValuePlaceholder(vital)}
@@ -620,6 +624,7 @@ const NewLabelPage = ({
         name="name"
         onChange={onInputChange}
         onBlur={onInputBlur}
+        onFocus={() => onFieldFocus("name")}
         value={name}
         inputClassName={`${baseClass}__label-name`}
         label="Name"
@@ -679,7 +684,7 @@ const NewLabelPage = ({
             <Button
               type="submit"
               isLoading={isUpdating}
-              disabled={disableChildren || isUpdating || !formErrors.isValid}
+              disabled={disableChildren || isUpdating}
             >
               Save
             </Button>

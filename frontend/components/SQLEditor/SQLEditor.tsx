@@ -48,6 +48,7 @@ export interface ISQLEditorProps {
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
   onBlur?: (editor?: Ace.Editor) => void;
+  onFocus?: (editor?: Ace.Editor) => void;
   onLoad?: (editor: Ace.Editor) => void;
   onChange?: (value: string) => void;
   handleSubmit?: () => void;
@@ -75,6 +76,7 @@ const SQLEditor = ({
   helpText,
   style,
   onBlur,
+  onFocus,
   onLoad,
   onChange,
   handleSubmit = noop,
@@ -258,6 +260,10 @@ const SQLEditor = ({
     onBlur && onBlur(editor);
   };
 
+  const onFocusHandler = (event: any, editor?: Ace.Editor): void => {
+    onFocus && onFocus(editor);
+  };
+
   const handleDelete = (deleteCommand: string) => {
     const selectedText = editorRef.current?.editor.getSelectedText();
 
@@ -319,6 +325,7 @@ const SQLEditor = ({
         name={name}
         onChange={onChange}
         onBlur={onBlurHandler}
+        onFocus={onFocusHandler}
         onLoad={onLoadHandler}
         readOnly={readOnly}
         setOptions={{ enableLinking: true, hasCssTransforms: true }}

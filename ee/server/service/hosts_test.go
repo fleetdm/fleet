@@ -495,7 +495,6 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 		}{
 			{"global admin", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleAdmin)}, false, false},
 			{"global maintainer", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleMaintainer)}, false, false},
-			// gitops may write MDM commands but not rotate keys
 			{"global gitops", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleGitOps)}, true, false},
 			{"global observer", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleObserver)}, true, false},
 			{"global observer+", &fleet.User{ID: 42, GlobalRole: new(fleet.RoleObserverPlus)}, true, false},
@@ -506,7 +505,7 @@ func TestRotateDiskEncryptionKey(t *testing.T) {
 			{"team technician", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleTechnician}}}, true, false},
 			{"other team admin", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 2, Role: fleet.RoleAdmin}}}, true, true},
 			{"team gitops", &fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}}}, true, false},
-			// can list hosts through the other team, and gitops may write the host's MDM commands
+			// can list hosts through the other team, but gitops can't read the host's MDM commands
 			{
 				"team gitops with another team's observer+",
 				&fleet.User{ID: 42, Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleGitOps}, {ID: 2, Role: fleet.RoleObserverPlus}}},
@@ -547,9 +546,69 @@ func TestLockWipeRejectPersonalAppleHosts(t *testing.T) {
 				_, err := svc.LockHost(ctx, 1, false)
 				require.ErrorContains(t, err, fleet.CantLockPersonalHostsMessage)
 
-				err = svc.WipeHost(ctx, 1, nil)
+				err = svc.WipeHost(ctx, 1)
 				require.ErrorContains(t, err, fleet.CantWipePersonalHostsMessage)
 			})
 		}
+	}
+}
+
+func TestResetHostRefusals(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) { return true, nil }
+	ds.WipeHostViaWindowsMDMFunc = func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error { return nil }
+	baseSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
+
+	locked := &fleet.HostScriptResult{ExitCode: new(int64(0))}
+	for _, tc := range []struct {
+		name     string
+		platform string
+		mdmOff   bool
+		lockWipe fleet.HostLockWipeStatus
+		wantMsg  string
+	}{
+		{name: "macOS host", platform: "darwin", wantMsg: "Reset is only available for Windows hosts."},
+		{name: "Windows MDM off", platform: "windows", mdmOff: true, wantMsg: fleet.WindowsMDMNotConfiguredMessage},
+		{
+			name: "pending lock", platform: "windows", lockWipe: fleet.HostLockWipeStatus{LockScript: &fleet.HostScriptResult{}},
+			wantMsg: "Host has pending lock request. Host cannot be reset until lock is complete.",
+		},
+		{
+			name: "pending unlock", platform: "windows",
+			lockWipe: fleet.HostLockWipeStatus{LockScript: locked, UnlockScript: &fleet.HostScriptResult{}},
+			wantMsg:  "Host has pending unlock request. Host cannot be reset until unlock is complete.",
+		},
+		{
+			name: "locked", platform: "windows", lockWipe: fleet.HostLockWipeStatus{LockScript: locked},
+			wantMsg: "Host is locked. Host cannot be reset until it is unlocked.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: id, Platform: tc.platform}, nil
+			}
+			baseSvc.VerifyMDMWindowsConfiguredFunc = func(ctx context.Context) error {
+				if tc.mdmOff {
+					return fleet.ErrWindowsMDMNotConfigured
+				}
+				return nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				status := tc.lockWipe
+				status.HostFleetPlatform = host.FleetPlatform()
+				return &status, nil
+			}
+			ds.WipeHostViaWindowsMDMFuncInvoked = false
+			baseSvc.NewActivityFuncInvoked = false
+
+			err := svc.ResetHost(ctx, 1)
+			require.ErrorContains(t, err, tc.wantMsg)
+			require.False(t, ds.WipeHostViaWindowsMDMFuncInvoked)
+			require.False(t, baseSvc.NewActivityFuncInvoked)
+		})
 	}
 }

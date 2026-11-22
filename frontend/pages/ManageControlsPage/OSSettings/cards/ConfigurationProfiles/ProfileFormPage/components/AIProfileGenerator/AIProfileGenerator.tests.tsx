@@ -87,10 +87,19 @@ const apiError = (name: string, reason: string) => ({
   data: { message: "Couldn't generate", errors: [{ name, reason }] },
 });
 
+const limitError = (retryAfter?: string) => ({
+  status: 429,
+  headers: retryAfter ? { "retry-after": retryAfter } : {},
+  data: {
+    message: "Too many requests",
+    errors: [{ name: "base", reason: "Profile generation limit reached." }],
+  },
+});
+
 const appleOnly = {
   ...createMockConfig().mdm,
   enabled_and_configured: true,
-  windows_enabled_and_configured: false,
+  windows_mdm_enabled: false,
 };
 
 const MANUAL_LOCATION = {
@@ -102,6 +111,12 @@ const renderGenerator = ({
   isPremiumTier = true,
   teamId = 2,
   mdm = appleOnly,
+  defaultPlatform,
+}: {
+  isPremiumTier?: boolean;
+  teamId?: number;
+  mdm?: typeof appleOnly;
+  defaultPlatform?: string;
 } = {}) => {
   const router = createMockRouter();
   const render = createCustomRenderer({
@@ -124,6 +139,7 @@ const renderGenerator = ({
       gitOpsModeEnabled={false}
       listPath="/controls/os-settings/configuration-profiles?fleet_id=2"
       manualLocation={MANUAL_LOCATION}
+      defaultPlatform={defaultPlatform}
     />
   );
   return { ...results, router };
@@ -185,6 +201,30 @@ describe("AIProfileGenerator", () => {
     expect(screen.getByText("Apple (macOS, iOS, iPadOS)")).toBeInTheDocument();
     await user.click(screen.getByRole("combobox"));
     expect(screen.queryByText("Windows")).not.toBeInTheDocument();
+  });
+
+  it("offers Windows when Windows MDM is on", async () => {
+    const { user } = renderGenerator({
+      mdm: { ...appleOnly, windows_mdm_enabled: true },
+    });
+    await user.click(screen.getByRole("combobox"));
+    expect(screen.getByText("Windows")).toBeInTheDocument();
+  });
+
+  it("preselects the platform from the default when its MDM is on", () => {
+    renderGenerator({
+      mdm: { ...appleOnly, windows_mdm_enabled: true },
+      defaultPlatform: "windows",
+    });
+    expect(screen.getByText("Windows")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Apple (macOS, iOS, iPadOS)")
+    ).not.toBeInTheDocument();
+  });
+
+  it("falls back to the first platform when the default's MDM is off", () => {
+    renderGenerator({ defaultPlatform: "windows" });
+    expect(screen.getByText("Apple (macOS, iOS, iPadOS)")).toBeInTheDocument();
   });
 
   it("names the fleet the profile is added to", () => {
@@ -474,6 +514,64 @@ describe("AIProfileGenerator", () => {
         "Couldn't generate configuration profile. The AI service is unavailable. Please try again, or create your profile manually."
       )
     ).toBeInTheDocument();
+  });
+
+  it("shows the limit banner with the days until it resets and disables Generate", async () => {
+    const { user } = renderGenerator({ isPremiumTier: false });
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => content.reject(limitError("2505600")));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "You have reached the 15 prompt limit. Try again in 29 days, or upgrade to Fleet Premium"
+    );
+    expect(screen.getByRole("link", { name: /Fleet Premium/ })).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/upgrade"
+    );
+    // editing doesn't lift the limit
+    typeInstructions("Turn off the camera");
+    const generate = screen.getByRole("button", { name: "Generate profile" });
+    expect(generate).toBeDisabled();
+    await user.hover(generate);
+    expect(
+      await screen.findByText("You have reached the prompt limit.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create manually" })
+    ).toBeEnabled();
+  });
+
+  it("rounds less than a day up to 1 day", async () => {
+    renderGenerator({ isPremiumTier: false });
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => content.reject(limitError("60")));
+    expect(screen.getByRole("alert")).toHaveTextContent("Try again in 1 day,");
+  });
+
+  it("shows one limit banner when both requests reach it, and clears the name", async () => {
+    renderGenerator({ isPremiumTier: false });
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => {
+      nameDescription.reject(limitError("86400"));
+      content.reject(limitError("86400"));
+    });
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert")).toHaveTextContent("Try again in 1 day,");
+  });
+
+  it("enables Generate again after leaving and returning to the page", async () => {
+    const { unmount } = renderGenerator({ isPremiumTier: false });
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => content.reject(limitError("86400")));
+    unmount();
+    renderGenerator({ isPremiumTier: false });
+    typeInstructions("Turn off AirDrop");
+    expect(
+      screen.getByRole("button", { name: "Generate profile" })
+    ).toBeEnabled();
   });
 
   it("goes to the manual view with the timeout banner when Fleet's AI call times out", async () => {

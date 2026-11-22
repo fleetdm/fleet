@@ -822,6 +822,28 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 	return nil
 }
 
+// forgetEndUserAfterWindowsResetDB clears the previous end user of a host coming back from a reset, before the reset status goes.
+// It also clears the host's orbit node key, so that if fleetd enrolls after MDM, end user authentication treats the host as new.
+// The mysqlredis wrapper of MDMWindowsDeleteEnrolledDeviceOnReenrollment invalidates the host cache.
+func forgetEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	var hostID uint
+	err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get host for end user clear")
+	}
+	reset, err := clearEndUserAfterWindowsResetDB(ctx, tx, hostID)
+	if err != nil || !reset {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = NULL WHERE id = ?`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear orbit node key after reset")
+	}
+	return nil
+}
+
 // MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a Windows device
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling. It also cleans up host_mdm_windows_profiles so profile
@@ -853,6 +875,9 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 			if hostUUID.Valid {
 				deletedHostUUID = hostUUID.String
 
+				if err := forgetEndUserAfterWindowsResetDB(ctx, tx, hostUUID.String); err != nil {
+					return err
+				}
 				// Clear lock/wipe status
 				if _, err := tx.ExecContext(ctx, delActionsStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for host")
@@ -1531,6 +1556,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 
 			wipeCmdUUID   string
 			wipeCmdStatus string
+			wipeCmdReset  bool
 		)
 
 		// Look up operation types for matching commands so we can pass isRemoveOperation to BuildMDMWindowsProfilePayloadFromMDMResponse.
@@ -1597,6 +1623,8 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			if fleet.LocURITargetsReservedNode(cmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI) {
 				wipeCmdUUID = cmd.CommandUUID
 				wipeCmdStatus = statusCode
+				wipeCmdReset = cmd.TargetLocURI ==
+					fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData)
 			}
 
 			if isSCEPStatusProbe {
@@ -1670,6 +1698,16 @@ ON DUPLICATE KEY UPDATE
     status_code = COALESCE(VALUES(status_code), status_code),
     updated_at = CURRENT_TIMESTAMP
 `
+		// Only a reset's first result can track it again after a wipe replaced it; a repeated status changes nothing.
+		var resetFirstResult bool
+		if wipeCmdUUID != "" && wipeCmdReset {
+			if err := sqlx.GetContext(ctx, tx, &resetFirstResult, `
+				SELECT NOT EXISTS (SELECT 1 FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?)`,
+				enrolledDevice.ID, wipeCmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "check for an earlier reset result")
+			}
+		}
+
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting command results")
@@ -1685,18 +1723,26 @@ ON DUPLICATE KEY UPDATE
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
+			if rowsAffected == 0 && wipeCmdReset && wipeSucceeded && resetFirstResult && enrolledDevice.HostUUID != "" {
+				rowsAffected, err = retrackReplacedWindowsResetDB(ctx, tx, enrolledDevice.HostUUID, wipeCmdUUID)
+				if err != nil {
+					return err
+				}
+			}
 
 			if wipeCmdStatus != "" && rowsAffected > 0 {
 				if wipeSucceeded {
 					result = &fleet.MDMWindowsSaveResponseResult{
 						WipeSucceeded: &fleet.MDMWindowsWipeResult{
 							HostUUID: enrolledDevice.HostUUID,
+							Reset:    wipeCmdReset,
 						},
 					}
 				} else {
 					result = &fleet.MDMWindowsSaveResponseResult{
 						WipeFailed: &fleet.MDMWindowsWipeResult{
 							HostUUID: enrolledDevice.HostUUID,
+							Reset:    wipeCmdReset,
 						},
 					}
 				}
@@ -1704,11 +1750,11 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// Soft-dequeue the commands we just recorded results for: stamp acked_at on exactly those queue rows, in the
-		// same transaction as the results insert so "has a result row" and "acked_at set" can never disagree. This is
-		// the ONLY path that inserts windows_mdm_command_results; any new results-insert path must stamp acked_at too,
-		// or the rows will look pending forever under the acked_at IS NULL predicates. The periodic GC range-deletes
-		// stamped rows after an hour. COALESCE preserves the first ack time on duplicate acks so the GC age floor is
-		// measured from the original acknowledgment.
+		// same transaction as the results insert so "has a result row" and "acked_at set" can never disagree. The only
+		// other path that inserts windows_mdm_command_results, MDMWindowsFailUndeliverableCommand, does the same; any new
+		// one must too, or the rows will look pending forever under the acked_at IS NULL predicates. The periodic GC
+		// range-deletes stamped rows after an hour. COALESCE preserves the first ack time on duplicate acks so the GC age
+		// floor is measured from the original acknowledgment.
 		//
 		// The has_pending_commands recompute deliberately does NOT happen here: it runs at most once per OMA-DM session (in
 		// getManagementResponse, when the reply-building pending-commands fetch finds no non-poll commands remaining and the flag was
@@ -1729,6 +1775,90 @@ ON DUPLICATE KEY UPDATE
 		return nil, err
 	}
 	return result, nil
+}
+
+// MDMWindowsFailUndeliverableCommand records a failed result, with reason as its response, for a pending command Fleet can't
+// deliver to the enrollment, so it leaves the queue instead of staying pending. A profile behind the command is failed or
+// retried as if the device had rejected it. It does nothing if the command is no longer pending.
+func (ds *Datastore) MDMWindowsFailUndeliverableCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, commandUUID, reason string) error {
+	if enrolledDevice == nil {
+		return ctxerr.New(ctx, "enrolled device is nil")
+	}
+	rawResponse, err := fabricateWindowsFailureResponse(commandUUID, reason)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building undeliverable command response")
+	}
+	compressedResp, err := compressWindowsMDMResponse(rawResponse)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "compressing undeliverable command response")
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Stamped first so that a concurrent session that already recorded the command leaves nothing to record.
+		res, err := tx.ExecContext(ctx,
+			`UPDATE windows_mdm_command_queue SET acked_at = NOW(6) WHERE enrollment_id = ? AND command_uuid = ? AND acked_at IS NULL`,
+			enrolledDevice.ID, commandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "stamp acked_at on undeliverable command")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return nil
+		}
+
+		res, err = tx.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`,
+			enrolledDevice.ID, compressedResp)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "saving undeliverable command response")
+		}
+		responseID, _ := res.LastInsertId()
+		const insertResultStmt = `
+INSERT INTO windows_mdm_command_results
+    (enrollment_id, command_uuid, raw_result, response_id, status_code)
+VALUES (?, ?, '', ?, ?)
+ON DUPLICATE KEY UPDATE
+    raw_result = VALUES(raw_result),
+    response_id = VALUES(response_id),
+    status_code = VALUES(status_code),
+    updated_at = CURRENT_TIMESTAMP
+`
+		if _, err := tx.ExecContext(ctx, insertResultStmt, enrolledDevice.ID, commandUUID, responseID, syncml.CmdStatusBadRequest); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting undeliverable command result")
+		}
+
+		// Profiles are tracked per host, so an enrollment not linked to one yet has none.
+		if enrolledDevice.HostUUID == "" {
+			return nil
+		}
+		failed := fleet.MDMDeliveryFailed
+		payload := &fleet.MDMWindowsProfilePayload{HostUUID: enrolledDevice.HostUUID, CommandUUID: commandUUID, Status: &failed, Detail: reason}
+		if _, err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, []*fleet.MDMWindowsProfilePayload{payload},
+			microsoft_mdm.WindowsUserContextStateFromDevice(enrolledDevice), microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID)); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profile status for undeliverable command")
+		}
+		return nil
+	})
+}
+
+// xmlTextEscaper escapes only what element content requires. xml.EscapeText also escapes quotes, which shows up as "can&#39;t"
+// where the raw response is displayed.
+var xmlTextEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+
+// fabricateWindowsFailureResponse builds the response Fleet records in the device's place for a command it couldn't deliver: a
+// failed <Status> carrying the reason, in a SyncML envelope like a device's response.
+func fabricateWindowsFailureResponse(commandUUID, reason string) ([]byte, error) {
+	msg := fleet.SyncML{
+		Xmlns:   syncml.SyncCmdNamespace,
+		SyncHdr: fleet.SyncHdr{VerDTD: syncml.SyncMLSupportedVersion, VerProto: syncml.SyncMLVerProto},
+	}
+	msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: fleet.CmdStatus},
+		CmdID:   fleet.CmdID{Value: "1"},
+		CmdRef:  &commandUUID,
+		Data:    new(syncml.CmdStatusBadRequest),
+		// RawXmlData is inner XML, so the reason is escaped here.
+		Items: []fleet.CmdItem{{Data: &fleet.RawXmlData{Content: xmlTextEscaper.Replace(reason)}}},
+	})
+	return xml.Marshal(msg)
 }
 
 // renewalIDManagedCertProfileUUIDsDB returns, among the given profile UUIDs, those that have a managed-certificate row
@@ -1946,15 +2076,17 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 
 // SetMDMWindowsHostProfileFailedOrRetry records a failure Fleet observed itself rather than one the host reported, which
 // today means only an error Fleet's SCEP proxy saw from the upstream CA. While the profile has retries left it is put
-// back in the pending state so the profile manager redelivers it on its next tick.
-func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (bool, error) {
-	var retried bool
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		changed, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", detail)
+// back in the pending state so the profile manager redelivers it on its next tick. With onlyIfVerifying, only a
+// delivery the host acknowledged and is still verifying is charged.
+func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string,
+	onlyIfVerifying bool,
+) (changed bool, retried bool, err error) {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		c, r, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, "", onlyIfVerifying, detail)
 		if err != nil {
 			return err
 		}
-		retried = r
+		changed, retried = c, r
 		if !changed {
 			return nil
 		}
@@ -1965,27 +2097,32 @@ func (ds *Datastore) SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, 
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
-	return retried, nil
+	return changed, retried, nil
 }
 
 // failOrRetryWindowsHostProfileDB puts a failed install back in the pending state while it has retries left and marks
 // it failed otherwise. When verifyingCmdUUID is set, the row is only touched while it is still "verifying" for that
-// install command, so a failure reported about an earlier delivery can't charge a newer one. The caller refreshes the
-// rollup when changed is true.
-func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID, detail string,
+// install command, so a failure reported about an earlier delivery can't charge a newer one. onlyIfVerifying requires
+// "verifying" without naming the command. The caller refreshes the rollup when changed is true.
+func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, profileUUID, verifyingCmdUUID string,
+	onlyIfVerifying bool, detail string,
 ) (changed bool, retried bool, err error) {
 	// Only touch an existing install row (a removed profile is not resurrected). Never overwrite a row that already
 	// reached "verified" (the certificate was observed, so a late/stale upstream error must not regress it).
 	loadStmt := `
-		SELECT status, retries
+		SELECT status, retries, COALESCE(detail, '') AS detail
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ?`
 	loadArgs := []any{hostUUID, profileUUID, fleet.MDMOperationTypeInstall}
 	if verifyingCmdUUID != "" {
-		loadStmt += ` AND command_uuid = ? AND status = ?`
-		loadArgs = append(loadArgs, verifyingCmdUUID, fleet.MDMDeliveryVerifying)
+		loadStmt += ` AND command_uuid = ?`
+		loadArgs = append(loadArgs, verifyingCmdUUID)
+	}
+	if verifyingCmdUUID != "" || onlyIfVerifying {
+		loadStmt += ` AND status = ?`
+		loadArgs = append(loadArgs, fleet.MDMDeliveryVerifying)
 	}
 	loadStmt += ` FOR UPDATE`
 
@@ -2002,6 +2139,7 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 	var row struct {
 		Status  *fleet.MDMDeliveryStatus `db:"status"`
 		Retries uint                     `db:"retries"`
+		Detail  string                   `db:"detail"`
 	}
 	switch err := sqlx.GetContext(ctx, tx, &row, loadStmt, loadArgs...); {
 	case errors.Is(err, sql.ErrNoRows):
@@ -2021,6 +2159,8 @@ func failOrRetryWindowsHostProfileDB(ctx context.Context, tx sqlx.ExtContext, ho
 			return false, false, ctxerr.Wrap(ctx, err, "retrying windows host profile after failure")
 		}
 		return true, true, nil
+	case *row.Status == fleet.MDMDeliveryFailed && row.Detail == truncateMDMWindowsProfileDetail(detail):
+		return false, false, nil
 	default:
 		if _, err := tx.ExecContext(
 			ctx, failStmt,
@@ -2363,6 +2503,10 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, ctxerr.Wrap(ctx, err, "cannot get bitlocker status because mdm info lookup failed")
 	}
+	if mdmInfo == nil {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host without mdm info", "host_id", host.ID)
+		return nil, nil
+	}
 
 	if mdmInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
@@ -2376,6 +2520,12 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, err
 	}
 	if !diskEncryptionConfig.WindowsEnabled {
+		return nil, nil
+	}
+
+	// Like the summary and the list filters, ignore hosts that are not connected to Fleet MDM (for example, third-party MDM).
+	if !mdmInfo.ConnectedToFleet {
+		ds.logger.DebugContext(ctx, "no bitlocker status for host not connected to fleet mdm", "host_id", host.ID)
 		return nil, nil
 	}
 
@@ -2915,7 +3065,7 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 		case "action_required":
 			res.Pending += c.Count
 		case "":
-			ds.logger.DebugContext(ctx, fmt.Sprintf("counted %d windows hosts on team %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
+			ds.logger.DebugContext(ctx, fmt.Sprintf("counted %d windows hosts on fleet %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
 		default:
 			return nil, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm windows status count: status=%s, count=%d", c.Status, c.Count))
 		}
@@ -4075,10 +4225,93 @@ hmwp.host_uuid = ? AND hmwp.profile_name NOT IN(?) AND NOT (hmwp.operation_type 
 	return profiles, nil
 }
 
+// windowsRemoteWipeLocURIPattern matches any RemoteWipe CSP command, including one sent with POST /commands/run, which also
+// accepts the LocURI without a leading "./" (see fleet.LocURITargetsReservedNode).
+var windowsRemoteWipeLocURIPattern = "%" + strings.TrimPrefix(syncml.FleetRemoteWipeTargetLocURI, "/") + "/%"
+
+// windowsHostsWithPendingRemoteWipeDB returns which of the hosts have a RemoteWipe command their device hasn't acknowledged.
+func windowsHostsWithPendingRemoteWipeDB(ctx context.Context, q sqlx.QueryerContext, hostUUIDs []string) (map[string]struct{}, error) {
+	pending := make(map[string]struct{})
+	if len(hostUUIDs) == 0 {
+		return pending, nil
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT DISTINCT mwe.host_uuid
+		FROM windows_mdm_command_queue wmcq
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+		JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
+		WHERE mwe.host_uuid IN (?) AND wmcq.acked_at IS NULL AND wmc.target_loc_uri LIKE ?`,
+		hostUUIDs, windowsRemoteWipeLocURIPattern)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build pending RemoteWipe query")
+	}
+	var uuids []string
+	if err := sqlx.SelectContext(ctx, q, &uuids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts with pending RemoteWipe")
+	}
+	for _, u := range uuids {
+		pending[u] = struct{}{}
+	}
+	return pending, nil
+}
+
+// WipeHostViaWindowsMDM queues a RemoteWipe command (a wipe or a reset) and points host_mdm_actions.wipe_ref at it. Behind
+// an acknowledged reset a wipe is only queued: wipe_ref stays on the reset, which the re-enrollment check relies on. Windows
+// restarts in a loop when it gets two RemoteWipe commands together, so it refuses one while another is unacknowledged.
 func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var currentRef struct {
+			CommandUUID  string `db:"command_uuid"`
+			TargetLocURI string `db:"target_loc_uri"`
+		}
+		err := sqlx.GetContext(ctx, tx, &currentRef, `
+			SELECT wmc.command_uuid, wmc.target_loc_uri
+			FROM host_mdm_actions hma
+			JOIN windows_mdm_commands wmc ON wmc.command_uuid = hma.wipe_ref
+			WHERE hma.host_id = ?
+			FOR UPDATE`, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "load current wipe command")
+		}
+
+		keepWipeRef := false
+		isWipe := cmd.TargetLocURI == fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipeProtected)
+		if isWipe && currentRef.TargetLocURI == fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData) {
+			res, err := tx.ExecContext(ctx,
+				`DELETE FROM windows_mdm_command_queue WHERE command_uuid = ? AND acked_at IS NULL`, currentRef.CommandUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "drop pending reset command")
+			}
+			dropped, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "rows affected dropping pending reset command")
+			}
+			if dropped == 0 {
+				// Nothing pending: either the host acknowledged the reset, or its enrollment (and queue) is gone.
+				if err := sqlx.GetContext(ctx, tx, &keepWipeRef, `
+					SELECT EXISTS (
+						SELECT 1 FROM windows_mdm_command_results WHERE command_uuid = ? AND status_code LIKE '2%'
+					)`,
+					currentRef.CommandUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "check for acknowledged reset")
+				}
+			}
+		}
+
+		remoteWipePending, err := windowsHostsWithPendingRemoteWipeDB(ctx, tx, []string{host.UUID})
+		if err != nil {
+			return err
+		}
+		if _, ok := remoteWipePending[host.UUID]; ok {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+				"Host has pending wipe request. The host will be wiped when it comes online."))
+		}
+
 		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
+		}
+		if keepWipeRef {
+			return nil
 		}
 
 		stmt := `
@@ -4097,6 +4330,129 @@ func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host
 
 		return nil
 	})
+}
+
+// retrackReplacedWindowsResetDB handles a reset acknowledged for the first time after a wipe replaced it: the device had the
+// reset, so it is tracked again and the wipe, if it has no result yet, waits behind it as when it is requested after the
+// acknowledgment.
+func retrackReplacedWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, resetCmdUUID string) (int64, error) {
+	res, err := tx.ExecContext(ctx, `
+		UPDATE host_mdm_actions hma
+		JOIN hosts h ON h.id = hma.host_id
+		JOIN windows_mdm_commands wipe ON wipe.command_uuid = hma.wipe_ref
+		JOIN windows_mdm_commands reset ON reset.command_uuid = ?
+		SET hma.wipe_ref = reset.command_uuid
+		WHERE h.uuid = ? AND wipe.target_loc_uri = ? AND wipe.id > reset.id
+			AND NOT EXISTS (SELECT 1 FROM windows_mdm_command_results wmcr WHERE wmcr.command_uuid = wipe.command_uuid)`,
+		resetCmdUUID, hostUUID, fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipeProtected))
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "track acknowledged reset again")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "rows affected tracking acknowledged reset again")
+	}
+	return n, nil
+}
+
+// MDMWindowsFailInterruptedReset runs at the start of an MDM session. A completed reset removes the enrollment from the
+// device, so a session from the enrollment that acknowledged the reset means Windows rolled the reset back.
+func (ds *Datastore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollmentID, hostID uint) (bool, error) {
+	// Every session runs this, so check on the replica first. The ack is at least the restart window old.
+	var resetCmdUUID string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &resetCmdUUID, `
+		SELECT hma.wipe_ref
+		FROM host_mdm_actions hma
+		JOIN windows_mdm_commands wmc ON wmc.command_uuid = hma.wipe_ref
+		JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = hma.wipe_ref AND wmcr.enrollment_id = ?
+		WHERE hma.host_id = ? AND wmc.target_loc_uri = ? AND wmcr.status_code LIKE '2%'
+			AND wmcr.created_at <= NOW() - INTERVAL ? SECOND`,
+		enrollmentID, hostID, fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData),
+		int(fleet.WindowsResetRestartWindow.Seconds()))
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "check for acknowledged reset")
+	}
+
+	var failed bool
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		failed = false
+		// Locked first, as WipeHostViaWindowsMDM does, so a wipe queued at the same time is either seen below or queued after
+		// the update.
+		var wipeRef sql.NullString
+		err := sqlx.GetContext(ctx, tx, &wipeRef, `SELECT wipe_ref FROM host_mdm_actions WHERE host_id = ? FOR UPDATE`, hostID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "lock host_mdm_actions for interrupted reset")
+		}
+		if wipeRef.String != resetCmdUUID {
+			return nil
+		}
+		// The replica decided the acknowledgment is older than the restart window; confirm it on the primary.
+		var interrupted bool
+		if err := sqlx.GetContext(ctx, tx, &interrupted, `
+			SELECT EXISTS (
+				SELECT 1 FROM windows_mdm_command_results
+				WHERE command_uuid = ? AND enrollment_id = ? AND status_code LIKE '2%' AND created_at <= NOW() - INTERVAL ? SECOND
+			)`, resetCmdUUID, enrollmentID, int(fleet.WindowsResetRestartWindow.Seconds())); err != nil {
+			return ctxerr.Wrap(ctx, err, "recheck acknowledged reset age")
+		}
+		if !interrupted {
+			return nil
+		}
+
+		// Delivered or not: the device may have picked the wipe up in a session inside the restart window.
+		var queuedWipe sql.NullString
+		err = sqlx.GetContext(ctx, tx, &queuedWipe, `
+			SELECT wmc.command_uuid
+			FROM windows_mdm_command_queue wmcq
+			JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
+			WHERE wmcq.enrollment_id = ? AND wmc.target_loc_uri LIKE ?
+				AND wmc.id > (SELECT id FROM windows_mdm_commands WHERE command_uuid = ?)
+			ORDER BY wmc.id DESC
+			LIMIT 1`, enrollmentID, windowsRemoteWipeLocURIPattern, resetCmdUUID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "load wipe queued behind reset")
+		}
+		res, err := tx.ExecContext(ctx, `UPDATE host_mdm_actions SET wipe_ref = ? WHERE host_id = ? AND wipe_ref = ?`,
+			queuedWipe, hostID, resetCmdUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear interrupted reset")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected clearing interrupted reset")
+		}
+		failed = n > 0
+		return nil
+	})
+	return failed, err
+}
+
+// MDMWindowsRemoteWipeInProgress reports whether the enrollment's device acknowledged a RemoteWipe it may still be acting on:
+// within the restart window, or a reset that the session-start check hasn't found interrupted yet.
+func (ds *Datastore) MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollmentID, hostID uint) (bool, error) {
+	// On the primary: the device can acknowledge the RemoteWipe earlier in the same request.
+	var inProgress bool
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &inProgress, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM windows_mdm_command_results wmcr
+			JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcr.command_uuid
+			WHERE wmcr.enrollment_id = ? AND wmc.target_loc_uri LIKE ? AND wmcr.status_code LIKE '2%' AND (
+				wmcr.created_at > NOW() - INTERVAL ? SECOND OR (
+					wmc.target_loc_uri = ? AND
+					EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.host_id = ? AND hma.wipe_ref = wmc.command_uuid)
+				)
+			)
+		)`,
+		enrollmentID, windowsRemoteWipeLocURIPattern, int(fleet.WindowsResetRestartWindow.Seconds()),
+		fleet.WindowsRemoteWipeLocURI(fleet.WindowsRemoteWipePersistProvisionedData), hostID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check for RemoteWipe in progress")
+	}
+	return inProgress, nil
 }
 
 // GetWindowsHostMDMCertificateProfile returns the certificate profile backing a SCEP proxy identifier. Only profiles being
