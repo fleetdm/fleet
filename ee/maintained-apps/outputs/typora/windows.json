@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.14.16",
+      "version": "1.14.15",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io' AND version_compare(version, '1.14.16') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io' AND version_compare(version, '1.14.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'typora.exe');"
       },
-      "installer_url": "https://downloads.typora.io/windows/typora-setup-x64-1.14.16.exe",
+      "installer_url": "https://downloads.typora.io/windows/typora-setup-x64-1.14.15.exe",
       "install_script_ref": "da484f41",
       "uninstall_script_ref": "56e4e60f",
-      "sha256": "debf4d5b5df048393c388ca4fcc43e7f85a3f735f2e66622b679468f22e0ef54",
+      "sha256": "038e2af96968cbd55b7c418c9ad40b2cf45ffc8cc04dbc1cc98488f40e0a5c62",
       "default_categories": [
         "Productivity"
       ]
