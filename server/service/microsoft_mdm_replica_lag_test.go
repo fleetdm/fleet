@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/xml"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -176,10 +177,19 @@ func TestWindowsMDMReplyReplicaLag(t *testing.T) {
 		require.NotContains(t, out, "<Add>", "the Add was answered and dropped from the queue; it must not be sent again")
 		require.Contains(t, out, "<Replace>", "the Replace queued for the 418 must go out in this same reply")
 		require.Contains(t, out, "./Device/Vendor/MSFT/Example/Node")
+
+		// Answer the Replace so nothing is left pending for the next subtest.
+		m := regexp.MustCompile(`<Replace><CmdID>([^<]+)</CmdID>`).FindStringSubmatch(out)
+		require.Len(t, m, 2)
+		reply(t, deviceMessage(false, status(m[1], fleet.CmdReplace, "200")))
 		replicate()
 	})
 
 	t.Run("a poll schedule change goes out in the same reply", func(t *testing.T) {
+		pending, err := ds.MDMWindowsGetPendingCommands(t.Context(), dev.ID)
+		require.NoError(t, err)
+		require.Empty(t, pending, "nothing may be pending, so only the poll schedule change can send this read to the primary")
+
 		// A device whose fleetd can be woken on demand gets its poll relaxed: the Replace is enqueued just before
 		// the queue is read, so that it ships in this session.
 		capable := *dev
