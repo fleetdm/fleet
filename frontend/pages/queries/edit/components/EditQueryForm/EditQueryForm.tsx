@@ -617,6 +617,7 @@ const EditQueryForm = ({
       {showQueryEditor && (
         <SQLEditor
           value={lastEditedQueryBody}
+          error={errors.query}
           name="query editor"
           label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
