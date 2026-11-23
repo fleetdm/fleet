@@ -6447,9 +6447,12 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			return previouslyOrbitEnrolled
 		}
+		// fleetd sends the same email again after the acknowledgment: it belongs to the next user.
+		_, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, host.ID, "previous-custom@example.com", fleet.DeviceMappingCustomInstaller)
+		require.NoError(t, err)
 		assert.False(t, reEnroll(t, host, enrolled))
 		emails, idpAccounts, scim = endUserRows(t)
-		assert.Equal(t, []int{0, 0, 0}, []int{emails, idpAccounts, scim})
+		assert.Equal(t, []int{1, 0, 0}, []int{emails, idpAccounts, scim})
 		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
 		assert.True(t, reEnroll(t, otherHost, otherEnrolled))
 	})

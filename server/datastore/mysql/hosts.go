@@ -4723,7 +4723,8 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
 	const (
 		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
-		updStmt = `UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`
+		// Sets updated_at even when the email is unchanged: a Windows reset keeps only mappings written after its acknowledgment.
+		updStmt = `UPDATE host_emails SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE host_id = ? AND source = ?`
 		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
 		// for the custom_installer source, we insert it only if there is no
 		// existing custom_override source for that host.
