@@ -1328,7 +1328,11 @@
       // Announcement banner: lights the flutes of reeded glass.  (Styled in layout.less.)
       (function(){
         var banner = document.querySelector('[purpose="announcement-banner"]');
-        if (!banner) { return; }
+        if (!banner) {
+          // Set explicitly, so sticky elements offset by this don't depend on the var() fallback in their styles.
+          document.documentElement.style.setProperty('--announcement-banner-height', '0px');
+          return;
+        }
         var flutesContainer = banner.querySelector('[purpose="banner-flutes"]');
         var flutes = [];
         var RESTING_LIT = 0.15;
