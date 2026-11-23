@@ -60,7 +60,7 @@ func (s *integrationExternalAuthTestSuite) createAPIOnlyObserver(name string) (f
 	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
 		"name": name, "global_role": fleet.RoleObserver,
 	}, http.StatusOK, &resp)
-	require.NotZero(s.T(), resp.User.ID)
+	s.Require().NotZero(resp.User.ID)
 	return resp.User, resp.Token
 }
 
@@ -215,6 +215,6 @@ func (s *integrationExternalAuthTestSuite) createAPIOnlyUser(name, role string) 
 		Token string     `json:"token"`
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{"name": name, "global_role": role}, http.StatusOK, &resp)
-	require.NotZero(s.T(), resp.User.ID)
+	s.Require().NotZero(resp.User.ID)
 	return resp.User, resp.Token
 }

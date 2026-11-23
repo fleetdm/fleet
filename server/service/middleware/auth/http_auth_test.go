@@ -19,7 +19,7 @@ import (
 
 const (
 	sessionKey = "c2Vzc2lvbi1rZXk+Lw=="
-	jwtToken   = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJib3QifQ.c2ln"
+	jwtToken   = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJib3QifQ.c2ln" //nolint:gosec // G101: fake JWT-shaped test fixture
 )
 
 type spyExternalAuth struct {

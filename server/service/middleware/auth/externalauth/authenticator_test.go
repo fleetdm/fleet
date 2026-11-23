@@ -73,7 +73,10 @@ func newTestIssuer(t *testing.T) *testIssuer {
 				use jwkset.USE
 			}{{rsaKey.Public(), "rsa1", jwkset.ALG(alg), jwkset.USE(use)}, {ecKey.Public(), "ec1", jwkset.AlgES256, ""}} {
 				jwk, err := jwkset.NewJWKFromKey(k.key, jwkset.JWKOptions{Metadata: jwkset.JWKMetadataOptions{KID: k.kid, ALG: k.alg, USE: k.use}})
-				require.NoError(t, err)
+				if !assert.NoError(t, err) {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 				set.Keys = append(set.Keys, jwk.Marshal())
 			}
 			_ = json.NewEncoder(w).Encode(set)
@@ -500,6 +503,7 @@ func TestAuthViewerRateLimit(t *testing.T) {
 	// Rate limiting is a 429, distinguishable from an invalid token.
 	var rl *RateLimitedError
 	require.ErrorAs(t, err, &rl)
+	require.NotNil(t, rl)
 	require.Equal(t, http.StatusTooManyRequests, rl.StatusCode())
 	require.Positive(t, rl.RetryAfter())
 	require.Contains(t, logs.String(), "rate_limited")
@@ -527,5 +531,7 @@ func TestDiscoveredJWKSURIMustBeHTTPS(t *testing.T) {
 	require.NoError(t, err)
 	err = a.refreshAll(t.Context())
 	require.ErrorContains(t, err, "jwks_uri")
-	require.False(t, a.issuers[srv.URL].hasKeys())
+	iss := a.issuers[srv.URL]
+	require.NotNil(t, iss)
+	require.False(t, iss.hasKeys())
 }
