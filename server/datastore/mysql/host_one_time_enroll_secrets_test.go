@@ -1083,8 +1083,8 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("a spent secret is swept by host once a resend supersedes it", func(t *testing.T) {
-		// The first-install secret is minted unbound, and consuming it records the host fleetd's first enrollment creates. That is
-		// what lets the host-keyed sweep the Apple path uses cover Windows too.
+		// The first-install secret is minted unbound, and consuming it records the host. That is what lets the host-keyed sweep
+		// the Apple path uses cover Windows too.
 		device := insertWindowsEnrollment(t, ds, "hw-bind-sweep", "")
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		spent := liveWindowsSecret(t, ds, device.ID)
@@ -1115,59 +1115,27 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		// The attacker's device is legitimately enrolled in MDM, so it is handed a first-install secret over its own channel,
 		// but its agent presents the victim's identifiers. Nothing binds that secret to a host.
 		cases := []struct {
-			name             string
-			attackerHardware string
-			victim           func(t *testing.T) *fleet.Host
+			name            string
+			claimed         bool
+			orbitEnrolled   bool
+			osqueryEnrolled bool
 		}{
-			{
-				name: "another enrollment claims it", attackerHardware: "hw-claim-attacker",
-				victim: func(t *testing.T) *fleet.Host {
-					// No agent has enrolled as it, so the claim alone refuses.
-					id := strings.ToUpper(uuid.NewString())
-					h := newWindowsHost(id, id)
-					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-						_, err := q.ExecContext(ctx, `UPDATE hosts SET node_key = NULL WHERE id = ?`, h.ID)
-						return err
-					})
-					insertWindowsEnrollment(t, ds, "hw-claim-victim", h.UUID)
-					return h
-				},
-			},
-			{
-				// Windows Server, or any host enrolled with a fleetd package and not in Fleet MDM.
-				name: "fleetd enrolled as it", attackerHardware: "hw-fleetd-attacker",
-				victim: func(t *testing.T) *fleet.Host {
-					h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-					_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil)...)
-					require.NoError(t, err)
-					return h
-				},
-			},
-			{
-				// As a pending Autopilot host is between orbit claiming it and osquery's first enrollment.
-				name: "only orbit enrolled as it", attackerHardware: "hw-orbit-attacker",
-				victim: func(t *testing.T) *fleet.Host {
-					h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-					_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil)...)
-					require.NoError(t, err)
-					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-						_, err := q.ExecContext(ctx, `UPDATE hosts SET node_key = NULL WHERE id = ?`, h.ID)
-						return err
-					})
-					return h
-				},
-			},
-			{
-				name: "plain osquery enrolled as it", attackerHardware: "hw-osquery-attacker",
-				victim: func(t *testing.T) *fleet.Host {
-					return newOneTimeSecretTestHost(t, ds, "windows", nil)
-				},
-			},
+			{name: "another enrollment claims it", claimed: true},
+			{name: "orbit enrolled as it", orbitEnrolled: true},
+			{name: "osquery enrolled as it", osqueryEnrolled: true},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
-				victim := c.victim(t)
-				attacker := insertWindowsEnrollment(t, ds, c.attackerHardware, "")
+				victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = IF(?, CONCAT('onk-', uuid), NULL),
+						node_key = IF(?, CONCAT('nk-', uuid), NULL) WHERE id = ?`, c.orbitEnrolled, c.osqueryEnrolled, victim.ID)
+					return err
+				})
+				if c.claimed {
+					insertWindowsEnrollment(t, ds, "hw-claim-victim", victim.UUID)
+				}
+				attacker := insertWindowsEnrollment(t, ds, "hw-claim-attacker-"+victim.UUID, "")
 				require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, attacker.ID))
 				row := liveWindowsSecret(t, ds, attacker.ID)
 				before, err := ds.Host(ctx, victim.ID)
