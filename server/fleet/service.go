@@ -1049,8 +1049,8 @@ type Service interface {
 	// CountABMTokens counts the ABM tokens in Fleet.
 	CountABMTokens(ctx context.Context) (int, error)
 
-	// UpdateABMTokenTeams updates the default macOS, iOS, iPadOS, and BYOD team IDs for a given ABM token.
-	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*ABMToken, error)
+	// UpdateABMTokenTeams updates the per-platform default team IDs for a given ABM token.
+	UpdateABMTokenTeams(ctx context.Context, tokenID uint, teamIDs ABMTokenTeamIDs) (*ABMToken, error)
 
 	// SetABMTokenDefault marks the given ABM token as the default one used to
 	// sign GetToken responses for devices not enrolled through ABM, or unsets

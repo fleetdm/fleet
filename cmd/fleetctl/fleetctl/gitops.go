@@ -1207,7 +1207,7 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 			if settingMap, ok := appleBM.([]any); ok {
 				for _, item := range settingMap {
 					if cfg, ok := item.(map[string]any); ok {
-						for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet", "byod_fleet"} {
+						for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet", "tvos_fleet", "byod_fleet"} {
 							if team, ok := cfg[teamConfigKey].(string); ok && team != "" {
 								// normalize for Unicode support
 								team = norm.NFC.String(team)
@@ -1244,7 +1244,7 @@ func abmConfigWithoutMissingFleets(bmSettings []any, missingTeams []string) []an
 		}
 		cp := make(map[string]any, len(cfg))
 		maps.Copy(cp, cfg)
-		for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet", "byod_fleet"} {
+		for _, teamConfigKey := range []string{"macos_fleet", "ios_fleet", "ipados_fleet", "tvos_fleet", "byod_fleet"} {
 			if team, ok := cp[teamConfigKey].(string); ok {
 				if _, isMissing := missing[norm.NFC.String(team)]; isMissing {
 					cp[teamConfigKey] = ""
@@ -1313,7 +1313,7 @@ func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, f
 	// matches the server treating such tokens as associated with "No team".
 	covered := make(map[string]struct{}, len(tokens)*4)
 	for _, tok := range tokens {
-		for _, tm := range []fleet.ABMTokenTeam{tok.MacOSTeam, tok.IOSTeam, tok.IPadOSTeam, tok.BYODTeam} {
+		for _, tm := range []fleet.ABMTokenTeam{tok.MacOSTeam, tok.IOSTeam, tok.IPadOSTeam, tok.TvOSTeam, tok.BYODTeam} {
 			covered[norm.NFC.String(tm.Name)] = struct{}{}
 		}
 	}

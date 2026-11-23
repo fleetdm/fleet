@@ -1618,6 +1618,10 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		softwareUpdateIdentifier = apple_mdm.IpadOSDDMSoftwareUpdateIdentifier
 		osUpdatesProfileName = mdm.FleetIPadOSUpdatesProfileName
 		labelName = fleet.BuiltinLabelIPadOS
+	case fleet.TvOS:
+		softwareUpdateIdentifier = apple_mdm.TvOSDDMSoftwareUpdateIdentifier
+		osUpdatesProfileName = mdm.FleetTvOSUpdatesProfileName
+		labelName = fleet.BuiltinLabelTvOS
 	default:
 		panic(fmt.Sprintf("invalid AppleDevice: %d", appleDevice))
 	}
@@ -1792,6 +1796,7 @@ func syncABMTokensToAppConfig(appCfg *fleet.AppConfig, tokens []*fleet.ABMToken)
 			MacOSTeam:        abmTeamName(tok.MacOSTeam),
 			IOSTeam:          abmTeamName(tok.IOSTeam),
 			IpadOSTeam:       abmTeamName(tok.IPadOSTeam),
+			TvOSTeam:         abmTeamName(tok.TvOSTeam),
 			BYODTeam:         abmTeamName(tok.BYODTeam),
 		}
 
@@ -1926,7 +1931,7 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 	return tokens, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, teamIDs fleet.ABMTokenTeamIDs) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.ABMToken{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -1936,67 +1941,45 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "get ABM token to update teams")
 	}
 
-	// validate the team IDs
-	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
-	token.MacOSDefaultTeamID = nil
-	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
-	token.IOSDefaultTeamID = nil
-	token.IPadOSTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
-	token.IPadOSDefaultTeamID = nil
-	token.BYODTeam = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
-	token.BYODDefaultTeamID = nil
+	// A nil or zero id clears the assignment back to "No team", so every platform
+	// starts cleared and is only set if a valid team id was submitted.
+	assign := func(label string, teamID *uint, team *fleet.ABMTokenTeam, defaultTeamID **uint) error {
+		*team = fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}
+		*defaultTeamID = nil
 
-	if macOSTeamID != nil && *macOSTeamID != 0 {
-		macOSTeam, err := svc.ds.TeamLite(ctx, *macOSTeamID)
+		if teamID == nil || *teamID == 0 {
+			return nil
+		}
+
+		tm, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("fleet with ID %d not found", *macOSTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of macOS team"),
+			return &fleet.BadRequestError{
+				Message:     fmt.Sprintf("fleet with ID %d not found", *teamID),
+				InternalErr: ctxerr.Wrapf(ctx, err, "checking existence of %s team", label),
 			}
 		}
 
-		token.MacOSTeam.Name = macOSTeam.Name
-		token.MacOSTeam.ID = *macOSTeamID
-		token.MacOSDefaultTeamID = macOSTeamID
+		team.Name = tm.Name
+		team.ID = *teamID
+		*defaultTeamID = teamID
+		return nil
 	}
 
-	if iOSTeamID != nil && *iOSTeamID != 0 {
-		iOSTeam, err := svc.ds.TeamLite(ctx, *iOSTeamID)
-		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("fleet with ID %d not found", *iOSTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iOS team"),
-			}
+	for _, platform := range []struct {
+		label         string
+		teamID        *uint
+		team          *fleet.ABMTokenTeam
+		defaultTeamID **uint
+	}{
+		{"macOS", teamIDs.MacOS, &token.MacOSTeam, &token.MacOSDefaultTeamID},
+		{"iOS", teamIDs.IOS, &token.IOSTeam, &token.IOSDefaultTeamID},
+		{"iPadOS", teamIDs.IPadOS, &token.IPadOSTeam, &token.IPadOSDefaultTeamID},
+		{"tvOS", teamIDs.TvOS, &token.TvOSTeam, &token.TvOSDefaultTeamID},
+		{"BYOD", teamIDs.BYOD, &token.BYODTeam, &token.BYODDefaultTeamID},
+	} {
+		if err := assign(platform.label, platform.teamID, platform.team, platform.defaultTeamID); err != nil {
+			return nil, err
 		}
-		token.IOSTeam.Name = iOSTeam.Name
-		token.IOSTeam.ID = *iOSTeamID
-		token.IOSDefaultTeamID = iOSTeamID
-	}
-
-	if iPadOSTeamID != nil && *iPadOSTeamID != 0 {
-		iPadOSTeam, err := svc.ds.TeamLite(ctx, *iPadOSTeamID)
-		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("fleet with ID %d not found", *iPadOSTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of iPadOS team"),
-			}
-		}
-		token.IPadOSTeam.Name = iPadOSTeam.Name
-		token.IPadOSTeam.ID = *iPadOSTeamID
-		token.IPadOSDefaultTeamID = iPadOSTeamID
-	}
-
-	if byodTeamID != nil && *byodTeamID != 0 {
-		byodTeam, err := svc.ds.TeamLite(ctx, *byodTeamID)
-		if err != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     fmt.Sprintf("fleet with ID %d not found", *byodTeamID),
-				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of BYOD team"),
-			}
-		}
-		token.BYODTeam.Name = byodTeam.Name
-		token.BYODTeam.ID = *byodTeamID
-		token.BYODDefaultTeamID = byodTeamID
 	}
 
 	if err := svc.ds.SaveABMToken(ctx, token); err != nil {

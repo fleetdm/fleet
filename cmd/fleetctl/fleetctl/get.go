@@ -1574,6 +1574,7 @@ func runGetMDMAB(c *cli.Context) error {
 			{"macOS fleet:", fleetName(token.MacOSTeam)},
 			{"iOS fleet:", fleetName(token.IOSTeam)},
 			{"iPadOS fleet:", fleetName(token.IPadOSTeam)},
+			{"tvOS fleet:", fleetName(token.TvOSTeam)},
 			{"BYOD fleet:", fleetName(token.BYODTeam)},
 		})
 

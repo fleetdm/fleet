@@ -893,7 +893,7 @@ func TranslateSoftwareToCPE(
 			// Go binaries are matched by module path against the Go vulnerability database
 			// instead. MCP servers and AI skills have no vulnerability data source, and AI CLIs
 			// installed by a package manager are matched under that package's own source.
-			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "adobe_plugins", "go_binaries",
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps", "tvos_apps", "adobe_plugins", "go_binaries",
 				"ai_clis", "mcp_servers", "ai_skills"),
 		},
 	)

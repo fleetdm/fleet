@@ -1234,6 +1234,14 @@ func TestIsMacIdentifier(t *testing.T) {
 		{product: "iPad13,18", want: false},
 		{product: "iPodTouch9,1", want: false},
 
+		// --- Apple TV (managed over MDM, never a Mac) ---
+		// These must not error: callers treat an error as a hard failure, which
+		// would break Apple TV enrollment (see isMacACMESupported).
+		{product: "AppleTV5,3", want: false},
+		{product: "AppleTV6,2", want: false},
+		{product: "AppleTV11,1", want: false},
+		{product: "AppleTV14,1", want: false},
+
 		// --- Virtual Mac machines ---
 		{product: "VirtualMac2,1", want: true},
 
@@ -1523,6 +1531,33 @@ func TestMDMAppleSetupPayloadValidateManagedLocalAccount(t *testing.T) {
 				return
 			}
 			require.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+func TestIsAttestationCapableAppleTV(t *testing.T) {
+	for _, tc := range []struct {
+		product string
+		want    bool
+		wantErr bool
+	}{
+		{product: "AppleTV5,3"},
+		{product: "AppleTV6,2"},
+		{product: "AppleTV11,1", want: true},
+		{product: "AppleTV14,1", want: true},
+		{product: "iPad13,18"},
+		{product: "MacBookPro18,4"},
+		{product: "AppleTV111", wantErr: true},
+		{product: "", wantErr: true},
+	} {
+		t.Run(tc.product, func(t *testing.T) {
+			got, err := IsAttestationCapableAppleTV(tc.product)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

@@ -3264,3 +3264,20 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.False(t, f.ds.ListIOSAndIPadOSMDMHostsAfterIDFuncInvoked)
 	})
 }
+
+func TestVPPBatchPayloadPlatformsTvOS(t *testing.T) {
+	apple := []fleet.InstallableDevicePlatform{fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform}
+
+	got := vppBatchPayloadPlatforms(fleet.VPPBatchPayload{AppStoreID: "1234567"})
+	require.Equal(t, append(slices.Clone(apple), fleet.TVOSPlatform), got)
+
+	got = vppBatchPayloadPlatforms(fleet.VPPBatchPayload{AppStoreID: "1234567", SelfService: true})
+	require.Equal(t, apple, got)
+
+	got = vppBatchPayloadPlatforms(fleet.VPPBatchPayload{AppStoreID: "1234567", SelfService: true, Platform: fleet.TVOSPlatform})
+	require.Equal(t, []fleet.InstallableDevicePlatform{fleet.TVOSPlatform}, got)
+
+	require.Error(t, validateVPPBatchPayloadPlatform(fleet.TVOSPlatform, "1234567", true))
+	require.NoError(t, validateVPPBatchPayloadPlatform(fleet.TVOSPlatform, "1234567", false))
+	require.NoError(t, validateVPPBatchPayloadPlatform(fleet.IPadOSPlatform, "1234567", true))
+}

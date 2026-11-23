@@ -540,6 +540,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:                 cmd.AppConfig.MDM.IOSUpdates,
 			IPadOSUpdates:              cmd.AppConfig.MDM.IPadOSUpdates,
+			TvOSUpdates:                cmd.AppConfig.MDM.TvOSUpdates,
 			WindowsUpdates:             cmd.AppConfig.MDM.WindowsUpdates,
 			MacOSSetup:                 cmd.AppConfig.MDM.MacOSSetup,
 			WindowsSettings:            cmd.AppConfig.MDM.WindowsSettings,
@@ -1734,6 +1735,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
+			result[jsonFieldName(mdmT, "TvOSUpdates")] = teamMdm.TvOSUpdates
 			result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
 
 			macosSettings[jsonFieldName(macosSettingsT, "EnableDiskEncryption")] = teamMdm.MacOSSettings.EnableDiskEncryption.Value
@@ -2764,8 +2766,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
 					// all per-team software-related artifacts are generated in lib/{team}/software
 					switch version.Platform {
-					case fleet.IOSPlatform, fleet.IPadOSPlatform:
-						// iOS/iPadOS configuration is returned as a JSON-encoded
+					case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform:
+						// iOS/iPadOS/tvOS configuration is returned as a JSON-encoded
 						// string of XML; unwrap and write the raw XML.
 						var xmlStr string
 						if err := json.Unmarshal(config, &xmlStr); err != nil {
@@ -2800,7 +2802,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
 				// only VPP apps (those with an AdamID) support auto-update schedules.
 				if version.AutoUpdateEnabled != nil || version.AutoUpdateStartTime != nil || version.AutoUpdateEndTime != nil {
-					if (version.Platform == fleet.IOSPlatform || version.Platform == fleet.IPadOSPlatform) && version.AdamID != "" {
+					if fleet.IsAppleMDMOnlyPlatform(string(version.Platform)) && version.AdamID != "" {
 						if version.AutoUpdateEnabled != nil {
 							versionSpec["auto_update_enabled"] = *version.AutoUpdateEnabled
 						}

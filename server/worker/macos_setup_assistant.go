@@ -84,6 +84,24 @@ func (m *MacosSetupAssistant) Run(ctx context.Context, argsJSON json.RawMessage)
 	}
 }
 
+// assignProfile assigns the team's profile to the serials, except for Apple TVs, which get the team's tvOS profile.
+func (m *MacosSetupAssistant) assignProfile(ctx context.Context, team *fleet.Team, orgName, profUUID string, serials []string) error {
+	serialsByProfile, err := m.DEPService.GroupSerialsByProfile(ctx, team, orgName, profUUID, serials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "group serials by profile")
+	}
+	for profUUID, serials := range serialsByProfile {
+		resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
+		if err := m.Datastore.UpdateHostDEPAssignProfileResponsesSameABM(ctx, resp); err != nil {
+			return ctxerr.Wrap(ctx, err, "update assign profile responses")
+		}
+	}
+	return nil
+}
+
 func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosSetupAssistantArgs) error {
 	team, err := m.getTeamNoTeam(ctx, args.TeamID)
 	if err != nil {
@@ -128,11 +146,7 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 				continue
 			}
 
-			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "assign profile")
-			}
-			if err := m.Datastore.UpdateHostDEPAssignProfileResponsesSameABM(ctx, resp); err != nil {
+			if err := m.assignProfile(ctx, team, orgName, profUUID, serials); err != nil {
 				return ctxerr.Wrap(ctx, err, "worker: run profile changed")
 			}
 		}
@@ -199,11 +213,7 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 				return ctxerr.Errorf(ctx, "default setup assistant profile uuid is empty for ABM organization %q", orgName)
 			}
 
-			resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "assign profile")
-			}
-			if err := m.Datastore.UpdateHostDEPAssignProfileResponsesSameABM(ctx, resp); err != nil {
+			if err := m.assignProfile(ctx, team, orgName, profUUID, serials); err != nil {
 				return ctxerr.Wrap(ctx, err, "worker: run profile deleted")
 			}
 		}
@@ -267,11 +277,7 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 			}
 		}
 
-		resp, err := m.DEPClient.AssignProfile(ctx, orgName, profUUID, serials...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "assign profile")
-		}
-		if err := m.Datastore.UpdateHostDEPAssignProfileResponsesSameABM(ctx, resp); err != nil {
+		if err := m.assignProfile(ctx, team, orgName, profUUID, serials); err != nil {
 			return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
 		}
 	}

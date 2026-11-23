@@ -39,13 +39,13 @@ func TestEnqueueAndNotifyStageErrors(t *testing.T) {
 	// a pusher-level failure happens after the command was enqueued, so it is
 	// reported as a NotificationFailedError
 	cmdr := NewMDMAppleCommander(mdmStorage, &fakePusher{err: errors.New("apns down")})
-	err := cmdr.DeviceInformation(ctx, []string{"A"}, fleet.RefetchDeviceCommandUUIDPrefix+"u1", false)
+	err := cmdr.DeviceInformation(ctx, []string{"A"}, fleet.RefetchDeviceCommandUUIDPrefix+"u1", DeviceInformationKeysFull)
 	require.ErrorAs(t, err, &notifErr)
 
 	// per-device push failures keep the APNSDeliveryError detectable through
 	// the NotificationFailedError wrapper
 	cmdr = NewMDMAppleCommander(mdmStorage, &fakePusher{resp: map[string]*push.Response{"A": {Err: errors.New("boom")}}})
-	err = cmdr.DeviceInformation(ctx, []string{"A"}, fleet.RefetchDeviceCommandUUIDPrefix+"u2", false)
+	err = cmdr.DeviceInformation(ctx, []string{"A"}, fleet.RefetchDeviceCommandUUIDPrefix+"u2", DeviceInformationKeysFull)
 	require.ErrorAs(t, err, &notifErr)
 	require.ErrorAs(t, err, &apnsErr)
 
@@ -55,7 +55,7 @@ func TestEnqueueAndNotifyStageErrors(t *testing.T) {
 		return nil, errors.New("db down")
 	}
 	cmdr = NewMDMAppleCommander(mdmStorage, &fakePusher{})
-	err = cmdr.DeviceInformation(ctx, []string{"A"}, fleet.RefetchDeviceCommandUUIDPrefix+"u3", false)
+	err = cmdr.DeviceInformation(ctx, []string{"A"}, fleet.RefetchDeviceCommandUUIDPrefix+"u3", DeviceInformationKeysFull)
 	require.Error(t, err)
 	require.NotErrorAs(t, err, &notifErr)
 }
@@ -158,6 +158,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 				{HostID: 1, UUID: "device-1", InstalledFromDEP: true},
 				{HostID: 2, UUID: "device-2", InstalledFromDEP: false, IsPersonalEnrollment: true},
 				{HostID: 3, UUID: "device-3", InstalledFromDEP: true, CommandsAlreadySent: []string{fleet.RefetchAppsCommandUUIDPrefix}},
+				{HostID: 4, UUID: "device-4", Platform: "tvos", InstalledFromDEP: true, CommandsAlreadySent: []string{fleet.RefetchAppsCommandUUIDPrefix}},
 			}, nil
 		}
 		env.ds.AddHostMDMCommandsFunc = func(ctx context.Context, commands []fleet.HostMDMCommand) error {
@@ -177,7 +178,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 
 		err := IOSiPadOSRefetch(ctx, env.ds, env.commander, logger, noopActivity, 1000)
 		require.NoError(t, err)
-		require.Len(t, batches, 5)
+		require.Len(t, batches, 6)
 
 		// apps: the BYOD device gets a managed-only list first, then the DEP
 		// device gets the full list; device-3 already received the command
@@ -190,7 +191,7 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 
 		// certs: a single batch for all devices
 		require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, batches[2].commandType)
-		require.ElementsMatch(t, []string{"device-1", "device-2", "device-3"}, batches[2].uuids)
+		require.ElementsMatch(t, []string{"device-1", "device-2", "device-3", "device-4"}, batches[2].uuids)
 
 		// device info: the personal device gets the reduced query set (no
 		// BatteryLevel), the others the full set
@@ -200,6 +201,12 @@ func TestIOSiPadOSRefetchTracksBeforeEnqueue(t *testing.T) {
 		require.Equal(t, fleet.RefetchDeviceCommandUUIDPrefix, batches[4].commandType)
 		require.ElementsMatch(t, []string{"device-1", "device-3"}, batches[4].uuids)
 		require.Contains(t, batches[4].raw, "BatteryLevel")
+
+		// device info: the Apple TV gets only the keys tvOS answers
+		require.Equal(t, fleet.RefetchDeviceCommandUUIDPrefix, batches[5].commandType)
+		require.Equal(t, []string{"device-4"}, batches[5].uuids)
+		require.NotContains(t, batches[5].raw, "BatteryLevel")
+		require.NotContains(t, batches[5].raw, "DeviceCapacity")
 	})
 
 	t.Run("enqueue failure untracks only the failed command type", func(t *testing.T) {

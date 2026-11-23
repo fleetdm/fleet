@@ -1281,7 +1281,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 //
 // software_titles keys titles on (unique_identifier, source, extension_for) and on
 // (bundle_identifier, additional_identifier), where unique_identifier falls back to the name
-// and additional_identifier is 0 for every source except ios_apps and ipados_apps. Storing the
+// and additional_identifier is 0 for every source except ios_apps, ipados_apps and tvos_apps. Storing the
 // bundle id or the manifest's host applications therefore puts plugin titles on keys they can
 // collide with:
 //   - a plugin sharing a bundle id with a macOS app, which is keyed the same way;

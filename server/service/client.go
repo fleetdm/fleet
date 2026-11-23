@@ -1678,7 +1678,7 @@ func getAppStoreAppConfig(platform, path string) (json.RawMessage, error) {
 			return nil, err
 		}
 		return config, nil
-	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform), string(fleet.TVOSPlatform):
 		if err := fleet.ValidateAppleAppConfiguration(contents); err != nil {
 			return nil, err
 		}
@@ -3166,6 +3166,25 @@ func (c *Client) DoGitOps(
 		}
 		// update_new_hosts is only used for macOS so ignore any values posted for iPadOS
 		iPadOSUpdates["update_new_hosts"] = nil
+
+		// Put in default values for tvos_updates
+		if incoming.Controls.TvOSUpdates != nil {
+			mdmAppConfig["tvos_updates"] = incoming.Controls.TvOSUpdates
+		} else {
+			mdmAppConfig["tvos_updates"] = map[string]any{}
+		}
+		tvOSUpdates := mdmAppConfig["tvos_updates"].(map[string]any)
+		if minimumVersion, ok := tvOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+			tvOSUpdates["minimum_version"] = ""
+		}
+		if deadline, ok := tvOSUpdates["deadline"]; !ok || deadline == nil {
+			tvOSUpdates["deadline"] = ""
+		}
+		if _, ok := tvOSUpdates["deadline_days"]; !ok {
+			tvOSUpdates["deadline_days"] = nil
+		}
+		// update_new_hosts is only used for macOS so ignore any values posted for tvOS
+		tvOSUpdates["update_new_hosts"] = nil
 
 		// Put in default values for setup_experience
 		if incoming.Controls.MacOSSetup != nil {

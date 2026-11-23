@@ -228,6 +228,7 @@
         "macos_fleet": "💻 Workstations",
         "ios_fleet": "📱🏢 Company-owned mobile devices",
         "ipados_fleet": "📱🏢 Company-owned mobile devices",
+        "tvos_fleet": "📺 Conference room Apple TVs",
         "byod_fleet": "📱🔐 Personal mobile devices"
       },
       {

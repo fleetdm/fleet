@@ -92,6 +92,12 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			DeadlineDays:   optjson.Int{Set: true},
 			UpdateNewHosts: optjson.Bool{Set: true, Valid: false, Value: false},
 		},
+		TvOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+			DeadlineDays:   optjson.Int{Set: true},
+			UpdateNewHosts: optjson.Bool{Set: true, Valid: false, Value: false},
+		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
 			GracePeriodDays: optjson.SetInt(2),

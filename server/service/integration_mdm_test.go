@@ -1414,8 +1414,11 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 	t := s.T()
 
 	model := "iPhone14,6"
-	if platform == "ipados" {
+	switch platform {
+	case "ipados":
 		model = "iPad13,18"
+	case "tvos":
+		model = "AppleTV14,1"
 	}
 
 	// create a host with minimal information and the serial, no uuid/osquery id

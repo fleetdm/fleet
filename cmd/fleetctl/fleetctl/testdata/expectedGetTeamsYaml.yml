@@ -54,6 +54,11 @@ spec:
         macos_require_all_software: false
         software: null
         windows_require_all_software: false
+      tvos_updates:
+        deadline: null
+        deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
       windows_require_bitlocker_pin: null
       windows_settings:
         enable_disk_encryption: false
@@ -132,6 +137,11 @@ spec:
         macos_require_all_software: false
         software: null
         windows_require_all_software: false
+      tvos_updates:
+        deadline: null
+        deadline_days: null
+        minimum_version: null
+        update_new_hosts: null
       windows_require_bitlocker_pin: null
       windows_settings:
         enable_disk_encryption: false

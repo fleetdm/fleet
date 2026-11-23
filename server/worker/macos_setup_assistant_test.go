@@ -19,6 +19,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -400,4 +401,106 @@ func TestMacosSetupAssistant(t *testing.T) {
 		"serial-4": "team3",
 		"serial-5": "no-team", // became a no-team host when team2 got deleted
 	}, serialsToProfile)
+}
+
+func TestMacosSetupAssistantAppleTV(t *testing.T) {
+	ctx := context.Background()
+	ds := mysqltest.CreateMySQLDS(t)
+	mysqltest.TruncateTables(t, ds)
+
+	const orgName = "org1"
+	mysqltest.SetTestABMAssets(t, ds, "fleet")
+	tok := mysqltest.CreateAndSetABMToken(t, ds, orgName)
+
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = "https://fleet.example.com"
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
+	euaTeam, err := ds.NewTeam(ctx, &fleet.Team{
+		Name:   "eua",
+		Config: fleet.TeamConfig{MDM: fleet.TeamMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}},
+	})
+	require.NoError(t, err)
+
+	var hostIDs []uint
+	for _, serial := range []string{"mac1", "tv1"} {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       serial,
+			OsqueryHostID:  new("osquery-" + serial),
+			NodeKey:        new("nodekey-" + serial),
+			UUID:           "uuid-" + serial,
+			Platform:       "darwin",
+			HardwareSerial: serial,
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tok.ID, make(map[uint]time.Time)))
+		hostIDs = append(hostIDs, h.ID)
+	}
+	require.NoError(t, ds.SetHostDEPAssignmentsDeviceFamily(ctx, tok.ID, fleet.DEPDeviceFamilyAppleTV, []string{"tv1"}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&euaTeam.ID, hostIDs)))
+
+	logger := slog.New(slog.DiscardHandler)
+	depStorage, err := ds.NewMDMAppleDEPStorage()
+	require.NoError(t, err)
+
+	// the profile uuid is "sso" if the profile sends devices to end user authentication, "no-sso" otherwise
+	serialsToProfile := map[string]string{}
+	var definedURLs []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			assert.NoError(t, encoder.Encode(map[string]string{"auth_session_token": "auth123"}))
+		case "/profile":
+			var reqProf godep.Profile
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&reqProf))
+			definedURLs = append(definedURLs, reqProf.URL)
+			profUUID := "no-sso"
+			if strings.HasSuffix(reqProf.ConfigurationWebURL, "/mdm/sso") {
+				profUUID = "sso"
+			}
+			assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: profUUID}))
+		case "/profile/devices":
+			var reqProf godep.Profile
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&reqProf))
+			for _, d := range reqProf.Devices {
+				serialsToProfile[d] = reqProf.ProfileUUID
+			}
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			t.Errorf("unexpected request: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+	require.NoError(t, depStorage.StoreConfig(ctx, "fleet", &nanodep_client.Config{BaseURL: srv.URL}))
+	require.NoError(t, depStorage.StoreConfig(ctx, orgName, &nanodep_client.Config{BaseURL: srv.URL}))
+
+	w := NewWorker(ds, logger)
+	w.Register(&MacosSetupAssistant{
+		Datastore:  ds,
+		Log:        logger,
+		DEPService: apple_mdm.NewDEPService(ds, depStorage, logger),
+		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger),
+	})
+
+	transfer := func() {
+		_, err := QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantHostsTransferred, &euaTeam.ID, "mac1", "tv1")
+		require.NoError(t, err)
+		require.NoError(t, w.ProcessJobs(ctx))
+		pending, err := ds.GetQueuedJobs(ctx, 10, time.Time{})
+		require.NoError(t, err)
+		require.Empty(t, pending)
+	}
+
+	transfer()
+	require.Equal(t, map[string]string{"mac1": "sso", "tv1": "no-sso"}, serialsToProfile)
+	require.Len(t, definedURLs, 2)
+	require.Contains(t, definedURLs, "https://fleet.example.com/mdm/sso")
+
+	// the tvOS profile is registered once and reused
+	transfer()
+	require.Equal(t, map[string]string{"mac1": "sso", "tv1": "no-sso"}, serialsToProfile)
+	require.Len(t, definedURLs, 2)
 }

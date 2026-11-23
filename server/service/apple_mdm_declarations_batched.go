@@ -426,12 +426,12 @@ func resolveUserChannelDeliveries(
 		host := hostsByUUID[hostUUID]
 
 		switch {
-		case host != nil && fleet.IsAppleMobilePlatform(host.Platform):
+		case host != nil && fleet.IsAppleMDMOnlyPlatform(host.Platform):
 			for _, row := range installRows {
 				row.Status = &fleet.MDMDeliveryFailed
 				failed = append(failed, failedUserDeclaration{
 					hostUUID: hostUUID, declarationUUID: row.DeclarationUUID,
-					detail: "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts.",
+					detail: "This setting couldn't be enforced because the user channel isn't available on iOS, iPadOS, and tvOS hosts.",
 				})
 			}
 

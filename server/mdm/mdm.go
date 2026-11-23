@@ -375,6 +375,9 @@ const (
 	// to configure iPadOS OS updates.
 	FleetIPadOSUpdatesProfileName = "Fleet iPadOS OS Updates"
 
+	// FleetTvOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure tvOS OS updates.
+	FleetTvOSUpdatesProfileName = "Fleet tvOS OS Updates"
 	// FleetWindowsEnrollSecretProfileName is the name of the profile used by Fleet to deliver a one-time enroll secret to a
 	// Windows host's registry.
 	FleetWindowsEnrollSecretProfileName = "Fleetd enroll secret" //nolint:gosec // G101 false positive, a profile name
@@ -390,6 +393,7 @@ func FleetReservedProfileNames() map[string]struct{} {
 		FleetMacOSUpdatesProfileName:        {},
 		FleetIOSUpdatesProfileName:          {},
 		FleetIPadOSUpdatesProfileName:       {},
+		FleetTvOSUpdatesProfileName:         {},
 		FleetCAConfigProfileName:            {},
 		FleetWindowsEnrollSecretProfileName: {},
 	}
@@ -414,5 +418,6 @@ func ListFleetReservedMacOSDeclarationNames() []string {
 		FleetMacOSUpdatesProfileName,
 		FleetIOSUpdatesProfileName,
 		FleetIPadOSUpdatesProfileName,
+		FleetTvOSUpdatesProfileName,
 	}
 }

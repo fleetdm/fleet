@@ -1521,6 +1521,7 @@ func TestMDMConfig(t *testing.T) {
 			MacOSUpdates:   fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 			IOSUpdates:     fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
 			IPadOSUpdates:  fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
+			TvOSUpdates:    fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, DeadlineDays: optjson.Int{Set: true}},
 			WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 			WindowsSettings: fleet.WindowsSettings{
 				RequireBitLockerPIN: optjson.Bool{Set: true},

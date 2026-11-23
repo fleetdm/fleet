@@ -963,7 +963,7 @@ const hostMDMSelect = `,
 			)
 			WHEN h.platform = 'android' THEN
 				CASE WHEN hmdm.enrolled = 1 THEN CAST(TRUE AS JSON) ELSE CAST(FALSE AS JSON) END
-			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
+			WHEN h.platform IN ('ios', 'ipados', 'tvos', 'darwin') THEN (` +
 	// NOTE: if you change any of the conditions in this
 	// query, please update the AreHostsConnectedToFleetMDM
 	// datastore method and any relevant filters.
@@ -1685,7 +1685,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados', 'android')`
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados', 'tvos', 'android')`
 	}
 	return sql, params
 }
@@ -1789,7 +1789,7 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		params = append(params, now)
 	case fleet.StatusOnline:
 		sql += fmt.Sprintf(
-			`AND (CASE WHEN h.platform IN ('ios','ipados','android')
+			`AND (CASE WHEN h.platform IN ('ios','ipados','tvos','android')
 				THEN DATE_ADD(%s, INTERVAL %d SECOND) > ?
 				ELSE DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?
 			END)`,
@@ -1798,7 +1798,7 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		params = append(params, now, now)
 	case fleet.StatusOffline:
 		sql += fmt.Sprintf(
-			`AND (CASE WHEN h.platform IN ('ios','ipados','android')
+			`AND (CASE WHEN h.platform IN ('ios','ipados','tvos','android')
 				THEN (DATE_ADD(%s, INTERVAL %d SECOND) <= ? OR %s IS NULL)
 				ELSE DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?
 			END)`,
@@ -1887,7 +1887,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql stri
 
 	sqlFmt := ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
-		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
+		OR (h.platform IN ('darwin', 'ios', 'ipados', 'tvos') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
 		OR (h.platform = 'android' AND hmdm.enrolled = 1 AND ad.host_id IS NOT NULL) -- android
 		OR ` + includeLinuxCond + `
 	)`
@@ -1901,7 +1901,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql stri
 	sqlFmt += `
 AND (
 	(h.platform = 'windows' AND (%s))
-	OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s))
+	OR (h.platform IN ('darwin', 'ios', 'ipados', 'tvos') AND (%s))
 	OR (h.platform = 'android' AND (%s))
 	OR (` + includeLinuxCond + ` AND (%s))
 )`
@@ -2366,12 +2366,12 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(`+hostEffectiveLastSeenExpr+`, INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE
-					WHEN h.platform IN ('ios','ipados','android')
+					WHEN h.platform IN ('ios','ipados','tvos','android')
 						THEN CASE WHEN DATE_ADD(`+hostMobileOnlineExpr+`, INTERVAL %d SECOND) <= ? OR `+hostMobileOnlineExpr+` IS NULL THEN 1 ELSE 0 END
 					ELSE CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END
 				END), 0) offline,
 				COALESCE(SUM(CASE
-					WHEN h.platform IN ('ios','ipados','android')
+					WHEN h.platform IN ('ios','ipados','tvos','android')
 						THEN CASE WHEN DATE_ADD(`+hostMobileOnlineExpr+`, INTERVAL %d SECOND) > ? THEN 1 ELSE 0 END
 					ELSE CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END
 				END), 0) online,
@@ -2534,7 +2534,7 @@ func matchHostDuringEnrollment(
 			uuidCond = ` AND (uuid = '' OR uuid = ?)`
 			args = append(args, uuid)
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados')%s ORDER BY id LIMIT 1)`, nodeKeyColumn, uuidCond))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE hardware_serial = ? AND platform IN ('darwin', 'ios', 'ipados', 'tvos')%s ORDER BY id LIMIT 1)`, nodeKeyColumn, uuidCond))
 	}
 
 	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find it.
@@ -6147,7 +6147,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 					WHERE mwe.host_uuid = h.uuid
 					AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
 				)
-				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'darwin') THEN EXISTS (
+				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'tvos', 'darwin') THEN EXISTS (
 					SELECT 1 FROM nano_enrollments ne
 					WHERE ne.id = h.uuid
 					AND ne.enabled = 1
@@ -6454,7 +6454,7 @@ func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, p
 
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var (
-		platforms = []string{"", "darwin", "windows", "ios", "ipados", "android"}
+		platforms = []string{"", "darwin", "windows", "ios", "ipados", "tvos", "android"}
 		teamIDs   []uint
 	)
 
@@ -6849,8 +6849,8 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 // concurrent transfer) silently clobbers the admin's assignment. See #44071.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
-		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
-		if host.Platform != "ios" && host.Platform != "ipados" {
+		// iOS/iPadOS/tvOS hosts currently do not use/set orbit_node_key.
+		if !fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 			ds.logger.DebugContext(ctx, "missing orbit_node_key to update host",
 				"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
 		}
@@ -7482,7 +7482,7 @@ func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) 
 func numHostsABMPendingDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var count int
 	const stmt = `
-SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE h.platform IN ('darwin', 'ios', 'ipados') AND hmdm.enrollment_status = 'Pending';
+SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE h.platform IN ('darwin', 'ios', 'ipados', 'tvos') AND hmdm.enrollment_status = 'Pending';
   	`
 	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
 		return 0, err

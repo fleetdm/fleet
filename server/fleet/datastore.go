@@ -1871,7 +1871,7 @@ type Datastore interface {
 
 	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
 	// not already enrolled in Fleet. It returns the number of hosts created, and an error.
-	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam, iosTeam, ipadTeam *Team) (int64, error)
+	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, defaultTeams ABMDefaultTeams) (int64, error)
 
 	// SetHostMDMMigrationCompleted sets a host's DEP record's migration as having completed by setting the
 	// completed migration timestamp equal to the migration deadline timestamp. Once set, the host is no
@@ -1930,6 +1930,14 @@ type Datastore interface {
 
 	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
+
+	// SetHostDEPAssignmentsDeviceFamily records the device_family Apple Business reported for the serials assigned
+	// through the ABM token.
+	SetHostDEPAssignmentsDeviceFamily(ctx context.Context, abmTokenID uint, deviceFamily string, serials []string) error
+
+	// ListDEPSerialsWithDeviceFamily returns the serials, among the ones provided, that Apple Business reported with
+	// the device family.
+	ListDEPSerialsWithDeviceFamily(ctx context.Context, deviceFamily string, serials []string) ([]string, error)
 
 	// GetHostDEPAssignmentsByHostIDs returns the DEP assignments for the hosts with the specified host IDs,
 	// and deleted_at IS NULL.
@@ -2430,6 +2438,15 @@ type Datastore interface {
 	// assistant for a team or no team, as registered with the ABM token
 	// represented by the organization name.
 	GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamID *uint, abmTokenOrgName string) (profileUUID string, updatedAt time.Time, err error)
+
+	// GetMDMAppleSetupAssistantTvOSProfileUUID returns the profile UUID Apple TVs are assigned in place of the
+	// team's custom (or default) setup assistant profile registered with the ABM token. It returns nil if it hasn't
+	// been worked out since that profile was last registered, and an empty string if Apple TVs use the same profile.
+	GetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, abmTokenOrgName string) (*string, error)
+
+	// SetMDMAppleSetupAssistantTvOSProfileUUID stores the profile UUID Apple TVs are assigned in place of the
+	// team's custom (or default) setup assistant profile registered with the ABM token.
+	SetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, profileUUID, abmTokenOrgName string) error
 
 	// GetMatchingHostSerials receives a list of serial numbers and returns
 	// a map that only contains the serials that have a matching row in the `hosts` table.

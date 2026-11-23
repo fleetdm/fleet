@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,7 +21,7 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	defer dev_mode.ClearAllOverrides()
 	t.Run("Default URL", func(t *testing.T) {
 		baseURL := getBaseURL(false, "us")
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
@@ -28,11 +30,11 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	})
 
 	t.Run("Empty region falls back to us", func(t *testing.T) {
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, ""))
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", getBaseURL(false, ""))
 	})
 
 	t.Run("Caller-supplied region", func(t *testing.T) {
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/de?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, "de"))
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/de?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", getBaseURL(false, "de"))
 	})
 
 	t.Run("Custom URL", func(t *testing.T) {
@@ -50,14 +52,14 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	t.Run("FLEET_DEV_VPP_REGION overrides caller region", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, "us"))
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", getBaseURL(false, "us"))
 	})
 
 	t.Run("Direct to Apple via FLEET_DEV env var", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "", t)
 		baseURL := getBaseURL(false, "us")
-		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
@@ -68,7 +70,7 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	t.Run("Direct to Apple due to bearer token override", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
 		baseURL := getBaseURL(true, "us")
-		require.Equal(t, "https://api.ent.apple.com/v1/catalog/fr/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/fr/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
@@ -268,7 +270,7 @@ func TestConfig(t *testing.T) {
 		// Should not have accessed the datastore
 		require.False(t, ds.getAssetsByNameCalled)
 
-		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURLForRegion("us"))
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", config.baseURLForRegion("us"))
 	})
 }
 
@@ -516,5 +518,86 @@ func TestDoRetries(t *testing.T) {
 				require.GreaterOrEqual(t, elapsed, tt.wantMinTime, "expected to wait at least %v for retry-after", tt.wantMinTime)
 			}
 		})
+	}
+}
+
+// ToVPPApps maps Apple's device families onto Fleet platforms. Getting the
+// family or platform-attribute key wrong means apps for that platform silently
+// never appear in Fleet, so the mapping is pinned here.
+func TestToVPPApps(t *testing.T) {
+	md := Metadata{
+		ID: "1234",
+		Attributes: Attributes{
+			Name: "Test App",
+			// These are Apple's real values, captured from a live catalog
+			// response: the Apple TV device family is "tvos" even though the
+			// request parameter for it is "appletv".
+			DeviceFamilies: []string{"iphone", "ipad", "mac", "tvos", "watch"},
+			Platforms: map[string]PlatformData{
+				"ios": {
+					BundleID:          "com.example.ios",
+					LatestVersionInfo: LatestVersionInfo{DisplayVersion: "1.0"},
+				},
+				"osx": {
+					BundleID:          "com.example.mac",
+					LatestVersionInfo: LatestVersionInfo{DisplayVersion: "2.0"},
+				},
+				"appletvos": {
+					BundleID:          "com.example.tv",
+					LatestVersionInfo: LatestVersionInfo{DisplayVersion: "3.0"},
+				},
+			},
+		},
+	}
+
+	apps := ToVPPApps(md)
+
+	// watchOS is deliberately unmapped, so it must not produce an entry.
+	require.Len(t, apps, 4)
+
+	require.Equal(t, "com.example.ios", apps[fleet.IOSPlatform].BundleIdentifier)
+	require.Equal(t, "com.example.ios", apps[fleet.IPadOSPlatform].BundleIdentifier)
+	require.Equal(t, "com.example.mac", apps[fleet.MacOSPlatform].BundleIdentifier)
+
+	// Apple TV apps are built against their own SDK, so they carry a separate
+	// platform entry rather than sharing the "ios" one.
+	tvOS := apps[fleet.TVOSPlatform]
+	require.Equal(t, "com.example.tv", tvOS.BundleIdentifier)
+	require.Equal(t, "3.0", tvOS.LatestVersion)
+	require.Equal(t, fleet.TVOSPlatform, tvOS.Platform)
+	require.Equal(t, "1234", tvOS.AdamID)
+
+	// An app that lists the Apple TV family but has no appletvos entry is
+	// skipped rather than producing an empty app.
+	mdNoTVData := md
+	mdNoTVData.Attributes.Platforms = map[string]PlatformData{
+		"ios": {BundleID: "com.example.ios"},
+	}
+	apps = ToVPPApps(mdNoTVData)
+	_, ok := apps[fleet.TVOSPlatform]
+	require.False(t, ok)
+}
+
+// The requested platforms decide what Apple returns at all: a platform absent
+// from this list has no platformAttributes in the response, so ToVPPApps can
+// never map it no matter what its device family says.
+//
+// Note the request vocabulary is not the response vocabulary — Apple asks for
+// "appletv" here but reports the device family as "tvos" — so this list is the
+// request spelling, not the values ToVPPApps switches on.
+func TestBaseURLRequestsEveryManagedPlatform(t *testing.T) {
+	for _, baseURL := range []string{getBaseURL(false, "us"), getBaseURL(true, "us")} {
+		u, err := url.Parse(baseURL)
+		require.NoError(t, err)
+
+		requested := append(
+			[]string{u.Query().Get("platform")},
+			strings.Split(u.Query().Get("additionalPlatforms"), ",")...,
+		)
+
+		// Every platform Fleet manages needs to be requested here.
+		for _, platform := range []string{"iphone", "ipad", "mac", "appletv"} {
+			require.Contains(t, requested, platform, baseURL)
+		}
 	}
 }

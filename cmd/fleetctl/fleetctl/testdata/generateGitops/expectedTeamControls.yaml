@@ -37,3 +37,8 @@ windows_settings:
 windows_updates:
   deadline_days: 95
   grace_period_days: 92
+tvos_updates:
+  deadline:
+  deadline_days:
+  minimum_version:
+  update_new_hosts:

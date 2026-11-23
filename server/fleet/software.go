@@ -628,6 +628,7 @@ var softwareTypeFilterSources = map[string][]string{
 	"safari_extensions":   nil,
 	"sh_packages":         nil,
 	"tgz_packages":        nil,
+	"tvos_apps":           nil,
 	"chrome_extensions":   {"chrome", "chromium", "brave", "edge", "edge_beta", "opera", "yandex"},
 	"firefox_addons":      {"firefox"},
 	"vscode_extensions":   {"vscode", "vscode_insiders", "vscodium", "vscodium_insiders", "cursor", "windsurf", "trae"},

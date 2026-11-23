@@ -610,3 +610,120 @@ func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 	require.ElementsMatch(t, []string{laggedSerial, onTimeSerial}, assignedSerials,
 		"serials newly inserted on primary but not yet replicated must still be sent to AssignProfile")
 }
+
+func TestDEPService_AppleTVProfile(t *testing.T) {
+	ctx := context.Background()
+	ds := mysqltest.CreateMySQLDS(t)
+
+	const abmTokenOrgName = "test_org"
+	depStorage, err := ds.NewMDMAppleDEPStorage()
+	require.NoError(t, err)
+
+	devices := []godep.Device{
+		{SerialNumber: "mac1", OpType: "added", DeviceFamily: "Mac"},
+		{SerialNumber: "tv1", OpType: "added", DeviceFamily: "AppleTV"},
+	}
+
+	// the mocked fetch and sync both return the devices, so each one is assigned twice
+	run := func(t *testing.T, endUserAuth bool) (definedProfiles []godep.Profile, assigned map[string][]string) {
+		t.Cleanup(func() { mysqltest.TruncateTables(t, ds) })
+
+		appCfg, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appCfg.ServerSettings.ServerURL = "https://fleet.example.com"
+		appCfg.MDM.MacOSSetup.EnableEndUserAuthentication = endUserAuth
+		require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
+		assigned = map[string][]string{}
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			encoder := json.NewEncoder(w)
+			switch r.URL.Path {
+			case "/session":
+				_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+			case "/account":
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName)))
+			case "/profile":
+				var prof godep.Profile
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&prof))
+				definedProfiles = append(definedProfiles, prof)
+				profUUID := "profile-main"
+				if endUserAuth && prof.ConfigurationWebURL == "" {
+					profUUID = "profile-tvos"
+				}
+				assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: profUUID}))
+			case "/server/devices", "/devices/sync":
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: devices}))
+			case "/profile/devices":
+				var assignReq godep.Profile
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&assignReq))
+				assigned[assignReq.ProfileUUID] = append(assigned[assignReq.ProfileUUID], assignReq.Devices...)
+				resp := godep.ProfileResponse{ProfileUUID: assignReq.ProfileUUID, Devices: map[string]string{}}
+				for _, serial := range assignReq.Devices {
+					resp.Devices[serial] = string(fleet.DEPAssignProfileResponseSuccess)
+				}
+				assert.NoError(t, encoder.Encode(resp))
+			default:
+				t.Errorf("unexpected request to %s", r.URL.Path)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		require.NoError(t, depStorage.StoreConfig(ctx, abmTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL}))
+		mysqltest.SetTestABMAssets(t, ds, abmTokenOrgName)
+
+		svc := apple_mdm.NewDEPService(ds, depStorage, slog.New(slog.DiscardHandler))
+		require.NoError(t, svc.RunAssigner(ctx))
+
+		for serial, wantFamily := range map[string]string{"mac1": "Mac", "tv1": fleet.DEPDeviceFamilyAppleTV} {
+			assignments, err := ds.GetHostDEPAssignmentsBySerial(ctx, serial)
+			require.NoError(t, err)
+			require.Len(t, assignments, 1)
+			require.NotNil(t, assignments[0].DeviceFamily)
+			require.Equal(t, wantFamily, *assignments[0].DeviceFamily)
+		}
+		return definedProfiles, assigned
+	}
+
+	t.Run("end user authentication", func(t *testing.T) {
+		definedProfiles, assigned := run(t, true)
+
+		require.Equal(t, map[string][]string{"profile-main": {"mac1", "mac1"}, "profile-tvos": {"tv1", "tv1"}}, assigned)
+
+		require.Len(t, definedProfiles, 2)
+		var mainProf, tvOSProf godep.Profile
+		for _, prof := range definedProfiles {
+			if prof.ConfigurationWebURL == "" {
+				tvOSProf = prof
+			} else {
+				mainProf = prof
+			}
+		}
+		require.Equal(t, "https://fleet.example.com/mdm/sso", mainProf.ConfigurationWebURL)
+		require.Equal(t, mainProf.ConfigurationWebURL, mainProf.URL)
+		require.Contains(t, tvOSProf.URL, "https://fleet.example.com/api/mdm/apple/enroll?token=")
+		require.True(t, tvOSProf.AwaitDeviceConfigured)
+
+		stored, err := ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, nil, false, abmTokenOrgName)
+		require.NoError(t, err)
+		require.Equal(t, new("profile-tvos"), stored)
+
+		// re-registering the fleet's profile discards the tvOS one, so it's worked out again
+		require.NoError(t, ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, nil, "profile-main-2", abmTokenOrgName))
+		stored, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, nil, false, abmTokenOrgName)
+		require.NoError(t, err)
+		require.Nil(t, stored)
+	})
+
+	t.Run("no end user authentication", func(t *testing.T) {
+		definedProfiles, assigned := run(t, false)
+
+		require.Len(t, definedProfiles, 1)
+		require.Len(t, assigned, 1)
+		require.ElementsMatch(t, []string{"mac1", "tv1", "mac1", "tv1"}, assigned["profile-main"])
+
+		stored, err := ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, nil, false, abmTokenOrgName)
+		require.NoError(t, err)
+		require.Equal(t, new(""), stored)
+	})
+}

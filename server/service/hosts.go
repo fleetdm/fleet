@@ -1740,7 +1740,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
-	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
+	if host != nil && fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 		// Get MDM commands already sent
 		commands, err := svc.ds.GetHostMDMCommands(ctx, host.ID)
 		if err != nil {
@@ -1827,7 +1827,8 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			// DeviceInformation is last because the refetch response clears the refetch_requested flag
 			fullUUID := fleet.RefetchDeviceCommandUUIDPrefix + cmdUUID
 			err = trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, fullUUID, "refetch host with MDM", func() error {
-				return svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fullUUID, hostMDM.IsPersonalEnrollment)
+				keySet := apple_mdm.DeviceInformationKeySetForHost(host.Platform, hostMDM.IsPersonalEnrollment)
+				return svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fullUUID, keySet)
 			})
 			if err != nil {
 				return err
@@ -1844,7 +1845,8 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "refetch host: get host location data")
 		}
 
-		if adeData.IsDEPAssignedToFleet() && lwStatus.IsLocked() {
+		// Apple TV has no lost mode, so there is no location to ask for.
+		if !fleet.IsAppleTVPlatform(host.Platform) && adeData.IsDEPAssignedToFleet() && lwStatus.IsLocked() {
 			err = svc.mdmAppleCommander.DeviceLocation(ctx, []string{host.UUID}, cmdUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refetch host: get location with MDM")
@@ -1899,7 +1901,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
 	// there's nothing to load.
 	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)
-	if fleet.IsAppleMobilePlatform(host.Platform) && !isPersonalEnrollment {
+	if fleet.IsAppleMDMOnlyPlatform(host.Platform) && !isPersonalEnrollment {
 		if err := svc.ds.LoadHostMDMAppleDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm apple device vitals")
 		}
@@ -2030,7 +2032,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			// Mobile-only Enabled gate so /hosts/{id} matches /hosts (nesm
 			// join filters enabled=1) for checked-out mobile enrollments.
 			// macOS keeps surfacing LastMDMSeenTime regardless.
-			if !fleet.IsAppleMobilePlatform(host.Platform) || appleNanoDetails.Enabled {
+			if !fleet.IsAppleMDMOnlyPlatform(host.Platform) || appleNanoDetails.Enabled {
 				mdmLastCheckedIn = appleNanoDetails.LastMDMSeenTime
 			}
 			mdmLastEnrollment = appleNanoDetails.LastMDMEnrollmentTime
@@ -2114,7 +2116,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profiles = append(profiles, ct.ToHostMDMProfile())
 			}
 
-		case "darwin", "ios", "ipados":
+		case "darwin", "ios", "ipados", "tvos":
 			if ac.MDM.EnabledAndConfigured {
 				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 				if err != nil {
@@ -2348,28 +2350,30 @@ func (svc *Service) getOSUpdateForHostDetails(ctx context.Context, host *fleet.H
 		return nil, nil, nil
 	}
 
-	macOSUpdates := appConfig.MDM.MacOSUpdates
-	iOSUpdates := appConfig.MDM.IOSUpdates
-	iPadOSUpdates := appConfig.MDM.IPadOSUpdates
-
+	mdmSettings := appConfig.MDM
 	if host.TeamID != nil {
 		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get team for host")
 		}
-		macOSUpdates = team.Config.MDM.MacOSUpdates
-		iOSUpdates = team.Config.MDM.IOSUpdates
-		iPadOSUpdates = team.Config.MDM.IPadOSUpdates
+		mdmSettings = fleet.MDM{
+			MacOSUpdates:  team.Config.MDM.MacOSUpdates,
+			IOSUpdates:    team.Config.MDM.IOSUpdates,
+			IPadOSUpdates: team.Config.MDM.IPadOSUpdates,
+			TvOSUpdates:   team.Config.MDM.TvOSUpdates,
+		}
 	}
 
 	var relevantOSUpdates fleet.AppleOSUpdateSettings
 	switch host.Platform {
 	case "darwin":
-		relevantOSUpdates = macOSUpdates
+		relevantOSUpdates = mdmSettings.MacOSUpdates
 	case "ios":
-		relevantOSUpdates = iOSUpdates
+		relevantOSUpdates = mdmSettings.IOSUpdates
 	case "ipados":
-		relevantOSUpdates = iPadOSUpdates
+		relevantOSUpdates = mdmSettings.IPadOSUpdates
+	case "tvos":
+		relevantOSUpdates = mdmSettings.TvOSUpdates
 	}
 
 	if !relevantOSUpdates.Configured() {
@@ -3345,10 +3349,10 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 		return "", ctxerr.Wrap(ctx, err, "get host for device url")
 	}
 
-	// Android and ChromeOS have no My device page, so a URL for them would only
-	// lead to an error. "CrOS" is the legacy ChromeOS platform value.
+	// Android, ChromeOS and tvOS have no My device page, so a URL for them would
+	// only lead to an error. "CrOS" is the legacy ChromeOS platform value.
 	switch host.Platform {
-	case "android", "chrome", "CrOS":
+	case "android", "chrome", "CrOS", "tvos":
 		return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLUnsupportedPlatformMessage}
 	}
 
@@ -4031,13 +4035,13 @@ func (svc *Service) OSVersions(
 
 	if platform != nil {
 		switch *platform {
-		case "darwin", "windows", "chrome", "ios", "ipados", "android":
+		case "darwin", "windows", "chrome", "ios", "ipados", "tvos", "android":
 			// valid platform
 		default:
 			// "linux" matches every Linux operating system, and a Linux distribution's platform (e.g.
 			// "ubuntu") only its own.
 			if !fleet.IsLinux(*platform) {
-				return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", "android", or a Linux distribution's platform (e.g. "ubuntu").`)
+				return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", "tvos", "android", or a Linux distribution's platform (e.g. "ubuntu").`)
 			}
 		}
 	}

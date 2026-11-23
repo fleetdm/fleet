@@ -160,13 +160,16 @@ type modifyTeamRequest struct {
 func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamRequest)
 
-	// AppleOSUpdateSettings.UpdateNewHosts is only used in macOS ... so ignore any values sent for iOS/iPadOS
+	// AppleOSUpdateSettings.UpdateNewHosts is only used in macOS ... so ignore any values sent for iOS/iPadOS/tvOS
 	if req.TeamPayload.MDM != nil {
 		if req.TeamPayload.MDM.IOSUpdates != nil {
 			req.TeamPayload.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
 		}
 		if req.TeamPayload.MDM.IPadOSUpdates != nil {
 			req.TeamPayload.MDM.IPadOSUpdates.UpdateNewHosts = optjson.Bool{}
+		}
+		if req.TeamPayload.MDM.TvOSUpdates != nil {
+			req.TeamPayload.MDM.TvOSUpdates.UpdateNewHosts = optjson.Bool{}
 		}
 	}
 
