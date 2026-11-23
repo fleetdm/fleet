@@ -6327,8 +6327,10 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		acct, err = ds.GetMDMIdPAccountByEmail(ctx, acct.Email)
 		require.NoError(t, err)
 
-		setPreviousEndUser := func(t *testing.T) {
+		setPreviousEndUser := func(t *testing.T, customSource string) {
 			_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "admin-set@example.com")
+			require.NoError(t, err)
+			_, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, host.ID, "previous-custom@example.com", customSource)
 			require.NoError(t, err)
 			_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID)
 			require.NoError(t, err)
@@ -6365,14 +6367,14 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 				extra...)
 		}
 
-		setPreviousEndUser(t)
+		setPreviousEndUser(t, fleet.DeviceMappingCustomOverride)
 		resetUUID, err := enqueue(t, host, resetLocURI)
 		require.NoError(t, err)
 		reset, err := ds.ClearEndUserAfterWindowsReset(ctx, orbitOpts()...)
 		require.NoError(t, err)
 		assert.False(t, reset, "not acknowledged yet")
 		emails, idpAccounts, scim := endUserRows(t)
-		assert.Equal(t, []int{1, 1, 1}, []int{emails, idpAccounts, scim})
+		assert.Equal(t, []int{2, 1, 1}, []int{emails, idpAccounts, scim})
 
 		ack(t, enrolled, resetUUID, "200")
 		// The device acknowledged a while before the next user signs in.
@@ -6411,7 +6413,7 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 			assert.False(t, reset, name)
 		}
 		emails, idpAccounts, scim = endUserRows(t)
-		assert.Equal(t, []int{1, 1, 1}, []int{emails, idpAccounts, scim})
+		assert.Equal(t, []int{2, 1, 1}, []int{emails, idpAccounts, scim})
 
 		reset, err = ds.ClearEndUserAfterWindowsReset(ctx, orbitOpts()...)
 		require.NoError(t, err)
@@ -6419,18 +6421,20 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		emails, idpAccounts, scim = endUserRows(t)
 		assert.Equal(t, []int{0, 0, 0}, []int{emails, idpAccounts, scim})
 
-		// The next user signs in while the reset is still recorded: their mapping stays.
+		// The next user signs in, and fleetd reports its end user email, while the reset is still recorded: both stay.
 		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID)
+		require.NoError(t, err)
+		_, err = ds.SetOrUpdateCustomHostDeviceMapping(ctx, host.ID, "next-custom@example.com", fleet.DeviceMappingCustomInstaller)
 		require.NoError(t, err)
 		reset, err = ds.ClearEndUserAfterWindowsReset(ctx, orbitOpts()...)
 		require.NoError(t, err)
 		assert.True(t, reset)
-		_, idpAccounts, _ = endUserRows(t)
-		assert.Equal(t, 1, idpAccounts)
+		emails, idpAccounts, _ = endUserRows(t)
+		assert.Equal(t, []int{2, 1}, []int{emails, idpAccounts})
 
 		// MDM re-enrollment of the same device clears the end user along with the reset status, and fleetd enrolling after it
 		// counts as a first enrollment. Without a reset, fleetd's enrollment stays.
-		setPreviousEndUser(t)
+		setPreviousEndUser(t, fleet.DeviceMappingCustomInstaller)
 		reEnroll := func(t *testing.T, h *fleet.Host, e *fleet.MDMWindowsEnrolledDevice) (previouslyOrbitEnrolled bool) {
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = ? WHERE id = ?`, uuid.NewString(), h.ID)

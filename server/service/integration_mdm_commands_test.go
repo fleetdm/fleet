@@ -688,6 +688,8 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 			require.NoError(t, err)
 			_, err = s.ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "admin-set-"+host.UUID+"@example.com")
 			require.NoError(t, err)
+			s.Do("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
+				map[string]string{"email": "custom-" + host.UUID + "@example.com"}, http.StatusOK)
 			// The previous user signed in well before the reset.
 			hourAgo := time.Now().Add(-time.Hour)
 			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
