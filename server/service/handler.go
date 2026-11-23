@@ -370,6 +370,8 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/users/admin", createUserEndpoint, createUserRequest{})
 	ue.POST("/api/_version_/fleet/users/api_only", createAPIOnlyUserEndpoint, createAPIOnlyUserRequest{})
 	ue.PATCH("/api/_version_/fleet/users/api_only/{id:[0-9]+}", modifyAPIOnlyUserEndpoint, modifyAPIOnlyUserRequest{})
+	ue.GET("/api/_version_/fleet/users/api_only/{id:[0-9]+}/external_identities", listAPIOnlyUserExternalIdentitiesEndpoint, listAPIOnlyUserExternalIdentitiesRequest{})
+	ue.PUT("/api/_version_/fleet/users/api_only/{id:[0-9]+}/external_identities", setAPIOnlyUserExternalIdentitiesEndpoint, setAPIOnlyUserExternalIdentitiesRequest{})
 	ue.GET("/api/_version_/fleet/users/{id:[0-9]+}", getUserEndpoint, getUserRequest{})
 	ue.PATCH("/api/_version_/fleet/users/{id:[0-9]+}", modifyUserEndpoint, modifyUserRequest{})
 	ue.DELETE("/api/_version_/fleet/users/{id:[0-9]+}", deleteUserEndpoint, deleteUserRequest{})
