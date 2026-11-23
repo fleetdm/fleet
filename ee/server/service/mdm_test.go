@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanomdm_mdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -634,6 +635,93 @@ func TestClearPasscode(t *testing.T) {
 		_, err := svc.ClearPasscode(ctx, 999)
 		require.Error(t, err)
 	})
+}
+
+type clearPasscodeAndroidModule struct {
+	android.Service
+	clearedHostIDs []uint
+}
+
+func (m *clearPasscodeAndroidModule) ClearAndroidPasscode(_ context.Context, hostID uint) (string, error) {
+	m.clearedHostIDs = append(m.clearedHostIDs, hostID)
+	return "reset-password-uuid", nil
+}
+
+func TestClearPasscodeAndroidLockWipeStatus(t *testing.T) {
+	t.Parallel()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	cases := []struct {
+		name    string
+		status  fleet.HostLockWipeStatus
+		wantErr string
+	}{
+		{
+			name:    "pending wipe is refused",
+			status:  fleet.HostLockWipeStatus{WipeMDMCommand: &fleet.MDMCommand{CommandUUID: "wipe-uuid", RequestType: "WIPE"}},
+			wantErr: "Host has pending wipe request. Cannot process clear passcode requests once host is wiped.",
+		},
+		{
+			name: "acknowledged wipe does not block",
+			status: fleet.HostLockWipeStatus{
+				WipeMDMCommand:       &fleet.MDMCommand{CommandUUID: "wipe-uuid", RequestType: "WIPE"},
+				WipeMDMCommandResult: &fleet.MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged)},
+			},
+		},
+		{
+			name: "no pending action",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.HostLiteFunc = func(_ context.Context, hostID uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: hostID, UUID: "android-uuid", Platform: "android"}, nil
+			}
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+			}
+			ds.IsHostConnectedToFleetMDMFunc = func(_ context.Context, _ *fleet.Host) (bool, error) {
+				return true, nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(_ context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				require.Equal(t, uint(1), h.ID)
+				status := tc.status
+				status.HostFleetPlatform = "android"
+				return &status, nil
+			}
+
+			var activities []fleet.ActivityDetails
+			baseSvc := &mocksvc.Service{
+				NewActivityFunc: func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+					activities = append(activities, act)
+					return nil
+				},
+			}
+			androidModule := &clearPasscodeAndroidModule{}
+			svc := Service{ds: ds, authz: authorizer, androidModule: androidModule, Service: baseSvc}
+
+			ctx := test.UserContext(t.Context(), test.UserAdmin)
+			res, err := svc.ClearPasscode(ctx, 1)
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.wantErr)
+				var invalidArgErr *fleet.InvalidArgumentError
+				require.ErrorAs(t, err, &invalidArgErr)
+				assert.Empty(t, androidModule.clearedHostIDs, "nothing should be sent to AMAPI")
+				assert.Empty(t, activities, "no cleared_passcode activity should be created")
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, "reset-password-uuid", res.CommandUUID)
+			assert.Equal(t, []uint{1}, androidModule.clearedHostIDs)
+			require.Len(t, activities, 1)
+			assert.IsType(t, fleet.ActivityTypeClearedPasscode{}, activities[0])
+		})
+	}
 }
 
 func TestCancelHostMDMCommand(t *testing.T) {
