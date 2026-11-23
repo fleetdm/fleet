@@ -1073,8 +1073,6 @@ Size of generated app tokens.
 
 How long invite tokens should be valid for.
 
-Valid time units are `s`, `m`, `h`.
-
 - Default value: `120h` (5 days)
 - Environment variable: `FLEET_APP_INVITE_TOKEN_VALIDITY_PERIOD`
 - Config file format:
