@@ -149,7 +149,7 @@ On Android 14 and above, third-party credential providers are blocked in the wor
 
 ### Variables
 
-You can use [built-in variables](https://fleetdm.com/guides/fleet-variables) (`$FLEET_VAR_HOST_*`) in managed configurations. On Android, you can also use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`). Fleet fills them in for each host when it sends the app.
+You can use [built-in variables](https://fleetdm.com/guides/fleet-variables) (`$FLEET_VAR_HOST_*`) in managed configurations. On Android, you can also use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`). Fleet fills them in for each host when it sends the app. [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) aren't supported in managed configurations.
 
 If Fleet can't fill in a variable for a host, what happens depends on the platform. For example, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` can't be filled in when the host's IdP user has no department.
 

@@ -795,7 +795,7 @@ GitHub issues: [#53790](https://github.com/fleetdm/fleet/issues/53790), [#52795]
    - On Android, one profile that uses it stops all of the host's profiles from being applied.
    - In most setups, the new variable has the same value. If your IdP usernames aren't your end users' emails, hosts get the IdP username instead.
    - Editing the DigiCert or EJBCA CA fields reissues certificates to every host that uses the CA.
-   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+   - See [Variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
@@ -1229,7 +1229,7 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
    - On Android, one profile that uses it stops all of the host's profiles from being applied.
    - In most setups, the new variable has the same value. If your IdP usernames aren't your end users' emails, hosts get the IdP username instead.
    - Editing the DigiCert or EJBCA keys reissues certificates to every host that uses the CA.
-   - See [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+   - See [Variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
@@ -1613,7 +1613,9 @@ GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
 
 1. Add the new names to EDR, monitoring, and firewall rules.
    - Keep the old names until every host runs the new fleetd.
+   - On Linux, update checks that match the process name `orbit`, like `pgrep -x orbit` or `processes.name = 'orbit'`. The Fleet server's process is also named `fleet`, so on a host that runs both, match the path `/opt/orbit/bin/orbit/orbit` instead.
 2. Update policies and scripts that match "Fleet osquery" in the `programs` table so they match "Fleet" too, including copies of Fleet's Windows uninstall script.
+   - Match "Fleet" only with the publisher "Fleet Device Management (fleetdm.com)". Other apps, like JetBrains Fleet, are also named "Fleet".
    - Repairing fleetd from the installer brings "Fleet osquery" back until fleetd renames it again.
    - On upgraded Fleet servers, the Software page keeps listing it as "Fleet osquery". New Fleet 5 servers list "Fleet".
 

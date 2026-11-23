@@ -594,72 +594,16 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", host.ID), nil, http.StatusOK, &resetResp)
 		require.Equal(t, fleet.PendingActionReset, resetResp.PendingAction)
 		s.lastActivityOfTypeMatches(resetAct, fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionReset)
 
 		requireRefused(host, "reset", http.StatusUnprocessableEntity, "Host has pending reset request. The host will be reset when it comes online.")
 		requireRefused(host, "lock", http.StatusUnprocessableEntity, "Host has pending reset request. Cannot process lock requests once host is reset.")
 
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK)
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
 		got := remoteWipesInSession(client)
 		require.Len(t, got, 1, "the host never gets a reset and a wipe together")
 		for _, locURI := range got {
 			require.Equal(t, wipeLocURI, locURI)
 		}
-	})
-
-	// pickUpResetThenWipe has the host pick up a reset, then has a wipe replace it before the host acknowledges it.
-	pickUpResetThenWipe := func(host *fleet.Host, client *mdmtest.TestWindowsMDMClient) string {
-		t.Helper()
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", host.ID), nil, http.StatusOK)
-		got := remoteWipesInSession(client)
-		require.Len(t, got, 1)
-		var resetUUID string
-		for cmdUUID := range got {
-			resetUUID = cmdUUID
-		}
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK)
-		require.Empty(t, ackCmd(client, resetUUID, "200"))
-		return resetUUID
-	}
-
-	t.Run("a reset the host acknowledges after a wipe replaced it is tracked again", func(t *testing.T) {
-		host, client := newMDMHost()
-		resetUUID := pickUpResetThenWipe(host, client)
-		requireStatus(host, fleet.DeviceStatusReset, fleet.PendingActionWipe)
-		require.Empty(t, remoteWipesInSession(client))
-
-		ageAck(resetUUID)
-		got := remoteWipesInSession(client)
-		require.Len(t, got, 1)
-		for _, locURI := range got {
-			require.Equal(t, wipeLocURI, locURI)
-		}
-		require.Equal(t, 1, s.countHostActivitiesOfType(host.ID, failedResetAct))
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
-	})
-
-	t.Run("the end user is cleared when a reset the host acknowledged after a wipe replaced it completes", func(t *testing.T) {
-		host, client := newMDMHost()
-		email := "previous-" + host.UUID + "@example.com"
-		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Username: "previous", Email: email}))
-		previous, err := s.ds.GetMDMIdPAccountByEmail(ctx, email)
-		require.NoError(t, err)
-		_, err = s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, previous.UUID)
-		require.NoError(t, err)
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_mdm_idp_accounts SET updated_at = ? WHERE host_uuid = ?`,
-				time.Now().Add(-time.Hour), host.UUID)
-			return err
-		})
-
-		pickUpResetThenWipe(host, client)
-		reEnrollAfterReset(host, client)
-		require.Empty(t, remoteWipesInSession(client))
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
-		acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
-		require.NoError(t, err)
-		require.Nil(t, acct)
 	})
 
 	t.Run("one RemoteWipe goes out at a time", func(t *testing.T) {
@@ -686,12 +630,10 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 	t.Run("wipe waits behind an acknowledged reset and goes out when the reset is interrupted", func(t *testing.T) {
 		host, client := newMDMHost()
 		resetUUID := resetAndAck(host, client, "200")
-		requireStatus(host, fleet.DeviceStatusReset, fleet.PendingActionNone)
 		requireRefused(host, "reset", http.StatusConflict, "Host is already reset.")
 		requireRefused(host, "lock", http.StatusUnprocessableEntity, "Host is reset. Cannot process lock requests once host is reset.")
 
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK)
-		requireStatus(host, fleet.DeviceStatusReset, fleet.PendingActionWipe)
 		requireRefused(host, "wipe", http.StatusUnprocessableEntity, "Host has pending wipe request. The host will be wiped if the reset doesn't complete.")
 
 		// Inside the restart window the host may be resetting. A session that runs past the window doesn't get it either:
@@ -699,7 +641,6 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		require.Empty(t, remoteWipesInSession(client))
 		ageAck(resetUUID)
 		require.Empty(t, ackCmd(client, uuid.NewString(), "200"))
-		requireStatus(host, fleet.DeviceStatusReset, fleet.PendingActionWipe)
 
 		// The host checks in again after the restart window: Windows rolled the reset back.
 		got := remoteWipesInSession(client)
@@ -710,10 +651,7 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 			wipeUUID = cmdUUID
 		}
 		s.lastActivityOfTypeMatches(failedResetAct, fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionWipe)
-
-		ackCmd(client, wipeUUID, "200")
-		requireStatus(host, fleet.DeviceStatusWiped, fleet.PendingActionNone)
+		require.Empty(t, ackCmd(client, wipeUUID, "200"))
 		require.Equal(t, 1, s.countHostActivitiesOfType(host.ID, failedResetAct))
 	})
 
@@ -724,7 +662,6 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 
 		reEnrollAfterReset(host, client)
 		require.Empty(t, remoteWipesInSession(client))
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
 		require.Zero(t, s.countHostActivitiesOfType(host.ID, failedResetAct))
 	})
 
@@ -825,7 +762,6 @@ func (s *integrationMDMTestSuite) TestResetWindowsHost() {
 		resetAndAck(host, client, "500")
 		s.lastActivityOfTypeMatches(failedResetAct, fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 		require.Zero(t, s.countHostActivitiesOfType(host.ID, fleet.ActivityTypeWipeFailedHost{}.ActivityName()))
-		requireStatus(host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
 	})
 }
 

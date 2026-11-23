@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.7.0",
+      "version": "5.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kse.keystore-explorer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kse.keystore-explorer' AND version_compare(bundle_short_version, '5.7.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kse.keystore-explorer' AND version_compare(bundle_short_version, '5.7.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.kse.keystore-explorer' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.7.0/kse-570-arm64.dmg",
+      "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.7.1/kse-571-arm64.dmg",
       "install_script_ref": "eddaf0de",
       "uninstall_script_ref": "5e331630",
-      "sha256": "59ffae1f70f3e4a2eb6d25b4169ee8b7b528d5638dec27b2b60a3287b61f0499",
+      "sha256": "11bf9c73606df8d3fa7a781e1348258a39801f55b674564f57739ad5c21476f5",
       "default_categories": [
         "Productivity"
       ]

@@ -228,6 +228,9 @@ interface IVersionFormFieldsProps {
    * button (iOS/iPadOS when self-service is on). Opens the title-level
    * self-service preview modal. */
   onClickPreviewEndUserExperience: () => void;
+  /** Android web apps hold a single version: hide Name, Configuration, and
+   * the multiple-versions targeting banner. */
+  isWebApp?: boolean;
   /** When true, every control is disabled and removed from the tab order
    * (text inputs, Editor via `readOnly`, Slider, Checkbox, radios, label
    * dropdown, category checkboxes). */
@@ -244,6 +247,7 @@ const VersionFormFields = ({
   labels,
   teamId,
   onClickPreviewEndUserExperience,
+  isWebApp = false,
   disabled = false,
 }: IVersionFormFieldsProps) => {
   const isIosOrIpados = platform === "ios" || platform === "ipados";
@@ -316,24 +320,28 @@ const VersionFormFields = ({
 
   return (
     <div className={baseClass}>
-      <InputField
-        {...getTextFieldProps("name")}
-        label="Name"
-        placeholder="e.g. Production"
-        autofocus
-        inputOptions={{ maxLength: 255 }}
-        disabled={disabled}
-      />
+      {!isWebApp && (
+        <>
+          <InputField
+            {...getTextFieldProps("name")}
+            label="Name"
+            placeholder="e.g. Production"
+            autofocus
+            inputOptions={{ maxLength: 255 }}
+            disabled={disabled}
+          />
 
-      <Editor
-        {...configFieldProps}
-        onChange={onChangeConfiguration}
-        onBlur={onBlurConfiguration}
-        label="Configuration"
-        mode={editorMode}
-        helpText={configHelpText}
-        readOnly={disabled}
-      />
+          <Editor
+            {...configFieldProps}
+            onChange={onChangeConfiguration}
+            onBlur={onBlurConfiguration}
+            label="Configuration"
+            mode={editorMode}
+            helpText={configHelpText}
+            readOnly={disabled}
+          />
+        </>
+      )}
 
       {isIosOrIpados && (
         <Slider
@@ -409,17 +417,19 @@ const VersionFormFields = ({
         error={getError("labelTargets")}
         disableOptions={disabled}
         labelInfoBanner={
-          <InfoBanner icon="info">
-            If multiple versions target the same host, Fleet will deploy the one
-            that was added first.
-            <br />
-            Want to roll out a new version to multiple hosts?{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
-              text="Learn how"
-              newTab
-            />
-          </InfoBanner>
+          isWebApp ? undefined : (
+            <InfoBanner icon="info">
+              If multiple versions target the same host, Fleet will deploy the
+              one that was added first.
+              <br />
+              Want to roll out a new version to multiple hosts?{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/roll-out-new-package-version`}
+                text="Learn how"
+                newTab
+              />
+            </InfoBanner>
+          )
         }
       />
     </div>
