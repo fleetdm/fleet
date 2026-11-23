@@ -348,6 +348,10 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showViewUnlockPinModal, setShowViewUnlockPinModal] = useState(false);
+  // The PIN belongs to one host, so don't carry the modal across hosts.
+  useEffect(() => {
+    setShowViewUnlockPinModal(false);
+  }, [hostIdFromURL]);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
@@ -2545,11 +2549,9 @@ const HostDetailsPage = ({
           {showViewUnlockPinModal && (
             <ViewUnlockPinModal
               id={host.id}
-              onClose={() => {
-                setShowViewUnlockPinModal(false);
-                // viewing the PIN logs a viewed_host_unlock_pin activity
-                refetchPastActivities();
-              }}
+              onClose={() => setShowViewUnlockPinModal(false)}
+              // viewing the PIN logs a viewed_host_unlock_pin activity
+              onViewed={refetchPastActivities}
             />
           )}
           {showWipeModal && (

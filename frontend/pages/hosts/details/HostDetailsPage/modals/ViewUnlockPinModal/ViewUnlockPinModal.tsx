@@ -14,20 +14,36 @@ const baseClass = "view-unlock-pin-modal";
 interface IViewUnlockPinModalProps {
   id: number;
   onClose: () => void;
+  /** Called once the server has answered, which is when the view is logged. */
+  onViewed?: () => void;
 }
 
-const ViewUnlockPinModal = ({ id, onClose }: IViewUnlockPinModalProps) => {
+const ViewUnlockPinModal = ({
+  id,
+  onClose,
+  onViewed,
+}: IViewUnlockPinModalProps) => {
   // Every open makes a new request, which logs a new viewed_host_unlock_pin
-  // activity, so the response must not be cached.
+  // activity, so the response must not be cached. onViewed runs in the query
+  // function rather than useQuery's onSuccess so it still fires if the modal is
+  // closed before the response arrives.
   const { data, isLoading, isError } = useQuery<
     IUnlockHostResponse,
     AxiosError
-  >(["android-unlock-pin", id], () => hostAPI.unlockHost(id), {
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    retry: false,
-    cacheTime: 0,
-  });
+  >(
+    ["android-unlock-pin", id],
+    async () => {
+      const response = await hostAPI.unlockHost(id);
+      onViewed?.();
+      return response;
+    },
+    {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
+      cacheTime: 0,
+    }
+  );
 
   const renderContent = () => {
     if (isLoading) return <Spinner />;

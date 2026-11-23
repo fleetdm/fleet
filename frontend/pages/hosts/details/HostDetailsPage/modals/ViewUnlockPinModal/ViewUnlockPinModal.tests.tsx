@@ -103,4 +103,48 @@ describe("ViewUnlockPinModal", () => {
       expect(hostAPI.unlockHost).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("calls onViewed once the PIN response arrives", async () => {
+    const onViewed = jest.fn();
+    render(
+      <ViewUnlockPinModal id={7} onClose={jest.fn()} onViewed={onViewed} />
+    );
+
+    await waitFor(() => {
+      expect(onViewed).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("calls onViewed even if the modal closes before the response arrives", async () => {
+    let resolveRequest: (value: unknown) => void = () => undefined;
+    (hostAPI.unlockHost as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      })
+    );
+    const onViewed = jest.fn();
+    const { unmount } = render(
+      <ViewUnlockPinModal id={7} onClose={jest.fn()} onViewed={onViewed} />
+    );
+    unmount();
+    expect(onViewed).not.toHaveBeenCalled();
+
+    resolveRequest({ host_id: 7, unlock_pin: "123456" });
+    await waitFor(() => {
+      expect(onViewed).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not call onViewed when the request fails", async () => {
+    (hostAPI.unlockHost as jest.Mock).mockRejectedValue(new Error("nope"));
+    const onViewed = jest.fn();
+    render(
+      <ViewUnlockPinModal id={7} onClose={jest.fn()} onViewed={onViewed} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/something's gone wrong/i)).toBeInTheDocument();
+    });
+    expect(onViewed).not.toHaveBeenCalled();
+  });
 });
