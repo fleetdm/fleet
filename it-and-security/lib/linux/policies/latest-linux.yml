@@ -12,7 +12,7 @@
         )
         -- Debian's os-release stops at the major; base-files carries the point release (13.8+deb13u7 is Debian 13.7).
         WHEN platform = 'debian' THEN EXISTS (
-          SELECT 1 FROM deb_packages d WHERE d.name = 'base-files' AND version_compare(d.version, '13.8+deb13u7', 'DPKG') >= 0
+          SELECT 1 FROM deb_packages d WHERE d.name = 'base-files' AND version_compare(d.version, '13.8+deb13u8', 'DPKG') >= 0
         )
         -- AMD's Debian-based platform stays at VERSION_ID 1 and ships platform updates through its own base-files (debs.ryai.dev).
         WHEN platform = 'amd-ryzen-ai-developer-platform' THEN (major >= 1 AND EXISTS (
