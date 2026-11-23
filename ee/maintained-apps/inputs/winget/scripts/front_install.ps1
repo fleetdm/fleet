@@ -8,8 +8,18 @@
 $exeFilePath = "${env:INSTALLER_PATH}"
 $taskName = "fleet-install-front"
 $taskRunning = 267009  # SCHED_S_TASK_RUNNING
+$appDir = "AppData\Local\Programs\Front"  # in each user's profile
 $exitCode = 0
 $stageDir = $null
+
+# Matching on the install directory rather than a process name leaves a copy in
+# another user's profile running.
+function Get-FrontProcesses {
+    param([string]$Dir)
+
+    return @(Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith("$Dir\", [System.StringComparison]::OrdinalIgnoreCase) })
+}
 
 try {
     $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
@@ -37,6 +47,21 @@ try {
     [void][System.IO.Directory]::CreateDirectory($stageDir, $security)
     $stagedInstaller = Join-Path $stageDir (Split-Path $exeFilePath -Leaf)
     Copy-Item -LiteralPath $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
+
+    # A silent install aborts with exit code 2 instead of installing while Front is
+    # running, so close that user's copy first.
+    $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -ErrorAction SilentlyContinue).ProfileImagePath
+    if ($profilePath) {
+        $installDir = Join-Path $profilePath $appDir
+        if (Get-FrontProcesses $installDir) {
+            Write-Host "Closing Front before installing."
+            Get-FrontProcesses $installDir | Stop-Process -Force -ErrorAction SilentlyContinue
+            $waited = [System.Diagnostics.Stopwatch]::StartNew()
+            while ((Get-FrontProcesses $installDir) -and $waited.Elapsed.TotalSeconds -lt 60) {
+                Start-Sleep -Seconds 1
+            }
+        }
+    }
 
     $action = New-ScheduledTaskAction -Execute $stagedInstaller -Argument "/S"
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
