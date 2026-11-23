@@ -258,8 +258,9 @@ type Service interface {
 
 	// ModifyAPIOnlyUser updates an API-only user
 	ModifyAPIOnlyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
-	// ListAPIOnlyUserExternalIdentities returns the external identities bound to an API-only user.
-	ListAPIOnlyUserExternalIdentities(ctx context.Context, userID uint) ([]ExternalIdentity, error)
+	// ListAPIOnlyUserExternalIdentities returns the external identities bound to an API-only
+	// user, and the names of the configured auth.jwt_issuers they can use.
+	ListAPIOnlyUserExternalIdentities(ctx context.Context, userID uint) ([]ExternalIdentity, []string, error)
 	// SetAPIOnlyUserExternalIdentities replaces the external identities bound to an API-only user.
 	SetAPIOnlyUserExternalIdentities(ctx context.Context, userID uint, ids []ExternalIdentity) ([]ExternalIdentity, error)
 

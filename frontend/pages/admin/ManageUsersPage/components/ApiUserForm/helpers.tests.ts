@@ -30,6 +30,7 @@ const SPECIFIC_ENDPOINTS: ApiUserFormState = {
   fleets: [],
   isSpecificEndpoints: true,
   api_endpoints: [LIST_HOSTS],
+  external_identities: [],
 };
 
 describe("dropUnlistedEndpoints", () => {

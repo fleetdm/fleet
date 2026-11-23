@@ -19,18 +19,20 @@ type listAPIOnlyUserExternalIdentitiesRequest struct {
 
 type externalIdentitiesResponse struct {
 	ExternalIdentities []fleet.ExternalIdentity `json:"external_identities"`
-	Err                error                    `json:"error,omitempty"`
+	// Issuers lists the configured auth.jwt_issuers names; only GET sets it.
+	Issuers []string `json:"issuers,omitempty"`
+	Err     error    `json:"error,omitempty"`
 }
 
 func (r externalIdentitiesResponse) Error() error { return r.Err }
 
 func listAPIOnlyUserExternalIdentitiesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listAPIOnlyUserExternalIdentitiesRequest)
-	ids, err := svc.ListAPIOnlyUserExternalIdentities(ctx, req.ID)
+	ids, issuers, err := svc.ListAPIOnlyUserExternalIdentities(ctx, req.ID)
 	if err != nil {
 		return externalIdentitiesResponse{Err: err}, nil
 	}
-	return externalIdentitiesResponse{ExternalIdentities: ids}, nil
+	return externalIdentitiesResponse{ExternalIdentities: ids, Issuers: issuers}, nil
 }
 
 type setAPIOnlyUserExternalIdentitiesRequest struct {
@@ -71,15 +73,19 @@ func (svc *Service) authorizeExternalIdentityAdmin(ctx context.Context, userID u
 	return target, nil
 }
 
-func (svc *Service) ListAPIOnlyUserExternalIdentities(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, error) {
+func (svc *Service) ListAPIOnlyUserExternalIdentities(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, []string, error) {
 	if _, err := svc.authorizeExternalIdentityAdmin(ctx, userID, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ids, err := svc.ds.ListUserExternalIdentities(ctx, userID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list external identities")
+		return nil, nil, ctxerr.Wrap(ctx, err, "list external identities")
 	}
-	return ids, nil
+	issuers := make([]string, 0, len(svc.config.Auth.JWTIssuers))
+	for _, iss := range svc.config.Auth.JWTIssuers {
+		issuers = append(issuers, iss.Name)
+	}
+	return ids, issuers, nil
 }
 
 func (svc *Service) SetAPIOnlyUserExternalIdentities(ctx context.Context, userID uint, ids []fleet.ExternalIdentity) ([]fleet.ExternalIdentity, error) {
