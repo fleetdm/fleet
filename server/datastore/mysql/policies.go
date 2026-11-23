@@ -3277,6 +3277,7 @@ const policyHasNoPendingMembershipCleanup = `p.needs_full_membership_cleanup = 0
 func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID uint) error {
 	type policyStat struct {
 		PolicyID         uint `db:"policy_id"`
+		Generation       uint `db:"generation"`
 		InheritedTeamID  uint `db:"inherited_team_id"`
 		PassingHostCount uint `db:"passing_host_count"`
 		FailingHostCount uint `db:"failing_host_count"`
@@ -3284,6 +3285,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 	var policyStats []policyStat
 	selectStmt := `SELECT
 		p.id as policy_id,
+		p.membership_cleanup_generation AS generation,
 		t.id AS inherited_team_id,
 		(
 			SELECT COUNT(*)
@@ -3315,6 +3317,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 
 	noTeamStmt := `SELECT
 		p.id as policy_id,
+		p.membership_cleanup_generation AS generation,
 		0 AS inherited_team_id, -- 0 means "No team"
 		(
 			SELECT COUNT(*)
@@ -3347,20 +3350,21 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 		return nil
 	}
 
-	// Joining policies skips writing counts when a cleanup was requested after the SELECTs above.
+	// Joining policies skips writing counts when a cleanup was requested after the SELECTs above, since every request
+	// changes the generation, even one whose cleanup already finished.
 	insertStmt := `INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
 	SELECT p.id, v.inherited_team_id, v.passing_host_count, v.failing_host_count
-	FROM (VALUES %s) AS v (policy_id, inherited_team_id, passing_host_count, failing_host_count)
-	JOIN policies p ON p.id = v.policy_id AND ` + policyHasNoPendingMembershipCleanup + `
+	FROM (VALUES %s) AS v (policy_id, generation, inherited_team_id, passing_host_count, failing_host_count)
+	JOIN policies p ON p.id = v.policy_id AND p.membership_cleanup_generation = v.generation
 	ON DUPLICATE KEY UPDATE
 		updated_at = NOW(),
 		passing_host_count = VALUES(passing_host_count),
 		failing_host_count = VALUES(failing_host_count)`
 	rows := make([]string, 0, len(policyStats))
-	args := make([]any, 0, len(policyStats)*4)
+	args := make([]any, 0, len(policyStats)*5)
 	for _, ps := range policyStats {
-		rows = append(rows, "ROW(?, ?, ?, ?)")
-		args = append(args, ps.PolicyID, ps.InheritedTeamID, ps.PassingHostCount, ps.FailingHostCount)
+		rows = append(rows, "ROW(?, ?, ?, ?, ?)")
+		args = append(args, ps.PolicyID, ps.Generation, ps.InheritedTeamID, ps.PassingHostCount, ps.FailingHostCount)
 	}
 	_, err = db.ExecContext(ctx, fmt.Sprintf(insertStmt, strings.Join(rows, ",")), args...)
 	if err != nil {
@@ -3378,6 +3382,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint) error {
 	type policyStat struct {
 		PolicyID         uint `db:"policy_id"`
+		Generation       uint `db:"generation"`
 		PassingHostCount uint `db:"passing_host_count"`
 		FailingHostCount uint `db:"failing_host_count"`
 	}
@@ -3388,6 +3393,7 @@ func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint)
 	selectStmt := `
 		SELECT
 			p.id AS policy_id,
+			p.membership_cleanup_generation AS generation,
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0) AS passing_host_count,
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0) AS failing_host_count
 		FROM policies p
@@ -3408,23 +3414,24 @@ func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint)
 	}
 
 	// Joining policies skips any policy deleted since the SELECT, which would otherwise
-	// fail the whole batch on the policy_stats foreign key, and any with a cleanup requested since.
-	upsertStmt := `
+	// fail the whole batch on the policy_stats foreign key, and any with a cleanup requested since,
+	// which changed its generation even if that cleanup already finished.
+	const upsertStmt = `
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
 		SELECT p.id, NULL, -- using NULL to represent global scope
 			v.passing_host_count, v.failing_host_count
-		FROM (VALUES %s) AS v (policy_id, passing_host_count, failing_host_count)
-		JOIN policies p ON p.id = v.policy_id AND ` + policyHasNoPendingMembershipCleanup + `
+		FROM (VALUES %s) AS v (policy_id, generation, passing_host_count, failing_host_count)
+		JOIN policies p ON p.id = v.policy_id AND p.membership_cleanup_generation = v.generation
 		ON DUPLICATE KEY UPDATE
 			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count)`
 	for batch := range slices.Chunk(stats, 1000) {
 		rows := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*3)
+		args := make([]any, 0, len(batch)*4)
 		for _, s := range batch {
-			rows = append(rows, "ROW(?, ?, ?)")
-			args = append(args, s.PolicyID, s.PassingHostCount, s.FailingHostCount)
+			rows = append(rows, "ROW(?, ?, ?, ?)")
+			args = append(args, s.PolicyID, s.Generation, s.PassingHostCount, s.FailingHostCount)
 		}
 		if _, err := db.ExecContext(ctx, fmt.Sprintf(upsertStmt, strings.Join(rows, ",")), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host policy counts for global and team policies")

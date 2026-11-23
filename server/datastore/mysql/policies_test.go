@@ -9132,7 +9132,8 @@ func testCleanupPendingPolicyMembership(t *testing.T, ds *Datastore) {
 		recordFailingPolicyResults(t, ds, pol.ID, newPolicyTestHosts(t, ds, 4, "interrupted-full"))
 		setFlags(t, pol.ID, true, false)
 		// An older second, so a clear that bumps updated_at can't match it by landing in the same second.
-		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET updated_at = DATE_SUB(updated_at, INTERVAL 1 HOUR) WHERE id = ?`, pol.ID)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE policies SET updated_at = DATE_SUB(updated_at, INTERVAL 1 HOUR) WHERE id = ?`, pol.ID)
 		require.NoError(t, err)
 		before := updatedAt(t, pol.ID)
 

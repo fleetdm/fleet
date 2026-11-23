@@ -400,7 +400,9 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register maintained apps auto-update schedule", func() (fleet.CronSchedule, error) {
-		return newMaintainedAppsAutoUpdateSchedule(ctx, deps.instanceID, deps.ds, deps.softwareInstallStore, deps.svc.TriggerPolicyMembershipCleanup, deps.logger)
+		return newMaintainedAppsAutoUpdateSchedule(
+			ctx, deps.instanceID, deps.ds, deps.softwareInstallStore, deps.svc.TriggerPolicyMembershipCleanup, deps.logger,
+		)
 	})
 
 	deps.register("failed to register refresh vpp app versions schedule", func() (fleet.CronSchedule, error) {
