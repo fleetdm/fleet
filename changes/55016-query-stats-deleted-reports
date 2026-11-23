@@ -1,1 +1,0 @@
-- Fixed the hourly report performance stats job processing stats left behind by deleted reports, which could make it run for about 30 minutes on large instances.

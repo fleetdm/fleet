@@ -1,1 +1,0 @@
-- Fixed a bug where the `deleted_app_store_app` activity dropped the `software_display_name` field when no display name override was set; it now always emits the key (empty string when no override), matching the other software activities.

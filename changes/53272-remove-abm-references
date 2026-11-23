@@ -1,1 +1,0 @@
-- **Breaking change**: Removed all references to ABM in the API, fleetctl, gitops and frontend.

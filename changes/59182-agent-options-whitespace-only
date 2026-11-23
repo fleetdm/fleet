@@ -1,1 +1,0 @@
-- Fixed the agent options editor so that whitespace-only agent options are saved as empty agent options instead of an empty request body.

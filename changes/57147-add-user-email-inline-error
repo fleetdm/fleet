@@ -1,1 +1,0 @@
-- Fixed the user form showing the browser's validation bubble instead of Fleet's inline error for an email without "@".

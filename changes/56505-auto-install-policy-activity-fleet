@@ -1,1 +1,0 @@
-- Fixed the "created a policy" activity for install policies Fleet creates when software is added with automatic install. The activity feed and activities API now include the fleet.

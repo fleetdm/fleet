@@ -1,1 +1,0 @@
-- **Breaking change:** Removed deprecated `GET /software`, `GET /software/:id`, and `GET /software/count` endpoints.

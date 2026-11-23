@@ -1,1 +1,0 @@
-- Fixed the script batch details page spinning forever when the batch no longer exists; it now shows an error.

@@ -1,1 +1,0 @@
-- A Mac that's assigned to Fleet in Apple Business but enrolls manually is now reported with `installed_from_dep: false` in the `mdm_enrolled` activity, and gets the manual enrollment steps instead of the automatic ones.

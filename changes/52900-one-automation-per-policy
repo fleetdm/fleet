@@ -1,1 +1,0 @@
-- Policies now have one automation, chosen from an Automation dropdown, and the "All fleets", "Unassigned", and fleet policy APIs are combined into the `/policies` endpoints.

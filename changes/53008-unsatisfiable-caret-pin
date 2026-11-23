@@ -1,1 +1,0 @@
-- Fixed the Update package endpoint allowing a pinned version to be set that does not match any existing installer.
