@@ -1981,9 +1981,6 @@ func (svc *Service) windowsHostClaimedByOtherHardware(ctx context.Context, enrol
 // names. Past it, the host's regular detail queries would have reported the MDM device ID anyway.
 const windowsUnlinkedEnrollmentRefetchWindow = time.Hour
 
-// windowsUnlinkedEnrollmentRefetchKeyPrefix marks, per MDM device ID, that the enrollment already requested its one refetch.
-const windowsUnlinkedEnrollmentRefetchKeyPrefix = "mwerefetch:"
-
 // windowsHostEnrolledByAgent reports whether linking the enrollment to hostID by an identifier the device asserts must be refused
 // because an agent has enrolled as the host, failing closed when that cannot be determined. With nothing to corroborate it, such an
 // identifier can claim only a host no agent has enrolled as, like one back from a wipe or reset. An enrolled host is linked by its
@@ -2014,7 +2011,7 @@ func (svc *Service) windowsHostEnrolledByAgent(ctx context.Context, enrolledDevi
 // requestRefetchToLinkWindowsEnrollment requests one refetch per enrollment, since the identifier naming the host is unverified and
 // every message of an unlinked enrollment comes through here.
 func (svc *Service) requestRefetchToLinkWindowsEnrollment(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) {
-	key := windowsUnlinkedEnrollmentRefetchKeyPrefix + enrolledDevice.MDMDeviceID
+	key := fleet.WindowsMDMUnlinkedEnrollmentRefetchPrefix + enrolledDevice.MDMDeviceID
 	requested, err := svc.keyValueStore.Get(ctx, key)
 	if err == nil && requested == nil {
 		// Marked before the refetch, so a failure falls back to the host's next detail queries instead of retrying every message.
