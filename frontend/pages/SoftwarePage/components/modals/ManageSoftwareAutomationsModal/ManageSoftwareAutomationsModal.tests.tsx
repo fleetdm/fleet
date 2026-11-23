@@ -23,7 +23,6 @@ const softwareConfig = createMockConfig({
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
       destination_url: "",
-      policy_ids: [],
       host_batch_size: 0,
     },
     host_status_webhook: null,

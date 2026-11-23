@@ -25,7 +25,6 @@ var (
 	WindowsMDMNotConfiguredMessage               = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
 	AndroidMDMNotConfiguredMessage               = "Android MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
 	AppleMDMNotConfiguredMessage                 = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
-	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
@@ -68,7 +67,7 @@ var (
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
 
-const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -195,12 +194,20 @@ func NewParamRequiredDeprecationError(param string) *ParamRequiredDeprecationErr
 }
 
 func (e *ParamRequiredDeprecationError) Error() string {
-	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
+	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, e.Param)
 }
 
-// GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
-const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
-	Fleet5MigrationGuide
+// Messages returned to GitOps users for actions the role lost in Fleet 5.
+const (
+	GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
+		Fleet5MigrationGuide
+	GitOpsViewHostByIdentifierErrorMessage = "Users with the GitOps role can no longer view hosts by identifier. What to use instead: " +
+		Fleet5MigrationGuide
+	GitOpsDeleteHostErrorMessage = "Users with the GitOps role can no longer delete hosts. What to use instead: " +
+		Fleet5MigrationGuide
+	GitOpsTransferHostErrorMessage = "Users with the GitOps role can no longer transfer hosts between fleets. What to use instead: " +
+		Fleet5MigrationGuide
+)
 
 // BadRequestError makes the error encoder return a 400.
 func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
@@ -607,9 +614,9 @@ func IsOrbitIDPAuthRequired(err error) bool {
 // Messages that may be surfaced by the server or the fleetctl client.
 const (
 	// Hosts, general
-	HostNotFoundErrMsg           = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
+	HostNotFoundErrMsg           = "Host doesn't exist. Make sure you provide a valid host ID, hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 	NoHostsTargetedErrMsg        = "No hosts targeted. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
-	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
+	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid host ID, hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
 	RunScriptInvalidTypeErrMsg      = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
@@ -645,7 +652,7 @@ const (
 	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\", \"$FLEET_VAR_NDES_SCEP\" and \"$FLEET_VAR_SMALLSTEP_\" must only be in the SCEP payload."
 
 	// Invalid list options combinations
-	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'fleet_id' parameters must be used together to filter the software available for install."
 
 	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
 	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL
@@ -697,22 +704,6 @@ func (e *HostGoogleDeviceIDConflictError) Invalid() []map[string]string {
 func (e *HostGoogleDeviceIDConflictError) Status() int { return http.StatusConflict }
 
 func (e *HostGoogleDeviceIDConflictError) IsClientError() bool { return true }
-
-// EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
-// certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
-type EJBCANameInUseError struct {
-	Name string
-}
-
-func (e EJBCANameInUseError) Error() string {
-	return fmt.Sprintf("%q name is already used by another certificate authority, and the name of an EJBCA certificate authority can't be shared. "+
-		"Please choose a different name and try again.", e.Name)
-}
-
-// StatusCode implements the kithttp.StatusCoder interface.
-func (e EJBCANameInUseError) StatusCode() int {
-	return http.StatusConflict
-}
 
 // CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
 // serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.

@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -113,7 +112,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{globalProfile}), http.StatusNoContent)
 
 	// enable FileVault
-	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"apple_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
 
 	s.enableABM("fleet_ade_test")
 
@@ -183,7 +182,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			TeamID:                nil,
 			CustomProfileIdent:    "I1",
 			ManualAgentInstall:    true,
-			BootstrapPackage:      true,
 		})
 	})
 }
@@ -242,7 +240,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	s.enableABM("fleet_ade_test")
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-			       "apple_business_manager": [{
+			       "apple_business": [{
 			         "organization_name": %q,
 			         "macos_fleet": %q,
 			         "ios_fleet": %q,
@@ -281,7 +279,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	// add a setup experience script to run for this team
 	extraArgs := map[string][]string{
-		"team_id": {fmt.Sprintf("%d", tm.ID)},
+		"fleet_id": {fmt.Sprintf("%d", tm.ID)},
 	}
 	body, headers := generateNewScriptMultipartRequest(t,
 		"script.sh", []byte(`echo "hello"`), s.token, extraArgs)
@@ -333,7 +331,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			TeamID:                &tm.ID,
 			CustomProfileIdent:    "I2",
 			ManualAgentInstall:    true,
-			BootstrapPackage:      true,
 		})
 	})
 }
@@ -383,7 +380,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 	s.enableABM("fleet_ade_test")
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-			       "apple_business_manager": [{
+			       "apple_business": [{
 			         "organization_name": %q,
 			         "macos_fleet": %q,
 			         "ios_fleet": %q,
@@ -417,7 +414,6 @@ type DEPEnrollTestOpts struct {
 	UseOldFleetdFlow                  bool
 	ManualAgentInstall                bool
 	EnrollmentProfileFromDEPUsingPost bool
-	BootstrapPackage                  bool
 }
 
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
@@ -437,44 +433,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 	if opts.TeamID != nil {
 		payload["fleet_id"] = *opts.TeamID
-		if opts.BootstrapPackage {
-			team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
-			require.NoError(t, err)
-
-			team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-			_, err = s.ds.SaveTeam(ctx, team)
-			require.NoError(t, err)
-		}
-	} else if opts.BootstrapPackage {
-		ac, err := s.ds.AppConfig(ctx)
-		require.NoError(t, err)
-
-		ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-		err = s.ds.SaveAppConfig(ctx, ac)
-		require.NoError(t, err)
 	}
 
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	t.Cleanup(func() {
 		// Get back to the default state.
-		if opts.BootstrapPackage {
-			if opts.TeamID != nil {
-				team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
-				require.NoError(t, err)
-
-				team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
-				_, err = s.ds.SaveTeam(ctx, team)
-				require.NoError(t, err)
-			} else {
-				ac, err := s.ds.AppConfig(ctx)
-				require.NoError(t, err)
-
-				ac.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
-				err = s.ds.SaveAppConfig(ctx, ac)
-				require.NoError(t, err)
-			}
-		}
-
 		payload["apple_enable_release_device_manually"] = false
 		payload["macos_manual_agent_install"] = false
 		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
@@ -1840,7 +1803,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
 			  "macos_fleet": %q,
 			  "ios_fleet": %q,
@@ -1852,7 +1815,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -2059,56 +2022,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	checkHostDEPAssignProfileResponses(defaultSerials, defaultProfileUUIDs[len(defaultProfileUUIDs)-1],
 		fleet.DEPAssignProfileResponseSuccess)
 	checkHostDEPAssignProfileResponses(teamSerials, teamProfileUUIDs[len(teamProfileUUIDs)-1], fleet.DEPAssignProfileResponseSuccess)
-}
-
-func (s *integrationMDMTestSuite) TestDeprecatedDefaultAppleBMTeam() {
-	t := s.T()
-
-	s.enableABM(t.Name())
-
-	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name(),
-		Description: "desc",
-	})
-	require.NoError(s.T(), err)
-
-	var acResp appConfigResponse
-
-	defer func() {
-		acResp = appConfigResponse{}
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		    "mdm": {
-			    "apple_bm_default_team": ""
-		    }
-		}`), http.StatusOK, &acResp)
-		require.Empty(t, acResp.MDM.DeprecatedAppleBMDefaultTeam)
-	}()
-
-	// try to set an invalid team name
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {
-			"apple_bm_default_team": "xyz"
-		}
-	}`), http.StatusUnprocessableEntity, &acResp)
-
-	// get the appconfig, nothing changed
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Empty(t, acResp.MDM.DeprecatedAppleBMDefaultTeam)
-
-	// set to a valid team name
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": {
-			"apple_bm_default_team": %q
-		}
-	}`, tm.Name)), http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.DeprecatedAppleBMDefaultTeam)
-
-	// get the appconfig, set to that team name
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.Equal(t, tm.Name, acResp.MDM.DeprecatedAppleBMDefaultTeam)
 }
 
 func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM() {

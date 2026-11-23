@@ -186,6 +186,24 @@ func TestWritePathInvalidation(t *testing.T) {
 				invoked: func(ds *mock.Store) bool { return ds.UpdateHostIdentityCertHostIDBySerialFuncInvoked },
 			},
 			{
+				name: "MDMWindowsDeleteEnrolledDeviceOnReenrollment",
+				id:   10,
+				setupMock: func(ds *mock.Store) {
+					ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc = func(_ context.Context, _ string) (string, error) {
+						return "uuid-10", nil
+					}
+					ds.HostLiteByIdentifierFunc = func(_ context.Context, identifier string) (*fleet.HostLite, error) {
+						require.Equal(t, "uuid-10", identifier)
+						return &fleet.HostLite{ID: 10}, nil
+					}
+				},
+				invoke: func(ctx context.Context, d *Datastore, _ uint, _ string) error {
+					_, err := d.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, "hardware-id")
+					return err
+				},
+				invoked: func(ds *mock.Store) bool { return ds.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked },
+			},
+			{
 				name: "DeleteHost",
 				id:   7,
 				setupMock: func(ds *mock.Store) {

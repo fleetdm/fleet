@@ -412,6 +412,13 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 8. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit.
 
 9. Once the quote is approved, send it to the relevant stakeholders.
+
+10. Open the approved quote you sent, check **"Primary quote"**, and click **"Save"**. Checking it automatically unchecks any other primary quote on the opportunity.
+
+> Closed won requires a primary quote:
+>
+> An opportunity can't be marked **"Closed Won"** until it has a quote that is **"Approved"** and has **"Primary quote"** checked. The primary quote should be the one the customer or partner actually received. If the opportunity has several approved quotes, pick the one the customer signed or issued the PO against.
+> There are two exceptions: a contraction (an Expansion opportunity with a negative amount), and an Expansion opportunity on an account that also has a renewal, which can close without a quote.
  
 
 ### Remove a contact from the "Top contacts" list in Salesforce
@@ -483,8 +490,13 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 **Prerequisite:** Fleet's slide decks use the [Inter typeface](https://rsms.me/inter/). Install it on your computer before you edit or present a deck so the text renders correctly.
 
 ### First meeting decks
+
 - [Fleet for IT engineers and IT admins](https://drive.google.com/file/d/1NPGhLHf5_bv5gBmYFlW0sXKXPFgxqbdJ/view?usp=drive_link)
-- [Device management for Europe](https://docs.google.com/presentation/d/1_3Vyn32r9sfpKSfqelZq68u4ayXqE-opXZoJab6hhBU/edit?slide=id.g3d4265576de_4_433#slide=id.g3d4265576de_4_433)
+  > - At Fleet, we download and use a fresh copy of this deck _every time before a first call_.
+  > - Read skipped slides closely and use them to personalize for:
+  >   - Europe vs. outside of Europe
+  >   - Initially focused on Windows vs. Apple vs. Linux
+  >   - By vertical/industry
 
 ### PDFs to send
 - [Leave behind (PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)

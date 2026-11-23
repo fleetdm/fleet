@@ -82,6 +82,27 @@ func TestDiscoverFleetRepos(t *testing.T) {
 	}
 }
 
+func TestDiscoverFleetReposTwoSpellingsOfOneFolder(t *testing.T) {
+	home := t.TempDir()
+	clone := filepath.Join(home, "Code", "fleet")
+	makeRepo(t, clone, "github.com/fleetdm/fleet/v4")
+
+	// The real devRoots list both; on a case-insensitive volume they're the
+	// same folder and must not list the clone twice.
+	got := discoverFleetRepos(home, []string{filepath.Join(home, "code"), filepath.Join(home, "Code")})
+	if len(got) != 1 || got[0].Path != clone {
+		t.Fatalf("got %+v, want just %s", got, clone)
+	}
+
+	if _, err := os.Stat(filepath.Join(home, "code", "fleet")); err != nil {
+		return // case-sensitive volume: nothing more to check
+	}
+	// A typed or picked spelling comes back as the one on disk.
+	if pr := probe(filepath.Join(home, "code", "FLEET")); !pr.Valid || pr.Path != clone {
+		t.Errorf("probe of another spelling = %+v, want valid %s", pr, clone)
+	}
+}
+
 func TestDetectFleetConfig(t *testing.T) {
 	repo := t.TempDir()
 	if got := DetectFleetConfig(repo); got != "" {

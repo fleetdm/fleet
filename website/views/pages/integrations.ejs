@@ -13,6 +13,63 @@
     <div purpose="integration-cards" class="card-deck d-flex justify-content-center">
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
+          <img src="/images/logo-claude-131x28@2x.png" alt="Claude logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Claude Code is an AI coding agent you can use from the Claude Desktop app or your terminal. Point it at a Fleet GitOps repository and it can write policies, reports, and configuration profiles for you, checked against Fleet’s schema and Apple, Microsoft, and Google references.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://claude.ai/download">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/use-claude-code-with-fleet">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-codex-114x28@2x.png" alt="Codex logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Codex is an AI coding agent you can use from the Codex app or your terminal. Point it at a Fleet GitOps repository and it can write policies, reports, and configuration profiles for you, checked against Fleet’s schema and Apple, Microsoft, and Google references.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://openai.com/codex/">Learn more</a>
+            <animated-arrow-button class="py-0" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-gemini-125x28@2x.png" alt="Gemini logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Gemini CLI is an AI coding agent you can use from your terminal. Point it at a Fleet GitOps repository and it can write policies, reports, and configuration profiles for you, checked against Fleet’s schema and Apple, Microsoft, and Google references.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://github.com/google-gemini/gemini-cli">Learn more</a>
+            <animated-arrow-button class="py-0" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-github-copilot-217x28@2x.png" alt="GitHub Copilot logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            GitHub Copilot is an AI coding agent you can use from your code editor or GitHub. Point it at a Fleet GitOps repository and it can write policies, reports, and configuration profiles for you, checked against Fleet’s schema and Apple, Microsoft, and Google references.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://github.com/features/copilot">Learn more</a>
+            <animated-arrow-button class="py-0" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
           <img src="/images/logo-okta-85x28@2x.png" alt="Okta logo">
         </div>
         <div purpose="integration-card-body" class="card-body">
@@ -103,6 +160,22 @@
       </div>
 
       <div purpose="integration-card" class="card">
+        <div purpose="integration-logo" class="d-flex flex-row align-items-center">
+          <img src="/images/logo-cloudflare-62x28.svg" alt="Cloudflare logo">
+          <p>Cloudflare One</p>
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Cloudflare One is Cloudflare's zero trust platform. Connect Fleet to Cloudflare as a custom device posture integration. Then use Cloudflare Access and Gateway policies to block hosts that are failing Fleet policies, or that aren't in Fleet, from your apps and networks.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://www.cloudflare.com/sase/">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/cloudflare-conditional-access-integration">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
           <img src="/images/logo-tailscale-145x28@2x.png" alt="Tailscale logo">
         </div>
@@ -113,6 +186,78 @@
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a purpose="learn-more-link" target="_blank" href="https://tailscale.com/blog/fleet-device-posture-integration">Learn more</a>
             <animated-arrow-button class="py-0" target="_blank" href="https://tailscale.com/docs/integrations/fleet">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-apple-business-165x28@2x.png" alt="Apple Business logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Apple Business (AB) is Apple’s portal for organization-owned devices and apps. Connect Fleet to AB to automatically enroll company-owned macOS, iOS, and iPadOS hosts, and use Account-driven User Enrollment for personal (BYOD) hosts. Add a Volume Purchasing Program (VPP) token to deploy <a href="/guides/install-app-store-apps">App Store apps</a> to your hosts.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://business.apple.com/">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/apple-mdm-setup#apple-business-ab">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-autopilot-114x28@2x.png" alt="Windows Autopilot logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Windows Autopilot is Microsoft’s zero-touch deployment service. Connect Fleet to Microsoft Entra ID, then use Autopilot so new Windows hosts enroll in Fleet when end users sign in during setup. Autopilot requires Microsoft Entra ID P1. You don’t need Autopilot to enroll Windows hosts.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="https://learn.microsoft.com/en-us/autopilot/overview">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/windows-mdm-setup#windows-autopilot">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-dell-60x20.svg" alt="Dell logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Zero touch, $0. Forward the order email from Fleet to Dell, and Dell ReadyImage installs Fleet’s agent on your new PCs before they ship. Each PC enrolls in Fleet the first time it comes online. No Autopilot, Entra ID, Intune, or USB sticks required.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="/articles/autopilot-without-autopilot">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/windows-mdm-setup#zero-touch-enrollment-with-an-oem-service">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-lenovo-60x20.svg" alt="Lenovo logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Zero touch, $0. Forward the order email from Fleet to Lenovo, and Lenovo Ready to Provision (RTP) installs Fleet’s agent on your new PCs before they ship. Each PC enrolls in Fleet the first time it comes online. No Autopilot, Entra ID, Intune, or USB sticks required.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="/articles/autopilot-without-autopilot">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/windows-mdm-setup#zero-touch-enrollment-with-an-oem-service">Docs</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo" class="d-flex flex-row align-items-center">
+          <img src="/images/logo-hp-20x20.svg" alt="HP logo">
+          <p>HP</p>
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Zero touch, $0. Forward the order email from Fleet to HP, and HP installs Fleet’s agent on your new PCs before they ship. Each PC enrolls in Fleet the first time it comes online. No Autopilot, Entra ID, Intune, or USB sticks required.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a purpose="learn-more-link" target="_blank" href="/articles/autopilot-without-autopilot">Learn more</a>
+            <animated-arrow-button class="py-0" href="/guides/windows-mdm-setup#zero-touch-enrollment-with-an-oem-service">Docs</animated-arrow-button>
           </div>
         </div>
       </div>

@@ -126,6 +126,10 @@ type UserLookupService interface {
 type HostLookupService interface {
 	// GetHostLite returns basic host information not requiring table joins.
 	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
+	// HostIDByIDOrIdentifier returns the ID of the host that the :id path parameter of a host endpoint names: a host ID first, then the
+	// hardware_serial, UUID or hostname of the newest matching host. It only checks that the caller can list hosts; the caller must still
+	// authorize the host.
+	HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error)
 }
 
 // LookupService combines UserLookupService and HostLookupService for components
@@ -477,13 +481,13 @@ type Service interface {
 	// mappings or DeviceMappingIDP for identity provider mappings.
 	SetHostDeviceMapping(ctx context.Context, id uint, email, source string) ([]*HostDeviceMapping, error)
 	DeleteHostIDP(ctx context.Context, id uint) error
-	// SetHostGoogleDeviceID binds an iOS, iPadOS or Android host to its device ID in Google. A different
+	// SetHostGoogleDeviceID binds a company-owned iOS, iPadOS or Android host to its device ID in Google
+	// and marks the device's users as managed there. It needs Google conditional access connected. A different
 	// value than the stored one, or one bound to another host, is refused with a 409. Only
-	// DeleteHostGoogleDeviceID removes it.
+	// DeleteHostGoogleDeviceID removes it, which also queues the unmark in Google.
 	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error
 	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error
-	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
-	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
+	// HostLiteByID returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
 	// ListDevicePolicies lists all policies for the given host in their
@@ -550,6 +554,13 @@ type Service interface {
 
 	// ListHostCertificates lists the certificates installed on the specified host.
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
+
+	// ListHostAISessions lists the AI agent sessions on the specified host.
+	ListHostAISessions(ctx context.Context, hostID uint, opts HostAISessionListOptions) ([]*HostAISession, *PaginationMetadata, error)
+	// GetHostAISession returns an AI agent session on the specified host.
+	GetHostAISession(ctx context.Context, hostID, aiSessionID uint) (*HostAISession, error)
+	// ListHostAISessionEvents lists the events of an AI agent session on the specified host.
+	ListHostAISessionEvents(ctx context.Context, hostID, aiSessionID uint, opts HostAISessionEventListOptions) ([]*HostAISessionEvent, *PaginationMetadata, error)
 
 	// GetHostRecoveryLockPassword retrieves the recovery lock password for the specified host.
 	// Requires admin or maintainer role and MDM to be enabled.
@@ -764,33 +775,26 @@ type Service interface {
 	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// GlobalScheduleService
-
-	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetGlobalScheduledQueries(ctx context.Context, opts ListOptions) ([]*ScheduledQuery, error)
-	ModifyGlobalScheduledQueries(ctx context.Context, id uint, q ScheduledQueryPayload) (*ScheduledQuery, error)
-	DeleteGlobalScheduledQueries(ctx context.Context, id uint) error
-
-	// /////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
 
 	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)
-
-	// /////////////////////////////////////////////////////////////////////////////
-	// TeamScheduleService
-
-	TeamScheduleQuery(ctx context.Context, teamID uint, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetTeamScheduledQueries(ctx context.Context, teamID uint, opts ListOptions) ([]*ScheduledQuery, error)
-	ModifyTeamScheduledQueries(
-		ctx context.Context, teamID uint, scheduledQueryID uint, q ScheduledQueryPayload,
-	) (*ScheduledQuery, error)
-	DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
 
 	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)
 	ListGlobalPolicies(ctx context.Context, opts ListOptions, platform string) ([]*Policy, error)
+	// ListPolicies lists the policies of a scope: a nil teamID is "All fleets", 0 is "Unassigned". With mergeInherited, a
+	// fleet's list also has the "All fleets" policies.
+	ListPolicies(ctx context.Context, teamID *uint, mergeInherited bool, opts ListOptions, filter PolicyListFilter) ([]*Policy, error)
+	// CountPolicies counts the policies ListPolicies returns.
+	CountPolicies(ctx context.Context, teamID *uint, mergeInherited bool, matchQuery string, filter PolicyListFilter) (int, error)
+	// NewPolicy creates a policy in the scope of the request's fleet_id.
+	NewPolicy(ctx context.Context, req CreatePolicyRequest) (*Policy, error)
+	// ModifyPolicy updates a policy in any scope.
+	ModifyPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
+	// DeletePolicies deletes policies from any scopes, or none if the user can't delete one of them.
+	DeletePolicies(ctx context.Context, ids []uint) ([]uint, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
@@ -1030,29 +1034,6 @@ type Service interface {
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
-
-	// UploadMDMAppleInstaller uploads an Apple installer to Fleet.
-	UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*MDMAppleInstaller, error)
-
-	// GetMDMAppleInstallerByID returns the installer details of an installer, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil).
-	GetMDMAppleInstallerByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
-
-	// DeleteMDMAppleInstaller deletes an Apple installer from Fleet.
-	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
-
-	// GetMDMAppleInstallerByToken returns the installer with its contents included (MDMAppleInstaller.Installer) from its secret token.
-	GetMDMAppleInstallerByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// GetMDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil) from its secret token.
-	GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// ListMDMAppleInstallers lists all the uploaded installers.
-	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
-
-	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
-	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
 	// GenerateABMKeyPair generates and stores in the database public and
 	// private keys to use in ABM to generate an encrypted auth token.
@@ -1441,7 +1422,9 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
-	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
+	WipeHost(ctx context.Context, hostID uint) error
+	// ResetHost erases a Windows host but keeps its provisioning packages, so a host set up with one can re-enroll itself.
+	ResetHost(ctx context.Context, hostID uint) error
 
 	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.
 	// Not script based, only MDM based.
@@ -1616,6 +1599,30 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	// ConnectGoogleConditionalAccess verifies the key with Google, registers with
+	// fleetdm.com, and turns the integration on.
+	ConnectGoogleConditionalAccess(ctx context.Context, customerID, adminEmail string, serviceAccountKey json.RawMessage) error
+	// GetGoogleConditionalAccess returns the settings from the app config (nil when not
+	// configured) and the connection status. Both are nil on Fleet Free.
+	GetGoogleConditionalAccess(ctx context.Context) (*GoogleConditionalAccessIntegration, *ConditionalAccessGoogleStatus, error)
+	// UpdateGoogleConditionalAccess edits the configured integration. A nil customerID or
+	// adminEmail and an empty serviceAccountKey keep the stored value.
+	UpdateGoogleConditionalAccess(ctx context.Context, customerID, adminEmail *string, serviceAccountKey json.RawMessage) error
+	// DeleteGoogleConditionalAccess drops the fleetdm.com registration, turns the
+	// integration off and deletes the key. Nothing is unmarked in Google, and the device
+	// rows are kept for a re-add for the same customer.
+	DeleteGoogleConditionalAccess(ctx context.Context) error
+	// GetGoogleConditionalAccessDeviceStatus returns the Google sign-in URL of the
+	// authenticated host, counting an attempt when it hands out a sign-in.
+	GetGoogleConditionalAccessDeviceStatus(ctx context.Context, host *Host) (*GoogleConditionalAccessDeviceStatus, error)
+	// GoogleConditionalAccessSignInRequired reports whether the Self-service web clip of
+	// the authenticated host should ask the status route for a sign-in. It only reads,
+	// so it counts no attempt.
+	GoogleConditionalAccessSignInRequired(ctx context.Context, host *Host) (bool, error)
+	// RegisterGoogleConditionalAccessDevice stores and marks the DeviceUsers fleetdm.com
+	// looked up for an iOS or iPadOS host. secret is the bearer token fleetdm.com sent.
+	RegisterGoogleConditionalAccessDevice(ctx context.Context, secret string, reg GoogleConditionalAccessRegistration) (GoogleConditionalAccessRegisterResult, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Okta conditional access

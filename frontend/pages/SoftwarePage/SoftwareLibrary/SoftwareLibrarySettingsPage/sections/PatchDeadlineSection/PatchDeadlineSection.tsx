@@ -20,11 +20,9 @@ import {
   WEEKDAY_ORDER,
   Weekday,
 } from "interfaces/patch_deadline_settings";
-import { ILoadTeamPoliciesResponse } from "interfaces/policy";
+import { ILoadAllPoliciesResponse } from "interfaces/policy";
 import patchDeadlineSettingsAPI from "services/entities/patch_deadline_settings";
-import teamPoliciesAPI, {
-  ITeamPoliciesQueryKey,
-} from "services/entities/team_policies";
+import policiesAPI, { IPoliciesQueryKey } from "services/entities/policies";
 
 import { ILibrarySettingsCardProps } from "../../types";
 
@@ -62,26 +60,26 @@ const PatchDeadlineSection = ({
     enabled: isRouteOk,
   });
 
-  // Share the `teamPolicies` cache key family so other consumers of the same
-  // (fleet, automation_type=patch) list dedupe through React Query instead of
+  // Share the `policies` cache key family so other consumers of the same
+  // (fleet, type=patch) list dedupe through React Query instead of
   // double-fetching. Response is "all patch policies"; the filter to
   // `patch_deadline: true` happens client-side below.
-  const appsQueryKey: ITeamPoliciesQueryKey = {
-    scope: "teamPolicies",
-    teamId: fleetId,
-    automationType: "patch",
+  const appsQueryKey: IPoliciesQueryKey = {
+    scope: "policies",
+    fleetId,
+    type: "patch",
   };
   const { data: policiesData, isError: isAppsError } = useQuery<
-    ILoadTeamPoliciesResponse,
+    ILoadAllPoliciesResponse,
     Error,
-    ILoadTeamPoliciesResponse,
-    [ITeamPoliciesQueryKey]
+    ILoadAllPoliciesResponse,
+    [IPoliciesQueryKey]
   >(
     [appsQueryKey],
     () =>
-      teamPoliciesAPI.loadAllNew({
-        teamId: fleetId,
-        automationType: "patch",
+      policiesAPI.loadAll({
+        fleetId,
+        type: "patch",
       }),
     { enabled: isRouteOk, refetchOnWindowFocus: false }
   );

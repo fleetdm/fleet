@@ -138,7 +138,7 @@ const EditQueryPage = ({
   >(["query", queryId], () => queryAPI.load(queryId as number), {
     enabled: !!queryId && !editingExistingQuery,
     refetchOnWindowFocus: false,
-    select: (data) => data.query,
+    select: (data) => data.report,
     onSuccess: (returnedQuery) => {
       setLastEditedQueryId(returnedQuery.id);
       setLastEditedQueryName(returnedQuery.name);
@@ -257,12 +257,12 @@ const EditQueryPage = ({
   const onSubmitNewQuery = debounce(async (formData: ICreateQueryFormData) => {
     setIsQuerySaving(true);
     try {
-      const { query } = await queryAPI.create(formData);
+      const { report } = await queryAPI.create(formData);
       queryClient.invalidateQueries({ queryKey: [{ scope: "queries" }] });
       notify.success("Report created.");
       router.push(
-        getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
-          fleet_id: query.fleet_id,
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(report.id), {
+          fleet_id: report.fleet_id,
           host_id: hostId,
         })
       );
@@ -356,7 +356,10 @@ const EditQueryPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
+    if (
+      isLiveQueryRunnable ||
+      config?.server_settings.live_reporting_disabled
+    ) {
       return null;
     }
 
@@ -443,7 +446,7 @@ const EditQueryPage = ({
               isQueryUpdating={isQueryUpdating}
               hostId={hostId}
               queryReportsDisabled={
-                appConfig?.server_settings.query_reports_disabled
+                appConfig?.server_settings.discard_reports_data
               }
               showConfirmSaveChangesModal={showConfirmSaveChangesModal}
               setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}

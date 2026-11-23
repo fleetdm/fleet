@@ -25,7 +25,6 @@ ALLOWED_PATHS = [
     r"/api/latest/fleet/spec/certificate_authorities",
     r"/api/latest/fleet/fleets",
     r"/api/latest/fleet/fleets/\d+",
-    r"/api/latest/fleet/fleets/\d+/policies",
     r"/api/latest/fleet/policies",
     r"/api/latest/fleet/reports",
     r"/api/latest/fleet/scripts",

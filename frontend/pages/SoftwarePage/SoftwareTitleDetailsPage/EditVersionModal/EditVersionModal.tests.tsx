@@ -129,4 +129,44 @@ describe("EditVersionModal", () => {
     expect(screen.getByRole("button", { name: /^Save$/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /^Cancel$/i })).toBeEnabled();
   });
+
+  describe("Android web app", () => {
+    const webAppVersion = mockVersion({
+      platform: "android",
+      app_store_id: "com.google.enterprise.webapp.abc123",
+      configuration: undefined,
+    });
+
+    it("renders as 'Edit targets' without Name or Configuration", () => {
+      const { container } = renderModal({
+        version: webAppVersion,
+        siblingVersionNames: [],
+        isWebApp: true,
+      });
+      expect(container.querySelector(".modal__header")).toHaveTextContent(
+        "Edit targets"
+      );
+      expect(screen.queryByLabelText(/Name/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Configuration/)).not.toBeInTheDocument();
+      expect(screen.getByText("All hosts")).toBeInTheDocument();
+    });
+
+    it("omits name and configuration from the save payload", async () => {
+      const editSpy = jest
+        .spyOn(softwareAPI, "editAppStoreAppVersion")
+        .mockResolvedValue({} as never);
+      const { user } = renderModal({
+        version: webAppVersion,
+        siblingVersionNames: [],
+        isWebApp: true,
+      });
+
+      await user.click(screen.getByRole("button", { name: /^Save$/i }));
+
+      await waitFor(() => expect(editSpy).toHaveBeenCalled());
+      const [, , , body] = editSpy.mock.calls[0];
+      expect(body).not.toHaveProperty("name");
+      expect(body).not.toHaveProperty("configuration");
+    });
+  });
 });

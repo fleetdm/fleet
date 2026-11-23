@@ -1,1 +1,0 @@
-- Fixed the `bitlocker_key_protectors` table returning an error instead of no rows on Windows hosts where BitLocker is not installed, such as Windows Server with the BitLocker feature turned off.

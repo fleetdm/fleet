@@ -6,9 +6,9 @@
   ],
   "desc": "Endpoint data backup and recovery client for Druva GovCloud",
   "homepage": "https://www.druva.com/",
-  "url": "https://downloads.druva.com/downloads/inSync/MAC/8.1.8_Gov/inSync-8.1.8-r110973.dmg",
+  "url": "https://downloads.druva.com/downloads/inSync/MAC/8.1.9_Gov/inSync-8.1.9-r111001.dmg",
   "url_specs": {},
-  "version": "8.1.8,110973",
+  "version": "8.1.9,111001",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": true,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "d28abd70ab728d2dc08865cbc68a023bceaf9abc21ef78be14f022b4f0ae58ca",
+  "sha256": "674474f93c3910321c1b25e3cd47398597dca6ced40fecaef2c2f12a5ab2a7f7",
   "artifacts": [
     {
       "uninstall": [
@@ -85,6 +85,6 @@
   "languages": [],
   "ruby_source_path": "Casks/druva-insync@govcloud.rb",
   "ruby_source_checksum": {
-    "sha256": "cb4f1a8cfa1521938166e63a3b591914d73cbd8f99a6821370a1bdf37f865b33"
+    "sha256": "6b84c6a6fabd387b2e0c8451f1af68c58d7c3df3cb31e70104f596fc2bb15923"
   }
 }

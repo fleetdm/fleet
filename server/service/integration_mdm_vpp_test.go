@@ -85,7 +85,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &vppRes)
 
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Remove all vpp associations from team with no members
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "fleet_name", tmGood.Name)
@@ -212,12 +212,12 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	var listSwTitles listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "fleet_id", fmt.Sprint(tmGood.ID))
 	for _, st := range listSwTitles.SoftwareTitles {
-		if st.AppStoreApp.AppStoreID == s.appleVPPConfigSrvConfig.Assets[1].AdamID {
+		if st.AppStoreApps[0].AppStoreID == s.appleVPPConfigSrvConfig.Assets[1].AdamID {
 			var getSWTitle getSoftwareTitleResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", st.ID), nil, http.StatusOK, &getSWTitle, "fleet_id", fmt.Sprint(tmGood.ID))
-			s.ElementsMatch([]string{"🌎 Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
+			s.ElementsMatch([]string{"🌎 Browsers"}, getSWTitle.SoftwareTitle.AppStoreApps[0].Categories)
 			var labelNames []string
-			for _, l := range getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll {
+			for _, l := range getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll {
 				labelNames = append(labelNames, l.LabelName)
 			}
 			s.ElementsMatch([]string{label1.Name, label2.Name}, labelNames)
@@ -553,7 +553,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	s.Len(listSwTitles.SoftwareTitles, 2)
 	for _, sw := range listSwTitles.SoftwareTitles {
-		switch sw.AppStoreApp.AppStoreID {
+		switch sw.AppStoreApps[0].AppStoreID {
 		case driveAppID:
 			s.Equal("DriveUpdatedName", sw.DisplayName)
 		case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
@@ -720,7 +720,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		// Associate team to the VPP token.
 		var resPatchVPP patchVPPTokensTeamsResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 		var createLabelResp fleet.CreateLabelResponse
 		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "label1" + t.Name()}, http.StatusOK, &createLabelResp)
@@ -764,11 +764,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		var getSWTitle getSoftwareTitleResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "fleet_id", fmt.Sprint(team.ID))
-		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, includeAnyApp.AdamID)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
+		require.Len(t, getSWTitle.SoftwareTitle.AppStoreApps, 1)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApps[0].AdamID, includeAnyApp.AdamID)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsExcludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll)
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}}, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAny)
 
 		// Add an app with exclude_any labels
 		excludeAnyApp := fleet.VPPApp{
@@ -794,12 +794,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				excludeAnyApp.Name, titleID, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), validToken.Token), 0)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "fleet_id", fmt.Sprint(team.ID))
-		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
-		require.True(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
+		require.Len(t, getSWTitle.SoftwareTitle.AppStoreApps, 1)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApps[0].AdamID, excludeAnyApp.AdamID)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll)
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsExcludeAny)
+		require.True(t, getSWTitle.SoftwareTitle.AppStoreApps[0].SelfService)
 
 		// Add a non-VPP software
 		payloadRubyTm1 := &fleet.UploadSoftwareInstallerPayload{
@@ -848,7 +848,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), updateAppReq, http.StatusOK, &updateAppResp)
 
 		require.NotNil(t, updateAppResp.AppStoreApp)
-		require.Equal(t, updateAppResp.AppStoreApp.AppStoreID, excludeAnyApp.AdamID)
+		require.Equal(t, updateAppResp.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, updateAppResp.AppStoreApp.LabelsIncludeAny)
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsExcludeAny)
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsIncludeAll)
@@ -863,12 +863,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		// double check that our updates worked
 		getSWTitle = getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "fleet_id", fmt.Sprint(team.ID))
-		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
-		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
-		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.False(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
+		require.Len(t, getSWTitle.SoftwareTitle.AppStoreApps, 1)
+		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApps[0].AdamID, excludeAnyApp.AdamID)
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsExcludeAny)
+		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApps[0].LabelsIncludeAll)
+		require.False(t, getSWTitle.SoftwareTitle.AppStoreApps[0].SelfService)
 
 		// Attempt an install on the host. This should fail because the host doesn't have the label
 		// l2.
@@ -887,7 +887,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		// delete the VPP app
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "fleet_id", fmt.Sprintf("%d", team.ID))
-		activityData = `{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "fleet_id": %d, "platform": "%s", "labels_include_any": [{"id": %d, "name": %q}]}`
+		activityData = `{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2/512x512.png", "fleet_id": %d, "platform": "%s", "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
 				excludeAnyApp.Name, excludeAnyApp.AdamID, team.ID, excludeAnyApp.Platform, l2.ID, l2.Name), 0)
@@ -988,7 +988,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// A PATCH endpoint omitting mdm.volume_purchasing_program should not remove the VPP token association.
 	acResp := appConfigResponse{}
@@ -1132,14 +1132,16 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var listSw listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "fleet_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 1)
-	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
+	require.True(t, listSw.SoftwareTitles[0].AppStoreApps[0].SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
-	require.Len(t, listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies, 1)
+	require.Len(t, listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies, 1)
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID,
-		Name: listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].Name,
+		ID:       listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].ID,
+		Name:     listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].Name,
+		TeamID:   new(int64(team.ID)), //nolint:gosec // dismiss G115
+		TeamName: &team.Name,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -1150,14 +1152,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, macOSTitleID, listSw.SoftwareTitles[0].ID)
 
 	// delete the automatic install policy (so we can delete the app next)
-	var deletePolicyResp fleet.DeleteTeamPoliciesResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", team.ID), &fleet.DeleteGlobalPoliciesRequest{IDs: []uint{listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID}}, http.StatusOK, &deletePolicyResp)
+	var deletePolicyResp fleet.DeletePoliciesResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", &fleet.DeletePoliciesRequest{IDs: []uint{listSw.SoftwareTitles[0].AppStoreApps[0].AutomaticInstallPolicies[0].ID}}, http.StatusOK, &deletePolicyResp)
 
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
 		"fleet_id", fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/1/512x512.png", "fleet_id": %d, "platform": "%s"}`, team.Name,
+		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "software_icon_url": "https://example.com/images/1/512x512.png", "fleet_id": %d, "platform": "%s"}`, team.Name,
 			addedApp.Name, addedApp.AdamID, team.ID, addedApp.Platform), 0)
 
 	// deleting it again fails, not found
@@ -1225,7 +1227,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		"fleet_id",
 		fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "fleet_id": %d, "platform": "%s"}`, team.Name,
+		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": "%s", "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "fleet_id": %d, "platform": "%s"}`, team.Name,
 			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, addedApp.Platform), 0)
 
 	var count int
@@ -1317,7 +1319,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	iOSTitleID := uint(99999)
 	iPadOSTitleID := uint(99999)
 	for _, sw := range listSw.SoftwareTitles {
-		assert.NotNil(t, sw.AppStoreApp)
+		assert.Len(t, sw.AppStoreApps, 1)
 		switch {
 		case sw.Name == addedApp.Name && sw.Source == "apps":
 			macOSTitleID = sw.ID
@@ -1335,7 +1337,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Contains(t, extractServerErrorText(r.Body), "Error: Couldn't install. To install App Store app, turn on MDM for this host.")
 
 	// Disable all teams token
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", validToken.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
 
 	// Spoof an expired VPP token and attempt to install VPP app
 	tokenJSONBad := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2030-06-24T15:50:50+0000", "badtoken", "Evil Fleet")
@@ -1343,15 +1345,15 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	var vppRes uploadVPPTokenResponse
 	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSONBad))), http.StatusAccepted, "", &vppRes)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99999}}, http.StatusNotFound, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, 99999}}, http.StatusNotFound, &resPatchVPP)
 
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", vppRes.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// Disable the token
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppRes.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", vppRes.Token.ID), patchVPPTokensTeamsRequest{}, http.StatusOK, &resPatchVPP)
 
 	// Enable all teams token
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", validToken.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", validToken.Token.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &resPatchVPP)
 
 	// Attempt to install non-existent app
 	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, 99999), &installSoftwareRequest{},
@@ -1918,7 +1920,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
 
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{fleet.PolicyNoTeamID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{fleet.PolicyNoTeamID}}, http.StatusOK, &resPatchVPP)
 
 	macOSApp := fleet.VPPApp{
 		AdamID:           "1",
@@ -1939,7 +1941,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 	var listSw listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "fleet_id", fmt.Sprint(fleet.PolicyNoTeamID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 1)
-	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
+	require.True(t, listSw.SoftwareTitles[0].AppStoreApps[0].SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
 
 	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
@@ -1961,7 +1963,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 		"fleet_id",
 		fmt.Sprint(fleet.PolicyNoTeamID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "fleet_id": %d, "platform": "%s"}`,
+		fmt.Sprintf(`{"version_name": "Default version", "fleet_name": null, "software_title": "%s", "software_display_name": "", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "fleet_id": %d, "platform": "%s"}`,
 			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
 
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1973,6 +1975,22 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", validToken.Token.ID), &deleteVPPTokenResponse{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+}
+
+func (s *integrationMDMTestSuite) TestVPPAutomaticInstallPolicyActivityNoFleet() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	s.setVPPTokenForTeam(fleet.PolicyNoTeamID)
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: new(fleet.PolicyNoTeamID), AppStoreID: "1", AutomaticInstall: true}, http.StatusOK, &addAppResp)
+
+	var policies fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policies, "fleet_id", fmt.Sprint(fleet.PolicyNoTeamID))
+	require.Len(t, policies.Policies, 1)
+	s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":%q}`, policies.Policies[0].ID, policies.Policies[0].Name), 0)
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
@@ -2049,7 +2067,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	// No VPP apps added yet, so this is a no-op
 	err := vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
@@ -2087,18 +2105,18 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	var listSWTitlesResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "fleet_id", fmt.Sprintf("%d", team.ID), "query", app1.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "1.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "1.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "fleet_id", fmt.Sprintf("%d", team.ID), "query", app2.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "2.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "2.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "fleet_id", fmt.Sprintf("%d", team.ID), "query", app3.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// "update" the versions
 	s.appleVPPProxySrvData["1"] = `{"id": "1", "attributes": {"name": "App 1", "platformAttributes": {"osx": {"bundleId": "a-1", "artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "9.9.9"}}}, "deviceFamilies": ["mac"]}}`
@@ -2110,19 +2128,19 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	// 1 and 2 should be updated
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "fleet_id", fmt.Sprintf("%d", team.ID), "query", app1.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "9.9.9", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "9.9.9", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "fleet_id", fmt.Sprintf("%d", team.ID), "query", app2.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "10.10.10", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "10.10.10", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// No change
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitlesResp, "fleet_id", fmt.Sprintf("%d", team.ID), "query", app3.Name)
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
-	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApp.Version)
+	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "3.0.0", listSWTitlesResp.SoftwareTitles[0].AppStoreApps[0].Version)
 
 	// Refresh again. There are no version changes this time, so this is a no-op.
 	err = vpp.RefreshVersions(ctx, s.ds, stubbedConfig)
@@ -2167,7 +2185,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/fleets", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	var appResp getAppStoreAppsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "fleet_id",
@@ -2243,7 +2261,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "fleet_id", fmt.Sprint(team.ID))
 		require.NotNil(t, titleResponse.SoftwareTitle)
-		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApps[0].LatestVersion)
 	}
 
 	// "Update" the versions for Adam ID "1" and "2".
@@ -2265,7 +2283,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "fleet_id", fmt.Sprint(team.ID))
 		require.NotNil(t, titleResponse.SoftwareTitle)
-		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApps[0].LatestVersion)
 	}
 
 	// "Update" the version for Adam ID "3".
@@ -2286,7 +2304,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 		titleResponse := getSoftwareTitleResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResponse, "fleet_id", fmt.Sprint(team.ID))
 		require.NotNil(t, titleResponse.SoftwareTitle)
-		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApp.LatestVersion)
+		require.Equal(t, expectedVersion, titleResponse.SoftwareTitle.AppStoreApps[0].LatestVersion)
 	}
 
 	// Refresh again. There are no version changes this time, so this is a no-op.

@@ -264,6 +264,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 		fleet.WithEnrollOsqueryCreated(&hostCreated),
 		fleet.WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(rejectSharedSecretForWindowsMDMHosts(svc.config.MDM, appConfig)),
+		fleet.WithEnrollOsqueryRejectSharedSecretForAndroidMDMHosts(rejectSharedSecretForAndroidMDMHosts(svc.config.MDM, appConfig)),
 	}, secretOpts...)
 	host, err := svc.ds.EnrollOsquery(ctx, enrollOpts...)
 	if err != nil {
@@ -1981,7 +1982,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ctx, "received policy results",
 			"host_id", host.ID,
 			"host_platform", host.Platform,
-			"team_id", ptr.ValOrZero(host.TeamID),
+			"fleet_id", ptr.ValOrZero(host.TeamID),
 			"failing", failing,
 			"passing", passing,
 			"not_executed", notExecuted,
@@ -2060,24 +2061,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		// Filter policy results for webhooks using pre-computed flipping sets.
-		var policyIDs []uint
-		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
-			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-		}
-
-		teamID := uint(0)
-		if host.TeamID != nil {
-			teamID = *host.TeamID
-		}
-		team, err := svc.ds.TeamLite(ctx, teamID)
-		if err != nil {
-			logging.WithErr(ctx, err)
-		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-			policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-		}
-
-		filteredResults := filterPolicyResults(policyResults, policyIDs)
+		filteredResults := svc.webhookAndTicketPolicyResults(ctx, ac, policyResults, newFailing, newPassing)
 		if len(filteredResults) > 0 {
 			// Filter the pre-computed flipping results to only webhook-enabled policies.
 			webhookFailing := filterByPolicyIDs(newFailing, filteredResults)
@@ -2832,18 +2816,45 @@ func (svc *Service) unsetUUIDOwnedByAnotherMDMHost(ctx context.Context, host *fl
 	}
 }
 
-// filterPolicyResults filters out policies that aren't configured for webhook automation.
-func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[uint]*bool {
-	wp := make(map[uint]struct{})
-	for _, policyID := range webhookPolicies {
-		wp[policyID] = struct{}{}
+// webhookAndTicketPolicyResults returns the results of the flipped policies that have the webhook or ticket
+// automation on and whose scope has a destination turned on. Only flipped policies can trigger it, so most
+// check-ins skip the lookup.
+func (svc *Service) webhookAndTicketPolicyResults(ctx context.Context, ac *fleet.AppConfig,
+	results map[uint]*bool, newFailing, newPassing []uint,
+) map[uint]*bool {
+	flipped := append(append(make([]uint, 0, len(newFailing)+len(newPassing)), newFailing...), newPassing...)
+	if len(flipped) == 0 {
+		return nil
 	}
-	filtered := make(map[uint]*bool)
-	for policyID, passes := range incoming {
-		if _, ok := wp[policyID]; !ok {
-			continue
+	policies, err := svc.ds.FilterWebhooksAndTicketsPolicies(ctx, flipped)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		return nil
+	}
+
+	var teamChecked, teamEnabled bool
+	filtered := make(map[uint]*bool, len(policies))
+	for _, p := range policies {
+		if p.TeamID == nil {
+			if !globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
+				continue
+			}
+		} else {
+			// A host only reports global policies and policies of its own fleet, so there's one fleet to load.
+			if !teamChecked {
+				teamChecked = true
+				team, err := svc.ds.TeamLite(ctx, *p.TeamID)
+				if err != nil {
+					logging.WithErr(ctx, err)
+				} else {
+					teamEnabled = teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations)
+				}
+			}
+			if !teamEnabled {
+				continue
+			}
 		}
-		filtered[policyID] = passes
+		filtered[p.ID] = results[p.ID]
 	}
 	return filtered
 }
@@ -3353,7 +3364,7 @@ func (svc *Service) processProfileResendsForNewlyFailingPolicies(
 	svc.logger.DebugContext(
 		ctx, "looked up profiles to resend for newly failing policies",
 		"host_id", host.ID,
-		"team_id", policyTeamID,
+		"fleet_id", policyTeamID,
 		"newly_failing", newlyFailingPolicyIDs,
 		"with_profile", len(policiesWithProfile),
 	)
@@ -3510,7 +3521,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			scriptTeamID = *scriptMetadata.TeamID
 		}
 		if policyTeamID != scriptTeamID { // this should not happen
-			logger.ErrorContext(ctx, "script team does not match host team")
+			logger.ErrorContext(ctx, "script fleet does not match host fleet")
 			continue
 		}
 
@@ -4070,7 +4081,7 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		if err != nil {
-			svc.logger.DebugContext(ctx, "querying name and team ID from result", "err", err)
+			svc.logger.DebugContext(ctx, "querying name and fleet ID from result", "err", err)
 			parsedByRaw[queryResult.QueryName] = parsedName{}
 			continue
 		}
@@ -4235,7 +4246,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 		}
 
 		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without
+			// If discard_reports_data=true we write the logs to the logging destination without
 			// any processing beyond the schedule check above.
 			//
 			// If a query was recently configured with automations_enabled = 0 we may still write

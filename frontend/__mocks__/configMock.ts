@@ -10,9 +10,8 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   windows_entra_tenant_ids: [],
   windows_entra_client_ids: [],
   microsoft_graph_credential_invalid: false,
-  apple_bm_default_team: "Apples",
-  apple_bm_enabled_and_configured: true,
-  apple_bm_terms_expired: false,
+  apple_business_enabled_and_configured: true,
+  apple_business_terms_expired: false,
   enabled_and_configured: true,
   android_enabled_and_configured: false,
   apple_require_hardware_attestation: false,
@@ -100,12 +99,13 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   server_settings: {
     server_url: "https://localhost:8080",
-    live_query_disabled: false,
+    live_reporting_disabled: false,
     enable_analytics: true,
     deferred_save_host: false,
-    query_reports_disabled: false,
+    discard_reports_data: false,
     ai_features_disabled: false,
     mcp_disabled: false,
+    ai_sessions_disabled: false,
   },
   smtp_settings: {
     enable_smtp: false,
@@ -163,7 +163,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     failing_policies_webhook: {
       enable_failing_policies_webhook: true,
       destination_url: "https://server.com",
-      policy_ids: [1, 2, 3],
       host_batch_size: 1000,
     },
     vulnerabilities_webhook: {

@@ -7,10 +7,10 @@
     overflow: hidden;
   }
 
-  // Constrain the title slot so TooltipTruncatedText can engage its ellipsis
-  // when script names are long. min-width: 0 on the flex children is required
+  // Constrain the title slot so the name span can engage its ellipsis when
+  // script names are long. min-width: 0 on the flex children is required
   // because flex items default to min-width: auto, which refuses to shrink
-  // below content width — without it, __info inherits the long name's width
+  // below content width: without it, __info inherits the long name's width
   // and bleeds past __main-content's max-width.
   .list-item__info {
     min-width: 0;
@@ -21,10 +21,35 @@
     max-width: 100%;
     overflow: hidden;
 
+    // TooltipWrapper is inline-flex and defaults to sizing around its content
+    // (the full script name). Let its span and inner element div shrink with
+    // the row so the __name span inside can engage its ellipsis.
+    .component__tooltip-wrapper {
+      display: block;
+      max-width: 100%;
+      min-width: 0;
+    }
+
     // Override TooltipWrapper's cursor: default (I-beam suppression on prose).
     .component__tooltip-wrapper__element {
       cursor: pointer;
+      max-width: 100%;
+      min-width: 0;
     }
+  }
+
+  &__name {
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // The name tooltip wraps at spaces, which doesn't help on long unbroken
+  // names (dot-separated ids, no-space filenames).
+  &__full-name {
+    overflow-wrap: anywhere;
   }
 
   &__actions {

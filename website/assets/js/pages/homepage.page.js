@@ -17,6 +17,17 @@ parasails.registerPage('homepage', {
       emailAddress: {isEmail: true, required: true},
     },
 
+    // For the newsletter signup form. Separate syncing state, so submitting one form doesn't spin the other's button.
+    newsletterSyncing: false,
+    newsletterFormData: {},
+    newsletterFormErrors: {},
+    newsletterCloudError: '',
+    newsletterCloudSuccess: false,
+    newsletterSuccessTimeout: undefined,
+    newsletterFormRules: {
+      emailAddress: {isEmail: true, required: true},
+    },
+
     // For the testimonials veil
     testimonialsVisibleHeight: 600,
     testimonialsHeightIncrement: 560,// « Roughly one to two rows of cards.
@@ -68,6 +79,10 @@ parasails.registerPage('homepage', {
     if(masonry && masonry.scrollHeight <= this.testimonialsVisibleHeight) {
       this.allTestimonialsVisible = true;
     }
+    // Vue replaces the page's DOM on mount, so a browser that already tried the /#newsletter jump (e.g. Firefox) can be left at the top.
+    if(window.location.hash === '#newsletter') {
+      this.$el.querySelector('#newsletter').scrollIntoView();
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -80,6 +95,8 @@ parasails.registerPage('homepage', {
       if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 18587089 }); }// eslint-disable-line camelcase
       if(report.icp){
         if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo__icp'); }
+        window.uetq = window.uetq || [];
+        window.uetq.push('event', 'fleet_website__contact_forms__demo__icp', {});
         if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 27493081 }); } // eslint-disable-line camelcase
       } else {
         if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo'); }
@@ -96,6 +113,14 @@ parasails.registerPage('homepage', {
         qualified('showFormExperience', 'experience-1772126772950');
       }
       this.goto(report.eventUrl);
+    },
+    submittedNewsletterForm: function() {
+      this.newsletterCloudSuccess = true;
+      this.newsletterFormData = {};
+      clearTimeout(this.newsletterSuccessTimeout);
+      this.newsletterSuccessTimeout = setTimeout(()=>{
+        this.newsletterCloudSuccess = false;
+      }, 10000);
     },
     animateTicker: function(tickerOptionPurpose) {
       let tickerOptionSelector = `[purpose="${tickerOptionPurpose}"]`;
