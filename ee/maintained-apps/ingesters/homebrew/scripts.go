@@ -1220,21 +1220,18 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 }
 `
 
-// relaunchApplicationFunc relaunches an application if it was running before installation.
-// Checks the APP_WAS_RUNNING_<bundle_id> environment variable set by quitAndTrackApplicationFunc.
-// The install script runs as root, but GUI apps must be launched in the logged-in
-// user's session (not root's) to appear in the user's Dock/GUI. We therefore use
-// 'sudo -u "$console_user" open' rather than 'osascript ... to activate', since
-// the latter fails when launching an app that isn't already running from a root
-// context.
-// relaunchApplicationFunc relaunches an app that quit_and_track_application
-// quit before the install. With an app path it opens that bundle, otherwise
-// (pkg installs, casks with several apps) it opens the bundle ID. Opening by
-// bundle ID right after the app is replaced has failed for some apps (Affinity,
-// Rider) while opening by path worked, and macOS can take a minute or more to
-// check a freshly copied bundle, so it retries every 10 seconds for up to 2
-// minutes and logs open's error for each failed attempt. A relaunch that keeps
-// failing doesn't fail the install.
+// relaunchApplicationFunc relaunches an app that quit_and_track_application quit
+// before the install. It checks the APP_WAS_RUNNING_<bundle_id> variable that
+// helper sets. The install script runs as root, but GUI apps must be launched in
+// the logged-in user's session to appear in their Dock, so it uses 'open' as the
+// console user rather than 'osascript ... to activate', which fails from a root
+// context for an app that isn't already running. With an app path it opens that
+// bundle, otherwise (pkg installs, casks with several apps) it opens the bundle
+// ID: opening by bundle ID right after the app is replaced has failed for some
+// apps (Affinity, Rider, Grammarly) where opening by path worked. Those reports
+// all say opening the app by hand straight afterwards works, so the retry budget
+// is 30 seconds; a longer one holds up the next queued install for no gain. A
+// relaunch that keeps failing doesn't fail the install.
 const relaunchApplicationFunc = `relaunch_application() {
   local bundle_id="$1"
   local app_path="$2"
@@ -1263,7 +1260,8 @@ const relaunchApplicationFunc = `relaunch_application() {
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
   local open_args=(-b "$bundle_id")
   [[ -z "$app_path" ]] || open_args=("$app_path")
-  local attempt=0 open_status open_output
+  local timeout_duration=30
+  local attempt=0 delay=2 open_status open_output
   SECONDS=0
   while true; do
     attempt=$((attempt + 1))
@@ -1281,10 +1279,11 @@ const relaunchApplicationFunc = `relaunch_application() {
       return
     fi
     echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
-    if (( SECONDS >= 120 )); then
-      break
-    fi
-    sleep 10
+    # Back off 2, 4, 8, then 10 seconds, stopping before the budget is spent
+    # rather than after, so a failing relaunch never runs past it.
+    (( SECONDS + delay <= timeout_duration )) || break
+    sleep "$delay"
+    delay=$(( delay * 2 > 10 ? 10 : delay * 2 ))
   done
   echo "Failed to relaunch application '$bundle_id'."
 }

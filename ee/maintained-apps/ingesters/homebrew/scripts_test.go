@@ -1366,9 +1366,9 @@ osascript() {
 
 // TestInstallScriptRelaunchRetriesAndLogs runs generated install scripts with
 // osascript and open stubbed out. An app installed from a single .app is
-// relaunched by path, otherwise by bundle ID; a failed open is retried every
-// 10 seconds for up to 2 minutes with its error logged, and a relaunch that
-// keeps failing doesn't fail the install.
+// relaunched by path, otherwise by bundle ID; a failed open is retried with a
+// backoff for up to 30 seconds with its error logged, and a relaunch that keeps
+// failing doesn't fail the install.
 func TestInstallScriptRelaunchRetriesAndLogs(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
@@ -1474,14 +1474,15 @@ osascript() {
 			require.NotContains(t, out, failure)
 			require.Equal(t, []string{want, want, want}, opened)
 
-			// sleep advances SECONDS, so the last attempt starts at the 120-second
-			// deadline: 13 attempts in all.
+			// sleep advances SECONDS, so attempts land at 0, 2, 6, 14 and 24
+			// seconds; a sixth would run past the 30-second budget, so the loop
+			// stops at 5 without overshooting.
 			out, opened = run(t, true, 100)
-			require.Contains(t, out, attempt(13))
-			require.NotContains(t, out, attempt(14))
+			require.Contains(t, out, attempt(5))
+			require.NotContains(t, out, attempt(6))
 			require.Contains(t, out, failure)
 			require.NotContains(t, out, success)
-			require.Len(t, opened, 13)
+			require.Len(t, opened, 5)
 		})
 	}
 }
