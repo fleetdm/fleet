@@ -452,9 +452,9 @@ function render() {
       h("p", { class: "panel-note" }, `A Mac with an update queued for ${STUCK} days or more is likely stuck. A deadline in Fleet's OS updates settings makes the install mandatory.`)]);
 
   // Tail
-  mount("laggards", laggards.length ? h("div", { class: "bars" }, barRows(laggards.slice(0, 8).map((l) => ({
+  mount("laggards", laggards.length ? barRows(laggards.slice(0, 8).map((l) => ({
     label: DATA.hosts[l.hid].n, valueText: fmt.plural(l.ts.length, "app"),
-    segs: [{ value: l.ts.length, color: "var(--warn)", tip: `${DATA.hosts[l.hid].n} is behind on ${l.ts.slice(0, 8).map((t) => t.name).join(", ")}${l.ts.length > 8 ? "…" : ""}` }] }))))
+    segs: [{ value: l.ts.length, color: "var(--warn)", tip: `${DATA.hosts[l.hid].n} is behind on ${l.ts.slice(0, 8).map((t) => t.name).join(", ")}${l.ts.length > 8 ? "…" : ""}` }] })))
     : empty("Nothing is behind", ""));
   const slow = Object.entries(byHost).filter(([, [cnt]]) => cnt >= 2).map(([hid, [cnt, total]]) => ({ hid, m: total / cnt, n: cnt })).sort((a, b) => b.m - a.m).slice(0, 8);
   mount("slow", slow.length ? barRows(slow.map((s) => ({ label: DATA.hosts[s.hid]?.n ?? `Host ${s.hid}`, valueText: fmt.days(s.m),

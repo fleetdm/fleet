@@ -65,9 +65,6 @@ var softwareInsertBatchSize = 1000
 // outside the main software ingestion transaction. Smaller batches reduce lock contention.
 var softwareInventoryInsertBatchSize = 100
 
-// softwareMetadataBatchSize bounds the software IDs per software_metadata lookup.
-const softwareMetadataBatchSize = 1000
-
 // cleanupBatchSize controls how many orphaned software rows are deleted per batch during SyncHostsSoftware cleanup.
 // Smaller batches hold locks for shorter durations, reducing contention with concurrent software ingestion.
 var cleanupBatchSize = 1000
@@ -716,10 +713,12 @@ SELECT
     s.extension_id,
     s.upgrade_code,
     s.ai_tool,
-    hs.last_opened_at
+    hs.last_opened_at,
+    sm.epoch
 FROM
     software s
     JOIN host_software hs ON hs.software_id = s.id
+    LEFT JOIN software_metadata sm ON sm.software_id = s.id
 WHERE
     hs.host_id = ?
 `
@@ -791,9 +790,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware)
 	if noChanges {
-		// TODO: This is to backfill existing data ... we should be able to remove this call after a couple of releases?
-		// Benchmark showed no meaningful impact to performance
-		ds.reconcileSoftwareMetadata(ctx, hostID, current, incoming, nil)
 		return r, nil
 	}
 
@@ -839,6 +835,10 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Inserted = inserted
 
+			if err = correctStoredEpochsDB(ctx, tx, deleted, inserted); err != nil {
+				return err
+			}
+
 			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, r.Inserted, hostID); err != nil {
 				return err
 			}
@@ -863,88 +863,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		}
 		return nil, err
 	}
-	ds.reconcileSoftwareMetadata(ctx, hostID, current, incoming, r.Inserted)
 	return r, nil
-}
-
-// reconcileSoftwareMetadata stores the metadata the host reported for its software where it differs
-// from what is stored. Metadata is shared by every host with that software, so only the first host
-// to report it writes; later hosts just read. Errors are logged instead of returned because the
-// metadata is only used for vulnerability detection and must not block inventory updates; the next
-// software report retries.
-func (ds *Datastore) reconcileSoftwareMetadata(
-	ctx context.Context,
-	hostID uint,
-	current, incoming map[string]fleet.Software,
-	inserted []fleet.Software,
-) {
-	reported := make(map[uint]fleet.SoftwareMetadata)
-	for uniqueStr, sw := range incoming {
-		if sw.Epoch == nil {
-			continue
-		}
-		if cur, ok := current[uniqueStr]; ok {
-			reported[cur.ID] = sw.SoftwareMetadata
-		}
-	}
-	for _, sw := range inserted {
-		if sw.Epoch != nil {
-			reported[sw.ID] = sw.SoftwareMetadata
-		}
-	}
-	if len(reported) == 0 {
-		return
-	}
-	if err := ds.upsertChangedSoftwareMetadata(ctx, reported); err != nil {
-		ds.logger.ErrorContext(ctx, "updating software metadata", "host_id", hostID, "err", err)
-	}
-}
-
-type softwareMetadataRow struct {
-	SoftwareID uint `db:"software_id"`
-	fleet.SoftwareMetadata
-}
-
-func (ds *Datastore) upsertChangedSoftwareMetadata(ctx context.Context, reported map[uint]fleet.SoftwareMetadata) error {
-	ids := slices.Sorted(maps.Keys(reported))
-
-	stored := make(map[uint]fleet.SoftwareMetadata, len(ids))
-	if err := common_mysql.BatchProcessSimple(ids, softwareMetadataBatchSize, func(batch []uint) error {
-		stmt, args, err := sqlx.In(`SELECT software_id, epoch FROM software_metadata WHERE software_id IN (?)`, batch)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build select software metadata query")
-		}
-		var rows []softwareMetadataRow
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "select software metadata")
-		}
-		for _, row := range rows {
-			stored[row.SoftwareID] = row.SoftwareMetadata
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	// Sorted by software ID so that concurrent hosts lock rows in the same order.
-	var changed []softwareMetadataRow
-	for _, id := range ids {
-		if md := reported[id]; !ptr.Equal(md.Epoch, stored[id].Epoch) {
-			changed = append(changed, softwareMetadataRow{SoftwareID: id, SoftwareMetadata: md})
-		}
-	}
-	return common_mysql.BatchProcessSimple(changed, softwareInventoryInsertBatchSize, func(batch []softwareMetadataRow) error {
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ",")
-		args := make([]any, 0, len(batch)*2)
-		for _, row := range batch {
-			args = append(args, row.SoftwareID, row.Epoch)
-		}
-		stmt := fmt.Sprintf(`INSERT INTO software_metadata (software_id, epoch) VALUES %s ON DUPLICATE KEY UPDATE epoch = VALUES(epoch)`, values)
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "upsert software metadata")
-		}
-		return nil
-	})
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -1858,11 +1777,101 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				return ctxerr.Wrap(ctx, err, "pre-insert software")
 			}
 
-			return nil
+			return insertSoftwareMetadataDB(ctx, tx, batchSoftware)
 		})
 	})
 
 	return err
+}
+
+// insertSoftwareMetadataDB stores the metadata of software rows in the same transaction that
+// creates them. The metadata is part of the row's checksum, so a row that already existed has
+// the same metadata and the insert is a no-op.
+func insertSoftwareMetadataDB(ctx context.Context, tx sqlx.ExtContext, softwareByChecksum map[string]fleet.Software) error {
+	var checksums []string
+	for checksum, sw := range softwareByChecksum {
+		if ptr.ValOrZero(sw.Epoch) > 0 {
+			checksums = append(checksums, checksum)
+		}
+	}
+	if len(checksums) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(`SELECT id, checksum FROM software WHERE checksum IN (?)`, checksums)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select software ids for metadata query")
+	}
+	type softwareIDChecksum struct {
+		ID       uint   `db:"id"`
+		Checksum string `db:"checksum"`
+	}
+	var rows []softwareIDChecksum
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select software ids for metadata")
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(rows)), ",")
+	args = make([]any, 0, len(rows)*2)
+	for _, row := range rows {
+		args = append(args, row.ID, softwareByChecksum[row.Checksum].Epoch)
+	}
+	stmt = fmt.Sprintf(`INSERT IGNORE INTO software_metadata (software_id, epoch) VALUES %s`, values)
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert software metadata")
+	}
+	return nil
+}
+
+// correctStoredEpochsDB makes the stored epoch of the rows the host was unlinked from and linked
+// back to in the same report match the reported one. A report links to a row by checksum and the
+// checksum includes the epoch, so the reported epoch is the row's own. The two only differ when a
+// server from before the epoch was part of the checksum wrote the stored one, and hosts would
+// otherwise relink to that row on every report.
+func correctStoredEpochsDB(ctx context.Context, tx sqlx.ExtContext, deleted, inserted []fleet.Software) error {
+	if len(deleted) == 0 || len(inserted) == 0 {
+		return nil
+	}
+	storedEpochs := make(map[uint]uint32, len(deleted))
+	for _, sw := range deleted {
+		storedEpochs[sw.ID] = ptr.ValOrZero(sw.Epoch)
+	}
+
+	var toClear []uint
+	var toSet []any
+	for _, sw := range inserted {
+		stored, relinked := storedEpochs[sw.ID]
+		reported := ptr.ValOrZero(sw.Epoch)
+		switch {
+		case !relinked || stored == reported:
+		case reported == 0:
+			toClear = append(toClear, sw.ID)
+		default:
+			toSet = append(toSet, sw.ID, reported)
+		}
+	}
+
+	if len(toClear) > 0 {
+		stmt, args, err := sqlx.In(`DELETE FROM software_metadata WHERE software_id IN (?)`, toClear)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build clear stored epochs query")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear stored epochs")
+		}
+	}
+	if len(toSet) > 0 {
+		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(toSet)/2), ",")
+		stmt := fmt.Sprintf(
+			`INSERT INTO software_metadata (software_id, epoch) VALUES %s ON DUPLICATE KEY UPDATE epoch = VALUES(epoch)`, values)
+		if _, err := tx.ExecContext(ctx, stmt, toSet...); err != nil {
+			return ctxerr.Wrap(ctx, err, "correct stored epochs")
+		}
+	}
+	return nil
 }
 
 // linkSoftwareToHost links pre-inserted software to a host.

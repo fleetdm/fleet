@@ -1613,7 +1613,9 @@ GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
 
 1. Add the new names to EDR, monitoring, and firewall rules.
    - Keep the old names until every host runs the new fleetd.
+   - On Linux, update checks that match the process name `orbit`, like `pgrep -x orbit` or `processes.name = 'orbit'`. The Fleet server's process is also named `fleet`, so on a host that runs both, match the path `/opt/orbit/bin/orbit/orbit` instead.
 2. Update policies and scripts that match "Fleet osquery" in the `programs` table so they match "Fleet" too, including copies of Fleet's Windows uninstall script.
+   - Match "Fleet" only with the publisher "Fleet Device Management (fleetdm.com)". Other apps, like JetBrains Fleet, are also named "Fleet".
    - Repairing fleetd from the installer brings "Fleet osquery" back until fleetd renames it again.
    - On upgraded Fleet servers, the Software page keeps listing it as "Fleet osquery". New Fleet 5 servers list "Fleet".
 
