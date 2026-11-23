@@ -584,7 +584,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
-		{"testdata/gitops/team_vpp_valid_app.yml", `"Earth" VPP token is expired. Please renew it.`, time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_app.yml", `VPP token "Earth" is expired. Please renew it and try again.`, time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
 		{"testdata/gitops/team_vpp_invalid_app.yml", `isn't available in the "Earth" VPP token`, time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
@@ -628,7 +628,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		},
 		// The dry run must report an unavailable app the same way the real apply
 		// does, including for a team that does not exist yet.
-		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}, true},
+		{"testdata/gitops/team_vpp_invalid_app.yml", `Couldn't apply. App "999999999" isn't available in any VPP token. Please purchase a license in Apple Business and try again.`, time.Now().Add(24 * time.Hour), map[string]uint{}, true},
 		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, true},
 	}
 
@@ -1247,6 +1247,106 @@ software:
 	}
 }
 
+func TestGitOpsVPPUnassignedKeepsNoTeamAssignment(t *testing.T) {
+	testing_utils.StartAndServeVPPServer(t)
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+	renewDate := time.Now().Add(24 * time.Hour)
+	token, err := test.CreateVPPTokenEncoded(renewDate, "fleet", "ca")
+	require.NoError(t, err)
+
+	teamName := "Workstations"
+	team := &fleet.Team{ID: 42, Name: teamName}
+	savedTeams[teamName] = &team
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+
+	vppToken := &fleet.VPPTokenDB{
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       []fleet.TeamTuple{{ID: 0, Name: fleet.DisplayNameNoTeam}, {ID: team.ID, Name: teamName}},
+		CountryCode: "us",
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		tok := *vppToken
+		return []*fleet.VPPTokenDB{&tok}, nil
+	}
+	var updateCalls [][]uint
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		updateCalls = append(updateCalls, teams)
+		return vppToken, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+
+	globalCfg := fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+  mdm:
+    volume_purchasing_program:
+      - location: Earth
+        fleets:
+          - Unassigned
+          - %q
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "FLEET_GLOBAL_ENROLL_SECRET"
+`, teamName)
+	teamCfg := fmt.Sprintf(`
+name: %q
+settings:
+  secrets:
+    - secret: "%s-secret"
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, teamName, teamName)
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalCfg), 0o644))
+	teamFile := filepath.Join(tmpDir, "workstations.yml")
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg), 0o644))
+
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile})
+	require.NoError(t, err)
+
+	require.NotEmpty(t, updateCalls)
+	for i, call := range updateCalls {
+		assert.Contains(t, call, uint(0),
+			"UpdateVPPTokenTeams call %d dropped No team, which deletes the token's Unassigned App Store apps", i)
+		assert.ElementsMatch(t, []uint{0, team.ID}, call, "UpdateVPPTokenTeams call %d", i)
+	}
+}
+
 // TestGitOpsABMMissingTeamKeepsExistingAssignments is the apple_business analog of
 // TestGitOpsVPPMissingTeamKeepsExistingAssignments (issue #51687): when an ABM entry
 // references a team that doesn't exist yet, the interim config must keep every
@@ -1403,7 +1503,7 @@ software:
 // missing (new) team strips the VPP config and re-applies it after teams are
 // created; that re-apply must validate referenced teams against teams that exist in
 // Fleet, not only against teams whose files were supplied this run. Previously this
-// errored with "volume_purchasing_program team <existing> not found in team configs".
+// errored with "volume_purchasing_program fleet <existing> not found in fleet configs".
 func TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam(t *testing.T) {
 	testing_utils.StartAndServeVPPServer(t)
 	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
@@ -1624,14 +1724,14 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "volume_purchasing_program fleet 📱🏢 Company-owned iPhones not found in fleet configs")
 			},
 			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.ErrorContains(t, err, "volume_purchasing_program team 📱🏢 Company-owned iPhones not found in team configs")
+				assert.ErrorContains(t, err, "volume_purchasing_program fleet 📱🏢 Company-owned iPhones not found in fleet configs")
 			},
 		},
 		{
-			name: "no team is supported",
+			name: "Unassigned is supported",
 			cfgs: []string{
 				global(`
                                   volume_purchasing_program:
@@ -1639,26 +1739,26 @@ software:
                                       fleets:
                                         - "💻 Workstations"
                                         - "📱🏢 Company-owned iPhones"
-                                        - "No team"`),
+                                        - "Unassigned"`),
 				workstations,
 				iosTeam,
 			},
 			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Empty(t, vppTeams)
 				assert.Contains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, map[string][]string{
-					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", "No team"},
+					"Fleet Device Management Inc.": {"💻 Workstations", "📱🏢 Company-owned iPhones", "Unassigned"},
 					"Acme Inc.":                    nil,
 				}, vppTeams)
 				assert.Contains(t, out, "[!] gitops succeeded")
 			},
 		},
 		{
-			name: "all teams is supported",
+			name: "all teams is rejected",
 			cfgs: []string{
 				global(`
                         volume_purchasing_program:
@@ -1669,17 +1769,10 @@ software:
 				iosTeam,
 			},
 			dryRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
-				assert.Empty(t, vppTeams)
-				assert.Contains(t, out, "[!] gitops dry run succeeded")
+				assert.ErrorContains(t, err, `"All teams" was removed in Fleet 5. Use "All fleets" instead.`)
 			},
 			realRunAssertion: func(t *testing.T, vppTeams map[string][]string, out string, err error) {
-				assert.NoError(t, err)
-				assert.Equal(t, map[string][]string{
-					"Fleet Device Management Inc.": {"All fleets"},
-					"Acme Inc.":                    nil,
-				}, vppTeams)
-				assert.Contains(t, out, "[!] gitops succeeded")
+				assert.ErrorContains(t, err, `"All teams" was removed in Fleet 5. Use "All fleets" instead.`)
 			},
 		},
 		{
@@ -1780,7 +1873,7 @@ software:
 				return &fleet.VPPTokenDB{ID: id}, nil
 			}
 			vppTeams := func() map[string][]string {
-				teamNames := map[uint]string{0: fleet.TeamNameNoTeam}
+				teamNames := map[uint]string{0: fleet.DisplayNameNoTeam}
 				for _, tm := range savedTeams {
 					teamNames[(*tm).ID] = (*tm).Name
 				}

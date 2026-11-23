@@ -275,8 +275,8 @@ settings:
   integrations:
     conditional_access_enabled: true
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
     - labels_include_all:
       - Company Portal installed
       path: ../lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig

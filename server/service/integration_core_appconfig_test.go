@@ -144,7 +144,7 @@ func (s *integrationTestSuite) TestRemovedReportServerSettingsKeys() {
 		[]byte(`{"server_settings": {"live_reporting_disabled": true, "discard_reports_data": true, "report_cap": 1234}}`), http.StatusOK)
 
 	removedMsg := func(key string) string {
-		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 	for _, tc := range []struct{ name, path, body, want string }{
 		{"live_query_disabled", "/api/latest/fleet/config", `{"server_settings": {"live_query_disabled": false}}`, removedMsg("live_query_disabled")},
@@ -1812,6 +1812,19 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
 	assert.NotEmpty(t, verResp.Branch)
 
+	// fleetctl 4's version check gets 426 even with a valid token, and fleetctl 5's still gets the version.
+	versionHeaders := func(userAgent string) map[string]string {
+		return map[string]string{
+			"Authorization": "Bearer " + s.token, "User-Agent": userAgent, "Content-Type": "application/json", "Accept": "application/json",
+		}
+	}
+	s.DoRawWithHeaders("GET", "/api/latest/fleet/version", nil, http.StatusUpgradeRequired, versionHeaders("Go-http-client/1.1")).Body.Close()
+	verRes := s.DoRawWithHeaders("GET", "/api/latest/fleet/version", nil, http.StatusOK, versionHeaders("fleetctl/unknown"))
+	verResp = versionResponse{}
+	require.NoError(t, json.NewDecoder(verRes.Body).Decode(&verResp))
+	verRes.Body.Close()
+	assert.NotEmpty(t, verResp.Branch)
+
 	// get enroll secrets, none yet
 	var specResp getEnrollSecretSpecResponse
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
@@ -1902,7 +1915,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// legacy config
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+		"mdm": { "apple_settings": { "enable_disk_encryption": true } }
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
@@ -2110,7 +2123,7 @@ func (s *integrationTestSuite) TestRemovedOrgLogoConfigKeys() {
 	})
 
 	removedMsg := func(key string) string {
-		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 	for _, tc := range []struct{ name, key string }{
 		{"dark", "org_logo_url"},

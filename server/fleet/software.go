@@ -3,6 +3,7 @@ package fleet
 import (
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -165,12 +166,21 @@ type Software struct {
 	DisplayName string `json:"display_name"`
 }
 
-// SoftwareMetadata holds per-software data, stored in the software_metadata table, that is the same
-// on every host with that software but is not part of its identity (not in ToUniqueStr or the
-// checksum), so that collecting a new field doesn't create new software rows.
+// SoftwareMetadata holds per-software data stored in the software_metadata table. It is written
+// when the software row is created.
 type SoftwareMetadata struct {
-	// Epoch is the RPM package epoch, only set when greater than 0.
+	// Epoch is the RPM package epoch, only set when greater than 0. It is part of the software's
+	// identity (ToUniqueStr and the checksum), so every host linked to a row reported its epoch.
 	Epoch *uint32 `json:"-" db:"epoch"`
+}
+
+// epochIdentity returns the epoch as it appears in the software's identity, or "" for software
+// without one. Epoch 0 is the same as no epoch, so it keeps the identity of software without one.
+func (m SoftwareMetadata) epochIdentity() string {
+	if m.Epoch == nil || *m.Epoch == 0 {
+		return ""
+	}
+	return "epoch:" + strconv.FormatUint(uint64(*m.Epoch), 10)
 }
 
 func (Software) AuthzType() string {
@@ -238,6 +248,9 @@ func (s Software) ToUniqueStr() string {
 	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
 		ss = append(ss, *s.UpgradeCode)
 	}
+	if epoch := s.epochIdentity(); epoch != "" {
+		ss = append(ss, epoch)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
@@ -267,7 +280,19 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return h.Sum(nil), nil
+	sum := h.Sum(nil)
+
+	// The epoch is reported by the host and changes vulnerability matching, so it is part of the
+	// identity: a host reporting a different epoch can't change what other hosts are matched with.
+	// It is hashed with the checksum of the other fields, in hex, instead of joined as one more
+	// field. What is hashed then has no NUL, while software without an epoch always hashes
+	// several, so that software can't have the checksum of software with an epoch, whatever its
+	// fields contain.
+	if epoch := s.epochIdentity(); epoch != "" {
+		withEpoch := md5.Sum([]byte(hex.EncodeToString(sum) + epoch)) //nolint:gosec // see above
+		sum = withEpoch[:]
+	}
+	return sum, nil
 }
 
 // SoftwareLite is a lightweight subset of Software, useful for exposing minimal information from a full Software record
@@ -963,6 +988,15 @@ func SoftwareFromOsqueryRow(
 	}
 	if source == "" {
 		return nil, errors.New("host reported software with empty source")
+	}
+	// ToUniqueStr and the checksum join fields with a NUL, so a field that contains one reads as
+	// two and can take the identity of different software.
+	for _, field := range []string{
+		name, version, source, vendor, release, arch, bundleIdentifier, extensionId, extensionFor, upgradeCode,
+	} {
+		if strings.Contains(field, SoftwareFieldSeparator) {
+			return nil, errors.New("host reported software with a NUL character")
+		}
 	}
 
 	// We don't fail if only the last_opened_at cannot be parsed.

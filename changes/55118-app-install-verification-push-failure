@@ -1,0 +1,1 @@
+- Fixed a bug where a failed APNs push during App Store or in-house app install verification made Fleet send a growing number of duplicate verification commands to the host.

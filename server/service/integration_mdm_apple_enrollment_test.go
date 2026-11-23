@@ -378,9 +378,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "abc", tok.AppleID)
 	require.Equal(t, defaultOrgName, tok.OrganizationName)
 	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeam.Name)
 
 	// for tmOrgName
 	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
@@ -389,9 +389,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "abc", tok.AppleID)
 	require.Equal(t, tmOrgName, tok.OrganizationName)
 	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeam.Name)
 
 	s.DoJSON("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK, &countTokensResp)
 	assert.Equal(t, 2, countTokensResp.Count)
@@ -452,9 +452,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "abc", tok.AppleID)
 	require.Equal(t, tmOrgName, tok.OrganizationName)
 	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeam.Name)
 }
 
 func (s *integrationMDMTestSuite) getABMTokenByName(orgName string, tokens []*fleet.ABMToken) *fleet.ABMToken {

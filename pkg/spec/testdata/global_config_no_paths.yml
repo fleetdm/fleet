@@ -1,10 +1,10 @@
 # Test config
 controls: # Controls added to "No team"
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ./lib/macos-password.mobileconfig
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ./lib/windows-screenlock.xml
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
@@ -171,7 +171,6 @@ org_settings:
       destination_url: https://host.docker.internal:8080/bozo
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: []
     host_status_webhook:
       days_count: 0
       destination_url: ""

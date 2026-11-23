@@ -4,6 +4,5 @@
   "unique_identifier": "ai.perplexity.comet",
   "token": "comet",
   "installer_format": "dmg",
-  "default_categories": ["Browsers"],
-  "frozen": true
+  "default_categories": ["Browsers"]
 }

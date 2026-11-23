@@ -340,8 +340,8 @@ spec:
   fleet:
     name: team1
     mdm:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - %s
 `, mobileCfgPath))
 
@@ -486,8 +486,8 @@ spec:
       windows_updates:
         deadline_days:
         grace_period_days:
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
 `)
 
 	newMDMSettings = fleet.TeamMDM{
@@ -1604,8 +1604,8 @@ spec:
       windows_updates:
         deadline_days: 0
         grace_period_days: 1
-      macos_settings:
-        custom_settings:
+      apple_settings:
+        configuration_profiles:
           - %s
     secrets:
       - secret: BBB
@@ -2464,12 +2464,12 @@ spec:
 		ds := setupServer(t, true)
 
 		// The config doesn't save the setup assistant, so check whether one is saved on its own for
-		// each fleet name, or fleet.TeamNameNoTeam.
+		// each fleet name, or fleet.DisplayNameNoTeam.
 		assertSavedSetupAssistants := func(want map[string]bool) {
 			t.Helper()
 			for teamName, wantSaved := range want {
 				var teamID *uint
-				if teamName != fleet.TeamNameNoTeam {
+				if teamName != fleet.DisplayNameNoTeam {
 					tm, err := ds.TeamByNameFunc(t.Context(), teamName)
 					require.NoError(t, err)
 					teamID = &tm.ID
@@ -2509,7 +2509,7 @@ spec:
 		// get without setup assistant set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: false, "tm1": false})
 
 		// apply with dry-run, appconfig
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
@@ -2526,7 +2526,7 @@ spec:
 		// get, setup assistant still not set
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: false, "tm1": false})
 
 		// apply appconfig for real, and enable release device
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
@@ -2544,7 +2544,7 @@ spec:
 		// get, setup assistant is now set
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// a value of the wrong type fails instead of reading as empty, which would delete the item
 		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
@@ -2564,7 +2564,7 @@ spec:
 		assert.False(t, ds.DeleteMDMAppleBootstrapPackageFuncInvoked)
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 		assert.False(t, ds.SaveTeamFuncInvoked)
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// clear with dry-run, appconfig
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
@@ -2605,7 +2605,7 @@ spec:
 		// get, results unchanged
 		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: true, "tm1": true, "tm2": true})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: true, "tm1": true, "tm2": true})
 
 		// clear appconfig for real
 		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
@@ -2626,7 +2626,7 @@ spec:
 		// get, results now empty
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "fleets", "--yaml"}))
-		assertSavedSetupAssistants(map[string]bool{fleet.TeamNameNoTeam: false, "tm1": false, "tm2": false})
+		assertSavedSetupAssistants(map[string]bool{fleet.DisplayNameNoTeam: false, "tm1": false, "tm2": false})
 
 		// apply team 1 with an empty setup assistant key and enable device release
 		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true", "true"))
@@ -3761,8 +3761,6 @@ spec:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
       destination_url: ""
-      policy_ids:
-        - 1
       host_batch_size: 1000
     interval: 1h
 `,
@@ -3997,7 +3995,7 @@ spec:
     enable_recovery_lock_password: true
 `,
 			wantErr: `The "enable_recovery_lock_password" parameter is not available anymore. ` +
-				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "fleet with a removed key cannot be forced",
@@ -4013,7 +4011,40 @@ spec:
 `,
 			flags: []string{"--force"},
 			wantErr: `The "require_all_software_windows" parameter is not available anymore. ` +
-				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
+		},
+		{
+			desc: "app config with failing policies webhook policy_ids",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://example.com/webhook
+      policy_ids: [1]
+`,
+			wantErr: `The "policy_ids" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
+		},
+		{
+			desc: "fleet with failing policies webhook policy_ids cannot be forced",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    webhook_settings:
+      failing_policies_webhook:
+        enable_failing_policies_webhook: true
+        destination_url: https://example.com/webhook
+        policy_ids: [1]
+`,
+			flags: []string{"--force"},
+			wantErr: `The "policy_ids" parameter is not available anymore. ` +
+				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config windows_updates.grace_period_days not a number",
@@ -4055,7 +4086,7 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption without a value",
+			desc: "app config apple_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4067,7 +4098,7 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption with invalid value type",
+			desc: "app config apple_settings.enable_disk_encryption with invalid value type",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4079,7 +4110,7 @@ spec:
 			wantErr: `400 Bad request: failed to decode app config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption true",
+			desc: "app config apple_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4093,7 +4124,7 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
-			desc: "app config macos_settings.enable_disk_encryption false",
+			desc: "app config apple_settings.enable_disk_encryption false",
 			spec: `
 apiVersion: v1
 kind: config
@@ -4107,7 +4138,7 @@ spec:
 		{
 			// an explicit null means "not provided", matching the app config
 			// path (the per-platform optjson fields serialize unset as null)
-			desc: "team config macos_settings.enable_disk_encryption without a value",
+			desc: "team config apple_settings.enable_disk_encryption without a value",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4121,7 +4152,7 @@ spec:
 			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
-			desc: "team config macos_settings.enable_disk_encryption with invalid value type",
+			desc: "team config apple_settings.enable_disk_encryption with invalid value type",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4132,10 +4163,10 @@ spec:
       apple_settings:
         enable_disk_encryption: 123
 `,
-			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
+			wantErr: `400 Bad Request: invalid value type at 'apple_settings.enable_disk_encryption': expected bool but got float64`,
 		},
 		{
-			desc: "team custom_settings invalid path",
+			desc: "team configuration_profiles invalid path",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4144,14 +4175,13 @@ spec:
     name: team1
     mdm:
       apple_settings:
-        custom_settings:
+        configuration_profiles:
           - path: 123
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'path': expected string but got number`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'path': expected string but got number`,
 		},
 		{
-			desc: "team custom_settings invalid labels",
+			desc: "team configuration_profiles invalid labels",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4160,15 +4190,14 @@ spec:
     name: team1
     mdm:
       apple_settings:
-        custom_settings:
+        configuration_profiles:
           - path: a
             labels: Engineering
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels': expected array of strings but got string`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels': expected array of strings but got string`,
 		},
 		{
-			desc: "team custom_settings invalid label element",
+			desc: "team configuration_profiles invalid label element",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4177,16 +4206,15 @@ spec:
     name: team1
     mdm:
       apple_settings:
-        custom_settings:
+        configuration_profiles:
           - path: a
             labels_include_any: [1, Engineering]
 `,
-			wantOutput: "[!] In fleet: `custom_settings` is deprecated, please use `configuration_profiles` instead.",
-			wantErr:    `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels_include_any.0': expected string but got number`,
+			wantErr: `fleet "team1": apple_settings.configuration_profiles: invalid value type at 'labels_include_any.0': expected string but got number`,
 		},
 		{
 			// macOS disk encryption doesn't require Apple MDM
-			desc: "team config macos_settings.enable_disk_encryption true",
+			desc: "team config apple_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4200,7 +4228,7 @@ spec:
 			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
-			desc: "team config macos_settings.enable_disk_encryption false",
+			desc: "team config apple_settings.enable_disk_encryption false",
 			spec: `
 apiVersion: v1
 kind: fleet
@@ -4259,7 +4287,7 @@ spec:
   mdm:
     windows_migration_enabled: true
 `,
-			wantErr: `The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config removed windows mdm enabled key",
@@ -4270,7 +4298,45 @@ spec:
   mdm:
     windows_enabled_and_configured: true
 `,
-			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
+		},
+		{
+			desc: "app config with the removed macos_settings key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_settings:
+      enable_disk_encryption: true
+`,
+			wantErr: `The "macos_settings" parameter is not available anymore.`,
+		},
+		{
+			desc: "app config with the removed custom_settings key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_settings:
+      custom_settings: []
+`,
+			wantErr: `The "custom_settings" parameter is not available anymore.`,
+		},
+		{
+			desc: "fleet with the removed custom_settings key under apple_settings",
+			spec: `
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: team1
+    mdm:
+      apple_settings:
+        custom_settings: []
+`,
+			wantErr: `The "custom_settings" parameter is not available anymore.`,
 		},
 		{
 			desc: "app config with a removed server setting",
@@ -4281,7 +4347,7 @@ spec:
   server_settings:
     query_report_cap: 200
 `,
-			wantErr: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "query_report_cap" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "app config with a removed server setting and its new name",
@@ -4293,7 +4359,7 @@ spec:
     live_query_disabled: true
     live_reporting_disabled: true
 `,
-			wantErr: `The "live_query_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "live_query_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

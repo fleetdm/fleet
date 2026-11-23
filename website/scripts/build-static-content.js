@@ -420,8 +420,8 @@ module.exports = {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains an HTML comment directly after a list that will cause rendering issues when converted to HTML. To resolve this error, add a blank newline before the start of the HTML comment in this file.`);
               }
               // Look for anything outside of code blocks in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
-              if (mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)) {
-                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
+              if (mdString.replace(/(`+)[\s\S]*?\1/g, '').match(/{{([^}]+)}}/)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.replace(/(`+)[\s\S]*?\1/g, '').match(/{{([^}]+)}}/)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
 
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
@@ -504,6 +504,17 @@ module.exports = {
               // This allows us to show embedded youtube videos to users who don't consent to the cookie banner on the website.
               htmlString = htmlString.replace(/(src="https?:\/\/(?:www\.)?youtube\.com\/embed\/[^"]*")/g, (srcString) => {
                 return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://www.youtube-nocookie.com/embed/$1');
+              });//∞
+
+              // Replace embedded content with the <embedded-content> component, which only loads the iframe if the visitor consented to cookies or chooses to load it.
+              // > An <iframe> in the page's HTML would start loading before any client-side code could check for consent.
+              htmlString = htmlString.replace(/<div purpose="embedded-content">\s*<iframe\s([^>]*)>\s*<\/iframe>\s*<\/div>/g, (embeddedContentHtml, iframeAttributes) => {
+                let iframeSrc = iframeAttributes.match(/(?:^|\s)src="([^"]*)"/);
+                if (!iframeSrc) {
+                  return embeddedContentHtml;
+                }
+                let iframeTitle = iframeAttributes.match(/(?:^|\s)title="([^"]*)"/);
+                return `<embedded-content src="${iframeSrc[1]}"${iframeTitle ? ` title="${iframeTitle[1]}"` : ''}></embedded-content>`;
               });//∞
 
               // Modify images in the /articles folder

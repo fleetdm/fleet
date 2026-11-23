@@ -6,7 +6,6 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "policy_id",
   "policy_response",
   "apple_settings",
-  "macos_settings",
   "software_version_id",
   "software_title_id",
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
@@ -42,7 +41,6 @@ export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
   HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
   "macos_bootstrap_package",
   "apple_settings",
-  "macos_settings",
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
   HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
 ] as const;

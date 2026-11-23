@@ -9,6 +9,5 @@
   "installer_arch": "arm64",
   "installer_type": "exe",
   "installer_scope": "machine",
-  "default_categories": ["Developer tools"],
-  "frozen": true
+  "default_categories": ["Developer tools"]
 }

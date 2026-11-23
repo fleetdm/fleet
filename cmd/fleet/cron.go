@@ -1410,11 +1410,12 @@ func newCleanupsAndAggregationSchedule(
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name                          = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval               = 1 * time.Hour
-		expiredHostsCleanupMaxRunTime = 10 * time.Minute
-		expiredHostsCleanupBatchSize  = 5000
-		installerCleanupMaxRunTime    = 10 * time.Minute
+		name                            = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval                 = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime   = 10 * time.Minute
+		hostAISessionsCleanupMaxRunTime = 3 * time.Minute
+		expiredHostsCleanupBatchSize    = 5000
+		installerCleanupMaxRunTime      = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1697,6 +1698,13 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
 			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
+		schedule.WithJob("cleanup_host_ai_sessions", func(ctx context.Context) error {
+			deleted, err := ds.CleanupHostAISessions(ctx, time.Now().UTC().Add(-fleet.HostAISessionsMaxAge), hostAISessionsCleanupMaxRunTime)
+			if deleted > 0 {
+				logger.InfoContext(ctx, "cleaned up host ai sessions", "count", deleted)
+			}
+			return err
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),
@@ -1971,7 +1979,7 @@ func newChartDataCollectionSchedule(
 				fleet.ListOptions{},
 			)
 			if err != nil {
-				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				logger.ErrorContext(ctx, "list fleets for chart scope", "err", err)
 				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
 			}
 			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, isPremium, logger))
@@ -3331,4 +3339,37 @@ func newAppStoreAppConfigurationReconcilerSchedule(
 	)
 
 	return s, nil
+}
+
+func newGoogleConditionalAccessSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccess, 5*time.Minute, "sync_google_conditional_access",
+		(*service.GoogleConditionalAccessSyncer).Sync)
+}
+
+func newGoogleConditionalAccessAndroidRetrySchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccessAndroidRetry, time.Hour, "retry_google_conditional_access_android_hosts",
+		(*service.GoogleConditionalAccessSyncer).RetryAndroidHosts)
+}
+
+func newGoogleConditionalAccessSyncerSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+	name fleet.CronScheduleName, interval time.Duration, jobID string,
+	job func(*service.GoogleConditionalAccessSyncer, context.Context) error,
+) (*schedule.Schedule, error) {
+	logger = logger.With("cron", string(name))
+	syncer := service.NewGoogleConditionalAccessSyncer(ds, clients, newActivityFn, logger)
+	return schedule.New(
+		ctx, string(name), instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(jobID, func(ctx context.Context) error { return job(syncer, ctx) }),
+	), nil
 }

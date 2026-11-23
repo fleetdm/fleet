@@ -8,10 +8,16 @@ import React from "react";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 import { SoftwareCategory } from "interfaces/software";
-import { baseUrl } from "test/default-handlers";
-import { listDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import {
+  emptyDeviceSelfServiceCategoriesHandler,
+  listDeviceSelfServiceCategoriesHandler,
+} from "test/handlers/self-service-categories-handlers";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  createMockRouter,
+} from "test/test-utils";
 
 import SelfServiceCard, {
   SelfServiceQueryParams,
@@ -77,6 +83,11 @@ const createTestProps = (
   pathname: "/device/software",
   onClickInstallAction: jest.fn(),
   ...overrides,
+});
+
+// The card loads the device's self-service categories when it renders.
+beforeEach(() => {
+  mockServer.use(emptyDeviceSelfServiceCategoriesHandler);
 });
 
 describe("SelfServiceCard", () => {
@@ -157,7 +168,7 @@ describe("SelfServiceCard", () => {
   });
 
   it("hides the category dropdown when the categories list is empty", async () => {
-    // Default handler is `emptyDeviceSelfServiceCategoriesHandler` — no .use() needed.
+    // The empty list comes from the handler registered for every test above.
     const props = createTestProps();
     const render = createCustomRenderer({ withBackendMock: true });
 

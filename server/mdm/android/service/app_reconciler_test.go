@@ -158,6 +158,15 @@ func TestReconcileAndroidApps(t *testing.T) {
 	ds.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc = func(ctx context.Context, afterHostUUID string, limit int) ([]string, error) {
 		return nil, nil
 	}
+	ds.ListAndroidFleetDefaultPolicyProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+		return nil, nil
+	}
+	ds.GetAndroidFleetDefaultPolicyChecksumsFunc = func(ctx context.Context) (map[uint][]byte, error) {
+		return nil, nil
+	}
+	ds.ListAndroidFleetDefaultPolicyDeletedFleetsFunc = func(ctx context.Context) ([]uint, error) {
+		return nil, nil
+	}
 
 	// profiles
 	ds.GetMDMAndroidReconcileCursorFunc = func(ctx context.Context) (string, error) {
@@ -944,6 +953,15 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		return nil
 	}
 	ds.ListAndroidHostUUIDsWithPendingCertificateTemplatesFunc = func(ctx context.Context, afterHostUUID string, limit int) ([]string, error) {
+		return nil, nil
+	}
+	ds.ListAndroidFleetDefaultPolicyProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+		return nil, nil
+	}
+	ds.GetAndroidFleetDefaultPolicyChecksumsFunc = func(ctx context.Context) (map[uint][]byte, error) {
+		return nil, nil
+	}
+	ds.ListAndroidFleetDefaultPolicyDeletedFleetsFunc = func(ctx context.Context) ([]uint, error) {
 		return nil, nil
 	}
 	ds.GetMDMAndroidReconcileCursorFunc = func(ctx context.Context) (string, error) {

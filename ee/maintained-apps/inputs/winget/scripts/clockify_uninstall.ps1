@@ -6,6 +6,7 @@
 #   3010 = success, reboot required
 #   1641 = success, reboot initiated
 
+$ErrorActionPreference = 'Stop'
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product
 $installDir = Join-Path $env:ProgramFiles "Clockify"
@@ -31,6 +32,8 @@ foreach ($product_code in $inst.RelatedProducts('{A17CEE88-470D-49D0-A58D-40D503
     }
 }
 
+# Shortcut cleanup is best-effort.
+$ErrorActionPreference = 'Continue'
 $shell = New-Object -ComObject WScript.Shell
 $shortcuts = @(Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Clockify.lnk")
 $profileList = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'

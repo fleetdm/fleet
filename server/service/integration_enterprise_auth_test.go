@@ -593,7 +593,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
+			Teams        []teamEntry   `json:"fleets"`
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -768,7 +768,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"fleets"` //nolint:apiparamcheck // test helper; matches server response shape
+			} `json:"fleets"`
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}
@@ -1105,10 +1105,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
 	t := s.T()
 	defer func() { s.token = s.getTestAdminToken() }()
 
-	const (
-		byID         = "/api/v1/fleet/reports/:id"
-		deprecatedID = "/api/v1/fleet/reports/id/:id"
-	)
+	const byID = "/api/v1/fleet/reports/:id"
 
 	createAPIOnlyMaintainer := func(name string, paths ...string) string {
 		s.token = s.getTestAdminToken()
@@ -1138,36 +1135,13 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
 		s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(name), Query: new("select 1")}, http.StatusOK, &resp)
 		return resp.Report
 	}
-	requireDenied := func(path string) {
-		res := s.Do("DELETE", path, nil, http.StatusForbidden)
-		body, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
-	}
 	byIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/%d", r.ID) }
-	deprecatedIDURL := func(r *fleet.Query) string { return fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID) }
 
-	t.Run("by-ID grant", func(t *testing.T) {
-		s.token = createAPIOnlyMaintainer("api-only-delete-report-by-id", byID)
-		r := createReport()
-		requireDenied(deprecatedIDURL(r))
-		s.Do("DELETE", byIDURL(r), nil, http.StatusOK)
-	})
-
-	t.Run("deprecated by-ID grant", func(t *testing.T) {
-		s.token = createAPIOnlyMaintainer("api-only-delete-report-deprecated-id", deprecatedID)
-		r := createReport()
-		requireDenied(byIDURL(r))
-		s.Do("DELETE", deprecatedIDURL(r), nil, http.StatusOK)
-	})
-
-	t.Run("both by-ID grants", func(t *testing.T) {
-		s.token = createAPIOnlyMaintainer("api-only-delete-report-both", byID, deprecatedID)
-		for _, del := range []func(*fleet.Query) string{byIDURL, deprecatedIDURL} {
-			r := createReport()
-			s.Do("DELETE", del(r), nil, http.StatusOK)
-		}
-	})
+	s.token = createAPIOnlyMaintainer("api-only-delete-report-by-id", byID)
+	r := createReport()
+	// The removed path answers 410 before the grant is checked.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/reports/id/%d", r.ID), nil, http.StatusGone)
+	s.Do("DELETE", byIDURL(r), nil, http.StatusOK)
 }
 
 // TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint

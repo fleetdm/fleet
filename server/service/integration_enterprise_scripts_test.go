@@ -121,7 +121,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// send the removed scripts_disabled setting as true and as false, both config updates should fail
-	removedSettingMsg := `The "scripts_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	removedSettingMsg := `The "scripts_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	res = s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings": {"scripts_disabled": true}}`), http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), removedSettingMsg)
 	res = s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings": {"scripts_disabled": false}}`), http.StatusUnprocessableEntity)
@@ -848,20 +848,20 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run sync with both script contents and team id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'fleet_id' is allowed.`)
 
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'fleet_id' is allowed.`)
 
 	// attempt to run sync with both script id and team id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'fleet_id' is allowed.`)
 
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'fleet_id' is allowed.`)
 
 	// attempt to run sync without script contents, script id, or script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)

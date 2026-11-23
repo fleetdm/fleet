@@ -193,6 +193,9 @@ describe("Host Actions Dropdown", () => {
       ["locking", "Live report is unavailable while host is locking."],
       ["unlocking", "Live report is unavailable while host is unlocking."],
       ["wiping", "Live report is unavailable while host is wiping."],
+      ["resetting", "Live report is unavailable while host is resetting."],
+      ["reset", "Live report is unavailable while host is reset."],
+      ["reset_wipe_pending", "Live report is unavailable while host is reset."],
       [
         "clearing_passcode",
         "Live report is unavailable while host is clearing passcode.",
@@ -1439,6 +1442,207 @@ describe("Host Actions Dropdown", () => {
           screen.getByText(/fleetd agent with --enable-scripts/i)
         ).toBeInTheDocument();
       });
+    });
+  });
+
+  describe("Reset action", () => {
+    const renderDropdown = ({
+      hostPlatform = "windows",
+      isWindowsMdmEnabledAndConfigured = true,
+      isConnectedToFleetMdm = true,
+      hostMdmDeviceStatus = "unlocked",
+      hostMdmEnrollmentStatus = "On (automatic)",
+      isPremiumTier = true,
+      isGlobalAdmin = true,
+      isGlobalMaintainer = false,
+      isGlobalObserver = false,
+      currentUser = createMockUser(),
+      hostTeamId = null,
+    }: {
+      hostPlatform?: string;
+      isWindowsMdmEnabledAndConfigured?: boolean;
+      isConnectedToFleetMdm?: boolean;
+      hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
+      hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+      isPremiumTier?: boolean;
+      isGlobalAdmin?: boolean;
+      isGlobalMaintainer?: boolean;
+      isGlobalObserver?: boolean;
+      currentUser?: ReturnType<typeof createMockUser>;
+      hostTeamId?: number | null;
+    }) => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier,
+            isMacMdmEnabledAndConfigured: true,
+            isWindowsMdmEnabledAndConfigured,
+            isGlobalAdmin,
+            isGlobalMaintainer,
+            isGlobalObserver,
+            currentUser,
+          },
+        },
+      });
+      return render(
+        <HostActionsDropdown
+          hostTeamId={hostTeamId}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={hostMdmEnrollmentStatus}
+          isConnectedToFleetMdm={isConnectedToFleetMdm}
+          hostPlatform={hostPlatform}
+          hostMdmDeviceStatus={hostMdmDeviceStatus}
+          hostScriptsEnabled
+        />
+      );
+    };
+
+    it("renders after Wipe for a Windows host with MDM on", async () => {
+      const { user } = renderDropdown({});
+
+      await user.click(screen.getByText("Actions"));
+
+      const labels = screen
+        .getAllByText(/^(Wipe|Reset)$/)
+        .map((el) => el.textContent);
+      expect(labels).toEqual(["Wipe", "Reset"]);
+    });
+
+    it.each([
+      {
+        name: "a global maintainer",
+        props: { isGlobalAdmin: false, isGlobalMaintainer: true },
+      },
+      ...(["admin", "maintainer"] as const).map((role) => ({
+        name: `a fleet ${role} on a host in their fleet`,
+        props: {
+          isGlobalAdmin: false,
+          currentUser: createMockUser({
+            fleets: [createMockTeam({ id: 1, role })],
+          }),
+          hostTeamId: 1,
+        },
+      })),
+    ])("renders for $name", async ({ props }) => {
+      const { user } = renderDropdown(props);
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Reset")).toBeInTheDocument();
+    });
+
+    it.each([
+      { name: "a macOS host", props: { hostPlatform: "darwin" } },
+      { name: "a Linux host", props: { hostPlatform: "ubuntu" } },
+      { name: "an Android host", props: { hostPlatform: "android" } },
+      {
+        name: "a Windows host when Windows MDM is off",
+        props: { isWindowsMdmEnabledAndConfigured: false },
+      },
+      {
+        name: "a Windows host not connected to Fleet MDM",
+        props: { isConnectedToFleetMdm: false },
+      },
+      {
+        name: "a Windows host not enrolled in MDM",
+        props: { hostMdmEnrollmentStatus: "Off" as const },
+      },
+      { name: "Fleet Free", props: { isPremiumTier: false } },
+      {
+        name: "a global observer",
+        props: { isGlobalAdmin: false, isGlobalObserver: true },
+      },
+      {
+        name: "a fleet GitOps user on a host in their fleet",
+        props: {
+          isGlobalAdmin: false,
+          currentUser: createMockUser({
+            fleets: [createMockTeam({ id: 1, role: "gitops" })],
+          }),
+          hostTeamId: 1,
+        },
+      },
+      {
+        name: "a fleet maintainer on another fleet's host",
+        props: {
+          isGlobalAdmin: false,
+          currentUser: createMockUser({
+            fleets: [createMockTeam({ id: 2, role: "maintainer" })],
+          }),
+          hostTeamId: 1,
+        },
+      },
+    ])("does not render for $name", async ({ props }) => {
+      const { user } = renderDropdown(props);
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Reset")).not.toBeInTheDocument();
+    });
+
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locking", "locking"],
+      ["locked", "locked"],
+      ["unlocking", "unlocking"],
+      ["wiping", "wiping"],
+      ["wiped", "wiped"],
+      ["resetting", "resetting"],
+      ["reset", "reset"],
+      ["reset_wipe_pending", "reset"],
+    ])(
+      "renders as disabled with a tooltip when the host is %s",
+      async (status, stateText) => {
+        const { user } = renderDropdown({ hostMdmDeviceStatus: status });
+
+        await user.click(screen.getByText("Actions"));
+
+        const option = screen.getByText("Reset");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(
+          await screen.findByText(
+            `Reset is unavailable while host is ${stateText}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+    it.each(["resetting", "reset"] as const)(
+      "keeps Wipe available and disables Lock for a Windows host that is %s",
+      async (status) => {
+        const { user } = renderDropdown({ hostMdmDeviceStatus: status });
+
+        await user.click(screen.getByText("Actions"));
+
+        expect(screen.getByText("Wipe")).not.toHaveAttribute(
+          "aria-disabled",
+          "true"
+        );
+        const lock = screen.getByText("Lock");
+        expect(lock).toHaveAttribute("aria-disabled", "true");
+        await user.hover(lock);
+        expect(
+          await screen.findByText(
+            `Lock is unavailable while host is ${status}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+    it("disables Wipe while a wipe waits behind the reset", async () => {
+      const { user } = renderDropdown({
+        hostMdmDeviceStatus: "reset_wipe_pending",
+      });
+
+      await user.click(screen.getByText("Actions"));
+
+      const wipe = screen.getByText("Wipe");
+      expect(wipe).toHaveAttribute("aria-disabled", "true");
+      await user.hover(wipe);
+      expect(
+        await screen.findByText("Wipe is unavailable while host is reset.")
+      ).toBeInTheDocument();
     });
   });
 

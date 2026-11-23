@@ -128,7 +128,7 @@ func (e *ParseTypeError) Unwrap() error {
 // ParseUnknownKeyError represents an unknown/misspelled key found in a GitOps YAML file.
 type ParseUnknownKeyError struct {
 	Filename   string
-	Path       string // dot-separated path context, e.g. "controls.macos_settings"
+	Path       string // dot-separated path context, e.g. "controls.apple_settings"
 	Field      string // the unknown field name
 	Suggestion string // suggested correct key, if a close match exists
 }
@@ -203,7 +203,7 @@ type GitOpsControls struct {
 	MacOSUpdates   any                     `json:"macos_updates"`
 	IOSUpdates     any                     `json:"ios_updates"`
 	IPadOSUpdates  any                     `json:"ipados_updates"`
-	MacOSSettings  any                     `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSettings  any                     `json:"apple_settings" removedkey:"macos_settings"`
 	MacOSSetup     *fleet.GitOpsMacOSSetup `json:"setup_experience" removedkey:"macos_setup"`
 	MacOSMigration any                     `json:"macos_migration"`
 
@@ -266,10 +266,6 @@ type GitOpsPolicySpec struct {
 	// RunScriptName is populated after confirming the script exists on both the file system
 	// and in the controls scripts list for the same team
 	RunScriptName *string `json:"-"`
-	// WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets
-	// should be enabled for this policy. This is a gitops-only convenience that
-	// translates to adding the policy's ID to the failing_policies_webhook.policy_ids list.
-	WebhooksAndTicketsEnabled bool `json:"webhooks_and_tickets_enabled"`
 }
 
 type PolicyRunScript struct {
@@ -333,15 +329,15 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	if spec.InstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" ||
 		(!isScript && (spec.UninstallScript.Path != "" || spec.PostInstallScript.Path != "" || spec.PreInstallQuery.Path != "")) {
 		if isScript {
-			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the team level", *spec.Path)
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the fleet level", *spec.Path)
 		}
-		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the fleet level", *spec.Path)
 	}
 
 	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
 	if spec.Icon.Path != "" {
 		if !fleet.IsScriptPackage(ext) {
-			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the fleet level", *spec.Path)
 		}
 	}
 
@@ -617,11 +613,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		// Report both removed names in one run.
-		if result.IsNoTeam() {
+		removedName := result.TeamName != nil && strings.EqualFold(*result.TeamName, fleet.ReservedNameNoTeam)
+		if removedName {
 			multiError = multierror.Append(multiError, removedNameError(removednames.KindYAMLValue, "name: No team"))
 		}
 		switch {
-		case removedFile || result.IsNoTeam():
+		case removedFile || removedName:
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
@@ -630,8 +627,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
 			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam():
-			// The rest of the processing uses the internal name "No team" for unassigned hosts.
-			result.TeamName = ptr.String(noTeam)
+			result.TeamName = new(unassignedTeamName)
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
 				multiError = parseNoTeamSettings(settingsRaw, result, filePath, multiError)
@@ -722,7 +718,7 @@ func parseName(raw json.RawMessage, result *GitOps, filePath string, multiError 
 		*result.TeamName = strings.TrimSpace(*result.TeamName)
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
-		return multierror.Append(multiError, errors.New("team 'name' is required"))
+		return multierror.Append(multiError, errors.New("fleet 'name' is required"))
 	}
 	if fleet.TeamNameKey(*result.TeamName) == "" {
 		return multierror.Append(multiError, fmt.Errorf("fleet 'name' %s", fleet.TeamNameNoLetterOrNumberReason))
@@ -742,7 +738,7 @@ func (g *GitOps) IsGlobal() bool {
 }
 
 func (g *GitOps) IsNoTeam() bool {
-	return g.TeamName != nil && strings.EqualFold(*g.TeamName, noTeam)
+	return g.IsUnassignedTeam()
 }
 
 func (g *GitOps) IsUnassignedTeam() bool {
@@ -756,10 +752,7 @@ func (g *GitOps) CoercedTeamName() string {
 	return *g.TeamName
 }
 
-const (
-	noTeam             = "No team"
-	unassignedTeamName = "Unassigned"
-)
+const unassignedTeamName = "Unassigned"
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop fleet.BaseItem
@@ -878,7 +871,7 @@ func absPathFrom(baseDir, p string) string {
 // the no-team file (e.g. ../lib/...) keep working.
 //
 // Only fields resolved at apply time are touched. Deliberately excluded:
-//   - controls.scripts and macos_settings/windows_settings profiles are already
+//   - controls.scripts and apple_settings/windows_settings profiles are already
 //     resolved at parse time against the file's own dir (see parseControls), so
 //     re-resolving here would double-anchor them.
 func (c *GitOpsControls) ResolveFilePathsAbs(baseDir string) {
@@ -1066,7 +1059,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *teamSettingsTop.Path))
 		if err != nil {
 			noError = false
-			multiError = multierror.Append(multiError, fmt.Errorf("failed to read team settings file %s: %v", *teamSettingsTop.Path, err))
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to read fleet settings file %s: %v", *teamSettingsTop.Path, err))
 		} else {
 			// Replace $var and ${var} with env values.
 			fileBytes, err = ExpandEnvBytes(fileBytes)
@@ -1091,6 +1084,13 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 						)
 					} else {
 						raw = fileBytes
+						var fileTeamSettings map[string]any
+						if err := YamlUnmarshal(fileBytes, &fileTeamSettings); err == nil {
+							if err := RejectRemovedKeys(map[string]any{"settings": fileTeamSettings}, *teamSettingsTop.Path); err != nil {
+								noError = false
+								multiError = multierror.Append(multiError, err)
+							}
+						}
 					}
 				}
 			}
@@ -1121,14 +1121,8 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 
 		// Validate failing_policies_webhook if present
 		if fpw, hasFPW := webhookMap["failing_policies_webhook"]; hasFPW && fpw != nil {
-			fpwMap, ok := fpw.(map[string]any)
-			if !ok {
+			if _, ok := fpw.(map[string]any); !ok {
 				multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.failing_policies_webhook' must be an object or null"))
-			} else {
-				// Validate failing_policies_webhook structure
-				if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
-					multiError = multierror.Append(multiError, err)
-				}
 			}
 		}
 
@@ -1146,20 +1140,6 @@ func validateTeamWebhookSettings(teamSettings map[string]any, multiError *multie
 		// e.g., host_status_webhook, vulnerabilities_webhook, etc.
 	}
 	return multiError
-}
-
-// validateFailingPoliciesWebhook validates the failing_policies_webhook configuration.
-// It ensures policy_ids is an array if present.
-func validateFailingPoliciesWebhook(fpwMap map[string]any, keyPath string) error {
-	// Validate policy_ids is an array if present
-	if policyIDs, hasPolicyIDs := fpwMap["policy_ids"]; hasPolicyIDs && policyIDs != nil {
-		// Check if it's an array
-		_, isArray := policyIDs.([]any)
-		if !isArray {
-			return fmt.Errorf("'%s.policy_ids' must be an array, got %T", keyPath, policyIDs)
-		}
-	}
-	return nil
 }
 
 func validateHostActivitiesWebhook(hawMap map[string]any, keyPath string) error {
@@ -1226,14 +1206,8 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 			}
 			// If present, ensure failing_policies_webhook is an object or null
 			if fpw, ok := webhookMap["failing_policies_webhook"]; ok && fpw != nil {
-				fpwMap, ok := fpw.(map[string]any)
-				if !ok {
+				if _, ok := fpw.(map[string]any); !ok {
 					multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.failing_policies_webhook' must be an object or null"))
-				} else {
-					// Validate failing_policies_webhook structure
-					if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
-						multiError = multierror.Append(multiError, err)
-					}
 				}
 			}
 			if haw, ok := webhookMap["host_activities_webhook"]; ok && haw != nil {
@@ -1312,7 +1286,7 @@ func parseCustomHostVitals(top map[string]json.RawMessage, result *GitOps, fileP
 	raw := top["custom_host_vitals"]
 
 	if !result.global() {
-		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a team file"))
+		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a fleet file"))
 	}
 
 	result.CustomHostVitals = []fleet.CustomHostVital{}
@@ -1422,12 +1396,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	if !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
 		if result.Controls.AppleAccountProvisioning != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf(
-				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename,
+				"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific fleet", yamlFilename,
 			))
 		}
 		if result.Controls.EnableProfileValidation != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf(
-				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific team", yamlFilename,
+				"%s: enable_profile_validation can only be configured in the global configuration, not for a specific fleet", yamlFilename,
 			))
 		}
 	}
@@ -1502,7 +1476,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
-		macOSSettings, err := reparseSettings[fleet.GitOpsMacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
+		macOSSettings, err := reparseSettings[fleet.GitOpsMacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "apple_settings")
 		if err != nil {
 			return multierror.Append(multiError, err)
 		}
@@ -2173,7 +2147,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		for _, item := range macOSSettings.CustomSettings {
 			// each entry has already been expanded so we can expect a single path
 			if item.Path == "" {
-				multiError = multierror.Append(multiError, errors.New("controls.macos_settings.configuration_profiles[]: path is required for each profile"))
+				multiError = multierror.Append(multiError, errors.New("controls.apple_settings.configuration_profiles[]: path is required for each profile"))
 				continue
 			}
 
@@ -2254,6 +2228,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	multiError = multierror.Append(multiError, validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"})...)
 	for _, item := range policies {
 		if item.Path == nil {
+			if err := checkPolicyAutomationKeys(parentFilePath, result.TeamName, &item.GitOpsPolicySpec); err != nil {
+				multiError = multierror.Append(multiError, err)
+				continue
+			}
 			if errs := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps, fmasBySlug); errs != nil {
 				multiError = multierror.Append(multiError, errs...)
 				continue
@@ -2294,6 +2272,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
+							if err := checkPolicyAutomationKeys(*item.Path, result.TeamName, &pp.GitOpsPolicySpec); err != nil {
+								multiError = multierror.Append(multiError, err)
+								continue
+							}
 							if errs := parsePolicyInstallSoftware(filepath.Dir(*item.Path), result.TeamName, pp, result.Software.Packages, result.Software.AppStoreApps, fmasBySlug); errs != nil {
 								multiError = multierror.Append(multiError, errs...)
 								continue
@@ -2404,6 +2386,38 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	return multiError
 }
 
+// checkPolicyAutomationKeys checks that the policy turns on at most one automation, and that "All fleets" policies only
+// turn on webhooks and tickets. The server checks this too; checking here names the file and fails before anything is
+// applied.
+func checkPolicyAutomationKeys(filePath string, teamName *string, policy *GitOpsPolicySpec) error {
+	var keys []string
+	for _, k := range []struct {
+		on  bool
+		key string
+	}{
+		{policy.InstallSoftware.Bool || (policy.InstallSoftware.IsOther && policy.InstallSoftware.Other != nil), "install_software"},
+		{policy.RunScript != nil, "run_script"},
+		{strings.TrimSpace(policy.ResendConfigurationProfile) != "", "resend_configuration_profile"},
+		{policy.CalendarEventsEnabled, "calendar_events_enabled"},
+		{policy.ConditionalAccessEnabled, "conditional_access_enabled"},
+		{policy.WebhooksAndTicketsEnabled, "webhooks_and_tickets_enabled"},
+	} {
+		if k.on {
+			keys = append(keys, k.key)
+		}
+	}
+	file := filepath.Base(filePath)
+	if len(keys) > 1 {
+		return fmt.Errorf("Couldn't apply policy %q in %s: a policy can only have one automation, but it sets %s.",
+			policy.Name, file, strings.Join(keys, ", "))
+	}
+	if teamName == nil && len(keys) == 1 && (keys[0] == "calendar_events_enabled" || keys[0] == "conditional_access_enabled") {
+		return fmt.Errorf("Couldn't apply policy %q in %s: %q policies can only have webhooks_and_tickets_enabled, not %s.",
+			policy.Name, file, fleet.DisplayNameAllTeams, keys[0])
+	}
+	return nil
+}
+
 func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *string, policy *Policy, scripts []fleet.BaseItem) error {
 	if policy.RunScript == nil {
 		policy.ScriptID = ptr.Uint(0) // unset the script
@@ -2431,7 +2445,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 		}
 	}
 	if !scriptOnTeamFound {
-		if *teamName == noTeam {
+		if *teamName == unassignedTeamName {
 			return fmt.Errorf("policy script %s was not defined in controls in %s", scriptPath, filepath.Base(parentFilePath))
 		}
 		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)
