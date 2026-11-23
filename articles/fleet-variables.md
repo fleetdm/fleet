@@ -62,7 +62,7 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 | Apple (macOS, iOS, and iPadOS) configuration profiles | ✅ (only `$FLEET_VAR_HOST_*` in declarations (`.json`)) | ✅ (not in `PayloadDisplayName`) | ✅ (not in certificate authority payloads) |
 | Windows configuration profiles (`.xml`) | ✅ | ✅ | ✅ |
 | Android configuration profiles (`.json`) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ✅ |
-| iOS and iPadOS [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ❌ |
+| iOS and iPadOS [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ❌ ([coming soon](https://github.com/fleetdm/fleet/issues/59460)) |
 | Android [managed app configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration) | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ✅ |
 | [Host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) (macOS, iOS, and iPadOS) | ✅ (only `$FLEET_VAR_HOST_*`) | ✅ | ✅ |
 | DigiCert and EJBCA certificate authority fields | ✅ (only `$FLEET_VAR_HOST_*`) | ❌ | ❌ |
