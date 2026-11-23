@@ -86,7 +86,7 @@ For example, a configuration profile that writes the host's asset tag (defined a
 
 When a host's value changes, Fleet automatically resends the Apple (macOS, iOS, iPadOS), Windows, and Android configuration profiles and Android managed app configurations that reference the vital, so each device receives its updated value.
 
-Custom host vitals in iOS and iPadOS app configuration are [coming soon](https://github.com/fleetdm/fleet/issues/59460). Until then, Fleet sends the variable to the host as written, without its value.
+Custom host vitals in iOS and iPadOS app configuration are [coming soon](https://github.com/fleetdm/fleet/issues/59460).
 
 A custom host vital can also be referenced in a host name template (Fleet Premium), for example `WS-$FLEET_HOST_VITAL_1`. When a host's value changes, Fleet automatically re-applies its resolved name.
 
