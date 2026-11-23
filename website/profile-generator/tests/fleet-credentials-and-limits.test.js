@@ -178,7 +178,8 @@ describe('profile generator credentials and limits for Fleet servers', function(
       let originalNow = Date.now;
       // Pinned inside the license's validity, so this keeps passing after it expires and is replaced.
       let { iat } = require('jsonwebtoken').decode(developmentLicenseKey);
-      // A local website run with --dev_license may already have counted it, so its usage is put back after.
+      // A local website run with --dev_license may already have counted it, so it starts from zero here and its
+      // usage is put back after.
       let usageBefore = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash: licenseKeyHashOf(developmentLicenseKey) });
       sails.config.custom.licenseKeyGeneratorPublicKey = fs.readFileSync(path.resolve(__dirname, '../../../ee/server/licensing/pubkey.pem'), 'utf8');
       Date.now = ()=>{ return (iat + 60) * 1000; };
@@ -186,6 +187,9 @@ describe('profile generator credentials and limits for Fleet servers', function(
       let limited;
       let usageMonth;
       try {
+        if(usageBefore) {
+          await ProfileGeneratorLicenseUsage.updateOne({ id: usageBefore.id }).set({ usageMonth: '', profileGenerationsThisMonth: 0, nameAndDescriptionRequestsThisMonth: 0 });
+        }
         usageMonth = new Date().toISOString().slice(0, 7);
         stubbedOutcome = generatedResult;
         response = await requestProfile(undefined, { fleetLicenseKey: developmentLicenseKey });
