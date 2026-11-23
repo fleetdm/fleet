@@ -2162,54 +2162,6 @@ spec:
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   bash: "printf \"uid,username,description,path,encrypted\\n\"; for u in $(last | awk '{print $1}' | grep -vE '^(wtmp|reboot)$' | sort -u); do [ -d \"/Users/$u/.ssh\" ] && for f in $(find \"/Users/$u/.ssh\" -type f -name \"authorized_keys*\" 2>/dev/null); do uid=$(id -u \"$u\"); desc=$(dscl . -read /Users/\"$u\" RealName 2>/dev/null | cut -d: -f2- | sed 's/^ //'); echo \"$uid,$u,$desc,$f,0\"; done; done"
-  powershell: >-
-    $lastOutput = & last
-
-    $lastUsernames = $lastOutput | ForEach-Object {
-        if ($_ -match '^\s*(\S+)') { $matches[1] }
-    } | Select-Object -Unique
-
-
-    $passwdFile = "/etc/passwd"
-
-    if (Test-Path $passwdFile) {
-        $lines = Get-Content $passwdFile
-        foreach ($line in $lines) {
-            # /etc/passwd format: username:password:UID:GID:GECOS:home_directory:shell
-            $fields = $line -split ":"
-            if ($fields.Length -ge 7) {
-                $username = $fields[0]
-                $uid = $fields[2]
-                $description = $fields[4]
-                $homeDir = $fields[5]
-
-                if ($lastUsernames -contains $username) {
-                    # Assume the user's SSH authorized_keys file is in .ssh/authorized_keys in their home directory
-                    $sshKeyPath = Join-Path $homeDir ".ssh/authorized_keys"
-                    if (Test-Path $sshKeyPath) {
-                        $keyLines = Get-Content $sshKeyPath
-                        foreach ($keyLine in $keyLines) {
-                            if ([string]::IsNullOrWhiteSpace($keyLine)) {
-                                continue
-                            }
-                            # Determine if the key is encrypted by looking for the keyword "ENCRYPTED"
-                            $encrypted = if ($keyLine -match "ENCRYPTED") { 1 } else { 0 }
-                            if ($encrypted -eq 0) {
-                                $result = [PSCustomObject]@{
-                                    uid         = $uid
-                                    username    = $username
-                                    description = $description
-                                    path        = $sshKeyPath
-                                    encrypted   = $encrypted
-                                }
-                                Write-Output $result
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
   purpose: Informational
   tags: inventory, compliance, ssh, active directory
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
