@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -980,4 +981,18 @@ func (s *integrationTestSuite) TestCombinedPolicyEndpointsFree() {
 	s.Do("GET", "/api/latest/fleet/policies/count", nil, http.StatusPaymentRequired, "fleet_id", "0")
 	s.Do("POST", "/api/latest/fleet/policies", json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1", "fleet_id": 0}`, t.Name()+" x")),
 		http.StatusPaymentRequired)
+}
+
+func (s *integrationTestSuite) TestPolicyNameTooLong() {
+	t := s.T()
+
+	resp := s.Do("POST", "/api/latest/fleet/policies",
+		map[string]any{"name": strings.Repeat("a", 256), "query": "SELECT 1;"}, http.StatusUnprocessableEntity)
+	assertBodyContains(t, resp, `"name": "name"`)
+
+	var created fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies",
+		map[string]any{"name": strings.Repeat("a", 255), "query": "SELECT 1;"}, http.StatusOK, &created)
+	require.NotNil(t, created.Policy)
+	s.Do("POST", "/api/latest/fleet/policies/delete", map[string]any{"ids": []uint{created.Policy.ID}}, http.StatusOK)
 }

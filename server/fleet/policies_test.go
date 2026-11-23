@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -382,4 +383,14 @@ func TestModifyPolicyPayloadAutomationTypeJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal(b, &decoded))
 	require.True(t, decoded.AutomationType.Set)
 	require.False(t, decoded.AutomationType.Valid)
+}
+
+func TestValidatePolicyReportNameLength(t *testing.T) {
+	// varchar(255) counts characters, not bytes, so 255 two-byte characters fit.
+	require.Nil(t, ValidatePolicyReportNameLength("policy", strings.Repeat("é", 255)))
+	require.Nil(t, ValidatePolicyReportNameLength("report", strings.Repeat("a", 255)))
+
+	err := ValidatePolicyReportNameLength("policy", strings.Repeat("é", 256))
+	require.NotNil(t, err)
+	require.Equal(t, `policy "`+strings.Repeat("é", 40)+`..." name may not exceed 255 characters`, err.Invalid()[0]["reason"])
 }

@@ -2371,6 +2371,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if err := item.Verify(); err != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf("Couldn't apply policy %q: %w", item.Name, err))
 		}
+		if err := fleet.ValidatePolicyReportNameLength("policy", item.Name); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("%w in %s", invalidReasons(err), filepath.Base(parentFilePath)))
+		}
 	}
 	duplicates := getDuplicateNames(
 		result.Policies, func(p *GitOpsPolicySpec) string {
@@ -2625,7 +2628,19 @@ func validateReport(r *fleet.QuerySpec, filePath string, itemPath string) error 
 	if !isASCII(r.Name) {
 		return fmt.Errorf("`name` must be in ASCII: %s in %s at %s", r.Name, filepath.Base(filePath), itemPath)
 	}
+	if err := fleet.ValidatePolicyReportNameLength("report", r.Name); err != nil {
+		return fmt.Errorf("%w in %s at %s", invalidReasons(err), filepath.Base(filePath), itemPath)
+	}
 	return nil
+}
+
+// invalidReasons keeps only the reasons, without the generic "validation failed: name" prefix.
+func invalidReasons(err *fleet.InvalidArgumentError) error {
+	var errs []error
+	for _, inv := range err.Invalid() {
+		errs = append(errs, errors.New(inv["reason"]))
+	}
+	return errors.Join(errs...)
 }
 
 func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {

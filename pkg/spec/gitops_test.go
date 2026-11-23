@@ -7100,6 +7100,43 @@ labels:
 	require.ErrorContains(t, err, `label "`+strings.Repeat("a", 40)+`..." name may not exceed 255 characters`)
 }
 
+func TestPolicyAndReportNameLengths(t *testing.T) {
+	t.Parallel()
+
+	policyYAML := func(name string) string {
+		return getTeamConfig([]string{"policies"}) + fmt.Sprintf(`
+policies:
+  - name: %q
+    query: SELECT 1;`, name)
+	}
+	reportYAML := func(name string) string {
+		return getTeamConfig([]string{"reports"}) + fmt.Sprintf(`
+reports:
+  - name: %q
+    query: SELECT 1;`, name)
+	}
+	nameErr := func(kind string) string {
+		return kind + ` "` + strings.Repeat("a", 40) + `..." name may not exceed 255 characters`
+	}
+	parse := func(s string) (string, error) {
+		path, basePath := createTempFile(t, "", s)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		return filepath.Base(path), err
+	}
+
+	_, err := parse(policyYAML(strings.Repeat("a", 255)))
+	require.NoError(t, err)
+	file, err := parse(policyYAML(strings.Repeat("a", 256)))
+	require.ErrorContains(t, err, nameErr("policy")+" in "+file)
+	require.NotContains(t, err.Error(), "validation failed")
+
+	_, err = parse(reportYAML(strings.Repeat("a", 255)))
+	require.NoError(t, err)
+	file, err = parse(reportYAML(strings.Repeat("a", 256)))
+	require.ErrorContains(t, err, nameErr("report")+" in "+file+" at reports[0]")
+	require.NotContains(t, err.Error(), "validation failed")
+}
+
 func TestGitOpsPatchDeadlineSettings(t *testing.T) {
 	t.Parallel()
 

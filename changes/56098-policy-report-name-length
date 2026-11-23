@@ -1,0 +1,1 @@
+- Policy and report names longer than 255 characters are now rejected with a clear error in GitOps dry runs and by the API (422), instead of failing partway through a GitOps run with a database error.

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -1122,4 +1123,41 @@ func TestApplyPolicySpecsWebhookOrTicketPermission(t *testing.T) {
 	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 	require.NoError(t, svc.ApplyPolicySpecs(maintainerCtx, patchSpec(true)))
 	require.True(t, ds.ApplyPolicySpecsFuncInvoked)
+}
+
+func TestPolicyNameLengthValidation(t *testing.T) {
+	ds := new(mock.Store)
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{ID: id, Name: "p", Query: "SELECT 1;"}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	tooLong := strings.Repeat("a", 256)
+	nameErr := `policy "` + strings.Repeat("a", 40) + `..." name may not exceed 255 characters`
+	requireInvalidName := func(t *testing.T, err error) {
+		var invalid *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalid)
+		require.ErrorContains(t, err, nameErr)
+	}
+
+	_, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{Name: tooLong, Query: "SELECT 1;"})
+	requireInvalidName(t, err)
+	_, err = svc.NewTeamPolicy(ctx, 1, fleet.NewTeamPolicyPayload{Name: tooLong, Query: "SELECT 1;"})
+	requireInvalidName(t, err)
+	_, err = svc.ModifyGlobalPolicy(ctx, 1, fleet.ModifyPolicyPayload{Name: &tooLong})
+	requireInvalidName(t, err)
+	err = svc.ApplyPolicySpecs(ctx, []*fleet.PolicySpec{{Name: tooLong, Query: "SELECT 1;"}})
+	requireInvalidName(t, err)
+
+	require.False(t, ds.NewGlobalPolicyFuncInvoked)
+	require.False(t, ds.NewTeamPolicyFuncInvoked)
+	require.False(t, ds.SavePolicyFuncInvoked)
+	require.False(t, ds.ApplyPolicySpecsFuncInvoked)
 }
