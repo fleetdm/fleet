@@ -9130,6 +9130,13 @@
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
     },
     {
+      "name": "TortoiseSVN",
+      "slug": "tortoisesvn/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseSVN",
+      "description": "TortoiseSVN is an Apache Subversion (SVN) client for Windows, implemented as a File Explorer shell extension with overlay icons and context menu commands."
+    },
+    {
       "name": "Tower",
       "slug": "tower/darwin",
       "platform": "darwin",

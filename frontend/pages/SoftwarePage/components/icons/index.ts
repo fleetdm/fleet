@@ -1042,6 +1042,7 @@ import TopazVideoAi from "./png/TopazVideoAi.png";
 import Topnotch from "./png/Topnotch.png";
 import TorBrowser from "./png/TorBrowser.png";
 import Tortoisegit from "./png/Tortoisegit.png";
+import Tortoisesvn from "./png/Tortoisesvn.png";
 import Tower from "./png/Tower.png";
 import Tradingview from "./png/Tradingview.png";
 import Transfer from "./png/Transfer.png";
@@ -2253,6 +2254,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   topnotch: Topnotch,
   "tor browser": TorBrowser,
   tortoisegit: Tortoisegit,
+  tortoisesvn: Tortoisesvn,
   tower: Tower,
   "tradingview desktop": Tradingview,
   transfer: Transfer,
