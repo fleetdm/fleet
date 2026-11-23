@@ -187,6 +187,7 @@ import Captain from "./png/Captain.png";
 import Capto from "./png/Capto.png";
 import CarbonCopyCloner from "./png/CarbonCopyCloner.png";
 import Cardhop from "./png/Cardhop.png";
+import CatoClient from "./png/CatoClient.png";
 import Cavalry from "./png/Cavalry.png";
 import CertifyTheWeb from "./png/CertifyTheWeb.png";
 import Chalk from "./png/Chalk.png";
@@ -1358,6 +1359,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   capto: Capto,
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
+  "cato client": CatoClient,
   cavalry: Cavalry,
   "certify the web": CertifyTheWeb,
   chalk: Chalk,
