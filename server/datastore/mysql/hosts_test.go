@@ -214,6 +214,7 @@ func TestHosts(t *testing.T) {
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
 		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
 		{"UpdateHostIssues", testUpdateHostIssues},
+		{"UpdateHostIssuesCriticalVulnerabilities", testUpdateHostIssuesCriticalVulnerabilities},
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 		{"GetHostEmails", testGetHostEmails},
 		{"GetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
@@ -14528,15 +14529,15 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 
 	// Test with small batch size and premium license
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	insertBatchSizeOrig := hostIssuesInsertBatchSize
+	insertBatchSizeOrig := hostIssuesCriticalVulnerabilitiesBatchSize
 	updateBatchSizeOrig := hostIssuesUpdateFailingPoliciesBatchSize
 	t.Cleanup(
 		func() {
-			hostIssuesInsertBatchSize = insertBatchSizeOrig
+			hostIssuesCriticalVulnerabilitiesBatchSize = insertBatchSizeOrig
 			hostIssuesUpdateFailingPoliciesBatchSize = updateBatchSizeOrig
 		},
 	)
-	hostIssuesInsertBatchSize = 2
+	hostIssuesCriticalVulnerabilitiesBatchSize = 2
 	hostIssuesUpdateFailingPoliciesBatchSize = 2
 
 	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
@@ -14647,6 +14648,143 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		assert.Zero(t, hostIssue.TotalIssuesCount, "host issue: %+v", hostIssue)
 	}
 	assert.True(t, hostIssueFound)
+}
+
+func testUpdateHostIssuesCriticalVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	batchSizeOrig := hostIssuesCriticalVulnerabilitiesBatchSize
+	t.Cleanup(func() { hostIssuesCriticalVulnerabilitiesBatchSize = batchSizeOrig })
+	// 5 hosts in batches of 2: hosts with and without critical vulnerabilities share batches,
+	// and one batch ends up with none.
+	hostIssuesCriticalVulnerabilitiesBatchSize = 2
+
+	hosts := make([]*fleet.Host, 5)
+	for i := range hosts {
+		hosts[i] = newTestHostWithPlatform(t, ds, fmt.Sprintf("critical-vulns-%d", i), "ubuntu", nil)
+	}
+
+	swA := fleet.Software{Name: "a", Version: "1", Source: "deb_packages"}
+	swB := fleet.Software{Name: "b", Version: "1", Source: "deb_packages"}
+	swC := fleet.Software{Name: "c", Version: "1", Source: "deb_packages"}
+	_, err := ds.UpdateHostSoftware(ctx, hosts[0].ID, []fleet.Software{swA, swB})
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, hosts[1].ID, []fleet.Software{swA})
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, hosts[3].ID, []fleet.Software{swC})
+	require.NoError(t, err)
+
+	var software []struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}
+	require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &software, `SELECT id, name FROM software`))
+	require.Len(t, software, 3)
+	softwareIDs := make(map[string]uint, len(software))
+	for _, s := range software {
+		softwareIDs[s.Name] = s.ID
+	}
+
+	const (
+		criticalOnAAndBAndOS = "CVE-2026-0001"
+		criticalOnC          = "CVE-2026-0002"
+		notCritical          = "CVE-2026-0003"
+		unscored             = "CVE-2026-0004"
+		criticalOnOSOnly     = "CVE-2026-0005"
+	)
+	for _, v := range []fleet.SoftwareVulnerability{
+		{SoftwareID: softwareIDs["a"], CVE: criticalOnAAndBAndOS},
+		{SoftwareID: softwareIDs["b"], CVE: criticalOnAAndBAndOS},
+		{SoftwareID: softwareIDs["c"], CVE: criticalOnC},
+		{SoftwareID: softwareIDs["a"], CVE: notCritical},
+		{SoftwareID: softwareIDs["a"], CVE: unscored},
+	} {
+		_, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	hostOS := fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "24.04.4 LTS",
+		Arch:          "x86_64",
+		Platform:      "ubuntu",
+		KernelVersion: "6.8.0-110-generic",
+	}
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, hosts[1].ID, hostOS))
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, hosts[4].ID, hostOS))
+	var osID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &osID,
+		`SELECT os_id FROM host_operating_system WHERE host_id = ?`, hosts[1].ID))
+	_, err = ds.InsertOSVulnerabilities(ctx, []fleet.OSVulnerability{
+		{OSID: osID, CVE: criticalOnAAndBAndOS},
+		{OSID: osID, CVE: criticalOnOSOnly},
+		{OSID: osID, CVE: notCritical},
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{CVE: criticalOnAAndBAndOS, CVSSScore: new(criticalCVSSScoreCutoff + 1)},
+		{CVE: criticalOnC, CVSSScore: new(criticalCVSSScoreCutoff + 0.1)},
+		{CVE: notCritical, CVSSScore: new(criticalCVSSScoreCutoff)},
+		{CVE: criticalOnOSOnly, CVSSScore: new(10.0)},
+	}))
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count) VALUES (?, 3, 3)`, hosts[3].ID)
+		return err
+	})
+
+	type counts struct {
+		Critical uint64 `db:"critical_vulnerabilities_count"`
+		Total    uint64 `db:"total_issues_count"`
+	}
+	requireCounts := func(want [5]counts) {
+		t.Helper()
+		var rows []struct {
+			HostID uint `db:"host_id"`
+			counts
+		}
+		require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &rows,
+			`SELECT host_id, critical_vulnerabilities_count, total_issues_count FROM host_issues`))
+		got := make(map[uint]counts, len(rows))
+		for _, r := range rows {
+			got[r.HostID] = r.counts
+		}
+		for i, w := range want {
+			// A host that never had an issue has no row.
+			require.Equal(t, w, got[hosts[i].ID], "host %d", i)
+		}
+	}
+
+	require.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
+	requireCounts([5]counts{
+		{Critical: 1, Total: 1}, // same CVE on two software
+		{Critical: 2, Total: 2}, // same CVE on a software and on the OS, plus one on the OS only
+		{},
+		{Critical: 1, Total: 4},
+		{Critical: 2, Total: 2},
+	})
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_software WHERE host_id IN (?, ?)`, hosts[0].ID, hosts[3].ID)
+		return err
+	})
+	require.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
+	requireCounts([5]counts{
+		{},
+		{Critical: 2, Total: 2},
+		{},
+		{Total: 3},
+		{Critical: 2, Total: 2},
+	})
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM cve_meta`)
+		return err
+	})
+	require.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
+	requireCounts([5]counts{{}, {}, {}, {Total: 3}, {}})
 }
 
 func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {

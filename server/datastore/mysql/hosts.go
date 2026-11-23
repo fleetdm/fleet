@@ -32,12 +32,14 @@ import (
 
 const hostHasIdentityCertSQL = `EXISTS(SELECT 1 FROM host_identity_scep_certificates hisc WHERE hisc.host_id = h.id AND hisc.revoked = 0)`
 
-// Since many hosts may have issues, we need to batch the inserts of host issues.
-// This is a variable, so it can be adjusted during unit testing.
+// These are variables, so they can be adjusted during unit testing.
 var (
-	hostIssuesInsertBatchSize                = 10000
-	hostIssuesUpdateFailingPoliciesBatchSize = 10000
-	hostsDeleteBatchSize                     = 5000
+	// The count query deduplicates one temporary table row per (host, critical CVE) of the batch.
+	// A read replica that can't spill temporary tables to disk (Aurora) fails with error 1114
+	// when that table outgrows its limit, so the batch must stay small.
+	hostIssuesCriticalVulnerabilitiesBatchSize = 500
+	hostIssuesUpdateFailingPoliciesBatchSize   = 10000
+	hostsDeleteBatchSize                       = 5000
 )
 
 var (
@@ -7915,17 +7917,14 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 const criticalCVSSScoreCutoff = 8.9
 
 func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error {
-	clearAllFn := func() error {
+	if !license.IsPremium(ctx) {
+		// This will rarely be needed, but we need to reset the critical vulnerabilities count if the license went from premium to free
+		// or if DB got messed up (like during dev testing).
 		stmt := `UPDATE host_issues SET critical_vulnerabilities_count = 0, total_issues_count = failing_policies_count`
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
 			return ctxerr.Wrap(ctx, err, "reset critical vulnerabilities count")
 		}
 		return nil
-	}
-	if !license.IsPremium(ctx) {
-		// This will rarely be needed, but we need to reset the critical vulnerabilities count if the license went from premium to free
-		// or if DB got messed up (like during dev testing).
-		return clearAllFn()
 	}
 
 	var allHostIDs []uint
@@ -7933,67 +7932,63 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 		return ctxerr.Wrap(ctx, err, "get all host IDs")
 	}
 
-	type issuesCount struct {
-		HostID uint64 `db:"host_id"`
-		Count  uint64 `db:"count"`
-	}
-	var criticalCounts []issuesCount
-	// We must batch the query extracting the critical vulnerabilities count because the query is too complex for MySQL to handle in one go.
-	// We saw MySQL error 1114 (HY000), where the temporary table reached its max capacity.  Temporary table size is reduced further by
-	// filtering cvss_score in the subqueries.
-	for i := 0; i < len(allHostIDs); i += hostIssuesInsertBatchSize {
-		start := i
-		end := i + hostIssuesInsertBatchSize
-		if end > len(allHostIDs) {
-			end = len(allHostIDs)
+	// Each batch is written before the next one is read, so a failure keeps the batches already done.
+	for hostIDs := range slices.Chunk(allHostIDs, hostIssuesCriticalVulnerabilitiesBatchSize) {
+		if err := ds.updateHostIssuesVulnerabilitiesBatch(ctx, hostIDs); err != nil {
+			return err
 		}
-		criticalVulnerabilitiesCountStmt := `
+	}
+	return nil
+}
+
+// updateHostIssuesVulnerabilitiesBatch expects hostIDs sorted, so that host_issues rows are always locked in the same order.
+func (ds *Datastore) updateHostIssuesVulnerabilitiesBatch(ctx context.Context, hostIDs []uint) error {
+	// The critical CVEs are materialized once per query (NO_MERGE) and looked up from the hosts' own
+	// rows (STRAIGHT_JOIN). Left to the optimizer, each batch scans software_cve and then every host
+	// that has each vulnerable software, which makes small batches slower as hosts are added.
+	const criticalVulnerabilitiesCountStmt = `
 		SELECT combined.host_id, COUNT(*) as count
 		FROM (
-			SELECT host_id, sc.cve
+			SELECT /*+ NO_MERGE(csc) */ STRAIGHT_JOIN hs.host_id, csc.cve
 			FROM host_software hs
-			INNER JOIN software_cve sc ON sc.software_id = hs.software_id
-			INNER JOIN cve_meta cm ON cm.cve = sc.cve
-			WHERE host_id IN (?)
-			AND cm.cvss_score > ?
+			INNER JOIN (
+				SELECT sc.software_id, sc.cve
+				FROM software_cve sc
+				INNER JOIN cve_meta cm ON cm.cve = sc.cve
+				WHERE cm.cvss_score > ?
+			) csc ON csc.software_id = hs.software_id
+			WHERE hs.host_id IN (?)
 
 			UNION
 
-			SELECT host_id, osv.cve
+			SELECT /*+ NO_MERGE(cosv) */ STRAIGHT_JOIN hos.host_id, cosv.cve
 			FROM host_operating_system hos
-			INNER JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id
-			INNER JOIN cve_meta cm ON cm.cve = osv.cve
-			WHERE host_id IN (?)
-			AND cm.cvss_score > ?
+			INNER JOIN (
+				SELECT osv.operating_system_id, osv.cve
+				FROM operating_system_vulnerabilities osv
+				INNER JOIN cve_meta cm ON cm.cve = osv.cve
+				WHERE cm.cvss_score > ?
+			) cosv ON cosv.operating_system_id = hos.os_id
+			WHERE hos.host_id IN (?)
 		) combined
-		INNER JOIN cve_meta cm ON cm.cve = combined.cve
 		GROUP BY combined.host_id
 		ORDER BY combined.host_id`
-		stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, allHostIDs[start:end], criticalCVSSScoreCutoff, allHostIDs[start:end], criticalCVSSScoreCutoff)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN statement for getting critical vulnerabilities count")
-		}
-		var batchCriticalCounts []issuesCount
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &batchCriticalCounts, stmt, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get critical vulnerabilities count")
-		}
-		criticalCounts = append(criticalCounts, batchCriticalCounts...)
+	stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, criticalCVSSScoreCutoff, hostIDs, criticalCVSSScoreCutoff, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement for getting critical vulnerabilities count")
+	}
+	var criticalCounts []struct {
+		HostID uint   `db:"host_id"`
+		Count  uint64 `db:"count"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &criticalCounts, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "get critical vulnerabilities count")
 	}
 
-	// Update the host_issues table, including deleting items with no issues
-	clearAll := len(criticalCounts) == 0
-	for i := 0; i < len(criticalCounts); i += hostIssuesInsertBatchSize {
-		start := i
-		end := i + hostIssuesInsertBatchSize
-		if end > len(criticalCounts) {
-			end = len(criticalCounts)
-		}
-		totalToProcess := end - start
+	hostsWithCriticalVulnerabilities := make(map[uint]struct{}, len(criticalCounts))
+	if len(criticalCounts) > 0 {
 		const numberOfArgsPerIssue = 3 // number of ? in each VALUES clause
-		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?),", totalToProcess), ",",
-		)
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(criticalCounts)), ",")
 		stmt := fmt.Sprintf(
 			`INSERT INTO host_issues (host_id, critical_vulnerabilities_count, total_issues_count) VALUES %s
 					ON DUPLICATE KEY UPDATE
@@ -8001,43 +7996,34 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 					total_issues_count = failing_policies_count + VALUES(critical_vulnerabilities_count)`,
 			values,
 		)
-		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerIssue)
-		for j := start; j < end; j++ {
-			criticalCount := criticalCounts[j]
-			args = append(
-				args, criticalCount.HostID, criticalCount.Count, criticalCount.Count,
-			)
+		args := make([]any, 0, len(criticalCounts)*numberOfArgsPerIssue)
+		for _, criticalCount := range criticalCounts {
+			args = append(args, criticalCount.HostID, criticalCount.Count, criticalCount.Count)
+			hostsWithCriticalVulnerabilities[criticalCount.HostID] = struct{}{}
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert critical vulnerabilities into host_issues")
 		}
+	}
 
-		// Clear critical vulnerabilities count for hosts that have no critical vulnerabilities
-		hostIDs := make([]uint64, 0, totalToProcess)
-		for j := start; j < end; j++ {
-			hostIDs = append(hostIDs, criticalCounts[j].HostID)
-		}
-		stmt, args, err := sqlx.In(
-			"UPDATE host_issues SET critical_vulnerabilities_count = 0, total_issues_count = failing_policies_count WHERE host_id NOT IN (?)",
-			hostIDs,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN statement for clearing critical vulnerabilities in host_issues")
-		}
-		if start != 0 {
-			stmt += " AND host_id >= ?"
-			args = append(args, criticalCounts[start].HostID)
-		}
-		if end != len(criticalCounts) {
-			stmt += " AND host_id < ?"
-			args = append(args, criticalCounts[end].HostID)
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear critical vulnerabilities in host_issues")
+	hostsWithoutCriticalVulnerabilities := make([]uint, 0, len(hostIDs)-len(hostsWithCriticalVulnerabilities))
+	for _, hostID := range hostIDs {
+		if _, ok := hostsWithCriticalVulnerabilities[hostID]; !ok {
+			hostsWithoutCriticalVulnerabilities = append(hostsWithoutCriticalVulnerabilities, hostID)
 		}
 	}
-	if clearAll {
-		return clearAllFn()
+	if len(hostsWithoutCriticalVulnerabilities) == 0 {
+		return nil
+	}
+	stmt, args, err = sqlx.In(
+		"UPDATE host_issues SET critical_vulnerabilities_count = 0, total_issues_count = failing_policies_count WHERE host_id IN (?)",
+		hostsWithoutCriticalVulnerabilities,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement for clearing critical vulnerabilities in host_issues")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear critical vulnerabilities in host_issues")
 	}
 	return nil
 }
