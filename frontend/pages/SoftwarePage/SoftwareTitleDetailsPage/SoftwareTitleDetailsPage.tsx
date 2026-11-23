@@ -53,9 +53,11 @@ import { getPathWithQueryParams } from "utilities/url";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import AndroidPlayStore from "../components/icons/AndroidPlayStore";
 import AppleAppStore from "../components/icons/AppleAppStore";
+import SoftwareIcon from "../components/icons/SoftwareIcon";
 import {
   getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
+  isAndroidWebApp,
   mergePolicies,
 } from "../helpers";
 
@@ -138,6 +140,7 @@ const SoftwareTitleDetailsPage = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddPackageModal, setShowAddPackageModal] = useState(false);
   const [showAddVersionModal, setShowAddVersionModal] = useState(false);
+  const [iconUploadedAt, setIconUploadedAt] = useState("");
   // When set, opens a PoliciesModal scoped to a single package's policies
   // (the auto-install icon on a custom-package row). Distinct from the
   // SoftwareSummaryCard's title-aggregate PoliciesModal — that one stays
@@ -232,6 +235,13 @@ const SoftwareTitleDetailsPage = ({
     (isIpadOrIphoneSoftwareSource(softwareTitle.source) ||
       isAndroidSoftwareSource(softwareTitle.source));
 
+  // Android web apps use the versions layout but can only ever hold one
+  // version, so version-specific affordances (name, config, Add version) are
+  // hidden.
+  const isWebApp = isAndroidWebApp(
+    softwareTitle?.app_store_apps?.[0]?.app_store_id
+  );
+
   const onDeleteInstaller = useCallback(
     (opts?: { siblingVersionsRemain?: boolean }) => {
       queryClient.invalidateQueries({
@@ -309,6 +319,8 @@ const SoftwareTitleDetailsPage = ({
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onClickVersions={() => setShowVersionsModal(true)}
+        iconUploadedAt={iconUploadedAt}
+        setIconUploadedAt={setIconUploadedAt}
         canActivateMultiplePackages={canActivateMultiplePackages}
         canActivateMultipleVersions={canActivateMultipleVersions}
       />
@@ -422,7 +434,11 @@ const SoftwareTitleDetailsPage = ({
       return (
         <LibraryItemAccordion
           key={version.id}
-          filename={version.name}
+          filename={
+            isWebApp
+              ? getDisplayedSoftwareName(title.name, title.display_name)
+              : version.name
+          }
           version={version.version}
           addedAt={version.created_at}
           installerType="app-store"
@@ -430,7 +446,18 @@ const SoftwareTitleDetailsPage = ({
             isAndroidPlayStoreApp ? version.app_store_id : undefined
           }
           isIosOrIpadosApp={isIosOrIpadosApp}
-          graphicOverride="file-configuration-profile"
+          graphicOverride={isWebApp ? undefined : "file-configuration-profile"}
+          iconOverride={
+            isWebApp ? (
+              <SoftwareIcon
+                name={title.name}
+                source={title.source}
+                url={title.icon_url}
+                uploadedAt={iconUploadedAt}
+                size="medium"
+              />
+            ) : undefined
+          }
           hideVersion
           isActive
           labels={labels}
@@ -620,7 +647,8 @@ const SoftwareTitleDetailsPage = ({
     // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. In
     // GitOps mode the button stays clickable so admins can open the modal in
     // its disabled state; the lock is enforced inside the modal.
-    const showAddVersionAction = canActivateMultipleVersions && canEditSoftware;
+    const showAddVersionAction =
+      canActivateMultipleVersions && canEditSoftware && !isWebApp;
     const versionCount = title.app_store_apps?.length ?? (appStore ? 1 : 0);
     const atVersionLimit = versionCount >= MAX_APP_STORE_APP_VERSIONS_PER_TITLE;
     const addVersionButton = showAddVersionAction && (
@@ -700,10 +728,12 @@ const SoftwareTitleDetailsPage = ({
     return (
       <section className={`${baseClass}__section`}>
         <SectionHeader title="Library" />
-        <div className={`${baseClass}__library-description-row`}>
-          <PageDescription content={descriptionContent} />
-          {headerAction}
-        </div>
+        {!isWebApp && (
+          <div className={`${baseClass}__library-description-row`}>
+            <PageDescription content={descriptionContent} />
+            {headerAction}
+          </div>
+        )}
         <div className={`${baseClass}__library-list`}>
           {useVersionsLayout && renderAppStoreVersionsHeader()}
           <LibraryItemAccordionList>
@@ -848,6 +878,7 @@ const SoftwareTitleDetailsPage = ({
             title.display_name
           )}
           siblingVersionNames={siblingVersionNames}
+          isWebApp={isWebApp}
           onExit={closeLibraryEditModal}
           onSuccess={() => {
             closeLibraryEditModal();

@@ -439,8 +439,8 @@ module.exports.routes = {
   'GET /device-management': {
     action: 'view-device-management',
     locals: {
-      pageTitleForMeta: 'Device management (MDM)',
-      pageDescriptionForMeta: 'Manage your devices in any browser or use git to make changes as code.',
+      pageTitleForMeta: 'Device management (MDM, EMM, and UEM)',
+      pageDescriptionForMeta: 'Enterprise MDM and unified endpoint management (UEM) for macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS. Manage your devices in any browser or use git to make changes as code.',
       currentSection: 'platform',
     }
   },
@@ -652,8 +652,8 @@ module.exports.routes = {
   'GET /linux': {
     action: 'view-linux-management',
     locals: {
-      pageTitleForMeta: 'Linux device management',
-      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+      pageTitleForMeta: 'Linux MDM and device management',
+      pageDescriptionForMeta: 'Linux MDM for every distro. Automate patching, monitor compliance, and unify Linux, macOS, and Windows device management in one place.',
       currentSection: 'platform',
     }
   },

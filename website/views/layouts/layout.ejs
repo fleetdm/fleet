@@ -24,23 +24,45 @@
     <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
     <% /* [?]: https://developers.google.com/search/docs/appearance/site-names#json-ld */%>
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Fleet",
-      "url": "https://fleetdm.com/"
-    }
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Fleet",
+        "alternateName": ["Fleet Device Management", "fleetdm.com"],
+        "url": "https://fleetdm.com/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Fleet",
+        "alternateName": "Fleet Device Management",
+        "legalName": "Fleet Device Management Inc.",
+        "url": "https://fleetdm.com/",
+        "logo": "https://fleetdm.com/images/fleet-logo-square@2x.png",
+        "sameAs": [
+          "https://github.com/fleetdm/fleet",
+          "https://www.linkedin.com/company/fleetdm",
+          "https://twitter.com/fleetctl",
+          "https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ"
+        ]
+      }
+    ]
     </script>
+    <% if (typeof canonicalUrlForMeta !== 'undefined' && !disableChatbotAndIndexing) { %>
+    <link rel="canonical" href="<%= canonicalUrlForMeta %>" />
+    <% } %>
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <%// Twitter meta tags%>
     <meta name="twitter:card" content="<%= typeof pageImageForMeta !== 'undefined' ? 'summary_large_image' : 'summary' %>" />
-    <meta name="twitter:site" content="https://fleetdm.com" />
+    <meta name="twitter:site" content="@fleetctl" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription  %>" />
     <meta name="twitter:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-white-square-1200x1200@2x.png' %>" />
     <%// Meta tags for other social previews %>
+    <meta property="og:site_name" content="Fleet" />
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
@@ -1053,6 +1075,7 @@
     <script src="/js/components/code-block-copy-buttons.component.js"></script>
     <script src="/js/components/demo-request-form.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
+    <script src="/js/components/embedded-content.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/logo-carousel.component.js"></script>
     <script src="/js/components/modal.component.js"></script>

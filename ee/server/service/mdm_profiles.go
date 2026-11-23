@@ -18,7 +18,7 @@ type fileVaultProfileOptions struct {
 	EnableEscrow      bool
 }
 
-var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+var fileVaultProfileTemplate = template.Must(template.New("").Funcs(template.FuncMap{"xml": mobileconfig.XMLEscapeString}).Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -66,7 +66,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>PayloadCertificateFileName</key>
 			<string>Fleet certificate</string>
 			<key>PayloadContent</key>
-			<data>{{ .Base64DerCertificate }}</data>
+			<data>{{ .Base64DerCertificate | xml }}</data>
 			<key>PayloadDisplayName</key>
 			<string>Certificate Root</string>
 			<key>PayloadIdentifier</key>
@@ -92,9 +92,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 		</dict>{{ end }}
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>{{ .PayloadName }}</string>
+	<string>{{ .PayloadName | xml }}</string>
 	<key>PayloadIdentifier</key>
-	<string>{{ .PayloadIdentifier }}</string>
+	<string>{{ .PayloadIdentifier | xml }}</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>

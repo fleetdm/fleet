@@ -1,3 +1,4 @@
+import { omit } from "lodash";
 import React, {
   useContext,
   useState,
@@ -362,7 +363,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         vulnerable: isViewingVulnerableSoftware,
       },
     ],
-    ({ queryKey }) => softwareAPI.getSoftwareVersions(queryKey[0]),
+    ({ queryKey }) =>
+      softwareAPI.getSoftwareVersions(omit(queryKey[0], "scope")),
     {
       enabled: isRouteOk && isSoftwareEnabled,
       keepPreviousData: true,
@@ -413,7 +415,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         teamId: teamIdForApi,
       },
     ],
-    ({ queryKey }) => softwareAPI.getSoftwareVersions(queryKey[0]),
+    ({ queryKey }) =>
+      softwareAPI.getSoftwareVersions(omit(queryKey[0], "scope")),
     {
       enabled: isRouteOk && shouldFetchSoftwareCount,
       keepPreviousData: true,

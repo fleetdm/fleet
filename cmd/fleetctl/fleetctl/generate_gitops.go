@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
@@ -65,7 +65,11 @@ type Software struct {
 type teamToProcess struct {
 	ID   *uint
 	Team *fleet.Team
+	// FileName names both fleets/<FileName>.yml and lib/<FileName>/.
+	FileName string
 }
+
+const unassignedFileName = "unassigned"
 
 type generateGitopsClient interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
@@ -447,8 +451,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			return ErrGeneric
 		}
 		noTeam = teamToProcess{
-			ID:   ptr.Uint(0),
-			Team: noTeamData,
+			ID:       new(uint(0)),
+			Team:     noTeamData,
+			FileName: unassignedFileName,
 		}
 	}
 
@@ -464,16 +469,25 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting fleets: %s\n", err)
 			return ErrGeneric
 		}
+		// Assigned from every fleet, so a single-fleet export writes the same
+		// file as a full export.
+		fileNames := fleetFileNames(teams)
 		// If a specific team is requested, find it.
-		if cmd.CLI.String(fleetFlagName) != "" {
-			transformedSelectedName := generateFilename(cmd.CLI.String(fleetFlagName))
-			for _, team := range teams {
-				if transformedSelectedName == generateFilename(team.Name) {
-					teamsToProcess = []teamToProcess{{
-						ID:   &team.ID,
-						Team: &team,
-					}}
-				}
+		if selected := cmd.CLI.String(fleetFlagName); selected != "" {
+			i := slices.IndexFunc(teams, func(t fleet.Team) bool { return t.Name == selected })
+			if i < 0 {
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return strings.EqualFold(t.Name, selected) })
+			}
+			if i < 0 {
+				selectedFileName := generateFilename(selected)
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return fileNames[t.ID] == selectedFileName })
+			}
+			if i >= 0 {
+				teamsToProcess = []teamToProcess{{
+					ID:       &teams[i].ID,
+					Team:     &teams[i],
+					FileName: fileNames[teams[i].ID],
+				}}
 			}
 			if len(teamsToProcess) == 0 {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Fleet %s not found\n", cmd.CLI.String(fleetFlagName))
@@ -484,8 +498,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			teamsToProcess = make([]teamToProcess, len(teams)+2)
 			for i, team := range teams {
 				teamsToProcess[i] = teamToProcess{
-					ID:   &team.ID,
-					Team: &team,
+					ID:       &team.ID,
+					Team:     &team,
+					FileName: fileNames[team.ID],
 				}
 			}
 			teamsToProcess[len(teams)] = noTeam
@@ -508,7 +523,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			if team.ID == 0 {
 				displayName = "Unassigned"
 			}
-			teamFileName = generateFilename(displayName)
+			teamFileName = teamToProcess.FileName
 			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": displayName,
@@ -660,10 +675,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		case "":
 			fileName = "default.yml"
 		case "unassigned":
-			fileName = "fleets/unassigned.yml"
+			fileName = "fleets/" + unassignedFileName + ".yml"
 		default:
-			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
-			fileName = "fleets/" + teamFileName + ".yml"
+			// Free ignores --fleet and exports only default.yml.
+			fileName = "fleets/" + generateFilename(cmd.CLI.String(fleetFlagName)) + ".yml"
+			if teamsToProcess[0].ID != nil {
+				fileName = "fleets/" + teamsToProcess[0].FileName + ".yml"
+			}
 		}
 
 		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
@@ -834,6 +852,34 @@ func uniqueFilename(fileName string, taken map[string]bool) string {
 	}
 	taken[candidate] = true
 	return candidate
+}
+
+// fleetFileNames gives each fleet a distinct file name, since distinct names can
+// sanitize alike ("Mac/Win" and "Macawin"). The lowest ID keeps the sanitized
+// name, so a newer fleet is the one numbered. No fleet can take Unassigned's
+// file or no-team.yml, which fleetctl gitops rejects.
+func fleetFileNames(teams []fleet.Team) map[uint]string {
+	order := make([]int, len(teams))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortFunc(order, func(a, b int) int { return cmp.Compare(teams[a].ID, teams[b].ID) })
+	taken := map[string]bool{unassignedFileName + ".yml": true, "no-team.yml": true}
+	names := make(map[uint]string, len(teams))
+	// Sanitized names go first, so a numbered name ("macawin-2") can't take the
+	// file of a fleet that sanitizes to it ("Macawin-2").
+	for _, i := range order {
+		if fileName := generateFilename(teams[i].Name) + ".yml"; !taken[fileName] {
+			taken[fileName] = true
+			names[teams[i].ID] = strings.TrimSuffix(fileName, ".yml")
+		}
+	}
+	for _, i := range order {
+		if _, ok := names[teams[i].ID]; !ok {
+			names[teams[i].ID] = strings.TrimSuffix(uniqueFilename(generateFilename(teams[i].Name)+".yml", taken), ".yml")
+		}
+	}
+	return names
 }
 
 func scriptExtensionForPlatform(platform string) string {

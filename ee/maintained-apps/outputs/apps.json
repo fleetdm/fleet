@@ -37,6 +37,13 @@
       "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
     },
     {
+      "name": "3Dconnexion 3DxWare 10",
+      "slug": "3dxware-10/windows",
+      "platform": "windows",
+      "unique_identifier": "3Dconnexion 3DxWare 10",
+      "description": "3Dconnexion 3DxWare 10 is the driver and configuration software for 3Dconnexion 3D mice and keyboards."
+    },
+    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",
@@ -1668,10 +1675,24 @@
       "description": "Cisco Webex Recorder and Player plays Webex .wrf meeting recordings."
     },
     {
+      "name": "Citrix Workspace LTSR",
+      "slug": "citrix-workspace-ltsr/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace LTSR is the long-term servicing release of Citrix's unified workspace client, delivering secure access to virtual apps, desktops, and content."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
       "unique_identifier": "com.citrix.receiver.nomas",
+      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
@@ -3600,6 +3621,13 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Front",
+      "slug": "front/windows",
+      "platform": "windows",
+      "unique_identifier": "Front",
+      "description": "Front is a customer communication platform."
+    },
+    {
       "name": "FSMonitor",
       "slug": "fsmonitor/darwin",
       "platform": "darwin",
@@ -5329,6 +5357,13 @@
       "description": "Mailspring is a fork of Nylas Mail."
     },
     {
+      "name": "Make Me Admin",
+      "slug": "make-me-admin/windows",
+      "platform": "windows",
+      "unique_identifier": "Make Me Admin",
+      "description": "Make Me Admin is a tool that lets standard users temporarily elevate their account to administrator."
+    },
+    {
       "name": "Malwarebytes for Mac",
       "slug": "malwarebytes/darwin",
       "platform": "darwin",
@@ -5921,6 +5956,13 @@
       "slug": "mullvad-vpn/darwin",
       "platform": "darwin",
       "unique_identifier": "net.mullvad.vpn",
+      "description": "Mullvad VPN is a VPN client."
+    },
+    {
+      "name": "Mullvad VPN",
+      "slug": "mullvad-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mullvad VPN",
       "description": "Mullvad VPN is a VPN client."
     },
     {
@@ -7716,6 +7758,13 @@
       "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
     },
     {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/windows",
+      "platform": "windows",
+      "unique_identifier": "Rocket.Chat",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
@@ -7840,6 +7889,13 @@
       "platform": "windows",
       "unique_identifier": "Safe Exam Browser",
       "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
+    },
+    {
+      "name": "Sandboxie-Plus",
+      "slug": "sandboxie-plus/windows",
+      "platform": "windows",
+      "unique_identifier": "Sandboxie-Plus",
+      "description": "Sandboxie-Plus is a sandbox tool for running programs in isolation so they can't make lasting changes to the system."
     },
     {
       "name": "SaneSideButtons",
@@ -8353,6 +8409,13 @@
       "description": "Splashtop Business is remote access software."
     },
     {
+      "name": "Splashtop Business",
+      "slug": "splashtop-business/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Business",
+      "description": "Splashtop Business is remote access software."
+    },
+    {
       "name": "Splashtop Streamer",
       "slug": "splashtop-streamer/darwin",
       "platform": "darwin",
@@ -8738,6 +8801,13 @@
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
+      "name": "Tableau Reader",
+      "slug": "tableau-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Reader",
+      "description": "Tableau Reader is a free desktop application for opening and interacting with data visualizations built in Tableau."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
@@ -9072,6 +9142,13 @@
       "platform": "windows",
       "unique_identifier": "TortoiseGit",
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
+    },
+    {
+      "name": "TortoiseSVN",
+      "slug": "tortoisesvn/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseSVN",
+      "description": "TortoiseSVN is an Apache Subversion (SVN) client for Windows, implemented as a File Explorer shell extension with overlay icons and context menu commands."
     },
     {
       "name": "Tower",
@@ -9795,6 +9872,13 @@
       "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
     },
     {
+      "name": "Windscribe",
+      "slug": "windscribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Windscribe",
+      "description": "Windscribe is a VPN client that encrypts network traffic and blocks ads and trackers."
+    },
+    {
       "name": "Windsurf",
       "slug": "windsurf/windows",
       "platform": "windows",
@@ -10171,6 +10255,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Rooms",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom VDI Universal Plugin",
+      "slug": "zoom-vdi-universal-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom VDI Universal Plugin(64bit)",
+      "description": "Zoom VDI Universal Plugin is an endpoint media plug-in that offloads Zoom audio and video processing to the local device in virtual desktop environments."
     },
     {
       "name": "Zoom",

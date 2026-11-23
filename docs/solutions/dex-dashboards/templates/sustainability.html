@@ -12,6 +12,11 @@
 .cover > div { padding: 10px 0; border-top: 1px solid var(--line); }
 .cover .h { border-top: 0; padding-top: 0; font-size: 12px; color: var(--ink-2); }
 .cover .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 600px) {
+  .cover { grid-template-columns: minmax(0, 1fr) auto; grid-auto-flow: row dense; row-gap: 0; }
+  .cover > :nth-child(3n+2) { grid-column: 1 / -1; border-top: 0; padding-top: 0; }
+  .cover > .h:nth-child(2) { display: none; }
+}
 .settings { display: grid; gap: 0 16px; align-items: baseline; }
 .settings > div { padding: 8px 0; border-top: 1px solid var(--line); }
 .settings .h { border-top: 0; padding-top: 0; font-size: 12px; color: var(--ink-2); }

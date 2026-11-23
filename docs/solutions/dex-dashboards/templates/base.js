@@ -108,21 +108,37 @@ function hostLink(id, name) {
 function pageLink(href, attrs, ...kids) {
   return h("a", { href, ...(/^https?:/i.test(href || "") ? { target: "_top" } : {}), ...attrs }, ...kids);
 }
-const NAV = [["overview", "Overview"], ["ai", "AI governance"], ["connectivity", "Connectivity"], ["lifecycle", "Hardware lifecycle"],
-  ["patch", "Patch velocity"], ["software", "Software usage"], ["sustainability", "Sustainability"], ["policies", "Policies"], ["analytics", "Analytics"]];
+// [page, tab label, page title when the label is shorter]. Short labels keep all ten tabs on one row from about 900px.
+// Same order as the overview's cards.
+const NAV = [["overview", "Overview"], ["ai", "AI", "AI governance"], ["connectivity", "Connectivity"],
+  ["lifecycle", "Hardware", "Hardware lifecycle"], ["patch", "Patching", "Patch velocity"], ["software", "Software", "Software usage"],
+  ["sustainability", "Sustainability"], ["experience", "Experience", "Experience score"], ["policies", "Policies"], ["analytics", "Analytics"]];
 function dashNav() {
   const links = DATA.links || {};
   const items = NAV.filter(([p]) => p === DATA.page || links[p]);
   if (items.length < 2) return null;
   // data-text reserves the bold width, so the current tab doesn't shift its neighbors.
-  const nav = h("nav", { class: "dash-nav", "aria-label": "DEX dashboards" }, items.map(([p, label]) => (p === DATA.page
-    ? h("a", { "aria-current": "page", "data-text": label }, label)
-    : pageLink(links[p], { "data-text": label }, label))));
-  requestAnimationFrame(() => {
+  const nav = h("nav", { class: "dash-nav", "aria-label": "Dashboards" }, items.map(([p, label, title]) => {
+    const attrs = { "data-text": label, title };
+    return p === DATA.page ? h("a", { "aria-current": "page", ...attrs }, label) : pageLink(links[p], attrs, label);
+  }));
+  // A row that doesn't fit slides sideways; the arrows are for mice, so keyboard and screen readers skip them.
+  const arrow = (dir) => h("button", {
+    type: "button", class: `nav-arrow ${dir}`, tabindex: "-1", "aria-hidden": "true",
+    onclick: () => nav.scrollBy({ left: (dir === "l" ? -0.7 : 0.7) * nav.clientWidth, behavior: "smooth" }),
+  }, h("span", {}, svg("svg", { viewBox: "0 0 16 16" }, svg("path", { d: dir === "l" ? "M10 3 5 8l5 5" : "M6 3l5 5-5 5" }))));
+  const wrap = h("div", { class: "dash-nav-wrap" }, nav, arrow("l"), arrow("r"));
+  const edges = () => {
+    wrap.classList.toggle("more-l", nav.scrollLeft > 2);
+    wrap.classList.toggle("more-r", nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 2);
+  };
+  nav.addEventListener("scroll", edges, { passive: true });
+  new ResizeObserver(() => {
     const cur = nav.querySelector("[aria-current]");
-    if (cur && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = cur.offsetLeft - nav.offsetLeft - 16;
-  });
-  return nav;
+    if (cur && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = cur.offsetLeft - (nav.clientWidth - cur.offsetWidth) / 2;
+    edges();
+  }).observe(nav);
+  return wrap;
 }
 
 // Fleet and platform filters, remembered per viewer.
@@ -454,14 +470,24 @@ function renderTrend(fields, panels) {
     p.note ? h("p", { class: "panel-note" }, p.note) : null)));
 }
 
-// One row per item; each row is a track of colored segments.
+// One row per item; each row is a track of colored segments. An item with onclick is a
+// toggle button, pressed when item.pressed is true.
 function barRows(items, max) {
   const top = max || Math.max(1, ...items.map((it) => it.segs.reduce((a, s) => a + s.value, 0)));
   return h("div", { class: "bars" }, items.map((it) => {
     const total = it.segs.reduce((a, s) => a + s.value, 0);
+    const segs = it.segs.filter((s) => s.value > 0);
+    // Widths leave room for the 2px gaps, so a full bar fills its track exactly.
+    const gaps = Math.max(0, segs.length - 1) * 2;
     const track = h("div", { class: "track", role: "img", "aria-label": `${it.label}: ${it.valueText ?? total}` },
-      it.segs.filter((s) => s.value > 0).map((s) => tip(h("div", { class: "seg", style: `width:${(100 * s.value) / top}%;background:${s.color}` }), s.tip)));
-    return h("div", { class: "bar-row" },
+      segs.map((s) => tip(h("div", { class: "seg", style: `width:calc((100% - ${gaps}px) * ${s.value / top});background:${s.color}` }), s.tip)));
+    const press = it.onclick ? (e) => {
+      if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      it.onclick();
+    } : null;
+    return h("div", { class: it.onclick ? "bar-row click" : "bar-row",
+      ...(press ? { role: "button", tabindex: "0", "aria-pressed": it.pressed ? "true" : "false", onclick: press, onkeydown: press } : {}) },
       h("span", { class: "lbl", title: it.label }, it.label), track, h("span", { class: "val" }, it.valueText ?? fmt.n(total)));
   }));
 }

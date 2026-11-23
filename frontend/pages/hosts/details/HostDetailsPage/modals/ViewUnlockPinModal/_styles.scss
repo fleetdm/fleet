@@ -1,0 +1,23 @@
+.view-unlock-pin-modal {
+  p {
+    margin: 0;
+  }
+
+  &__modal-content {
+    display: grid;
+    gap: $pad-large;
+  }
+
+  &__pin {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__pin-value {
+    padding: 2px $pad-small;
+    border: 1px solid var(--ui-fleet-black-10);
+    border-radius: $border-radius;
+    font-family: monospace;
+  }
+}

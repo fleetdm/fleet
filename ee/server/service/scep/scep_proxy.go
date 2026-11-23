@@ -416,6 +416,8 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			profileUUID)}
 	}
 
+	challengeScope := fleet.ChallengeScope{HostUUID: hostUUID, ProfileUUID: profileUUID, CAName: caName}
+
 	var certReq scepCertificateRequest
 
 	switch {
@@ -454,10 +456,8 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			template:    template,
 			profileUUID: profileUUID,
 		}
-		// Use the fleet challenge from the template if not provided in the identifier
-		if fleetChallenge == "" && template.FleetChallenge != nil {
-			fleetChallenge = *template.FleetChallenge
-		}
+		// The third field of an Android identifier is the CA type, and the template already determines the CA.
+		challengeScope.CAName = ""
 	}
 
 	if certReq == nil {
@@ -532,7 +532,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		}
 
 		if checkChallenge {
-			if err := svc.handleFleetChallenge(ctx, fleetChallenge, hostUUID, profileUUID); err != nil {
+			if err := svc.handleFleetChallenge(ctx, fleetChallenge, challengeScope); err != nil {
 				// FIXME: The layered logging implementation of the scepProxyService not
 				// intuitive. Can we make it so that we return fleet.ErrWithInternal to
 				// better capture/log the context errors here?
@@ -594,18 +594,18 @@ func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 //
 // TODO: Consider refactoring to differentiate between invalid challenge and other errors. As it
 // stands, we're resending the profile in both cases.
-func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChallenge string, hostUUID string, profileUUID string) error {
+func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChallenge string, scope fleet.ChallengeScope) error {
 	var errs []error
 
 	resendProfile := svc.ds.ResendHostCertificateProfile
-	if strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+	if strings.HasPrefix(scope.ProfileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
 		resendProfile = svc.ds.ResendWindowsHostCertificateProfile
 	}
 
-	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
+	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge, scope); err != nil {
 		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
 		// FIXME: See comment in datastore method regarding how we resend profiles with dynamic content
-		if err := resendProfile(ctx, hostUUID, profileUUID); err != nil {
+		if err := resendProfile(ctx, scope.HostUUID, scope.ProfileUUID); err != nil {
 			errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile"))
 		}
 	}

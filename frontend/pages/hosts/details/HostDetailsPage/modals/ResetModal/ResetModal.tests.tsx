@@ -24,19 +24,6 @@ describe("ResetModal", () => {
     jest.resetAllMocks();
   });
 
-  it("points to Wipe for lost or stolen hosts", () => {
-    const render = createCustomRenderer();
-    render(<ResetModal {...MOCK_PROPS} />);
-
-    expect(
-      screen.getByText("Repurpose the host for another end user.")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/For lost or stolen hosts, use/)
-    ).toBeInTheDocument();
-    expect(screen.getByText("Actions > Wipe")).toBeInTheDocument();
-  });
-
   it("keeps Reset disabled until confirmed and while the request is in flight", async () => {
     jest
       .mocked(hostAPI.resetHost)

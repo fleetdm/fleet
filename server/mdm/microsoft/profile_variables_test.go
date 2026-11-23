@@ -227,7 +227,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 						},
 					}, nil
 				}
-				ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+				ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 					return "supersecret", nil
 				}
 			},
@@ -269,7 +269,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 						},
 					}, nil
 				}
-				ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+				ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 					return "supersecret", nil
 				}
 			},

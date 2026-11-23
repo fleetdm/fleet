@@ -397,6 +397,34 @@ func testOneTimeEnrollSecretRejectShared(t *testing.T, ds *Datastore) {
 		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
 	})
 
+	t.Run("serial of a Fleet MDM enrolled Mac under another UUID", func(t *testing.T) {
+		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		nanoEnroll(t, ds, h, false)
+		other := &fleet.Host{UUID: strings.ToUpper(uuid.NewString()), HardwareSerial: h.HardwareSerial, Platform: "ubuntu"}
+
+		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(other, nil, reject)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(other, nil, rejectOsquery)...)
+		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, &h.ID)
+
+		// flag off: it enrolls as a host of its own
+		enrolled, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(other, nil)...)
+		require.NoError(t, err)
+		require.NotEqual(t, h.ID, enrolled.ID)
+	})
+
+	t.Run("serial of a Mac not in Fleet MDM under another UUID", func(t *testing.T) {
+		h := newOneTimeSecretTestHost(t, ds, "darwin", nil)
+		other := &fleet.Host{UUID: strings.ToUpper(uuid.NewString()), HardwareSerial: h.HardwareSerial, Platform: "darwin"}
+
+		enrolled, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(other, nil, reject)...)
+		require.NoError(t, err)
+		require.NotEqual(t, h.ID, enrolled.ID)
+		enrolled, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(other, nil, rejectOsquery)...)
+		require.NoError(t, err)
+		require.NotEqual(t, h.ID, enrolled.ID)
+	})
+
 	t.Run("a deleted Fleet MDM Mac is recreated with a shared secret", func(t *testing.T) {
 		// Deleting a host keeps its nano_enrollments row, and macOS hosts are only
 		// recreated by fleetd enrolling again, so the insert branch must accept

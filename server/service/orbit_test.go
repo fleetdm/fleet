@@ -1429,8 +1429,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("a retry of an Update now install installs with the app open", func(t *testing.T) {
-		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), false)
 
 		hctx := hostctx.NewContext(ctx, host)
@@ -1462,8 +1461,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
-		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, ""), false)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
@@ -2801,6 +2799,16 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 	require.ErrorAs(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", "bogus"), &bre)
 	require.False(t, ds.SetEscrowInFlightFuncInvoked)
 	require.False(t, ds.ReportEscrowErrorFuncInvoked)
+
+	for _, platform := range []string{"darwin", "windows"} {
+		reset()
+		unsupportedCtx := test.HostContext(ctx, &fleet.Host{ID: 1, Platform: platform})
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), &bre, platform)
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "", "", nil, "some client error", "", ""), &bre, platform)
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "passphrase", "salt", new(uint(1)), "", "", ""), &bre, platform)
+		require.False(t, ds.SetEscrowInFlightFuncInvoked)
+		require.False(t, ds.ReportEscrowErrorFuncInvoked)
+	}
 
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }
