@@ -1,0 +1,1 @@
+- Fixed truncated name tooltips in tables (e.g. policy names on the Policies page) blocking clicks on the row above and navigating to the wrong item.

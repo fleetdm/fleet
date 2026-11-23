@@ -28,6 +28,9 @@ interface ITooltipTruncatedTextCellProps {
    * friendlier display value, or a "+N" suffix implying there's more info)
    * rather than just the truncated text. */
   alwaysShowTooltip?: boolean;
+  /** When `false`, the tooltip lets the pointer pass through and hides as soon as the pointer leaves the text. Use
+   * inside links, where a clickable tooltip overlapping the row above captures clicks meant for that row. Default: true */
+  tooltipClickable?: boolean;
 }
 
 const baseClass = "tooltip-truncated-cell";
@@ -41,6 +44,7 @@ const TooltipTruncatedTextCell = ({
   suffix,
   justifySuffixEnd = false,
   alwaysShowTooltip = false,
+  tooltipClickable = true,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
@@ -104,8 +108,8 @@ const TooltipTruncatedTextCell = ({
         id={tooltipId}
         data-html
         className="truncated-tooltip" // responsive widths
-        clickable
-        delayHide={200} // need delay set to hover using clickable
+        clickable={tooltipClickable}
+        delayHide={tooltipClickable ? 200 : undefined} // need delay set to hover using clickable
       >
         <>
           {tooltip ?? value}
