@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261118141311, Down_20261118141311)
+	MigrationClient.AddMigration(Up_20261123192051, Down_20261123192051)
 }
 
-func Up_20261118141311(tx *sql.Tx) error {
+func Up_20261123192051(tx *sql.Tx) error {
 	// The primary key is (issuer, subject) rather than including user_id so that
 	// one external identity can never resolve to two users. Both columns are binary:
 	// OIDC subjects are case-sensitive, and the default _ci collation would let a
@@ -31,6 +31,6 @@ func Up_20261118141311(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261118141311(tx *sql.Tx) error {
+func Down_20261123192051(tx *sql.Tx) error {
 	return nil
 }
