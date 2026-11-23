@@ -392,12 +392,12 @@ func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
 	return nil
 }
 
-// requestPolicyMembershipCleanup marks the policy for the policy_membership_cleanup schedule,
-// which removes all of its results (removeAll) or only those of hosts it no longer targets. It
-// must run in the transaction that changes the policy, so the request can't be lost.
+// requestPolicyMembershipCleanup marks the policy for the policy_membership_cleanup schedule, which removes all of its
+// results (removeAll) or only those of hosts it no longer targets. It must run in the transaction that changes the
+// policy, so the request can't be lost.
 //
-// The cleanup runs after the request returns, because at scale it takes about a minute per policy.
-// Until then, removing policy_stats makes the policy's counts read as not yet run.
+// The cleanup runs after the request returns, because at scale it takes about a minute per policy. Until then, removing
+// policy_stats makes the policy's counts read as not yet run.
 func requestPolicyMembershipCleanup(ctx context.Context, tx sqlx.ExecerContext, policyID uint, removeAll, removeStats bool) error {
 	// Always bumping updated_at lets the hourly policy_membership reconcile see a label-only
 	// change, which doesn't otherwise update the policies row.
@@ -2798,8 +2798,8 @@ func deletePolicyMembershipBatch(
 // empty string - to "windows", this would delete that policy's membership rows
 // for any non-windows host).
 //
-// It is the hourly reconcile behind CleanupPendingPolicyMembership, for example for a policy
-// changed again while its requested cleanup was running.
+// It is the hourly backstop behind CleanupPendingPolicyMembership, for out-of-scope results recorded
+// after a requested cleanup finished.
 func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
 	const (
 		recentlyUpdatedPoliciesInterval = 24 * time.Hour

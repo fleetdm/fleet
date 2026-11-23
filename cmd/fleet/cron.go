@@ -1359,8 +1359,7 @@ func newAppleMDMWorkerSchedule(
 	return s, nil
 }
 
-// newPolicyMembershipCleanupSchedule runs the policy result cleanups that policy changes requested. It is separate from
-// cleanups_then_aggregation so that a change can trigger it without running every other cleanup.
+// newPolicyMembershipCleanupSchedule runs the policy result cleanups that policy changes requested.
 func newPolicyMembershipCleanupSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -1368,10 +1367,8 @@ func newPolicyMembershipCleanupSchedule(
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name = string(fleet.CronPolicyMembershipCleanup)
-		// Short because a trigger is skipped while a run is in progress or on another server, and a run with nothing
-		// pending is a single SELECT on policies.
-		defaultInterval = 5 * time.Minute
+		name            = string(fleet.CronPolicyMembershipCleanup)
+		defaultInterval = time.Hour
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -2831,7 +2828,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 			defer cancel()
 
 			err := eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
-			// Patch policies whose query changed had their results cleanup requested.
+			// When the update changed a patch policy's query, it marked the policy's old results for cleanup. This starts that cleanup.
 			if triggerErr := fleet.TriggerPolicyMembershipCleanup(ctx, cronSchedules); triggerErr != nil {
 				logger.ErrorContext(ctx, "trigger policy membership cleanup", "err", triggerErr)
 			}

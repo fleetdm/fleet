@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -1476,4 +1477,66 @@ func TestTeamPolicyResendConfigProfile(t *testing.T) {
 			require.False(t, ds.GetMDMWindowsConfigProfileFuncInvoked)
 		})
 	})
+}
+
+func TestModifyPolicyLabelChangeRemovesStats(t *testing.T) {
+	const policyID = uint(42)
+	newSvc := func(t *testing.T) (*mock.Store, fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+			return &fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID: policyID, Name: "global", Query: "SELECT 1;",
+					LabelsIncludeAny: fleet.LabelNamesToIdents([]string{"label-a", "label-b"}),
+				},
+				PassingHostCount: 3, FailingHostCount: 4, HostCountUpdatedAt: new(time.Now()),
+			}, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			labels := make(map[string]*fleet.Label, len(names))
+			for i, name := range names {
+				labels[name] = &fleet.Label{ID: uint(i + 1), Name: name} //nolint:gosec // dismiss G115
+			}
+			return labels, nil
+		}
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+		return ds, svc, viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	}
+
+	cases := []struct {
+		name            string
+		payload         fleet.ModifyPolicyPayload
+		wantRemoveStats bool
+	}{
+		{"changed labels", fleet.ModifyPolicyPayload{LabelsIncludeAny: []string{"label-a"}}, true},
+		{"switched label scope", fleet.ModifyPolicyPayload{LabelsExcludeAny: []string{"label-a", "label-b"}}, true},
+		{"same labels in another order", fleet.ModifyPolicyPayload{LabelsIncludeAny: []string{"label-b", "label-a"}}, false},
+		{"labels not sent", fleet.ModifyPolicyPayload{Description: new("new description")}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds, svc, ctx := newSvc(t)
+			var removeAll, removeStats bool
+			ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, shouldRemoveAll, shouldRemoveStats bool) error {
+				removeAll, removeStats = shouldRemoveAll, shouldRemoveStats
+				return nil
+			}
+			policy, err := svc.ModifyGlobalPolicy(ctx, policyID, tc.payload)
+			require.NoError(t, err)
+			require.True(t, ds.SavePolicyFuncInvoked)
+			assert.False(t, removeAll)
+			assert.Equal(t, tc.wantRemoveStats, removeStats)
+			if tc.wantRemoveStats {
+				assert.Zero(t, policy.PassingHostCount)
+				assert.Zero(t, policy.FailingHostCount)
+				assert.Nil(t, policy.HostCountUpdatedAt)
+			} else {
+				assert.Equal(t, uint(3), policy.PassingHostCount)
+			}
+		})
+	}
 }
