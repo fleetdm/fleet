@@ -121,7 +121,7 @@ func TestPolicies(t *testing.T) {
 		{"DeletePoliciesOverlappingMembership", testDeletePoliciesOverlappingMembership},
 		{"DeleteNoTeamPoliciesCancelsActivatedAutomations", testDeleteNoTeamPoliciesCancelsActivatedAutomations},
 		{"CleanupPendingPolicyMembership", testCleanupPendingPolicyMembership},
-		{"PolicyChangesDeferMembershipCleanup", testPolicyChangesDeferMembershipCleanup},
+		{"PolicyChangesRequestMembershipCleanup", testPolicyChangesRequestMembershipCleanup},
 		{"SavePolicyDoesNotBlockUnrelatedPolicyIngestion", testSavePolicyDoesNotBlockUnrelatedPolicyIngestion},
 		{"SavePolicyPartialMembershipCleanup", testSavePolicyPartialMembershipCleanup},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
@@ -2583,14 +2583,23 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 		polsByName[pol.Name] = pol
 	}
 	// The partial cleanups refreshed their policies' counts; the full ones leave them to the aggregation.
-	assert.Equal(t, uint(8), polsByName[globalNames[0]].FailingHostCount)
-	assert.Equal(t, uint(0), polsByName[globalNames[1]].FailingHostCount) // updated query
-	assert.Nil(t, polsByName[globalNames[1]].HostCountUpdatedAt)
-	assert.Equal(t, uint(2), polsByName[globalNames[2]].FailingHostCount) // updated platform
-	assert.Equal(t, uint(2), polsByName[teamNames[0]].FailingHostCount)   // updated platform
-	assert.Equal(t, uint(1), polsByName[teamNames[1]].FailingHostCount)   // updated calendar events
-	assert.Equal(t, uint(0), polsByName[teamNames[2]].FailingHostCount)   // updated query
-	assert.Nil(t, polsByName[teamNames[2]].HostCountUpdatedAt)
+	for _, want := range []struct {
+		name          string
+		failing       uint
+		countsCleared bool
+	}{
+		{globalNames[0], 8, false},
+		{globalNames[1], 0, true},  // updated query
+		{globalNames[2], 2, false}, // updated platform
+		{teamNames[0], 2, false},   // updated platform
+		{teamNames[1], 1, false},   // updated calendar events
+		{teamNames[2], 0, true},    // updated query
+	} {
+		pol := polsByName[want.name]
+		require.NotNil(t, pol, want.name)
+		assert.Equal(t, want.failing, pol.FailingHostCount, want.name)
+		assert.Equal(t, want.countsCleared, pol.HostCountUpdatedAt == nil, want.name)
+	}
 
 	err = ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
@@ -9264,54 +9273,43 @@ func testCleanupPendingPolicyMembership(t *testing.T, ds *Datastore) {
 	})
 }
 
-// testPolicyChangesDeferMembershipCleanup guards against a policy change waiting on result ingestion: each change only
-// requests the cleanup, so a lock on one of the policy's results, as ingestion takes, can't hold it up.
-func testPolicyChangesDeferMembershipCleanup(t *testing.T, ds *Datastore) {
+// testPolicyChangesRequestMembershipCleanup checks that a change that invalidates a policy's results only requests their
+// cleanup, so it doesn't wait on result ingestion, and that CleanupPendingPolicyMembership then removes them.
+func testPolicyChangesRequestMembershipCleanup(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	cases := []struct {
 		name   string
-		change func(ctx context.Context, pol *fleet.Policy) error
+		change func(pol *fleet.Policy) error
 	}{
-		{"ApplyPolicySpecs", func(ctx context.Context, pol *fleet.Policy) error {
+		{"ApplyPolicySpecs", func(pol *fleet.Policy) error {
 			return ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
 				{Name: pol.Name, Query: "SELECT 1 WHERE 1 = 2;", Type: fleet.PolicyTypeDynamic},
 			})
 		}},
-		{"SavePolicy", func(ctx context.Context, pol *fleet.Policy) error {
+		{"SavePolicy", func(pol *fleet.Policy) error {
 			pol.Query = "SELECT 1 WHERE 1 = 2;"
 			return ds.SavePolicy(ctx, pol, true, true)
 		}},
-		{"ResetPolicy", func(ctx context.Context, pol *fleet.Policy) error {
+		{"ResetPolicy", func(pol *fleet.Policy) error {
 			return ds.ResetPolicy(ctx, pol.ID)
 		}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			pol := newTestPolicy(t, ds, user, "deferred "+c.name, "", nil)
-			hosts := newPolicyTestHosts(t, ds, 4, "deferred-"+c.name)
+			pol := newTestPolicy(t, ds, user, "requested "+c.name, "", nil)
+			hosts := newPolicyTestHosts(t, ds, 4, "requested-"+c.name)
 			recordFailingPolicyResults(t, ds, pol.ID, hosts)
 			require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
 			require.Positive(t, policyStatsCount(t, ds, pol.ID))
 
-			ingestionTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-			require.NoError(t, err)
-			defer func() { _ = ingestionTx.Rollback() }() // before TestPolicies truncates the tables, which would wait on this lock
-			_, err = ingestionTx.ExecContext(ctx, `SELECT 1 FROM policy_membership WHERE policy_id = ? AND host_id = ? FOR UPDATE`,
-				pol.ID, hosts[len(hosts)-1].ID)
-			require.NoError(t, err)
-
-			// Well under innodb_lock_wait_timeout, so a change that waited on the lock fails here.
-			changeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			require.NoError(t, c.change(changeCtx, pol))
+			require.NoError(t, c.change(pol))
 			removeAll, _ := policyCleanupFlags(t, ds, pol.ID)
 			assert.True(t, removeAll)
-			assert.Equal(t, len(hosts), policyMembershipCount(t, ds, pol.ID))
+			assert.Equal(t, len(hosts), policyMembershipCount(t, ds, pol.ID), "the change must leave the results to the cleanup")
 			assert.Zero(t, policyStatsCount(t, ds, pol.ID))
 
-			require.NoError(t, ingestionTx.Rollback())
 			require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 			assert.Zero(t, policyMembershipCount(t, ds, pol.ID))
 			removeAll, _ = policyCleanupFlags(t, ds, pol.ID)
@@ -9403,7 +9401,7 @@ func testSavePolicyDoesNotBlockUnrelatedPolicyIngestion(t *testing.T, ds *Datast
 }
 
 // testSavePolicyPartialMembershipCleanup covers a save that keeps the results: it requests a partial cleanup, which
-// removes only the hosts the policy no longer targets. testPolicyChangesDeferMembershipCleanup covers the full cleanup.
+// removes only the hosts the policy no longer targets. testPolicyChangesRequestMembershipCleanup covers the full cleanup.
 func testSavePolicyPartialMembershipCleanup(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)

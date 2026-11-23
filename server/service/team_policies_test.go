@@ -1485,10 +1485,8 @@ func TestModifyPolicyLabelChangeRemovesStats(t *testing.T) {
 		ds := new(mock.Store)
 		ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
 			return &fleet.Policy{
-				PolicyData: fleet.PolicyData{
-					ID: policyID, Name: "global", Query: "SELECT 1;",
-					LabelsIncludeAny: fleet.LabelNamesToIdents([]string{"label-a", "label-b"}),
-				},
+				ID: policyID, Name: "global", Query: "SELECT 1;",
+				LabelsIncludeAny: fleet.LabelNamesToIdents([]string{"label-a", "label-b"}),
 				PassingHostCount: 3, FailingHostCount: 4, HostCountUpdatedAt: new(time.Now()),
 			}, nil
 		}
