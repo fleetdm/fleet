@@ -259,6 +259,7 @@ type GitOpsPolicySpec struct {
 	ContinuousAutomations      optjson.Bool                           `json:"continuous_automations_enabled"`
 	RunScript                  *PolicyRunScript                       `json:"run_script"`
 	InstallSoftware            optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	ForcePatch                 bool                                   `json:"force_patch"`
 	ResendConfigurationProfile string                                 `json:"resend_configuration_profile"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
@@ -2306,6 +2307,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
+		if item.ForcePatch && item.Type != fleet.PolicyTypePatch {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				`Couldn't apply policy %q: "force_patch" is only supported for patch policies`, item.Name,
+			))
+		}
 		if item.Type == fleet.PolicyTypePatch {
 			_, slugIsKnownFMA := fmasBySlug[item.FleetMaintainedAppSlug]
 			if !slugIsKnownFMA {
@@ -2320,6 +2326,50 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
+			}
+			var patchOptions []string
+			if item.ForcePatch {
+				patchOptions = append(patchOptions, "force_patch")
+			}
+			if item.PatchWhenClosed {
+				patchOptions = append(patchOptions, "patch_when_closed")
+			}
+			if item.NotifyBeforePatching {
+				patchOptions = append(patchOptions, "notify_before_patching")
+			}
+			if item.PatchDeadline {
+				patchOptions = append(patchOptions, "patch_deadline")
+			}
+			if len(patchOptions) > 1 {
+				multiError = multierror.Append(multiError, fmt.Errorf(
+					`Couldn't apply policy %q: Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true, but it sets "%s".`,
+					item.Name, strings.Join(patchOptions, `" and "`),
+				))
+				continue
+			}
+			if item.InstallSoftware.Set && !item.InstallSoftware.IsOther && !item.InstallSoftware.Bool && len(patchOptions) == 1 {
+				multiError = multierror.Append(multiError, fmt.Errorf(
+					`Couldn't apply policy %q: If %q is true, "install_software" can't be set to false.`,
+					item.Name, patchOptions[0],
+				))
+			}
+			if item.InstallSoftware.Bool || item.InstallSoftware.Other != nil {
+				if item.ForcePatch {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: If "force_patch" is true, "install_software" can't be set.`,
+						item.Name,
+					))
+				} else {
+					replacementOption := "force_patch"
+					if len(patchOptions) == 1 {
+						replacementOption = patchOptions[0]
+					} else {
+						item.ForcePatch = true
+					}
+					if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+						logFn("[!] The \"policies.install_software\" key is deprecated. Use \"policies.%s\" instead.\n", replacementOption)
+					}
+				}
 			}
 			if item.PatchWhenClosed || item.NotifyBeforePatching || item.PatchDeadline {
 				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.

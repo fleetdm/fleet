@@ -448,13 +448,15 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 // mockPolicyAutomations is the automation_type the server returns for each mock policy, which generate-gitops writes
 // the calendar, conditional access, and webhook or ticket keys from.
 var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
-	"Global Policy":               fleet.PolicyAutomationConditionalAccess,
-	"Team Policy":                 fleet.PolicyAutomationConditionalAccess,
-	"Team patch policy":           fleet.PolicyAutomationConditionalAccess,
-	"Team VPP policy":             fleet.PolicyAutomationWebhookOrTicket,
-	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
-	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
-	"Team package install policy": fleet.PolicyAutomationSoftware,
+	"Global Policy":                       fleet.PolicyAutomationConditionalAccess,
+	"Team Policy":                         fleet.PolicyAutomationConditionalAccess,
+	"Team patch policy":                   fleet.PolicyAutomationConditionalAccess,
+	"Team VPP policy":                     fleet.PolicyAutomationWebhookOrTicket,
+	"Team Profile policy":                 fleet.PolicyAutomationConfigurationProfile,
+	"Team FMA install policy":             fleet.PolicyAutomationSoftware,
+	"Team package install policy":         fleet.PolicyAutomationSoftware,
+	"Windows - My Windows FMA up to date": fleet.PolicyAutomationSoftware,
+	"Version Locked Name up to date":      fleet.PolicyAutomationSoftware,
 }
 
 func (c MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
@@ -556,6 +558,9 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 11,
 			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 11,
+			},
 		},
 		{
 			ID:                           7,
@@ -567,6 +572,9 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			PatchDeadline:                true,
 			ContinuousAutomationsEnabled: true,
 			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 13,
+			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 13,
 			},
 		},
@@ -630,6 +638,36 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
+				},
+			},
+			&fleet.Policy{
+				ID:                           8,
+				Name:                         "Windows - My Windows FMA up to date",
+				Resolution:                   new("Install the latest version from self-service"),
+				Description:                  "This is a team patch policy that patches when the app is closed",
+				Platform:                     "windows",
+				Type:                         fleet.PolicyTypePatch,
+				PatchWhenClosed:              true,
+				ContinuousAutomationsEnabled: true,
+				PatchSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 9,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 9,
+				},
+			},
+			&fleet.Policy{
+				ID:          9,
+				Name:        "Version Locked Name up to date",
+				Resolution:  new("Install the latest version from self-service"),
+				Description: "This is a team patch policy that force patches",
+				Platform:    "windows",
+				Type:        fleet.PolicyTypePatch,
+				PatchSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 10,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 10,
 				},
 			},
 		)
@@ -3108,6 +3146,14 @@ func TestGeneratePolicies(t *testing.T) {
 			13: {
 				MaintainedAppID: 5,
 				Slug:            "fma5/darwin",
+			},
+			9: {
+				MaintainedAppID: 2,
+				Slug:            "fma2/windows",
+			},
+			10: {
+				MaintainedAppID: 3,
+				Slug:            "fma3/windows",
 			},
 		},
 		ScriptList: map[uint]string{

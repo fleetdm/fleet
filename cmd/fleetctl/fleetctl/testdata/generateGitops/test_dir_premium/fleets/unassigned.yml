@@ -68,9 +68,6 @@ policies:
   fleet_maintained_app_slug: fma1/darwin
   hidden: false
   name: Team patch policy
-  notify_before_patching: false
-  patch_deadline: false
-  patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
   type: patch
@@ -84,8 +81,6 @@ policies:
   hidden: false
   name: My Notify FMA up to date
   notify_before_patching: true
-  patch_deadline: false
-  patch_when_closed: false
   platform: darwin
   resolution: Install the latest version from self-service
   type: patch
@@ -98,9 +93,7 @@ policies:
   fleet_maintained_app_slug: fma5/darwin
   hidden: false
   name: My Deadline FMA up to date
-  notify_before_patching: false
   patch_deadline: true
-  patch_when_closed: false
   platform: darwin
   resolution: Install the latest version from self-service
   type: patch

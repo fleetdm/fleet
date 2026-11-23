@@ -4090,7 +4090,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			// validation or silently pin the wrong package. Reset before resolve.
 			config.Policies[i].SoftwarePackageID = nil
 
-			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
+			if config.Policies[i].Type == fleet.PolicyTypePatch {
+				if !config.Policies[i].ForcePatch && !config.Policies[i].PatchWhenClosed &&
+					!config.Policies[i].NotifyBeforePatching && !config.Policies[i].PatchDeadline {
+					continue
+				}
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
 					// Should not happen because FMAs are uploaded first.
@@ -4100,6 +4104,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					continue
 				}
 				config.Policies[i].SoftwareTitleID = &softwareTitleID
+				continue
 			}
 
 			if config.Policies[i].InstallSoftware.Other == nil {

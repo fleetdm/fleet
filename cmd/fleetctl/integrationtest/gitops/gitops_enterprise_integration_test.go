@@ -4336,6 +4336,7 @@ reports:
 	require.Equal(t, "patch-policy", pols[0].Name)
 	require.True(t, pols[0].PatchWhenClosed, "patch_when_closed should persist")
 	require.True(t, pols[0].ContinuousAutomationsEnabled, "continuous automations should be auto-set on")
+	require.NotNil(t, pols[0].SoftwareInstallerID, "patch_when_closed without install_software should patch")
 	firstID := pols[0].ID
 
 	// Re-applying the same config is a no-op: the policy keeps its ID and flags.
@@ -4360,6 +4361,47 @@ reports:
 	require.True(t, pols[0].NotifyBeforePatching, "notify_before_patching should persist")
 	require.False(t, pols[0].PatchWhenClosed, "patch_when_closed should be cleared")
 	require.True(t, pols[0].ContinuousAutomationsEnabled)
+	require.NotNil(t, pols[0].SoftwareInstallerID, "notify_before_patching without install_software should patch")
+
+	// Switch the same policy to force_patch, the installer should be set and the other options cleared.
+	apply(fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    force_patch: true`, slug))
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, firstID, pols[0].ID)
+	require.NotNil(t, pols[0].SoftwareInstallerID, "force_patch should patch")
+	require.False(t, pols[0].NotifyBeforePatching)
+	require.False(t, pols[0].PatchWhenClosed)
+
+	// Remove every option, the patch policy should only report and the installer should be cleared.
+	apply(fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s`, slug))
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, firstID, pols[0].ID)
+	require.Nil(t, pols[0].SoftwareInstallerID, "a patch policy with no option should only report")
+
+	// Apply install_software: true alone, the policy should force patch and gitops should log the deprecation warning.
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg(fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    install_software: true`, slug))), 0o644))
+	installSoftwareOutput := fleetctltest.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+	})
+	require.Contains(t, installSoftwareOutput, `The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`)
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, firstID, pols[0].ID)
+	require.NotNil(t, pols[0].SoftwareInstallerID, "install_software: true should force patch")
+	require.False(t, pols[0].PatchWhenClosed)
+	require.False(t, pols[0].NotifyBeforePatching)
 
 	// An explicit continuous_automations_enabled: false is rejected end-to-end.
 	require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg(fmt.Sprintf(`  - name: patch-policy

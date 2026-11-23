@@ -2111,16 +2111,25 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				return nil, err
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
-			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
-			policySpec[jsonFieldName(t, "NotifyBeforePatching")] = policy.NotifyBeforePatching
-			policySpec[jsonFieldName(t, "PatchDeadline")] = policy.PatchDeadline
+			if policy.InstallSoftware != nil {
+				switch {
+				case policy.PatchWhenClosed:
+					policySpec[jsonFieldName(t, "PatchWhenClosed")] = true
+				case policy.NotifyBeforePatching:
+					policySpec[jsonFieldName(t, "NotifyBeforePatching")] = true
+				case policy.PatchDeadline:
+					policySpec[jsonFieldName(t, "PatchDeadline")] = true
+				default:
+					policySpec["force_patch"] = true
+				}
+			}
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
 		}
 
 		// Handle software automation.
-		if policy.InstallSoftware != nil {
+		if policy.InstallSoftware != nil && policy.Type != fleet.PolicyTypePatch {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
 				switch {
 				case software.MaintainedAppID != 0 && software.Slug != "":

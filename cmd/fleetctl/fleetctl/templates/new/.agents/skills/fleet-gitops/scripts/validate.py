@@ -67,6 +67,7 @@ LABEL_RULES = {
 # A policy can turn on one of these. Keep in sync with checkPolicyAutomationKeys in pkg/spec.
 AUTOMATION_KEYS = ("install_software", "run_script", "resend_configuration_profile", "calendar_events_enabled",
                    "conditional_access_enabled", "webhooks_and_tickets_enabled")
+PATCH_OPTIONS = ("force_patch", "patch_when_closed", "notify_before_patching", "patch_deadline")
 PATH_KEYS = {"path", "package_path", "apple_setup_assistant", "end_user_license_agreement", "activation"}
 GLOB_CHARS = set("*?[{")
 SCRIPT_EXTS = {".sh", ".ps1", ".py"}
@@ -1005,6 +1006,7 @@ def check_policies(ctx, fs, policies):
         is_patch = item.get("type") == "patch"
         if "type" in item and not is_patch:
             ctx.fail(isrc, f"{what}: 'type' must be 'patch' or omitted")
+        options = [k for k in PATCH_OPTIONS if item.get(k) is True]
         if is_patch:
             slug = item.get("fleet_maintained_app_slug")
             if not isinstance(slug, str):
@@ -1013,11 +1015,21 @@ def check_policies(ctx, fs, policies):
                 ctx.fail(isrc, f"{what}: {slug} isn't in this fleet's software.fleet_maintained_apps")
             if item.get("query"):
                 ctx.warn(isrc, f"{what}: patch policies generate their own query; 'query' is ignored")
-            if (item.get("patch_when_closed") or item.get("notify_before_patching")) and item.get("install_software") is not True:
-                ctx.fail(isrc, f"{what}: patch_when_closed / notify_before_patching need 'install_software: true', otherwise nothing is ever installed")
+            if len(options) > 1:
+                ctx.fail(isrc, f"{what}: only one of {', '.join(PATCH_OPTIONS)} can be set to true, but it sets {' and '.join(options)}")
+            inst = item.get("install_software")
+            if inst is False and options:
+                ctx.fail(isrc, f"{what}: if {options[0]} is true, install_software can't be set to false")
+            elif inst is not None and inst is not False:
+                if "force_patch" in options:
+                    ctx.fail(isrc, f"{what}: if force_patch is true, install_software can't be set")
+                else:
+                    ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies; use '{options[0] if options else 'force_patch'}' instead")
             if item.get("notify_before_patching") and slug and not str(slug).endswith("/darwin"):
                 ctx.fail(isrc, f"{what}: notify_before_patching is macOS-only")
         else:
+            if options:
+                ctx.fail(isrc, f"{what}: {options[0]} is only supported for patch policies ('type: patch')")
             platforms = check_platform(ctx, isrc, item, what, POLICY_PLATFORMS, required=True)
             if "query" not in item:
                 ctx.fail(isrc, f"{what}: needs a 'query'")
