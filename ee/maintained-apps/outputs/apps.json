@@ -3614,6 +3614,13 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Front",
+      "slug": "front/windows",
+      "platform": "windows",
+      "unique_identifier": "Front",
+      "description": "Front is a customer communication platform."
+    },
+    {
       "name": "FSMonitor",
       "slug": "fsmonitor/darwin",
       "platform": "darwin",
