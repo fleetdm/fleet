@@ -347,10 +347,13 @@ const HostDetailsPage = ({
   );
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
-  const [showViewUnlockPinModal, setShowViewUnlockPinModal] = useState(false);
-  // The PIN belongs to one host, so don't carry the modal across hosts.
+  // The PIN belongs to one host: remember which host opened the modal so it
+  // can't mount (and request a PIN) for a different host after navigation.
+  const [viewUnlockPinHostId, setViewUnlockPinHostId] = useState<number | null>(
+    null
+  );
   useEffect(() => {
-    setShowViewUnlockPinModal(false);
+    setViewUnlockPinHostId(null);
   }, [hostIdFromURL]);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -1425,7 +1428,7 @@ const HostDetailsPage = ({
         setShowUnlockHostModal(true);
         break;
       case "viewUnlockPin":
-        setShowViewUnlockPinModal(true);
+        setViewUnlockPinHostId(hostIdFromURL);
         break;
       case "wipe":
         setShowWipeModal(true);
@@ -2546,10 +2549,10 @@ const HostDetailsPage = ({
               onClose={() => setShowUnlockHostModal(false)}
             />
           )}
-          {showViewUnlockPinModal && (
+          {viewUnlockPinHostId === hostIdFromURL && (
             <ViewUnlockPinModal
               id={host.id}
-              onClose={() => setShowViewUnlockPinModal(false)}
+              onClose={() => setViewUnlockPinHostId(null)}
               // viewing the PIN logs a viewed_host_unlock_pin activity
               onViewed={refetchPastActivities}
             />
