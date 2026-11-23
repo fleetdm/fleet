@@ -6323,8 +6323,6 @@ A profile with `"status": null` is a self-service profile the host can install b
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
-If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
-
 `DELETE /api/v1/fleet/hosts/:id`
 
 #### Parameters
@@ -6340,6 +6338,9 @@ If the host is registered with [Google conditional access](https://fleetdm.com/g
 ##### Default response
 
 `Status: 200`
+
+If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+
 
 ### Refetch host
 
@@ -6464,7 +6465,7 @@ _Available in Fleet Premium_
 
 ### Turn off host's MDM
 
-Turns off MDM for the specified macOS, iOS, iPadOS, or Android host. If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
 > On BYOD Android (work profile), Fleet sends a wipe command via the Android Management API. Unlike the [delete device command](https://developers.google.com/android/management/deprovision-device) in the Android Management API, the wipe command does not expire after 30 days. That way, Fleet makes sure that the work profile is wiped even if the host is offline for more than 30 days.
 
@@ -6484,10 +6485,12 @@ Turns off MDM for the specified macOS, iOS, iPadOS, or Android host. If the host
 
 `Status: 204`
 
+If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+
 
 ### Batch-delete hosts
 
-Delete hosts selected by filter or ids. If a host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+Delete hosts selected by filter or ids.
 
 `POST /api/v1/fleet/hosts/delete`
 
@@ -6556,6 +6559,9 @@ Request (`filters` is specified and empty, to delete all hosts):
 ##### Default response
 
 `Status: 200`
+
+If a host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+
 
 ### Update human-device mapping
 
