@@ -2988,6 +2988,10 @@ type Datastore interface {
 	// profiles.
 	ReconcileWindowsProfilesStatus(ctx context.Context) error
 
+	// ReconcileAppleMDMStatusRollups recomputes the per-host Apple profile and declaration status rollups and drops rollup rows
+	// for hosts with no profiles or declarations.
+	ReconcileAppleMDMStatusRollups(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 

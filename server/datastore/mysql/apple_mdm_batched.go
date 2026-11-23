@@ -920,9 +920,11 @@ func (ds *Datastore) BulkDeleteMDMAppleHostDeclarations(ctx context.Context, row
 
 		var sb strings.Builder
 		args := make([]any, 0, len(batch)*2)
+		hostUUIDs := make([]string, 0, len(batch))
 		for _, r := range batch {
 			sb.WriteString("(?,?),")
 			args = append(args, r.HostUUID, r.DeclarationUUID)
+			hostUUIDs = append(hostUUIDs, r.HostUUID)
 		}
 		stmt := fmt.Sprintf(
 			`DELETE FROM host_mdm_apple_declarations WHERE (host_uuid, declaration_uuid) IN (%s)`,
@@ -930,6 +932,9 @@ func (ds *Datastore) BulkDeleteMDMAppleHostDeclarations(ctx context.Context, row
 		)
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk delete host mdm apple declarations")
+		}
+		if err := appleDeclarationsStatusRollup.refreshDB(ctx, ds.writer(ctx), hostUUIDs, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating apple declarations status rollup after bulk delete")
 		}
 	}
 	return nil
@@ -1065,7 +1070,9 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		// statement at 65535 placeholders, and each batch binds batchSize rows.
 		args := make([]any, 0, len(batch)*12)
 		batchByKey := make(map[string]*fleet.MDMAppleHostDeclaration, len(batch))
+		hostUUIDs := make([]string, 0, len(batch))
 		for _, r := range batch {
+			hostUUIDs = append(hostUUIDs, r.HostUUID)
 			// Scope defaults to System
 			scope := r.Scope
 			if scope == "" {
@@ -1086,7 +1093,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 			if _, ierr := tx.ExecContext(ctx, stmt, args...); ierr != nil {
 				return ierr
 			}
-			return cleanUpDuplicateRemoveInstall(ctx, tx, batchByKey)
+			if ierr := cleanUpDuplicateRemoveInstall(ctx, tx, batchByKey); ierr != nil {
+				return ierr
+			}
+			return appleDeclarationsStatusRollup.refreshDB(ctx, tx, hostUUIDs, true)
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk upsert mdm apple host declarations")

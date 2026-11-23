@@ -418,6 +418,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 		selectStmt string
 		updateStmt string
 		isWindows  bool
+		apple      *appleStatusRollup
 	}{
 		{
 			desc:       "apple profiles",
@@ -425,6 +426,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			updateStmt: `UPDATE host_mdm_apple_profiles
 				SET status = NULL, detail = NULL, command_uuid = '', retries = 0
 				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
+			apple: &appleProfilesStatusRollup,
 		},
 		{
 			desc:       "windows profiles",
@@ -440,6 +442,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			updateStmt: `UPDATE host_mdm_apple_declarations
 				SET status = NULL, detail = NULL
 				WHERE host_uuid = ? AND operation_type = ? AND declaration_uuid IN (?)`,
+			apple: &appleDeclarationsStatusRollup,
 		},
 		{
 			desc:       "android profiles",
@@ -482,6 +485,11 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			// Resetting status to NULL moves the host into the pending bucket, so we need to update the Windows status rollup table.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "update windows profiles status rollup for custom host vital resend")
+			}
+		}
+		if tgt.apple != nil {
+			if err := tgt.apple.refreshDB(ctx, tx, []string{hostUUID}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "update "+tgt.desc+" status rollup for custom host vital resend")
 			}
 		}
 	}

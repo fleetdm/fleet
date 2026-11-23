@@ -3804,6 +3804,8 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	}
 
 	checkSummaryMac := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		// Like Windows, the Apple summary reads maintained rollups that this test bypasses by seeding rows directly.
+		require.NoError(t, ds.ReconcileAppleMDMStatusRollups(ctx))
 		ps, err := ds.GetMDMAppleProfilesSummary(ctx, teamID)
 		require.NoError(t, err)
 		require.NotNil(t, ps)
@@ -3811,6 +3813,7 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	}
 
 	checkListHostsFilterOSSettings := func(t *testing.T, teamID *uint, status fleet.OSSettingsStatus, expectedIDs []uint) {
+		require.NoError(t, ds.ReconcileAppleMDMStatusRollups(ctx))
 		gotHosts, err := ds.ListHosts(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
