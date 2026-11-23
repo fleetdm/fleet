@@ -1265,6 +1265,53 @@ kill() {
 	})
 }
 
+// TestRelaunchStopsAfterALateWakeUp runs relaunch_application with a sleep that
+// returns later than it was asked to, as it would if the Mac suspended partway
+// through. The loop picks the next attempt from SECONDS + delay before
+// sleeping, so it has to re-check afterwards instead of trusting that estimate.
+func TestRelaunchStopsAfterALateWakeUp(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	for name, tc := range map[string]struct {
+		sleepMultiplier int
+		wantAttempts    int
+	}{
+		// 0, 2, 6, 14, 24; a sixth would start at 34.
+		"sleep is punctual": {1, 5},
+		// The first sleep of 2s returns after 30s. That is the deadline exactly,
+		// which still gets an attempt, and the next would start at 34.
+		"wakes exactly on the deadline": {15, 2},
+		// The first sleep of 2s returns after 100s, well past the budget.
+		"wakes long after the deadline": {50, 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			script := `opened=` + shellSingleQuote(filepath.Join(t.TempDir(), "opened")) + `
+stat() { echo alice; }
+id() { echo 501; }
+sleep() { SECONDS=$((SECONDS + $1 * ` + strconv.Itoa(tc.sleepMultiplier) + `)); }
+open() { echo open >> "$opened"; echo "LSOpenURLsWithRole() failed with error -10810." >&2; return 1; }
+export APP_WAS_RUNNING_com_example_Foo=1
+` + relaunchApplicationFunc + `
+relaunch_application 'com.example.Foo'
+`
+			out, err := exec.Command(bash, "-c", script).CombinedOutput()
+			require.NoError(t, err, string(out))
+			got := strings.Count(string(out), "to relaunch application 'com.example.Foo' failed")
+			require.Equal(t, tc.wantAttempts, got, string(out))
+			require.Contains(t, string(out), "Failed to relaunch application 'com.example.Foo'.")
+		})
+	}
+}
+
 // TestInstallScriptRelaunchRetriesAndLogs runs generated install scripts with
 // osascript and open stubbed out. An app installed from a single .app is
 // relaunched by path, otherwise by bundle ID; a failed open is retried with a

@@ -168,6 +168,10 @@ relaunch_application() {
     # Gatekeeper checking the newly copied bundle, which is worth waiting out.
     (( SECONDS + delay <= timeout_duration )) || break
     sleep "$delay"
+    # sleep only guarantees at least $delay, so a late wake-up — the Mac
+    # suspending mid-sleep, say — can land past the budget. Check again rather
+    # than trusting the estimate above; landing exactly on it still retries.
+    (( SECONDS <= timeout_duration )) || break
     delay=$(( delay * 2 > 10 ? 10 : delay * 2 ))
   done
   echo "Failed to relaunch application '$bundle_id'."
