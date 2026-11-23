@@ -2832,21 +2832,22 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 // requestPolicyMembershipCleanup), until none are left. A policy whose cleanup fails is retried on
 // the next run, and doesn't stop the others.
 func (ds *Datastore) CleanupPendingPolicyMembership(ctx context.Context) error {
-	// The primary, because the schedule is triggered right after a request commits, which a
-	// lagging replica may not show yet.
+	// The primary, because the schedule is triggered right after a request commits, which a lagging replica may not show yet.
 	db := ds.writer(ctx)
 	failed := make(map[uint]struct{})
 	var errs []error
 	for {
 		if err := ctx.Err(); err != nil {
-			return errors.Join(append(errs, ctxerr.Wrap(ctx, err, "cleanup pending policy membership"))...)
+			errs = append(errs, ctxerr.Wrap(ctx, err, "cleanup pending policy membership"))
+			return errors.Join(errs...)
 		}
 
 		var pendingIDs []uint
 		if err := sqlx.SelectContext(ctx, db, &pendingIDs, `
 			SELECT id FROM policies WHERE needs_full_membership_cleanup = 1 OR needs_partial_membership_cleanup = 1 ORDER BY id`,
 		); err != nil {
-			return errors.Join(append(errs, ctxerr.Wrap(ctx, err, "select policies with pending membership cleanup"))...)
+			errs = append(errs, ctxerr.Wrap(ctx, err, "select policies with pending membership cleanup"))
+			return errors.Join(errs...)
 		}
 
 		// Passes repeat so requests made during one don't wait for the next run.
@@ -2889,6 +2890,8 @@ func (ds *Datastore) CleanupPendingPolicyMembership(ctx context.Context) error {
 					WHERE id = ? AND membership_cleanup_generation = ?`, p.ID, p.Generation)
 			}
 			if err != nil {
+				// Skip a failed policy for the rest of this run, so it doesn't stop the others or repeat every pass, but
+				// remember its error for the run's result. Its flags stay set, so the next run retries it.
 				failed[id] = struct{}{}
 				errs = append(errs, ctxerr.Wrapf(ctx, err, "cleanup pending membership for policy %d", id))
 				continue
@@ -3810,7 +3813,7 @@ func (ds *Datastore) syncPatchPolicyQuery(ctx context.Context, policyID uint) er
 		return ctxerr.Wrapf(ctx, err, "syncing patch policy %d query", policyID)
 	}
 	if changed {
-		ds.logger.InfoContext(ctx, "regenerated patch policy query, clearing its results",
+		ds.logger.InfoContext(ctx, "regenerated patch policy query, requested cleanup of its results",
 			"policy_id", policyID, "software_title", src.SoftwareTitle, "old_query", src.PolicyQuery, "new_query", query)
 	}
 	return nil
