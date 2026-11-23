@@ -1981,6 +1981,9 @@ func (svc *Service) windowsHostClaimedByOtherHardware(ctx context.Context, enrol
 // names. Past it, the host's regular detail queries would have reported the MDM device ID anyway.
 const windowsUnlinkedEnrollmentRefetchWindow = time.Hour
 
+// windowsUnlinkedEnrollmentRefetchKeyPrefix marks, per MDM device ID, that the enrollment already requested its one refetch.
+const windowsUnlinkedEnrollmentRefetchKeyPrefix = "mwerefetch:"
+
 // windowsHostEnrolledByAgent reports whether linking the enrollment to hostID by an identifier the device asserts must be refused
 // because an agent has enrolled as the host, failing closed when that cannot be determined. With nothing to corroborate it, such an
 // identifier can claim only a host no agent has enrolled as, like one back from a wipe or reset. An enrolled host is linked by its
@@ -2001,15 +2004,29 @@ func (svc *Service) windowsHostEnrolledByAgent(ctx context.Context, enrolledDevi
 		// Debug, since an unlinked enrollment comes through here on every message until osquery links it.
 		svc.logger.DebugContext(ctx, "windows mdm: not linking enrollment by a device-reported identifier to a host an agent enrolled as",
 			append([]any{"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID}, logAttrs...)...)
-		// Bounded by enrollment age, since the identifier is unverified and every message of an unlinked enrollment comes through here.
 		if time.Since(enrolledDevice.CreatedAt) < windowsUnlinkedEnrollmentRefetchWindow {
-			if err := svc.ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
-				svc.logger.WarnContext(ctx, "windows mdm: requesting host refetch to link enrollment failed",
-					"err", err, "device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
-			}
+			svc.requestRefetchToLinkWindowsEnrollment(ctx, enrolledDevice, hostID)
 		}
 	}
 	return enrolled
+}
+
+// requestRefetchToLinkWindowsEnrollment requests one refetch per enrollment, since the identifier naming the host is unverified and
+// every message of an unlinked enrollment comes through here.
+func (svc *Service) requestRefetchToLinkWindowsEnrollment(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) {
+	key := windowsUnlinkedEnrollmentRefetchKeyPrefix + enrolledDevice.MDMDeviceID
+	requested, err := svc.keyValueStore.Get(ctx, key)
+	if err == nil && requested == nil {
+		// Marked before the refetch, so a failure falls back to the host's next detail queries instead of retrying every message.
+		err = svc.keyValueStore.Set(ctx, key, strconv.FormatUint(uint64(hostID), 10), windowsUnlinkedEnrollmentRefetchWindow)
+		if err == nil {
+			err = svc.ds.UpdateHostRefetchRequested(ctx, hostID, true)
+		}
+	}
+	if err != nil {
+		svc.logger.WarnContext(ctx, "windows mdm: requesting host refetch to link enrollment failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+	}
 }
 
 // linkWindowsHostMDMEnrollmentByHostID links an enrollment to a host resolved by an identifier other than the serial.

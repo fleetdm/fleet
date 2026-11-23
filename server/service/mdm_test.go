@@ -5566,10 +5566,13 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 				if tc.staleEnrollment {
 					enrolledDevice.CreatedAt = time.Now().Add(-2 * windowsUnlinkedEnrollmentRefetchWindow)
 				}
+				svc.keyValueStore = memoryKVStore()
 				stubLink(t, ds, true)
+				var refetches int
 				ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, hostID uint, value bool) error {
 					assert.Equal(t, testHostID, hostID)
 					assert.True(t, value)
+					refetches++
 					return nil
 				}
 				ds.HostIDByAutopilotDeviceIDFunc = func(_ context.Context, autopilotDeviceID string) (uint, error) {
@@ -5619,6 +5622,17 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 				assert.False(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFuncInvoked,
 					"a matched host's serial must not be persisted, or the orbit reverse-link path inherits a refused claim")
 				assert.Equal(t, !tc.wantLinked, hasGetForDevDetailSerial(cmds), "the Get is reinjected only while the enrollment is unlinked")
+
+				if !tc.wantLinked {
+					// The identifier is unverified, so further messages must not keep the named host refetching.
+					_, err = svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsgWithID(t, "3", serialResults(testSerial)), RequestAuthStateTrusted)
+					require.NoError(t, err)
+					wantRefetches := 0
+					if tc.agentEnrolled && !tc.staleEnrollment {
+						wantRefetches = 1
+					}
+					assert.Equal(t, wantRefetches, refetches, "at most one refetch per enrollment")
+				}
 			})
 		}
 	})
