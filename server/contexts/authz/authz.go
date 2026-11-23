@@ -50,6 +50,10 @@ const (
 	// AuthnDeviceURL is when authentication is done via a UUID in the URL.
 	// This authentication mode does not support granular authorization.
 	AuthnDeviceURL
+	// AuthnExternalJWT is when an API-only user is authenticated by a JWT from
+	// an external issuer bound to it. This authentication mode supports granular
+	// authorization.
+	AuthnExternalJWT
 )
 
 // AuthorizationContext contains the context information used for the

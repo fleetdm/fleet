@@ -769,6 +769,11 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, condaccess.RegisterSCEP(ctx, rootMux, opts[0].ConditionalAccess.SCEPStorage, ds, logger, &cfg))
 		require.NoError(t, condaccess.RegisterIdP(rootMux, ds, logger, &cfg, limitStore))
 	}
+	externalAuth, err := NewExternalAuthenticator(ctx, cfg, ds, limitStore, logger)
+	require.NoError(t, err)
+	if externalAuth != nil {
+		extra = append(extra, WithExternalAuth(externalAuth))
+	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler, err := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
 	require.NoError(t, err)

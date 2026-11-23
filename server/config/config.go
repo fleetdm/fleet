@@ -1920,7 +1920,7 @@ func (man Manager) addConfigs() {
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
 	man.addConfigString(jwtIssuersKey, "",
 		"External OIDC issuers whose JWTs may authenticate API-only users with a bound external identity, as a list of {name, issuer, jwks_url, audience, subject_claim, allowed_algorithms, max_token_lifetime} objects")
-	man.addConfigInt(jwtRateLimitPerMinuteKey, defaultJWTRatePerMinute,
+	man.addConfigInt(jwtRateLimitPerMinuteKey, DefaultJWTRateLimitPerMinute,
 		"Number of external JWT authentication attempts allowed per minute from one client IP")
 
 	// App

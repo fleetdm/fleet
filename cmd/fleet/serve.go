@@ -917,6 +917,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			extra = append(extra, service.WithAgentWSHub(agentWSHub))
 		}
 		extra = append(extra, service.WithMCPConn(mcpConn))
+		externalAuth, err := service.NewExternalAuthenticator(ctx, config, ds, limiterStore, logger)
+		if err != nil {
+			initFatal(err, "initializing external JWT authentication")
+		}
+		if externalAuth != nil {
+			extra = append(extra, service.WithExternalAuth(externalAuth))
+		}
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			service.FeatureRoutes(android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes), extra...)

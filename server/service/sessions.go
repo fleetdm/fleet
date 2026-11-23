@@ -365,6 +365,11 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 		return fleet.NewAuthRequiredError(fleet.ErrNoContext.Error())
 	}
 
+	if vc.Session == nil {
+		svc.authz.SkipAuthorization(ctx) // skipauth: there is no session to authorize against.
+		return fleet.NewInvalidArgumentError("session", "no session to log out: request was authenticated with an external token")
+	}
+
 	session, err := svc.ds.SessionByID(ctx, vc.SessionID())
 	if err != nil {
 		return err
