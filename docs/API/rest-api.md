@@ -1531,13 +1531,15 @@ None.
 
 ### Connect Google
 
+((Global admin)) ((Global GitOps))
+
 _Available in Fleet Premium._
 
 Connects Fleet to Google to mark company-owned iOS, iPadOS, and Android hosts as managed, for [conditional access with Google](https://fleetdm.com/guides/google-conditional-access-integration). Fleet checks the service account's domain-wide delegation with Google before saving anything.
 
 If Google is already connected, this replaces the settings and the key. To change only some of them, use [Update Google](#update-google).
 
-Requires the global admin or GitOps role and a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+Requires a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
 
 `POST /api/v1/fleet/conditional_access/google`
 
@@ -1612,6 +1614,8 @@ The settings and the key are saved, and `state` is `"registration_failed"`. To t
 
 ### Get Google
 
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
 _Available in Fleet Premium._
 
 Returns the Google conditional access settings and the connection status. The service account key is never returned.
@@ -1651,6 +1655,8 @@ None.
 
 ### Update Google
 
+((Global admin)) ((Global GitOps))
+
 _Available in Fleet Premium._
 
 Changes the Google conditional access settings. Fields you leave out keep their value, so you can change the admin email without sending the key, or replace the key on its own. Fleet checks the result with Google before saving anything.
@@ -1658,8 +1664,6 @@ Changes the Google conditional access settings. Fields you leave out keep their 
 Changing `admin_email` or `service_account_key` doesn't change which hosts are marked. Changing `customer_id` connects Fleet to a different Google Workspace: hosts register again there, and hosts stay marked in the previous Google Workspace.
 
 An empty request body tries a connection that didn't complete again.
-
-Requires the global admin or GitOps role.
 
 `PATCH /api/v1/fleet/conditional_access/google`
 
@@ -1705,11 +1709,11 @@ Use [Connect Google](#connect-google) instead.
 
 ### Delete Google
 
+((Global admin)) ((Global GitOps))
+
 _Available in Fleet Premium._
 
 Disconnects Fleet from Google and deletes the service account key. This won't unmark hosts: they stay marked as managed in Google. Learn how to [disable Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration#disable).
-
-Requires the global admin or GitOps role.
 
 `DELETE /api/v1/fleet/conditional_access/google`
 
@@ -6320,6 +6324,8 @@ A profile with `"status": null` is a self-service profile the host can install b
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
+If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+
 `DELETE /api/v1/fleet/hosts/:id`
 
 #### Parameters
@@ -6459,7 +6465,7 @@ _Available in Fleet Premium_
 
 ### Turn off host's MDM
 
-Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
+Turns off MDM for the specified macOS, iOS, iPadOS, or Android host. If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
 
 > On BYOD Android (work profile), Fleet sends a wipe command via the Android Management API. Unlike the [delete device command](https://developers.google.com/android/management/deprovision-device) in the Android Management API, the wipe command does not expire after 30 days. That way, Fleet makes sure that the work profile is wiped even if the host is offline for more than 30 days.
 
@@ -6482,7 +6488,7 @@ Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
 ### Batch-delete hosts
 
-Delete hosts selected by filter or ids.
+Delete hosts selected by filter or ids. If a host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
 
 `POST /api/v1/fleet/hosts/delete`
 
@@ -6603,6 +6609,8 @@ Updates the email for the data source in the human-device mapping. This source c
 ```
 
 ### Update host's Google device ID
+
+((Admin)) ((Maintainer))
 
 _Available in Fleet Premium._
 
@@ -6783,6 +6791,8 @@ Nothing is saved. Try again.
 `Status: 502`
 
 ### Delete host's Google device ID
+
+((Admin)) ((Maintainer))
 
 _Available in Fleet Premium._
 
