@@ -30,9 +30,10 @@ func TestHostByIdentifierRejectsResponseWithoutHost(t *testing.T) {
 	require.True(t, IsNotFoundErr(err), "fleetctl reports a not found error as a missing host: %v", err)
 }
 
-func TestHostByIdentifierRejectsHostIDOnlyMatch(t *testing.T) {
+func TestHostByIdentifierAcceptsHostID(t *testing.T) {
 	t.Parallel()
 
+	// GET /hosts/:id resolves a host ID first, like any other identifier, so the client takes the host it returns.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"host": map[string]any{"id": 42, "hardware_serial": "1234567"}})
@@ -42,8 +43,9 @@ func TestHostByIdentifierRejectsHostIDOnlyMatch(t *testing.T) {
 	require.NoError(t, err)
 	client.SetToken("test-token")
 
-	for identifier, wantFound := range map[string]bool{"42": false, "1234567": true} {
-		_, err := client.HostByIdentifier(identifier)
-		require.Equal(t, wantFound, err == nil, "identifier %q: %v", identifier, err)
+	for _, identifier := range []string{"42", "1234567"} {
+		host, err := client.HostByIdentifier(identifier)
+		require.NoError(t, err, "identifier %q", identifier)
+		require.Equal(t, uint(42), host.ID, "identifier %q", identifier)
 	}
 }

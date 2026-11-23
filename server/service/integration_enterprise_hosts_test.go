@@ -157,13 +157,13 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NoError(t, err)
 
 	// add a global policy
-	gpParams := fleet.GlobalPolicyRequest{
+	gpParams := fleet.CreatePolicyRequest{
 		Name:        qr.Name,
 		Query:       qr.Query,
 		Description: qr.Description,
 		Resolution:  "some global resolution",
 	}
-	gpResp := fleet.GlobalPolicyResponse{}
+	gpResp := fleet.CreatePolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 

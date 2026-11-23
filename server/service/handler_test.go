@@ -3,6 +3,7 @@ package service
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -346,4 +347,62 @@ func TestGzipResponses(t *testing.T) {
 
 		require.Empty(t, resp.Header.Get("Content-Encoding"), "Expected no gzip Content-Encoding when disabled")
 	})
+}
+
+func TestFleetctl4VersionCheck(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return nil, &notFoundError{}
+	}
+	_, server := RunServerForTestsWithDS(t, ds, &TestServerOpts{SkipCreateTestUsers: true})
+	defer server.Close()
+
+	// What fleetctl 4 sends on every request, captured from released 4.80.0 and 4.95.0 binaries.
+	fleetctl4 := map[string]string{"User-Agent": "Go-http-client/1.1", "Content-Type": "application/json", "Accept": "application/json"}
+	withUserAgent := func(userAgent string) map[string]string {
+		return map[string]string{"User-Agent": userAgent, "Content-Type": "application/json", "Accept": "application/json"}
+	}
+	// The token is invalid, so a request that gets past the check gets 401.
+	cases := []struct {
+		name       string
+		path       string
+		headers    map[string]string
+		wantStatus int
+	}{
+		{"fleetctl 4, v1", "/api/v1/fleet/version", fleetctl4, http.StatusUpgradeRequired},
+		{"fleetctl 4, latest", "/api/latest/fleet/version", fleetctl4, http.StatusUpgradeRequired},
+		{"fleetctl 4 over HTTP/2", "/api/latest/fleet/version", withUserAgent("Go-http-client/2.0"), http.StatusUpgradeRequired},
+		{"fleetctl 4, other endpoint", "/api/latest/fleet/config", fleetctl4, http.StatusUnauthorized},
+		{"fleetctl 5", "/api/latest/fleet/version", withUserAgent("fleetctl/5.0.0"), http.StatusUnauthorized},
+		{"fleetctl 5 built without a version", "/api/latest/fleet/version", withUserAgent("fleetctl/unknown"), http.StatusUnauthorized},
+		{"fleetctl 5 with Go's User-Agent in its custom headers", "/api/latest/fleet/version",
+			map[string]string{"User-Agent": "Go-http-client/1.1", "Content-Type": "application/json", "Accept": "application/json",
+				fleet.HeaderClientVersion: "5.0.0"}, http.StatusUnauthorized},
+		{"curl", "/api/latest/fleet/version", withUserAgent("curl/8.7.1"), http.StatusUnauthorized},
+		{"Go client without JSON headers", "/api/latest/fleet/version", map[string]string{"User-Agent": "Go-http-client/1.1"}, http.StatusUnauthorized},
+		{"Go client with only Accept", "/api/latest/fleet/version", map[string]string{"User-Agent": "Go-http-client/1.1", "Accept": "application/json"}, http.StatusUnauthorized},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+tc.path, nil)
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer invalid")
+			for k, v := range tc.headers {
+				req.Header.Set(k, v)
+			}
+			resp, err := fleethttp.NewClient().Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			require.Equal(t, tc.wantStatus, resp.StatusCode)
+			if tc.wantStatus != http.StatusUpgradeRequired {
+				return
+			}
+			var body map[string]any
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+			require.Equal(t, map[string]any{"message": fleetctl4NotSupportedMessage}, body)
+		})
+	}
 }

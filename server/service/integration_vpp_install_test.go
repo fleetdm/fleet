@@ -3467,7 +3467,7 @@ func (s *integrationMDMTestSuite) TestVPPInstallUsesAppToken() {
 	})
 	before = snapshot()
 	body := installApp(newHost(fleet.IPadOSPlatform), adamY, http.StatusUnprocessableEntity)
-	require.Contains(t, string(body), "Couldn't install. VPP token expired.")
+	require.Contains(t, string(body), `Couldn't install. VPP token \"Location B\" is expired. Please renew it and try again.`)
 	require.Equal(t, before, snapshot(), "no Apple call may happen for an expired token")
 
 	before = snapshot()

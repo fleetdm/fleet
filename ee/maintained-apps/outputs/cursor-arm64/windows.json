@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.31.11",
+      "version": "3.31.15",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere' AND version_compare(version, '3.31.11') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cursor' AND publisher = 'Anysphere' AND version_compare(version, '3.31.15') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'cursor.exe');"
       },
-      "installer_url": "https://downloads.cursor.com/production/52fdf018932f1335bc6dd36acc5e33d30759192e/win32/arm64/system-setup/CursorSetup-arm64-3.31.11.exe",
+      "installer_url": "https://downloads.cursor.com/production/3eb8c13390837371c7c2f2013dc57fdbc802c753/win32/arm64/system-setup/CursorSetup-arm64-3.31.15.exe",
       "install_script_ref": "fd7c7ece",
       "uninstall_script_ref": "6c8096c5",
-      "sha256": "e6b34c3510390c6c7ac8c0f8b27aafd1363cf563b2a3f66cf37f9c24505d4abe",
+      "sha256": "8caf9d81b94c2aed199e6b526765a598786633d5b23db66882883102c909ef38",
       "default_categories": [
         "Developer tools"
       ]

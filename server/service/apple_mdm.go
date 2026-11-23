@@ -3032,7 +3032,7 @@ func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostProfilesRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type getHostProfilesResponse struct {
@@ -3045,11 +3045,14 @@ func (r getHostProfilesResponse) Error() error { return r.Err }
 
 func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostProfilesRequest)
-	sums, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID)
+	// GitOps users can't list hosts, so they can't look up an identifier. A host ID still works: the call gets it without a lookup.
+	sums, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+		return svc.MDMListHostConfigurationProfiles(ctx, hostID)
+	})
 	if err != nil {
 		return getHostProfilesResponse{Err: err}, nil
 	}
-	res := getHostProfilesResponse{Profiles: sums, HostID: req.ID}
+	res := getHostProfilesResponse{Profiles: sums, HostID: hostID}
 	if res.Profiles == nil {
 		res.Profiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
 	}

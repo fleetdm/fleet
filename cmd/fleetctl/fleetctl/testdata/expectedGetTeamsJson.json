@@ -87,8 +87,7 @@
         "failing_policies_webhook": {
           "destination_url": "",
           "enable_failing_policies_webhook": false,
-          "host_batch_size": 0,
-          "policy_ids": null
+          "host_batch_size": 0
         },
         "host_activities_webhook": null,
         "host_status_webhook": null
@@ -200,8 +199,7 @@
         "failing_policies_webhook": {
           "destination_url": "",
           "enable_failing_policies_webhook": false,
-          "host_batch_size": 0,
-          "policy_ids": null
+          "host_batch_size": 0
         },
         "host_activities_webhook": null,
         "host_status_webhook": null

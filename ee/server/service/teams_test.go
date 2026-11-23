@@ -241,7 +241,6 @@ func TestNewTeamNameValidation(t *testing.T) {
 
 func TestModifyTeamNameValidation(t *testing.T) {
 	ds := new(mock.Store)
-	stubWebhookPolicyIDs(ds)
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "existing-team"}, nil
 	}
@@ -689,7 +688,6 @@ func TestNewTeamCollationEqualConflict(t *testing.T) {
 //     team.
 func TestModifyTeamCaseOnlyRenameAndConflict(t *testing.T) {
 	ds := new(mock.Store)
-	stubWebhookPolicyIDs(ds)
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "ABC"}, nil
 	}
@@ -763,7 +761,7 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 				Enable: true, DestinationURL: "https://example.com/status", HostPercentage: 10, DaysCount: 2,
 			},
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-				Enable: true, DestinationURL: "https://example.com/policies", PolicyIDs: []uint{1, 2}, HostBatchSize: 5,
+				Enable: true, DestinationURL: "https://example.com/policies", HostBatchSize: 5,
 			},
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
 				Enable: true, DestinationURL: "https://example.com/activities",
@@ -772,18 +770,6 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 	}
 
 	ds := new(mock.Store)
-	// The fleet's policies 1 and 2 have the webhook or ticket automation on, which policy_ids is built from.
-	var webhookPolicyIDs []uint
-	ds.WebhooksAndTicketsPolicyIDsFunc = func(ctx context.Context, teamID *uint) ([]uint, error) {
-		return webhookPolicyIDs, nil
-	}
-	ds.SetWebhooksAndTicketsPoliciesFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) error {
-		webhookPolicyIDs = policyIDs
-		return nil
-	}
-	ds.PoliciesWithOtherAutomationsFunc = func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
-		return nil, nil
-	}
 	var saved fleet.TeamWebhookSettings
 	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid, Name: "team", Config: fleet.TeamConfig{WebhookSettings: stored()}}, nil
@@ -823,9 +809,9 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 		},
 		{
 			name: "failing policies only (policies automations)",
-			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "policy_ids": [3], "host_batch_size": 0}}}`,
+			body: `{"webhook_settings": {"failing_policies_webhook": {"enable_failing_policies_webhook": true, "destination_url": "https://example.com/policies2", "host_batch_size": 0}}}`,
 			want: func(w *fleet.TeamWebhookSettings) {
-				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2", PolicyIDs: []uint{3}}
+				w.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{Enable: true, DestinationURL: "https://example.com/policies2"}
 			},
 		},
 		{
@@ -854,18 +840,13 @@ func TestModifyTeamWebhookSettingsPartialUpdate(t *testing.T) {
 				var payload fleet.TeamPayload
 				require.NoError(t, json.Unmarshal([]byte(c.body), &payload))
 				saved = fleet.TeamWebhookSettings{}
-				webhookPolicyIDs = []uint{1, 2}
 
 				_, err := svc.ModifyTeam(ctx, teamID, payload)
 				require.NoError(t, err)
 
 				want := stored()
 				c.want(&want)
-				// policy_ids lives on the policies and isn't stored in the settings.
-				wantSaved := want
-				wantSaved.FailingPoliciesWebhook.PolicyIDs = nil
-				require.Equal(t, wantSaved, saved)
-				require.Equal(t, want.FailingPoliciesWebhook.PolicyIDs, webhookPolicyIDs)
+				require.Equal(t, want, saved)
 			})
 		}
 	}
@@ -1168,7 +1149,6 @@ func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			stubWebhookPolicyIDs(ds)
 			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{MDM: fleet.MDM{
 					EnabledAndConfigured:        tc.appleEnabled,
@@ -1785,7 +1765,6 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 
 	windowsMDMConfigured := false
 	ds := new(mock.Store)
-	stubWebhookPolicyIDs(ds)
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{
 			EnabledAndConfigured:        false,
@@ -2024,7 +2003,6 @@ func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {
 			}
 
 			ds := new(mock.Store)
-			stubWebhookPolicyIDs(ds)
 			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 			}
@@ -2144,7 +2122,6 @@ func TestModifyTeamSwitchingOSUpdateModes(t *testing.T) {
 		}
 
 		ds := new(mock.Store)
-		stubWebhookPolicyIDs(ds)
 		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 		}
@@ -2451,7 +2428,6 @@ func newStaleTeamNamesService(t *testing.T, teamID uint, f staleTeamNamesFixture
 
 	var saves int
 	ds := new(mock.Store)
-	stubWebhookPolicyIDs(ds)
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 	ds.TeamConflictsWithNameFunc = func(context.Context, string, uint) (*fleet.Team, error) { return nil, nil }
 	ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) { return team, nil }
@@ -2692,7 +2668,6 @@ func TestModifyTeamPartialSetupExperienceKeepsEndUserAuth(t *testing.T) {
 	ctx := test.UserContext(t.Context(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
 
 	ds := new(mock.Store)
-	stubWebhookPolicyIDs(ds)
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}

@@ -486,6 +486,7 @@ func TestAdminRoutes(t *testing.T) {
 	}, http.StatusOK), &seeded))
 	require.Len(t, seeded.Users, 1)
 	deviceID := strings.TrimPrefix(seeded.Name, "devices/")
+	devicePath := "/_mock/google/devices/" + url.PathEscape(deviceID)
 
 	_, err := e.relay.Register(ctx, "https://fleet.example.com", customer)
 	require.NoError(t, err)
@@ -495,9 +496,9 @@ func TestAdminRoutes(t *testing.T) {
 	require.Equal(t, []mockserver.Device{seeded}, st.Devices)
 	require.Equal(t, []string{"GET /v1/devices"}, st.Calls)
 
-	admin("/_mock/google/devices/"+deviceID+"/state", map[string]string{"state": "gone"}, http.StatusBadRequest)
+	admin(devicePath+"/state", map[string]string{"state": "gone"}, http.StatusBadRequest)
 	admin("/_mock/google/devices/nope/state", map[string]string{"state": mockserver.DeviceDeleted}, http.StatusNotFound)
-	admin("/_mock/google/devices/"+deviceID+"/state", map[string]string{"state": mockserver.DeviceDeleted}, http.StatusNoContent)
+	admin(devicePath+"/state", map[string]string{"state": mockserver.DeviceDeleted}, http.StatusNoContent)
 	ok, err := ci.DeviceExists(ctx, deviceID)
 	require.NoError(t, err)
 	require.False(t, ok)

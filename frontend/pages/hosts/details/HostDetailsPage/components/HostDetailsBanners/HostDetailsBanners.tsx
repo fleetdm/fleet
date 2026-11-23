@@ -108,7 +108,7 @@ export const useHostDetailsBanner = ({
       <div className={baseClass}>
         <InfoBanner color="yellow">
           This host can&apos;t enroll in Apple MDM. Only current devices listed
-          in Apple Business can enroll. To allow manual enrollment, turn off the
+          in Apple Business can enroll. To allow manual enrollment, turn off the{" "}
           <strong>Allow only Apple Business enrollments</strong> setting <br />{" "}
           in <strong>Organization settings &gt; Advanced options</strong>.
         </InfoBanner>

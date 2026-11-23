@@ -25,6 +25,9 @@ func (s *integrationEnterpriseTestSuite) TestHostAISessions() {
 	require.Len(t, hosts, 3)
 	teamHost, noTeamHost, busyHost := hosts[0], hosts[1], hosts[2]
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{teamHost.ID})))
+	// createHosts sets no serial and a hostname with a slash in it, which can't go in a path.
+	teamHost.HardwareSerial, teamHost.Hostname = "ai-sessions-serial", "ai-sessions-host.local"
+	require.NoError(t, s.ds.UpdateHost(ctx, teamHost))
 
 	now := time.Now().UTC().Truncate(time.Second)
 	newSession := func(agent, id string, endedAt time.Time, toolCalls uint, outputTokens uint64) *fleet.HostAISession {
@@ -220,6 +223,23 @@ func (s *integrationEnterpriseTestSuite) TestHostAISessions() {
 	require.Equal(t, now.Unix(), first.ExecutedAt.Unix())
 	require.JSONEq(t, `{"name":"Bash","id":"toolu_1","input":{"command":"rm -rf /"}}`, string(first.Payload))
 	require.Equal(t, []fleet.AISessionCategory{}, eventsResp.Events[2].Categories)
+
+	for _, identifier := range []string{teamHost.HardwareSerial, teamHost.UUID, teamHost.Hostname} {
+		byIdentifier := "/api/latest/fleet/hosts/" + identifier + "/ai_sessions"
+		var listResp listHostAISessionsResponse
+		s.DoJSON("GET", byIdentifier, nil, http.StatusOK, &listResp)
+		require.Equal(t, []string{"cursor-1", "claude-1", "codex-1"}, sessionIDs(listResp), identifier)
+		var getResp getHostAISessionResponse
+		s.DoJSON("GET", fmt.Sprintf("%s/%d", byIdentifier, claudeID), nil, http.StatusOK, &getResp)
+		require.Equal(t, claudeID, getResp.AISession.ID, identifier)
+		var eventsResp listHostAISessionEventsResponse
+		s.DoJSON("GET", fmt.Sprintf("%s/%d/events", byIdentifier, claudeID), nil, http.StatusOK, &eventsResp)
+		require.Equal(t, []string{"rm -rf /", "README.md", "WebFetch"}, targets(eventsResp), identifier)
+	}
+	s.Do("GET", "/api/latest/fleet/hosts/no-such-host/ai_sessions", nil, http.StatusNotFound)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/no-such-host/ai_sessions/%d", claudeID), nil, http.StatusNotFound)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/no-such-host/ai_sessions/%d/events", claudeID), nil, http.StatusNotFound)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s/ai_sessions/%d", noTeamHost.UUID, claudeID), nil, http.StatusNotFound)
 
 	raw = s.Do("GET", eventsURL, nil, http.StatusOK, "per_page", "1")
 	body, err = io.ReadAll(raw.Body)

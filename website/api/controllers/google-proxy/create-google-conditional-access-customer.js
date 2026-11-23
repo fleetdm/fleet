@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Create Google conditional access customer',
+  friendlyName: 'Create Google conditional access customer',// TODO: update this name to be create-or-update-google-conditional-access-customer
 
 
   description: 'Registers a Fleet server for a provided Google customer ID and returns a generated secret.',
@@ -62,6 +62,7 @@ module.exports = {
       if(existingRegistration.fleetInstanceUrl !== this.req.get('origin')) {
         throw 'connectionAlreadyExists';
       }
+      // Currently, this approach requires treating your Google Customer ID as a secret. In the upcoming GA release of this feature, you will be able to treat your Google Customer ID as a less sensitive credential.
       await GoogleConditionalAccessServer.updateOne({id: existingRegistration.id}).set({fleetServerSecret});
     } else {
       await GoogleConditionalAccessServer.create({
