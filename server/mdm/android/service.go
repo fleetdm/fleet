@@ -22,10 +22,10 @@ type Service interface {
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
 
-	// LockAndroidHost issues an AMAPI LOCK command for the given host, persists the row in mdm_android_commands
-	// (status=pending), and writes host_mdm_actions.lock_ref. The device-side ack arrives asynchronously via Pub/Sub
-	// COMMAND notification and is applied by ProcessPubSubPush.
-	LockAndroidHost(ctx context.Context, hostID uint) error
+	// LockAndroidHost issues an AMAPI RESET_PASSWORD command with a Fleet-generated password and the LOCK_NOW flag,
+	// persists the row in mdm_android_commands (status=pending, without newPassword), and writes
+	// host_mdm_actions.lock_ref and unlock_pin. Returns the generated password.
+	LockAndroidHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 
 	// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD command with newPassword="". The work-profile (BYO)
 	// or device (COBO) passcode is cleared, not regenerated. Persists the row in mdm_android_commands but does NOT touch
@@ -60,10 +60,15 @@ type Service interface {
 	// If skipHostsWithoutNewCerts is true, hosts that don't have new certificate templates to deliver
 	// will be skipped.
 	BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error
+	// SendFleetAgentConfig builds and sends the host's Fleet agent configuration, returning the error when sending it fails.
+	SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error
 	EnableAppReportsOnDefaultPolicy(ctx context.Context) error
 	MigrateToPerDevicePolicy(ctx context.Context) error
 	PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error)
 	PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (skip bool, err error)
+	// PrepareHostPolicy replaces every setting of a host's own policy with its fleet's default policy (teamID 0
+	// is Unassigned), before the device is moved to it.
+	PrepareHostPolicy(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error
 
 	// VerifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
 	// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
@@ -77,6 +82,10 @@ type Service interface {
 	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
 	// teamID is the fleet to enroll devices into; nil means "Unassigned."
 	GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*ZeroTouchConfigurationResponse, error)
+
+	// EnsureFleetDefaultPolicy makes sure the default policy of a fleet (0 is Unassigned) exists in AMAPI and
+	// returns its name, for enrollment tokens to point at.
+	EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName string, teamID uint) (string, error)
 }
 
 // /////////////////////////////////////////////

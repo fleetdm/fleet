@@ -4,8 +4,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -199,8 +202,11 @@ func TestCustomHeadersConfig(t *testing.T) {
 
 	// start a server that will receive requests
 	var called bool
+	var userAgent, clientVersion string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
+		userAgent = r.UserAgent()
+		clientVersion = r.Header.Get(fleet.HeaderClientVersion)
 		require.Equal(t, "custom", r.Header.Get("X-Fleet-Test"))
 		require.Equal(t, "another", r.Header.Get("X-Fleet-MoreTest"))
 		w.WriteHeader(http.StatusOK)
@@ -216,8 +222,23 @@ func TestCustomHeadersConfig(t *testing.T) {
 		"--custom-header", "X-Fleet-MoreTest:another",
 		"--address", srv.URL,
 	})
-	runAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
+	runAppNoChecks([]string{"get", "labels", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
+	require.True(t, strings.HasPrefix(userAgent, "fleetctl/"), userAgent)
+	require.Equal(t, version.Version().Version, clientVersion)
+
+	// A User-Agent among the custom headers replaces fleetctl's, but the client version header can't be replaced.
+	runAppForTest(t, []string{
+		"config", "set",
+		"--config", configFile,
+		"--custom-header", "X-Fleet-Test:custom",
+		"--custom-header", "X-Fleet-MoreTest:another",
+		"--custom-header", "User-Agent:custom-agent",
+		"--custom-header", fleet.HeaderClientVersion + ":0.0.1",
+	})
+	runAppNoChecks([]string{"get", "labels", "--config", configFile}) //nolint:errcheck
+	require.Equal(t, "custom-agent", userAgent)
+	require.Equal(t, version.Version().Version, clientVersion)
 }
 
 func TestConfigGetShowsHelp(t *testing.T) {

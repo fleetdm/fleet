@@ -1,8 +1,10 @@
 package fleet
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -337,7 +339,6 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 			BundleIdentifier: "com.test.software",
 			ExtensionID:      "test-extension-id",
 			ExtensionFor:     "chrome",
-			Browser:          "",
 			Release:          "1",
 			Vendor:           "Test Vendor",
 			Arch:             "x86_64",
@@ -362,7 +363,7 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 	data, err := entry.MarshalJSON()
 	require.NoError(t, err)
 
-	// Expected JSON with all fields including browser and extension_for
+	// Expected JSON with all fields
 	expectedJSON := `{
 		"id": 1,
 		"name": "Test Software",
@@ -372,7 +373,6 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		"extension_id": "test-extension-id",
 		"extension_for": "chrome",
 		"display_name": "",
-		"browser": "chrome",
 		"release": "1",
 		"vendor": "Test Vendor",
 		"arch": "x86_64",
@@ -1424,18 +1424,77 @@ func TestSoftwareFromOsqueryRowEpoch(t *testing.T) {
 	}
 }
 
-func TestSoftwareEpochNotPartOfIdentity(t *testing.T) {
+// TestSoftwareFromOsqueryRowRejectsNUL keeps a host from reporting one field that reads as two.
+// The software identity joins its fields with a NUL, so a field that contains one could take the
+// identity of different software.
+func TestSoftwareFromOsqueryRowRejectsNUL(t *testing.T) {
+	fromRow := func(row map[string]string) (*Software, error) {
+		return SoftwareFromOsqueryRow(row["name"], row["version"], row["source"], row["vendor"], "", row["release"],
+			row["arch"], row["bundle_identifier"], row["extension_id"], row["extension_for"], "", row["upgrade_code"], row["epoch"])
+	}
+	valid := map[string]string{
+		"name": "tomcat", "version": "9.0.117", "source": "rpm_packages", "vendor": "Rocky", "release": "2.el9_8",
+		"arch": "noarch", "epoch": "1",
+	}
+	_, err := fromRow(valid)
+	require.NoError(t, err)
+
+	for _, field := range []string{
+		"name", "version", "source", "vendor", "release", "arch", "bundle_identifier", "extension_id", "extension_for", "upgrade_code",
+	} {
+		t.Run(field, func(t *testing.T) {
+			row := maps.Clone(valid)
+			row[field] += "\x00x"
+			_, err := fromRow(row)
+			require.ErrorContains(t, err, "NUL character")
+		})
+	}
+}
+
+// TestSoftwareEpochPartOfIdentity pins the epoch inside the software identity, so hosts that
+// report different epochs for the same package never share a software row.
+func TestSoftwareEpochPartOfIdentity(t *testing.T) {
 	withoutEpoch := Software{Name: "tomcat", Version: "9.0.117", Release: "2.el9_8", Arch: "noarch", Vendor: "Rocky Enterprise Software Foundation", Source: "rpm_packages"}
-	withEpoch := withoutEpoch
-	withEpoch.Epoch = new(uint32(1))
+	epoch1 := withoutEpoch
+	epoch1.Epoch = new(uint32(1))
+	epoch2 := withoutEpoch
+	epoch2.Epoch = new(uint32(2))
 
-	require.Equal(t, withoutEpoch.ToUniqueStr(), withEpoch.ToUniqueStr())
+	uniqueStrs := map[string]struct{}{}
+	checksums := map[string]struct{}{}
+	for _, sw := range []Software{withoutEpoch, epoch1, epoch2} {
+		uniqueStrs[sw.ToUniqueStr()] = struct{}{}
+		sum, err := sw.ComputeRawChecksum()
+		require.NoError(t, err)
+		checksums[string(sum)] = struct{}{}
+	}
+	require.Len(t, uniqueStrs, 3)
+	require.Len(t, checksums, 3)
 
-	sumWithout, err := withoutEpoch.ComputeRawChecksum()
+	// Software without an epoch can't have the checksum of software with one, whatever its fields
+	// contain. A name ending in a NUL and the epoch could be stored before reported fields were
+	// checked for NUL.
+	forged := withoutEpoch
+	forged.Name += "\x00epoch:1"
+	forgedSum, err := forged.ComputeRawChecksum()
 	require.NoError(t, err)
-	sumWith, err := withEpoch.ComputeRawChecksum()
+	epoch1Sum, err := epoch1.ComputeRawChecksum()
 	require.NoError(t, err)
-	require.Equal(t, sumWithout, sumWith)
+	require.NotEqual(t, epoch1Sum, forgedSum)
+
+	// Software without an epoch keeps the checksum it had before the epoch was collected, so
+	// existing rows are not replaced.
+	sum, err := withoutEpoch.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, "d4fb0090ed1f068afb08ef67d8e9efab", hex.EncodeToString(sum))
+
+	// Epoch 0 is the same as no epoch.
+	epoch0 := withoutEpoch
+	epoch0.Epoch = new(uint32(0))
+	require.Equal(t, withoutEpoch.ToUniqueStr(), epoch0.ToUniqueStr())
+	sum0, err := epoch0.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, sum, sum0)
 }
 
 // TestSoftwareAIToolNotPartOfIdentity pins the flag outside the software identity, so an

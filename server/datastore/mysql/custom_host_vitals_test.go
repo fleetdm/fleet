@@ -624,7 +624,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "chv-del-label", useErr.Entity.Name)
 		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
 
-		require.NoError(t, ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: test.UserAdmin}))
+		require.NoError(t, ds.DeleteLabel(ctx, label.ID))
 	})
 
 	// With all references removed, delete now succeeds.

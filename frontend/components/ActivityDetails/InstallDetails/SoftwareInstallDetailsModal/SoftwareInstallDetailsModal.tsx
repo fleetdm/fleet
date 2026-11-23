@@ -143,19 +143,22 @@ export const StatusMessage = ({
     status || ""
   ) ? (
     <>
-      {" ("}
+      {" "}
       {activityCreatedAt ? (
-        timeAgoText
+        `(${timeAgoText})`
       ) : (
-        <TooltipWrapper
-          tipContent="Time when Fleet sent install command. If the host was offline, the install finished after it came online."
-          position="top"
-          showArrow
-        >
-          {timeAgoText}
-        </TooltipWrapper>
+        <span style={{ whiteSpace: "nowrap" }}>
+          {"("}
+          <TooltipWrapper
+            tipContent="Time when Fleet sent install command. If the host was offline, the install finished after it came online."
+            position="top"
+            showArrow
+          >
+            {timeAgoText}
+          </TooltipWrapper>
+          {")"}
+        </span>
       )}
-      {")"}
     </>
   ) : (
     ""
@@ -357,7 +360,7 @@ export const SoftwareInstallDetailsModal = ({
   };
 
   const isInstalledByFleet = hostSoftware
-    ? !!hostSoftware.software_package?.last_install
+    ? !!hostSoftware.package?.last_install
     : true; // if no hostSoftware passed in, can assume this is the activity feed, meaning this can only refer to a Fleet-handled install
 
   const { data: swInstallResult, isLoading, isError, error } = useQuery<

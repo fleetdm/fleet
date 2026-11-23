@@ -378,9 +378,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "abc", tok.AppleID)
 	require.Equal(t, defaultOrgName, tok.OrganizationName)
 	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeam.Name)
 
 	// for tmOrgName
 	tok = s.getABMTokenByName(tmOrgName, tokensResp.Tokens)
@@ -389,9 +389,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "abc", tok.AppleID)
 	require.Equal(t, tmOrgName, tok.OrganizationName)
 	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeam.Name)
 
 	s.DoJSON("GET", "/api/latest/fleet/ab_tokens/count", nil, http.StatusOK, &countTokensResp)
 	assert.Equal(t, 2, countTokensResp.Count)
@@ -406,18 +406,18 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q
 			}]
 		}
 	}`, tmOrgName, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -440,7 +440,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 
@@ -452,9 +452,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "abc", tok.AppleID)
 	require.Equal(t, tmOrgName, tok.OrganizationName)
 	require.Equal(t, s.server.URL+"/mdm/apple/mdm", tok.MDMServerURL)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeam.Name)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeam.Name)
 }
 
 func (s *integrationMDMTestSuite) getABMTokenByName(orgName string, tokens []*fleet.ABMToken) *fleet.ABMToken {
@@ -485,7 +485,7 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	require.NotNil(t, tok)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/ab_tokens/%d/fleets", tok.ID), json.RawMessage(fmt.Sprintf(`{
-    "ios_team_id": %d
+    "ios_fleet_id": %d
 	}`, team.ID)), http.StatusOK, &updateABMTokenTeamsResponse{})
 
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -596,9 +596,9 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-				"apple_business_manager": [
-					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""},
-					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				"apple_business": [
+					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""},
+					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""}
 				]
 			}
 		}`, orgA, teamA.Name, orgB, teamB.Name)),
@@ -620,8 +620,8 @@ func (s *integrationMDMTestSuite) TestABMUnlistedTokenAssignmentsReset() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config",
 		json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-				"apple_business_manager": [
-					{"organization_name": "%s", "macos_team": %q, "ios_team": "", "ipados_team": "", "byod_team": ""}
+				"apple_business": [
+					{"organization_name": "%s", "macos_fleet": %q, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""}
 				]
 			}
 		}`, orgA, teamA.Name)),
@@ -923,49 +923,6 @@ func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	s.Require().Len(listHostsRes.Hosts, 1)
 }
 
-func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
-	t := s.T()
-
-	var errResp validationErrResp
-	// missing arguments
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "email_address", errResp.Errors[0].Name)
-
-	// invalid email address
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "abc", Organization: "def"}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "email_address", errResp.Errors[0].Name)
-
-	// missing organization
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: ""}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, "organization", errResp.Errors[0].Name)
-
-	// fleetdm CSR request failed
-	s.FailNextCSRRequestWith(http.StatusBadRequest)
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@gmail.com", Organization: "test"}, http.StatusUnprocessableEntity, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Contains(t, errResp.Errors[0].Reason, "CSR request failed. Email domain '@gmail.com' is not permitted for APNS certificate signing. Please use a corporate or organization email address.")
-
-	s.FailNextCSRRequestWith(http.StatusInternalServerError)
-	errResp = validationErrResp{}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
-	require.Len(t, errResp.Errors, 1)
-	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
-
-	var reqCSRResp requestMDMAppleCSRResponse
-	// fleetdm CSR request succeeds
-	s.SucceedNextCSRRequest()
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
-	require.Contains(t, string(reqCSRResp.APNsKey), "-----BEGIN RSA PRIVATE KEY-----\n")
-	require.Contains(t, string(reqCSRResp.SCEPCert), "-----BEGIN CERTIFICATE-----\n")
-	require.Contains(t, string(reqCSRResp.SCEPKey), "-----BEGIN RSA PRIVATE KEY-----\n")
-}
-
 func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	t := s.T()
 	ctx := context.Background()
@@ -1054,11 +1011,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	h := listHostsRes.Hosts[0]
 
 	// assign profiles to the host
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
 		mobileconfigForTest("N3", "I3"),
-	}}, http.StatusNoContent)
+	}), http.StatusNoContent)
 
 	// trigger a sync and verify that there are profiles assigned to the host
 	s.awaitTriggerProfileSchedule(t)
@@ -1232,18 +1189,18 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q
 			}]
 		}
 	}`, t.Name(), tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})

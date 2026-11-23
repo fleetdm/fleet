@@ -310,12 +310,8 @@ class Collector:
             out["labels"] = [s for s in specs if s.get("label_type") in (None, "", "regular")
                              and (_team_id(s) or None) == (tid or None)]
 
-        if is_global:
-            pol = api.json(f"{F}/policies")
-            out["policies"] = _items(pol, "policies")
-        else:
-            pol = api.json(f"{F}/fleets/{tid}/policies")
-            out["policies"] = [p for p in _items(pol, "policies") if (_team_id(p) or 0) == tid]
+        pol = api.json(f"{F}/policies", fleet_param)
+        out["policies"] = _items(pol, "policies") if is_global else [p for p in _items(pol, "policies") if (_team_id(p) or 0) == tid]
 
         if not tid == 0:
             reps = api.paged(f"{F}/reports", "reports", fleet_param) if tid else api.paged(f"{F}/reports", "reports")
@@ -356,9 +352,9 @@ class Collector:
 
         def body(p):
             p = dict(p)
-            p["content"] = self.api.raw(f"{F}/mdm/profiles/{p['profile_uuid']}", {"alt": "media"})
+            p["content"] = self.api.raw(f"{F}/configuration_profiles/{p['profile_uuid']}", {"alt": "media"})
             if p.get("platform") == "darwin" and p["content"].lstrip().startswith(b"{"):
-                full = self.api.json(f"{F}/mdm/profiles/{p['profile_uuid']}")
+                full = self.api.json(f"{F}/configuration_profiles/{p['profile_uuid']}")
                 act = (full.get("profile") or full).get("activation")
                 p["activation"] = base64.b64decode(act) if act else b""
             return p
@@ -411,7 +407,7 @@ class Collector:
         if script:
             content = api.raw(f"{F}/setup_experience/script", dict(params, alt="media"))
             out["script"] = {"name": script.get("name", "setup-script.sh"), "content": content}
-        boot = api.maybe_json(f"{F}/mdm/bootstrap/{tid}/metadata", missing=(404, 400))
+        boot = api.maybe_json(f"{F}/bootstrap/{tid}/metadata", missing=(404, 400))
         if boot:
             out["bootstrap"] = {"name": boot.get("name"), "sha256": boot.get("sha256")}
         return out

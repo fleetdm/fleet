@@ -25,7 +25,6 @@ on multiple platforms, so it can be shared.
 Fleet variables supported across systems:
 - $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>
 - $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>
-- $FLEET_VAR_HOST_END_USER_EMAIL_IDP
 
 Once more is needed it should be placed here, and the main replacement logic can be taken from the apple_mdm.go
 under server/service folder. Inside the `preprocessProfileContents` under the `fleetVarLoop` loop.
@@ -66,7 +65,7 @@ func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger *slog.Logger,
 		return "", nil, false, nil
 	}
 	// Generate a new SCEP challenge for the profile
-	challenge, err := ds.NewChallenge(ctx)
+	challenge, err := ds.NewChallenge(ctx, fleet.ChallengeScope{HostUUID: hostUUID, ProfileUUID: profUUID, CAName: caName})
 	if err != nil {
 		return "", nil, false, ctxerr.Wrap(ctx, err, "generating SCEP challenge")
 	}

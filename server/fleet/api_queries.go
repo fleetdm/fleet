@@ -9,11 +9,6 @@ type GetQueryRequest struct {
 }
 
 type GetQueryResponse struct {
-	// Because `fleet.Query` has a `query` field that we don't want to rename,
-	// it's simpler to just duplicate the query in the response struct rather than
-	// relying on the `renameto` tag here.
-	// TODO - In Fleet 5, remove the extra field.
-	Query  *Query `json:"query,omitempty"`
 	Report *Query `json:"report,omitempty"`
 	Err    error  `json:"error,omitempty"`
 }
@@ -27,16 +22,16 @@ func (r GetQueryResponse) Error() error { return r.Err }
 type ListQueriesRequest struct {
 	ListOptions ListOptions `url:"list_options"`
 	// TeamID url argument set to 0 means global.
-	TeamID         uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID         uint `query:"fleet_id,optional"`
 	MergeInherited bool `query:"merge_inherited,optional"`
 	// only return queries targeted to run on this platform
 	Platform string `query:"platform,optional"`
 }
 
 type ListQueriesResponse struct {
-	Queries             []Query             `json:"queries" renameto:"reports"`
+	Queries             []Query             `json:"reports"`
 	Count               int                 `json:"count"`
-	InheritedQueryCount int                 `json:"inherited_query_count" renameto:"inherited_report_count"`
+	InheritedQueryCount int                 `json:"inherited_report_count"`
 	Meta                *PaginationMetadata `json:"meta"`
 	Err                 error               `json:"error,omitempty"`
 }
@@ -49,14 +44,17 @@ func (r ListQueriesResponse) Error() error { return r.Err }
 
 type GetQueryReportRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 	// ListOptions supports page, per_page, order_key, order_direction and query.
 	// Results are paginated only when per_page is set; otherwise all rows are returned.
 	ListOptions ListOptions `url:"list_options"`
 }
 
+// SortsByAnyColumn exempts order_key from the removed sort key check, since a report's result columns can be named team_id.
+func (GetQueryReportRequest) SortsByAnyColumn() {}
+
 type GetQueryReportResponse struct {
-	QueryID       uint                 `json:"query_id" renameto:"report_id"`
+	QueryID       uint                 `json:"report_id"`
 	Results       []HostQueryResultRow `json:"results"`
 	ReportClipped bool                 `json:"report_clipped"`
 	// Count is the total number of rows matching the request, across all pages.
@@ -76,11 +74,6 @@ type CreateQueryRequest struct {
 }
 
 type CreateQueryResponse struct {
-	// Because `fleet.Query` has a `query` field that we don't want to rename,
-	// it's simpler to just duplicate the query in the response struct rather than
-	// relying on the `renameto` tag here.
-	// TODO - In Fleet 5, remove the extra field.
-	Query  *Query `json:"query,omitempty"`
 	Report *Query `json:"report,omitempty"`
 	Err    error  `json:"error,omitempty"`
 }
@@ -97,11 +90,6 @@ type ModifyQueryRequest struct {
 }
 
 type ModifyQueryResponse struct {
-	// Because `fleet.Query` has a `query` field that we don't want to rename,
-	// it's simpler to just duplicate the query in the response struct rather than
-	// relying on the `renameto` tag here.
-	// TODO - In Fleet 5, remove the extra field.
-	Query  *Query `json:"query,omitempty"`
 	Report *Query `json:"report,omitempty"`
 	Err    error  `json:"error,omitempty"`
 }
@@ -172,7 +160,7 @@ func (r GetQuerySpecsResponse) Error() error { return r.Err }
 
 type GetQuerySpecRequest struct {
 	Name   string `url:"name"`
-	TeamID uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID uint   `query:"fleet_id,optional"`
 }
 
 type GetQuerySpecResponse struct {

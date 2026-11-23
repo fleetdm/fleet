@@ -1,9 +1,30 @@
 import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
-import { isAndroid, isChrome, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isAndroid,
+  isChrome,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isMacOS,
+  isWindows,
+} from "interfaces/platform";
+import { IUser } from "interfaces/user";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
+import permissions from "utilities/permissions";
 
-import { getHostDeviceStatusUIState } from "../helpers";
+import {
+  getHostDeviceStatusUIState,
+  HostMdmDeviceStatusUIState,
+} from "../helpers";
+
+// The end user's data is being, or has been, erased.
+const ERASE_STATES: HostMdmDeviceStatusUIState[] = [
+  "wiped",
+  "wiping",
+  "reset",
+  "resetting",
+  "reset_wipe_pending",
+];
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
@@ -65,7 +86,7 @@ export const canShowMyDeviceButton = (
     host.mdm.device_status,
     host.mdm.pending_action
   );
-  return uiState !== "wiped" && uiState !== "wiping";
+  return !ERASE_STATES.includes(uiState);
 };
 
 // Hosts created in a pending state (Apple Business Manager, Windows Autopilot) are inserted with
@@ -87,3 +108,24 @@ export const getCanManageSelfServiceProfiles = (
   isMacOSHost: boolean,
   canResendProfiles: boolean
 ) => !!isPremiumTier && isMacOSHost && canResendProfiles;
+
+// Matches the server's host_ai_session policy: AI sessions can hold secrets in
+// commands and their arguments.
+export const canViewHostAISessions = ({
+  isPremiumTier,
+  currentUser,
+  host,
+}: {
+  isPremiumTier: boolean | undefined;
+  currentUser: IUser | null;
+  host: Pick<IHost, "platform" | "fleet_id"> | undefined;
+}) =>
+  !!isPremiumTier &&
+  !!host &&
+  (isMacOS(host.platform) ||
+    isWindows(host.platform) ||
+    isLinuxLike(host.platform)) &&
+  (permissions.isGlobalAdmin(currentUser) ||
+    permissions.isGlobalMaintainer(currentUser) ||
+    permissions.isTeamAdmin(currentUser, host.fleet_id) ||
+    permissions.isTeamMaintainer(currentUser, host.fleet_id));

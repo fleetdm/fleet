@@ -85,6 +85,7 @@ func TestAndroid(t *testing.T) {
 		{"HostAndroidSoftwareInstallsLifecycle", testHostAndroidSoftwareInstallsLifecycle},
 		{"UpdateAndroidAppConfigurationSetsConfigurationUpdatedAt", testUpdateAndroidAppConfigurationSetsConfigurationUpdatedAt},
 		{"GetAndroidAppStoreAppVersionsByID", testGetAndroidAppStoreAppVersionsByID},
+		{"AndroidFleetDefaultPolicies", testAndroidFleetDefaultPolicies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2667,7 +2668,7 @@ func testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation(t *testing
 
 	// hostWithout reports label results: member of the include label, not of the exclude
 	// label. Both combined profiles become applicable to it.
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWithout.ID}})
+	err = ds.AddLabelsToHost(ctx, hostWithout.ID, []uint{lblIncDyn.ID})
 	require.NoError(t, err)
 	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
 	hostWithout.PolicyUpdatedAt = time.Now().UTC()
@@ -2684,7 +2685,7 @@ func testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation(t *testing
 
 	// hostWith reports label results: member of both dynamic labels. The exclude label is now
 	// authoritative, so both preserved profiles are removed.
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWith.ID}, {lblExclDyn.ID, hostWith.ID}})
+	err = ds.AddLabelsToHost(ctx, hostWith.ID, []uint{lblIncDyn.ID, lblExclDyn.ID})
 	require.NoError(t, err)
 	hostWith.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
 	hostWith.PolicyUpdatedAt = time.Now().UTC()
@@ -3264,20 +3265,24 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
 			OperationName: "enterprises/E/devices/D/operations/lock-1",
-			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
-		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd))
+		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd, "a7k3m9q2x5w8"))
 
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
 		require.NoError(t, err)
-		require.Equal(t, string(android.MDMAndroidCommandTypeLock), got.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), got.CommandType)
 		require.Equal(t, string(android.MDMAndroidCommandStatusPending), got.Status)
 
 		status, err := ds.GetHostLockWipeStatus(ctx, host)
 		require.NoError(t, err)
 		require.Equal(t, fleet.PendingActionLock, status.PendingAction())
 		require.Equal(t, "android", status.HostFleetPlatform)
+		// A 12-character PIN only fits after the unlock_pin column was widened.
+		require.Equal(t, "a7k3m9q2x5w8", status.UnlockPIN)
+		require.False(t, status.IsAndroidUnlockPINAvailable(), "PIN isn't available until the device acknowledges")
+		require.True(t, status.AndroidLockedAt().IsZero())
 	})
 
 	t.Run("Wipe overwrites wipe_ref on subsequent calls (re-queue)", func(t *testing.T) {
@@ -3336,6 +3341,105 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 		require.Equal(t, cmd.CommandUUID, status.ClearPasscodeMDMCommand.CommandUUID)
 		require.True(t, status.IsPendingClearPasscode())
 		require.Equal(t, fleet.PendingActionClearPasscode, status.PendingAction())
+	})
+
+	t.Run("Lock PIN is per host and replaced on re-lock", func(t *testing.T) {
+		hostA := newBareAndroidHostForTest(t, ds, "android-lock-pin-a")
+		hostB := newBareAndroidHostForTest(t, ds, "android-lock-pin-b")
+
+		lock := func(t *testing.T, h *fleet.Host, pin string) string {
+			t.Helper()
+			cmd := &android.MDMAndroidCommand{
+				CommandUUID:   uuid.NewString(),
+				HostUUID:      h.UUID,
+				OperationName: "enterprises/E/devices/" + h.UUID + "/operations/" + uuid.NewString(),
+				CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+				Status:        string(android.MDMAndroidCommandStatusPending),
+			}
+			require.NoError(t, ds.LockHostViaAndroidMDM(ctx, h, cmd, pin))
+			return cmd.CommandUUID
+		}
+		readActions := func(t *testing.T, h *fleet.Host) (lockRef, pin string) {
+			t.Helper()
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return q.QueryRowxContext(ctx, `SELECT lock_ref, unlock_pin FROM host_mdm_actions WHERE host_id = ?`, h.ID).
+					Scan(&lockRef, &pin)
+			})
+			return lockRef, pin
+		}
+
+		lockA := lock(t, hostA, "135792")
+		lockB := lock(t, hostB, "864213")
+
+		ref, pin := readActions(t, hostA)
+		assert.Equal(t, lockA, ref)
+		assert.Equal(t, "135792", pin)
+		ref, pin = readActions(t, hostB)
+		assert.Equal(t, lockB, ref)
+		assert.Equal(t, "864213", pin)
+
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockA, string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
+		status, err := ds.GetHostLockWipeStatus(ctx, hostA)
+		require.NoError(t, err)
+		require.True(t, status.IsAndroidUnlockPINAvailable())
+		require.Equal(t, "135792", status.UnlockPIN)
+		cmdRow, err := ds.GetMDMAndroidCommandByUUID(ctx, lockA)
+		require.NoError(t, err)
+		require.False(t, status.AndroidLockedAt().IsZero())
+		require.Equal(t, cmdRow.UpdatedAt, status.AndroidLockedAt())
+
+		// Wipe and clear passcode leave the PIN alone.
+		require.NoError(t, ds.ClearPasscodeHostViaAndroidMDM(ctx, hostA, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      hostA.UUID,
+			OperationName: "enterprises/E/devices/" + hostA.UUID + "/operations/clear",
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+		_, pin = readActions(t, hostA)
+		assert.Equal(t, "135792", pin)
+
+		// Re-lock replaces both the ref and the PIN, and the PIN is unavailable until the new lock is acknowledged.
+		relockA := lock(t, hostA, "975318")
+		ref, pin = readActions(t, hostA)
+		assert.Equal(t, relockA, ref)
+		assert.Equal(t, "975318", pin)
+		status, err = ds.GetHostLockWipeStatus(ctx, hostA)
+		require.NoError(t, err)
+		require.False(t, status.IsAndroidUnlockPINAvailable())
+
+		// The other host is untouched.
+		ref, pin = readActions(t, hostB)
+		assert.Equal(t, lockB, ref)
+		assert.Equal(t, "864213", pin)
+
+		// A lock that errors leaves the PIN unavailable.
+		errCode := "INVALID_VALUE"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, relockA, string(android.MDMAndroidCommandStatusError), &errCode, nil, nil))
+		status, err = ds.GetHostLockWipeStatus(ctx, hostA)
+		require.NoError(t, err)
+		require.False(t, status.IsAndroidUnlockPINAvailable())
+	})
+
+	t.Run("Lock from before Fleet 5 has no PIN", func(t *testing.T) {
+		h := newBareAndroidHostForTest(t, ds, "android-legacy-lock")
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      h.UUID,
+			OperationName: "enterprises/E/devices/" + h.UUID + "/operations/legacy-lock",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+		}))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, 'android')`, h.ID, cmdUUID)
+			return err
+		})
+
+		status, err := ds.GetHostLockWipeStatus(ctx, h)
+		require.NoError(t, err)
+		require.Empty(t, status.UnlockPIN)
+		require.False(t, status.IsAndroidUnlockPINAvailable())
 	})
 }
 
@@ -3940,6 +4044,21 @@ func testAndroidPubSubDedupState(t *testing.T, ds *Datastore) {
 	// must not be mistaken for a missing android_devices row.
 	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-3", &t3))
 
+	// t3 is two hours ahead, which no real event time can be, so an earlier time replaces it.
+	t4 := time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-4", &t4))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-4", messageID)
+	require.WithinDuration(t, t4, *eventTime, time.Millisecond, "a recorded time far in the future must be replaced")
+
+	// Once the recorded time is a real one, an older time no longer replaces it.
+	t5 := t4.Add(-time.Hour)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-5", &t5))
+	_, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.WithinDuration(t, t4, *eventTime, time.Millisecond)
+
 	// Unknown host -> NotFound (both get and set).
 	_, _, err = ds.GetAndroidPubSubDedupState(testCtx(), 999999)
 	require.True(t, fleet.IsNotFound(err), "expected NotFound for unknown host, got %v", err)
@@ -4036,10 +4155,16 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	googleName := "devices/d1/deviceUsers/a"
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(testCtx(), res.Host.UUID, "C02cajzvg", []string{googleName}))
+
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
 	require.True(t, didUnenroll)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleName: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, res.Host.UUID))
 
 	// Calling unenrolled again returns false
 	didUnenroll, err = ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
@@ -4084,7 +4209,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 
 	// Create 5 android hosts, some company-owned (installed_from_dep = 1) and some personally-owned
 	isCompanyOwned := func(i int) bool { return i%2 == 0 }
-	var androidHostUUIDs []string
+	androidHostUUIDs := make([]string, 0, 5)
 	var androidHostIDs []uint
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
@@ -4156,12 +4281,24 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 		require.Len(t, records, 1)
 	}
 
+	// Google names are queued for unmark on the Android hosts only.
+	googleNames := map[string]string{androidHostUUIDs[0]: "devices/d1/deviceUsers/a", macHost.UUID: "devices/d2/deviceUsers/a"}
+	for hostUUID, name := range googleNames {
+		require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(testCtx(), hostUUID, "C02cajzvg", []string{name}))
+	}
+
 	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
 	})
 	require.Equal(t, 1, enrolledCount)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleNames[androidHostUUIDs[0]]: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, androidHostUUIDs[0]))
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleNames[macHost.UUID]: fleet.GoogleConditionalAccessDeviceUserPending,
+	}, googleDeviceUserStates(t, ds, macHost.UUID))
 
 	// Company-owned hosts must report "Off", not "Pending", after unenrollment.
 	for i, hostID := range androidHostIDs {
@@ -4998,9 +5135,9 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.Host.UUID,
 			OperationName: "operations/" + esid + "-lock",
-			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 			Status:        string(android.MDMAndroidCommandStatusPending),
-		}))
+		}, "000000"))
 		for _, status := range []android.MDMAndroidCommandStatus{
 			android.MDMAndroidCommandStatusAcknowledged,
 			android.MDMAndroidCommandStatusError,
@@ -5402,4 +5539,117 @@ func setAndroidHostAppliedPolicy(t *testing.T, ds *Datastore, hostUUID string, p
 		_, err := q.ExecContext(t.Context(), `UPDATE android_devices SET applied_policy_id = ? WHERE enterprise_specific_id = ?`, policyID, hostUUID)
 		return err
 	})
+}
+
+func testAndroidFleetDefaultPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-a"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-b"})
+	require.NoError(t, err)
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "default-policy-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	newProfile := func(teamID uint, name, rawJSON string, labels ...fleet.ConfigurationProfileLabel) string {
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			Name: name, TeamID: &teamID, RawJSON: []byte(rawJSON), LabelsIncludeAll: labels,
+		}, nil)
+		require.NoError(t, err)
+		return p.ProfileUUID
+	}
+	unassignedPasscode := newProfile(0, "unassigned passcode", `{"passwordPolicies": [{"passwordMinimumLength": 4}]}`)
+	teamARequirements := newProfile(teamA.ID, "a requirements", `{"passwordRequirements": {"passwordMinimumLength": 6}}`)
+	teamARules := newProfile(teamA.ID, "a rules", `{"policyEnforcementRules": [{"settingName": "passwordPolicies"}]}`)
+	newProfile(teamA.ID, "a camera", `{"cameraDisabled": true}`)
+	newProfile(teamA.ID, "a labeled passcode", `{"passwordPolicies": []}`,
+		fleet.ConfigurationProfileLabel{LabelID: lbl.ID, LabelName: lbl.Name, RequireAll: true})
+	newProfile(teamB.ID, "b nested key only", `{"openNetworkConfiguration": {"passwordPolicies": []}}`)
+
+	uuidsByTeam := func(profiles []*fleet.MDMAndroidConfigProfile) map[uint][]string {
+		got := map[uint][]string{}
+		for _, p := range profiles {
+			require.NotNil(t, p.TeamID)
+			require.NotEmpty(t, p.Name)
+			require.NotEmpty(t, p.RawJSON)
+			got[*p.TeamID] = append(got[*p.TeamID], p.ProfileUUID)
+		}
+		return got
+	}
+
+	all, err := ds.ListAndroidFleetDefaultPolicyProfiles(ctx, nil)
+	require.NoError(t, err)
+	got := uuidsByTeam(all)
+	require.Len(t, got, 2)
+	assert.ElementsMatch(t, []string{unassignedPasscode}, got[0])
+	assert.ElementsMatch(t, []string{teamARequirements, teamARules}, got[teamA.ID])
+
+	unassigned, err := ds.ListAndroidFleetDefaultPolicyProfiles(ctx, new(uint(0)))
+	require.NoError(t, err)
+	assert.Equal(t, map[uint][]string{0: {unassignedPasscode}}, uuidsByTeam(unassigned))
+
+	onlyB, err := ds.ListAndroidFleetDefaultPolicyProfiles(ctx, &teamB.ID)
+	require.NoError(t, err)
+	assert.Empty(t, onlyB)
+
+	checksums, err := ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, checksums)
+
+	// Without a previous checksum, only a missing row is inserted.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, 0, []byte("0123456789abcdef"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("aaaaaaaaaaaaaaaa"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamB.ID, []byte("bbbbbbbbbbbbbbbb"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("xxxxxxxxxxxxxxxx"), nil))
+	// With one, only a row that still holds it is updated.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("AAAAAAAAAAAAAAAA"), []byte("aaaaaaaaaaaaaaaa")))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamB.ID, []byte("yyyyyyyyyyyyyyyy"), []byte("stale-checksum-0")))
+
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, map[uint][]byte{
+		0:        []byte("0123456789abcdef"),
+		teamA.ID: []byte("AAAAAAAAAAAAAAAA"),
+		teamB.ID: []byte("bbbbbbbbbbbbbbbb"),
+	}, checksums)
+
+	// Marking a policy unverified overwrites any checksum, and creates a row for a fleet without one.
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamA.ID))
+	teamC, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-c"})
+	require.NoError(t, err)
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamC.ID))
+	// The reconciler's insert of a fleet it read without a row loses to the mark.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamC.ID, []byte("cccccccccccccccc"), nil))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	firstMark := checksums[teamA.ID]
+	assert.Len(t, firstMark, 16)
+	assert.NotEqual(t, []byte("AAAAAAAAAAAAAAAA"), firstMark)
+	assert.NotEqual(t, []byte("cccccccccccccccc"), checksums[teamC.ID])
+
+	// A second mark invalidates a save based on the first, so the reconciler sends the policy again.
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamA.ID))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("AAAAAAAAAAAAAAAA"), firstMark))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, firstMark, checksums[teamA.ID])
+	assert.NotEqual(t, []byte("AAAAAAAAAAAAAAAA"), checksums[teamA.ID])
+
+	deletedFleets, err := ds.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, deletedFleets)
+
+	// Deleting a fleet keeps its row, since its zero-touch token can still enroll hosts.
+	require.NoError(t, ds.DeleteTeam(ctx, teamB.ID))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Len(t, checksums, 4)
+	deletedFleets, err = ds.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []uint{teamB.ID}, deletedFleets)
+
+	// The policies belong to the enterprise, so deleting it deletes every row.
+	require.NoError(t, ds.DeleteAllEnterprises(ctx))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, checksums)
 }

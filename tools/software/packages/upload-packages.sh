@@ -53,7 +53,7 @@ for file in "${files[@]}"; do
     -X POST "$ENDPOINT"
     -H "Authorization: Bearer $API_TOKEN"
     -F "software=@${file}"
-    -F "team_id=$TEAM_ID"
+    -F "fleet_id=$TEAM_ID"
     -F "automatic_install=$AUTO_INSTALL"
   )
 

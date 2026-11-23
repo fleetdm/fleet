@@ -1,6 +1,24 @@
 [
   {
     "software": {
+      "bundle_identifier": ["com.linear"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["codex"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["us.zoom.xos"],
       "source": ["apps"]
     },
@@ -637,6 +655,15 @@
   {
     "software": {
       "name": ["Steam"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["Photos"],
       "source": ["programs"]
     },
     "filter": {

@@ -383,8 +383,8 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 
 	// Load and record results for builtin labels.
 	builtinLabel := func(name string) *fleet.LabelWithTeamName {
-		l, err := ds.LabelByName(context.Background(), name, filter)
-		require.NoError(t, err)
+		l := labelByName(t, ds, name, filter)
+		require.NotNil(t, l)
 		lwt, _, err := ds.Label(context.Background(), l.ID, filter)
 		require.NoError(t, err)
 		return lwt

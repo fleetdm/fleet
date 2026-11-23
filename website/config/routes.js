@@ -439,8 +439,8 @@ module.exports.routes = {
   'GET /device-management': {
     action: 'view-device-management',
     locals: {
-      pageTitleForMeta: 'Device management (MDM)',
-      pageDescriptionForMeta: 'Manage your devices in any browser or use git to make changes as code.',
+      pageTitleForMeta: 'Device management (MDM, EMM, and UEM)',
+      pageDescriptionForMeta: 'Enterprise MDM and unified endpoint management (UEM) for macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS. Manage your devices in any browser or use git to make changes as code.',
       currentSection: 'platform',
     }
   },
@@ -571,6 +571,38 @@ module.exports.routes = {
     }
   },
 
+  'GET /google-conditional-access/done': {
+    action: 'google-proxy/view-google-conditional-access-done',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/not-allowed': {
+    action: 'google-proxy/view-google-conditional-access-not-allowed',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/not-found': {
+    action: 'google-proxy/view-google-conditional-access-not-found',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
+  'GET /google-conditional-access/error': {
+    action: 'google-proxy/view-google-conditional-access-error',
+    locals: {
+      showConfigurationProfileLayout: true,
+      disableChatbotAndIndexing: true,
+    }
+  },
+
   'GET /legal/terms': {
     action: 'legal/view-terms',
   },
@@ -617,11 +649,11 @@ module.exports.routes = {
     }
   },
 
-  'GET /linux-management': {
+  'GET /linux': {
     action: 'view-linux-management',
     locals: {
-      pageTitleForMeta: 'Linux device management',
-      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+      pageTitleForMeta: 'Linux MDM and device management',
+      pageDescriptionForMeta: 'Linux MDM for every distro. Automate patching, monitor compliance, and unify Linux, macOS, and Windows device management in one place.',
       currentSection: 'platform',
     }
   },
@@ -780,8 +812,8 @@ module.exports.routes = {
     action: 'landing-pages/view-patch-faster',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Stop waiting on your MDM catalog. Fleet automated patch management.',
-      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies push updates to every device on a regular, predictable cadence — no manual repackaging, no osquery queries to write.'
+      pageTitleForMeta: 'Stop waiting on your MDM catalog. Automated patch management with Fleet',
+      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies update every device on a regular, predictable cadence, with no manual repackaging. Ask what\'s patched and get an answer in seconds.'
     }
   },
 
@@ -789,8 +821,8 @@ module.exports.routes = {
     action: 'landing-pages/view-replace-jamf',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Replace Jamf with confidence',
-      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
+      pageTitleForMeta: 'Replace Jamf with AI-native device management',
+      pageDescriptionForMeta: 'Replace Jamf with Fleet, AI-native device management for Apple, Windows, and Linux. Make changes in plain language, review every change, and move Macs without a wipe.'
     }
   },
 
@@ -799,7 +831,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Autonomous endpoint management',
-      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
+      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet updates devices automatically across every major OS, and a person approves every change.',
     }
   },
 
@@ -807,8 +839,8 @@ module.exports.routes = {
     action: 'landing-pages/view-apple-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Apple MDM: AI-native, open source Mac device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, and DDM. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -816,8 +848,8 @@ module.exports.routes = {
     action: 'landing-pages/view-android-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Android MDM: open source Android device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, managed Google Play, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Android MDM: AI-native, open source Android device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, and managed Google Play. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -825,8 +857,8 @@ module.exports.routes = {
     action: 'landing-pages/view-windows-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Windows MDM: AI-native, open source Windows device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with zero touch and no Microsoft license required. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -834,8 +866,8 @@ module.exports.routes = {
     action: 'landing-pages/view-on-premise',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'On-premise device management',
-      pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
+      pageTitleForMeta: 'On-premise device management: AI-native and self-hosted',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source device management that runs entirely on your infrastructure, including air-gapped networks. Every feature ships to self-hosted on the same day as Fleet Cloud, and your data never leaves your network.',
     }
   },
 
@@ -844,7 +876,16 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Open source MDM | Self-hosted device management',
-      pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
+      pageDescriptionForMeta: 'Fleet is AI-native, open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted device management with every line of code public on GitHub.',
+    }
+  },
+
+  'GET /lp/open-by-design': {
+    action: 'landing-pages/view-open-by-design',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Open MDM, patching, and vulnerability management for every OS',
+      pageDescriptionForMeta: 'Manage, update, and secure all your devices like it\'s the 2020s.',
     }
   },
 
@@ -868,7 +909,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /jamf-alternative': '/replace-jamf',
-  'GET /linux': '/linux-management',
+  'GET /linux-management': (req, res) => { return res.redirect(301, '/linux' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
@@ -898,7 +939,7 @@ module.exports.routes = {
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing',
   'GET /handbook/community': '/handbook/marketing',
-  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/marketing/markdown-guide': '/handbook/company/writing',
   'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
   'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
@@ -1420,6 +1461,8 @@ module.exports.routes = {
   'GET /learn-more-about/apple-available-os-updates': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
   'GET /learn-more-about/linux-os-updates': '/guides/enforce-os-updates#linux',
   'GET /learn-more-about/android-os-updates': '/guides/enforce-os-updates#android',
+  'GET /learn-more-about/os-updates-apple': '/guides/enforce-os-updates#apple-macos-ios-and-ipados-end-user-experience',
+  'GET /learn-more-about/os-updates-windows': '/guides/enforce-os-updates#windows2',
   'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
   'GET /learn-more-about/query-templates-for-automatic-install-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
@@ -1452,7 +1495,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
-  'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#step-2-sign-the-package',
+  'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#sign-the-package',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/self-service-software-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/api/rest-api#request-certificate',
@@ -1471,6 +1514,8 @@ module.exports.routes = {
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/managed-lost-mode': 'https://support.apple.com/en-gb/guide/security/secc46f3562c/web',
   'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#special-android-behavior',
+  'GET /learn-more-about/deployment-rings': '/guides/roll-out-changes-with-deployment-rings',
+  'GET /learn-more-about/roll-out-new-package-version': '/guides/roll-out-changes-with-deployment-rings#a-new-version-of-a-custom-package',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/api/rest-api#get-manual-enrollment-profile',
@@ -1482,6 +1527,8 @@ module.exports.routes = {
   'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience',
   'GET /learn-more-about/built-in-variables': '/guides/fleet-variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
+  'GET /learn-more-about/troubleshoot-entra-conditional-access': '/guides/entra-conditional-access-integration#troubleshooting',
+  'GET /learn-more-about/create-entra-conditional-access-group': '/guides/entra-conditional-access-integration#step-1-create-a-fleet-conditional-access-group-in-entra',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
   'GET /learn-more-about/connect-microsoft-graph': '/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph',
@@ -1506,7 +1553,7 @@ module.exports.routes = {
   'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
-  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
+  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',
@@ -1659,6 +1706,14 @@ module.exports.routes = {
   'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
   'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
   'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
+
+  //  ╔═╗╔═╗╔═╗╔═╗╦  ╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ║ ╦║ ║║ ║║ ╦║  ║╣   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╚═╝╚═╝╚═╝╚═╝╩═╝╚═╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/google-conditional-access': { action: 'google-proxy/create-google-conditional-access-customer', csrf: false },
+  'DELETE /api/v1/google-conditional-access': { action: 'google-proxy/remove-one-google-conditional-access-customer', csrf: false },
+  'GET /api/v1/google-conditional-access/sign-in': { action: 'google-proxy/redirect-to-google-sign-in' },
+  'GET /api/v1/google-conditional-access/callback': { action: 'google-proxy/receive-redirect-from-google' },
 
   //
   //  ╦  ╦╔═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

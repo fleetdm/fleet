@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -110,6 +109,30 @@ func (ds *AndroidDSWithMock) DeleteZeroTouchEnrollmentTokens(ctx context.Context
 	return ds.Datastore.DeleteZeroTouchEnrollmentTokens(ctx)
 }
 
+func (ds *AndroidDSWithMock) ReplaceZeroTouchEnrollmentToken(ctx context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	return ds.Datastore.ReplaceZeroTouchEnrollmentToken(ctx, oldTokenName, token)
+}
+
+func (ds *AndroidDSWithMock) ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	return ds.Datastore.ListAndroidFleetDefaultPolicyProfiles(ctx, teamID)
+}
+
+func (ds *AndroidDSWithMock) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error) {
+	return ds.Datastore.GetAndroidFleetDefaultPolicyChecksums(ctx)
+}
+
+func (ds *AndroidDSWithMock) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	return ds.Datastore.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+}
+
+func (ds *AndroidDSWithMock) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error {
+	return ds.Datastore.SetAndroidFleetDefaultPolicyChecksum(ctx, teamID, checksum, previous)
+}
+
+func (ds *AndroidDSWithMock) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	return ds.Datastore.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamID)
+}
+
 // noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
 func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 	return nil
@@ -184,6 +207,7 @@ func (ts *WithServer) CreateCommonDSMocks() {
 
 func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 	ts.AndroidAPIClient.InitCommonMocks()
+	ts.AndroidAPIClient.InitDeviceLookupMocks()
 	ts.AndroidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
 		ts.ProxyCallbackURL = callbackURL
 		return &android.SignupDetails{
@@ -247,7 +271,7 @@ func runServerForTests(t *testing.T, logger *slog.Logger, fleetSvc fleet.Service
 		),
 	}
 
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 	service.GetRoutes(fleetSvc, androidSvc)(r, fleetAPIOptions)
 	rootMux := http.NewServeMux()
 	rootMux.HandleFunc("/api/", r.ServeHTTP)

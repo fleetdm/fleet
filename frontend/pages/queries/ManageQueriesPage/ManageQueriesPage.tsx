@@ -169,12 +169,12 @@ const ManageQueriesPage = ({
 
   // Enhance the queries from the response when they are changed.
   const enhancedQueries = useMemo(() => {
-    return queriesResponse?.queries.map(enhanceQuery) || [];
+    return queriesResponse?.reports.map(enhanceQuery) || [];
   }, [queriesResponse]);
 
   const isManageAutomationsEnabled = isAnyTeamSelected
     ? (queriesResponse?.count ?? 0) >
-      (queriesResponse?.inherited_query_count ?? 0)
+      (queriesResponse?.inherited_report_count ?? 0)
     : (queriesResponse?.count ?? 0) > 0;
 
   // Open the Manage automations modal via deep-link (e.g. from the
@@ -313,7 +313,7 @@ const ManageQueriesPage = ({
         hasNextResults={!!queriesResponse?.meta.has_next_results}
         curTeamScopeQueriesPresent={
           teamIdForApi !== API_ALL_TEAMS_ID
-            ? enhancedQueries.some((q) => q.team_id === currentTeamId)
+            ? enhancedQueries.some((q) => q.fleet_id === currentTeamId)
             : enhancedQueries.length > 0
         }
         isLoading={isLoadingQueries || isFetchingQueries}

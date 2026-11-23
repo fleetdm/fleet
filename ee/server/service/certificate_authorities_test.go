@@ -197,6 +197,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			// check for
 			return nil, errors.New("mock error to avoid NewActivity panic")
 		}
+		ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+			return nil, nil
+		}
 		authorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 
@@ -264,11 +267,11 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{}, nil
 		}
-		ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+		ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) ([]uint, error) {
 			require.Empty(t, ops.Add)
 			require.Empty(t, ops.Update)
 			require.Empty(t, ops.Delete)
-			return nil
+			return nil, nil
 		}
 		authorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
@@ -488,6 +491,19 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.NotNil(t, createdCA.Password)
 		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.Password, *createdCA.Password)
 		verifyNilFieldsForType(t, createdCA)
+	})
+
+	t.Run("Create NDES SCEP CA - an NDES CA already exists", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+		ds := svc.ds.(*mock.Store)
+		ds.ListCertificateAuthoritiesFunc = func(context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+			return []*fleet.CertificateAuthoritySummary{{ID: 1, Name: "NDES", Type: string(fleet.CATypeNDESSCEPProxy)}}, nil
+		}
+		_, err := svc.NewCertificateAuthority(ctx, fleet.CertificateAuthorityPayload{NDESSCEPProxy: &fleet.NDESSCEPProxyCA{
+			URL: "https://ndes.example.com", AdminURL: "https://ndes-admin.example.com", Username: "ndes_user", Password: "ndes_password",
+		}})
+		require.EqualError(t, err, "Couldn't add certificate authority. Only a single NDES CA can be added.")
+		require.False(t, ds.NewCertificateAuthorityFuncInvoked)
 	})
 
 	t.Run("Create Smallstep SCEP CA - Happy path", func(t *testing.T) {
@@ -2227,6 +2243,20 @@ func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
 	}
 }
 
+func TestDigicertFieldsRejectRemovedVariable(t *testing.T) {
+	const errPrefix = "Couldn't add certificate authority. "
+	const removed = "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"
+	for field, err := range map[string]error{
+		"certificate_common_name":          validateDigicertCACN(removed, errPrefix),
+		"certificate_seat_id":              validateDigicertSeatID(removed, errPrefix),
+		"certificate_user_principal_names": validateDigicertUserPrincipalNames([]string{removed}, errPrefix),
+	} {
+		var iae *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &iae, field)
+		require.Equal(t, []map[string]string{{"name": field, "reason": errPrefix + removedEmailIDPVarMsg}}, iae.Invalid(), field)
+	}
+}
+
 type recordingESTService struct {
 	fleet.ESTService
 	record func(url string) error
@@ -2234,6 +2264,32 @@ type recordingESTService struct {
 
 func (r recordingESTService) ValidateESTURL(_ context.Context, ca fleet.ESTProxyCA) error {
 	return r.record(ca.URL)
+}
+
+func TestBatchApplyCertificateAuthoritiesRejectsRemovedVariableInUnchangedCA(t *testing.T) {
+	svc := &Service{logger: slog.New(slog.DiscardHandler)}
+	const removed = "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+
+	// A CA saved before the upgrade that GitOps sends back as it is.
+	digicert := []fleet.DigiCertCA{{
+		Name: "DIGICERT", URL: "https://digicert.example.com", APIToken: "token", ProfileID: "profile",
+		CertificateCommonName: removed, CertificateSeatID: "seat",
+	}}
+	err := svc.processDigiCertCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, digicert, digicert)
+	var iae *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &iae)
+	require.Equal(t, []map[string]string{{
+		"name": "certificate_common_name", "reason": "certificate_authorities.digicert: " + removedEmailIDPVarMsg,
+	}}, iae.Invalid())
+
+	ejbca := validEJBCA("")
+	ejbca.CertificateCommonName = "cn"
+	ejbca.UsernameTemplate = "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"
+	err = svc.processEJBCACAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, []fleet.EJBCA{ejbca}, []fleet.EJBCA{ejbca})
+	require.ErrorAs(t, err, &iae)
+	require.Equal(t, []map[string]string{{
+		"name": "username_template", "reason": "certificate_authorities.ejbca: " + removedEmailIDPVarMsg,
+	}}, iae.Invalid())
 }
 
 func TestBatchApplyCertificateAuthoritiesSkipsUnchanged(t *testing.T) {

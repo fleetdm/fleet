@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -1163,7 +1164,7 @@ func TestResolveHost_IdentifierSingleAndFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(struct {
 				Hosts []Endpoint `json:"hosts"`
 			}{Hosts: hosts})
-		case r.URL.Path == "/api/v1/fleet/hosts/identifier/ghost":
+		case r.URL.Path == "/api/v1/fleet/hosts/ghost":
 			_ = json.NewEncoder(w).Encode(struct {
 				Host Endpoint `json:"host"`
 			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})
@@ -1201,8 +1202,8 @@ func TestResolveHostWithUsers_SingleMatchAndFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(struct {
 				Host HostWithUsers `json:"host"`
 			}{Host: HostWithUsers{Endpoint: Endpoint{ID: 5, Name: "solo.local"}, Users: []HostUser{{UID: 501, Username: "alice"}}}})
-		case "/api/v1/fleet/hosts/identifier/ghost":
-			// identifier endpoint resolves the host but carries NO users
+		case "/api/v1/fleet/hosts/ghost":
+			// the identifier lookup resolves the host but carries NO users
 			_ = json.NewEncoder(w).Encode(struct {
 				Host Endpoint `json:"host"`
 			}{Host: Endpoint{ID: 9, Name: "ghost.local"}})
@@ -1295,13 +1296,13 @@ func TestGetHostSoftware_SourceFilterAndPerPage(t *testing.T) {
 func TestGetPolicies_IncludesQueryField(t *testing.T) {
 	const wantSQL = "SELECT 1;"
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/fleet/global/policies":
+		switch {
+		case r.URL.Path == "/api/v1/fleet/policies" && !r.URL.Query().Has("fleet_id"):
 			_, _ = w.Write([]byte(`{"policies":[
 				{"id":1,"name":"with sql","query":"` + wantSQL + `"},
 				{"id":2,"name":"empty sql","query":""}
 			]}`))
-		case "/api/v1/fleet/fleets":
+		case r.URL.Path == "/api/v1/fleet/fleets":
 			_, _ = w.Write([]byte(`{"fleets":[]}`))
 		default:
 			http.Error(w, "unexpected path "+r.URL.Path, http.StatusNotFound)
@@ -1322,6 +1323,72 @@ func TestGetPolicies_IncludesQueryField(t *testing.T) {
 	}
 	if policies[1].Query != "" {
 		t.Errorf("policy 2 Query = %q, want empty string", policies[1].Query)
+	}
+}
+
+func TestGetPolicies_FleetPoliciesUseFleetID(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/fleet/fleets" {
+			_, _ = w.Write([]byte(`{"fleets":[{"id":1,"name":"Workstations"},{"id":2,"name":"Servers"}]}`))
+			return
+		}
+		if r.URL.Path != "/api/v1/fleet/policies" {
+			http.Error(w, "unexpected path "+r.URL.Path, http.StatusNotFound)
+			return
+		}
+		switch r.URL.Query().Get("fleet_id") {
+		case "":
+			_, _ = w.Write([]byte(`{"policies":[{"id":1,"name":"global"}]}`))
+		case "1":
+			_, _ = w.Write([]byte(`{"policies":[{"id":2,"name":"disk"}]}`))
+		case "2":
+			_, _ = w.Write([]byte(`{"policies":[{"id":3,"name":"firewall"}]}`))
+		default:
+			http.Error(w, "unexpected fleet_id", http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	policies, err := newTestClient(srv.URL).GetPolicies(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var names []string
+	for _, p := range policies {
+		names = append(names, p.Name)
+	}
+	want := []string{"global", "[Workstations] disk", "[Servers] firewall"}
+	if !slices.Equal(names, want) {
+		t.Errorf("policy names = %v, want %v", names, want)
+	}
+}
+
+func TestGetTeamPolicyCompliance(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/fleet/policies/3":
+			_, _ = w.Write([]byte(`{"policy":{"id":3,"name":"disk","fleet_id":1,"passing_host_count":4,"failing_host_count":1}}`))
+		case "/api/v1/fleet/policies/4":
+			_, _ = w.Write([]byte(`{"policy":{"id":4,"name":"global","fleet_id":null,"passing_host_count":9,"failing_host_count":9}}`))
+		default:
+			http.Error(w, "unexpected path "+r.URL.Path, http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	got, err := fc.GetTeamPolicyCompliance(context.Background(), 1, 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.PolicyID != "3" || got.Total != 5 || got.Compliant != 4 || got.NonCompliant != 1 {
+		t.Errorf("compliance = %+v, want id 3, 5 total, 4 compliant, 1 non-compliant", got)
+	}
+
+	for _, tc := range []struct{ teamID, policyID uint }{{2, 3}, {1, 4}} {
+		if _, err := fc.GetTeamPolicyCompliance(context.Background(), tc.teamID, tc.policyID); err == nil {
+			t.Errorf("fleet %d, policy %d: expected an error for a policy outside the fleet", tc.teamID, tc.policyID)
+		}
 	}
 }
 
@@ -1373,5 +1440,21 @@ func TestRunAdHocSingleHostFallsBackToDefaultClient(t *testing.T) {
 	}
 	if res.RespondedHostCount != 1 || len(res.Results) != 1 {
 		t.Fatalf("unexpected result %+v", res)
+	}
+}
+
+func TestGetHostByIdentifierRejectsHostIDOnlyMatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"host": map[string]any{"id": 42, "uuid": "1234567"}})
+	}))
+	defer srv.Close()
+	fc := newTestClient(srv.URL)
+
+	for identifier, wantFound := range map[string]bool{"42": false, "1234567": true} {
+		_, err := fc.GetHostByIdentifier(t.Context(), identifier)
+		_, policiesErr := fc.GetHostByIdentifierWithPolicies(t.Context(), identifier)
+		if (err == nil) != wantFound || (policiesErr == nil) != wantFound {
+			t.Errorf("identifier %q: errors %v, %v, want found=%v", identifier, err, policiesErr, wantFound)
+		}
 	}
 }

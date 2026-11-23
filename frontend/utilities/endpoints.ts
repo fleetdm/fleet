@@ -18,6 +18,7 @@ export default {
   // Conditional access
   CONDITIONAL_ACCESS_MICROSOFT: `/${API_VERSION}/fleet/conditional-access/microsoft`,
   CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
+  CONDITIONAL_ACCESS_GOOGLE: `/${API_VERSION}/fleet/conditional_access/google`,
   CONDITIONAL_ACCESS_IDP_SIGNING_CERT: `/${API_VERSION}/fleet/conditional_access/idp/signing_cert`,
   CONDITIONAL_ACCESS_IDP_APPLE_PROFILE: `/${API_VERSION}/fleet/conditional_access/idp/apple/profile`,
   CONDITIONAL_ACCESS_IDP_WINDOWS_PROFILES: `/${API_VERSION}/fleet/conditional_access/idp/windows/profiles`,
@@ -33,11 +34,10 @@ export default {
   },
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
-  GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  POLICIES: `/${API_VERSION}/fleet/policies`,
   POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
     `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
   POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
-  GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
 
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
@@ -87,6 +87,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/install`,
   DEVICE_UNINSTALL_PROFILE: (token: string, profileUUID: string) =>
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/uninstall`,
+  DEVICE_GOOGLE_CONDITIONAL_ACCESS: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/conditional_access/google`,
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
   DEVICE_NOTIFICATION: (token: string, notificationUuid: string) =>
@@ -116,6 +118,7 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_RESET: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/reset`,
   HOST_CLEAR_PASSCODE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/clear_passcode`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
@@ -135,6 +138,10 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
   HOST_CERTIFICATES: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/certificates`,
+  HOST_AI_SESSIONS: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions`,
+  HOST_AI_SESSION_EVENTS: (id: number, aiSessionId: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions/${aiSessionId}/events`,
   HOST_DEVICE_MAPPING: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
   HOST_DEVICE_MAPPING_IDP: (id: number) =>
@@ -195,7 +202,6 @@ export default {
   MDM_APPLE_AB_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/ab_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints
@@ -267,21 +273,15 @@ export default {
   OS_VERSION: (id: number) => `/${API_VERSION}/fleet/os_versions/${id}`,
 
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
-  PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
   QUERIES: `/${API_VERSION}/fleet/reports`,
   QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
   REST_API_ENDPOINTS: `/${API_VERSION}/fleet/rest_api`,
   LIVE_QUERY: `/${API_VERSION}/fleet/reports/run`,
-  SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
-  SCHEDULED_QUERIES: (packId: number): string => {
-    return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
-  },
   SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
 
   // Software endpoints
-  SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
@@ -318,12 +318,6 @@ export default {
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
   STATUS_RESULT_STORE: `/${API_VERSION}/fleet/status/result_store`,
   TARGETS: `/${API_VERSION}/fleet/targets`,
-  TEAM_POLICIES: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/fleets/${teamId}/policies`;
-  },
-  TEAM_SCHEDULE: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/fleets/${teamId}/schedule`;
-  },
   TEAMS: `/${API_VERSION}/fleet/fleets`,
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/agent_options`;

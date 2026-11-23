@@ -24,6 +24,31 @@ try {
         [System.Security.Principal.SecurityIdentifier]).Value
     Write-Host "Installing Notion Calendar for $userAccount."
 
+    # Setup can't close a running Notion Calendar from the scheduled task's logon
+    # session, so its upgrade fails and then waits on an error dialog until this
+    # script times out. Stop what's running from the user's install first.
+    $profilePath = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$sid" -ErrorAction SilentlyContinue).ProfileImagePath
+    if ($profilePath) {
+        $appDir = Join-Path $profilePath "AppData\Local\Programs\notion-calendar-web"
+        $isAppProcess = { $_.Path -and $_.Path.StartsWith("$appDir\", [System.StringComparison]::OrdinalIgnoreCase) }
+        $running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object $isAppProcess)
+        if ($running.Count) {
+            Write-Host "Stopping Notion Calendar: $(($running | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', ')"
+            # Windows reuses PIDs, so match the start time too.
+            $stopped = @($running | ForEach-Object { "$($_.Id)|$($_.StartTime.Ticks)" })
+            $running | Stop-Process -Force -ErrorAction SilentlyContinue
+            for ($waited = 0; $waited -lt 30; $waited++) {
+                Start-Sleep -Seconds 1
+                $running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object $isAppProcess |
+                    Where-Object { $stopped -contains "$($_.Id)|$($_.StartTime.Ticks)" })
+                if ($running.Count -eq 0) { break }
+            }
+            if ($running.Count) {
+                Throw "Notion Calendar is still running ($(($running | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', ')) and Setup can't replace it. Quit it and try again."
+            }
+        }
+    }
+
     # Fleet's installer directory is not readable by that user, so stage a copy in
     # a new folder only SYSTEM and Administrators can write to.
     $security = New-Object System.Security.AccessControl.DirectorySecurity

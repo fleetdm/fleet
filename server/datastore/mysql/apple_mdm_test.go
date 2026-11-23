@@ -92,7 +92,6 @@ func TestMDMApple(t *testing.T) {
 		{"TestGetMDMAppleCommandResults", testGetMDMAppleCommandResults},
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
-		{"TestListMDMAppleCommands", testListMDMAppleCommands},
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
 		{"TestListMDMAppleSerials", testListMDMAppleSerials},
@@ -300,12 +299,7 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 	checkConfigProfile(t, duplicateCP, *newCP)
 
-	// get it back from both the deprecated ID and the uuid methods
-	storedCP, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, newCP.ProfileID)
-	require.NoError(t, err)
-	checkConfigProfile(t, *newCP, *storedCP)
-	require.Nil(t, storedCP.LabelsIncludeAll)
-	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
+	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
 	require.Nil(t, storedCP.LabelsIncludeAll)
@@ -325,12 +319,7 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	labelProf, err := ds.NewMDMAppleConfigProfile(ctx, labelCP, nil)
 	require.NoError(t, err)
 
-	// get it back from both the deprecated ID and the uuid methods, labels are
-	// only included in the uuid one
-	prof, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, labelProf.ProfileID)
-	require.NoError(t, err)
-	require.Nil(t, prof.LabelsIncludeAll)
-	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
+	prof, err := ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
 	require.NoError(t, err)
 	require.Len(t, prof.LabelsIncludeAll, 1)
 	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
@@ -1067,19 +1056,8 @@ func testBulkUpsertMDMAppleHostProfilesRemoveIgnoreError(t *testing.T, ds *Datas
 func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// first via the deprecated ID
 	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
-	err := ds.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
-	require.NoError(t, err)
-	_, err = ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-
-	err = ds.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
-	require.ErrorIs(t, err, sql.ErrNoRows)
-
-	// next via the uuid
-	initialCP = storeDummyConfigProfilesForTest(t, ds, 1)[0]
-	err = ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
+	err := ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
 	require.NoError(t, err)
 	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
@@ -1584,7 +1562,6 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 	// assign the team as the default team for DEP devices
 	ac, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
-	ac.MDM.DeprecatedAppleBMDefaultTeam = team.Name
 	err = ds.SaveAppConfig(ctx, ac)
 	require.NoError(t, err)
 
@@ -1960,6 +1937,20 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	key, err = ds.GetHostDiskEncryptionKey(ctx, hostID)
 	require.NoError(t, err)
 	require.NotNil(t, key)
+
+	// A mobile host's Google names are queued for unmark.
+	iosUUID, googleName := "test-ios-uuid", "devices/d1/deviceUsers/a"
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           iosUUID,
+		HardwareSerial: "test-ios-serial",
+		Platform:       "ios",
+	}, fleet.PersonalEnrollmentTypeNone))
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, iosUUID, "C02cajzvg", []string{googleName}))
+	_, _, err = ds.MDMTurnOff(ctx, iosUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleName: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, iosUUID))
 }
 
 func expectAppleProfiles(
@@ -2117,7 +2108,7 @@ func expectAppleDeclarations(
 func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]string {
-		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
+		_, err := ds.BatchSetMDMProfiles(ctx, tmID, newSet, nil, nil, nil, nil)
 		require.NoError(t, err)
 		return expectAppleProfiles(t, ds, tmID, want)
 	}
@@ -2271,7 +2262,8 @@ func testBatchSetMDMAppleProfilesRenameChainAndSwap(t *testing.T, ds *Datastore)
 		for identifier, name := range names {
 			profs = append(profs, named(identifier, name))
 		}
-		require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, nil, profs))
+		_, err := ds.BatchSetMDMProfiles(ctx, nil, profs, nil, nil, nil, nil)
+		require.NoError(t, err)
 
 		var got []*fleet.MDMAppleConfigProfile
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2329,7 +2321,8 @@ func testBatchSetMDMAppleProfilesClearsStaleBrokenLabels(t *testing.T, ds *Datas
 
 	// First gitops apply: profile with labels_exclude_any: [labelX].
 	prof := configProfileForTest(t, "Repro42637", "com.fleetdm.repro.42637", "u1", labelX)
-	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{prof}))
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{prof}, nil, nil, nil, nil)
+	require.NoError(t, err)
 
 	var profileUUID string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2373,7 +2366,8 @@ func testBatchSetMDMAppleProfilesClearsStaleBrokenLabels(t *testing.T, ds *Datas
 	require.Nil(t, rows[0].LabelID, "row should be in broken (NULL label_id) state")
 
 	prof = configProfileForTest(t, "Repro42637", "com.fleetdm.repro.42637", "u1", labelY)
-	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{prof}))
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{prof}, nil, nil, nil, nil)
+	require.NoError(t, err)
 
 	rows = loadRows()
 	require.Len(t, rows, 1, "stale broken row was not cleared")
@@ -2520,7 +2514,7 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 		configProfileForTest(t, "N2", "I2", "b"),
 		configProfileForTest(t, "N3", "I3", "c"),
 	}
-	err := ds.BatchSetMDMAppleProfiles(ctx, nil, profiles)
+	_, err := ds.BatchSetMDMProfiles(ctx, nil, profiles, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	profiles, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
@@ -4428,303 +4422,6 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	require.Nil(t, meta)
 }
 
-func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	// create some enrolled hosts
-	enrolledHosts := make([]*fleet.Host, 4)
-	for i := 0; i < 3; i++ {
-		h, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      fmt.Sprintf("test-host%d-name", i),
-			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
-			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
-			UUID:          fmt.Sprintf("test-uuid-%d", i),
-			Platform:      "darwin",
-		})
-		require.NoError(t, err)
-		nanoEnroll(t, ds, h, false)
-		enrolledHosts[i] = h
-		t.Logf("enrolled host [%d]: %s", i, h.UUID)
-	}
-
-	h, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-host3-byod-name",
-		OsqueryHostID: ptr.String("osquery-3"),
-		NodeKey:       ptr.String("nodekey-3"),
-		UUID:          "test-uuid-byod-3",
-		Platform:      "ios",
-	})
-	require.NoError(t, err)
-	nanoEnrollUserDevice(t, ds, h)
-	enrolledHosts[3] = h
-	t.Logf("enrolled BYOD host [%d]: %s", 3, h.UUID)
-
-	// create a team
-	tm1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-	// assign enrolledHosts[2] to tm1
-	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{enrolledHosts[2].ID}))
-	require.NoError(t, err)
-
-	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
-
-	// no commands yet
-	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
-	require.NoError(t, err)
-	require.Empty(t, res)
-
-	// enqueue a command for enrolled hosts [0], [1] and [3]
-	uuid1 := uuid.New().String()
-	rawCmd1 := createRawAppleCmd("ListApps", uuid1)
-	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[0].UUID, enrolledHosts[1].UUID, enrolledHosts[3].UUID}, rawCmd1)
-	require.NoError(t, err)
-
-	// command has no results yet, so the status is empty
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
-	require.NoError(t, err)
-	require.Len(t, res, 3)
-
-	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-	require.NotZero(t, res[1].UpdatedAt)
-	res[1].UpdatedAt = time.Time{}
-	require.NotZero(t, res[2].UpdatedAt)
-	res[2].UpdatedAt = time.Time{}
-
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    enrolledHosts[0].UUID,
-			CommandUUID: uuid1,
-			Status:      "Pending",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[0].Hostname,
-			TeamID:      nil,
-		},
-		{
-			DeviceID:    enrolledHosts[1].UUID,
-			CommandUUID: uuid1,
-			Status:      "Pending",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[1].Hostname,
-			TeamID:      nil,
-		},
-		{
-			DeviceID:    enrolledHosts[3].UUID,
-			CommandUUID: uuid1,
-			Status:      "Pending",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[3].Hostname,
-			TeamID:      nil,
-		},
-	})
-
-	// simulate a result for enrolledHosts[0]
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: enrolledHosts[0].UUID},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: uuid1,
-		Status:      "Acknowledged",
-		Raw:         []byte(rawCmd1),
-	})
-	require.NoError(t, err)
-
-	// command is now listed with a status for this result
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
-	require.NoError(t, err)
-	require.Len(t, res, 3)
-
-	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-	require.NotZero(t, res[1].UpdatedAt)
-	res[1].UpdatedAt = time.Time{}
-	require.NotZero(t, res[2].UpdatedAt)
-	res[2].UpdatedAt = time.Time{}
-
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    enrolledHosts[0].UUID,
-			CommandUUID: uuid1,
-			Status:      "Acknowledged",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[0].Hostname,
-			TeamID:      nil,
-		},
-		{
-			DeviceID:    enrolledHosts[1].UUID,
-			CommandUUID: uuid1,
-			Status:      "Pending",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[1].Hostname,
-			TeamID:      nil,
-		},
-		{
-			DeviceID:    enrolledHosts[3].UUID,
-			CommandUUID: uuid1,
-			Status:      "Pending",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[3].Hostname,
-			TeamID:      nil,
-		},
-	})
-
-	// simulate a result for enrolledHosts[1] and enrolledHosts[3]
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: uuid1,
-		Status:      "Error",
-		Raw:         []byte(rawCmd1),
-	})
-	require.NoError(t, err)
-
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: enrolledHosts[3].UUID},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: uuid1,
-		Status:      "Acknowledged",
-		Raw:         []byte(rawCmd1),
-	})
-	require.NoError(t, err)
-
-	// both results are now listed
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
-	require.NoError(t, err)
-	require.Len(t, res, 3)
-
-	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-	require.NotZero(t, res[1].UpdatedAt)
-	res[1].UpdatedAt = time.Time{}
-	require.NotZero(t, res[2].UpdatedAt)
-	res[2].UpdatedAt = time.Time{}
-
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    enrolledHosts[0].UUID,
-			CommandUUID: uuid1,
-			Status:      "Acknowledged",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[0].Hostname,
-			TeamID:      nil,
-		},
-		{
-			DeviceID:    enrolledHosts[1].UUID,
-			CommandUUID: uuid1,
-			Status:      "Error",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[1].Hostname,
-			TeamID:      nil,
-		},
-		{
-			DeviceID:    enrolledHosts[3].UUID,
-			CommandUUID: uuid1,
-			Status:      "Acknowledged",
-			RequestType: "ListApps",
-			Hostname:    enrolledHosts[3].Hostname,
-			TeamID:      nil,
-		},
-	})
-
-	// enqueue another command for enrolled hosts [1] and [2]
-	uuid2 := uuid.New().String()
-	rawCmd2 := createRawAppleCmd("InstallApp", uuid2)
-	err = commander.EnqueueCommand(ctx, []string{enrolledHosts[1].UUID, enrolledHosts[2].UUID}, rawCmd2)
-	require.NoError(t, err)
-
-	// simulate a result for enrolledHosts[1] and [2]
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: enrolledHosts[1].UUID},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: uuid2,
-		Status:      "Acknowledged",
-		Raw:         []byte(rawCmd2),
-	})
-	require.NoError(t, err)
-	err = storage.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: enrolledHosts[2].UUID},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: uuid2,
-		Status:      "Acknowledged",
-		Raw:         []byte(rawCmd2),
-	})
-	require.NoError(t, err)
-
-	// results are listed
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
-	require.NoError(t, err)
-	require.Len(t, res, 5)
-
-	// page-by-page: first page
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{
-		ListOptions: fleet.ListOptions{Page: 0, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
-	})
-	require.NoError(t, err)
-	require.Len(t, res, 3)
-
-	// page-by-page: second page
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{
-		ListOptions: fleet.ListOptions{Page: 1, PerPage: 3, OrderKey: "device_id", OrderDirection: fleet.OrderDescending},
-	})
-	require.NoError(t, err)
-	require.Len(t, res, 2)
-
-	// filter by a user from team tm1, can only see that team's host
-	u1, err := ds.NewUser(ctx, &fleet.User{
-		Password:   []byte("garbage"),
-		Salt:       "garbage",
-		Name:       "user1",
-		Email:      "user1@example.com",
-		GlobalRole: nil,
-		Teams: []fleet.UserTeam{
-			{Team: *tm1, Role: fleet.RoleObserver},
-		},
-	})
-	require.NoError(t, err)
-	u1, err = ds.UserByID(ctx, u1.ID)
-	require.NoError(t, err)
-
-	// u1 is an observer, so if IncludeObserver is not set, returns nothing
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1}, &fleet.MDMCommandListOptions{
-		ListOptions: fleet.ListOptions{PerPage: 3},
-	})
-	require.NoError(t, err)
-	require.Len(t, res, 0)
-
-	// now with IncludeObserver set to true
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: u1, IncludeObserver: true}, &fleet.MDMCommandListOptions{
-		ListOptions: fleet.ListOptions{PerPage: 3, OrderKey: "updated_at", OrderDirection: fleet.OrderDescending},
-	})
-	require.NoError(t, err)
-	require.Len(t, res, 1)
-	require.NotZero(t, res[0].UpdatedAt)
-	res[0].UpdatedAt = time.Time{}
-	require.ElementsMatch(t, res, []*fleet.MDMAppleCommand{
-		{
-			DeviceID:    enrolledHosts[2].UUID,
-			CommandUUID: uuid2,
-			Status:      "Acknowledged",
-			RequestType: "InstallApp",
-			Hostname:    enrolledHosts[2].Hostname,
-			TeamID:      &tm1.ID,
-		},
-	})
-
-	// randomly set two commadns as inactive
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 LIMIT 2`)
-		return err
-	})
-	// only three results are listed
-	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
-	require.NoError(t, err)
-	require.Len(t, res, 3)
-}
-
 func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -4941,16 +4638,6 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, profMan.ID)
-
-	profs, err := ds.ListMDMAppleEnrollmentProfiles(ctx)
-	require.NoError(t, err)
-	require.Len(t, profs, 2)
-
-	tokens := make([]string, 2)
-	for i, p := range profs {
-		tokens[i] = p.Token
-	}
-	require.ElementsMatch(t, []string{"abcd", "efgh"}, tokens)
 
 	// get the automatic profile by type
 	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
@@ -10165,10 +9852,10 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tok.EncryptedToken))
 	require.Empty(t, tok.OrganizationName)
 	require.Empty(t, tok.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.BYODTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.BYODTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
@@ -10192,8 +9879,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
 	require.Equal(t, tm2.ID, tokReload.IOSTeam.ID)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.IPadOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.IPadOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
 	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
 	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
@@ -10216,8 +9903,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
@@ -10235,8 +9922,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok2, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
@@ -10257,8 +9944,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	expTok := toks[0]
 	require.Equal(t, "org-name", expTok.OrganizationName)
 	require.Equal(t, "name@example.com", expTok.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, expTok.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, expTok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, expTok.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, expTok.MacOSTeam.Name)
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
@@ -14010,7 +13697,8 @@ func testDeleteMDMAppleConfigProfileWithPolicyAutomation(t *testing.T, ds *Datas
 
 	// batch-setting a new set of profiles that would delete the profile used by the
 	// policy automation returns a conflict mentioning the profiles being deleted.
-	requireConflict(ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, []*fleet.MDMAppleConfigProfile{generateAppleCP("B", "B", tm.ID)}),
+	_, err = ds.BatchSetMDMProfiles(ctx, &tm.ID, []*fleet.MDMAppleConfigProfile{generateAppleCP("B", "B", tm.ID)}, nil, nil, nil, nil)
+	requireConflict(err,
 		"Couldn't delete. Policy automations use one or more of the profiles being deleted. Please disable policy automations for the profiles being deleted and try again.")
 
 	// profiles are still there
@@ -14025,7 +13713,8 @@ func testDeleteMDMAppleConfigProfileWithPolicyAutomation(t *testing.T, ds *Datas
 	require.NoError(t, ds.SavePolicy(ctx, pol, false, false))
 
 	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, profA.ProfileUUID))
-	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, &tm.ID, nil))
+	_, err = ds.BatchSetMDMProfiles(ctx, &tm.ID, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
 	_, err = ds.GetMDMAppleConfigProfile(ctx, profB.ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }

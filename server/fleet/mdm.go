@@ -72,7 +72,6 @@ const (
 	// (not doing it now because of time constraints to finish the story for the release).
 
 	// Host variables
-	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP" // legacy variable, avoid to use in new replacements
 	FleetVarHostHardwareSerial              FleetVarName = "HOST_HARDWARE_SERIAL"
 	FleetVarHostEndUserIDPUsername          FleetVarName = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart FleetVarName = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
@@ -102,7 +101,7 @@ const (
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
 	// name at profile-send time and is expanded to a per-host, Fleet-signed JWT
 	// at command-fetch time (so the token is never stored and never visible on
-	// the /mdm/commands endpoint).
+	// the /commands endpoint).
 	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
 
 	// FleetVarSilentMigrationSCEPChallenge marks the SCEP challenge in the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE
@@ -125,13 +124,26 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// FleetVarConditionalAccessSCEPURL points a Windows SCEP profile at Fleet's conditional access SCEP server and marks
-	// its certificate as Fleet-tracked. The challenge is a global enroll secret the admin writes into the profile.
+	// FleetVarConditionalAccessSCEPURL points a SCEP profile at Fleet's conditional access SCEP server. On Windows it
+	// also marks the certificate as Fleet-tracked.
 	FleetVarConditionalAccessSCEPURL FleetVarName = "CONDITIONAL_ACCESS_SCEP_URL"
+	// FleetVarConditionalAccessSCEPChallenge is filled in with a one-time challenge for the host when the profile is
+	// sent. Profiles written before it existed carry a global enroll secret instead.
+	FleetVarConditionalAccessSCEPChallenge FleetVarName = "CONDITIONAL_ACCESS_SCEP_CHALLENGE" // nolint:gosec // G101: variable name, not a credential
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
 )
+
+// ChallengeScope is the delivery a one-time challenge is created for. A challenge is only accepted for the scope it
+// was created with.
+type ChallengeScope struct {
+	HostUUID string
+	// ProfileUUID is the profile UUID, or "g<certificate template ID>" for Android certificate templates.
+	ProfileUUID string
+	// CAName is empty for Android certificate templates, where the template already determines the CA.
+	CAName string
+}
 
 // NDESNotConfiguredMsg is the failure detail for a $FLEET_VAR_NDES_SCEP_CHALLENGE
 // reference when no NDES certificate authority is configured.
@@ -144,7 +156,7 @@ func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
 			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
-			v == string(FleetVarConditionalAccessSCEPURL) ||
+			v == string(FleetVarConditionalAccessSCEPURL) || v == string(FleetVarConditionalAccessSCEPChallenge) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarEJBCADataPrefix)) || strings.HasPrefix(v, string(FleetVarEJBCAPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
@@ -179,11 +191,8 @@ var (
 	FleetVarSCEPWindowsCertificateIDRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
 	FleetVarConditionalAccessSCEPURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPURL))
-
-	// Fleet variable replacement failed errors
-	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
-		"Fleet couldn't populate $FLEET_VAR_%s. "+
-		"[Learn more](https://fleetdm.com/learn-more-about/idp-email)", FleetVarHostEndUserEmailIDP)
+	// nolint:gosec // G101: variable name, not a credential
+	FleetVarConditionalAccessSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPChallenge))
 
 	IDPFleetVariables = []FleetVarName{
 		FleetVarHostEndUserIDPUsername,
@@ -196,7 +205,6 @@ var (
 	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
 	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
 	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
-		FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial,
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
@@ -250,10 +258,10 @@ type ABMToken struct {
 	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
-	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
-	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam  ABMTokenTeam `json:"macos_fleet"`
+	IOSTeam    ABMTokenTeam `json:"ios_fleet"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_fleet"`
 }
 
 func (a ABMToken) AuthzType() string {
@@ -262,15 +270,11 @@ func (a ABMToken) AuthzType() string {
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 }
 
-type AppleCSR struct {
-	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
-	APNsKey  []byte `json:"apns_key"`
-	SCEPCert []byte `json:"scep_cert"`
-	SCEPKey  []byte `json:"scep_key"`
-}
+// AppleCSR is the authorization subject of the Apple MDM setup endpoints.
+type AppleCSR struct{}
 
 func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
@@ -301,7 +305,7 @@ type MDMIdPAccount struct {
 
 type MDMAppleBootstrapPackage struct {
 	Name      string    `json:"name"`
-	TeamID    uint      `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID    uint      `json:"fleet_id" db:"team_id"`
 	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
@@ -320,7 +324,7 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgURL.Path = "/api/latest/fleet/mdm/bootstrap"
+	pkgURL.Path = "/api/latest/fleet/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
 }
@@ -517,8 +521,8 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
-	Platform string `json:"platform"`                    // Platform of the targeted host
+	TeamID   *uint  `json:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"` // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
@@ -606,7 +610,7 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
-// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+// Pagination bounds for the list-MDM-commands endpoint (GET /api/v1/fleet/commands).
 const (
 	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
 	DefaultMDMCommandsPerPage uint = 10
@@ -786,7 +790,7 @@ func (o MDMOperationType) IsValid() bool {
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
 type MDMConfigProfileAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID *uint `json:"fleet_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -798,7 +802,7 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
+	TeamID      *uint  `json:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
@@ -1098,134 +1102,6 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 	return &clone
 }
 
-func labelCountMap(labels []string) map[string]int {
-	counts := make(map[string]int)
-	for _, label := range labels {
-		counts[label]++
-	}
-	return counts
-}
-
-// MDMProfileSpecsMatch checks if two slices contain the same spec elements,
-// regardless of order.
-//
-// Precondition: each slice must contain at most one entry per Path.
-func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
-	mustNotHaveDuplicatePaths("a", a)
-	mustNotHaveDuplicatePaths("b", b)
-	if len(a) != len(b) {
-		return false
-	}
-
-	type profileMetadata struct {
-		Name        string
-		Description string
-		Hidden      bool
-		SelfService bool
-	}
-	metadata := func(v MDMProfileSpec) profileMetadata {
-		return profileMetadata{
-			Name:        strings.TrimSpace(v.Name),
-			Description: strings.TrimSpace(v.Description),
-			Hidden:      v.Hidden,
-			SelfService: v.SelfService,
-		}
-	}
-
-	pathMetadata := make(map[string]profileMetadata, len(a))
-	pathLabelIncludeCounts := make(map[string]map[string]int)
-	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
-	pathLabelExcludeCounts := make(map[string]map[string]int)
-	for _, v := range a {
-		// the deprecated Labels field is only relevant if LabelsIncludeAll is
-		// empty.
-		if len(v.LabelsIncludeAll) > 0 {
-			pathLabelIncludeCounts[v.Path] = labelCountMap(v.LabelsIncludeAll)
-		} else {
-			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
-		}
-		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
-		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
-
-		pathMetadata[v.Path] = metadata(v)
-	}
-
-	for _, v := range b {
-		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
-		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
-		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
-		if !okIncl || !okExcl || !okInclAny {
-			return false
-		}
-		if pathMetadata[v.Path] != metadata(v) {
-			return false
-		}
-
-		var bLabelIncludeCounts map[string]int
-		if len(v.LabelsIncludeAll) > 0 {
-			bLabelIncludeCounts = labelCountMap(v.LabelsIncludeAll)
-		} else {
-			bLabelIncludeCounts = labelCountMap(v.Labels)
-		}
-		for label, count := range bLabelIncludeCounts {
-			if includeLabels[label] != count {
-				return false
-			}
-			includeLabels[label] -= count
-		}
-		for _, count := range includeLabels {
-			if count != 0 {
-				return false
-			}
-		}
-
-		bLabelIncludeAnyCounts := labelCountMap(v.LabelsIncludeAny)
-		for label, count := range bLabelIncludeAnyCounts {
-			if includeAnyLabels[label] != count {
-				return false
-			}
-			includeAnyLabels[label] -= count
-		}
-		for _, count := range includeAnyLabels {
-			if count != 0 {
-				return false
-			}
-		}
-
-		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
-		for label, count := range bLabelExcludeCounts {
-			if excludeLabels[label] != count {
-				return false
-			}
-			excludeLabels[label] -= count
-		}
-		for _, count := range excludeLabels {
-			if count != 0 {
-				return false
-			}
-		}
-
-		delete(pathLabelIncludeCounts, v.Path)
-		delete(pathLabelsIncludeAnyCounts, v.Path)
-		delete(pathLabelExcludeCounts, v.Path)
-	}
-
-	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
-}
-
-func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
-	if len(specs) < 2 {
-		return
-	}
-	seen := make(map[string]struct{}, len(specs))
-	for _, s := range specs {
-		if _, dup := seen[s.Path]; dup {
-			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
-		}
-		seen[s.Path] = struct{}{}
-	}
-}
-
 type MDMLabelsMode string
 
 const (
@@ -1311,6 +1187,9 @@ const (
 	// secret for the macOS account provisioning / Platform SSO feature. Stored
 	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
 	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
+	// MDMAssetGoogleConditionalAccessServiceAccountKey is the customer's Google
+	// service account key JSON, delegated for the cloud-identity.devices scope.
+	MDMAssetGoogleConditionalAccessServiceAccountKey MDMAssetName = "google_conditional_access_service_account_key" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {
@@ -1524,7 +1403,7 @@ type VPPTokenDB struct {
 	// uploaded; may be empty for tokens uploaded before this field was added,
 	// in which case it is lazily backfilled.
 	CountryCode string      `db:"country_code" json:"country_code"`
-	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
+	Teams       []TeamTuple `json:"fleets"`
 	CreatedAt   *time.Time  `db:"created_at" json:"created_at"`
 }
 
@@ -1538,7 +1417,7 @@ func (t *VPPTokenDB) AvailableToTeam(teamID uint) bool {
 }
 
 type TeamTuple struct {
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 	Name string `json:"name"`
 }
 
@@ -1552,17 +1431,6 @@ const (
 	// VPP token is available only for "No team" team.
 	NullTeamNoTeam NullTeamType = "noteam"
 )
-
-func (n NullTeamType) PrettyName() string {
-	switch n {
-	case NullTeamAllTeams:
-		return ReservedNameAllTeams
-	case NullTeamNoTeam:
-		return ReservedNameNoTeam
-	default:
-		return string(n)
-	}
-}
 
 type AppleDevice int
 
@@ -1686,11 +1554,6 @@ type MDMConfigProfileStatus struct {
 	Verifying uint `json:"verifying" db:"verifying"`
 	Pending   uint `json:"pending" db:"pending"`
 	Failed    uint `json:"failed" db:"failed"`
-}
-
-// MDMWipeMetadata specifies optional metadata for the remote wipe command
-type MDMWipeMetadata struct {
-	Windows *MDMWindowsWipeMetadata
 }
 
 type MDMCommandResults interface {

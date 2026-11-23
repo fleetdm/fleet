@@ -261,8 +261,8 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32, epochPer
 }
 
 // rpmEpoch returns "1" or "2" for percent of package names, and "" (no epoch) for the rest. It's
-// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's shared
-// software metadata, so disagreeing agents would rewrite it constantly.
+// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's part
+// of the software's identity, so disagreeing agents would each get their own software row.
 func rpmEpoch(name string, percent int) string {
 	if stablePercentile("epoch", name) >= percent {
 		return ""
@@ -625,6 +625,9 @@ type agent struct {
 
 	softwareInstaller softwareInstaller
 
+	// aiSessions is nil when the host reports no AI agent sessions.
+	aiSessions *aiSessionsSim
+
 	linuxUniqueSoftwareVersion bool
 	linuxUniqueSoftwareTitle   bool
 
@@ -798,6 +801,7 @@ func newAgent(
 	softwareAdobePluginsCount softwareExtraEntityCount,
 	softwareGoBinariesCount entityCount,
 	softwareAIToolsCount softwareAIToolsCount,
+	aiSessions aiSessionsConfig,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -946,6 +950,11 @@ func newAgent(
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 		configTLSETag:            configTLSETag,
+	}
+
+	// AI agent sessions come from fleetd tables, so only fleetd hosts report them.
+	if deviceAuthToken != nil && rand.Float64() < aiSessions.prob { //nolint:gosec // ignore weak randomizer
+		agent.aiSessions = newAISessionsSim(aiSessions, agentOS, rand.Int63(), time.Now()) //nolint:gosec // ignore weak randomizer
 	}
 
 	// Windows MDM agents can be woken on demand by the server, so give them a wake channel for the MDM loop.
@@ -1110,32 +1119,47 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	go func() {
 		configTicker := time.NewTicker(a.ConfigInterval)
 		defer configTicker.Stop()
+		// The fallback poll is checked at osquery's local config refresh
+		// against orbit (wstransport.LocalConfigRefresh), not at the
+		// config interval, which would round its deadline up.
+		fallbackTicker := time.NewTicker(min(a.ConfigInterval, 10*time.Second))
+		defer fallbackTicker.Stop()
 
-		// lastFetch is the last successful fetch: a failed one is retried
-		// on the next tick, as orbit does.
-		var lastFetch time.Time
-		if initialConfigErr == nil {
-			lastFetch = time.Now()
-		}
+		// A failed fetch is retried at the config interval, also while
+		// connected, as orbit does.
+		lastAttempt, lastFailed := time.Now(), initialConfigErr != nil
+		// jitter randomizes each fallback poll interval by ±50%, as orbit
+		// does (see wstransport.fallbackPollInterval).
+		jitter := rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		for {
 			fallback := false
 			select {
 			case <-configTicker.C:
 				// With orbit serving the config over a connected WebSocket,
-				// ticks are only the fallback poll.
-				if poll := a.osqueryConfigFallbackInterval(); poll > 0 {
-					if time.Since(lastFetch) < poll {
-						continue
-					}
+				// the fallback ticker polls instead.
+				if a.osqueryConfigFallbackInterval() > 0 {
+					continue
+				}
+			case <-fallbackTicker.C:
+				poll := a.osqueryConfigFallbackInterval()
+				if poll == 0 {
+					continue
+				}
+				wait := a.ConfigInterval
+				if !lastFailed {
+					d := max(a.ConfigInterval, poll)
+					lo := max(a.ConfigInterval, d/2)
+					wait = lo + time.Duration(float64(d+d/2-lo)*jitter)
 					fallback = true
+				}
+				if time.Since(lastAttempt) < wait {
+					continue
 				}
 			case <-a.osqueryConfigNudge:
 			}
-			if err := a.fetchConfig(fallback); err != nil {
-				lastFetch = time.Time{}
-			} else {
-				lastFetch = time.Now()
-			}
+			lastFailed = a.fetchConfig(fallback) != nil
+			lastAttempt = time.Now()
+			jitter = rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
 		}
 	}()
 
@@ -3323,7 +3347,7 @@ func (a *agent) goBinDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\go\bin\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/go/bin/"
 	default:
 		return "/home/fleet/go/bin/"
@@ -3383,7 +3407,7 @@ func (a *agent) aiHomeDir() string {
 	switch a.os {
 	case "windows":
 		return `C:\Users\fleet\`
-	case "darwin":
+	case "macos":
 		return "/Users/fleet/"
 	default:
 		return "/home/fleet/"
@@ -3447,7 +3471,7 @@ func (a *agent) softwareAITools() []map[string]string {
 	}
 
 	// Template apps are reported identically by every simulated Mac, so their paths always match.
-	if a.os == "darwin" {
+	if a.os == "macos" {
 		marked := 0
 		for _, app := range macOSSoftware {
 			if marked >= c.markedApps {
@@ -4392,6 +4416,19 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.softwareAITools()
 		}
 		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"ai_agent_sessions" || name == hostDetailQueryPrefix+"ai_agent_session_events":
+		if a.deviceAuthToken == nil {
+			// Plain osquery has no fleetd tables, so the query's discovery fails.
+			return true, nil, nil, nil, nil
+		}
+		if a.aiSessions != nil {
+			if name == hostDetailQueryPrefix+"ai_agent_sessions" {
+				results = a.aiSessions.sessionsRows(time.Now())
+			} else {
+				results = a.aiSessions.eventsRows(query, time.Now())
+			}
+		}
+		return true, results, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -4558,28 +4595,7 @@ func scheduledQueryResults(packName, queryName string, numResults int) []byte {
 }`)
 }
 
-func (a *agent) connCheck() error {
-	request, err := http.NewRequest("GET", a.serverAddress+"/version", nil)
-	if err != nil {
-		panic(err)
-	}
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return errors.New(http.StatusText(response.StatusCode))
-	}
-	return nil
-}
-
 func (a *agent) submitLogs(results []resultLog) error {
-	// Connection check to prevent unnecessary JSON marshaling when the server is down.
-	if err := a.connCheck(); err != nil {
-		return fmt.Errorf("/version check failed: %w", err)
-	}
-
 	var resultLogs []byte
 	for i, result := range results {
 		if i > 0 {
@@ -4832,6 +4848,13 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
+		aiSessionsProb          = flag.Float64("ai_sessions_prob", 0.0, "Probability of a fleetd host reporting AI agent sessions (Fleet Premium only asks for them)")
+		aiSessionsInitialCount  = flag.Int("ai_sessions_initial_count", 100, "Number of AI agent sessions, from the last 7 days, a host reporting them has when it starts")
+		aiSessionsPerDay        = flag.Float64("ai_sessions_per_day", 10, "Number of new AI agent sessions a host reporting them gets each day")
+		aiSessionsLongProb      = flag.Float64("ai_sessions_long_prob", 0.02, "Probability of an AI agent session having thousands of tool calls, which take several detail refreshes to collect")
+		aiSessionsDeletedProb   = flag.Float64("ai_sessions_deleted_prob", 0.02, "Probability of an AI agent session's transcript being deleted from the host after Fleet collected the session")
+		aiSessionsUncountedProb = flag.Float64("ai_sessions_uncounted_prob", 0.02, "Probability of an AI agent session counting tool calls fleetd doesn't return")
+
 		homebrewKegPercent = flag.Int("software_homebrew_keg_percent", 80,
 			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
 		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
@@ -4982,6 +5005,17 @@ func main() {
 	}
 	if *commonAIToolsCount < 0 || *uniqueAIToolsCount < 0 || *aiToolsMarkedAppsCount < 0 {
 		log.Fatalf("Arguments common_ai_tools_count, unique_ai_tools_count and ai_tools_marked_apps_count cannot be negative")
+	}
+	aiSessions := aiSessionsConfig{
+		prob:          *aiSessionsProb,
+		initialCount:  *aiSessionsInitialCount,
+		perDay:        *aiSessionsPerDay,
+		longProb:      *aiSessionsLongProb,
+		deletedProb:   *aiSessionsDeletedProb,
+		uncountedProb: *aiSessionsUncountedProb,
+	}
+	if err := aiSessions.validate(); err != nil {
+		log.Fatal(err)
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
@@ -5215,6 +5249,7 @@ func main() {
 				unique:     *uniqueAIToolsCount,
 				markedApps: *aiToolsMarkedAppsCount,
 			},
+			aiSessions,
 			entityCount{
 				common: *commonUserCount,
 				unique: *uniqueUserCount,

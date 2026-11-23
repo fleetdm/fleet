@@ -3,9 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { baseUrl } from "test/default-handlers";
 import mockServer from "test/mock-server";
-import { createCustomRenderer } from "test/test-utils";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import InstallAllInCategoryButton, {
   IInstallAllInCategoryButtonProps,

@@ -154,11 +154,11 @@ module.exports = {
           if (htmlString !== sanitizedHtmlString) {
             return exits.unsafeMarkdown();
           }
-          return exits.success(htmlString);
+          return exits.success(htmlString.replace(/<code>/g, '<code v-pre>'));// « Inline code gets `v-pre` like code blocks, so Vue doesn't evaluate {{ }} in it.
         });
       }
       else {
-        return exits.success(htmlString);
+        return exits.success(htmlString.replace(/<code>/g, '<code v-pre>'));
       }
     });
   }

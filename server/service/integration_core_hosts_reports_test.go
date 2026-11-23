@@ -20,12 +20,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -312,7 +314,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 
 	// TODO: ideally we'd pull this out into its own function that specifically tests
 	// the mdm summary endpoint. We can add additional tests for testing the platform
-	// and team_id query params for this endpoint.
+	// and fleet_id query params for this endpoint.
 	mdmAgg := getHostMDMSummaryResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
 	assert.NotZero(t, mdmAgg.AggregatedMDMData.CountsUpdatedAt)
@@ -324,7 +326,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NoError(t, err)
 
 	agg = getAggregatedMacadminsDataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "fleet_id", fmt.Sprint(team.ID))
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
 	require.Empty(t, agg.Macadmins.MunkiIssues)
@@ -332,7 +334,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Empty(t, agg.Macadmins.MDMSolutions)
 
 	agg = getAggregatedMacadminsDataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
+	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "fleet_id", "9999999")
 
 	// Hardcode response type because we are using a custom json marshaling so
 	// using getHostMDMResponse fails with "JSON unmarshaling is not supported for HostMDM".
@@ -427,6 +429,7 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		HardwareSerial:  strings.ReplaceAll(t.Name(), "/", "_") + "1",
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -463,13 +466,13 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Len(t, getHostResp.Host.Software, len(software))
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Empty(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
@@ -543,21 +546,26 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 58)         // total number of cols
-	// Validate that both team_id and fleet_id columns are present.
-	assert.Contains(t, rows[0], "team_id")
+	assert.Len(t, rows[0], 57)         // total number of cols
+	// Validate that the fleet columns are present and the removed team ones are not.
 	assert.Contains(t, rows[0], "fleet_id")
-	assert.Contains(t, rows[0], "team_name")
 	assert.Contains(t, rows[0], "fleet_name")
+	assert.NotContains(t, rows[0], "team_id")
+	assert.NotContains(t, rows[0], "team_name")
+
+	// os_name is emitted right before os_version.
+	osNameCol := slices.Index(rows[0], "os_name")
+	require.Positive(t, osNameCol)
+	assert.Equal(t, "os_version", rows[0][osNameCol+1])
 
 	// hardware_marketing_name is emitted right after hardware_model, shifting
 	// every subsequent column index by one.
 	const (
 		idCol        = 3
-		issuesCol    = 47
-		gigsDiskCol  = 43
-		pctDiskCol   = 44
-		gigsTotalCol = 45
+		issuesCol    = 48
+		gigsDiskCol  = 44
+		pctDiskCol   = 45
+		gigsTotalCol = 46
 	)
 
 	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
@@ -575,18 +583,19 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// valid format, some columns
 	res = s.DoRaw(
 		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
-		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,team_id,team_name",
+		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,fleet_id,fleet_name",
 	)
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 	require.Contains(t, rows[0], "hostname") // first row contains headers
-	assert.Contains(t, rows[0], "team_id")
 	assert.Contains(t, rows[0], "fleet_id")
-	assert.Contains(t, rows[0], "team_name")
 	assert.Contains(t, rows[0], "fleet_name")
 	require.Contains(t, res.Header, "Content-Disposition")
+
+	// the removed column names are an invalid column
+	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "format", "csv", "columns", "hostname,team_id")
 	require.Contains(t, res.Header, "Content-Type")
 	require.Contains(t, res.Header, "X-Content-Type-Options")
 	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
@@ -756,10 +765,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
 
 	// invalid combinations of software filters
-	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_title_id", "123", "software_id", "456")
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_title_id", "123", "software_version_id", "456")
-	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456")
-	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456", "software_title_id", "789")
 }
 
 func (s *integrationTestSuite) TestHostsReportHardwareMarketingName() {
@@ -830,6 +836,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		HardwareSerial:  strings.ReplaceAll(t.Name(), "/", "_") + "1",
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -853,7 +860,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
@@ -957,6 +964,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		HardwareSerial:  strings.ReplaceAll(t.Name(), "/", "_") + "1",
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -965,7 +973,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	require.NoError(t, err)
 
 	var getHostResp getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Equal(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
@@ -978,7 +986,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	require.NoError(t, err)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 }
 
@@ -1094,7 +1102,6 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
 	var profiles getMDMProfilesSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &profiles)
 
 	// set unencrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, false, nil))
@@ -1221,13 +1228,13 @@ func (s *integrationTestSuite) TestGetHostIOSVitals() {
 	// display label.
 	assert.Equal(t, "GSM", hostJSON["cellular_technology"])
 
-	// GET /hosts/identifier/:identifier funnels through the same datastore
+	// GET /hosts/:id with an identifier funnels through the same datastore
 	// loading path and must behave identically.
 	var getByIdentifierResp getHostResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
 	require.Equal(t, "00008030-AAA", *getByIdentifierResp.Host.UDID)
 
-	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/identifier/" + fullHost.UUID)
+	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/" + fullHost.UUID)
 	for _, key := range hostIOSVitalsJSONKeys {
 		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated iOS host", key)
 	}
@@ -1344,13 +1351,13 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 	assert.Equal(t, "ACTIVE", hostJSON["encryption_type"])
 	assert.Equal(t, "POTENTIALLY_COMPROMISED", hostJSON["security_posture"])
 
-	// GET /hosts/identifier/:identifier funnels through the same datastore
+	// GET /hosts/:id with an identifier funnels through the same datastore
 	// loading path and must behave identically.
 	var getByIdentifierResp getHostResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/identifier/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/"+fullHost.UUID, nil, http.StatusOK, &getByIdentifierResp)
 	require.Equal(t, "Google", *getByIdentifierResp.Host.Manufacturer)
 
-	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/identifier/" + fullHost.UUID)
+	identifierJSON := s.getHostJSON("/api/latest/fleet/hosts/" + fullHost.UUID)
 	for _, key := range hostAndroidVitalsJSONKeys {
 		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated Android host", key)
 	}
@@ -1394,16 +1401,16 @@ func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
 	testOSes := []fleet.OperatingSystem{
-		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},                             // os_version_id=1
-		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
-		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},                                       // os_version_id=1
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                                       // os_version_id=2
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                                       // os_version_id=2
+		{Name: "Microsoft Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Microsoft Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Microsoft Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Microsoft Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Microsoft Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Microsoft Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Microsoft Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
 	}
 
 	var platforms []string
@@ -1435,6 +1442,11 @@ func (s *integrationTestSuite) TestOSVersions() {
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOSes[1].Name, "os_version", testOSes[1].Version)
 	require.Len(t, resp.Hosts, 2)
+	// The response returns the values the filter matched.
+	for _, h := range resp.Hosts {
+		assert.Equal(t, testOSes[1].Name, h.OSName)
+		assert.Equal(t, testOSes[1].Version, h.OSVersionOnly)
+	}
 
 	expected := hosts[1].Hostname
 	resp = listHostsResponse{}
@@ -1451,28 +1463,27 @@ func (s *integrationTestSuite) TestOSVersions() {
 
 	// insert Vuln for Win x64
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 64bit"].ID,
+		OSID: osvMap["Microsoft Windows 11 Pro 21H2 10.0.22000.2 64bit"].ID,
 		CVE:  "CVE-2021-1234",
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
 	// insert duplicate Vuln for Win ARM64
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
+		OSID: osvMap["Microsoft Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
 		CVE:  "CVE-2021-1234",
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
 	// insert different Vuln for Win ARM64
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
+		OSID: osvMap["Microsoft Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
 		CVE:  "CVE-2021-5678",
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
 	assertOSVersion := func(t *testing.T, expected fleet.OSVersion, actual fleet.OSVersion) {
 		require.Equal(t, expected.HostsCount, actual.HostsCount)
-		require.Equal(t, expected.Name, actual.Name)
 		require.Equal(t, expected.NameOnly, actual.NameOnly)
 		require.Equal(t, expected.Version, actual.Version)
 		require.Equal(t, expected.Platform, actual.Platform)
@@ -1485,6 +1496,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 		}
 	}
 
+	nameAndVersion := func(v fleet.OSVersion) string { return v.NameOnly + " " + v.Version }
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
@@ -1492,11 +1505,10 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// Default sort is by hosts count, descending
 	expectedVersion := fleet.OSVersion{
 		HostsCount:  4,
-		Name:        "Windows 11 Pro 21H2 10.0.22000.2",
 		NameOnly:    "Windows 11 Pro 21H2",
 		Version:     "10.0.22000.2",
 		Platform:    "windows",
-		OSVersionID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID,
+		OSVersionID: osvMap["Microsoft Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID,
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:         "CVE-2021-1234",
@@ -1514,8 +1526,25 @@ func (s *integrationTestSuite) TestOSVersions() {
 
 	// get OS version by id
 	var osVersionResp getOSVersionResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Microsoft Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
 	assertOSVersion(t, expectedVersion, *osVersionResp.OSVersion)
+
+	// Both endpoints return os_name and os_version, and none of the keys they replaced.
+	var rawList struct {
+		OSVersions []map[string]any `json:"os_versions"`
+	}
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &rawList)
+	var rawOne struct {
+		OSVersion map[string]any `json:"os_version"`
+	}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", expectedVersion.OSVersionID), nil, http.StatusOK, &rawOne)
+	for _, entry := range append(rawList.OSVersions, rawOne.OSVersion) {
+		require.Contains(t, entry, "os_name")
+		require.Contains(t, entry, "os_version")
+		for _, removed := range []string{"name", "name_only", "version"} {
+			require.NotContains(t, entry, removed)
+		}
+	}
 
 	// invalid id returns a not-found error rather than an empty object
 	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
@@ -1523,8 +1552,24 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
 	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", nameAndVersion(osVersionsResp.OSVersions[0]))
 	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 2)
+
+	// Windows names are stored with "Microsoft" but returned without it; filters accept both forms, in any case.
+	for _, name := range []string{"Windows 11 Pro 21H2", "Microsoft Windows 11 Pro 21H2", "windows 11 pro 21h2"} {
+		osVersionsResp = osVersionsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", name, "os_version", "10.0.22000.2")
+		require.Len(t, osVersionsResp.OSVersions, 1, name)
+		require.Equal(t, "Windows 11 Pro 21H2", osVersionsResp.OSVersions[0].NameOnly, name)
+
+		resp = listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", name, "os_version", "10.0.22000.2")
+		require.Len(t, resp.Hosts, 4, name)
+		for _, h := range resp.Hosts {
+			assert.Equal(t, "Windows 11 Pro 21H2", h.OSName)
+			assert.Equal(t, "10.0.22000.2", h.OSVersionOnly)
+		}
+	}
 
 	// name without version
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "os_name", "Windows 11 Pro 21H2")
@@ -1535,33 +1580,47 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// invalid order key
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "order_key", "nosuchkey")
 
+	// order_key=version was renamed to os_version
+	res := s.DoRaw("GET", "/api/latest/fleet/os_versions", nil, http.StatusUnprocessableEntity, "order_key", "version")
+	var removedKeyErr struct {
+		Errors []map[string]string `json:"errors"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&removedKeyErr))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, []map[string]string{{
+		"name": "order_key", "reason": `The "order_key=version" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+	}}, removedKeyErr.Errors)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "order_key", "os_version", "order_direction", "asc")
+	require.Equal(t, "macOS 13.2.1", nameAndVersion(osVersionsResp.OSVersions[2]))
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[3]))
+
 	// ascending order by hosts count
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "order_key", "hosts_count", "order_direction", "asc")
 	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
-	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[0]))
 
 	// test pagination
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "0", "per_page", "2")
 	require.Len(t, osVersionsResp.OSVersions, 2)
-	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
-	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.1", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", nameAndVersion(osVersionsResp.OSVersions[0]))
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.1", nameAndVersion(osVersionsResp.OSVersions[1]))
 	require.Equal(t, 4, osVersionsResp.Count)
 	require.True(t, osVersionsResp.Meta.HasNextResults)
 	require.False(t, osVersionsResp.Meta.HasPreviousResults)
 
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2")
 	require.Len(t, osVersionsResp.OSVersions, 2)
-	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
-	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, "macOS 13.2.1", nameAndVersion(osVersionsResp.OSVersions[0]))
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[1]))
 	require.Equal(t, 4, osVersionsResp.Count)
 	require.False(t, osVersionsResp.Meta.HasNextResults)
 	require.True(t, osVersionsResp.Meta.HasPreviousResults)
 
 	// same results with team_id=0
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2", "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2", "fleet_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 2)
-	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
-	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, "macOS 13.2.1", nameAndVersion(osVersionsResp.OSVersions[0]))
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[1]))
 	require.Equal(t, 4, osVersionsResp.Count)
 	require.False(t, osVersionsResp.Meta.HasNextResults)
 	require.True(t, osVersionsResp.Meta.HasPreviousResults)
@@ -1635,7 +1694,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 58)         // total number of cols
+	assert.Len(t, rows1[0], 57)         // total number of cols
 
 	var (
 		idIdx     int
@@ -1665,7 +1724,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 58)         // total number of cols
+	assert.Len(t, rows2[0], 57)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
@@ -1821,13 +1880,17 @@ func (s *integrationTestSuite) TestHostHealth() {
 	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
 
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true, nil))
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(t.Context(), host.ID, fleet.OperatingSystem{
+		Name: "Mac OS X", Version: "10.14.6", Arch: "x86_64", KernelVersion: "18.7.0", Platform: "darwin",
+	}))
 
 	// Get host health
 	hh := getHostHealthResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
 	assert.Equal(t, host.ID, hh.HostID)
 	assert.NotNil(t, hh.HostHealth)
-	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
+	assert.Equal(t, "Mac OS X", hh.HostHealth.OSName)
+	assert.Equal(t, "10.14.6", hh.HostHealth.OsVersion)
 	assert.Len(t, hh.HostHealth.VulnerableSoftware, 1)
 	assert.Equal(t, fleet.HostHealthVulnerableSoftware{
 		ID:      soft1.ID,
@@ -1871,7 +1934,9 @@ func (s *integrationTestSuite) TestHostHealth() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host1.ID), nil, http.StatusOK, &resp)
 	assert.Equal(t, host1.ID, resp.HostID)
 	assert.NotNil(t, resp.HostHealth)
-	assert.Equal(t, host1.OSVersion, resp.HostHealth.OsVersion)
+	// No OS inventory row yet.
+	assert.Empty(t, resp.HostHealth.OSName)
+	assert.Empty(t, resp.HostHealth.OsVersion)
 	assert.Nil(t, resp.HostHealth.DiskEncryptionEnabled)
 	assert.Empty(t, resp.HostHealth.VulnerableSoftware)
 	assert.Empty(t, resp.HostHealth.FailingPolicies)
@@ -2317,10 +2382,10 @@ func (s *integrationTestSuite) TestListHostReports() {
 		origCap := originalConfig.ServerSettings.QueryReportCap
 
 		// Set the report cap to 2, which equals the number of rows already stored for qAlpha.
-		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_report_cap":2}}`), http.StatusOK)
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"report_cap":2}}`), http.StatusOK)
 		t.Cleanup(func() {
 			s.DoRaw("PATCH", "/api/latest/fleet/config",
-				fmt.Appendf(nil, `{"server_settings":{"query_report_cap":%d}}`, origCap),
+				fmt.Appendf(nil, `{"server_settings":{"report_cap":%d}}`, origCap),
 				http.StatusOK)
 		})
 
@@ -2424,12 +2489,8 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.Len(t, resp.Reports, 2)
 	})
 
-	t.Run("alt path /hosts/:id/queries works", func(t *testing.T) {
-		altURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID)
-		var resp listHostReportsResponse
-		s.DoJSON("GET", altURL, nil, http.StatusOK, &resp, "order_key", "name")
-		require.NoError(t, resp.Err)
-		assert.Equal(t, 2, resp.Count)
+	t.Run("removed path /hosts/:id/queries is gone", func(t *testing.T) {
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID), nil, http.StatusGone)
 	})
 
 	t.Run("default sort is last_fetched descending (newest first)", func(t *testing.T) {
@@ -2608,7 +2669,7 @@ func (s *integrationTestSuite) TestHostsMDMPersonalEnrollmentFilters() {
 		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
 
 		hostResp = getHostResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h.UUID), nil, http.StatusOK, &hostResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", h.UUID), nil, http.StatusOK, &hostResp)
 		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
 
 		if h.Platform == "ios" {
@@ -2639,4 +2700,18 @@ func (s *integrationTestSuite) TestHostsMDMPersonalEnrollmentFilters() {
 	require.NotNil(t, macadmins.Macadmins)
 	require.Equal(t, 0, macadmins.Macadmins.MDMStatus.EnrolledPersonalHostsCount)
 	require.Equal(t, 1, macadmins.Macadmins.MDMStatus.EnrolledManualPersonalHostsCount)
+}
+
+func (s *integrationTestSuite) TestHostAISessionsRequirePremium() {
+	t := s.T()
+	host := s.createHosts(t, "darwin")[0]
+
+	for _, path := range []string{
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions", host.ID),
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions/1", host.ID),
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions/1/events", host.ID),
+	} {
+		res := s.Do("GET", path, nil, http.StatusPaymentRequired)
+		require.Contains(t, extractServerErrorText(res.Body), fleet.ErrMissingLicense.Error())
+	}
 }

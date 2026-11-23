@@ -15,6 +15,7 @@ Fleet has a built-in conditional access integration that requires company-owned 
 You can also use Fleet's API for conditional access with:
 - [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration) (macOS, Windows, and Linux): require managed hosts that are passing critical policies
 - [Duo](https://fleetdm.com/guides/duo-conditional-access-integration) (macOS, Windows, and Linux): require managed hosts
+- [Cloudflare](https://fleetdm.com/guides/cloudflare-conditional-access-integration) (macOS, Windows, and Linux): require managed hosts that are passing policies
 
 To require managed Windows hosts in Okta, see [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile).
 

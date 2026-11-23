@@ -117,9 +117,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/throttled/throttled/v2"
-	"go.elastic.co/apm/module/apmhttp/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -187,7 +184,10 @@ func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerCo
 
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
-	config := configManager.LoadConfig()
+	config, err := configManager.LoadConfig()
+	if err != nil {
+		initFatal(err, "loading config")
+	}
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
@@ -211,6 +211,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Validate OTEL server options
 	config.Logging.Validate(initFatal)
 
+	// Elastic APM support was removed. Turning tracing off avoids exporting OpenTelemetry to a default endpoint nobody set up.
+	elasticAPMConfigured := config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm"
+	if elasticAPMConfigured {
+		config.Logging.TracingEnabled = false
+		// OTEL logs require tracing, and the logger setup panics without a logger provider.
+		config.Logging.OtelLogsEnabled = false
+	}
+
 	// Trace sampler tier registry. Bounded contexts register their own route to tier classifications below. The
 	// platform/tracing package stays free of cross context coupling. Infra paths (/healthz, /version, /metrics) are registered
 	// alongside their WrapHandler calls further down in this function.
@@ -224,6 +232,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	loggerProvider, tracerProvider, meterProvider, traceSampler := initOTELProviders(config, traceRegistry, initFatal)
 
 	logger := initLogger(config, loggerProvider)
+
+	if elasticAPMConfigured {
+		logger.WarnContext(cmd.Context(), `The "logging.tracing_type: elasticapm" value is not available anymore, so tracing is off. `+
+			"What to use instead: "+fleet.Fleet5MigrationGuide)
+	}
 
 	// If you want to disable any logs by default, this is where to do it.
 	//
@@ -356,8 +369,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			// The longest TTL of the cached fleet and global orbit config
 			// inputs (1m).
 			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
-			// A host moved to another fleet reads its packs from a per-host
-			// cache (1m).
+			// A host moved to another fleet reads its new fleet's agent
+			// options from a cache (1m).
 			OsqueryConfigHosts: cached_mysql.MaxConfigInputTTL(),
 			// The ETag write fence (3m), which outlasts the cached osquery
 			// config inputs plus the pack config cache built from them. Hosts
@@ -390,7 +403,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-	task := async.NewTask(ds, redisPool, clock.C, &config)
+	task := async.NewTask(ds, config.OTELEnabled())
 
 	if config.Sentry.Dsn != "" {
 		v := version.Version()
@@ -550,6 +563,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "new microsoft compliance proxy")
 	}
 
+	googleConditionalAccess := service.NewGoogleConditionalAccessClient(config.GoogleConditionalAccess.ProxyURI, logger)
+
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
@@ -575,6 +590,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.MDM.AndroidAgent,
 		redis_key_value.New(redisPool),
 		android_service.WithInstallReapTimeout(config.Server.VPPInstallReapTimeout),
+		android_service.WithOneTimeEnrollSecrets(config.MDM.AndroidOneTimeEnrollSecrets),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -623,6 +639,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		scepConfigMgr,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		redis_key_value.New(redisPool),
 		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
@@ -827,23 +844,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		chartSvc:               chartSvc,
 		auditLogger:            auditLogger,
 		distributedLock:        distributedLock,
+		googleCAClients:        googleConditionalAccess,
 		initFatal:              initFatal,
 	})
 
-	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, logger.With("cron", "async_task"))
-
-	// Flush seen hosts every second
-	hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
-	if !hostsAsyncCfg.Enabled {
-		go func() {
-			for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-				if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
-					logger.InfoContext(ctx, "failed to update host seen times", "err", err)
-				}
+	go func() {
+		for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) { //nolint:gosec // jitter, not security sensitive
+			if err := task.FlushHostsLastSeen(baseCtx, clock.C.Now()); err != nil {
+				logger.InfoContext(ctx, "failed to update host seen times", "err", err)
 			}
-		}()
-	}
+		}
+	}()
 
 	fieldKeys := []string{"method", "error"}
 	requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
@@ -904,14 +915,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		extra = append(extra, service.WithMCPConn(mcpConn))
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes}, extra...)
+			service.FeatureRoutes(android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes), extra...)
 		if err != nil {
 			initFatal(err, "initializing the API handler")
 		}
 
-		// SCIM endpoints are served by a prefix-mounted handler (see
-		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
-		// their routes to the validator explicitly.
+		// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM) that the API router's route
+		// table doesn't list, so surface their routes to the validator explicitly.
 		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
@@ -1005,12 +1015,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
 	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
 	// with probe spans. Register /metrics here even though its handler is mounted conditionally below. Registering a route
-	// whose handler isn't installed is a harmless lookup table entry and keeps the policy in one place.
+	// whose handler isn't installed is a harmless lookup table entry and keeps the policy in one place. /version is removed,
+	// but stale health checks may still probe it.
 	traceRegistry.Register(http.MethodGet, "/healthz", tracing.TierNever)
 	traceRegistry.Register(http.MethodGet, "/version", tracing.TierNever)
 	traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 	rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
-	rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
+	// Without its own handler, /version would fall through to the frontend.
+	rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(service.RemovedRootPathHandler("/version", httpLogger), "/version", config)))
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 	if len(config.Server.PrivateKey) > 0 {
@@ -1198,7 +1210,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// The "GET /api/latest/fleet/queries/run" API requires
+	// The "GET /api/latest/fleet/reports/run" API requires
 	// WriteTimeout to be higher than the live query rest period
 	// (otherwise the response is not sent back to the client).
 	//
@@ -1206,13 +1218,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// of the response.
 	liveQueryRestPeriod += 10 * time.Second
 
-	// Create the handler based on whether tracing should be there
-	var handler http.Handler
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-		handler = launcher.Handler(apmhttp.Wrap(rootMux))
-	} else {
-		handler = launcher.Handler(rootMux)
-	}
+	handler := launcher.Handler(rootMux)
 
 	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {

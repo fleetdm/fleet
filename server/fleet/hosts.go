@@ -220,10 +220,6 @@ type HostListOptions struct {
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
 
-	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
-	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
-	// instead.
-	SoftwareIDFilter *uint
 	// SoftwareVersionIDFilter filters the hosts by the software version ID that
 	// they use. This identifies a specific version of a "software title".
 	SoftwareVersionIDFilter *uint
@@ -340,7 +336,6 @@ func (h HostListOptions) Empty() bool {
 		h.TeamFilter == nil &&
 		h.PolicyIDFilter == nil &&
 		h.PolicyResponseFilter == nil &&
-		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
 		h.SoftwareStatusFilter == nil &&
@@ -402,7 +397,9 @@ type Host struct {
 	OrbitVersion   *string       `json:"orbit_version" db:"orbit_version" csv:"orbit_version"`
 	DesktopVersion *string       `json:"fleet_desktop_version" db:"fleet_desktop_version" csv:"fleet_desktop_version"`
 	ScriptsEnabled *bool         `json:"scripts_enabled" db:"scripts_enabled" csv:"scripts_enabled"`
-	OSVersion      string        `json:"os_version" db:"os_version" csv:"os_version"`
+	OSVersion      string        `json:"-" db:"os_version" csv:"-"`                        // display string, e.g. "macOS 15.2"; not in the API
+	OSName         string        `json:"os_name" db:"os_name" csv:"os_name"`               // operating_systems.name, what the os_name filter matches
+	OSVersionOnly  string        `json:"os_version" db:"os_version_only" csv:"os_version"` // operating_systems.version, what os_version matches
 	Build          string        `json:"build" csv:"build"`
 	PlatformLike   string        `json:"platform_like" db:"platform_like" csv:"platform_like"`
 	CodeName       string        `json:"code_name" db:"code_name" csv:"code_name"`
@@ -433,12 +430,12 @@ type Host struct {
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
-	TeamID                    *uint               `json:"team_id" renameto:"fleet_id" db:"team_id" csv:"team_id"`
+	TeamID                    *uint               `json:"fleet_id" db:"team_id" csv:"fleet_id"`
 
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name" csv:"team_name"`
+	TeamName *string `json:"fleet_name" db:"team_name" csv:"fleet_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
@@ -682,14 +679,15 @@ type HostOrbitInfo struct {
 // the same name, see the comments/docs for the Host field above.
 type HostHealth struct {
 	UpdatedAt                    time.Time                      `json:"updated_at,omitempty" db:"updated_at"`
+	OSName                       string                         `json:"os_name,omitempty" db:"os_name"`
 	OsVersion                    string                         `json:"os_version,omitempty" db:"os_version"`
 	DiskEncryptionEnabled        *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
 	FailingPoliciesCount         int                            `json:"failing_policies_count"`
 	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
 	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
-	Platform                     string                         `json:"-" db:"platform"`                                    // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                       *uint                          `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	Platform                     string                         `json:"-" db:"platform"`                 // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"fleet_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
 
 type HostHealthVulnerableSoftware struct {
@@ -781,13 +779,13 @@ type MDMHostData struct {
 	// complete the disk encryption process.
 	//
 	// It is not filled in by all host-returning datastore methods.
-	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" renameto:"apple_settings" db:"-" csv:"-"`
+	MacOSSettings *MDMHostMacOSSettings `json:"apple_settings,omitempty" db:"-" csv:"-"`
 
 	// MacOSSetup indicates macOS-specific MDM setup for the host, such
 	// as the status of the bootstrap package.
 	//
 	// It is not filled in by all host-returning datastore methods.
-	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" renameto:"setup_experience" db:"-" csv:"-"`
+	MacOSSetup *HostMDMMacOSSetup `json:"setup_experience,omitempty" db:"-" csv:"-"`
 
 	// The DeviceStatus and PendingAction fields are not stored in the database
 	// directly, they are read from the GetHostLockWipeStatus datastore method
@@ -811,6 +809,10 @@ type MDMHostData struct {
 	WipeAllowed          *bool `json:"wipe_allowed,omitempty" db:"-" csv:"-"`
 	LockAllowed          *bool `json:"lock_allowed,omitempty" db:"-" csv:"-"`
 	ClearPasscodeAllowed *bool `json:"clear_passcode_allowed,omitempty" db:"-" csv:"-"`
+
+	// UnlockPINAvailable is set for Android hosts only: true when the current enrollment has an
+	// acknowledged Fleet lock with a stored PIN. Only populated by getHostDetails.
+	UnlockPINAvailable *bool `json:"unlock_pin_available,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -840,7 +842,7 @@ type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
 	// ActionRequired names what the END USER has to do, and is set only when there is something they can actually do.
-	// macos_settings carries the same value for backwards compatibility
+	// apple_settings carries the same value for backwards compatibility
 	ActionRequired *ActionRequiredState `json:"action_required,omitempty" db:"-" csv:"-"`
 	// FleetdCanSetPIN is true when this host's fleetd can apply a BitLocker PIN the end user types, so the page offers
 	// the PIN form rather than the Manage BitLocker instructions.
@@ -1336,14 +1338,12 @@ func (h Host) AuthzType() string {
 	return "host"
 }
 
-// HostDetail provides the full host metadata along with associated labels and
-// packs. It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
+// HostDetail provides the full host metadata along with associated labels.
+// It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
 	Labels []*Label `json:"labels"`
-	// Packs is the list of packs the host is a member of.
-	Packs []*Pack `json:"packs"`
 	// Batteries is the list of batteries for the host. It is a pointer to a
 	// slice so that when set, it gets marhsaled even if the slice is empty,
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
@@ -1377,9 +1377,6 @@ type HostDetail struct {
 
 	// PatchDeadlineAt is when Fleet next forces a patch deadline install on this host, or nil.
 	PatchDeadlineAt *time.Time `json:"patch_deadline_at"`
-
-	// IDOnly marks a result where the caller was allowed to resolve the host but not to read it, so only ID is populated.
-	IDOnly bool `json:"-"`
 }
 
 type HostEndUser struct {
@@ -1408,11 +1405,10 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID              *uint                  `json:"team_id,omitempty" renameto:"fleet_id" db:"-"`
+	TeamID              *uint                  `json:"fleet_id,omitempty" db:"-"`
 	TotalsHostsCount    uint                   `json:"totals_hosts_count" db:"total"`
 	OnlineCount         uint                   `json:"online_count" db:"online"`
 	OfflineCount        uint                   `json:"offline_count" db:"offline"`
-	MIACount            uint                   `json:"mia_count" db:"mia"`
 	Missing30DaysCount  uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
 	NewCount            uint                   `json:"new_count" db:"new"`
 	LowDiskSpaceCount   *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
@@ -1900,6 +1896,25 @@ func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) e
 	return nil
 }
 
+// ValidateWipeRequest returns the error for a wipe request refused because of the host's pending or completed lock,
+// unlock or wipe actions, or nil when the wipe can proceed. It covers the Android wipe paths outside ee; the ee
+// WipeHost uses checkHostCanBeWiped, which adds the Windows Reset cases, so keep the two in step.
+func (s *HostLockWipeStatus) ValidateWipeRequest() error {
+	switch {
+	case s.IsPendingLock():
+		return NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete.")
+	case s.IsPendingUnlock():
+		return NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete.")
+	case s.IsPendingWipe():
+		return NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online.")
+	case s.IsLocked():
+		return NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked.")
+	case s.IsWiped():
+		return NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict)
+	}
+	return nil
+}
+
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
 	if h == nil {
 		return []byte("null"), nil
@@ -2061,14 +2076,14 @@ type OSVersion struct {
 	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
-	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
-	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field will no longer include the alphanumeric version.
-	Name string `json:"name"`
+	// Name is the name and alphanumeric version of the operating system, e.g., "macOS 14.1.2". The API doesn't
+	// return it.
+	Name string `json:"-"`
 	// NameOnly is the name of the operating system, e.g., "Microsoft Windows 11 Enterprise",
-	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field be removed.
-	NameOnly string `json:"name_only"`
+	// "Ubuntu", or "macOS".
+	NameOnly string `json:"os_name"`
 	// Version is the alphanumeric version of the operating system, e.g., "21H2", "20.4.0", or "12.5".
-	Version string `json:"version"`
+	Version string `json:"os_version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
 	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
@@ -2088,6 +2103,12 @@ type OSVersion struct {
 	// NOTE: The aggregate os_versions endpoint should not return this field.
 	// Uses a pointer to distinguish between nil (omit field) and empty slice (show as []).
 	Kernels *[]*Kernel `json:"kernels,omitempty"`
+}
+
+// UseAPINames switches NameOnly to the form API responses show (see APIOSName). Only call it on a value that is about
+// to be written to a response: the stored names are the keys for OS vulnerability lookups.
+func (o *OSVersion) UseAPINames() {
+	o.NameOnly = APIOSName(o.NameOnly)
 }
 
 type HostDetailOptions struct {
@@ -2110,7 +2131,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID             uint   `json:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 	// FleetEnrolledCorporate is true while the host is enrolled in Fleet's MDM as a non-personal host.
@@ -2299,6 +2320,12 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostIDByIdentifierOptions sets which columns Datastore.HostIDByIdentifier matches besides hardware_serial, UUID and hostname.
+type HostIDByIdentifierOptions struct {
+	// MatchID tries a numeric identifier as a host ID first.
+	MatchID bool
 }
 
 // HostLite contains a subset of Host fields.

@@ -3,6 +3,7 @@
   "slug": "avs-image-converter/windows",
   "package_identifier": "Ascensio.AVSImageConverter",
   "unique_identifier": "AVS Image Converter",
+  "open_process_names": ["avsimageconverter.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x86",
   "installer_type": "exe",

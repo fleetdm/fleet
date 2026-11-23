@@ -4,5 +4,7 @@
   "token": "jabra-direct",
   "installer_format": "dmg",
   "slug": "jabra-direct/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ]
 }

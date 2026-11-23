@@ -294,6 +294,9 @@ will be disabled and/or hidden in the UI.
               }
               res.locals.me = undefined;
 
+              // Query strings and trailing slashes are dropped so each page has one URL for search engines.
+              res.locals.canonicalUrlForMeta = sails.config.custom.baseUrl + (req.path === '/' ? '/' : _.trimRight(req.path, '/'));
+
               // Set security headers for all GET and HEAD requests.
               res.setHeader(`X-Content-Type-Options`, `nosniff`);//[?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Content-Type-Options
               res.setHeader('X-Frame-Options', 'SAMEORIGIN');// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options
@@ -364,7 +367,7 @@ will be disabled and/or hidden in the UI.
                   return requestPath === pagePattern;
                 });
                 if (!isOnHiddenPage) {
-                  let banner = { text: bannerConfig.text, textForSmallScreens: bannerConfig.textForSmallScreens, href: bannerConfig.href };
+                  let banner = bannerConfig.forEveryone ? { text: bannerConfig.forEveryone.text, textForSmallScreens: bannerConfig.forEveryone.textForSmallScreens, href: bannerConfig.forEveryone.href } : undefined;
                   if (bannerConfig.forVisitorsInEurope) {
                     const EUROPEAN_COUNTRY_CODES = [
                       // EU member states
@@ -382,7 +385,7 @@ will be disabled and/or hidden in the UI.
                     }
                   }
                   // Don't advertise a page to someone who's already on it.
-                  if (banner.href !== requestPath) {
+                  if (banner && banner.href !== requestPath) {
                     res.locals.announcementBanner = banner;
                   }
                 }

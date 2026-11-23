@@ -1508,7 +1508,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		}, nil
 	}
 
-	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+	ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 		return "secret", nil
 	}
 
@@ -1575,7 +1575,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		}, nil
 	}
 
-	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+	ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 		return "secret", nil
 	}
 
@@ -4357,6 +4357,54 @@ func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, cmds, c.wantSent)
 			// A held-back probe is still pending, so the session must not clear has_pending_commands.
+			require.False(t, onlyPollCmdsPending)
+		})
+	}
+}
+
+// A failed check for a RemoteWipe in progress holds the RemoteWipe and sends the other commands.
+func TestGetPendingMDMCmdsHoldsRemoteWipeWhenTheCheckFails(t *testing.T) {
+	const wipeLocURI = "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected"
+	var checkErr error
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{
+			{
+				CommandUUID:  "wipe",
+				RawCommand:   []byte(`<Exec><CmdID>wipe</CmdID><Item><Target><LocURI>` + wipeLocURI + `</LocURI></Target></Item></Exec>`),
+				TargetLocURI: wipeLocURI,
+			},
+			{
+				CommandUUID:  "profile",
+				RawCommand:   []byte(`<Replace><CmdID>profile</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>`),
+				TargetLocURI: "./Device/A",
+			},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+	ds.MDMWindowsRemoteWipeInProgressFunc = func(ctx context.Context, enrollmentID, hostID uint) (bool, error) {
+		return false, checkErr
+	}
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	for _, c := range []struct {
+		name     string
+		checkErr error
+		wantSent []string
+	}{
+		{name: "check succeeds", wantSent: []string{"wipe", "profile"}},
+		{name: "check fails", checkErr: errors.New("database unavailable"), wantSent: []string{"profile"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			checkErr = c.checkErr
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(),
+				&fleet.MDMWindowsEnrolledDevice{ID: 1})
+			require.NoError(t, err)
+			sent := make([]string, 0, len(cmds))
+			for _, cmd := range cmds {
+				sent = append(sent, cmd.CmdID.Value)
+			}
+			require.Equal(t, c.wantSent, sent)
 			require.False(t, onlyPollCmdsPending)
 		})
 	}

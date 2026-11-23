@@ -11,10 +11,15 @@ import {
   api,
   type NgrokYamlInfo,
   type ProcEvent,
+  type ProcInfo,
   type ServerProfile,
   type Settings,
 } from "./ipc";
 import {
+  apnsMockLiveUrl,
+  apnsMockProcId,
+  apnsMockStartArgs,
+  apnsMockUrl,
   dockerEnvFor,
   dockerUpArgs,
   prepareDbArgsFor,
@@ -23,6 +28,8 @@ import {
   serveChannel,
   serveEnvFor,
   serveLabelFor,
+  serveMetaFor,
+  serveNeedsRestartForApns,
 } from "./servers";
 
 // Re-export the serve helpers so existing call sites (ServerTab) can keep
@@ -72,6 +79,30 @@ export function pythonArgsFor(settings: Settings): string[] {
   ];
 }
 
+/// The port and folder a running http.server was started with (its command
+/// is `python3 <pythonArgsFor>`). Settings can change after it starts, and the
+/// card must show where it actually serves.
+export function pythonServedFrom(command: string): { port: number; directory: string } | null {
+  const m = / http\.server (\d+) --directory (.+)$/.exec(command);
+  return m ? { port: Number(m[1]), directory: m[2] } : null;
+}
+
+/// python http.server's spawn, shared by Start all, the Server tab and the
+/// Installers tab's sharing, so they all run the same server. python gets no
+/// shell, so a "~/..." directory is expanded here; the packages folder under
+/// it is expanded the same way on the Go side.
+export async function pythonStartArgs(settings: Settings, cwd: string) {
+  const dir = settings.python_server.directory;
+  const expanded = dir ? await api.expandPath(dir) : dir;
+  return {
+    id: "python-server",
+    label: "python http.server",
+    cwd,
+    program: "python3",
+    args: pythonArgsFor({ ...settings, python_server: { ...settings.python_server, directory: expanded } }),
+  };
+}
+
 export function ngrokIsLaunchable(settings: Settings): boolean {
   const cfg = settings.ngrok;
   return cfg.enabled && (cfg.start_all || cfg.default_tunnels.length > 0);
@@ -97,7 +128,8 @@ export function staleNgrokTunnels(
 /// Single-spawn helper: kicks off `fleet serve --dev` for one server without
 /// the docker / prepare-db prerequisites that startAll handles. Suitable when
 /// the rest of the stack is already up (e.g. restarting serve after a restore).
-export async function startServe(server: ServerProfile): Promise<void> {
+/// mockUrl is the server's running mock APNs (apnsMockLiveUrl), or null.
+export async function startServe(server: ServerProfile, mockUrl: string | null): Promise<void> {
   if (!server.worktree_path) throw new Error("server has no worktree configured");
   await api.startProcess({
     id: procId(server.id, "fleet-serve"),
@@ -106,7 +138,8 @@ export async function startServe(server: ServerProfile): Promise<void> {
     program: "./build/fleet",
     args: serveArgsFor(server),
     log_channel: serveChannel(server.id),
-    env: serveEnvFor(server).length > 0 ? serveEnvFor(server) : null,
+    env: serveEnvFor(server, mockUrl).length > 0 ? serveEnvFor(server, mockUrl) : null,
+    meta: serveMetaFor(server, mockUrl),
   });
 }
 
@@ -115,6 +148,9 @@ export type SystemHealth = {
   dockerUp: boolean;
   ngrokRunning: boolean;
   pythonRunning: boolean;
+  /// This server's mock APNs process (per-server, unlike ngrok/python).
+  /// Start all doesn't start it.
+  apnsMockRunning: boolean;
 };
 
 export type StartAllArgs = {
@@ -162,7 +198,9 @@ export async function startAll(args: StartAllArgs): Promise<void> {
     if (!ok) return;
   }
   if (!health.serveUp) {
-    await startServe(server);
+    // Read now, not when Start all began: the mock may have been started
+    // from the osquery-perf tab while the build chain ran.
+    await startServe(server, apnsMockLiveUrl(server, await api.listProcesses()));
     // long-running — don't wait
   }
   // 3. ngrok — global; skip if disabled, already running, or no tunnels picked.
@@ -181,13 +219,29 @@ export async function startAll(args: StartAllArgs): Promise<void> {
   }
   // 4. python — global; skip if disabled or already running.
   if (settings.python_server.enabled && !health.pythonRunning) {
-    await api.startProcess({
-      id: "python-server",
-      label: "python http.server",
-      cwd,
-      program: "python3",
-      args: pythonArgsFor(settings),
-    });
+    await api.startProcess(await pythonStartArgs(settings, cwd));
+  }
+}
+
+/// Starts this server's mock APNs for osquery-perf, then restarts a running
+/// fleet serve that isn't pushing to it: Fleet reads the push URL only at
+/// startup. The mock needs the server's Redis; pushes sent before it listens
+/// are retried by Fleet's apns_push_to_pending_hosts cron.
+export async function startApnsMockFor(
+  server: ServerProfile,
+  settings: Settings,
+  procs: ProcInfo[],
+): Promise<void> {
+  const mock = apnsMockStartArgs(server, settings);
+  if (!mock) throw new Error("set server 1's Fleet repo first: the mock runs from it");
+  await api.startProcess(mock);
+  const url = apnsMockUrl(server);
+  const serveId = procId(server.id, "fleet-serve");
+  const serve = procs.find((p) => p.id === serveId && (p.state === "running" || p.state === "stopping"));
+  if (serve && serveNeedsRestartForApns(server, serve, url)) {
+    await api.stopProcess(serveId);
+    await waitForExit(serveId, 10_000);
+    await startServe(server, url);
   }
 }
 
@@ -212,6 +266,11 @@ export async function stopAll(args: StopAllArgs): Promise<void> {
   if (health.serveUp) {
     try {
       await api.stopProcess(procId(server.id, "fleet-serve"));
+    } catch {}
+  }
+  if (health.apnsMockRunning) {
+    try {
+      await api.stopProcess(apnsMockProcId(server));
     } catch {}
   }
   if (health.dockerUp && server.worktree_path) {

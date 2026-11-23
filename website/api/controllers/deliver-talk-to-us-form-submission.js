@@ -17,14 +17,12 @@ module.exports = {
     },
 
     firstName: {
-      required: true,
       type: 'string',
       description: 'The first name of the human sending this message.',
       example: 'Emma'
     },
 
     lastName: {
-      required: true,
       type: 'string',
       description: 'The last name of the human sending this message.',
       example: 'Watson'
@@ -32,13 +30,11 @@ module.exports = {
 
     organization: {
       type: 'string',
-      required: true,
       description: 'The organization of the user who submitted the "talk to us" form'
     },
 
     numberOfHosts: {
       type: 'string',
-      required: true,
       description: 'The organization of the user who submitted the "talk to us" form'
     },
 
@@ -126,15 +122,19 @@ Only include a key when you are confident of its value. Omit any key you are uns
 
     let employeeCountFromEnrichmentHelper = (enrichmentInformation.employer || {}).numberOfEmployees;
 
+    // Only use names the visitor typed. Enriched names stay server-side, or this endpoint would reveal anyone's name from their email.
+    let nameForBookingLink = _.trim((firstName || '') + ' ' + (lastName || ''));
+    let providedDetailsText = organization ? `Provided organization name: ${organization}, Number of employees: ${numberOfHosts}` : 'Only a work email was provided.';
+
     // If we got a employer.numberOfEmployees value from the getEnriched helper, or the user entered 500 or more employees, get the SF user who owns the territory that this user's company is in, and send them to a "Talk to us" calendly event.
     if(numberOfHosts >= 500 || (employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 500)) {
       contactInformation.contactSource = 'Website - Contact forms - Demo - ICP';
       let numberOfEmployeesToUseForTerritoryLookup;
       if(employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 500) {
-        contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Talk to us" event because of the number of employees (${employeeCountFromEnrichmentHelper}) returned by Coresignal. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+        contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Talk to us" event because of the number of employees (${employeeCountFromEnrichmentHelper}) returned by Coresignal. ${providedDetailsText}`;
         numberOfEmployeesToUseForTerritoryLookup = employeeCountFromEnrichmentHelper;
       } else {
-        contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Talk to us" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+        contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Talk to us" event. ${providedDetailsText}`;
         numberOfEmployeesToUseForTerritoryLookup = numberOfHosts;
       }
 
@@ -176,12 +176,12 @@ Only include a key when you are confident of its value. Omit any key you are uns
       }
       return {
         icp: true,
-        eventUrl: eventUrlForThisUsersTerritory +`?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`,
+        eventUrl: eventUrlForThisUsersTerritory +`?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(nameForBookingLink)}`,
       };
     } else {
       // If the enrichment helper didn't return a employer.numberOfEmployees value and this user has <500 employees, send them to the "Let's get you set up!" Calendly event
       contactInformation.contactSource = 'Website - Contact forms - Demo';
-      contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Let\'s get you set up!" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+      contactInformation.description = `${formSubmittedText} and was taken to the Calendly page for the "Let\'s get you set up!" event. ${providedDetailsText}`;
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
@@ -189,7 +189,7 @@ Only include a key when you are confident of its value. Omit any key you are uns
       });//_∏_
       return {
         icp: false,
-        eventUrl: `https://calendly.com/fleetdm/chat?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(firstName+' '+lastName)}`
+        eventUrl: `https://calendly.com/fleetdm/chat?email=${encodeURIComponent(emailAddress)}&name=${encodeURIComponent(nameForBookingLink)}`
       };
     }
   }
