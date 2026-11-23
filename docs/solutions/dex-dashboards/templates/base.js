@@ -109,9 +109,10 @@ function pageLink(href, attrs, ...kids) {
   return h("a", { href, ...(/^https?:/i.test(href || "") ? { target: "_top" } : {}), ...attrs }, ...kids);
 }
 // [page, tab label, page title when the label is shorter]. Short labels keep all ten tabs on one row from about 900px.
-const NAV = [["overview", "Overview"], ["experience", "Experience", "Experience score"], ["ai", "AI", "AI governance"], ["connectivity", "Connectivity"],
+// Same order as the overview's cards.
+const NAV = [["overview", "Overview"], ["ai", "AI", "AI governance"], ["connectivity", "Connectivity"],
   ["lifecycle", "Hardware", "Hardware lifecycle"], ["patch", "Patching", "Patch velocity"], ["software", "Software", "Software usage"],
-  ["sustainability", "Sustainability"], ["policies", "Policies"], ["analytics", "Analytics"]];
+  ["sustainability", "Sustainability"], ["experience", "Experience", "Experience score"], ["policies", "Policies"], ["analytics", "Analytics"]];
 function dashNav() {
   const links = DATA.links || {};
   const items = NAV.filter(([p]) => p === DATA.page || links[p]);
