@@ -24,9 +24,14 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
 
-> **Android**: The lock action will enforce the host lock screen and require the user to enter their password or PIN. It is available on company-owned and BYOD Android hosts.
+> **Android**: Lock is available on company-owned and BYOD Android hosts. Lock replaces the host's PIN or password with one that Fleet generates, and locks the host as soon as it receives the command. The old PIN stops working, so the end user needs the new one to unlock the host.
 >
-> On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge).
+> - **Company-owned**: Lock locks the whole device.
+> - **BYOD**: Lock locks the work profile only, and the work apps need the new PIN. The personal unlock isn't changed. If the host uses one lock for both personal and work, Android gives the work profile its own lock that uses Fleet's PIN. The screen doesn't lock.
+>
+> Fleet generates a 6-digit PIN unless the host's password policy requires more, for example letters or a longer code. Android shows a **Lock pending** badge until the host acknowledges the lock, then the badge clears (no **Locked** badge).
+>
+> To get the PIN, select **Actions > View unlock PIN** after the host acknowledges the lock. You can also run `fleetctl mdm unlock` or use the [REST API](https://fleetdm.com/docs/rest-api/rest-api#unlock-host). See [Unlock a host](#unlock-a-host).
 
 ### Find a lost Android host
 
@@ -66,7 +71,7 @@ When the device enters lost mode, it rings and shows a **This device was reporte
 - **I found this device**: Silences the sound and shows your message, email address, and street address. From here, the finder can tap **Call owner** to call the `lostPhoneNumber`, or **Emergency** to place an emergency call.
 - **This is my device**: Prompts for the device PIN or password. Entering it unlocks the device and exits lost mode.
 
-If the end user recently exited lost mode, or you recently reset the device's password, Android may reject a new `START_LOST_MODE` command. The command result shows the `USER_EXIT_LOST_MODE_RECENTLY` or `RESET_PASSWORD_RECENTLY` status.
+If the end user recently exited lost mode, or the device's password was recently reset, Android may reject a new `START_LOST_MODE` command. The command result shows the `USER_EXIT_LOST_MODE_RECENTLY` or `RESET_PASSWORD_RECENTLY` status. A Fleet lock on an Android host counts as a password reset, so Android may reject `START_LOST_MODE` for a while after you lock the host.
 
 To take the device out of lost mode remotely, send the [`STOP_LOST_MODE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.STOP_LOST_MODE) command the same way:
 
@@ -178,7 +183,10 @@ Deleting the host before the reset runs may hide the "Reset pending" badge, but 
 3. Click the **Actions** menu, then click **Unlock**.
     - **macOS**: A dialog with the PIN will appear. Type the PIN into the device to unlock it.
     - **Windows, Linux, iOS and iPadOS**: The command to unlock the host will be queued and the host will unlock once it receives the command (no PIN needed).*
-4. When you click **Unlock**, Windows, Linux, iOS and iPadOS hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
+    - **Android**: There's no **Unlock** action. Select **View unlock PIN** instead. A dialog shows the PIN that Fleet set when it locked the host, and when the host was locked. Give the PIN to the end user to enter on the device.
+4. When you click **Unlock**, Windows, Linux, iOS and iPadOS hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS and Android hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
+
+> **Android**: **View unlock PIN** appears after the host acknowledges the lock. It doesn't appear while the lock is pending, or if the host re-enrolled after it was locked. Viewing the PIN is logged as a `viewed_host_unlock_pin` activity. Fleet doesn't send an unlock command, so there's no `unlocked_host` activity.
 
 > **Linux hosts**: The system will automatically reboot after approximately 10 seconds to complete the unlock process and ensure the user interface is properly restored. If the host loses connection to Fleet, the unlock process may run again, causing the host to reboot again.
 
@@ -193,12 +201,14 @@ You can remotely clear the passcode on an iOS, iPadOS, or Android device to help
 > Clear passcode is only available for company-owned or manually enrolled iOS/iPadOS hosts. It is not available for hosts with a personal MDM enrollment status, or hosts that are in Lost Mode or pending wipe.
 > For Android hosts, the action is available for both BYOD and company-owned hosts. On a BYOD device, it removes the work profile passcode only (the user's personal device unlock is untouched). On a company-owned host, it removes the device passcode.
 
-1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the iOS or iPadOS device you want to clear the passcode for.
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the iOS, iPadOS, or Android device you want to clear the passcode for.
 2. Click the host to open the **Host details** page.
 3. Click the **Actions** dropdown, then click **Clear passcode**.
 4. A confirmation dialog will appear. Click **Clear passcode** to confirm.
 
 The clear passcode activity will be logged in the host's activity feed.
+
+On an Android host, use Clear passcode to recover if the unlock PIN doesn't work, or if locking the host again failed. Clear passcode removes the PIN so the end user can set a new one. Fleet doesn't let you clear the passcode while a lock is pending, or lock the host while a clear passcode is pending.
 
 You can also clear the passcode using the [REST API](https://fleetdm.com/docs/rest-api/rest-api#clear-iosipados-host-passcode) or `fleetctl`:
 
@@ -279,7 +289,7 @@ fleetctl mdm reset --host $HOST_IDENTIFIER
 
 Add the `--help` flag to any command to learn more about how to use it.
 
-For macOS hosts, the `mdm unlock` command will return the six-digit PIN, which must be typed into the device in order to finish unlocking it.
+For macOS hosts, the `mdm unlock` command will return the six-digit PIN, which must be typed into the device in order to finish unlocking it. For Android hosts, it returns the PIN and the time the host was locked.
 
 For Linux hosts, running `fleetctl mdm wipe` triggers the same script-based wipe as the UI action. Read the [Linux wipe behavior](#linux-wipe-behavior) section above before using this command on production hosts.
 

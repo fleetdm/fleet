@@ -4280,6 +4280,8 @@ Returns the information of the host specified using its `id`, `hardware_serial`,
 
 For iOS, iPadOS, and Android hosts, `google_device_id` is the host's device ID in Google. It's `""` until it's set with [Update host's Google device ID](#update-hosts-google-device-id).
 
+For Android hosts, `mdm.unlock_pin_available` is `true` when the host's current enrollment has an acknowledged Fleet lock with an unlock PIN. Use it to tell whether [Unlock host](#unlock-host) can return a PIN. It's only returned for Android hosts.
+
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 If the value is a number, Fleet first looks for a host with that `id`. Otherwise, or if no host has that `id`, Fleet matches `hardware_serial`, then `uuid`, then `hostname`. If more than one host matches the same field, the endpoint returns the newest host.
@@ -6957,6 +6959,10 @@ To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock 
 
 For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
 
+For Android, Fleet sends a [`RESET_PASSWORD`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#resetpasswordflag) command with a Fleet-generated password and the `LOCK_NOW` flag. The host locks as soon as it receives the command, and the end user needs the new password to unlock it. The password is a 6-digit PIN unless the host's password policy requires more, in which case Fleet generates a longer or alphanumeric password that meets the policy. To get the password, set `view_pin` to `true`, or use [Unlock host](#unlock-host) after the host acknowledges the lock. Locking an Android host is a password reset, so Android may reject a [lost mode](https://fleetdm.com/guides/lock-wipe-hosts#find-a-lost-android-host) command sent soon after.
+
+Fleet rejects the request with a `422` while a Clear passcode request is pending for the Android host.
+
 `POST /api/v1/fleet/hosts/:id/lock`
 
 #### Parameters
@@ -6964,7 +6970,7 @@ For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documen
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id | integer | path | **Required**. ID of the host to be locked. |
-| view_pin | boolean | query | For macOS hosts, whether to return the unlock PIN. |
+| view_pin | boolean | query | For macOS and Android hosts, whether to return the unlock PIN. |
 
 #### Example with macOS unlock PIN
 
@@ -6982,7 +6988,7 @@ For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documen
 }
 ```
 
-> To verify the host successfully locked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
+> To verify the host successfully locked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`. For Android hosts, `mdm.device_status` stays `unlocked`. Use `mdm.unlock_pin_available` instead.
 
 ### Unlock host
 
@@ -6990,9 +6996,13 @@ For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documen
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
+Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS or Android host.
 
 For iOS and iPadOS, this disables Lost Mode.
+
+For Android, Fleet doesn't send a command to the host. The response returns the PIN that Fleet set when it locked the host, and the end user enters it on the device. Fleet logs a [`viewed_host_unlock_pin`](https://fleetdm.com/docs/api/global-audit-logs#viewed-host-unlock-pin) activity, not `unlocked_host`.
+
+The response returns a `422` error while the lock is pending, and a `409` error when the Android host has no unlock PIN to return. For example, the host was never locked by Fleet, or it re-enrolled since it was locked.
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
@@ -7018,7 +7028,26 @@ For iOS and iPadOS, this disables Lost Mode.
 }
 ```
 
-> To verify the host successfully unlocked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`. macOS hosts require entering `unlock_pin` to unlock.
+#### Example (Android)
+
+`POST /api/v1/fleet/hosts/124/unlock`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 124,
+  "unlock_pin": "482910",
+  "locked_at": "2026-11-20T18:42:07Z",
+  "device_status": "unlocked"
+}
+```
+
+`locked_at` is the time the host acknowledged the lock. It's only returned for Android hosts.
+
+> To verify the host successfully unlocked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`. macOS and Android hosts require entering `unlock_pin` to unlock.
 
 ### Wipe host
 
