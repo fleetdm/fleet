@@ -1539,7 +1539,6 @@ Connects Fleet to Google to mark company-owned iOS, iPadOS, and Android hosts as
 
 If Google is already connected, this replaces the settings and the key. To change only some of them, use [Update Google](#update-google).
 
-Requires a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
 
 `POST /api/v1/fleet/conditional_access/google`
 
