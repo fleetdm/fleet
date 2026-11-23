@@ -87,12 +87,13 @@ const apiError = (name: string, reason: string) => ({
   data: { message: "Couldn't generate", errors: [{ name, reason }] },
 });
 
-const limitError = (retryAfter?: string) => ({
+const limitError = (retryAfter?: string, limit = 15) => ({
   status: 429,
   headers: retryAfter ? { "retry-after": retryAfter } : {},
   data: {
     message: "Too many requests",
     errors: [{ name: "base", reason: "Profile generation limit reached." }],
+    limit,
   },
 });
 
@@ -522,12 +523,17 @@ describe("AIProfileGenerator", () => {
     clickGenerate();
     await act(async () => content.reject(limitError("2505600")));
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "You have reached the 15 prompt limit. Try again in 29 days, or upgrade to Fleet Premium"
+      "You have reached the monthly 15 prompt limit. Try again in 29 days, or use your own AI. Learn how"
     );
-    expect(screen.getByRole("link", { name: /Fleet Premium/ })).toHaveAttribute(
+    const learnHow = screen.getByRole("link", { name: /Learn how/ });
+    expect(learnHow).toHaveAttribute(
       "href",
-      "https://fleetdm.com/upgrade"
+      "https://fleetdm.com/learn-more-about/build-configuration-profiles-with-ai"
     );
+    expect(learnHow).toHaveAttribute("target", "_blank");
+    expect(
+      screen.queryByRole("link", { name: /Fleet Premium/ })
+    ).not.toBeInTheDocument();
     // editing doesn't lift the limit
     typeInstructions("Turn off the camera");
     const generate = screen.getByRole("button", { name: "Generate profile" });
@@ -539,6 +545,27 @@ describe("AIProfileGenerator", () => {
     expect(
       screen.getByRole("button", { name: "Create manually" })
     ).toBeEnabled();
+  });
+
+  it("shows the limit fleetdm.com reported, such as Fleet Premium's", async () => {
+    renderGenerator();
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => content.reject(limitError("2505600", 300)));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "You have reached the monthly 300 prompt limit. Try again in 29 days, or use your own AI. Learn how"
+    );
+  });
+
+  it("keeps the link when Fleet doesn't say when the limit resets", async () => {
+    renderGenerator();
+    typeInstructions("Turn off AirDrop");
+    clickGenerate();
+    await act(async () => content.reject(limitError(undefined, 300)));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "You have reached the monthly 300 prompt limit. Try again next month, or use your own AI. Learn how"
+    );
+    expect(screen.getByRole("link", { name: /Learn how/ })).toBeInTheDocument();
   });
 
   it("rounds less than a day up to 1 day", async () => {

@@ -23,7 +23,7 @@ const (
 )
 
 const (
-	AutofillConfigProfileLimitReachedReason      = "You have reached the monthly limit for AI-generated configuration profiles on Fleet Free."
+	AutofillConfigProfileLimitReachedReason      = "You have reached the monthly limit for AI-generated configuration profiles."
 	AutofillConfigProfileMissingPrivateKeyReason = "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
 )
 
@@ -51,6 +51,8 @@ type AutofillConfigProfileError struct {
 	Status int
 	// RetryAfterSeconds, when set, is sent as the Retry-After header.
 	RetryAfterSeconds int
+	// Limit, when set, is sent as a top-level "limit" beside the error envelope.
+	Limit int
 }
 
 func (e *AutofillConfigProfileError) Error() string {

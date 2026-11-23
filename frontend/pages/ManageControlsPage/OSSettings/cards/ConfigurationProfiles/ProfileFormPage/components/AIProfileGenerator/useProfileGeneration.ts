@@ -26,12 +26,15 @@ export const GENERATION_STEP_LABELS: Record<GenerationStep, string> = {
 };
 
 export interface IGenerationError {
-  /** "decline" when the AI couldn't make this profile, "limit" when Fleet
-   * Free's prompt limit is reached, "failure" otherwise. */
+  /** "decline" when the AI couldn't make this profile, "limit" when the
+   * monthly prompt limit is reached, "failure" otherwise. */
   kind: "decline" | "limit" | "failure";
   reason: string;
   /** For "limit": whole days until the limit resets, if Fleet said. */
   retryAfterDays?: number;
+  /** For "limit": the monthly limit fleetdm.com reported, for this license
+   * or registration. */
+  limit?: number;
 }
 
 export type GenerationStatus = "idle" | "generating" | "done" | "error";
@@ -68,7 +71,9 @@ const isLimitError = (e: unknown) =>
 /** The UI branches on the field the API reports the error on, except for the
  * limit, which reports on "base" like other failures. */
 export const toGenerationError = (e: unknown): IGenerationError => {
-  const response = e as AxiosResponse<IApiError> | undefined;
+  const response = e as
+    | AxiosResponse<IApiError & { limit?: number }>
+    | undefined;
   const firstError = response?.data?.errors?.[0];
   if (isLimitError(e)) {
     const seconds = Number(response?.headers?.["retry-after"]);
@@ -77,6 +82,7 @@ export const toGenerationError = (e: unknown): IGenerationError => {
       reason: firstError?.reason ?? "",
       retryAfterDays:
         seconds > 0 ? Math.ceil(seconds / SECONDS_PER_DAY) : undefined,
+      limit: response?.data?.limit,
     };
   }
   if (firstError?.name === "natural_language_instructions") {

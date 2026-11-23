@@ -225,6 +225,29 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 		assert.Equal(t, map[string]any{"naturalLanguageInstructions": "Turn off AirDrop", "platform": "apple", "fleetLicenseKey": "integration-license-key"}, lastRequest)
 		assert.Empty(t, lastAuthorization)
 		mu.Unlock()
+
+		// Its limit is relayed the same way, with fleetdm.com's number for a license.
+		setGenerationResponse(t, http.StatusTooManyRequests, `{"error": "generationLimitReached", "resetsAt": "`+time.Now().Add(time.Hour).UTC().Format(time.RFC3339)+`", "limit": 300}`)
+		for _, path := range []string{"/api/latest/fleet/autofill/configuration_profile/content", "/api/latest/fleet/autofill/configuration_profile/name_description"} {
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, premiumServer.URL+path, bytes.NewReader(reqBody))
+			require.NoError(t, err)
+			req.Header.Set("Authorization", "Bearer "+s.token)
+			limitResp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			var body struct {
+				autofillErrorBody
+				Limit int `json:"limit"`
+			}
+			require.NoError(t, json.NewDecoder(limitResp.Body).Decode(&body))
+			limitResp.Body.Close()
+			assert.Equal(t, http.StatusTooManyRequests, limitResp.StatusCode, path)
+			assert.NotEmpty(t, limitResp.Header.Get("Retry-After"), path)
+			assert.Equal(t, []map[string]string{{"name": "base", "reason": fleet.AutofillConfigProfileLimitReachedReason}}, body.Errors, path)
+			assert.Equal(t, 300, body.Limit, path)
+		}
+		mu.Lock()
+		assert.Equal(t, "integration-license-key", lastRequest["fleetLicenseKey"])
+		mu.Unlock()
 	})
 
 	t.Run("mobileconfig named after its root PayloadDisplayName", func(t *testing.T) {
@@ -515,7 +538,7 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 
 	t.Run("fleetdm.com's limit is a 429 with Retry-After on both endpoints", func(t *testing.T) {
 		resetsAt := time.Now().Add(72 * time.Hour).UTC().Truncate(time.Second)
-		setGenerationResponse(t, http.StatusTooManyRequests, `{"error": "generationLimitReached", "resetsAt": "`+resetsAt.Format(time.RFC3339)+`"}`)
+		setGenerationResponse(t, http.StatusTooManyRequests, `{"error": "generationLimitReached", "resetsAt": "`+resetsAt.Format(time.RFC3339)+`", "limit": 15}`)
 
 		for path, message := range map[string]string{
 			"/api/latest/fleet/autofill/configuration_profile/content":          fleet.AutofillConfigProfileContentErrorMessage,
@@ -525,11 +548,22 @@ func (s *integrationMDMTestSuite) TestAutofillConfigProfiles() {
 			retryAfter, err := strconv.Atoi(resp.Header.Get("Retry-After"))
 			require.NoError(t, err, "Retry-After is a number of seconds")
 			assert.InDelta(t, 72*60*60, retryAfter, 10)
-			var body autofillErrorBody
+			var body struct {
+				autofillErrorBody
+				Limit int `json:"limit"`
+			}
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 			assert.Equal(t, message, body.Message)
 			assert.Equal(t, []map[string]string{{"name": "base", "reason": fleet.AutofillConfigProfileLimitReachedReason}}, body.Errors)
+			assert.Equal(t, 15, body.Limit)
 		}
+
+		// Other errors keep the plain envelope.
+		setGenerationResponse(t, http.StatusBadRequest, `{"error": "couldNotGenerateProfile", "reason": "Platform SSO isn't supported yet."}`)
+		resp := s.Do("POST", "/api/latest/fleet/autofill/configuration_profile/content", map[string]any{"natural_language_instructions": "Turn off AirDrop", "platform": "apple"}, http.StatusUnprocessableEntity)
+		var raw map[string]any
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&raw))
+		assert.NotContains(t, raw, "limit")
 	})
 
 	t.Run("a rejected secret is unavailable and doesn't register again", func(t *testing.T) {

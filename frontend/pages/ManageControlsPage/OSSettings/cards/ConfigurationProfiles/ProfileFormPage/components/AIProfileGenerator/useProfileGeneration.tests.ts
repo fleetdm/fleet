@@ -165,7 +165,10 @@ describe("useProfileGeneration", () => {
       nameDescription.reject({
         status: 429,
         headers: { "retry-after": "2505600" },
-        data: { errors: [{ name: "base", reason: "Limit reached." }] },
+        data: {
+          errors: [{ name: "base", reason: "Limit reached." }],
+          limit: 300,
+        },
       })
     );
     expect(result.current.status).toBe("error");
@@ -173,6 +176,7 @@ describe("useProfileGeneration", () => {
       kind: "limit",
       reason: "Limit reached.",
       retryAfterDays: 29,
+      limit: 300,
     });
     expect(contentSpy.mock.calls[0][0].signal.aborted).toBe(true);
   });

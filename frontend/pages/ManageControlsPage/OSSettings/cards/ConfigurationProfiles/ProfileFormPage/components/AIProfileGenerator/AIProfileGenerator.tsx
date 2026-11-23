@@ -37,9 +37,8 @@ const baseClass = "ai-profile-generator";
 export const MAX_INSTRUCTIONS_LENGTH = 2000;
 
 const OS_SETTINGS_LEARN_MORE_URL = "https://fleetdm.com/os-settings";
-const UPGRADE_URL = "https://fleetdm.com/upgrade";
-// fleetdm.com sets the limit; keep this in step with it.
-const FREE_PROMPT_LIMIT = 15;
+const LIMIT_LEARN_MORE_URL =
+  "https://fleetdm.com/learn-more-about/build-configuration-profiles-with-ai";
 
 // The arrow overlaps the default offset, leaving no gap above the button.
 const ACTION_TIP_OFFSET = 10;
@@ -86,21 +85,26 @@ const getSendTooltip = (instructions: string, isLimited: boolean) => {
   return null;
 };
 
-const LimitMessage = ({ retryAfterDays }: { retryAfterDays?: number }) => (
+interface ILimitMessageProps {
+  limit?: number;
+  retryAfterDays?: number;
+}
+
+const LimitMessage = ({ limit, retryAfterDays }: ILimitMessageProps) => (
   <div className={`${baseClass}__error-message`}>
-    You have reached the {FREE_PROMPT_LIMIT} prompt limit.{" "}
+    You have reached the monthly {limit ? `${limit} ` : ""}prompt limit.{" "}
     {retryAfterDays ? (
       <>
         Try again in{" "}
         <b>
           {retryAfterDays} {pluralize(retryAfterDays, "day")}
         </b>
-        , or upgrade to{" "}
+        , or use your own AI.{" "}
       </>
     ) : (
-      "Upgrade to "
+      "Try again next month, or use your own AI. "
     )}
-    <CustomLink url={UPGRADE_URL} text="Fleet Premium" newTab />
+    <CustomLink url={LIMIT_LEARN_MORE_URL} text="Learn how" newTab />
   </div>
 );
 
@@ -108,7 +112,7 @@ const ErrorBanner = ({ error }: { error: IGenerationError }) => (
   <div className={`${baseClass}__error`} role="alert">
     <Icon name="error" color="ui-error" />
     {error.kind === "limit" && (
-      <LimitMessage retryAfterDays={error.retryAfterDays} />
+      <LimitMessage limit={error.limit} retryAfterDays={error.retryAfterDays} />
     )}
     {error.kind === "decline" && (
       <div className={`${baseClass}__error-message`}>
