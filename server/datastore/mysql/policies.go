@@ -2797,9 +2797,6 @@ func deletePolicyMembershipBatch(
 // anymore (e.g. if the policy's platforms have been updated from "any" - the
 // empty string - to "windows", this would delete that policy's membership rows
 // for any non-windows host).
-//
-// It is the hourly backstop behind CleanupPendingPolicyMembership, for out-of-scope results recorded
-// after a requested cleanup finished.
 func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
 	const (
 		recentlyUpdatedPoliciesInterval = 24 * time.Hour
@@ -2894,6 +2891,16 @@ func (ds *Datastore) CleanupPendingPolicyMembership(ctx context.Context) error {
 			if err != nil {
 				failed[id] = struct{}{}
 				errs = append(errs, ctxerr.Wrapf(ctx, err, "cleanup pending membership for policy %d", id))
+				continue
+			}
+			// The results left by a partial cleanup are still valid, so their counts come back now instead of at the next
+			// hourly aggregation. A full cleanup leaves none, and counts of zero would read as "0 hosts" instead of not yet
+			// run. It writes nothing while a newer request keeps the flags set, and a failure only leaves the counts to the
+			// aggregation.
+			if !p.RemoveAll {
+				if err := ds.refreshPolicyCounts(ctx, p.ID); err != nil {
+					ds.logger.ErrorContext(ctx, "refresh policy counts after membership cleanup", "policy_id", p.ID, "err", err)
+				}
 			}
 		}
 		if cleaned == 0 {

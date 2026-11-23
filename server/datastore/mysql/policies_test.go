@@ -2583,12 +2583,15 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	for _, pol := range tPolicies {
 		polsByName[pol.Name] = pol
 	}
+	// The partial cleanups refreshed their policies' counts; the full ones leave them to the aggregation.
 	assert.Equal(t, uint(8), polsByName[globalNames[0]].FailingHostCount)
 	assert.Equal(t, uint(0), polsByName[globalNames[1]].FailingHostCount) // updated query
-	assert.Equal(t, uint(0), polsByName[globalNames[2]].FailingHostCount) // updated platform
-	assert.Equal(t, uint(0), polsByName[teamNames[0]].FailingHostCount)   // updated platform
-	assert.Equal(t, uint(4), polsByName[teamNames[1]].FailingHostCount)
-	assert.Equal(t, uint(0), polsByName[teamNames[2]].FailingHostCount) // updated query
+	assert.Nil(t, polsByName[globalNames[1]].HostCountUpdatedAt)
+	assert.Equal(t, uint(2), polsByName[globalNames[2]].FailingHostCount) // updated platform
+	assert.Equal(t, uint(2), polsByName[teamNames[0]].FailingHostCount)   // updated platform
+	assert.Equal(t, uint(1), polsByName[teamNames[1]].FailingHostCount)   // updated calendar events
+	assert.Equal(t, uint(0), polsByName[teamNames[2]].FailingHostCount)   // updated query
+	assert.Nil(t, polsByName[teamNames[2]].HostCountUpdatedAt)
 
 	err = ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
@@ -2892,7 +2895,8 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
-	assert.Equal(t, uint(0), teamPolicies[0].FailingHostCount)
+	// The partial cleanup refreshed the counts from the results the windows host still has.
+	assert.Equal(t, uint(1), teamPolicies[0].FailingHostCount)
 	assert.Equal(t, uint(0), inheritedPolicies[0].FailingHostCount)
 }
 
@@ -9235,11 +9239,12 @@ func testCleanupPendingPolicyMembership(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
 		assert.Zero(t, policyStatsCount(t, ds, pol.ID), "counts must not be rebuilt from results about to be deleted")
 
+		// The cleanup refreshes the counts itself, without waiting for the hourly aggregation.
 		require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
-		require.NoError(t, ds.UpdateHostPolicyCounts(ctx))
 		got, err := ds.Policy(ctx, pol.ID)
 		require.NoError(t, err)
 		assert.Equal(t, uint(2), got.FailingHostCount)
+		assert.NotNil(t, got.HostCountUpdatedAt)
 	})
 
 	t.Run("hourly reconcile leaves pending policies to the cleanup", func(t *testing.T) {
