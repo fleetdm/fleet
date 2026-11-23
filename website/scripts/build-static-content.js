@@ -1567,6 +1567,120 @@ module.exports = {
         builtStaticContent.scripts = scriptsLibrary;
         builtStaticContent.scriptsLibraryYmlRepoPath = RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO;
       },
+      //  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+      //  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
+      //  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
+      async()=>{
+        let RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO = 'docs/integrations.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find integrations YAML file at "${RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let parsedYaml = YAML.parse(yaml, {prettyErrors: true});
+        if(!parsedYaml || !_.isArray(parsedYaml.categories) || !_.isArray(parsedYaml.integrations)) {
+          throw new Error(`Could not build integrations configuration from ${RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO}. The file must have a "categories" list and an "integrations" list.`);
+        }
+        let yamlLines = yaml.split('\n');
+        let categorySlugsSeen = [];
+        // Every category and integration URL, so no two entries collide.
+        let urlsSeen = [];
+        for(let category of parsedYaml.categories) {
+          if(!category.name || !category.slug) {
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) is missing a "name" or "slug" value. To resolve, add the missing value and try running this script again.`);
+          }
+          if(!_.isString(category.name)){
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) has an invalid "name" value (expected a string, but instead got: ${typeof category.name }). To resolve, change the name value to a string and try running this script again.`);
+          }
+          if(!_.isString(category.slug)){
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) has an invalid "slug" value (expected a string, but instead got: ${typeof category.slug }). To resolve, change the slug value to a string and try running this script again.`);
+          }
+          if(categorySlugsSeen.includes(category.slug)) {
+            throw new Error(`Could not build integrations configuration from YAML. More than one category has the slug "${category.slug}". To resolve, give each category a unique slug.`);
+          }
+          categorySlugsSeen.push(category.slug);
+          category.url = '/integrate/'+category.slug;
+          if(urlsSeen.includes(category.url)) {
+            throw new Error(`Could not build integrations configuration from YAML. The URL "${category.url}" is used more than once. To resolve, make sure each category and integration URL is unique.`);
+          }
+          urlsSeen.push(category.url);
+        }
+        for(let integration of parsedYaml.integrations) {
+          for(let requiredKey of ['name', 'url', 'category', 'description', 'summary', 'logo']) {
+            if(!integration[requiredKey]) {
+              throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this integration and try running this script again.`);
+            }
+          }
+          for(let expectedStringAttribute of ['name', 'url', 'category', 'description', 'summary', 'logo']) {
+            if(!_.isString(integration[expectedStringAttribute])) {
+              throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) has an invalid "${expectedStringAttribute}" value (expected a string, but got: ${typeof integration[expectedStringAttribute]}). To resolve, change the ${expectedStringAttribute} to be a string and try running this script again.`);
+            }
+          }
+          if(!integration.url.match(/^\/integrate\/[a-z0-9-]+\/[a-z0-9-]+$/)) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has an invalid url (${integration.url}). Integration URLs must look like /integrate/{category}/{integration}, using lowercase letters, numbers, and dashes.`);
+          }
+          if(integration.vendorUrl !== undefined && !_.isString(integration.vendorUrl)) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has an invalid "vendorUrl" value (expected a string, but got: ${typeof integration.vendorUrl}). To resolve, change the vendorUrl to be a string or remove it, and try running this script again.`);
+          }
+          integration.alsoListedIn = integration.alsoListedIn || [];
+          for(let categorySlug of [integration.category].concat(integration.alsoListedIn)) {
+            if(!categorySlugsSeen.includes(categorySlug)) {
+              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" uses a category (${categorySlug}) that is not in the categories list. To resolve, change it to one of: ${categorySlugsSeen.join(', ')}`);
+            }
+          }
+          if(urlsSeen.includes(integration.url)) {
+            throw new Error(`Could not build integrations configuration from YAML. The URL "${integration.url}" is used more than once. To resolve, make sure each category and integration URL is unique.`);
+          }
+          urlsSeen.push(integration.url);
+          let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', integration.logo));
+          if(!logoExists) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a logo (${integration.logo}) that doesn't exist in the website/assets/images/ folder. To resolve, add the image or change the logo value.`);
+          }
+          integration.docs = integration.docs || [];
+          for(let doc of integration.docs) {
+            if(!doc.label || !doc.url) {
+              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a docs link that is missing a "label" or "url" value.`);
+            }
+            if(!_.isString(doc.label) || !_.isString(doc.url)) {
+              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a docs link (${util.inspect(doc)}) with a "label" or "url" value that isn't a string. To resolve, change both values to strings and try running this script again.`);
+            }
+          }
+          integration.slug = integration.url.split('/').pop();
+          integration.categoryName = _.find(parsedYaml.categories, {slug: integration.category}).name;
+          // Used for the "Edit page" link on the integration details page.
+          integration.lineNumberInYaml = _.findIndex(yamlLines, (line)=>{ return line.includes('url: "'+integration.url+'"'); }) + 1;
+        }
+        // Building blocks are Fleet's own extension points (REST API, webhooks, etc.), shown together on one page and linking straight to their docs.
+        let buildingBlocks = parsedYaml.buildingBlocks || [];
+        if(!_.isArray(buildingBlocks)) {
+          throw new Error(`Could not build integrations configuration from ${RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO}. "buildingBlocks" must be a list.`);
+        }
+        if(urlsSeen.includes('/integrate/build-anything')) {
+          throw new Error(`Could not build integrations configuration from YAML. "/integrate/build-anything" is reserved for the building blocks page. To resolve, change the category or integration that uses it.`);
+        }
+        urlsSeen.push('/integrate/build-anything');
+        for(let buildingBlock of buildingBlocks) {
+          for(let requiredKey of ['name', 'description', 'url']) {
+            if(!buildingBlock[requiredKey]) {
+              throw new Error(`Could not build integrations configuration from YAML. A building block (${buildingBlock.name || util.inspect(buildingBlock)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this building block and try running this script again.`);
+            }
+          }
+          for(let expectedStringAttribute of ['name', 'description', 'url']) {
+            if(!_.isString(buildingBlock[expectedStringAttribute])) {
+              throw new Error(`Could not build integrations configuration from YAML. A building block (${util.inspect(buildingBlock)}) has an invalid "${expectedStringAttribute}" value (expected a string, but got: ${typeof buildingBlock[expectedStringAttribute]}). To resolve, change the ${expectedStringAttribute} to be a string and try running this script again.`);
+            }
+          }
+          if(buildingBlock.logo !== undefined && !_.isString(buildingBlock.logo)) {
+            throw new Error(`Could not build integrations configuration from YAML. The building block "${buildingBlock.name}" has an invalid "logo" value (expected a string, but got: ${typeof buildingBlock.logo}). To resolve, change the logo to be a string or remove it, and try running this script again.`);
+          }
+          if(buildingBlock.logo) {
+            let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', buildingBlock.logo));
+            if(!logoExists) {
+              throw new Error(`Could not build integrations configuration from YAML. The building block "${buildingBlock.name}" has a logo (${buildingBlock.logo}) that doesn't exist in the website/assets/images/ folder. To resolve, add the image or change the logo value.`);
+            }
+          }
+        }
+        builtStaticContent.integrationBuildingBlocks = buildingBlocks;
+        builtStaticContent.integrationCategories = _.sortBy(parsedYaml.categories, (category)=>{ return category.name.toLowerCase(); });
+        builtStaticContent.integrations = _.sortBy(parsedYaml.integrations, (integration)=>{ return integration.name.toLowerCase(); });
+        builtStaticContent.integrationsYmlRepoPath = RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO;
+      },
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ █████╗ ███╗   ██╗██████╗ ███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
       //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
       //  ██║     ██║   ██║██╔████╔██║██╔████╔██║███████║██╔██╗ ██║██║  ██║███████╗    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝

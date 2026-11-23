@@ -473,11 +473,23 @@ module.exports.routes = {
   },
 
   'GET /integrations': {
-    action: 'view-integrations',
+    action: 'docs/view-integrations-directory',// Meta title set in view action
     locals: {
-      pageTitleForMeta: 'Integrations',
       pageDescriptionForMeta: 'Integrate IT ticketing systems, SIEM and SOAR platforms, custom IT workflows, and more.',
-      currentSection: 'platform'
+      currentSection: 'documentation',
+    }
+  },
+  'GET /integrate/:categorySlug': {
+    action: 'docs/view-integrations-directory',// Meta title set in view action
+    locals: {
+      pageDescriptionForMeta: 'Integrate IT ticketing systems, SIEM and SOAR platforms, custom IT workflows, and more.',
+      currentSection: 'documentation',
+    }
+  },
+  'GET /integrate/:categorySlug/:integrationSlug': {
+    action: 'docs/view-integration-details',// Meta title and description set in view action
+    locals: {
+      currentSection: 'documentation',
     }
   },
 
@@ -1383,6 +1395,27 @@ module.exports.routes = {
   'GET /downloads': '/download',
   'GET /deals': '/partners#deals',
   'GET /partner': '/partners',
+  'GET /integrate': (req, res) => { return res.redirect(301, '/integrations' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
+  'GET /zta': '/integrate/identity-provider',
+  'GET /pki': '/integrate/certificates',
+  'GET /integrate/idp': '/integrate/identity-provider',
+  'GET /integrate/conditional-access': '/integrate/identity-provider',
+  'GET /integrate/oem': '/integrate/zero-touch-enrollment',
+  'GET /integrate/zte': '/integrate/zero-touch-enrollment',
+  'GET /integrate/edr': '/integrate/endpoint-protection',
+  'GET /integrate/ai': '/integrate/ai-models',
+  'GET /integrate/telemetry': '/integrate/data-lake-and-siem',
+  'GET /integrate/itsm': '/integrate/ticketing',
+  'GET /integrate/iac': '/integrate/infrastructure-as-code',
+  'GET /integrate/itam': '/integrate/it-asset-management',
+  'GET /integrate/zta/okta': '/integrate/idp/okta',
+  'GET /integrate/zta/microsoft': '/integrate/idp/entra',
+  'GET /integrate/idp/ad': '/integrate/idp/active-directory',
+  'GET /integrate/crowdstrike': '/integrate/edr/crowdstrike',
+  'GET /integrate/sentinel-one': '/integrate/edr/sentinel-one',
+  'GET /integrate/idp/custom': '/integrate/build-anything',
+  'GET /integrate/telemetry/webhooks': '/integrate/build-anything',
+  'GET /integrate/itsm/webhooks': '/integrate/build-anything',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
