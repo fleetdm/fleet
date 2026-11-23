@@ -296,6 +296,8 @@ def collect(fleet, keep=None, workers=None, per_page=20, checkpoint=None, deadli
         for h in d.get("hosts") or []:
             row = {k: h.get(k) for k in HOST_FIELDS}
             row["failing_policies"] = (h.get("issues") or {}).get("failing_policies_count")
+            # Fleet Premium only; Fleet Free leaves it out.
+            row["critical_vulns"] = (h.get("issues") or {}).get("critical_vulnerabilities_count")
             row["mdm_status"] = (h.get("mdm") or {}).get("enrollment_status")
             hosts.append(row)
             software[str(h["id"])] = compact_software(h.get("software"), keep)
