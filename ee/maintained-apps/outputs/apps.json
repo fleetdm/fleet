@@ -4727,6 +4727,13 @@
       "description": "Jump Desktop is a remote desktop application."
     },
     {
+      "name": "k6",
+      "slug": "k6/windows",
+      "platform": "windows",
+      "unique_identifier": "k6",
+      "description": "k6 is an open-source load testing tool for developers, with tests written in JavaScript."
+    },
+    {
       "name": "Kaleidoscope",
       "slug": "kaleidoscope/darwin",
       "platform": "darwin",
