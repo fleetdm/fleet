@@ -2158,7 +2158,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for domain-joined accounts
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   bash: "printf \"uid,username,description,path,encrypted\\n\"; for u in $(last | awk '{print $1}' | grep -vE '^(wtmp|reboot)$' | sort -u); do [ -d \"/Users/$u/.ssh\" ] && for f in $(find \"/Users/$u/.ssh\" -type f -name \"authorized_keys*\" 2>/dev/null); do uid=$(id -u \"$u\"); desc=$(dscl . -read /Users/\"$u\" RealName 2>/dev/null | cut -d: -f2- | sed 's/^ //'); echo \"$uid,$u,$desc,$f,0\"; done; done"
@@ -2716,7 +2716,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get servers with root login in the last 24 hours
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Returns servers with root login in the last 24 hours and the time the users were logged in.
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
@@ -3198,7 +3198,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Mount Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check mount on the host - ATT&CK T1025,T1052
   query: SELECT device, device_alias, flags, path,type from mounts;
   purpose: Detection
@@ -3257,7 +3257,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - USB Device Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check USB device on the host - ATT&CK T1052
   query: SELECT * FROM usb_devices;
   purpose: Detection
@@ -3295,8 +3295,8 @@ spec:
   platform: linux, darwin, windows
   description: Lists all Opera extensions - ATT&CK T1176
   query: |-
-    SELECT u.username, ce.* FROM users u CROSS JOIN opera_extensions ce USING
-    (uid);
+    SELECT u.username, ce.* FROM users u CROSS JOIN chrome_extensions ce USING
+    (uid) WHERE ce.browser_type = 'opera';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: teoseller,tux234
@@ -4535,7 +4535,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Services Snapshot
-  platform: linux, darwin, windows
+  platform: windows
   description: Snapshot Services query
   query: SELECT * FROM services;
   purpose: Detection
