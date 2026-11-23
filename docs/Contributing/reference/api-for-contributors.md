@@ -2504,7 +2504,7 @@ Returns the label specified by name if it exists and its fleet (if any) is acces
 | Name     | Type   | In    | Description                                                                                                                                     |
 | -------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | name     | string | path  | **Required.** The label's name.                                                                                                                 |
-| fleet_id | int    | query | _Available in Fleet Premium._ Looks the name up among the global labels and this fleet's labels. Supply 0 to look it up among the global labels only. |
+| fleet_id | integer    | query | _Available in Fleet Premium._ Looks the name up among the global labels and this fleet's labels. Supply 0 to look it up among the global labels only. |
 
 #### Example
 
