@@ -124,6 +124,7 @@ func TestHosts(t *testing.T) {
 		{"ByIdentifier", testHostsByIdentifier},
 		{"ByUUID", testHostsByUUID},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
+		{"HostIDByIdentifier", testHostIDByIdentifier},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
 		{"SaveHostUsers", testHostsSaveHostUsers},
@@ -199,6 +200,7 @@ func TestHosts(t *testing.T) {
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
 		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
+		{"EnrollSerialMatch", testHostsEnrollSerialMatch},
 		{"OtherMDMHostIDWithUUID", testOtherMDMHostIDWithUUID},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
@@ -4307,10 +4309,10 @@ func testHostIDsByLabelIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID}, ids)
 
-	// HostIDsByIdentifier still matches them, for live queries and profile variables.
+	// HostIDsByIdentifier also matches hostnames, for live queries and profile variables, but not agent keys.
 	ids, err = ds.HostIDsByIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, ids)
+	assert.ElementsMatch(t, []uint{hosts[0].ID}, ids)
 }
 
 func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
@@ -4484,15 +4486,13 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
-	h, err = ds.HostByIdentifier(context.Background(), "osquery_host_id_2")
-	require.NoError(t, err)
-	assert.Equal(t, uint(2), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
-
-	h, err = ds.HostByIdentifier(context.Background(), "node_key_4")
-	require.NoError(t, err)
-	assert.Equal(t, uint(4), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
+	// Agent keys aren't identifiers.
+	for _, agentKey := range []string{"osquery_host_id_2", "node_key_4"} {
+		_, err = ds.HostByIdentifier(context.Background(), agentKey)
+		require.True(t, fleet.IsNotFound(err), "HostByIdentifier(%q): %v", agentKey, err)
+		_, err = ds.HostLiteByIdentifier(context.Background(), agentKey)
+		require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", agentKey, err)
+	}
 
 	h, err = ds.HostByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
@@ -4508,8 +4508,6 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 		setSerial := func(h *fleet.Host, value string) { h.HardwareSerial = value }
 		setUUID := func(h *fleet.Host, value string) { h.UUID = value }
 		setHostname := func(h *fleet.Host, value string) { h.Hostname = value }
-		setOsqueryHostID := func(h *fleet.Host, value string) { h.OsqueryHostID = &value }
-		setNodeKey := func(h *fleet.Host, value string) { h.NodeKey = &value }
 
 		// The expected loser is created first, so the winner never has the lower ID unless the case is about the tie-break.
 		testCases := []struct {
@@ -4520,8 +4518,6 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 		}{
 			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
 			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
-			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
-			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
 			{name: "lowest ID wins on a shared hostname", setLoser: setHostname, setWinner: setHostname},
 			{name: "lowest ID wins on a shared serial", setLoser: setSerial, setWinner: setSerial},
 			{name: "lowest ID wins on a shared UUID", setLoser: setUUID, setWinner: setUUID},
@@ -4659,6 +4655,90 @@ func testHostsByUUID(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testHostIDByIdentifier(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	var hostCount int
+	// newHost creates a host whose identifiers are all unique, then overrides the ones set changes.
+	newHost := func(set func(*fleet.Host)) uint {
+		hostCount++
+		h := &fleet.Host{
+			DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+			OsqueryHostID:  new(fmt.Sprintf("unique_osquery_host_id_%d", hostCount)),
+			NodeKey:        new(fmt.Sprintf("unique_node_key_%d", hostCount)),
+			UUID:           fmt.Sprintf("unique_uuid_%d", hostCount),
+			Hostname:       fmt.Sprintf("unique_hostname_%d", hostCount),
+			HardwareSerial: fmt.Sprintf("unique_serial_%d", hostCount),
+		}
+		if set != nil {
+			set(h)
+		}
+		created, err := ds.NewHost(t.Context(), h)
+		require.NoError(t, err)
+		return created.ID
+	}
+	setSerial := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.HardwareSerial = value } }
+	setUUID := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.UUID = value } }
+	setHostname := func(value string) func(*fleet.Host) { return func(h *fleet.Host) { h.Hostname = value } }
+	matchID := fleet.HostIDByIdentifierOptions{MatchID: true}
+
+	t.Run("priority across and within columns", func(t *testing.T) {
+		// The older host is created first, so a column beating a newer host's column shows that priority comes before recency.
+		testCases := []struct {
+			name         string
+			older, newer func(string) func(*fleet.Host)
+			newerWins    bool
+		}{
+			{name: "serial beats a newer UUID", older: setSerial, newer: setUUID},
+			{name: "UUID beats a newer hostname", older: setUUID, newer: setHostname},
+			{name: "newest host wins on a shared serial", older: setSerial, newer: setSerial, newerWins: true},
+			{name: "newest host wins on a shared UUID", older: setUUID, newer: setUUID, newerWins: true},
+			{name: "newest host wins on a shared hostname", older: setHostname, newer: setHostname, newerWins: true},
+		}
+		for i, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				contested := fmt.Sprintf("contested_%d", i)
+				wantID, newerID := newHost(tc.older(contested)), newHost(tc.newer(contested))
+				if tc.newerWins {
+					wantID = newerID
+				}
+				gotID, err := ds.HostIDByIdentifier(t.Context(), contested, matchID)
+				require.NoError(t, err)
+				require.Equal(t, wantID, gotID)
+			})
+		}
+	})
+
+	t.Run("host ID", func(t *testing.T) {
+		idHost := newHost(nil)
+		serialHost := newHost(setSerial(fmt.Sprint(idHost)))
+		fallbackHost := newHost(setSerial("987654321"))
+		for _, tc := range []struct {
+			identifier string
+			opts       fleet.HostIDByIdentifierOptions
+			wantID     uint
+		}{
+			{fmt.Sprint(idHost), matchID, idHost},                               // a host ID beats another host's serial
+			{fmt.Sprint(idHost), fleet.HostIDByIdentifierOptions{}, serialHost}, // without MatchID, the ID isn't matched
+			{"987654321", matchID, fallbackHost},                                // a number no host has as its ID falls back
+		} {
+			gotID, err := ds.HostIDByIdentifier(t.Context(), tc.identifier, tc.opts)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantID, gotID, tc.identifier)
+		}
+	})
+
+	t.Run("agent keys and blank identifiers match nothing", func(t *testing.T) {
+		newHost(func(h *fleet.Host) {
+			h.OsqueryHostID, h.NodeKey = new("agent_osquery_host_id"), new("agent_node_key")
+			h.UUID, h.Hostname, h.HardwareSerial = "", "", ""
+		})
+		for _, identifier := range []string{"agent_osquery_host_id", "agent_node_key", "", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
+			_, err := ds.HostIDByIdentifier(t.Context(), identifier, matchID)
+			require.True(t, fleet.IsNotFound(err), "HostIDByIdentifier(%q): %v", identifier, err)
+		}
+	})
+}
+
 func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	now := time.Now().UTC().Truncate(time.Second)
 	for i := 1; i <= 10; i++ {
@@ -4692,16 +4772,6 @@ func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	h, err = ds.HostLiteByID(context.Background(), h.ID)
 	require.NoError(t, err)
 	assert.Equal(t, identifier, h.UUID)
-
-	h, err = ds.HostLiteByIdentifier(context.Background(), "osquery_host_id_2")
-	require.NoError(t, err)
-	assert.Equal(t, uint(2), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
-
-	h, err = ds.HostLiteByIdentifier(context.Background(), "node_key_4")
-	require.NoError(t, err)
-	assert.Equal(t, uint(4), h.ID)
-	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostLiteByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
@@ -13032,6 +13102,113 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testHostsEnrollSerialMatch(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrollOrbit := func(t *testing.T, hardwareUUID, serial, platform string) *fleet.Host {
+		t.Helper()
+		h, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: hardwareUUID, HardwareSerial: serial, Platform: platform}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()),
+		)
+		require.NoError(t, err)
+		return h
+	}
+	enrollOsquery := func(t *testing.T, hardwareUUID, serial string) *fleet.Host {
+		t.Helper()
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(hardwareUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hardwareUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(serial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
+		)
+		require.NoError(t, err)
+		return h
+	}
+	previouslyOrbitEnrolled := func(t *testing.T, hardwareUUID, serial, platform string) bool {
+		t.Helper()
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx,
+			fleet.OrbitHostInfo{HardwareUUID: hardwareUUID, HardwareSerial: serial, Platform: platform}, true)
+		require.NoError(t, err)
+		return got
+	}
+
+	t.Run("host with another UUID", func(t *testing.T) {
+		serial := uuid.NewString()
+		mac := enrollOrbit(t, uuid.NewString(), serial, "darwin")
+		enrollOsquery(t, mac.UUID, serial)
+		before, err := ds.Host(ctx, mac.ID)
+		require.NoError(t, err)
+		require.NotNil(t, before.OrbitNodeKey)
+		require.NotNil(t, before.NodeKey)
+
+		for _, platform := range []string{"darwin", "ubuntu"} {
+			otherUUID := uuid.NewString()
+			require.False(t, previouslyOrbitEnrolled(t, otherUUID, serial, platform))
+			other := enrollOrbit(t, otherUUID, serial, platform)
+			require.NotEqual(t, mac.ID, other.ID)
+			require.Equal(t, otherUUID, other.UUID)
+		}
+		require.NotEqual(t, mac.ID, enrollOsquery(t, uuid.NewString(), serial).ID)
+
+		withoutUUID, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(uuid.NewString()),
+			fleet.WithEnrollOsqueryHardwareSerial(serial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
+		)
+		require.NoError(t, err)
+		require.NotEqual(t, mac.ID, withoutUUID.ID)
+
+		after, err := ds.Host(ctx, mac.ID)
+		require.NoError(t, err)
+		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey)
+		require.Equal(t, before.NodeKey, after.NodeKey)
+
+		require.True(t, previouslyOrbitEnrolled(t, mac.UUID, serial, "darwin"))
+		require.Equal(t, mac.ID, enrollOrbit(t, mac.UUID, serial, "darwin").ID)
+		require.Equal(t, mac.ID, enrollOsquery(t, mac.UUID, serial).ID)
+	})
+
+	newHost := func(t *testing.T, hostUUID, serial string) *fleet.Host {
+		t.Helper()
+		zeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:            hostUUID,
+			HardwareSerial:  serial,
+			Platform:        "darwin",
+			LastEnrolledAt:  zeroTime,
+			DetailUpdatedAt: zeroTime,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// A host restored after deletion keeps its UUID but has no osquery identifier.
+	t.Run("host with the enrolling UUID and no osquery identifier", func(t *testing.T) {
+		hostUUID, serial := strings.ToUpper(uuid.NewString()), uuid.NewString()
+		h := newHost(t, hostUUID, serial)
+		require.Equal(t, h.ID, enrollOrbit(t, strings.ToLower(hostUUID), serial, "darwin").ID)
+
+		h = newHost(t, strings.ToUpper(uuid.NewString()), uuid.NewString())
+		require.Equal(t, h.ID, enrollOsquery(t, h.UUID, h.HardwareSerial).ID)
+	})
+
+	t.Run("host without a UUID", func(t *testing.T) {
+		h := newHost(t, "", uuid.NewString())
+		hardwareUUID := uuid.NewString()
+		require.False(t, previouslyOrbitEnrolled(t, hardwareUUID, h.HardwareSerial, "darwin"))
+		enrolled := enrollOrbit(t, hardwareUUID, h.HardwareSerial, "darwin")
+		require.Equal(t, h.ID, enrolled.ID)
+		require.Equal(t, hardwareUUID, enrolled.UUID)
+
+		h = newHost(t, "", uuid.NewString())
+		require.Equal(t, h.ID, enrollOsquery(t, uuid.NewString(), h.HardwareSerial).ID)
+	})
+}
+
 func testOtherMDMHostIDWithUUID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -13957,11 +14134,11 @@ func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
 	}{
 		{desc: "no identifier", in: nil, out: nil},
 		{desc: "no match", in: []string{"ZZZ"}, out: nil},
-		{desc: "single match", in: []string{"abc"}, out: []string{h1.Hostname}},
-		{desc: "two matches", in: []string{"mno"}, out: []string{h2.Hostname, h3.Hostname}},
-		{desc: "all matches", in: []string{"def"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "multiple identifiers", in: []string{"abc", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
-		{desc: "duplicate identifiers", in: []string{"abc", "abc", "ghi"}, out: []string{h1.Hostname}},
+		{desc: "single match", in: []string{"jkl"}, out: []string{h1.Hostname}},
+		{desc: "two matches", in: []string{"def"}, out: []string{h1.Hostname, h3.Hostname}},
+		{desc: "node keys aren't identifiers", in: []string{"abc"}, out: nil},
+		{desc: "multiple identifiers", in: []string{"jkl", "mno", "vwx"}, out: []string{h1.Hostname, h2.Hostname, h3.Hostname}},
+		{desc: "duplicate identifiers", in: []string{"jkl", "jkl", "ghi"}, out: []string{h1.Hostname}},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {

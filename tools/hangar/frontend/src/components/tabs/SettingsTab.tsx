@@ -16,9 +16,6 @@ import {
 } from "../../lib/ipc";
 import {
   activeServer,
-  APNS_PUSH_URL_ENV,
-  apnsMockEnvConflict,
-  apnsMockUrl,
   canAddServer,
   MAX_SERVERS,
   serverColorVar,
@@ -1232,19 +1229,6 @@ function FleetServerSection({
     await save({ config_path: null });
   }
 
-  async function setMockApns(on: boolean) {
-    setBusy(true);
-    setError(null);
-    try {
-      const next = updateActiveServer(settings, (s) => ({ ...s, mock_apns: on }));
-      await api.saveSettings(next);
-      onChange(next);
-    } catch (e) {
-      setError(String(e));
-    }
-    setBusy(false);
-  }
-  const apnsConflict = server.mock_apns ? apnsMockEnvConflict(server) : null;
 
   // Env-var rows. Tracked as local state so a draft row with an empty
   // key isn't persisted until the user types a key. Persisting onChange
@@ -1330,17 +1314,6 @@ function FleetServerSection({
             checked={cfg.logging_debug}
             onChange={(v) => save({ logging_debug: v })}
           />
-          <CheckboxRow
-            label="Mock APNs"
-            description={`Runs a mock Apple push server (cmd/apple-apns-mock) on ${apnsMockUrl(server)} with this server's stack and sets ${APNS_PUSH_URL_ENV} to it, so osquery-perf's simulated macOS, iOS and iPadOS hosts can enroll in MDM. Real Apple devices enrolled in this server get no pushes while it's on. fleet serve picks it up on its next start; the Server tab offers a restart if it's already running.`}
-            checked={server.mock_apns}
-            onChange={setMockApns}
-          />
-          {apnsConflict && (
-            <div style={{ color: "var(--ui-warning)", fontSize: "var(--fs-xxx-small)" }}>
-              {apnsConflict}
-            </div>
-          )}
         </div>
 
         {error && (

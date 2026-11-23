@@ -613,11 +613,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		// Report both removed names in one run.
-		if result.IsNoTeam() {
+		removedName := result.TeamName != nil && strings.EqualFold(*result.TeamName, fleet.ReservedNameNoTeam)
+		if removedName {
 			multiError = multierror.Append(multiError, removedNameError(removednames.KindYAMLValue, "name: No team"))
 		}
 		switch {
-		case removedFile || result.IsNoTeam():
+		case removedFile || removedName:
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
@@ -626,8 +627,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
 			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam():
-			// The rest of the processing uses the internal name "No team" for unassigned hosts.
-			result.TeamName = ptr.String(noTeam)
+			result.TeamName = new(unassignedTeamName)
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
 				multiError = parseNoTeamSettings(settingsRaw, result, filePath, multiError)
@@ -738,7 +738,7 @@ func (g *GitOps) IsGlobal() bool {
 }
 
 func (g *GitOps) IsNoTeam() bool {
-	return g.TeamName != nil && strings.EqualFold(*g.TeamName, noTeam)
+	return g.IsUnassignedTeam()
 }
 
 func (g *GitOps) IsUnassignedTeam() bool {
@@ -752,10 +752,7 @@ func (g *GitOps) CoercedTeamName() string {
 	return *g.TeamName
 }
 
-const (
-	noTeam             = "No team"
-	unassignedTeamName = "Unassigned"
-)
+const unassignedTeamName = "Unassigned"
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop fleet.BaseItem
@@ -2448,7 +2445,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 		}
 	}
 	if !scriptOnTeamFound {
-		if *teamName == noTeam {
+		if *teamName == unassignedTeamName {
 			return fmt.Errorf("policy script %s was not defined in controls in %s", scriptPath, filepath.Base(parentFilePath))
 		}
 		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)

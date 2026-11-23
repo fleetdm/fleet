@@ -129,7 +129,7 @@ func (m *mockService) ListActivities(_ context.Context, _ api.ListOptions) ([]*a
 	panic("mockService.ListActivities should not be called in validation tests")
 }
 
-func (m *mockService) ListHostPastActivities(_ context.Context, _ uint, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+func (m *mockService) ListHostPastActivities(_ context.Context, _ string, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
 	panic("mockService.ListHostPastActivities should not be called in validation tests")
 }
 

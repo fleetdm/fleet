@@ -250,6 +250,8 @@ type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion,
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
+type HostIDByIdentifierFunc func(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error)
+
 type HostByUUIDFunc func(ctx context.Context, uuid string) (*fleet.Host, error)
 
 type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
@@ -1148,13 +1150,9 @@ type RotateMDMAppleAutomaticEnrollmentTokenFunc func(ctx context.Context, newTok
 
 type GetMDMAppleEnrollmentProfileByTypeFunc func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error)
 
-type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error)
-
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
-
-type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []fleet.Host, abmTokenID uint, mdmMigrationDeadlinesByHostID map[uint]time.Time) error
 
@@ -1202,17 +1200,9 @@ type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) 
 
 type FilterWebhooksAndTicketsPoliciesFunc func(ctx context.Context, policyIDs []uint) ([]fleet.PolicyIDAndTeam, error)
 
-type WebhooksAndTicketsPolicyIDsFunc func(ctx context.Context, teamID *uint) ([]uint, error)
-
-type WebhooksAndTicketsPolicyIDsByTeamFunc func(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
-
-type PoliciesWithOtherAutomationsFunc func(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error)
-
 type WebhooksAndTicketsByPolicyNameFunc func(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
 
 type WebhooksAndTicketsByPatchPolicySlugFunc func(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
-
-type SetWebhooksAndTicketsPoliciesFunc func(ctx context.Context, teamID *uint, policyIDs []uint) error
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1822,6 +1812,12 @@ type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRe
 
 type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
 
+type MDMWindowsFailInterruptedResetFunc func(ctx context.Context, enrollmentID uint, hostID uint) (bool, error)
+
+type MDMWindowsRemoteWipeInProgressFunc func(ctx context.Context, enrollmentID uint, hostID uint) (bool, error)
+
+type ClearEndUserAfterWindowsResetFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error)
+
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
 type GetIncludedHostIDMapForSoftwareInstallerFunc func(ctx context.Context, installerID uint) (map[uint]struct{}, error)
@@ -2085,6 +2081,8 @@ type EnqueueSetupExperienceItemsFunc func(ctx context.Context, hostPlatform stri
 type ResetSetupExperienceItemsAfterFailureFunc func(ctx context.Context, hostPlatform string, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
 
 type CancelPendingSetupExperienceStepsFunc func(ctx context.Context, hostUUID string) error
+
+type HostIDBySetupExperienceUUIDFunc func(ctx context.Context, hostUUID string) (uint, error)
 
 type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*fleet.Script, error)
 
@@ -2478,7 +2476,7 @@ type DeleteCertificateAuthorityFunc func(ctx context.Context, certificateAuthori
 
 type UpdateCertificateAuthorityByIDFunc func(ctx context.Context, id uint, certificateAuthority *fleet.CertificateAuthority) error
 
-type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error
+type BatchApplyCertificateAuthoritiesFunc func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) (templateFleetIDs []uint, err error)
 
 type UpsertCertificateStatusFunc func(ctx context.Context, update *fleet.CertificateStatusUpdate) error
 
@@ -2995,6 +2993,9 @@ type DataStore struct {
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
+
+	HostIDByIdentifierFunc        HostIDByIdentifierFunc
+	HostIDByIdentifierFuncInvoked bool
 
 	HostByUUIDFunc        HostByUUIDFunc
 	HostByUUIDFuncInvoked bool
@@ -4343,17 +4344,11 @@ type DataStore struct {
 	GetMDMAppleEnrollmentProfileByTypeFunc        GetMDMAppleEnrollmentProfileByTypeFunc
 	GetMDMAppleEnrollmentProfileByTypeFuncInvoked bool
 
-	ListMDMAppleEnrollmentProfilesFunc        ListMDMAppleEnrollmentProfilesFunc
-	ListMDMAppleEnrollmentProfilesFuncInvoked bool
-
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
 
 	GetVPPCommandResultsFunc        GetVPPCommandResultsFunc
 	GetVPPCommandResultsFuncInvoked bool
-
-	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
-	MDMAppleListDevicesFuncInvoked bool
 
 	UpsertMDMAppleHostDEPAssignmentsFunc        UpsertMDMAppleHostDEPAssignmentsFunc
 	UpsertMDMAppleHostDEPAssignmentsFuncInvoked bool
@@ -4424,23 +4419,11 @@ type DataStore struct {
 	FilterWebhooksAndTicketsPoliciesFunc        FilterWebhooksAndTicketsPoliciesFunc
 	FilterWebhooksAndTicketsPoliciesFuncInvoked bool
 
-	WebhooksAndTicketsPolicyIDsFunc        WebhooksAndTicketsPolicyIDsFunc
-	WebhooksAndTicketsPolicyIDsFuncInvoked bool
-
-	WebhooksAndTicketsPolicyIDsByTeamFunc        WebhooksAndTicketsPolicyIDsByTeamFunc
-	WebhooksAndTicketsPolicyIDsByTeamFuncInvoked bool
-
-	PoliciesWithOtherAutomationsFunc        PoliciesWithOtherAutomationsFunc
-	PoliciesWithOtherAutomationsFuncInvoked bool
-
 	WebhooksAndTicketsByPolicyNameFunc        WebhooksAndTicketsByPolicyNameFunc
 	WebhooksAndTicketsByPolicyNameFuncInvoked bool
 
 	WebhooksAndTicketsByPatchPolicySlugFunc        WebhooksAndTicketsByPatchPolicySlugFunc
 	WebhooksAndTicketsByPatchPolicySlugFuncInvoked bool
-
-	SetWebhooksAndTicketsPoliciesFunc        SetWebhooksAndTicketsPoliciesFunc
-	SetWebhooksAndTicketsPoliciesFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -5354,6 +5337,15 @@ type DataStore struct {
 	WipeHostViaWindowsMDMFunc        WipeHostViaWindowsMDMFunc
 	WipeHostViaWindowsMDMFuncInvoked bool
 
+	MDMWindowsFailInterruptedResetFunc        MDMWindowsFailInterruptedResetFunc
+	MDMWindowsFailInterruptedResetFuncInvoked bool
+
+	MDMWindowsRemoteWipeInProgressFunc        MDMWindowsRemoteWipeInProgressFunc
+	MDMWindowsRemoteWipeInProgressFuncInvoked bool
+
+	ClearEndUserAfterWindowsResetFunc        ClearEndUserAfterWindowsResetFunc
+	ClearEndUserAfterWindowsResetFuncInvoked bool
+
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
 
@@ -5749,6 +5741,9 @@ type DataStore struct {
 
 	CancelPendingSetupExperienceStepsFunc        CancelPendingSetupExperienceStepsFunc
 	CancelPendingSetupExperienceStepsFuncInvoked bool
+
+	HostIDBySetupExperienceUUIDFunc        HostIDBySetupExperienceUUIDFunc
+	HostIDBySetupExperienceUUIDFuncInvoked bool
 
 	GetSetupExperienceScriptFunc        GetSetupExperienceScriptFunc
 	GetSetupExperienceScriptFuncInvoked bool
@@ -7397,6 +7392,13 @@ func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*f
 	s.HostByIdentifierFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostByIdentifierFunc(ctx, identifier)
+}
+
+func (s *DataStore) HostIDByIdentifier(ctx context.Context, identifier string, opts fleet.HostIDByIdentifierOptions) (uint, error) {
+	s.mu.Lock()
+	s.HostIDByIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDByIdentifierFunc(ctx, identifier, opts)
 }
 
 func (s *DataStore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, error) {
@@ -10542,13 +10544,6 @@ func (s *DataStore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ 
 	return s.GetMDMAppleEnrollmentProfileByTypeFunc(ctx, typ)
 }
 
-func (s *DataStore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	s.mu.Lock()
-	s.ListMDMAppleEnrollmentProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAppleEnrollmentProfilesFunc(ctx)
-}
-
 func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
 	s.mu.Lock()
 	s.GetMDMAppleCommandResultsFuncInvoked = true
@@ -10561,13 +10556,6 @@ func (s *DataStore) GetVPPCommandResults(ctx context.Context, commandUUID string
 	s.GetVPPCommandResultsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPCommandResultsFunc(ctx, commandUUID, hostUUID)
-}
-
-func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	s.mu.Lock()
-	s.MDMAppleListDevicesFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleListDevicesFunc(ctx)
 }
 
 func (s *DataStore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint, mdmMigrationDeadlinesByHostID map[uint]time.Time) error {
@@ -10731,27 +10719,6 @@ func (s *DataStore) FilterWebhooksAndTicketsPolicies(ctx context.Context, policy
 	return s.FilterWebhooksAndTicketsPoliciesFunc(ctx, policyIDs)
 }
 
-func (s *DataStore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
-	s.mu.Lock()
-	s.WebhooksAndTicketsPolicyIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.WebhooksAndTicketsPolicyIDsFunc(ctx, teamID)
-}
-
-func (s *DataStore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
-	s.mu.Lock()
-	s.WebhooksAndTicketsPolicyIDsByTeamFuncInvoked = true
-	s.mu.Unlock()
-	return s.WebhooksAndTicketsPolicyIDsByTeamFunc(ctx, teamIDs)
-}
-
-func (s *DataStore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
-	s.mu.Lock()
-	s.PoliciesWithOtherAutomationsFuncInvoked = true
-	s.mu.Unlock()
-	return s.PoliciesWithOtherAutomationsFunc(ctx, teamID, policyIDs)
-}
-
 func (s *DataStore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
 	s.mu.Lock()
 	s.WebhooksAndTicketsByPolicyNameFuncInvoked = true
@@ -10764,13 +10731,6 @@ func (s *DataStore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, tea
 	s.WebhooksAndTicketsByPatchPolicySlugFuncInvoked = true
 	s.mu.Unlock()
 	return s.WebhooksAndTicketsByPatchPolicySlugFunc(ctx, teamID, slugs)
-}
-
-func (s *DataStore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
-	s.mu.Lock()
-	s.SetWebhooksAndTicketsPoliciesFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetWebhooksAndTicketsPoliciesFunc(ctx, teamID, policyIDs)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
@@ -12901,6 +12861,27 @@ func (s *DataStore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host,
 	return s.WipeHostViaWindowsMDMFunc(ctx, host, cmd)
 }
 
+func (s *DataStore) MDMWindowsFailInterruptedReset(ctx context.Context, enrollmentID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsFailInterruptedResetFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsFailInterruptedResetFunc(ctx, enrollmentID, hostID)
+}
+
+func (s *DataStore) MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollmentID uint, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsRemoteWipeInProgressFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsRemoteWipeInProgressFunc(ctx, enrollmentID, hostID)
+}
+
+func (s *DataStore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+	s.mu.Lock()
+	s.ClearEndUserAfterWindowsResetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearEndUserAfterWindowsResetFunc(ctx, opts...)
+}
+
 func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error {
 	s.mu.Lock()
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
@@ -13823,6 +13804,13 @@ func (s *DataStore) CancelPendingSetupExperienceSteps(ctx context.Context, hostU
 	s.CancelPendingSetupExperienceStepsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelPendingSetupExperienceStepsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) HostIDBySetupExperienceUUID(ctx context.Context, hostUUID string) (uint, error) {
+	s.mu.Lock()
+	s.HostIDBySetupExperienceUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDBySetupExperienceUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetSetupExperienceScript(ctx context.Context, teamID *uint) (*fleet.Script, error) {
@@ -15197,7 +15185,7 @@ func (s *DataStore) UpdateCertificateAuthorityByID(ctx context.Context, id uint,
 	return s.UpdateCertificateAuthorityByIDFunc(ctx, id, certificateAuthority)
 }
 
-func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
+func (s *DataStore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) (templateFleetIDs []uint, err error) {
 	s.mu.Lock()
 	s.BatchApplyCertificateAuthoritiesFuncInvoked = true
 	s.mu.Unlock()

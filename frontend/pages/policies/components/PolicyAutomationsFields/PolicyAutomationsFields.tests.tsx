@@ -754,7 +754,6 @@ describe("PolicyAutomationsFields — Automation dropdown", () => {
       failing_policies_webhook: {
         enable_failing_policies_webhook: true,
         destination_url: "https://example.com",
-        policy_ids: [],
         host_batch_size: 0,
       },
     },

@@ -16,6 +16,7 @@ import { InstallerType, SoftwareSource } from "interfaces/software";
 import {
   getAutoUpdateTooltip,
   getSelfServiceTooltip,
+  isAndroidWebApp,
 } from "pages/SoftwarePage/helpers";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
@@ -162,6 +163,9 @@ export interface ILibraryItemAccordionProps {
    * App Store app version rows to show a configuration-profile glyph (the
    * row represents a configuration, not an app). */
   graphicOverride?: GraphicNames;
+  /** Override the row's icon with an arbitrary node (e.g. the title's
+   * `SoftwareIcon`). Takes precedence over `graphicOverride`. */
+  iconOverride?: React.ReactNode;
 
   /** Suppress the version chip's "Updated every hour." / Play Store tooltip
    * on this row. Used by App Store app version rows where the app metadata
@@ -214,6 +218,7 @@ const LibraryItemAccordion = ({
   autoUpdateWindowEnd,
   onAutoUpdateClick,
   graphicOverride,
+  iconOverride,
   hideVersion = false,
 }: ILibraryItemAccordionProps) => {
   const [expanded, setExpanded] = useState(false);
@@ -642,9 +647,16 @@ const LibraryItemAccordion = ({
   // Store titles both target one version within the title (Edit/Delete
   // version); every other shape edits/deletes the title itself (Edit/Delete
   // software). See EditSoftwareModal / DeleteSoftwareModal / EditVersionModal.
+  // Android web apps hold a single version, so the row edits targets and
+  // deleting it deletes the software.
+  const isWebApp = isAndroidWebApp(androidPlayStoreId);
   const isPerVersionRow =
-    canActivateMultiplePackages || canActivateMultipleVersions;
-  const editAriaLabel = isPerVersionRow ? "Edit version" : "Edit software";
+    (canActivateMultiplePackages || canActivateMultipleVersions) && !isWebApp;
+  const getEditAriaLabel = () => {
+    if (isWebApp) return "Edit targets";
+    return isPerVersionRow ? "Edit version" : "Edit software";
+  };
+  const editAriaLabel = getEditAriaLabel();
   const trashAriaLabel = isPerVersionRow ? "Delete version" : "Delete software";
 
   const renderTrashButtonBody = (disabled: boolean) => (
@@ -710,6 +722,7 @@ const LibraryItemAccordion = ({
       androidPlayStoreId={androidPlayStoreId}
       hideInstallerType
       graphicOverride={graphicOverride}
+      iconOverride={iconOverride}
       hideVersion={hideVersion}
       // Inactive rows surface a single hover tooltip (the rollback hint);
       // suppress the widget's tooltips to avoid stacking two on the same

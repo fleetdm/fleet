@@ -126,6 +126,10 @@ type UserLookupService interface {
 type HostLookupService interface {
 	// GetHostLite returns basic host information not requiring table joins.
 	GetHostLite(ctx context.Context, id uint) (host *Host, err error)
+	// HostIDByIDOrIdentifier returns the ID of the host that the :id path parameter of a host endpoint names: a host ID first, then the
+	// hardware_serial, UUID or hostname of the newest matching host. It only checks that the caller can list hosts; the caller must still
+	// authorize the host.
+	HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error)
 }
 
 // LookupService combines UserLookupService and HostLookupService for components
@@ -483,8 +487,7 @@ type Service interface {
 	// DeleteHostGoogleDeviceID removes it, which also queues the unmark in Google.
 	SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error
 	DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error
-	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
-	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
+	// HostLiteByID returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
 	// ListDevicePolicies lists all policies for the given host in their
@@ -772,27 +775,9 @@ type Service interface {
 	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// GlobalScheduleService
-
-	GlobalScheduleQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetGlobalScheduledQueries(ctx context.Context, opts ListOptions) ([]*ScheduledQuery, error)
-	ModifyGlobalScheduledQueries(ctx context.Context, id uint, q ScheduledQueryPayload) (*ScheduledQuery, error)
-	DeleteGlobalScheduledQueries(ctx context.Context, id uint) error
-
-	// /////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
 
 	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)
-
-	// /////////////////////////////////////////////////////////////////////////////
-	// TeamScheduleService
-
-	TeamScheduleQuery(ctx context.Context, teamID uint, sq *ScheduledQuery) (*ScheduledQuery, error)
-	GetTeamScheduledQueries(ctx context.Context, teamID uint, opts ListOptions) ([]*ScheduledQuery, error)
-	ModifyTeamScheduledQueries(
-		ctx context.Context, teamID uint, scheduledQueryID uint, q ScheduledQueryPayload,
-	) (*ScheduledQuery, error)
-	DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
@@ -1049,9 +1034,6 @@ type Service interface {
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) (*url.URL, error)
-
-	// ListMDMAppleDevices lists all the MDM enrolled Apple devices.
-	ListMDMAppleDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
 	// GenerateABMKeyPair generates and stores in the database public and
 	// private keys to use in ABM to generate an encrypted auth token.
@@ -1440,7 +1422,9 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (*HostUnlockResult, error)
-	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
+	WipeHost(ctx context.Context, hostID uint) error
+	// ResetHost erases a Windows host but keeps its provisioning packages, so a host set up with one can re-enroll itself.
+	ResetHost(ctx context.Context, hostID uint) error
 
 	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.
 	// Not script based, only MDM based.

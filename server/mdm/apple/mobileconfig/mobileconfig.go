@@ -314,10 +314,8 @@ var (
 
 // XMLEscapeString returns the escaped XML equivalent of the plain text data s.
 func XMLEscapeString(s string) (string, error) {
-	// avoid allocation if we can.
-	if !strings.ContainsAny(s, "'\"&<>\t\n\r") {
-		return s, nil
-	}
+	// No fast path: xml.EscapeText also replaces runes outside the XML character
+	// range (e.g. control bytes), which a ContainsAny check would let through raw.
 	var b strings.Builder
 	if err := xml.EscapeText(&b, []byte(s)); err != nil {
 		return "", err

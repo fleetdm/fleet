@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -1613,6 +1615,13 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				}
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
+				if status.IsWiped() && status.IsReset() {
+					queued, err := windowsHostsWithPendingRemoteWipeDB(ctx, ds.reader(ctx), []string{host.UUID})
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get wipe queued after reset")
+					}
+					_, status.WipeQueuedAfterReset = queued[host.UUID]
+				}
 			} else {
 				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 				if err != nil && !fleet.IsNotFound(err) {
@@ -2017,6 +2026,27 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
+			}
+		}
+
+		resetHosts := make(map[string][]*fleet.HostLockWipeStatus)
+		for _, refs := range cmdUUIDMap {
+			for _, ref := range refs {
+				if status := statusMap[ref.hostID]; status != nil && status.IsWiped() && status.IsReset() {
+					resetHosts[ref.hostUUID] = append(resetHosts[ref.hostUUID], status)
+				}
+			}
+		}
+		if len(resetHosts) > 0 {
+			queued, err := windowsHostsWithPendingRemoteWipeDB(ctx, ds.reader(ctx), slices.Collect(maps.Keys(resetHosts)))
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get wipes queued after reset")
+			}
+			for hostUUID, statuses := range resetHosts {
+				_, isQueued := queued[hostUUID]
+				for _, status := range statuses {
+					status.WipeQueuedAfterReset = isQueued
+				}
 			}
 		}
 	}

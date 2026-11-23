@@ -33,10 +33,18 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/version"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 const batchSize = 100
+
+var (
+	clientVersion = version.Version().Version
+	// clientUserAgent tells Fleet that the client is fleetctl 5 or later. Fleet refuses the version check of fleetctl 4, which sends
+	// Go's default User-Agent.
+	clientUserAgent = "fleetctl/" + clientVersion
+)
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -130,11 +138,15 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 		return nil, ctxerr.Wrap(ctx, err, "creating request object")
 	}
 
+	// Set before the custom headers, so that a User-Agent among them wins.
+	request.Header.Set("User-Agent", clientUserAgent)
 	// set the custom headers first, they should not override the actual headers
 	// we set explicitly.
 	for k, v := range c.customHeaders {
 		request.Header.Set(k, v)
 	}
+	// Set after the custom headers, so that they can't override it.
+	request.Header.Set(fleet.HeaderClientVersion, clientVersion)
 	for k, v := range headers {
 		request.Header.Set(k, v)
 	}
@@ -778,7 +790,7 @@ func (c *Client) ApplyGroup(
 			if err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying scripts for unassigned hosts: %w", err)
 			}
-			teamsScripts["No team"] = noTeamScripts
+			teamsScripts[fleet.DisplayNameNoTeam] = noTeamScripts
 
 			if opts.DryRun {
 				logfn(dryRunAppliedFormat, numberWithPluralization(len(scriptPayloads), "script", "scripts"))
@@ -3384,7 +3396,7 @@ func (c *Client) DoGitOps(
 				teamSoftwareInstallers = noTeamSoftwareInstallers
 				teamVPPApps = noTeamVPPApps
 			}
-			teamScripts = teamsScripts["No team"]
+			teamScripts = teamsScripts[fleet.DisplayNameNoTeam]
 		}
 	}
 

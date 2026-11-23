@@ -29,8 +29,6 @@ jobs:
           - ./server/mdm
           - ./server/mdm/scep/x509util
           - ./server/mdm/scep/server
-          - ./server/mdm/nanodep/tokenpki
-          - ./orbit/pkg/cryptoinfo
           - ./server/mdm/apple/psso/pssocrypto
           - ./server/mdm/acme/api/http
           - ./server/mdm/nanomdm/cryptoutil

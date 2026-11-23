@@ -1,0 +1,1 @@
+- Fixed the macOS `app_icons` table failing for every app on macOS versions that render app icons with 16-bit floating-point samples.

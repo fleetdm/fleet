@@ -10,8 +10,10 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
@@ -243,7 +245,7 @@ func (r UpdateScriptResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type GetHostScriptDetailsRequest struct {
-	HostID      uint        `url:"id"`
+	Identifier  string      `url:"id"`
 	ListOptions ListOptions `url:"list_options"`
 }
 
@@ -402,8 +404,7 @@ func (r UnlockHostResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type WipeHostRequest struct {
-	HostID   uint `url:"id"`
-	Metadata *MDMWipeMetadata
+	HostID uint `url:"id"`
 }
 
 func (req *WipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
@@ -411,9 +412,8 @@ func (req *WipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.V
 		return nil
 	}
 
-	decoder := json.NewDecoder(io.LimitReader(r, 100*1024))
-	metadata := MDMWipeMetadata{}
-	if err := decoder.Decode(&metadata); err != nil {
+	var body map[string]json.RawMessage
+	if err := json.NewDecoder(io.LimitReader(r, 100*1024)).Decode(&body); err != nil {
 		if err == io.EOF {
 			// OK ... body is optional
 			return nil
@@ -423,7 +423,14 @@ func (req *WipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.V
 			InternalErr: err,
 		}
 	}
-	req.Metadata = &metadata
+	// Rejected rather than ignored, so a caller that asked for doWipe doesn't silently get doWipeProtected. Matched
+	// case-insensitively like the struct field it replaces.
+	removed := removednames.WipeHostWindowsParam
+	for key := range body {
+		if strings.EqualFold(key, removed.Old) {
+			return NewInvalidArgumentError(removed.Old, removed.Message())
+		}
+	}
 
 	return nil
 }
@@ -435,6 +442,22 @@ type WipeHostResponse struct {
 }
 
 func (r WipeHostResponse) Error() error { return r.Err }
+
+////////////////////////////////////////////////////////////////////////////////
+// Reset host
+////////////////////////////////////////////////////////////////////////////////
+
+type ResetHostRequest struct {
+	HostID uint `url:"id"`
+}
+
+type ResetHostResponse struct {
+	Err           error               `json:"error,omitempty"`
+	DeviceStatus  DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction PendingDeviceAction `json:"pending_action,omitempty"`
+}
+
+func (r ResetHostResponse) Error() error { return r.Err }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Clear passcode

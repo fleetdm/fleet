@@ -379,7 +379,7 @@ func testEnrollRequiresSignatureForCertHost(t *testing.T, ds *Datastore) {
 		_, err := ds.EnrollOsquery(ctx,
 			fleet.WithEnrollOsqueryMDMEnabled(true),
 			fleet.WithEnrollOsqueryHostID(osqueryID),
-			fleet.WithEnrollOsqueryHardwareUUID("attacker-uuid"),
+			fleet.WithEnrollOsqueryHardwareUUID(victim.UUID),
 			fleet.WithEnrollOsqueryHardwareSerial(serial),
 			fleet.WithEnrollOsqueryNodeKey(nodeKey),
 			fleet.WithEnrollOsqueryIdentityCert(cert),
@@ -390,7 +390,7 @@ func testEnrollRequiresSignatureForCertHost(t *testing.T, ds *Datastore) {
 		_, err := ds.EnrollOrbit(ctx,
 			fleet.WithEnrollOrbitMDMEnabled(true),
 			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
-				HardwareUUID:      "attacker-uuid",
+				HardwareUUID:      victim.UUID,
 				HardwareSerial:    serial,
 				Platform:          "darwin",
 				OsqueryIdentifier: osqueryID,

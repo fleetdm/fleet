@@ -288,7 +288,6 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 					FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 						Enable:         true,
 						DestinationURL: "https://example.com/no-team-webhook",
-						PolicyIDs:      []uint{1, 2, 3},
 						HostBatchSize:  100,
 					},
 					HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
@@ -3505,13 +3504,13 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 					Location: "Widgets LLC",
 					Teams: []fleet.TeamTuple{
 						{ID: 2, Name: "Servers"},
-						{ID: 0, Name: fleet.TeamNameNoTeam},
+						{ID: 0, Name: fleet.DisplayNameNoTeam},
 					},
 				},
 			},
 			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
 				{Location: "Acme Inc.", Teams: []string{"Workstations"}},
-				{Location: "Widgets LLC", Teams: []string{"Servers", fleet.TeamNameNoTeam}},
+				{Location: "Widgets LLC", Teams: []string{"Servers", fleet.DisplayNameNoTeam}},
 			},
 		},
 		{

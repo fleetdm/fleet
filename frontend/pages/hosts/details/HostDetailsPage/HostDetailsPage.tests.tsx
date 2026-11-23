@@ -125,6 +125,7 @@ const renderHostDetails = (overrides?: {
   currentUser?: IUser;
   isGlobalAdmin?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
+  isWindowsMdmEnabledAndConfigured?: boolean;
   location?: typeof mockLocation;
   hostId?: string;
 }) => {
@@ -132,6 +133,7 @@ const renderHostDetails = (overrides?: {
     currentUser = ADMIN,
     isGlobalAdmin = true,
     isMacMdmEnabledAndConfigured = false,
+    isWindowsMdmEnabledAndConfigured = false,
     location = mockLocation,
     hostId = "1",
   } = overrides || {};
@@ -144,6 +146,7 @@ const renderHostDetails = (overrides?: {
         isGlobalAdmin,
         isPremiumTier: true,
         isMacMdmEnabledAndConfigured,
+        isWindowsMdmEnabledAndConfigured,
         config: createMockConfig(),
       },
     },
@@ -294,7 +297,13 @@ describe("HostDetailsPage - AI sessions", () => {
 });
 
 describe("HostDetailsPage - pending hosts", () => {
+  // Fake from before the render: the refetch poll is scheduled on first load.
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
   afterEach(() => {
+    jest.useRealTimers();
     jest.resetAllMocks();
   });
 
@@ -311,11 +320,13 @@ describe("HostDetailsPage - pending hosts", () => {
     });
     await screen.findByText("Vitals");
     // Give the poll timer (2s) room to fire if it was scheduled.
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
 
     expect(screen.queryByText(/refetching\.\.\./i)).not.toBeInTheDocument();
     expect(notify.error).not.toHaveBeenCalled();
-  }, 15000);
+  });
 
   it("still reports back when the user asks for the refetch", async () => {
     stubQueries(mockPendingWindowsHost("online"));
@@ -323,10 +334,11 @@ describe("HostDetailsPage - pending hosts", () => {
       .mockResolvedValueOnce({ host: mockPendingWindowsHost("online") })
       .mockResolvedValue({ host: mockPendingWindowsHost("offline") });
 
-    const { user } = renderHostDetails({
+    renderHostDetails({
       currentUser: ADMIN,
       isGlobalAdmin: true,
     });
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     await user.click(await screen.findByRole("button", { name: /refetch/i }));
     await waitFor(() => {
       expect(hostAPI.refetch).toHaveBeenCalled();
@@ -340,7 +352,7 @@ describe("HostDetailsPage - pending hosts", () => {
       },
       { timeout: 10000 }
     );
-  }, 20000);
+  });
 });
 
 describe("HostDetailsPage - hosts that haven't reported vitals", () => {
@@ -349,6 +361,8 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
   let dateNowSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    // Date stays real: these tests move the clock themselves through the spy.
+    jest.useFakeTimers({ doNotFake: ["Date"] });
     elapsedMs = 0;
     dateNowSpy = jest
       .spyOn(Date, "now")
@@ -356,6 +370,7 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     dateNowSpy.mockRestore();
     jest.resetAllMocks();
   });
@@ -391,8 +406,7 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
       );
 
       expect(notify.error).not.toHaveBeenCalled();
-    },
-    15000
+    }
   );
 });
 
@@ -711,6 +725,54 @@ describe("HostDetailsPage - enrollment rejection details", () => {
     expect(await screen.findByText("Enrollment details")).toBeInTheDocument();
     expect(screen.getByText("Fleetd enroll secret")).toBeInTheDocument();
     expect(screen.queryByText("Fleetd configuration")).not.toBeInTheDocument();
+  });
+});
+
+describe("HostDetailsPage - reset", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("shows Reset pending and reloads the activity feed from its first page after a reset", async () => {
+    const host = createMockHost({ platform: "windows", status: "online" });
+    host.mdm.enrollment_status = "On (manual)";
+    host.mdm.connected_to_fleet = true;
+    stubQueries(host);
+    (activitiesAPI.getHostPastActivities as jest.Mock).mockResolvedValue({
+      activities: [createMockActivity({ type: ActivityType.LockedHost })],
+      meta: { has_next_results: true, has_previous_results: false },
+    });
+    jest.mocked(hostAPI.resetHost).mockResolvedValue({});
+    const { user } = renderHostDetails({
+      isWindowsMdmEnabledAndConfigured: true,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Next" }));
+    await waitFor(() =>
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenLastCalledWith(
+        host.id,
+        1,
+        expect.any(Number)
+      )
+    );
+
+    await user.click(await screen.findByText("Actions"));
+    await user.click(await screen.findByText("Reset"));
+    await user.click(
+      screen.getByRole("checkbox", { name: new RegExp(host.display_name) })
+    );
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+
+    expect(await screen.findByText("Reset pending")).toBeInTheDocument();
+    expect(hostAPI.resetHost).toHaveBeenCalledTimes(1);
+    expect(hostAPI.resetHost).toHaveBeenCalledWith(host.id);
+    await waitFor(() =>
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenLastCalledWith(
+        host.id,
+        0,
+        expect.any(Number)
+      )
+    );
   });
 });
 
