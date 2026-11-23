@@ -36,7 +36,7 @@ type SoftwareScope = "inventory" | "library";
 // the title has no installer attached (not in any library).
 const getInstallerProps = (title: ISoftwareTitle) => {
   const firstAppStoreApp = title.app_store_apps?.[0];
-  const installer = title.software_package || firstAppStoreApp;
+  const installer = title.packages?.[0] || firstAppStoreApp;
   if (!installer) {
     return null;
   }

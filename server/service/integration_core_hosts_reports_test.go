@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -428,6 +429,7 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		HardwareSerial:  strings.ReplaceAll(t.Name(), "/", "_") + "1",
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -464,13 +466,13 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Len(t, getHostResp.Host.Software, len(software))
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Empty(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
@@ -834,6 +836,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		HardwareSerial:  strings.ReplaceAll(t.Name(), "/", "_") + "1",
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -857,7 +860,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
@@ -961,6 +964,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		HardwareSerial:  strings.ReplaceAll(t.Name(), "/", "_") + "1",
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -969,7 +973,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	require.NoError(t, err)
 
 	var getHostResp getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Equal(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
@@ -982,7 +986,7 @@ func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	require.NoError(t, err)
 
 	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", host.HardwareSerial), nil, http.StatusOK, &getHostResp)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 }
 
@@ -1480,7 +1484,6 @@ func (s *integrationTestSuite) TestOSVersions() {
 
 	assertOSVersion := func(t *testing.T, expected fleet.OSVersion, actual fleet.OSVersion) {
 		require.Equal(t, expected.HostsCount, actual.HostsCount)
-		require.Equal(t, expected.Name, actual.Name)
 		require.Equal(t, expected.NameOnly, actual.NameOnly)
 		require.Equal(t, expected.Version, actual.Version)
 		require.Equal(t, expected.Platform, actual.Platform)
@@ -1493,6 +1496,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 		}
 	}
 
+	nameAndVersion := func(v fleet.OSVersion) string { return v.NameOnly + " " + v.Version }
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
@@ -1500,7 +1505,6 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// Default sort is by hosts count, descending
 	expectedVersion := fleet.OSVersion{
 		HostsCount:  4,
-		Name:        "Windows 11 Pro 21H2 10.0.22000.2",
 		NameOnly:    "Windows 11 Pro 21H2",
 		Version:     "10.0.22000.2",
 		Platform:    "windows",
@@ -1525,13 +1529,30 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Microsoft Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
 	assertOSVersion(t, expectedVersion, *osVersionResp.OSVersion)
 
+	// Both endpoints return os_name and os_version, and none of the keys they replaced.
+	var rawList struct {
+		OSVersions []map[string]any `json:"os_versions"`
+	}
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &rawList)
+	var rawOne struct {
+		OSVersion map[string]any `json:"os_version"`
+	}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", expectedVersion.OSVersionID), nil, http.StatusOK, &rawOne)
+	for _, entry := range append(rawList.OSVersions, rawOne.OSVersion) {
+		require.Contains(t, entry, "os_name")
+		require.Contains(t, entry, "os_version")
+		for _, removed := range []string{"name", "name_only", "version"} {
+			require.NotContains(t, entry, removed)
+		}
+	}
+
 	// invalid id returns a not-found error rather than an empty object
 	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
 	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", nameAndVersion(osVersionsResp.OSVersions[0]))
 	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 2)
 
 	// Windows names are stored with "Microsoft" but returned without it; filters accept both forms, in any case.
@@ -1559,24 +1580,38 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// invalid order key
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "order_key", "nosuchkey")
 
+	// order_key=version was renamed to os_version
+	res := s.DoRaw("GET", "/api/latest/fleet/os_versions", nil, http.StatusUnprocessableEntity, "order_key", "version")
+	var removedKeyErr struct {
+		Errors []map[string]string `json:"errors"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&removedKeyErr))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, []map[string]string{{
+		"name": "order_key", "reason": `The "order_key=version" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+	}}, removedKeyErr.Errors)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "order_key", "os_version", "order_direction", "asc")
+	require.Equal(t, "macOS 13.2.1", nameAndVersion(osVersionsResp.OSVersions[2]))
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[3]))
+
 	// ascending order by hosts count
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "order_key", "hosts_count", "order_direction", "asc")
 	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
-	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[0]))
 
 	// test pagination
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "0", "per_page", "2")
 	require.Len(t, osVersionsResp.OSVersions, 2)
-	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
-	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.1", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", nameAndVersion(osVersionsResp.OSVersions[0]))
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.1", nameAndVersion(osVersionsResp.OSVersions[1]))
 	require.Equal(t, 4, osVersionsResp.Count)
 	require.True(t, osVersionsResp.Meta.HasNextResults)
 	require.False(t, osVersionsResp.Meta.HasPreviousResults)
 
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2")
 	require.Len(t, osVersionsResp.OSVersions, 2)
-	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
-	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, "macOS 13.2.1", nameAndVersion(osVersionsResp.OSVersions[0]))
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[1]))
 	require.Equal(t, 4, osVersionsResp.Count)
 	require.False(t, osVersionsResp.Meta.HasNextResults)
 	require.True(t, osVersionsResp.Meta.HasPreviousResults)
@@ -1584,8 +1619,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// same results with team_id=0
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2", "fleet_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 2)
-	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
-	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, "macOS 13.2.1", nameAndVersion(osVersionsResp.OSVersions[0]))
+	require.Equal(t, "macOS 14.1.2", nameAndVersion(osVersionsResp.OSVersions[1]))
 	require.Equal(t, 4, osVersionsResp.Count)
 	require.False(t, osVersionsResp.Meta.HasNextResults)
 	require.True(t, osVersionsResp.Meta.HasPreviousResults)
@@ -2347,10 +2382,10 @@ func (s *integrationTestSuite) TestListHostReports() {
 		origCap := originalConfig.ServerSettings.QueryReportCap
 
 		// Set the report cap to 2, which equals the number of rows already stored for qAlpha.
-		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"query_report_cap":2}}`), http.StatusOK)
+		s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings":{"report_cap":2}}`), http.StatusOK)
 		t.Cleanup(func() {
 			s.DoRaw("PATCH", "/api/latest/fleet/config",
-				fmt.Appendf(nil, `{"server_settings":{"query_report_cap":%d}}`, origCap),
+				fmt.Appendf(nil, `{"server_settings":{"report_cap":%d}}`, origCap),
 				http.StatusOK)
 		})
 
@@ -2454,12 +2489,8 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.Len(t, resp.Reports, 2)
 	})
 
-	t.Run("alt path /hosts/:id/queries works", func(t *testing.T) {
-		altURL := fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID)
-		var resp listHostReportsResponse
-		s.DoJSON("GET", altURL, nil, http.StatusOK, &resp, "order_key", "name")
-		require.NoError(t, resp.Err)
-		assert.Equal(t, 2, resp.Count)
+	t.Run("removed path /hosts/:id/queries is gone", func(t *testing.T) {
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries", host.ID), nil, http.StatusGone)
 	})
 
 	t.Run("default sort is last_fetched descending (newest first)", func(t *testing.T) {
@@ -2669,4 +2700,18 @@ func (s *integrationTestSuite) TestHostsMDMPersonalEnrollmentFilters() {
 	require.NotNil(t, macadmins.Macadmins)
 	require.Equal(t, 0, macadmins.Macadmins.MDMStatus.EnrolledPersonalHostsCount)
 	require.Equal(t, 1, macadmins.Macadmins.MDMStatus.EnrolledManualPersonalHostsCount)
+}
+
+func (s *integrationTestSuite) TestHostAISessionsRequirePremium() {
+	t := s.T()
+	host := s.createHosts(t, "darwin")[0]
+
+	for _, path := range []string{
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions", host.ID),
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions/1", host.ID),
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/ai_sessions/1/events", host.ID),
+	} {
+		res := s.Do("GET", path, nil, http.StatusPaymentRequired)
+		require.Contains(t, extractServerErrorText(res.Body), fleet.ErrMissingLicense.Error())
+	}
 }

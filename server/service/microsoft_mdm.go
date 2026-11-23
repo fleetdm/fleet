@@ -1721,6 +1721,10 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		return nil
 	}
 
+	if enrolledDevice.LinkedHostID != nil {
+		svc.failInterruptedWindowsReset(ctx, enrolledDevice.ID, *enrolledDevice.LinkedHostID)
+	}
+
 	// Checking if fleetd is present on the device
 	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, enrolledDevice)
 	if err != nil {
@@ -1733,6 +1737,29 @@ func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string
 		}
 	}
 	return nil
+}
+
+// failInterruptedWindowsReset logs failed_reset when a session shows the host's acknowledged reset was rolled back. It's
+// best-effort: the next session checks again.
+func (svc *Service) failInterruptedWindowsReset(ctx context.Context, enrollmentID, hostID uint) {
+	failed, err := svc.ds.MDMWindowsFailInterruptedReset(ctx, enrollmentID, hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: check for interrupted reset", "err", err, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if !failed {
+		return
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to look up host for failed_reset activity", "host_id", hostID, "err", err)
+		return
+	}
+	act := fleet.ActivityTypeFailedReset{HostID: host.ID, HostDisplayName: host.DisplayName()}
+	if err := svc.NewActivity(ctx, nil, act); err != nil {
+		svc.logger.WarnContext(ctx, "failed to create failed_reset activity", "host_id", host.ID, "err", err)
+	}
 }
 
 // Generic Alert Handlers
@@ -2030,13 +2057,17 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					svc.logger.WarnContext(ctx, "failed to look up host for wipe_failed_host activity",
 						"host_uuid", result.WipeFailed.HostUUID, "err", err)
 				} else {
-					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
+					var act fleet.ActivityDetails = fleet.ActivityTypeWipeFailedHost{
 						HostID:          host.ID,
 						HostDisplayName: host.DisplayName(),
 						HostPlatform:    host.Platform,
-					}); err != nil {
-						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
-							"host_id", host.ID, "err", err)
+					}
+					if result.WipeFailed.Reset {
+						act = fleet.ActivityTypeFailedReset{HostID: host.ID, HostDisplayName: host.DisplayName()}
+					}
+					if err := svc.NewActivity(ctx, nil, act); err != nil {
+						svc.logger.WarnContext(ctx, "failed to create activity for failed wipe or reset",
+							"activity", act.ActivityName(), "host_id", host.ID, "err", err)
 					}
 				}
 			}
@@ -2230,6 +2261,9 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 // A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
 // next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
 // fleetd wake the device again.
+//
+// A RemoteWipe is held back the same way while the device may still be acting on another one it acknowledged, and only one
+// goes out per response: Windows restarts in a loop when it gets two.
 func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
@@ -2239,10 +2273,34 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
 	onlyPollCmdsPending := true
+	var remoteWipeChecked, holdRemoteWipe bool
 	for _, pendingCmd := range pendingCmds {
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
 		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
 			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
+			onlyPollCmdsPending = false
+			continue
+		}
+		isRemoteWipe := fleet.LocURITargetsReservedNode(pendingCmd.TargetLocURI, syncml.FleetRemoteWipeTargetLocURI)
+		if isRemoteWipe && !remoteWipeChecked {
+			remoteWipeChecked = true
+			var hostID uint
+			if enrolledDevice.LinkedHostID != nil {
+				hostID = *enrolledDevice.LinkedHostID
+			}
+			inProgress, err := svc.ds.MDMWindowsRemoteWipeInProgress(ctx, enrolledDevice.ID, hostID)
+			if err != nil {
+				// Only the RemoteWipe waits for the next session; the other commands still go out.
+				svc.logger.ErrorContext(ctx, "windows mdm: check for RemoteWipe in progress", "err", err,
+					"enrollment_id", enrolledDevice.ID)
+				ctxerr.Handle(ctx, err)
+				inProgress = true
+			}
+			holdRemoteWipe = inProgress
+		}
+		if isRemoteWipe && holdRemoteWipe {
+			svc.logger.DebugContext(ctx, "windows mdm: RemoteWipe held while the device may be acting on another one",
+				"enrollment_id", enrolledDevice.ID, "command_uuid", pendingCmd.CommandUUID)
 			onlyPollCmdsPending = false
 			continue
 		}
@@ -2262,6 +2320,9 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet
 		}
 		if !isPollCmd {
 			onlyPollCmdsPending = false
+		}
+		if isRemoteWipe {
+			holdRemoteWipe = true
 		}
 		for _, pcmd := range parsedCmds {
 			cmds = append(cmds, &pcmd)

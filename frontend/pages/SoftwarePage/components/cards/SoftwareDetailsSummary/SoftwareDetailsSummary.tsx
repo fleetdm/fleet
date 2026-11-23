@@ -297,7 +297,7 @@ const SoftwareDetailsSummary = ({
             {isRollingArch ? (
               // wrap a tooltip around the "rolling" suffix
               <>
-                {displayName.slice(0, -8)}
+                {displayName.slice(0, -8)}&nbsp;
                 <TooltipWrapperArchLinuxRolling />
               </>
             ) : (
@@ -317,7 +317,7 @@ const SoftwareDetailsSummary = ({
                   disabled={!onClickEditAppearance}
                   icon="pencil"
                 >
-                  Edit
+                  Edit appearance
                 </Button>
               ) : (
                 <ActionsDropdown

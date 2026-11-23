@@ -2180,7 +2180,7 @@ func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnother
 			"extra-single.json",
 			[]byte(`{"cameraDisabled": false}`),
 			s.token,
-			map[string][]string{"team_id": {fmt.Sprint(team.ID)}},
+			map[string][]string{"fleet_id": {fmt.Sprint(team.ID)}},
 		)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 		defer res.Body.Close()

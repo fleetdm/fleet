@@ -943,7 +943,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"label_id": float64(123)}, nil)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "filters must include a team filter")
+		require.ErrorContains(t, err, "filters must include a fleet filter")
 	})
 
 	t.Run("error if filters match too many hosts", func(t *testing.T) {
@@ -1120,77 +1120,40 @@ func TestBatchScriptExecute(t *testing.T) {
 }
 
 func TestWipeHostRequestDecodeBody(t *testing.T) {
-	ctx := context.Background()
-
 	testCases := []struct {
-		name          string
-		body          io.Reader
-		expectedError string
-		expectation   func(t *testing.T, req *fleet.WipeHostRequest)
+		name            string
+		body            io.Reader
+		expectedError   string
+		expectedRemoved bool
 	}{
-		{
-			name: "empty body",
-			body: strings.NewReader(""),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.Nil(t, req.Metadata)
-			},
-		},
-		{
-			name: "doWipe",
-			body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.NotNil(t, req.Metadata.Windows)
-				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipe, req.Metadata.Windows.WipeType)
-			},
-		},
-		{
-			name: "doWipeProtected",
-			body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.NotNil(t, req.Metadata.Windows)
-				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipeProtected, req.Metadata.Windows.WipeType)
-			},
-		},
-		{
-			name:          "invalid wipe type",
-			body:          strings.NewReader(`{"windows": {"wipe_type": "doWipeProtectedII"}}`),
-			expectedError: "failed to unmarshal request body",
-		},
-		{
-			name: "empty payload",
-			body: strings.NewReader(`{}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.Nil(t, req.Metadata.Windows)
-			},
-		},
-		{
-			name: "windows field is null",
-			body: strings.NewReader(`{"windows": null}`),
-			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
-				require.NotNil(t, req.Metadata)
-				require.Nil(t, req.Metadata.Windows)
-			},
-		},
-		{
-			name:          "empty wipe type",
-			body:          strings.NewReader(`{"windows": {"wipe_type": null}}`),
-			expectedError: "failed to unmarshal request body",
-		},
+		{name: "empty body", body: strings.NewReader("")},
+		{name: "empty payload", body: strings.NewReader(`{}`)},
+		{name: "unrelated field is ignored", body: strings.NewReader(`{"foo": "bar"}`)},
+		{name: "invalid JSON", body: strings.NewReader(`{"windows":`), expectedError: "failed to unmarshal request body"},
+		{name: "doWipe", body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`), expectedRemoved: true},
+		{name: "doWipeProtected", body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`), expectedRemoved: true},
+		{name: "windows field is null", body: strings.NewReader(`{"windows": null}`), expectedRemoved: true},
+		{name: "windows field in title case", body: strings.NewReader(`{"Windows": {"wipe_type": "doWipe"}}`), expectedRemoved: true},
+		{name: "windows field in upper case", body: strings.NewReader(`{"WINDOWS": null}`), expectedRemoved: true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			sut := fleet.WipeHostRequest{}
-			err := sut.DecodeBody(ctx, tc.body, nil, nil)
+			err := sut.DecodeBody(t.Context(), tc.body, nil, nil)
 
-			if tc.expectedError != "" {
+			switch {
+			case tc.expectedRemoved:
+				var invalid *fleet.InvalidArgumentError
+				require.ErrorAs(t, err, &invalid)
+				require.Equal(t, []map[string]string{{
+					"name":   "windows",
+					"reason": `The "windows" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
+				}}, invalid.Invalid())
+			case tc.expectedError != "":
 				require.ErrorContains(t, err, tc.expectedError)
-			} else {
+			default:
 				require.NoError(t, err)
-				tc.expectation(t, &sut)
 			}
 		})
 	}
@@ -1399,6 +1362,87 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 			_, err = svc.NewScript(ctx, nil, "test.sh", strings.NewReader("echo hello"))
 			require.NoError(t, err)
 		})
+	})
+}
+
+func TestBatchSetScriptsDryRunNewFleet(t *testing.T) {
+	ds := new(mock.Store)
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+		if len(values) == 2 && values[0] == values[1] {
+			return []fleet.DuplicateStringGroup{{Indices: []int{0, 1}}}, nil
+		}
+		return nil, nil
+	}
+
+	newFleet := new("New fleet")
+	cases := []struct {
+		name     string
+		payloads []fleet.ScriptPayload
+		wantErr  string
+	}{
+		{
+			"unsupported interpreter",
+			[]fleet.ScriptPayload{{Name: "unsupported.sh", ScriptContents: []byte("#!/usr/bin/perl\nprint \"hello\";")}},
+			"Interpreter not supported",
+		},
+		{
+			"unsupported file type",
+			[]fleet.ScriptPayload{{Name: "script.txt", ScriptContents: []byte("echo hello")}},
+			"File type not supported",
+		},
+		{
+			"unsupported Fleet variable",
+			[]fleet.ScriptPayload{{Name: "vars.sh", ScriptContents: []byte("echo $FLEET_VAR_NONEXISTENT")}},
+			"Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.",
+		},
+		{
+			"duplicate names",
+			[]fleet.ScriptPayload{
+				{Name: "dup.sh", ScriptContents: []byte("echo one")},
+				{Name: "dup.sh", ScriptContents: []byte("echo two")},
+			},
+			"More than one script has the same file name",
+		},
+		{
+			"valid payload",
+			[]fleet.ScriptPayload{{Name: "valid.sh", ScriptContents: []byte("#!/bin/sh\necho hello")}},
+			"",
+		},
+		{"empty payload", nil, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res, err := svc.BatchSetScripts(ctx, nil, newFleet, c.payloads, true)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Empty(t, res)
+			require.False(t, ds.BatchSetScriptsFuncInvoked, "a dry run must not save scripts")
+		})
+	}
+
+	t.Run("real run still fails", func(t *testing.T) {
+		_, err := svc.BatchSetScripts(ctx, nil, newFleet, nil, false)
+		require.True(t, fleet.IsNotFound(err))
+		require.False(t, ds.BatchSetScriptsFuncInvoked)
+	})
+
+	t.Run("fleet-scoped user can't validate for a new fleet", func(t *testing.T) {
+		teamCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    2,
+			Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleAdmin}},
+		}})
+		_, err := svc.BatchSetScripts(teamCtx, nil, newFleet, nil, true)
+		checkAuthErr(t, true, err)
 	})
 }
 

@@ -43,6 +43,7 @@ const WindowsAccountSection = ({
             position="left"
             tipOffset={8}
             isInputField
+            disableTooltip={!isWindowsMdmEnabledAndConfigured}
             renderChildren={(gitopsEnabled) => (
               <ManagedAccountCheckbox
                 disabled={!!gitopsEnabled || !isWindowsMdmEnabledAndConfigured}

@@ -37,7 +37,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 
 	payload.InstallerID = existingInstaller.InstallerID
 
-	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
+	labelsChanged, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
 	}
@@ -131,12 +131,25 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		}
 	}
 
+	// Only edits that change what the install does should cancel pending
+	// installs: a new installer file, a label targeting change, or a managed
+	// app configuration change. Self-service, categories, and display-name
+	// changes are metadata-only and leave pending installs alone, matching
+	// fieldsShouldSideEffect in ee/server/service/software_installers.go.
+	// Snapshot the configuration-changed signal before SaveInHouseAppUpdates
+	// writes the new config, so we're comparing against the pre-save bytes.
+	configurationChanged := payload.Configuration != nil &&
+		!bytes.Equal(payload.Configuration, existingInstaller.Configuration)
+	installerFileChanged := payloadForNewInstallerFile != nil
+
 	if err := svc.ds.SaveInHouseAppUpdates(ctx, payload); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 	}
 
-	if err := svc.ds.RemovePendingInHouseAppInstalls(ctx, existingInstaller.InstallerID); err != nil {
-		return nil, err
+	if installerFileChanged || labelsChanged || configurationChanged {
+		if err := svc.ds.RemovePendingInHouseAppInstalls(ctx, existingInstaller.InstallerID); err != nil {
+			return nil, err
+		}
 	}
 
 	// now that the payload has been updated with any patches, we can set the

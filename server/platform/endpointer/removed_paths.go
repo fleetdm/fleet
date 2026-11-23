@@ -6,14 +6,12 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 // RemovedPath is a URL path that no longer exists. A request to it with any usual method (or one of Methods, when set) gets 410 Gone and
 // Message, without authentication, because the path is gone for everyone and the response says nothing about the caller's data.
 type RemovedPath struct {
-	// Path may contain the _version_ placeholder and mux variables, like the paths of a DeprecatedPathAlias.
+	// Path may contain the _version_ placeholder and mux variables, like the path of a route.
 	Path string
 	// Methods limits the 410 to these methods, for a path that shares its shape with routes that are still served: a 410 on every method
 	// would answer wrong-method requests to those routes, which should get 405. Empty means every method in removedPathMethods.
@@ -37,19 +35,17 @@ type RemovedPathOverlap struct {
 }
 
 // removedPathMethods are the methods that get 410. They are listed, not left open, because every route in the API has methods, and
-// the route tests (and metrics) rely on that. HEAD is left out: a stdlib ServeMux treats a HEAD pattern next to the GET pattern of a
-// sibling path (".../policies/{id}" beside ".../policies/count") as ambiguous, so a HEAD request gets 405 until the stdlib mux is the
-// only router, where the GET pattern serves it.
+// the route tests (and metrics) rely on that. HEAD is left out because the GET pattern serves it.
 var removedPathMethods = []string{
 	http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions,
 }
 
 // RegisterRemovedPaths registers a 410 Gone handler for each removed path, for every API version. Each request is logged as a warning,
 // because it comes from a client that still uses the removed path and the log is the only way to find it.
-func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger, paths []RemovedPath) {
+func RegisterRemovedPaths(r *Router, versions []string, logger *slog.Logger, paths []RemovedPath) {
 	allVersions := append(append([]string{}, versions...), "latest")
 	for _, removed := range paths {
-		handler := removedPathHandler(removed, logger)
+		handler := RemovedPathHandler(removed, logger)
 		methods := slices.Clone(removedPathMethods)
 		if len(removed.Methods) > 0 {
 			methods = slices.Clone(removed.Methods)
@@ -58,7 +54,7 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 		if overlap := removed.Overlap; overlap.RouteTemplate != "" && slices.Contains(methods, overlap.Method) {
 			methods = slices.DeleteFunc(methods, func(method string) bool { return method == overlap.Method })
 			// Register a more generic path template so it doesn't conflict with the still supported path template
-			handleRoute(r, Route{
+			r.Handle(Route{
 				Name:     getNameFromPathAndVerb(overlap.Method, removed.Path, ""),
 				Methods:  []string{overlap.Method},
 				Path:     overlap.RouteTemplate,
@@ -72,7 +68,7 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 		if len(removed.Methods) > 0 {
 			verb = strings.Join(methods, "_")
 		}
-		handleRoute(r, Route{
+		r.Handle(Route{
 			Name:     getNameFromPathAndVerb(verb, removed.Path, ""),
 			Methods:  methods,
 			Path:     removed.Path,
@@ -81,7 +77,8 @@ func RegisterRemovedPaths(r *mux.Router, versions []string, logger *slog.Logger,
 	}
 }
 
-func removedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
+// RemovedPathHandler answers with the 410 of a removed path. Use it directly for a path that a router doesn't serve.
+func RemovedPathHandler(removed RemovedPath, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if removed.Overlap.RouteTemplate != "" && !literalSegmentsMatch(removed.Path, r.URL.Path) {
 			for live, allow := range removed.Overlap.WrongMethodRoutes {

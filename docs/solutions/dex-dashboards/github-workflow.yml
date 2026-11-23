@@ -1,0 +1,167 @@
+# Builds the DEX dashboards from the Fleet API and publishes them to GitHub Pages.
+# Copy to .github/workflows/dex-dashboards.yml in your own repository, with this folder at
+# dex-dashboards/. Setup: https://fleetdm.com/guides/build-dex-dashboards-with-github-actions
+name: DEX dashboards
+
+on:
+  schedule:
+    - cron: "7 14 * * *" # Daily at 14:07 UTC.
+  workflow_dispatch:
+    inputs:
+      first_run:
+        description: "First run: start new histories. Only when the data branch has none."
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: dex-dashboards
+  cancel-in-progress: false
+
+env:
+  DATA_BRANCH: dex-data
+
+jobs:
+  # Holds the Fleet token, and can only read the repository.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: dex-dashboards
+    permissions:
+      contents: read # check out the scripts and the data branch
+    steps:
+      - name: Check out the scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out the histories
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DATA_BRANCH }}
+          path: data
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Build the dashboards
+        env:
+          FLEET_URL: ${{ vars.FLEET_URL }}
+          FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
+          DEX_WARRANTY_VITAL: ${{ vars.DEX_WARRANTY_VITAL }}
+          DEX_GRID_INTENSITY: ${{ vars.DEX_GRID_INTENSITY }}
+          DEX_COMPANY_DOMAINS: ${{ vars.DEX_COMPANY_DOMAINS }}
+          DEX_WORKERS: ${{ vars.DEX_WORKERS }}
+          # A JSON file of experience scoring settings in this repository, such as dex-scoring.json.
+          DEX_SCORING_FILE: ${{ vars.DEX_SCORING_FILE }}
+          FIRST_RUN: ${{ inputs.first_run }}
+        run: |
+          set -uo pipefail
+          # Empty variables would override the scripts' defaults.
+          for v in DEX_WARRANTY_VITAL DEX_GRID_INTENSITY DEX_COMPANY_DOMAINS DEX_WORKERS DEX_SCORING_FILE; do
+            [ -n "${!v}" ] || unset "$v"
+          done
+          args=(--work "$RUNNER_TEMP/work" --site "$RUNNER_TEMP/site" --budget 6000)
+          if [ "$FIRST_RUN" = "true" ]; then
+            if [ -d data/history ]; then
+              echo "::error::$DATA_BRANCH already has histories. A first run would start them over."
+              exit 1
+            fi
+            args+=(--first-run)
+          else
+            args+=(--in data/history)
+          fi
+          # run.py exits 3 and prints CONTINUE when its time budget runs out. The same
+          # command picks up where it stopped.
+          for _ in $(seq 1 10); do
+            python3 -I dex-dashboards/run.py "${args[@]}" > "$RUNNER_TEMP/run.log" 2>&1
+            rc=$?
+            grep -v '^PUBLISH ' "$RUNNER_TEMP/run.log" || true
+            [ "$rc" -eq 3 ] && continue
+            exit "$rc"
+          done
+          echo "::error::run.py still printed CONTINUE after 10 runs."
+          exit 1
+
+      - name: Collect the histories
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/history"
+          for dir in "$RUNNER_TEMP"/work/out/*/; do
+            page=$(basename "$dir")
+            # history.json and its part files. The overview keeps none.
+            if compgen -G "$dir/data/history*.json" >/dev/null; then
+              mkdir -p "$RUNNER_TEMP/history/$page"
+              cp "$dir"/data/history*.json "$RUNNER_TEMP/history/$page/"
+            fi
+          done
+
+      - name: Upload the histories
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dex-history
+          path: ${{ runner.temp }}/history
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+
+  # Can push to the data branch, and never sees the Fleet token.
+  save:
+    name: Save histories
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push to the data branch
+    steps:
+      # Keeps the checkout credential for the push. This job uploads no artifacts.
+      - name: Check out the data branch # zizmor: ignore[artipacked]
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DATA_BRANCH }}
+
+      - name: Download the histories
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dex-history
+          path: ${{ runner.temp }}/history
+
+      - name: Commit the histories
+        run: |
+          set -euo pipefail
+          rm -rf history
+          cp -R "$RUNNER_TEMP/history" history
+          git add -A history
+          if git diff --cached --quiet; then
+            echo "No history changes."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -qm "DEX dashboards: $(date -u +%F)"
+          git push origin "HEAD:refs/heads/$DATA_BRANCH"
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pages: write # deploy the site
+      id-token: write # prove the deployment came from this workflow
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

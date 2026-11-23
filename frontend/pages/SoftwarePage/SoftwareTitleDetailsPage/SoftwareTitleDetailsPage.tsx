@@ -53,9 +53,11 @@ import { getPathWithQueryParams } from "utilities/url";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import AndroidPlayStore from "../components/icons/AndroidPlayStore";
 import AppleAppStore from "../components/icons/AppleAppStore";
+import SoftwareIcon from "../components/icons/SoftwareIcon";
 import {
   getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
+  isAndroidWebApp,
   mergePolicies,
 } from "../helpers";
 
@@ -138,6 +140,7 @@ const SoftwareTitleDetailsPage = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddPackageModal, setShowAddPackageModal] = useState(false);
   const [showAddVersionModal, setShowAddVersionModal] = useState(false);
+  const [iconUploadedAt, setIconUploadedAt] = useState("");
   // When set, opens a PoliciesModal scoped to a single package's policies
   // (the auto-install icon on a custom-package row). Distinct from the
   // SoftwareSummaryCard's title-aggregate PoliciesModal — that one stays
@@ -148,7 +151,7 @@ const SoftwareTitleDetailsPage = ({
   // Per-installer target for the currently-open Edit or Delete modal on a
   // multi-package title. `null` means "fall back to first-added", which keeps
   // single-package back-compat callers (and the page-level header Edit)
-  // pointing at `software_package` without any extra wiring.
+  // pointing at `packages[0]` without any extra wiring.
   const [selectedInstallerId, setSelectedInstallerId] = useState<number | null>(
     null
   );
@@ -203,8 +206,7 @@ const SoftwareTitleDetailsPage = ({
   );
 
   const isAvailableForInstall =
-    !!softwareTitle?.software_package ||
-    !!softwareTitle?.app_store_apps?.length;
+    !!softwareTitle?.packages?.[0] || !!softwareTitle?.app_store_apps?.length;
 
   const installerResult = useSoftwareInstaller(
     softwareTitle ?? ({} as ISoftwareTitleDetails)
@@ -232,6 +234,13 @@ const SoftwareTitleDetailsPage = ({
     !!softwareTitle?.app_store_apps?.length &&
     (isIpadOrIphoneSoftwareSource(softwareTitle.source) ||
       isAndroidSoftwareSource(softwareTitle.source));
+
+  // Android web apps use the versions layout but can only ever hold one
+  // version, so version-specific affordances (name, config, Add version) are
+  // hidden.
+  const isWebApp = isAndroidWebApp(
+    softwareTitle?.app_store_apps?.[0]?.app_store_id
+  );
 
   const onDeleteInstaller = useCallback(
     (opts?: { siblingVersionsRemain?: boolean }) => {
@@ -267,14 +276,11 @@ const SoftwareTitleDetailsPage = ({
   // Mints a one-shot download token pinned to the clicked package and triggers
   // the browser download via a synthetic `<a download>` click. The token-based
   // URL is unauthenticated; we must build it client-side rather than
-  // redirecting. Falls back to the title's first-added `software_package` when
+  // redirecting. Falls back to the title's first-added package when
   // no per-row pkg is supplied (single-package titles / legacy callers).
   const onDownloadInstaller = useCallback(
     async (pkg?: ISoftwarePackage) => {
-      const target = resolveDownloadTarget(
-        pkg,
-        softwareTitle?.software_package
-      );
+      const target = resolveDownloadTarget(pkg, softwareTitle?.packages?.[0]);
       if (!target || typeof teamIdForApi !== "number") return;
       try {
         const resp = await softwareAPI.getSoftwarePackageToken(
@@ -313,6 +319,8 @@ const SoftwareTitleDetailsPage = ({
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onClickVersions={() => setShowVersionsModal(true)}
+        iconUploadedAt={iconUploadedAt}
+        setIconUploadedAt={setIconUploadedAt}
         canActivateMultiplePackages={canActivateMultiplePackages}
         canActivateMultipleVersions={canActivateMultipleVersions}
       />
@@ -333,13 +341,8 @@ const SoftwareTitleDetailsPage = ({
       return null;
     }
 
-    // `packages` is the source of truth. The `software_package` alias is
-    // still returned by the API (points at `packages[0]`, first-added) — the
-    // fallback here is defense against a title with no custom packages (e.g.
-    // FMA / app-store branch) so downstream code can treat this as an array.
-    const packages =
-      title.packages ??
-      (title.software_package ? [title.software_package] : []);
+    // `null` for a title with no custom packages (e.g. app-store branch).
+    const packages = title.packages ?? [];
     const appStore = title.app_store_apps?.[0];
 
     // No installable to render at all.
@@ -431,7 +434,11 @@ const SoftwareTitleDetailsPage = ({
       return (
         <LibraryItemAccordion
           key={version.id}
-          filename={version.name}
+          filename={
+            isWebApp
+              ? getDisplayedSoftwareName(title.name, title.display_name)
+              : version.name
+          }
           version={version.version}
           addedAt={version.created_at}
           installerType="app-store"
@@ -439,7 +446,18 @@ const SoftwareTitleDetailsPage = ({
             isAndroidPlayStoreApp ? version.app_store_id : undefined
           }
           isIosOrIpadosApp={isIosOrIpadosApp}
-          graphicOverride="file-configuration-profile"
+          graphicOverride={isWebApp ? undefined : "file-configuration-profile"}
+          iconOverride={
+            isWebApp ? (
+              <SoftwareIcon
+                name={title.name}
+                source={title.source}
+                url={title.icon_url}
+                uploadedAt={iconUploadedAt}
+                size="medium"
+              />
+            ) : undefined
+          }
           hideVersion
           isActive
           labels={labels}
@@ -629,7 +647,8 @@ const SoftwareTitleDetailsPage = ({
     // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. In
     // GitOps mode the button stays clickable so admins can open the modal in
     // its disabled state; the lock is enforced inside the modal.
-    const showAddVersionAction = canActivateMultipleVersions && canEditSoftware;
+    const showAddVersionAction =
+      canActivateMultipleVersions && canEditSoftware && !isWebApp;
     const versionCount = title.app_store_apps?.length ?? (appStore ? 1 : 0);
     const atVersionLimit = versionCount >= MAX_APP_STORE_APP_VERSIONS_PER_TITLE;
     const addVersionButton = showAddVersionAction && (
@@ -709,10 +728,12 @@ const SoftwareTitleDetailsPage = ({
     return (
       <section className={`${baseClass}__section`}>
         <SectionHeader title="Library" />
-        <div className={`${baseClass}__library-description-row`}>
-          <PageDescription content={descriptionContent} />
-          {headerAction}
-        </div>
+        {!isWebApp && (
+          <div className={`${baseClass}__library-description-row`}>
+            <PageDescription content={descriptionContent} />
+            {headerAction}
+          </div>
+        )}
         <div className={`${baseClass}__library-list`}>
           {useVersionsLayout && renderAppStoreVersionsHeader()}
           <LibraryItemAccordionList>
@@ -760,7 +781,7 @@ const SoftwareTitleDetailsPage = ({
 
   // Resolves the targeted package on a multi-package title. Returns the
   // package matching `selectedInstallerId`, or `null` if none matches — in
-  // which case the caller falls back to the legacy `software_package` flow.
+  // which case the caller falls back to the first-added package.
   const findSelectedPackage = (
     title: ISoftwareTitleDetails
   ): ISoftwarePackage | null => {
@@ -801,7 +822,12 @@ const SoftwareTitleDetailsPage = ({
       <DeleteSoftwareModal
         softwareId={softwareId}
         teamId={teamIdForApi}
-        installerId={selected?.installer_id}
+        // Don't send installer_id for in-house apps because delete only accepts it for custom packages.
+        installerId={
+          isIpadOrIphoneSoftwareSource(title.source)
+            ? undefined
+            : selected?.installer_id
+        }
         versionId={isVersionDelete ? selectedVersionId ?? undefined : undefined}
         isLastVersion={isLastVersion}
         gitOpsModeEnabled={gitOpsModeEnabled}
@@ -852,6 +878,7 @@ const SoftwareTitleDetailsPage = ({
             title.display_name
           )}
           siblingVersionNames={siblingVersionNames}
+          isWebApp={isWebApp}
           onExit={closeLibraryEditModal}
           onSuccess={() => {
             closeLibraryEditModal();
@@ -901,11 +928,9 @@ const SoftwareTitleDetailsPage = ({
   const renderAddPackageModal = (title: ISoftwareTitleDetails) => {
     if (!showAddPackageModal || typeof teamIdForApi !== "number") return null;
     // First-added is the canonical source for the file-type restriction.
-    // Multi-package titles always have `packages[0]`; back-compat titles fall
-    // back to `software_package`. The "+ Add version" button is gated on the
-    // section being visible, so we always have a name here.
-    const existingPackageName =
-      title.packages?.[0]?.name ?? title.software_package?.name ?? "";
+    // The "+ Add version" button is gated on the section being visible, so we
+    // always have a name here.
+    const existingPackageName = title.packages?.[0]?.name ?? "";
     return (
       <AddPackageModal
         softwareTitleId={softwareId}
@@ -966,7 +991,7 @@ const SoftwareTitleDetailsPage = ({
     // -1 sentinel); guard so we never PATCH `fleet_id=-1`. Mirrors the delete modal.
     if (
       !showVersionsModal ||
-      !title.software_package ||
+      !title.packages?.[0] ||
       typeof teamIdForApi !== "number"
     ) {
       return null;

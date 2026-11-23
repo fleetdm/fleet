@@ -28,7 +28,7 @@ At a high level, Fleet consists of:
 
 5. **External Services**:
    - **TUF Server**: Provides secure updates for the agent components
-   - **Telemetry**: Optional monitoring via Prometheus, OpenTelemetry, or Elastic APM
+   - **Telemetry**: Optional monitoring via Prometheus or OpenTelemetry
    - **External Logging**: Optional integration with external logging systems
    - **MDM Clients**: Consume APIs exposed by Fleet server to configure and control MDM (Mobile Device Management)-enrolled host devices. Generally provided by vendors like Apple, Microsoft, and Google as a component of the Operating System
    - **Apple Business (AB) / DEP**: Apple cloud service Fleet syncs with to retrieve device assignments and deliver automatic enrollment profiles before first boot (i.e. before Fleet can directly interact with the device)
@@ -67,7 +67,6 @@ graph LR;
         subgraph Telemetry
             prometheus[Prometheus Server];
             opentel[Open Telemetry]
-            apm[Elastic APM]
         end
     end
 

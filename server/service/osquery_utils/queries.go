@@ -2302,9 +2302,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
-	// Some Arch-based distributions are recorded as "Arch Linux" in the OS inventory. The host keeps its own name and
-	// version in hosts.os_version (the os_version detail query), which the host API returns.
-	name, forceRollingVersion := fleet.InventoryOSName(rows[0]["name"])
+	// Arch Linux ARM is recorded as "Arch Linux" in the OS inventory. The host keeps its own name and version in
+	// hosts.os_version (the os_version detail query), which the host API returns.
+	name := fleet.InventoryOSName(rows[0]["name"])
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -2317,9 +2317,6 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
-	if forceRollingVersion {
-		hostOS.Version = "rolling"
-	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
@@ -3554,7 +3551,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (fleet/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
 			"host", host.Hostname)
@@ -3686,7 +3683,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host fleet/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
 			"host", host.Hostname)
@@ -3970,7 +3967,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
 	}
 	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
-		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
+		"host_id", hostID, "fleet_id", *teamID, "fleet_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
 }
 
@@ -4435,9 +4432,16 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	// IdP host vitals are a premium feature.
+	// IdP host vitals and AI agent sessions are premium features.
 	if license.IsPremium(ctx) {
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
+		if appConfig == nil || !appConfig.ServerSettings.AISessionsDisabled {
+			generatedMap["ai_agent_sessions"] = aiAgentSessions
+			if fleetConfig.Osquery.AISessionMaxToolCalls > 0 {
+				generatedMap["ai_agent_session_events"] = aiAgentSessionEventsQuery(
+					fleetConfig.Osquery.AISessionMaxToolCalls, fleetConfig.Osquery.AISessionMaxToolCallsPerRefresh)
+			}
+		}
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

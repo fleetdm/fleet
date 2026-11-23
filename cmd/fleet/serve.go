@@ -563,6 +563,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "new microsoft compliance proxy")
 	}
 
+	googleConditionalAccess := service.NewGoogleConditionalAccessClient(config.GoogleConditionalAccess.ProxyURI, logger)
+
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
@@ -588,6 +590,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.MDM.AndroidAgent,
 		redis_key_value.New(redisPool),
 		android_service.WithInstallReapTimeout(config.Server.VPPInstallReapTimeout),
+		android_service.WithOneTimeEnrollSecrets(config.MDM.AndroidOneTimeEnrollSecrets),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -636,6 +639,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		scepConfigMgr,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		redis_key_value.New(redisPool),
 		redis_install_attempts.New(redisPool, redis_install_attempts.SoftwareInstallerPrefix),
 		androidSvc,
@@ -840,6 +844,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		chartSvc:               chartSvc,
 		auditLogger:            auditLogger,
 		distributedLock:        distributedLock,
+		googleCAClients:        googleConditionalAccess,
 		initFatal:              initFatal,
 	})
 
@@ -910,14 +915,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		extra = append(extra, service.WithMCPConn(mcpConn))
 
 		apiHandler, err = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes}, extra...)
+			service.FeatureRoutes(android_service.GetRoutes(svc, eeAndroidSvc), activityRoutes, notificationsRoutes, acmeRoutes, chartRoutes), extra...)
 		if err != nil {
 			initFatal(err, "initializing the API handler")
 		}
 
-		// SCIM endpoints are served by a prefix-mounted handler (see
-		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
-		// their routes to the validator explicitly.
+		// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM) that the API router's route
+		// table doesn't list, so surface their routes to the validator explicitly.
 		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
@@ -1011,12 +1015,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
 	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
 	// with probe spans. Register /metrics here even though its handler is mounted conditionally below. Registering a route
-	// whose handler isn't installed is a harmless lookup table entry and keeps the policy in one place.
+	// whose handler isn't installed is a harmless lookup table entry and keeps the policy in one place. /version is removed,
+	// but stale health checks may still probe it.
 	traceRegistry.Register(http.MethodGet, "/healthz", tracing.TierNever)
 	traceRegistry.Register(http.MethodGet, "/version", tracing.TierNever)
 	traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 	rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
-	rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
+	// Without its own handler, /version would fall through to the frontend.
+	rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(service.RemovedRootPathHandler("/version", httpLogger), "/version", config)))
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 	if len(config.Server.PrivateKey) > 0 {
@@ -1204,7 +1210,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// The "GET /api/latest/fleet/queries/run" API requires
+	// The "GET /api/latest/fleet/reports/run" API requires
 	// WriteTimeout to be higher than the live query rest period
 	// (otherwise the response is not sent back to the client).
 	//

@@ -29,6 +29,7 @@ interface IAdvancedConfigFormData {
   disableAIFeatures: boolean;
   disableMCP: boolean;
   disableQueryReports: boolean;
+  disableAISessions: boolean;
   requireHardwareAttestation: boolean;
   onlyAllowAppleBusinessEnrollment: boolean;
   preserveHostActivitiesOnReenrollment: boolean;
@@ -122,11 +123,13 @@ const Advanced = ({
       appConfig.activity_expiry_settings.activity_expiry_enabled || false,
     activityExpiryWindow:
       appConfig.activity_expiry_settings.activity_expiry_window || 30,
-    disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
+    disableLiveQuery:
+      appConfig.server_settings.live_reporting_disabled || false,
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
     disableMCP: appConfig.server_settings.mcp_disabled || false,
     disableQueryReports:
-      appConfig.server_settings.query_reports_disabled || false,
+      appConfig.server_settings.discard_reports_data || false,
+    disableAISessions: appConfig.server_settings.ai_sessions_disabled || false,
     requireHardwareAttestation:
       appConfig.mdm?.apple_require_hardware_attestation || false,
     onlyAllowAppleBusinessEnrollment:
@@ -189,6 +192,7 @@ const Advanced = ({
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: formData.disableAIFeatures,
         mcp_disabled: formData.disableMCP,
+        ai_sessions_disabled: formData.disableAISessions,
       },
       smtp_settings: {
         domain: formData.domain,

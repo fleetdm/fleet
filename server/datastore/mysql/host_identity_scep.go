@@ -46,6 +46,11 @@ func updateHostIdentityCertHostIDBySerial(ctx context.Context, tx sqlx.ExtContex
 	return err
 }
 
+// identityCertOfAnotherHost reports whether the enrollment's identity cert was issued to a host other than hostID.
+func identityCertOfAnotherHost(identityCert *types.HostIdentityCertificate, hostID uint) bool {
+	return identityCert != nil && identityCert.HostID != nil && *identityCert.HostID != hostID
+}
+
 // checkEnrollmentHoldsHostIdentityCert rejects enrolling over a host with an unrevoked identity cert unless signed by that host's cert,
 // since enrollment can match a host by serial or osquery identifier rather than by the cert name.
 func checkEnrollmentHoldsHostIdentityCert(

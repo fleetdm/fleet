@@ -231,7 +231,7 @@ func ensureFleetWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger 
 		written++
 	}
 	if written > 0 {
-		logger.DebugContext(ctx, "wrote windows enroll secret profiles", "teams", written)
+		logger.DebugContext(ctx, "wrote windows enroll secret profiles", "fleets", written)
 	}
 	return nil
 }

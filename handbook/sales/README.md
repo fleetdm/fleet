@@ -47,8 +47,8 @@ Use the following steps to add an account to Salesforce if one doesn't exist alr
 
 ### Respond to a customer feature comparison request
 
-AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to [#g-first-impressions](https://fleetdm.com/handbook/company/product-groups#first-impressions-group) for CEO review. The rep will:
-- [Create a #g-first-impressions request](https://github.com/fleetdm/fleet/issues/new?labels=%23g-first-impressions&template=first-impressions-request.md) and add [Deal Desk](https://fleetdm.com/handbook/finance#team) to the issue.
+AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to [#g-first-impressions](https://fleetdm.com/handbook/company/product-groups#first-impressions) for CEO review. The rep will:
+- [Create a feature request](https://github.com/fleetdm/fleet/issues/new?labels=%23g-first-impressions&template=feature-request.md) with the `#g-first-impressions` label and add [Deal Desk](https://fleetdm.com/handbook/finance#team) to the issue.
 - Review with the CEO, and iterate on the comparison until approved by the CEO to provide to the prospect.  
 
 
@@ -120,6 +120,7 @@ In order to be transparent, Fleet sends quotes within 30 days of opportunity cre
 
 2. Once the quote is approved, generate the PDF in Salesforce and send it to the prospect.
 3. Copy the quote URL to the "Order form URL" field on the Salesforce opportunity.
+4. Check **"Primary quote"** on the approved quote you sent. An opportunity can't be marked **"Closed Won"** without an approved primary quote (exceptions: contractions, and expansions on an account that also has a renewal). See [Generate a quote](https://fleetdm.com/handbook/company/go-to-market-operations#generate-a-quote) for details.
 
 > Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager. For exceptions of more than one week, escalate to the CEO.
 
@@ -130,6 +131,7 @@ Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the com
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home). If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
 3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-operations#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
+4. If the customer agrees to our standard NDA with no changes, notify the CFO in the [#help-finance Slack channel](https://fleetdm.slack.com/archives/C047N5L6EGH) that the customer is using our standard NDA "as-is".
 
 
 ### Close a new customer deal

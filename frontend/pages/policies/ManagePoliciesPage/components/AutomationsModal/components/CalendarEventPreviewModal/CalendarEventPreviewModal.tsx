@@ -5,15 +5,14 @@ import Card from "components/Card";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
 import { AppContext } from "context/app";
+import { IPolicy } from "interfaces/policy";
 import { TRANSPARENCY_LINK } from "utilities/constants";
-
-import { IFormPolicy } from "../../../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "calendar-event-preview-modal";
 
 interface ICalendarEventPreviewModalProps {
   onCancel: () => void;
-  policy?: IFormPolicy;
+  policy?: IPolicy;
 }
 
 const CalendarEventPreviewModal = ({
