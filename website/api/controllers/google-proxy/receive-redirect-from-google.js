@@ -27,6 +27,7 @@ module.exports = {
   exits: {
     success: { description: 'The end user was redirected to a result page.', responseType: 'redirect' },
     redirect: { responseType: 'redirect' },
+    fleetInstanceNotOnAllowlist: {description: 'This Fleet instance is not on the allowlist.', responseType: 'unauthorized' },
   },
 
 
@@ -51,6 +52,10 @@ module.exports = {
     let informationAboutThisCustomer = await GoogleConditionalAccessServer.findOne({googleCustomerId: valuesFromSignIn.googleCustomerId});
     if(!informationAboutThisCustomer) {
       return errorPageUrl;
+    }
+    // Return a fleetInstanceNotOnAllowlist response if this server url has not been added to sails.config.custom.googleConditionalAccessAllowedOrigins
+    if(!sails.config.custom.googleConditionalAccessAllowedOrigins.includes(fleetInstanceUrl)) {
+      throw 'fleetInstanceNotOnAllowlist';
     }
 
     // Exchange the authorization code for the end user's access token and ID token.

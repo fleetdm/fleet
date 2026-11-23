@@ -28,6 +28,7 @@ module.exports = {
   exits: {
     success: { description: 'The end user was redirected to Google sign-in.', responseType: 'redirect' },
     customerNotFound: { description: 'The provided Google customer ID has no Google conditional access registration.', responseType: 'notFound' },
+    fleetInstanceNotOnAllowlist: {description: 'This Fleet instance is not on the allowlist.', responseType: 'unauthorized' },
   },
 
 
@@ -39,6 +40,10 @@ module.exports = {
     let informationAboutThisCustomer = await GoogleConditionalAccessServer.findOne({googleCustomerId});
     if(!informationAboutThisCustomer) {
       throw 'customerNotFound';
+    }
+    // Return a fleetInstanceNotOnAllowlist response if this server url has not been added to sails.config.custom.googleConditionalAccessAllowedOrigins
+    if(!sails.config.custom.googleConditionalAccessAllowedOrigins.includes(fleetInstanceUrl)) {
+      throw 'fleetInstanceNotOnAllowlist';
     }
 
     let state = Buffer.from(JSON.stringify({googleCustomerId, token, hostUuid})).toString('base64url');
