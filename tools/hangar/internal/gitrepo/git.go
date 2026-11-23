@@ -185,14 +185,18 @@ func parseWorktrees(raw string) []Worktree {
 }
 
 // parseRCMinorKey extracts the minor-line key from an RC branch name:
-// "rc-minor-fleet-v4.86.0" / "rc-patch-fleet-v4.86.3" -> "4.86".
+// "rc-minor-fleet-v4.86.0" / "rc-patch-fleet-v4.86.3" -> "4.86",
+// "rc-major-fleet-v5.0.0" -> "5.0".
 func parseRCMinorKey(name string) (string, bool) {
-	s, ok := strings.CutPrefix(name, "rc-minor-fleet-v")
-	if !ok {
-		s, ok = strings.CutPrefix(name, "rc-patch-fleet-v")
-		if !ok {
-			return "", false
+	var s string
+	var ok bool
+	for _, prefix := range []string{"rc-major-fleet-v", "rc-minor-fleet-v", "rc-patch-fleet-v"} {
+		if s, ok = strings.CutPrefix(name, prefix); ok {
+			break
 		}
+	}
+	if !ok {
+		return "", false
 	}
 	parts := strings.Split(s, ".")
 	if len(parts) < 2 {
@@ -367,8 +371,8 @@ func ListBranches(repo, filter, query string, limit *uint32) ([]Branch, error) {
 	switch filter {
 	case "rc":
 		patterns = []string{
-			"refs/heads/rc-patch-fleet-v*", "refs/heads/rc-minor-fleet-v*",
-			"refs/remotes/origin/rc-patch-fleet-v*", "refs/remotes/origin/rc-minor-fleet-v*",
+			"refs/heads/rc-patch-fleet-v*", "refs/heads/rc-minor-fleet-v*", "refs/heads/rc-major-fleet-v*",
+			"refs/remotes/origin/rc-patch-fleet-v*", "refs/remotes/origin/rc-minor-fleet-v*", "refs/remotes/origin/rc-major-fleet-v*",
 		}
 	case "main":
 		patterns = []string{

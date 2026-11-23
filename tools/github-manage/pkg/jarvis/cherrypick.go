@@ -9,7 +9,7 @@ import (
 	"fleetdm/gm/pkg/ghapi"
 )
 
-var rcVersionRe = regexp.MustCompile(`rc-(?:minor|patch)-fleet-v(\d+\.\d+\.\d+)`)
+var rcVersionRe = regexp.MustCompile(`rc-(?:major|minor|patch)-fleet-v(\d+\.\d+\.\d+)`)
 
 // PendingCherryPicks returns merged PRs you authored that are milestoned for the
 // current RC's version but whose merge commit isn't yet in the RC branch.
@@ -49,11 +49,11 @@ func PendingCherryPicks(repo string) []Item {
 	return items
 }
 
-// detectRCBranch returns the most recent rc-minor-fleet-v* branch on origin.
+// detectRCBranch returns the most recent rc-major-fleet-v* or rc-minor-fleet-v* branch on origin.
 func detectRCBranch() string {
 	out, err := ghapi.RunCommandAndReturnOutput(
-		`git for-each-ref 'refs/remotes/origin/rc-minor-fleet-v*' --format='%(refname:strip=3)' | ` +
-			`grep -E '^rc-minor-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1`,
+		`git for-each-ref 'refs/remotes/origin/rc-major-fleet-v*' 'refs/remotes/origin/rc-minor-fleet-v*' --format='%(refname:strip=3)' | ` +
+			`grep -E '^rc-(major|minor)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -t v -k 2 -V | tail -1`,
 	)
 	if err != nil {
 		return ""
