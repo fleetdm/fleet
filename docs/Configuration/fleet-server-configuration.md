@@ -4110,22 +4110,13 @@ You can remove an activation you already added, whether or not this setting is t
 
 ### mdm.allow_orbit_end_user_auth_bypass
 
-Controls whether fleetd can enroll a host into a fleet that requires [end user authentication](https://fleetdm.com/guides/end-user-authentication) without the end user signing in to your identity provider (IdP). This setting has no effect on fleets that don't require end user authentication.
+Controls whether fleetd can enroll a host into a fleet that requires [end user authentication](https://fleetdm.com/guides/end-user-authentication) without the end user signing in to your identity provider (IdP).
 
-When `true` (default), Fleet enrolls a host without IdP sign-in if its fleetd doesn't report support for end user authentication. This covers:
+When `true` (default), Fleet skips sign-in for hosts whose fleetd can't prompt for it: fleetd older than 1.50.0, installers built with `fleetctl package --bypass-end-user-auth`, and macOS hosts. Anyone with the fleet's enroll secret can use this to skip sign-in.
 
-- Versions of fleetd older than 1.50.0
-- Installers built with `fleetctl package --bypass-end-user-auth`
-- macOS hosts, where the end user signs in during MDM enrollment, not in fleetd
+When `false`, Fleet blocks those hosts with `END_USER_AUTH_REQUIRED`. Linux and Windows hosts need fleetd 1.50.0 or later. macOS hosts can only enroll by turning on MDM through automatic enrollment (ADE) or the `/enroll` link, which both require sign-in.
 
-Current fleetd versions on Linux and Windows still prompt the end user to sign in. But each host reports its own capabilities, so anyone with the fleet's enroll secret can craft an enrollment request that skips sign-in.
-
-When `false`, Fleet only enrolls a host if it has a record that the end user signed in. Fleet blocks every other host with `END_USER_AUTH_REQUIRED`:
-
-- On Linux and Windows, fleetd prompts the end user to sign in with the IdP, then enrolls. Versions of fleetd older than 1.50.0 can't prompt, so they stay blocked until fleetd is updated.
-- On macOS, fleetd doesn't support IdP sign-in. The host can't enroll until it turns on MDM through automatic enrollment (ADE) or the `/enroll` link, which both require IdP sign-in.
-
-Regardless of this setting, a host that fleetd already enrolled can re-enroll without signing in again, and a Windows host that signed in during MDM enrollment isn't prompted again.
+Either way, hosts that already enrolled, and Windows hosts that signed in during MDM enrollment, aren't prompted again.
 
 - Default value: `true`
 - Environment variable: `FLEET_MDM_ALLOW_ORBIT_END_USER_AUTH_BYPASS`
