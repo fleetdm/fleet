@@ -1513,6 +1513,7 @@ module.exports.routes = {
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/managed-lost-mode': 'https://support.apple.com/en-gb/guide/security/secc46f3562c/web',
   'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#special-android-behavior',
+  'GET /learn-more-about/windows-profile-status-codes': 'https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes',
   'GET /learn-more-about/deployment-rings': '/guides/roll-out-changes-with-deployment-rings',
   'GET /learn-more-about/roll-out-new-package-version': '/guides/roll-out-changes-with-deployment-rings#a-new-version-of-a-custom-package',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',

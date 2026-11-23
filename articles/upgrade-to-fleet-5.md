@@ -147,7 +147,7 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `GET /global/schedule` and `GET /fleets/:id/schedule` | [`GET /reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet. Scheduled reports have an `interval` greater than `0`. |
-| `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
+| `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, `logging`, and `automations_enabled` set to `true` (and `fleet_id` for a fleet). No copy. |
 | `PATCH /global/schedule/:id` and `PATCH /fleets/:id/schedule/:report_id` | [`PATCH /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
 | `DELETE /global/schedule/:id` and `DELETE /fleets/:id/schedule/:report_id` | [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
 
@@ -158,7 +158,7 @@ The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also 
 Fleet 4 already supports reports with an `interval`, so change them before you upgrade.
 
 1. Search for the old paths: `grep -rnE '/schedule\b' .`
-2. Create or update reports with an `interval` instead. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
+2. Create or update reports with an `interval` instead. Set `automations_enabled` to `true`. The old schedule endpoints always did, but `POST /reports` defaults it to `false`, so results aren't sent to your log destination, and reports with `differential` or `differential_ignore_removals` logging don't run on hosts at all. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
 
 GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
@@ -522,17 +522,20 @@ Fleet 4 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
-### YAML-only lists removed from configuration responses
+### YAML-only lists removed from configuration and fleet settings
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
+| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.android_settings.configuration_profiles`, `macos_bootstrap_package`, `apple_setup_assistant`, and `macos_script` under `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and the other responses that include a fleet's settings | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
+| The same keys in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) requests | Removed. Requests that include them fail with a `400` error, except `mdm.setup_experience.macos_bootstrap_package` and `mdm.volume_purchasing_program`, which Fleet uses for that request only and doesn't save. Fleet only reads `macos_bootstrap_package` to check settings that need a bootstrap package, where an empty value means there's none. It doesn't upload or delete the package. To do that, use [Create bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) and [Delete bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#delete-bootstrap-package). |
 
 #### What to do
 
 Change these before you upgrade.
 
-These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
+1. These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
+2. Remove these keys from your Update configuration requests, and add or delete each item with its own endpoint instead, for example [Create configuration profile](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
+3. Use fleetctl 5 with `fleetctl apply`. fleetctl 4 sends these keys to Fleet, so applying configuration or fleet files that list them fails.
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
@@ -665,20 +668,6 @@ GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 After you upgrade, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host) to get the PIN after you lock an Android host.
 
 GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
-
-### SCIM user delete requires an admin
-
-| Fleet 4 | Fleet 5 |
-|:--|:--|
-| `DELETE /scim/Users/:id` works with a maintainer's API token | [Delete SCIM user](https://fleetdm.com/docs/rest-api/rest-api#delete-scim-user) requires an admin's API token |
-
-#### What to do
-
-Change these before you upgrade.
-
-Use an admin's API token for your SCIM integration.
-
-GitHub issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 
 ### GitOps users can't run MDM commands
 
@@ -1256,6 +1245,18 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
+### YAML-only lists under a fleet's settings.mdm
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `custom_settings` or `configuration_profiles` under `settings.mdm.apple_settings`, `settings.mdm.windows_settings`, or `settings.mdm.android_settings`, and `macos_bootstrap_package`, `apple_setup_assistant`, or `macos_script` under `settings.mdm.setup_experience`, in a fleet's YAML file | GitOps runs fail with an `unknown key` error |
+
+#### What to do
+
+Before you upgrade, remove these keys from `settings.mdm` in your fleets' YAML files. Configuration profiles and setup experience items belong under [`controls`](https://fleetdm.com/docs/configuration/yaml-files#controls).
+
+GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
+
 ## fleetctl
 
 ### --team is now --fleet
@@ -1357,6 +1358,18 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 Update scripts that parse the output of `fleetctl get config` to read the new names. Files you pass to `fleetctl apply` need the new names too.
 
 GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
+### get config and get fleets don't print YAML-only lists
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get config` and `fleetctl get fleets` print the configuration profiles, scripts, bootstrap package, setup assistant, setup experience script, and VPP assignments applied with YAML | They don't print them |
+
+#### What to do
+
+Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output to use each feature's list endpoint instead. See [YAML-only lists removed from configuration and fleet settings](#yaml-only-lists-removed-from-configuration-and-fleet-settings).
+
+GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
 ### get software output changed
 

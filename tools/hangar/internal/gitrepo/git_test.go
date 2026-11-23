@@ -81,6 +81,7 @@ func TestParseRCMinorKey(t *testing.T) {
 	}{
 		{"rc-minor-fleet-v4.86.0", "4.86", true},
 		{"rc-patch-fleet-v4.86.3", "4.86", true},
+		{"rc-major-fleet-v5.0.0", "5.0", true},
 		{"main", "", false},
 		{"rc-minor-fleet-vX.Y.Z", "", false},
 		{"rc-minor-fleet-v4", "", false},
