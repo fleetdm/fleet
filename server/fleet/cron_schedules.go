@@ -3,7 +3,6 @@ package fleet
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -157,16 +156,6 @@ func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) e
 	default:
 		return nil
 	}
-}
-
-// TriggerPolicyMembershipCleanup starts the policy_membership_cleanup schedule. A run already in progress picks up the
-// change itself, so that conflict isn't an error.
-func TriggerPolicyMembershipCleanup(ctx context.Context, schedules CronSchedulesService) error {
-	err := schedules.TriggerCronSchedule(ctx, string(CronPolicyMembershipCleanup))
-	if _, isConflict := errors.AsType[triggerConflictError](err); isConflict {
-		return nil
-	}
-	return err
 }
 
 // ScheduleNames returns a list of the names of all cron schedules registered with the service.

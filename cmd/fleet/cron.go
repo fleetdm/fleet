@@ -2807,7 +2807,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	cronSchedules fleet.CronSchedulesService,
+	triggerPolicyMembershipCleanup func(context.Context),
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2829,9 +2829,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 
 			err := eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
 			// When the update changed a patch policy's query, it marked the policy's old results for cleanup. This starts that cleanup.
-			if triggerErr := fleet.TriggerPolicyMembershipCleanup(ctx, cronSchedules); triggerErr != nil {
-				logger.ErrorContext(ctx, "trigger policy membership cleanup", "err", triggerErr)
-			}
+			triggerPolicyMembershipCleanup(ctx)
 			return err
 		}),
 	)

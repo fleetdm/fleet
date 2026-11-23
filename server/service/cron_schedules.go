@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -15,9 +17,15 @@ func (svc *Service) TriggerCronSchedule(ctx context.Context, name string) error 
 }
 
 // TriggerPolicyMembershipCleanup starts the cleanup of the policy results that a policy change invalidated. The change
-// already requested the cleanup, which the schedule's periodic run does if this fails.
+// already requested the cleanup, which the schedule's periodic run does if this fails. A run already in progress picks
+// up the change itself, so that conflict isn't an error.
 func (svc *Service) TriggerPolicyMembershipCleanup(ctx context.Context) {
-	if err := fleet.TriggerPolicyMembershipCleanup(ctx, svc.cronSchedulesService); err != nil {
-		svc.logger.ErrorContext(ctx, "trigger policy membership cleanup", "err", err)
+	err := svc.cronSchedulesService.TriggerCronSchedule(ctx, string(fleet.CronPolicyMembershipCleanup))
+	var conflict interface{ IsConflict() bool }
+	if err == nil || errors.As(err, &conflict) {
+		return
 	}
+	err = ctxerr.Wrap(ctx, err, "trigger policy membership cleanup")
+	svc.logger.ErrorContext(ctx, "trigger policy membership cleanup", "err", err)
+	ctxerr.Handle(ctx, err)
 }
