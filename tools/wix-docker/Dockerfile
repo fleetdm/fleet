@@ -1,4 +1,4 @@
-FROM debian:trixie-slim@sha256:f6e2cfac5cf956ea044b4bd75e6397b4372ad88fe00908045e9a0d21712ae3ba
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 
 LABEL maintainer="Fleet Developers"
 LABEL org.opencontainers.image.vendor="Fleet Device Management Inc."
