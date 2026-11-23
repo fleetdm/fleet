@@ -1443,7 +1443,7 @@ osascript() {
 					require.NoError(t, err)
 				}
 				var lines []string
-				for _, l := range strings.Split(strings.TrimSpace(string(opened)), "\n") {
+				for l := range strings.SplitSeq(strings.TrimSpace(string(opened)), "\n") {
 					if l != "" {
 						lines = append(lines, l)
 					}
