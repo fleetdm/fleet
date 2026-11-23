@@ -1055,6 +1055,54 @@ The number of requests per minute allowed to the [SSO callback endpoint](https:/
     sso_rate_limit_per_minute: 200
   ```
 
+### auth_jwt_issuers
+
+External OpenID Connect (OIDC) issuers whose JSON Web Tokens (JWTs) can authenticate [API-only users](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user). An automation, such as `fleetctl gitops` in GitHub Actions, sends a short-lived JWT from its own identity provider as its API token, so no Fleet API token has to be stored. Fleet holds only each issuer's public signing keys.
+
+A JWT authenticates only after a global admin binds its subject to an API-only user with the [Update API-only user's external identities](https://fleetdm.com/docs/rest-api/rest-api#update-api-only-users-external-identities) API endpoint. The request then has that user's role and fleet access.
+
+Each issuer has these fields:
+
+- `name` (required): A stable name for the issuer, up to 255 characters. Bindings refer to this name, so changing `issuer` or `jwks_url` keeps existing bindings.
+- `issuer` (required): Must match the token's `iss` claim exactly. Must be an `https://` URL.
+- `audience` (required): Must appear in the token's `aud` claim. Use a value unique to this Fleet server so tokens minted for other services are rejected.
+- `jwks_url`: Where to fetch the issuer's signing keys. If empty, Fleet discovers it from `{issuer}/.well-known/openid-configuration`.
+- `subject_claim`: The claim to match against bindings. Default: `sub`.
+- `allowed_algorithms`: Signing algorithms to accept, from `RS256`, `RS384`, `RS512`, `ES256`, and `ES384`. Default: `[RS256, ES256]`.
+- `max_token_lifetime`: The longest a token may be valid (`exp` minus `iat`), up to `24h`. Default: `15m`. Google ID tokens are valid for 1 hour, so use `1h` for Google.
+
+Fleet fetches each issuer's keys at startup and every hour, and keeps serving cached keys if the issuer is unreachable. Key fetches follow the [`server_allow_private_network_integrations`](#server-allow-private-network-integrations) setting, so an issuer on a private network needs that setting enabled.
+
+JWTs are accepted by the REST API, including software and bootstrap package uploads. They aren't accepted by the live query websocket, the MCP server, SCIM, or the debug endpoints. Logging out isn't supported, since there's no session: a token stays valid until it expires.
+
+- Default value: None
+- Environment variable: `FLEET_AUTH_JWT_ISSUERS`
+- Environment variable format: `[{"name": "github", "issuer": "https://token.actions.githubusercontent.com", "audience": "https://fleet.example.com"}]`
+- Config file format:
+  ```yaml
+  auth:
+    jwt_issuers:
+      - name: github
+        issuer: https://token.actions.githubusercontent.com
+        audience: https://fleet.example.com
+      - name: google
+        issuer: https://accounts.google.com
+        audience: https://fleet.example.com
+        max_token_lifetime: 1h
+  ```
+
+### auth_jwt_rate_limit_per_minute
+
+The number of [external JWT](#auth-jwt-issuers) authentication attempts allowed per minute from one client IP address, after an initial burst of 100. Requests over the limit get a `429 Too Many Requests` response with a `Retry-After` header.
+
+- Default value: 1200
+- Environment variable: `FLEET_AUTH_JWT_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  auth:
+    jwt_rate_limit_per_minute: 600
+  ```
+
 ## App
 
 ### app_token_key_size
