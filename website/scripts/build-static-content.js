@@ -1620,6 +1620,9 @@ module.exports = {
           if(!integration.url.match(/^\/integrate\/[a-z0-9-]+\/[a-z0-9-]+$/)) {
             throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has an invalid url (${integration.url}). Integration URLs must look like /integrate/{category}/{integration}, using lowercase letters, numbers, and dashes.`);
           }
+          if(integration.vendorUrl !== undefined && !_.isString(integration.vendorUrl)) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has an invalid "vendorUrl" value (expected a string, but got: ${typeof integration.vendorUrl}). To resolve, change the vendorUrl to be a string or remove it, and try running this script again.`);
+          }
           integration.alsoListedIn = integration.alsoListedIn || [];
           for(let categorySlug of [integration.category].concat(integration.alsoListedIn)) {
             if(!categorySlugsSeen.includes(categorySlug)) {
@@ -1638,6 +1641,9 @@ module.exports = {
           for(let doc of integration.docs) {
             if(!doc.label || !doc.url) {
               throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a docs link that is missing a "label" or "url" value.`);
+            }
+            if(!_.isString(doc.label) || !_.isString(doc.url)) {
+              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a docs link (${util.inspect(doc)}) with a "label" or "url" value that isn't a string. To resolve, change both values to strings and try running this script again.`);
             }
           }
           integration.slug = integration.url.split('/').pop();
@@ -1659,6 +1665,14 @@ module.exports = {
             if(!buildingBlock[requiredKey]) {
               throw new Error(`Could not build integrations configuration from YAML. A building block (${buildingBlock.name || util.inspect(buildingBlock)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this building block and try running this script again.`);
             }
+          }
+          for(let expectedStringAttribute of ['name', 'description', 'url']) {
+            if(!_.isString(buildingBlock[expectedStringAttribute])) {
+              throw new Error(`Could not build integrations configuration from YAML. A building block (${util.inspect(buildingBlock)}) has an invalid "${expectedStringAttribute}" value (expected a string, but got: ${typeof buildingBlock[expectedStringAttribute]}). To resolve, change the ${expectedStringAttribute} to be a string and try running this script again.`);
+            }
+          }
+          if(buildingBlock.logo !== undefined && !_.isString(buildingBlock.logo)) {
+            throw new Error(`Could not build integrations configuration from YAML. The building block "${buildingBlock.name}" has an invalid "logo" value (expected a string, but got: ${typeof buildingBlock.logo}). To resolve, change the logo to be a string or remove it, and try running this script again.`);
           }
           if(buildingBlock.logo) {
             let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', buildingBlock.logo));
