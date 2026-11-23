@@ -68,7 +68,7 @@ describe("ScriptModalGroup", () => {
     await user.click(await screen.findByText("More actions"));
     await user.click((await screen.findAllByText("Run")).slice(-1)[0]);
     await user.click(await screen.findByRole("button", { name: "Cancel" }));
-    await user.click(await screen.findByRole("button", { name: "Close" }));
+    await user.click(await screen.findByText("Close"));
 
     expect(
       document.querySelector(".run-script-modal")?.closest(".modal__hidden")

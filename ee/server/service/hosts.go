@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 )
@@ -167,13 +168,17 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			),
 		)
 	case lockWipe.IsPendingWipe():
+		noun, participle := wipeOrResetWords(lockWipe)
 		return "", ctxerr.Wrap(
 			ctx,
-			fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process lock requests once host is wiped."),
+			fleet.NewInvalidArgumentError("host_id",
+				"Host has pending "+noun+" request. Cannot process lock requests once host is "+participle+"."),
 		)
 	case lockWipe.IsWiped():
+		_, participle := wipeOrResetWords(lockWipe)
 		return "", ctxerr.Wrap(
-			ctx, fleet.NewInvalidArgumentError("host_id", "Host is wiped. Cannot process lock requests once host is wiped."),
+			ctx, fleet.NewInvalidArgumentError("host_id",
+				"Host is "+participle+". Cannot process lock requests once host is "+participle+"."),
 		)
 	case lockWipe.IsLocked():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already locked.").WithStatus(http.StatusConflict))
@@ -256,9 +261,13 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		}
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
 	case lockWipe.IsPendingWipe():
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process unlock requests once host is wiped."))
+		noun, participle := wipeOrResetWords(lockWipe)
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host has pending "+noun+" request. Cannot process unlock requests once host is "+participle+"."))
 	case lockWipe.IsWiped():
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is wiped. Cannot process unlock requests once host is wiped."))
+		_, participle := wipeOrResetWords(lockWipe)
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host is "+participle+". Cannot process unlock requests once host is "+participle+"."))
 	case lockWipe.IsUnlocked():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
 	}
@@ -267,7 +276,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	return svc.enqueueUnlockHostRequest(ctx, host, lockWipe)
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error {
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -359,21 +368,104 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
-	switch {
-	case lockWipe.IsPendingLock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete."))
-	case lockWipe.IsPendingUnlock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete."))
-	case lockWipe.IsPendingWipe():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online."))
-	case lockWipe.IsLocked():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked."))
-	case lockWipe.IsWiped():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict))
+	// A wipe takes over a reset the host hasn't picked up yet, or waits behind one it acknowledged, for when the reset is
+	// interrupted (see WipeHostViaWindowsMDM).
+	if !lockWipe.IsReset() || lockWipe.WipeQueuedAfterReset {
+		if err := checkHostCanBeWiped(ctx, lockWipe, "wiped"); err != nil {
+			return err
+		}
 	}
 
 	// all good, go ahead with queuing the wipe request.
-	return svc.enqueueWipeHostRequest(ctx, host, lockWipe, metadata)
+	return svc.enqueueWipeHostRequest(ctx, host, lockWipe)
+}
+
+// checkHostCanBeWiped rejects a wipe or a reset (participle "wiped" or "reset") while another lock, unlock, wipe or reset
+// is pending, or once the host is locked, wiped or reset.
+func checkHostCanBeWiped(ctx context.Context, lockWipe *fleet.HostLockWipeStatus, participle string) error {
+	wipeNoun, wipeParticiple := wipeOrResetWords(lockWipe)
+	switch {
+	case lockWipe.IsPendingLock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be "+participle+" until lock is complete."))
+	case lockWipe.IsPendingUnlock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be "+participle+" until unlock is complete."))
+	case lockWipe.WipeQueuedAfterReset:
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host has pending wipe request. The host will be wiped if the reset doesn't complete."))
+	case lockWipe.IsPendingWipe():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host has pending "+wipeNoun+" request. The host will be "+wipeParticiple+" when it comes online."))
+	case lockWipe.IsLocked():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be "+participle+" until it is unlocked."))
+	case lockWipe.IsWiped():
+		return ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError("host_id", "Host is already "+wipeParticiple+".").WithStatus(http.StatusConflict))
+	}
+	return nil
+}
+
+// wipeOrResetWords names the host's wipe command in error messages: a Windows reset is tracked as a wipe.
+func wipeOrResetWords(lockWipe *fleet.HostLockWipeStatus) (noun, participle string) {
+	if lockWipe.IsReset() {
+		return "reset", "reset"
+	}
+	return "wipe", "wiped"
+}
+
+func (svc *Service) ResetHost(ctx context.Context, hostID uint) error {
+	// Same authorization as WipeHost: list hosts first, then execute MDM commands on the host's fleet, masked as not
+	// found when the caller can't see the host.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
+	}
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "reset host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
+	}
+
+	if host.FleetPlatform() != "windows" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Reset is only available for Windows hosts."))
+	}
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		if errors.Is(err, fleet.ErrMDMNotConfigured) {
+			err = fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		}
+		return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't reset the host because it doesn't have MDM turned on."))
+	}
+
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+	if err := checkHostCanBeWiped(ctx, lockWipe, "reset"); err != nil {
+		return err
+	}
+
+	// Tracked through host_mdm_actions.wipe_ref like a wipe: the Windows MDM result handler and the re-enrollment check
+	// for a host whose hardware ID is already enrolled both rely on it, and MDM re-enrollment clears it.
+	cmd := microsoft_mdm.RemoteWipeCmd(fleet.WindowsRemoteWipePersistProvisionedData)
+	if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing reset request for windows")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResetHost{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for reset host request")
+	}
+	return nil
 }
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus, viewPIN bool) (
@@ -524,7 +616,6 @@ func (svc *Service) enqueueWipeHostRequest(
 	ctx context.Context,
 	host *fleet.Host,
 	wipeStatus *fleet.HostLockWipeStatus,
-	metadata *fleet.MDMWipeMetadata,
 ) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -539,19 +630,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		}
 
 	case "windows":
-		// default wipe type
-		wipeType := fleet.MDMWindowsWipeTypeDoWipeProtected
-		if metadata != nil && metadata.Windows != nil {
-			wipeType = metadata.Windows.WipeType
-			svc.logger.DebugContext(ctx, "Windows host wipe request", "wipe_type", wipeType.String())
-		}
-		wipeCmdUUID := uuid.NewString()
-		wipeCmd := &fleet.MDMWindowsCommand{
-			CommandUUID:  wipeCmdUUID,
-			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID, wipeType.String())),
-			TargetLocURI: fmt.Sprintf("./Device/Vendor/MSFT/RemoteWipe/%s", wipeType.String()),
-		}
-		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {
+		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, microsoft_mdm.RemoteWipeCmd(fleet.WindowsRemoteWipeProtected)); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for windows")
 		}
 
@@ -866,21 +945,6 @@ var (
 	linuxUnlockScript []byte
 	//go:embed embedded_scripts/linux_wipe.sh
 	linuxWipeScript []byte
-
-	windowsWipeCommand = `
-		<Exec>
-			<CmdID>%s</CmdID>
-			<Item>
-				<Target>
-					<LocURI>./Device/Vendor/MSFT/RemoteWipe/%s</LocURI>
-				</Target>
-				<Meta>
-					<Format xmlns="syncml:metinf">chr</Format>
-					<Type>text/plain</Type>
-				</Meta>
-				<Data></Data>
-			</Item>
-		</Exec>`
 )
 
 func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {

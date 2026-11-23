@@ -87,7 +87,7 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 
 Fleet uses [Retriever](https://helloretriever.com) to store and ship devices from the Fleet IT warehouse. Each device Retriever handles shows a **Warehouse status** host vital in [dogfood](https://dogfood.fleetdm.com/dashboard), which updates daily. Devices that Retriever hasn't handled don't have a status.
 
-To see devices that are ready to ship, open **Hosts** in [dogfood](https://dogfood.fleetdm.com/hosts/manage) and filter by the **Warehouse: Ready for deployment** label. To request one, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md).
+To see devices that are ready to ship, open **Hosts** in dogfood and [filter by the **Warehouse: Ready for deployment** label](https://dogfood.fleetdm.com/hosts/manage/labels/33159). To request one, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md).
 
 | Warehouse status | What it means |
 |:--|:--|

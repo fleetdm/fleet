@@ -15,6 +15,7 @@ on:
       - webpack.config.js
       - tsconfig.json
       - tools/software/icons/**
+      - .github/workflows/test-js.yml
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -33,7 +34,7 @@ jobs:
   test-js:
     strategy:
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -80,7 +81,7 @@ jobs:
   lint-js:
     strategy:
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -128,7 +129,7 @@ jobs:
   lint-icons:
     strategy:
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:

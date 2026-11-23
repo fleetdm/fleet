@@ -625,7 +625,9 @@ import Macwhisper from "./png/Macwhisper.png";
 import Maestral from "./png/Maestral.png";
 import Magicquit from "./png/Magicquit.png";
 import Mailspring from "./png/Mailspring.png";
+import MakeMeAdmin from "./png/MakeMeAdmin.png";
 import Malwarebytes from "./png/Malwarebytes.png";
+import ManagedSoftwareCenter from "./png/ManagedSoftwareCenter.png";
 import MarkedApp from "./png/MarkedApp.png";
 import Markedit from "./png/Markedit.png";
 import Marsedit from "./png/Marsedit.png";
@@ -770,6 +772,7 @@ import PaintDotNet from "./png/PaintDotNet.png";
 import PaleMoon from "./png/PaleMoon.png";
 import Paletro from "./png/Paletro.png";
 import ParallelsDesktop from "./png/ParallelsDesktop.png";
+import Parsec from "./png/Parsec.png";
 import Pastebot from "./png/Pastebot.png";
 import Pcoipclient from "./png/Pcoipclient.png";
 import Pd from "./png/Pd.png";
@@ -896,6 +899,7 @@ import RustDesk from "./png/RustDesk.png";
 import RustRover from "./png/RustRover.png";
 import Sabnzbd from "./png/Sabnzbd.png";
 import SafeExamBrowser from "./png/SafeExamBrowser.png";
+import SandboxiePlus from "./png/SandboxiePlus.png";
 import Sanesidebuttons from "./png/Sanesidebuttons.png";
 import Santa from "./png/Santa.png";
 import ScaleFt from "./png/ScaleFt.png";
@@ -1005,6 +1009,7 @@ import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
+import TableauReader from "./png/TableauReader.png";
 import TablePlus from "./png/TablePlus.png";
 import Tabtab from "./png/Tabtab.png";
 import Tailscale from "./png/Tailscale.png";
@@ -1110,6 +1115,7 @@ import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
+import Windscribe from "./png/Windscribe.png";
 import Windsurf from "./png/Windsurf.png";
 import Winlogbeat from "./png/Winlogbeat.png";
 import Winrar from "./png/Winrar.png";
@@ -1146,6 +1152,7 @@ import Zappy from "./png/Zappy.png";
 import Zed from "./png/Zed.png";
 import Zen from "./png/Zen.png";
 import Zeplin from "./png/Zeplin.png";
+import ZerotierOne from "./png/ZerotierOne.png";
 import Zettlr from "./png/Zettlr.png";
 import Zight from "./png/Zight.png";
 import ZoomOutlookPlugin from "./png/ZoomOutlookPlugin.png";
@@ -1368,6 +1375,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "cisco jabber": CiscoJabber,
   "cisco webex recorder and player": CiscoWebexRecorderAndPlayer,
   "citrix workspace": CitrixWorkspace,
+  "citrix workspace ltsr": CitrixWorkspace,
   claude: Claude,
   "claude-devtools": ClaudeDevtools,
   cleanclip: Cleanclip,
@@ -1801,7 +1809,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   maestral: Maestral,
   magicquit: Magicquit,
   mailspring: Mailspring,
+  "make me admin": MakeMeAdmin,
   "malwarebytes for mac": Malwarebytes,
+  "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,
   markedit: Markedit,
   marsedit: Marsedit,
@@ -1878,6 +1888,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "mullvad browser": MullvadBrowser,
   "mullvad vpn": MullvadVpn,
   multitouch: Multitouch,
+  munki: ManagedSoftwareCenter,
   mural: Mural,
   museeks: Museeks,
   musescore: Musescore,
@@ -1962,6 +1973,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pale moon": PaleMoon,
   paletro: Paletro,
   "parallels desktop": ParallelsDesktop,
+  parsec: Parsec,
   pastebot: Pastebot,
   pd: Pd,
   "pdf expert": PdfExpert,
@@ -2092,6 +2104,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sabnzbd: Sabnzbd,
   safari: Safari,
   "safe exam browser": SafeExamBrowser,
+  "sandboxie-plus": SandboxiePlus,
   sanesidebuttons: Sanesidebuttons,
   santa: Santa,
   "sbarex qlmarkdown": Qlmarkdown,
@@ -2204,6 +2217,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
+  "tableau reader": TableauReader,
   tableplus: TablePlus,
   tabtab: Tabtab,
   tailscale: Tailscale,
@@ -2320,6 +2334,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app": WindowsApp,
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
+  windscribe: Windscribe,
   windsurf: Windsurf,
   winlogbeat: Winlogbeat,
   winrar: Winrar,
@@ -2356,11 +2371,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zed: Zed,
   zen: Zen,
   zeplin: Zeplin,
+  "zerotier one": ZerotierOne,
   zettlr: Zettlr,
   zight: Zight,
   "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
+  "zoom vdi universal plugin": Zoom,
   zotero: Zotero,
   zulip: Zulip,
   zwift: Zwift,

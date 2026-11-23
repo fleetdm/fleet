@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.18.0",
+      "version": "9.19.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre' AND version_compare(bundle_short_version, '9.18.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.calibre' AND version_compare(bundle_short_version, '9.19.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.kovidgoyal.calibre' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.calibre-ebook.com/9.18.0/calibre-9.18.0.dmg",
+      "installer_url": "https://download.calibre-ebook.com/9.19.0/calibre-9.19.0.dmg",
       "install_script_ref": "ad89ab3b",
       "uninstall_script_ref": "8c2da242",
-      "sha256": "b4b8000433b6e4d0fdfb3bd0283cd76b7525c65daf5af027ec4dc1e629ef3d0c",
+      "sha256": "207c80d80ace59cb21a4c52fa1c40843a8e860de100304e590da664db3abfb3f",
       "default_categories": [
         "Productivity"
       ]

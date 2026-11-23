@@ -31,14 +31,13 @@ const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONL
 
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
-	MaxAttempts         int
-	Logger              *slog.Logger
-	ReplicaConfig       *MysqlConfig
-	Interceptor         sqlmw.Interceptor
-	TracingConfig       *LoggingConfig
-	MinLastOpenedAtDiff time.Duration
-	SqlMode             string
-	PrivateKey          string
+	MaxAttempts   int
+	Logger        *slog.Logger
+	ReplicaConfig *MysqlConfig
+	Interceptor   sqlmw.Interceptor
+	TracingConfig *LoggingConfig
+	SqlMode       string
+	PrivateKey    string
 	// ConnectorFactory is an optional factory for creating custom database connectors.
 	// When set, it's used instead of the standard connection method.
 	ConnectorFactory ConnectorFactory

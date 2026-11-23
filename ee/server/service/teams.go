@@ -98,8 +98,8 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if utf8.RuneCountInString(*p.Name) > fleet.MaxTeamNameLength {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 	}
-	if fleet.IsReservedTeamName(*p.Name) {
-		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
+	if reason := fleet.ReservedTeamNameReason(*p.Name); reason != "" {
+		return nil, fleet.NewInvalidArgumentError("name", reason)
 	}
 	if fleet.TeamNameKey(*p.Name) == "" {
 		return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
@@ -111,7 +111,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 	if conflict != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, fleet.TeamNameConflictHint),
+			Message: fleet.TeamNameConflictMessage(*p.Name, conflict.Name),
 		})
 	}
 
@@ -193,8 +193,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if utf8.RuneCountInString(*payload.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
-		if fleet.IsReservedTeamName(*payload.Name) {
-			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
+		if reason := fleet.ReservedTeamNameReason(*payload.Name); reason != "" {
+			return nil, fleet.NewInvalidArgumentError("name", reason)
 		}
 		if fleet.TeamNameKey(*payload.Name) == "" {
 			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
@@ -206,7 +206,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		if conflict != nil {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, fleet.TeamNameConflictHint),
+				Message: fleet.TeamNameConflictMessage(*payload.Name, conflict.Name),
 			})
 		}
 		oldName = team.Name
@@ -1087,7 +1087,6 @@ func (svc *Service) ListTeams(ctx context.Context, opt fleet.ListOptions) ([]*fl
 	if err != nil {
 		return nil, err
 	}
-
 	if err = obfuscateSecrets(vc.User, teams); err != nil {
 		return nil, err
 	}
@@ -1254,12 +1253,11 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		if err != nil {
 			return nil, err
 		}
-
 		// Convert TeamConfig to Team for API compatibility
 		// Team ID 0 represents "No Team"
 		team := &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}
 
@@ -1303,7 +1301,6 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 	if err != nil {
 		return nil, err
 	}
-
 	if err = obfuscateSecrets(user, []*fleet.Team{team}); err != nil {
 		return nil, err
 	}
@@ -1558,8 +1555,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if utf8.RuneCountInString(spec.Name) > fleet.MaxTeamNameLength {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
-		if fleet.IsReservedTeamName(spec.Name) {
-			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
+		if reason := fleet.ReservedTeamNameReason(spec.Name); reason != "" {
+			return nil, fleet.NewInvalidArgumentError("name", reason)
 		}
 		if fleet.TeamNameKey(spec.Name) == "" {
 			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
@@ -1623,10 +1620,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			return nil, err
 		}
 		if conflict != nil {
-			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
-				"fleet name %q conflicts with existing fleet %q. %s",
-				spec.Name, conflict.Name, fleet.TeamNameConflictHint,
-			)})
+			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.TeamNameConflictMessage(spec.Name, conflict.Name)})
 		}
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
@@ -1733,7 +1727,7 @@ func validateVulnExposureFilters(ctx context.Context, veFilters *fleet.VulnExpos
 		return nil
 	}
 	invalid := &fleet.InvalidArgumentError{}
-	veFilters.Validate("team.settings.features", invalid)
+	veFilters.Validate("features", invalid)
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -1908,6 +1902,12 @@ func (svc *Service) createTeamFromSpec(
 		hostActivitiesWebhook = spec.WebhookSettings.HostActivitiesWebhook
 	}
 
+	var failingPoliciesWebhook fleet.FailingPoliciesWebhookSettings
+	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
+		failingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
+	}
+
 	if spec.Integrations.GoogleCalendar != nil {
 		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
@@ -1972,8 +1972,9 @@ func (svc *Service) createTeamFromSpec(
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
-				HostStatusWebhook:     hostStatusWebhook,
-				HostActivitiesWebhook: hostActivitiesWebhook,
+				FailingPoliciesWebhook: failingPoliciesWebhook,
+				HostStatusWebhook:      hostStatusWebhook,
+				HostActivitiesWebhook:  hostActivitiesWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar:           spec.Integrations.GoogleCalendar,
@@ -3031,7 +3032,6 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
-
 	// Apply and validate webhook settings if provided
 	if payload.WebhookSettings != nil {
 		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
@@ -3096,7 +3096,7 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 	// Return as a Team for API compatibility
 	team := &fleet.Team{
 		ID:     0,
-		Name:   fleet.ReservedNameNoTeam,
+		Name:   fleet.DisplayNameNoTeam,
 		Config: *config,
 	}
 

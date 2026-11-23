@@ -359,7 +359,6 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	newRawPwd := "new_password2!"
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       nonSSOUser.ID,
 	}, http.StatusOK, &perfPwdResetResp)
 	require.False(t, perfPwdResetResp.User.AdminForcedPasswordReset)
 
@@ -380,7 +379,6 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	newRawPwd = "new_password2!"
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       nonSSOUser.ID,
 	}, http.StatusForbidden, &perfPwdResetResp)
 }
 

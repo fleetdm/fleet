@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.9",
+      "version": "2.0.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superset.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superset.desktop' AND version_compare(bundle_short_version, '2.0.9') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superset.desktop' AND version_compare(bundle_short_version, '2.0.11') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.superset.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/ParadevAI/Paradev/releases/download/desktop-v2.0.9/Superset-arm64.dmg",
+      "installer_url": "https://github.com/ParadevAI/Paradev/releases/download/desktop-v2.0.11/Superset-arm64.dmg",
       "install_script_ref": "aaa3dbd4",
       "uninstall_script_ref": "10c0e120",
-      "sha256": "dccc149198633bc9ed099ef6cd53da46336868885dbef0b574190c6de0842399",
+      "sha256": "1a24832fb56575552291ffb960455f8d00a77b0a33b5abc8f95753307a578d42",
       "default_categories": [
         "Developer tools"
       ]

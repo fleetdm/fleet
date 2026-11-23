@@ -3,12 +3,9 @@ import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import ChangeEmailForm from "components/forms/ChangeEmailForm";
-// @ts-ignore
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
-// @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
 import MainContent from "components/MainContent";
@@ -61,6 +58,9 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   const onToggleEmailModal = (updated = {}) => {
     setShowEmailModal(!showEmailModal);
     setUpdatedUser(updated);
+    // Drop stale server errors so a reopen doesn't replay a previous attempt's
+    // toast through the form hook's serverErrors effect.
+    setErrors({});
     return false;
   };
 
@@ -101,7 +101,15 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
       return true;
     } catch (response) {
       const errorObject = formatErrorResponse(response);
-      setErrors(errorObject);
+      // formatErrorResponse always includes `base` and `http_status`; the forms
+      // only want inline, field-keyed messages, so strip the globals before
+      // passing them through (the toast below already covers the global error).
+      const {
+        base: _base,
+        http_status: _httpStatus,
+        ...fieldErrors
+      } = errorObject;
+      setErrors(fieldErrors);
       notify.error(
         errorObject.base.includes("already exists")
           ? "A user with this email address already exists."
@@ -128,11 +136,14 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   };
 
   const renderEmailModal = () => {
-    const emailSubmit = (formData: Partial<IUser>) => {
+    // Return the promise so useFormValidation can track in-flight state and
+    // disable the password field + Submit button until the request resolves.
+    const emailSubmit = (formData: Partial<IUser>) =>
       handleSubmit(formData).then((r?: boolean) => {
-        return r ? onToggleEmailModal() : false;
+        if (r) {
+          onToggleEmailModal();
+        }
       });
-    };
 
     if (!showEmailModal) {
       return false;
@@ -141,7 +152,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     return (
       <Modal title="Confirm email update" onExit={onToggleEmailModal}>
         <ChangeEmailForm
-          formData={updatedUser}
+          defaultData={updatedUser}
           handleSubmit={emailSubmit}
           onCancel={onToggleEmailModal}
           serverErrors={errors}
@@ -225,7 +236,11 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
             <div className={`${baseClass}__manage`}>
               <h1>My account</h1>
               <UserSettingsForm
-                formData={currentUser}
+                defaultData={{
+                  email: currentUser.email,
+                  name: currentUser.name,
+                  position: currentUser.position,
+                }}
                 handleSubmit={handleSubmit}
                 onCancel={onCancel}
                 pendingEmail={pendingEmail}

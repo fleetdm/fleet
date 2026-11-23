@@ -1,0 +1,1 @@
+- Fixed a failed software installer upload leaving a truncated installer in the local filesystem store (deployments without S3). Uploading the same package after a failed upload now stores the whole file instead of keeping the truncated one.

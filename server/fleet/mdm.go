@@ -1177,6 +1177,9 @@ const (
 	// secret for the macOS account provisioning / Platform SSO feature. Stored
 	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
 	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
+	// MDMAssetGoogleConditionalAccessServiceAccountKey is the customer's Google
+	// service account key JSON, delegated for the cloud-identity.devices scope.
+	MDMAssetGoogleConditionalAccessServiceAccountKey MDMAssetName = "google_conditional_access_service_account_key" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {
@@ -1419,17 +1422,6 @@ const (
 	NullTeamNoTeam NullTeamType = "noteam"
 )
 
-func (n NullTeamType) PrettyName() string {
-	switch n {
-	case NullTeamAllTeams:
-		return ReservedNameAllTeams
-	case NullTeamNoTeam:
-		return ReservedNameNoTeam
-	default:
-		return string(n)
-	}
-}
-
 type AppleDevice int
 
 const (
@@ -1552,11 +1544,6 @@ type MDMConfigProfileStatus struct {
 	Verifying uint `json:"verifying" db:"verifying"`
 	Pending   uint `json:"pending" db:"pending"`
 	Failed    uint `json:"failed" db:"failed"`
-}
-
-// MDMWipeMetadata specifies optional metadata for the remote wipe command
-type MDMWipeMetadata struct {
-	Windows *MDMWindowsWipeMetadata
 }
 
 type MDMCommandResults interface {
