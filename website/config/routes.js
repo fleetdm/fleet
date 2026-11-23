@@ -1417,6 +1417,21 @@ module.exports.routes = {
   'GET /integrate/telemetry/webhooks': '/integrate/build-anything',
   'GET /integrate/itsm/webhooks': '/integrate/build-anything',
 
+  // fleetdm.com URL plan (Nov 2026): temporary (302) redirects to the closest existing page, until dedicated pages exist.
+  // Permanent (301) redirects are only used for pure aliases of another planned URL, so a future page only changes one line.
+  'GET /unified-endpoint-management': '/device-management',
+  'GET /uem': (req, res) => { return res.redirect(301, '/unified-endpoint-management' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
+  'GET /mobile-device-management': '/device-management',
+  'GET /ai-governance': '/endpoint-governance',
+  'GET /byod': '/articles/build-byod-security-program',
+  'GET /lp/on-premises': (req, res) => { return res.redirect(301, '/lp/on-premise' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
+  'GET /vs/microsoft-intune': '/compare/jamf-vs-intune-vs-fleet',
+  'GET /vs/jamf': '/compare/jamf-vs-fleet',
+  'GET /vs/workspace-one': '/compare/workspace-one-vs-fleet',
+  'GET /vs/microsoft-e3-e5-e7': '/articles/intune-isnt-free-what-the-microsoft-365-bundle-really-costs',
+  'GET /hardware/nvidia': '/guides/manage-dgx-spark-with-fleet',
+  'GET /hardware/apple/macbook-neo': '/articles/enroll-macbook-neo-at-scale-with-fleet-zero-touch',
+
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
   'GET /it': '/observability?utm_content=eo-it',
