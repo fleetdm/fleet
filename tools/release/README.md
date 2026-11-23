@@ -106,6 +106,11 @@ Open the Fleet channels in the osquery Slack and MacAdmins Slack and update the 
 Complete the [conclude the milestone ritual](https://fleetdm.com/handbook/engineering#conclude-current-milestone).
 
 
+## Major Release
+
+A major release (`X.0.0`) follows the same steps as a minor release. Use `-j` in place of `-m` in every command (`-j`, `-jg`, `-juq`). The release candidate branch is named `rc-major-fleet-vX.0.0`.
+
+
 ## Patch release
 
 **1. Confirm commits, milestones, and cherry-picks**
