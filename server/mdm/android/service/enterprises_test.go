@@ -606,7 +606,7 @@ func TestVerifyExistingEnterpriseIfAny(t *testing.T) {
 
 func TestIsEnterpriseAlive(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
+	user := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 
 	newSvc := func(t *testing.T, getEnterprise func(context.Context) (*android.Enterprise, error), listFn func(context.Context, string) ([]*androidmanagement.Enterprise, error)) (android.Service, *android_mock.Client) {
