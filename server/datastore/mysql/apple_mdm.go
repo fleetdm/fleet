@@ -1527,6 +1527,17 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
+		if personalType == fleet.PersonalEnrollmentTypeAccountDriven {
+			taken, err := accountDrivenEnrollmentIDTaken(ctx, tx, mdmHost.UUID)
+			if err != nil {
+				return err
+			}
+			if taken {
+				logger.InfoContext(ctx, "refusing MDM check-in: enrollment ID matches another host", "enrollment_id", mdmHost.UUID)
+				return ctxerr.Wrap(ctx, errAccountDrivenEnrollmentIDTaken())
+			}
+		}
+
 		// A host matched by the self-reported serial gets its UUID rewritten by updateMDMAppleHostDB, so the serial
 		// mustn't be enrolled under another UUID. Hosts can share a serial, and the match picks the lowest ID, so
 		// every host with the serial is checked, not just the matched one.
@@ -1553,6 +1564,28 @@ func errSerialEnrolledUnderAnotherUUID() error {
 	return &fleet.ConflictError{
 		Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
 	}
+}
+
+func errAccountDrivenEnrollmentIDTaken() error {
+	return &fleet.ConflictError{Message: "This enrollment ID belongs to another host."}
+}
+
+func (ds *Datastore) GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error) {
+	return accountDrivenEnrollmentIDTaken(ctx, ds.writer(ctx), enrollmentID)
+}
+
+// accountDrivenEnrollmentIDTaken reports whether the device-chosen enrollment ID matches (by osquery_host_id, like
+// matchHostDuringEnrollment) a host that isn't the enrollment's own earlier one, e.g. another device's hardware UUID.
+// An account-driven enrollment's host always has its enrollment ID as both UUID and serial (see
+// lifecycle.resetApple), which a real device's host never does.
+func accountDrivenEnrollmentIDTaken(ctx context.Context, q sqlx.QueryerContext, enrollmentID string) (bool, error) {
+	var taken bool
+	if err := sqlx.GetContext(ctx, q, &taken, `
+		SELECT EXISTS(SELECT 1 FROM hosts WHERE osquery_host_id = ? AND NOT (uuid = ? AND hardware_serial = ?))`,
+		enrollmentID, enrollmentID, enrollmentID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking for another host with the enrollment ID")
+	}
+	return taken, nil
 }
 
 func (ds *Datastore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error) {

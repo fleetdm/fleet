@@ -25,7 +25,20 @@ func newEnrolledSerialCheckinService(next nano_service.CheckinAndCommandService,
 }
 
 func (s *enrolledSerialCheckinService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
-	// An account-driven user enrollment has no UDID or serial here, and isn't matched by serial.
+	// An account-driven user enrollment has no UDID or serial here, and isn't matched by serial, but its
+	// device-chosen enrollment ID is matched against other hosts' UUIDs.
+	if m.UDID == "" && m.SerialNumber == "" && m.EnrollmentID != "" {
+		taken, err := s.ds.GetAppleAccountDrivenEnrollmentIDTaken(r.Context, m.EnrollmentID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "checking for a host with the enrollment ID")
+		}
+		if taken {
+			s.logger.InfoContext(r.Context, "refusing MDM check-in: enrollment ID matches another host", "enrollment_id", m.EnrollmentID)
+			return nano_service.NewHTTPStatusError(http.StatusConflict, &fleet.ConflictError{
+				Message: "This enrollment ID belongs to another host.",
+			})
+		}
+	}
 	if m.UDID != "" && m.SerialNumber != "" {
 		enrolledUUID, err := s.ds.GetAppleSerialEnrolledUnderAnotherUUID(r.Context, m.SerialNumber, m.UDID)
 		if err != nil {

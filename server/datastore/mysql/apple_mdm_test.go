@@ -128,6 +128,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostEnrolledSerial", testMDMAppleUpsertHostEnrolledSerial},
 		{"NewAppleSCEPChallengeEnrolledSerial", testNewAppleSCEPChallengeEnrolledSerial},
 		{"GetAppleSerialEnrolledUnderAnotherUUID", testGetAppleSerialEnrolledUnderAnotherUUID},
+		{"GetAppleAccountDrivenEnrollmentIDTaken", testGetAppleAccountDrivenEnrollmentIDTaken},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"MDMAppleUpsertHostEnrollmentTypeOnReenrollment", testMDMAppleUpsertHostEnrollmentTypeOnReenrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
@@ -15037,6 +15038,22 @@ func testMDMAppleUpsertHostEnrolledSerial(t *testing.T, ds *Datastore) {
 	// and it finds its own host again on the next check-in
 	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
 	require.Equal(t, 1, countByUUID("enrollment-id"))
+
+	// nor matched by UUID to another device's host, e.g. a Windows host not enrolled in Apple MDM
+	windows, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "windows", OsqueryHostID: new("windows-uuid"), NodeKey: new("windows"),
+		UUID: "windows-uuid", HardwareSerial: "windows-serial", HardwareModel: "Surface", Platform: "windows",
+	})
+	require.NoError(t, err)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: windows.UUID, HardwareSerial: windows.UUID, HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeAccountDriven)
+	require.ErrorAs(t, err, &conflictErr)
+	host, err = ds.HostLite(ctx, windows.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "windows", host.Platform)
+	assert.Equal(t, "windows-serial", host.HardwareSerial)
+	require.Equal(t, 1, countByUUID(windows.UUID))
 }
 
 func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
@@ -15097,6 +15114,25 @@ func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
 		return err
 	})
 	require.NoError(t, newChallenge("other-uuid", enrolled.HardwareSerial))
+}
+
+func testGetAppleAccountDrivenEnrollmentIDTaken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "windows", OsqueryHostID: new("windows-uuid"), NodeKey: new("windows"),
+		UUID: "windows-uuid", HardwareSerial: "windows-serial", Platform: "windows",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "enrollment-id", HardwareSerial: "enrollment-id", HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeAccountDriven))
+
+	for id, want := range map[string]bool{"windows-uuid": true, "enrollment-id": false, "unknown-id": false} {
+		taken, err := ds.GetAppleAccountDrivenEnrollmentIDTaken(ctx, id)
+		require.NoError(t, err)
+		assert.Equal(t, want, taken, id)
+	}
 }
 
 func testGetAppleSerialEnrolledUnderAnotherUUID(t *testing.T, ds *Datastore) {
