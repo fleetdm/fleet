@@ -179,44 +179,68 @@
   }
   [purpose='pricing-quote'] {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-    max-width: 800px;
-    margin: 0 auto;
+    justify-content: center;
     padding: 96px 0px;
-    text-align: center;
-    [purpose='quote-logo'] {
-      height: 24px;
-    }
-    [purpose='quote-text'] {
-      .title-m();
-      font-weight: 600;
-      line-height: 150%;
-      color: @core-fleet-black;
-      margin-bottom: 0px;
-    }
-    [purpose='quote-author-info'] {
+    [purpose='section-quote'] {
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      gap: 12px;
-      text-align: left;
+      gap: 24px;
+      max-width: 600px;
       p {
         margin-bottom: 0px;
       }
-    }
-    [purpose='quote-author-image'] {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-    }
-    [purpose='quote-author-name'] {
-      font-weight: 700;
-      color: @core-fleet-black;
-    }
-    [purpose='quote-author-title'] {
-      .body-m();
+      [purpose='quote-image'] {
+        img {
+          height: 32px;
+        }
+      }
+      [purpose='quote-text'] {
+        color: @core-fleet-black-75;
+        text-align: center;
+        font-family: Inter;
+        font-size: 18px;
+        font-style: italic;
+        font-weight: 400;
+        line-height: 150%;
+      }
+      [purpose='quote-author-info'] {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+      }
+      [purpose='quote-author-image'] {
+        img {
+          height: 48px;
+          width: 48px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+      }
+      [purpose='name-and-title'] {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      [purpose='author-name'] {
+        color: @core-fleet-black;
+        font-family: Inter;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 150%;
+      }
+      [purpose='author-title'] {
+        color: @core-fleet-black-75;
+        font-family: Inter;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 150%;
+      }
     }
   }
   [purpose='pricing-bottom-cta'] {
