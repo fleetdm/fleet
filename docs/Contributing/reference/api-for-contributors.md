@@ -2495,13 +2495,16 @@ Gets all labels visible to the currently logged-in user.
 
 ### Get label
 
-Returns the label specified by name if it exists and its fleet (if any) is accessible by the current user.
+Returns the label specified by name if it exists and its fleet (if any) is accessible by the current user. If more than one of those fleets has a label with that name, returns `409` unless `fleet_id` is set.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
 #### Parameters
 
-None.
+| Name     | Type   | In    | Description                                                                                                                                     |
+| -------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| name     | string | path  | **Required.** The label's name.                                                                                                                 |
+| fleet_id | int    | query | _Available in Fleet Premium._ Looks the name up among the global labels and this fleet's labels. Supply 0 to look it up among the global labels only. |
 
 #### Example
 
