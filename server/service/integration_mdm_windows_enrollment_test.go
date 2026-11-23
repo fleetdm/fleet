@@ -1472,43 +1472,71 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	t.Run("serial reply links and transitions mid-session", func(t *testing.T) {
 		// The shape real devices follow: the DevDetail Get sent at session start is answered on MsgID 3, which
 		// links the host and moves the enrollment to Active in that same message.
-		host := createOrbitEnrolledHost(t, "windows", "esp-link", s.ds)
-		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-link@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
-		require.NoError(t, d.Enroll())
+		for _, tc := range []struct {
+			name          string
+			suffix        string
+			agentEnrolled bool
+		}{
+			// As when the device comes back from a reset, which forgets the host's agent.
+			{name: "host no agent has enrolled as", suffix: "esp-link"},
+			// The serial is only the device's claim, so the host's own agent has to link it instead.
+			{name: "host an agent enrolled as", suffix: "esp-link-agent", agentEnrolled: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				host := createOrbitEnrolledHost(t, "windows", tc.suffix, s.ds)
+				if !tc.agentEnrolled {
+					mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = NULL, node_key = NULL WHERE id = ?`, host.ID)
+						return err
+					})
+				}
+				d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, tc.suffix+"@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+				require.NoError(t, d.Enroll())
 
-		cmds, err := d.StartManagementSession()
-		require.NoError(t, err)
-		cmds = ackAll(t, d, cmds, "", "")
-		holds, gets := countSessionStartCmds(cmds)
-		require.Equal(t, 1, holds)
-		require.Equal(t, 1, gets)
+				cmds, err := d.StartManagementSession()
+				require.NoError(t, err)
+				cmds = ackAll(t, d, cmds, "", "")
+				holds, gets := countSessionStartCmds(cmds)
+				require.Equal(t, 1, holds)
+				require.Equal(t, 1, gets)
 
-		// MsgID 3: ack the batch and answer the Get with the serial.
-		msgID, err := d.GetCurrentMsgID()
-		require.NoError(t, err)
-		d.AppendResponse(fleet.SyncMLCmd{
-			XMLName: xml.Name{Local: fleet.CmdResults},
-			CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
-			Cmd:   new(fleet.CmdGet),
-			Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
-		})
-		cmds = ackAll(t, d, cmds, "", "")
+				// MsgID 3: ack the batch and answer the Get with the serial.
+				msgID, err := d.GetCurrentMsgID()
+				require.NoError(t, err)
+				d.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdResults},
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
+					Cmd:   new(fleet.CmdGet),
+					Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
+				})
+				cmds = ackAll(t, d, cmds, "", "")
 
-		holds, gets = countSessionStartCmds(cmds)
-		assert.Zero(t, holds, "no hold bundle once linked")
-		assert.Zero(t, gets, "no Get once linked")
-		var transition *fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
-				transition = &c
-			}
+				holds, gets = countSessionStartCmds(cmds)
+				assert.Zero(t, holds, "no hold bundle mid-session")
+				assert.Zero(t, gets, "no Get mid-session")
+				var transition *fleet.ProtoCmdOperation
+				for _, c := range cmds {
+					if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
+						transition = &c
+					}
+				}
+				enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+				require.NoError(t, err)
+				if tc.agentEnrolled {
+					assert.Nil(t, transition, "no transition without a link")
+					assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, awaiting(t, d))
+					assert.Empty(t, enrolledDevice.HostUUID)
+					refetched, err := s.ds.Host(ctx, host.ID)
+					require.NoError(t, err)
+					assert.True(t, refetched.RefetchRequested, "the host's agent is asked to report the MDM device ID that links it")
+					return
+				}
+				require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
+				assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+				assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
+			})
 		}
-		require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
-		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
-		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
-		require.NoError(t, err)
-		assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
 	})
 
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {

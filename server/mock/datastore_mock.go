@@ -1060,6 +1060,8 @@ type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbi
 
 type HostPreviouslyOrbitEnrolledFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error)
 
+type HostAgentEnrolledFunc func(ctx context.Context, hostID uint) (bool, error)
+
 type OtherMDMHostIDWithUUIDFunc func(ctx context.Context, uuid string, excludeHostID uint) (uint, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
@@ -4208,6 +4210,9 @@ type DataStore struct {
 
 	HostPreviouslyOrbitEnrolledFunc        HostPreviouslyOrbitEnrolledFunc
 	HostPreviouslyOrbitEnrolledFuncInvoked bool
+
+	HostAgentEnrolledFunc        HostAgentEnrolledFunc
+	HostAgentEnrolledFuncInvoked bool
 
 	OtherMDMHostIDWithUUIDFunc        OtherMDMHostIDWithUUIDFunc
 	OtherMDMHostIDWithUUIDFuncInvoked bool
@@ -10227,6 +10232,13 @@ func (s *DataStore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo fl
 	s.HostPreviouslyOrbitEnrolledFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostPreviouslyOrbitEnrolledFunc(ctx, hostInfo, isMDMEnabled)
+}
+
+func (s *DataStore) HostAgentEnrolled(ctx context.Context, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.HostAgentEnrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostAgentEnrolledFunc(ctx, hostID)
 }
 
 func (s *DataStore) OtherMDMHostIDWithUUID(ctx context.Context, uuid string, excludeHostID uint) (uint, error) {

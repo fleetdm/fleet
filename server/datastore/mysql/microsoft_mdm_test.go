@@ -6456,6 +6456,40 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionNone)
 		assert.True(t, reEnroll(t, otherHost, otherEnrolled))
 	})
+
+	t.Run("re-enrollment after an acknowledged wipe or reset forgets the agent", func(t *testing.T) {
+		// The device comes back without its agent, so it can claim its host again by the identifiers it reports.
+		for _, tc := range []struct {
+			name              string
+			locURI            string
+			statusCode        string
+			wantAgentEnrolled bool
+		}{
+			{name: "acknowledged wipe", locURI: wipeLocURI, statusCode: "200"},
+			{name: "acknowledged reset", locURI: resetLocURI, statusCode: "200"},
+			{name: "failed wipe", locURI: wipeLocURI, statusCode: "500", wantAgentEnrolled: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				host, enrolled := newEnrolledHost(t)
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = ? WHERE id = ?`, uuid.NewString(), host.ID)
+					return err
+				})
+				cmdUUID, err := enqueue(t, host, tc.locURI)
+				require.NoError(t, err)
+				ack(t, enrolled, cmdUUID, tc.statusCode)
+
+				agentEnrolled, err := ds.HostAgentEnrolled(ctx, host.ID)
+				require.NoError(t, err)
+				require.True(t, agentEnrolled, "the agent is forgotten only when the device re-enrolls")
+				_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolled.MDMHardwareID)
+				require.NoError(t, err)
+				agentEnrolled, err = ds.HostAgentEnrolled(ctx, host.ID)
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantAgentEnrolled, agentEnrolled)
+			})
+		}
+	})
 }
 
 type enrichResponseEntry struct {

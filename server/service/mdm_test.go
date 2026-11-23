@@ -5414,6 +5414,11 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			assert.Equal(t, testHardwareID, mdmHardwareID)
 			return false, "", nil
 		}
+		// No agent has enrolled as the host yet, as when the MDM session gets there before osquery's first report.
+		ds.HostAgentEnrolledFunc = func(_ context.Context, hostID uint) (bool, error) {
+			assert.Equal(t, testHostID, hostID)
+			return false, nil
+		}
 	}
 
 	t.Run("unlinked enrollment: Get for DevDetail SMBIOSSerialNumber is injected", func(t *testing.T) {
@@ -5500,6 +5505,9 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 			hardwareID           string
 			conflicted           bool
 			conflictErr          error
+			agentEnrolled        bool
+			agentErr             error
+			staleEnrollment      bool // enrolled longer ago than the refetch window
 			wantConflictCheck    bool
 			wantLinked           bool
 		}{
@@ -5516,6 +5524,19 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 				name: "serial, conflict lookup fails: refused", hardwareID: testHardwareID,
 				conflictErr: errors.New("db is down"), wantConflictCheck: true,
 			},
+			// A host with no Fleet MDM enrollment is held by its agent instead, which is what links it.
+			{
+				name: "serial, host an agent enrolled as: refused", hardwareID: testHardwareID,
+				agentEnrolled: true, wantConflictCheck: true,
+			},
+			{
+				name: "serial, host an agent enrolled as, stale enrollment: refused without a refetch", hardwareID: testHardwareID,
+				agentEnrolled: true, staleEnrollment: true, wantConflictCheck: true,
+			},
+			{
+				name: "serial, agent lookup fails: refused", hardwareID: testHardwareID,
+				agentErr: errors.New("db is down"), wantConflictCheck: true,
+			},
 			{
 				name: "ZTDID, host not held by other hardware: linked", ztdID: testZTDID, hardwareID: testHardwareID,
 				wantConflictCheck: true, wantLinked: true,
@@ -5529,6 +5550,10 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 				conflictErr: errors.New("db is down"), wantConflictCheck: true,
 			},
 			{
+				name: "ZTDID, host an agent enrolled as: refused", ztdID: testZTDID, hardwareID: testHardwareID,
+				agentEnrolled: true, wantConflictCheck: true,
+			},
+			{
 				name: "ZTDID, pending autopilot host without uuid: deferred before the conflict check", ztdID: testZTDID,
 				pendingAutopilotHost: true, hardwareID: testHardwareID,
 			},
@@ -5536,8 +5561,17 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				svc, ds, _, ctx := newSvc(t)
-				enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: tc.hardwareID, ZTDRegistrationID: tc.ztdID}
+				enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMHardwareID: tc.hardwareID, ZTDRegistrationID: tc.ztdID,
+					CreatedAt: time.Now()}
+				if tc.staleEnrollment {
+					enrolledDevice.CreatedAt = time.Now().Add(-2 * windowsUnlinkedEnrollmentRefetchWindow)
+				}
 				stubLink(t, ds, true)
+				ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, hostID uint, value bool) error {
+					assert.Equal(t, testHostID, hostID)
+					assert.True(t, value)
+					return nil
+				}
 				ds.HostIDByAutopilotDeviceIDFunc = func(_ context.Context, autopilotDeviceID string) (uint, error) {
 					assert.Equal(t, testZTDID, autopilotDeviceID)
 					return testHostID, nil
@@ -5557,6 +5591,10 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 					}
 					return false, "", tc.conflictErr
 				}
+				ds.HostAgentEnrolledFunc = func(_ context.Context, hostID uint) (bool, error) {
+					assert.Equal(t, testHostID, hostID)
+					return tc.agentEnrolled, tc.agentErr
+				}
 
 				// Every device reports a serial, so a refused or deferred ZTDID link must not fall through to the serial branch.
 				cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
@@ -5568,6 +5606,10 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 					assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
 				}
 				assert.Equal(t, tc.wantConflictCheck, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+				assert.Equal(t, tc.wantConflictCheck && !tc.conflicted && tc.conflictErr == nil, ds.HostAgentEnrolledFuncInvoked,
+					"the agent check runs once the conflict check lets the link through")
+				assert.Equal(t, tc.agentEnrolled && !tc.staleEnrollment, ds.UpdateHostRefetchRequestedFuncInvoked,
+					"a refused link to a host an agent enrolled as asks that agent to report the MDM device ID now")
 				assert.Equal(t, tc.wantLinked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 				if tc.wantLinked {
 					assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")

@@ -1933,6 +1933,9 @@ scan:
 	if svc.windowsHostClaimedByOtherHardware(ctx, enrolledDevice, host.UUID, "hardware_serial", serial) {
 		return false
 	}
+	if svc.windowsHostEnrolledByAgent(ctx, enrolledDevice, host.ID, "hardware_serial", serial) {
+		return false
+	}
 
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID, false)
 	if err != nil {
@@ -1974,6 +1977,41 @@ func (svc *Service) windowsHostClaimedByOtherHardware(ctx context.Context, enrol
 	return false
 }
 
+// windowsUnlinkedEnrollmentRefetchWindow bounds how long after enrolling an unlinked enrollment can request a refetch of the host it
+// names. Past it, the host's regular detail queries would have reported the MDM device ID anyway.
+const windowsUnlinkedEnrollmentRefetchWindow = time.Hour
+
+// windowsHostEnrolledByAgent reports whether linking the enrollment to hostID by an identifier the device asserts must be refused
+// because an agent has enrolled as the host, failing closed when that cannot be determined. With nothing to corroborate it, such an
+// identifier can claim only a host no agent has enrolled as, like one back from a wipe or reset. An enrolled host is linked by its
+// own agent instead: osquery's directIngestMDMDeviceIDWindows reports this enrollment's MDM device ID, and a refetch makes it
+// report now rather than at its next detail interval.
+func (svc *Service) windowsHostEnrolledByAgent(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint,
+	logAttrs ...any,
+) bool {
+	// The primary, because the agent may have enrolled moments ago.
+	enrolled, err := svc.ds.HostAgentEnrolled(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: host agent enrollment lookup failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+		return true
+	}
+	if enrolled {
+		// Debug, since an unlinked enrollment comes through here on every message until osquery links it.
+		svc.logger.DebugContext(ctx, "windows mdm: not linking enrollment by a device-reported identifier to a host an agent enrolled as",
+			append([]any{"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID}, logAttrs...)...)
+		// Bounded by enrollment age, since the identifier is unverified and every message of an unlinked enrollment comes through here.
+		if time.Since(enrolledDevice.CreatedAt) < windowsUnlinkedEnrollmentRefetchWindow {
+			if err := svc.ds.UpdateHostRefetchRequested(ctx, hostID, true); err != nil {
+				svc.logger.WarnContext(ctx, "windows mdm: requesting host refetch to link enrollment failed",
+					"err", err, "device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+			}
+		}
+	}
+	return enrolled
+}
+
 // linkWindowsHostMDMEnrollmentByHostID links an enrollment to a host resolved by an identifier other than the serial.
 func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) bool {
 	// RequirePrimary because orbit just enrolled, and we want to make sure we get latest data.
@@ -1985,14 +2023,17 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 		return false
 	}
 	// Linking is keyed on the host UUID, and a pending Autopilot host has none until fleetd enrolls and supplies
-	// one. The enrollment stays unlinked, so this path runs again on every message. Wait for the UUID instead of
-	// proceeding.
+	// one. fleetd's enrollment then links it (by one-time secret or reverse link), so this path links only a host
+	// back from a wipe or reset.
 	if host.UUID == "" {
 		svc.logger.DebugContext(ctx, "windows mdm: autopilot host has no uuid yet, deferring link until fleetd enrolls",
 			"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
 		return false
 	}
 	if svc.windowsHostClaimedByOtherHardware(ctx, enrolledDevice, host.UUID, "host_id", hostID) {
+		return false
+	}
+	if svc.windowsHostEnrolledByAgent(ctx, enrolledDevice, hostID, "ztd_registration_id", enrolledDevice.ZTDRegistrationID) {
 		return false
 	}
 
