@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.0.2",
+      "version": "5.0.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'pl.maketheweb.cleanshotx';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'pl.maketheweb.cleanshotx' AND version_compare(bundle_short_version, '5.0.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'pl.maketheweb.cleanshotx' AND version_compare(bundle_short_version, '5.0.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'pl.maketheweb.cleanshotx' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-5.0.2.dmg",
+      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-5.0.3.dmg",
       "install_script_ref": "7fa6c25e",
       "uninstall_script_ref": "739d5e60",
-      "sha256": "9f0a661dbaf4ed3044e5074250e6f0142b704e047a9bd4d23d35236e98fca5d6",
+      "sha256": "3e4a0f457ad07f95264e78f68fa0b8d4c06e179b23dfa801c6900262991225eb",
       "default_categories": [
         "Productivity"
       ]
