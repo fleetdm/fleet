@@ -6710,7 +6710,7 @@ policies:
 			unwantedErrs: []string{"fleet-5-upgrade"},
 		},
 		{
-			name:     "install_software false alone on a patch policy applies as report only",
+			name:     "install_software false alone on a patch policy applies as report only and logs the deprecation warning",
 			software: fmaSoftware,
 			policies: `
 policies:
@@ -6722,6 +6722,7 @@ policies:
 `,
 			wantCA:         new(false),
 			wantForcePatch: new(false),
+			wantLog:        "[!] The \"policies.install_software\" key is deprecated.\n",
 		},
 	}
 

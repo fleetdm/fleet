@@ -2347,11 +2347,17 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				))
 				continue
 			}
-			if item.InstallSoftware.Set && !item.InstallSoftware.IsOther && !item.InstallSoftware.Bool && len(patchOptions) == 1 {
-				multiError = multierror.Append(multiError, fmt.Errorf(
-					`Couldn't apply policy %q: If %q is true, "install_software" can't be set to false.`,
-					item.Name, patchOptions[0],
-				))
+			if item.InstallSoftware.Set && !item.InstallSoftware.IsOther && !item.InstallSoftware.Bool {
+				if len(patchOptions) == 1 {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: If %q is true, "install_software" can't be set to false.`,
+						item.Name, patchOptions[0],
+					))
+				} else {
+					if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+						logFn("[!] The \"policies.install_software\" key is deprecated.\n")
+					}
+				}
 			}
 			if item.InstallSoftware.Bool || item.InstallSoftware.Other != nil {
 				if item.ForcePatch {
