@@ -36,6 +36,8 @@ export enum ActivityType {
   UserMFARequested = "user_mfa_requested",
   UserCreated = "created_user",
   UserDeleted = "deleted_user",
+  UserExternalIdentityAdded = "added_user_external_identity",
+  UserExternalIdentityDeleted = "deleted_user_external_identity",
   HostDeleted = "deleted_host",
   UserChangedGlobalRole = "changed_user_global_role",
   UserDeletedGlobalRole = "deleted_user_global_role",
@@ -474,6 +476,10 @@ export interface IActivityDetails {
   failure_reason?: string;
   user_email?: string;
   user_id?: number;
+  /** Name of the `auth.jwt_issuers` entry (external identity activities). */
+  issuer?: string;
+  /** Subject asserted by the issuer (external identity activities). */
+  subject?: string;
   jit?: boolean;
   webhook_url?: string;
   // Policy automation outcomes (failed_automation_*/ran_automation_* activities).
@@ -538,6 +544,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
   added_self_service_category: "Added self-service category",
+  added_user_external_identity: "Added user external identity",
   added_software: "Added software",
   applied_spec_fleet: "GitOps: edited fleets",
   applied_spec_pack: "GitOps: edited packs",
@@ -587,6 +594,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_self_service_category: "Deleted self-service category",
   deleted_software: "Deleted software",
   deleted_user: "Deleted user",
+  deleted_user_external_identity: "Deleted user external identity",
   deleted_user_fleet_role: "Deleted user's role: fleet",
   deleted_user_global_role: "Deleted user's role: global",
   deleted_windows_profile: "Deleted configuration profile: Windows",
