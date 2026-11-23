@@ -47,6 +47,9 @@ Engineering teams version-control production infrastructure, review changes in p
 </table>
 
 
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
+
+
 ### Open source in enterprise device management
 
 Open source runs most enterprise infrastructure, but the tools that manage employee devices are still mostly closed. This panel covers why organizations choose auditable code and portable data, and how that choice plays out in procurement, security reviews, and vendor negotiations.
@@ -76,6 +79,9 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
   </tbody>
 </table>
 
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
+
+
 ### AI agents as a device management problem
 
 AI agents are showing up on employee devices faster than IT can inventory them. They read files, call APIs, and act with the permissions of whoever installed them. At the same time, AI-driven exploits are shrinking the time between disclosure and attack. This panel covers both sides of the problem.
@@ -101,6 +107,9 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
   </tbody>
 </table>
 
+
+
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
 
 
 ### Device management 2027
@@ -131,6 +140,9 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
     </tr>
   </tbody>
 </table>
+
+
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
 
 
 ## Watch the sessions
