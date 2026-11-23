@@ -75,7 +75,7 @@ parasails.registerComponent('demoRequestForm', {
             </div>
             <div purpose="demo-request-field">
               <label for="demo-num-employees">Number of employees</label>
-              <input class="form-control" id="demo-num-employees" type="text" inputmode="numeric" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts">
+              <input class="form-control" id="demo-num-employees" type="number" min="1" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts">
               <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter the number of employees in your organization.</div>
             </div>
           </div>
@@ -97,15 +97,6 @@ parasails.registerComponent('demoRequestForm', {
   },
   beforeDestroy: function() {
     $(document).off('.demoRequestForm');
-  },
-
-  watch: {
-    // Plain text input (no spinner arrows), so drop anything that isn't a digit, like "1,000" or "500+", before it's used for demo routing.
-    'formData.numberOfHosts': function(value) {
-      if(_.isString(value) && /[^0-9]/.test(value)) {
-        this.$set(this.formData, 'numberOfHosts', value.replace(/[^0-9]/g, ''));
-      }
-    },
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
