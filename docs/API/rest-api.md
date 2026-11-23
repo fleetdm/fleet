@@ -1531,13 +1531,14 @@ None.
 
 ### Connect Google
 
+((Global admin)) ((Global GitOps))
+
 _Available in Fleet Premium._
 
 Connects Fleet to Google to mark company-owned iOS, iPadOS, and Android hosts as managed, for [conditional access with Google](https://fleetdm.com/guides/google-conditional-access-integration). Fleet checks the service account's domain-wide delegation with Google before saving anything.
 
 If Google is already connected, this replaces the settings and the key. To change only some of them, use [Update Google](#update-google).
 
-Requires the global admin or GitOps role and a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
 
 `POST /api/v1/fleet/conditional_access/google`
 
@@ -1612,6 +1613,8 @@ The settings and the key are saved, and `state` is `"registration_failed"`. To t
 
 ### Get Google
 
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
 _Available in Fleet Premium._
 
 Returns the Google conditional access settings and the connection status. The service account key is never returned.
@@ -1645,11 +1648,13 @@ None.
 - `""`: Google isn't configured. `customer_id` and `admin_email` are `""`.
 - `"pending"`: Fleet is connecting.
 - `"connected"`: Fleet marks hosts as managed in Google.
-- `"delegation_failed"`: Google refuses the service account. Fleet checks every 5 minutes, and `error_message` has Google's reason. Hosts that are already marked stay marked.
+- `"delegation_failed"`: Google refused the service account. Fleet only calls Google when it marks or unmarks a host, so this shows up the next time a host registers, or is deleted, unenrolled, or has its Google device ID removed. Fleet then checks again every 5 minutes, and `error_message` has Google's reason. Hosts that are already marked stay marked.
 - `"registration_failed"`: Fleet couldn't register with fleetdm.com. `error_message` has the reason.
 - `"deleted"`: A delete didn't finish. [Delete Google](#delete-google) again.
 
 ### Update Google
+
+((Global admin)) ((Global GitOps))
 
 _Available in Fleet Premium._
 
@@ -1658,8 +1663,6 @@ Changes the Google conditional access settings. Fields you leave out keep their 
 Changing `admin_email` or `service_account_key` doesn't change which hosts are marked. Changing `customer_id` connects Fleet to a different Google Workspace: hosts register again there, and hosts stay marked in the previous Google Workspace.
 
 An empty request body tries a connection that didn't complete again.
-
-Requires the global admin or GitOps role.
 
 `PATCH /api/v1/fleet/conditional_access/google`
 
@@ -1705,11 +1708,11 @@ Use [Connect Google](#connect-google) instead.
 
 ### Delete Google
 
+((Global admin)) ((Global GitOps))
+
 _Available in Fleet Premium._
 
 Disconnects Fleet from Google and deletes the service account key. This won't unmark hosts: they stay marked as managed in Google. Learn how to [disable Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration#disable).
-
-Requires the global admin or GitOps role.
 
 `DELETE /api/v1/fleet/conditional_access/google`
 
@@ -6336,6 +6339,9 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 `Status: 200`
 
+If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+
+
 ### Refetch host
 
 Flags the host details, labels and policies to be refetched the next time the host checks in. Note that we cannot be certain when the host will actually check in. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
@@ -6479,6 +6485,8 @@ Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
 `Status: 204`
 
+If the host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+
 
 ### Batch-delete hosts
 
@@ -6552,6 +6560,9 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
+If a host is registered with [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration), Fleet also unmarks it as managed in Google.
+
+
 ### Update human-device mapping
 
 `PUT /api/v1/fleet/hosts/:id/device_mapping`
@@ -6603,6 +6614,8 @@ Updates the email for the data source in the human-device mapping. This source c
 ```
 
 ### Update host's Google device ID
+
+((Admin)) ((Maintainer))
 
 _Available in Fleet Premium._
 
@@ -6783,6 +6796,8 @@ Nothing is saved. Try again.
 `Status: 502`
 
 ### Delete host's Google device ID
+
+((Admin)) ((Maintainer))
 
 _Available in Fleet Premium._
 
