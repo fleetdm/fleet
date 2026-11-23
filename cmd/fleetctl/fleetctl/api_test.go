@@ -70,8 +70,6 @@ func TestRunApiCommand(t *testing.T) {
     "fleet_id": null,
     "resolution": "",
     "platform": "darwin,windows,linux,chrome",
-    "calendar_events_enabled": false,
-    "conditional_access_enabled": false,
     "hidden": false,
     "type": "dynamic",
     "continuous_automations_enabled": false,

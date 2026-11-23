@@ -20,6 +20,7 @@ import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManag
 import DeletedHostGoogleDeviceIdActivityItem from "./ActivityItems/DeletedHostGoogleDeviceIdActivityItem";
 import EditedCustomHostVitalValueActivityItem from "./ActivityItems/EditedCustomHostVitalValueActivityItem";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
+import FailedResetActivityItem from "./ActivityItems/FailedResetActivityItem";
 import FailedToRotateDiskEncryptionKeyActivityItem from "./ActivityItems/FailedToRotateDiskEncryptionKey";
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
@@ -40,6 +41,7 @@ import ReadHostRecoveryLockPasswordActivityItem from "./ActivityItems/ReadHostRe
 import ReleasedFromABActivityItem from "./ActivityItems/ReleasedFromABActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ResentConfigurationProfileActivityItem from "./ActivityItems/ResentConfigurationProfileActivityItem/ResentConfigurationProfileActivityItem";
+import ResetHostActivityItem from "./ActivityItems/ResetHostActivityItem";
 import ResetPolicyActivityItem from "./ActivityItems/ResetPolicyActivityItem";
 import RetrievedHostMyDeviceURLActivityItem from "./ActivityItems/RetrievedHostMyDeviceURLActivityItem";
 import RotatedDiskEncryptionKeyActivityItem from "./ActivityItems/RotatedDiskEncryptionKey";
@@ -49,6 +51,7 @@ import SetHostGoogleDeviceIdActivityItem from "./ActivityItems/SetHostGoogleDevi
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
 import StoppedReportingMicrosoftEntraDeviceIdActivityItem from "./ActivityItems/StoppedReportingMicrosoftEntraDeviceIdActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
+import ViewedHostUnlockPinActivityItem from "./ActivityItems/ViewedHostUnlockPinActivityItem/ViewedHostUnlockPinActivityItem";
 import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
 
@@ -83,7 +86,9 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.WipedHost]: WipedHostActivityItem,
+  [ActivityType.ResetHost]: ResetHostActivityItem,
   [ActivityType.FailedWipe]: FailedWipeActivityItem,
+  [ActivityType.FailedReset]: FailedResetActivityItem,
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.RetrievedHostMyDeviceURL]: RetrievedHostMyDeviceURLActivityItem,
   [ActivityType.ReadHostRecoveryLockPassword]: ReadHostRecoveryLockPasswordActivityItem,
@@ -108,6 +113,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.ResentCertificate]: ResentCertificateActivityItem,
   [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
   [ActivityType.ViewedManagedLocalAccount]: ViewedManagedLocalAccountActivityItem,
+  [ActivityType.ViewedHostUnlockPin]: ViewedHostUnlockPinActivityItem,
   [ActivityType.CreatedManagedLocalAccount]: CreatedManagedLocalAccountActivityItem,
   [ActivityType.CreatedDiskEncryptionPIN]: CreatedDiskEncryptionPINActivityItem,
   [ActivityType.RotatedManagedLocalAccountPassword]: RotatedManagedLocalAccountPasswordActivityItem,

@@ -89,6 +89,8 @@ export type IUnlockHostResponse =
   | {
       host_id: number;
       unlock_pin: string;
+      locked_at?: string;
+      device_status?: string;
     }
   | Record<string, never>;
 
@@ -759,6 +761,11 @@ export default {
   wipeHost: (id: number) => {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  resetHost: (id: number) => {
+    const { HOST_RESET } = endpoints;
+    return sendRequest("POST", HOST_RESET(id));
   },
 
   clearPasscode: (id: number) => {

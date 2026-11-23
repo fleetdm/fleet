@@ -181,8 +181,8 @@ func TestEntriesWellFormed(t *testing.T) {
 		default:
 			assert.Fail(t, "unknown format", e.Old)
 		}
-		// The device download of the removed installer store sat outside the Fleet API.
-		if e.Kind == KindPath && e.Old != "/api/mdm/apple/installer" {
+		// The device download of the removed installer store and the public version endpoint sat outside the Fleet API.
+		if e.Kind == KindPath && !slices.Contains([]string{"/api/mdm/apple/installer", "/version"}, e.Old) {
 			assert.True(t, strings.HasPrefix(e.Old, pathPrefix), "path should start with %s: %s", pathPrefix, e.Old)
 		}
 

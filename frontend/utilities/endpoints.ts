@@ -34,7 +34,7 @@ export default {
   },
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
-  GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  POLICIES: `/${API_VERSION}/fleet/policies`,
   POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
     `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
   POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
@@ -118,6 +118,7 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_RESET: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/reset`,
   HOST_CLEAR_PASSCODE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/clear_passcode`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>

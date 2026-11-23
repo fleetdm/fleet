@@ -1,0 +1,12 @@
+{
+  "name": "Make Me Admin",
+  "slug": "make-me-admin/windows",
+  "package_identifier": "pseymour.MakeMeAdmin",
+  "unique_identifier": "Make Me Admin",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "installer_locale": "en-US",
+  "open_process_names": ["MakeMeAdminUI.exe", "MakeMeAdminRemoteUI.exe"],
+  "default_categories": ["Security"]
+}

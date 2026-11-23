@@ -136,7 +136,9 @@ export enum ActivityType {
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
   WipedHost = "wiped_host",
+  ResetHost = "reset_host",
   FailedWipe = "failed_wipe",
+  FailedReset = "failed_reset",
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
@@ -214,6 +216,7 @@ export enum ActivityType {
   EnabledManagedLocalAccount = "enabled_managed_local_account",
   DisabledManagedLocalAccount = "disabled_managed_local_account",
   ViewedManagedLocalAccount = "read_managed_local_account",
+  ViewedHostUnlockPin = "viewed_host_unlock_pin",
   CreatedManagedLocalAccount = "created_managed_local_account",
   RotatedManagedLocalAccountPassword = "rotated_managed_local_account_password",
   FailedToRotateManagedLocalAccountPassword = "failed_to_rotate_managed_local_account_password",
@@ -259,7 +262,9 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.WipedHost
+  | ActivityType.ResetHost
   | ActivityType.FailedWipe
+  | ActivityType.FailedReset
   | ActivityType.MdmUnenrolled
   | ActivityType.MdmEnrolled
   | ActivityType.ReadHostDiskEncryptionKey
@@ -286,6 +291,7 @@ export type IHostPastActivityType =
   | ActivityType.ResentCertificate
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
+  | ActivityType.ViewedHostUnlockPin
   | ActivityType.CreatedManagedLocalAccount
   | ActivityType.CreatedDiskEncryptionPIN
   | ActivityType.RotatedManagedLocalAccountPassword
@@ -678,7 +684,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_logged_in: "User login: success",
   user_mfa_requested: "User login: MFA email sent",
   wiped_host: "Wiped host",
+  reset_host: "Reset host",
   failed_wipe: "Failed wipe",
+  failed_reset: "Failed reset",
   edited_apple_account_provisioning: "Edited Apple account provisioning",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
@@ -759,6 +767,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.DisabledManagedLocalAccount]:
     "Turned off managed local account",
   [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
+  [ActivityType.ViewedHostUnlockPin]: "Viewed unlock PIN",
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
   [ActivityType.RotatedManagedLocalAccountPassword]:
     "Triggered managed local account password rotation",

@@ -800,6 +800,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  viewedHostUnlockPin: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the unlock PIN for <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdManagedLocalAccount: (activity: IActivity) => {
     return (
       <>
@@ -1528,10 +1536,25 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resetHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        reset <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   failedWipe: (activity: IActivity) => {
     return (
       <>
         Wipe failed on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  failedReset: (activity: IActivity) => {
+    return (
+      <>
+        Reset failed on <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -2851,6 +2874,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ViewedManagedLocalAccount: {
       return TAGGED_TEMPLATES.viewedManagedLocalAccount(activity);
     }
+    case ActivityType.ViewedHostUnlockPin: {
+      return TAGGED_TEMPLATES.viewedHostUnlockPin(activity);
+    }
     case ActivityType.CreatedManagedLocalAccount: {
       return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
     }
@@ -3052,8 +3078,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
     }
+    case ActivityType.ResetHost: {
+      return TAGGED_TEMPLATES.resetHost(activity);
+    }
     case ActivityType.FailedWipe: {
       return TAGGED_TEMPLATES.failedWipe(activity);
+    }
+    case ActivityType.FailedReset: {
+      return TAGGED_TEMPLATES.failedReset(activity);
     }
     case ActivityType.CreatedDeclarationProfile: {
       return TAGGED_TEMPLATES.createdDeclarationProfile(
@@ -3403,6 +3435,10 @@ const GlobalActivityItem = ({
       case ActivityType.UserMFARequested:
         // The template carries its own "Somebody"/"Somebody using <email>"
         // subject, so no actor-name prefix should be rendered.
+        return null;
+      case ActivityType.FailedWipe:
+      case ActivityType.FailedReset:
+        // The template is a full sentence reported by the host.
         return null;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the

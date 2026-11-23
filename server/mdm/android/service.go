@@ -22,10 +22,10 @@ type Service interface {
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
 
-	// LockAndroidHost issues an AMAPI LOCK command for the given host, persists the row in mdm_android_commands
-	// (status=pending), and writes host_mdm_actions.lock_ref. The device-side ack arrives asynchronously via Pub/Sub
-	// COMMAND notification and is applied by ProcessPubSubPush.
-	LockAndroidHost(ctx context.Context, hostID uint) error
+	// LockAndroidHost issues an AMAPI RESET_PASSWORD command with a Fleet-generated password and the LOCK_NOW flag,
+	// persists the row in mdm_android_commands (status=pending, without newPassword), and writes
+	// host_mdm_actions.lock_ref and unlock_pin. Returns the generated password.
+	LockAndroidHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 
 	// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD command with newPassword="". The work-profile (BYO)
 	// or device (COBO) passcode is cleared, not regenerated. Persists the row in mdm_android_commands but does NOT touch

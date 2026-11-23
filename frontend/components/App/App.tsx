@@ -235,11 +235,15 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       !!isGlobalObserver ||
       !!isGlobalTechnician);
 
-  useQuery(["hosts_count_for_license"], () => hostCountAPI.load({}), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: canCompareHostCountToLicense,
-    onSuccess: ({ count }) => setHostCount(count),
-  });
+  useQuery(
+    ["hosts_count_for_license"],
+    () => hostCountAPI.load({ status: "enrolled" }),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: canCompareHostCountToLicense,
+      onSuccess: ({ count }) => setHostCount(count),
+    }
+  );
 
   useEffect(() => {
     if (!canCompareHostCountToLicense) {

@@ -235,8 +235,20 @@ func (c *cloudIdentityClient) DeviceExists(ctx context.Context, deviceID string)
 
 // validDeviceID accepts only a single path segment that names one device: "-" stands for
 // every device, and a dot segment or anything that needs escaping would change the path.
+// Google's IDs end in a literal "%3D", so "%" is accepted when what it encodes would be
+// accepted too, in case Google decodes the path once more.
 func validDeviceID(id string) bool {
-	return id != "" && id != "-" && id != "." && id != ".." && url.PathEscape(id) == id
+	decoded, err := url.PathUnescape(id)
+	if err != nil {
+		return false
+	}
+	for _, s := range []string{id, decoded} {
+		if s == "" || s == "-" || s == "." || s == ".." || strings.ContainsAny(s, `/\?#`) {
+			return false
+		}
+	}
+	withoutPercent := strings.ReplaceAll(id, "%", "")
+	return url.PathEscape(withoutPercent) == withoutPercent
 }
 
 // invalidDeviceIDError reads like Google's 404 for a device, without the call.

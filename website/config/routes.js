@@ -439,8 +439,8 @@ module.exports.routes = {
   'GET /device-management': {
     action: 'view-device-management',
     locals: {
-      pageTitleForMeta: 'Device management (MDM)',
-      pageDescriptionForMeta: 'Manage your devices in any browser or use git to make changes as code.',
+      pageTitleForMeta: 'Device management (MDM, EMM, and UEM)',
+      pageDescriptionForMeta: 'Enterprise MDM and unified endpoint management (UEM) for macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS. Manage your devices in any browser or use git to make changes as code.',
       currentSection: 'platform',
     }
   },
@@ -652,8 +652,8 @@ module.exports.routes = {
   'GET /linux': {
     action: 'view-linux-management',
     locals: {
-      pageTitleForMeta: 'Linux device management',
-      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+      pageTitleForMeta: 'Linux MDM and device management',
+      pageDescriptionForMeta: 'Linux MDM for every distro. Automate patching, monitor compliance, and unify Linux, macOS, and Windows device management in one place.',
       currentSection: 'platform',
     }
   },
@@ -939,7 +939,7 @@ module.exports.routes = {
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing',
   'GET /handbook/community': '/handbook/marketing',
-  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/marketing/markdown-guide': '/handbook/company/writing',
   'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
   'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
@@ -1461,6 +1461,8 @@ module.exports.routes = {
   'GET /learn-more-about/apple-available-os-updates': '/guides/enforce-os-updates#available-macos-ios-and-ipados-versions',
   'GET /learn-more-about/linux-os-updates': '/guides/enforce-os-updates#linux',
   'GET /learn-more-about/android-os-updates': '/guides/enforce-os-updates#android',
+  'GET /learn-more-about/os-updates-apple': '/guides/enforce-os-updates#apple-macos-ios-and-ipados-end-user-experience',
+  'GET /learn-more-about/os-updates-windows': '/guides/enforce-os-updates#windows2',
   'GET /learn-more-about/policy-automation-install-software': '/guides/automatic-software-install-in-fleet',
   'GET /learn-more-about/query-templates-for-automatic-install-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
@@ -1493,7 +1495,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
-  'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#step-2-sign-the-package',
+  'GET /learn-more-about/sign-bootstrap-package': '/guides/setup-experience#sign-the-package',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/self-service-software-categories': '/guides/software-self-service#manage-self-service-categories',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/api/rest-api#request-certificate',
@@ -1549,7 +1551,7 @@ module.exports.routes = {
   'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
-  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
+  'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account',
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': '/articles/dashboard-vulnerability-exposure',

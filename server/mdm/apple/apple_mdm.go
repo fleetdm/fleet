@@ -1249,7 +1249,7 @@ var OTASCEPTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`<?xml
           <key>Keysize</key>
           <integer>2048</integer>
           <key>URL</key>
-          <string>{{ .SCEPURL }}</string>
+          <string>{{ .SCEPURL | xml }}</string>
           <key>Subject</key>
           <array>
             <array>
@@ -1302,7 +1302,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>URL</key>
-				<string>{{ .SCEPURL }}</string>
+				<string>{{ .SCEPURL | xml }}</string>
 				<key>Subject</key>
 				<array>
 					<array><array><string>O</string><string>Fleet</string></array></array>
@@ -1341,11 +1341,11 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
-			<string>{{ .ServerURL }}</string>
+			<string>{{ .ServerURL | xml }}</string>
 			<key>SignMessage</key>
 			<true/>
 			<key>Topic</key>
-			<string>{{ .Topic }}</string>
+			<string>{{ .Topic | xml }}</string>
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
@@ -1382,7 +1382,7 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>URL</key>
-				<string>{{ .SCEPURL }}</string>
+				<string>{{ .SCEPURL | xml }}</string>
 				<key>Subject</key>
 				<array>
 					<array><array><string>O</string><string>Fleet</string></array></array>
@@ -1424,11 +1424,11 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 				<string>com.apple.mdm.token</string>
 			</array>
 			<key>ServerURL</key>
-			<string>{{ .ServerURL }}</string>
+			<string>{{ .ServerURL | xml }}</string>
 			<key>SignMessage</key>
 			<true/>
 			<key>Topic</key>
-			<string>{{ .Topic }}</string>
+			<string>{{ .Topic | xml }}</string>
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>

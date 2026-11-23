@@ -10,7 +10,7 @@ The guide covers Socket's downstream topology, where workstations talk to the fi
 - A Linux host to run the firewall, enrolled in Fleet with scripts enabled, with Docker 20.10 or later and Docker Compose 2.0 or later. Step 1 installs Docker if you don't have it.
 - A DNS name for the firewall, such as `sfw.example.com`, that resolves from every workstation, and a TLS certificate for that name. A certificate from a public CA skips step 3. A certificate from your internal CA needs step 3 so package managers trust it.
 - Workstations enrolled in Fleet with scripts enabled. See the [scripts guide](https://fleetdm.com/guides/scripts) if you deployed `fleetd` without `--enable-scripts`.
-- Fleet Premium, for Fleet-maintained apps, Fleet secrets, and policy automations.
+- Fleet Premium, for Fleet-maintained apps, custom variables, and policy automations.
 - A GitOps repository connected to Fleet. Every step also has a Fleet UI path.
 
 > **Warning:** Socket's quick start shows a self-signed certificate and tells clients to set `strict-ssl false` for npm and `trusted-host` for pip. Both disable certificate verification, which makes the firewall trivial to impersonate on the network. This guide distributes your CA certificate instead and keeps verification on.
@@ -58,7 +58,7 @@ The package names above are for Ubuntu 24.04 and later, Debian 13 and later, and
 
 ## Step 2: Deploy the firewall container
 
-Socket's [installation guide](https://docs.socket.dev/docs/socket-firewall-enterprise-registry-mode-installations) deploys the pre-built image with Docker Compose. The script below does the same thing from Fleet: it writes the `.env`, `socket.yml`, and `compose.yaml` files under `/opt/socket-firewall`, starts the container, and waits for the health check. The API key comes from a Fleet secret named `FLEET_SECRET_SOCKET_SECURITY_API_TOKEN`, which Fleet substitutes when it sends the script and masks in the UI and API. See [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) for how to define it.
+Socket's [installation guide](https://docs.socket.dev/docs/socket-firewall-enterprise-registry-mode-installations) deploys the pre-built image with Docker Compose. The script below does the same thing from Fleet: it writes the `.env`, `socket.yml`, and `compose.yaml` files under `/opt/socket-firewall`, starts the container, and waits for the health check. The API key comes from a custom variable named `FLEET_SECRET_SOCKET_SECURITY_API_TOKEN`, which Fleet substitutes when it sends the script and masks in the UI and API. See [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) for how to define it.
 
 Put the certificate chain and private key at `/opt/socket-firewall/ssl/fullchain.pem` and `/opt/socket-firewall/ssl/privkey.pem` before running the script, for example from an ACME client on that host. The script refuses to start without them.
 
@@ -561,7 +561,7 @@ A few things to know about these policies:
 - [Deploy Socket Firewall Enterprise in wrapper mode with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-enterprise-wrapper-mode-with-fleet)
 - [Deploy Socket Firewall Free with Fleet](https://fleetdm.com/guides/deploy-socket-firewall-free-with-fleet)
 - [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
-- [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
+- [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
 - [Scripts](https://fleetdm.com/guides/scripts) and [Automations](https://fleetdm.com/guides/automations) guides
 
 <meta name="articleTitle" value="Deploy Socket Firewall Enterprise in registry mode with Fleet">

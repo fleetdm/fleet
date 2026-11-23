@@ -135,6 +135,16 @@ const (
 	OneTimeChallengeTTL = 1 * time.Hour
 )
 
+// ChallengeScope is the delivery a one-time challenge is created for. A challenge is only accepted for the scope it
+// was created with.
+type ChallengeScope struct {
+	HostUUID string
+	// ProfileUUID is the profile UUID, or "g<certificate template ID>" for Android certificate templates.
+	ProfileUUID string
+	// CAName is empty for Android certificate templates, where the template already determines the CA.
+	CAName string
+}
+
 // NDESNotConfiguredMsg is the failure detail for a $FLEET_VAR_NDES_SCEP_CHALLENGE
 // reference when no NDES certificate authority is configured.
 const NDESNotConfiguredMsg = "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE."
@@ -1544,11 +1554,6 @@ type MDMConfigProfileStatus struct {
 	Verifying uint `json:"verifying" db:"verifying"`
 	Pending   uint `json:"pending" db:"pending"`
 	Failed    uint `json:"failed" db:"failed"`
-}
-
-// MDMWipeMetadata specifies optional metadata for the remote wipe command
-type MDMWipeMetadata struct {
-	Windows *MDMWindowsWipeMetadata
 }
 
 type MDMCommandResults interface {

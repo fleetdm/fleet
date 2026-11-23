@@ -1,0 +1,1184 @@
+<title>Experience score</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+.notice { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 16px; background: var(--panel-2); color: var(--ink-2);
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.notice b { color: var(--ink); }
+.notice .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.title-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+a.btn { display: inline-flex; align-items: center; box-sizing: border-box; text-decoration: none; }
+.back { font-size: 14px; }
+.grade { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box;
+  border-radius: 4px; font: 700 14px/1 var(--font-ui); color: #fff; background: var(--tone, var(--neutral)); }
+.grade.lg { min-width: 36px; height: 36px; font-size: 20px; border-radius: 6px; }
+.big .grade { align-self: center; }
+.delta { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.delta.up { color: var(--core-fleet-green); }
+.delta.down { color: var(--bad); }
+.cats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.cat { text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px;
+  display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+.cat:hover { border-color: var(--line-2); }
+.cat[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.cat h3 { margin: 0; }
+.cat .s { font-size: 12px; color: var(--ink-2); }
+.cat .big b { font-size: 20px; }
+/* The rows share one set of columns (subgrid), so every bar starts and ends in the same place. */
+.sig-list { display: grid; grid-template-columns: fit-content(280px) minmax(120px, 1fr) max-content; column-gap: 24px; }
+.sig-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; row-gap: 8px; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--line); }
+.sig-row:last-child { border-bottom: 0; }
+.sig-row .track { height: 14px; }
+.sig-name b { display: block; font-weight: 600; }
+.sig-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sig-num .cell-sub { display: block; }
+.sig-row.off { opacity: 0.6; }
+.drivers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.drivers li { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.drivers li:last-child { border-bottom: 0; }
+.facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.facts li { display: flex; justify-content: space-between; gap: 12px; }
+.facts li span:last-child { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.pick { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; }
+.pick label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.pick input.search { width: 280px; }
+.cmp td.better { color: var(--core-fleet-green); font-weight: 600; }
+.cmp td.worse { color: var(--bad); }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.log li { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.log li:last-child { border-bottom: 0; }
+.log li b { color: var(--ink); }
+.log .changes { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
+/* Settings editor */
+input.num { font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+  height: 32px; width: 64px; padding: 0 8px; box-sizing: border-box; font-variant-numeric: tabular-nums; }
+input.num:hover { border-color: var(--ui-fleet-black-50); }
+input.num:focus-visible { outline: none; border-color: var(--ink); }
+input.num:disabled { background: var(--panel-2); color: var(--ink-2); }
+input.num.letter { width: 48px; }
+.ed-cat { display: flex; flex-direction: column; gap: 12px; }
+.ed-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.ed-head h3 { margin: 0; }
+.ed-field { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); }
+.bands { display: flex; flex-direction: column; gap: 4px; }
+.band { display: flex; align-items: center; gap: 8px; font-size: 12px; white-space: nowrap; }
+.band-when { display: inline-flex; align-items: center; gap: 6px; min-width: 150px; }
+.band .btn { height: 28px; padding: 0 8px; font-size: 12px; }
+.band .btn.icon { width: 28px; padding: 0; font-size: 16px; line-height: 1; }
+.sig-about { max-width: 300px; margin-top: 4px; }
+.ed-tbl { min-width: 720px; }
+.miss { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.ed-tbl td { vertical-align: top; padding-top: 12px; padding-bottom: 12px; }
+.impact { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+textarea.json { width: 100%; min-height: 160px; box-sizing: border-box; font-family: var(--font-mono); font-size: 12px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+.err { color: var(--bad); }
+@media (max-width: 700px) {
+  .sig-list { grid-template-columns: minmax(0, 1fr); }
+  .sig-num { text-align: left; white-space: normal; }
+  .sig-num .cell-sub { display: inline; margin-left: 6px; }
+  .ed-tbl { min-width: 0; }
+  .ed-tbl thead { display: none; }
+  .ed-tbl tr { display: block; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+  .ed-tbl tr:last-child { border-bottom: 0; }
+  .ed-tbl td { display: block; padding: 6px 0; border: 0; height: auto; }
+  .sig-about { max-width: none; }
+}
+@media (max-width: 600px) {
+  .cmp, .cmp thead, .cmp tbody { display: block; }
+  .cmp thead tr, .cmp tbody tr:not(.group) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) max-content; }
+  .cmp thead th:first-child { display: none; }
+  .cmp thead th button { padding: 0 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp tbody tr:not(.group) td:first-child { grid-column: 1 / -1; padding: 8px 12px 0; border-bottom: 0; height: auto; color: var(--ink-2); font-size: 12px; }
+  .cmp tbody tr:not(.group) td { padding: 4px 12px 8px; height: auto; }
+  .cmp tr.group, .cmp tr.group td { display: block; }
+}
+@media (max-width: 480px) {
+  #host-signals .mini { display: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div id="preview"></div>
+  <div class="title-row" id="title"></div>
+  <div id="view" style="display:flex;flex-direction:column;gap:24px"></div>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+// ---- scoring core: kept in step with build.py's scoring_config() and exp_scorer(). ----
+const SIGS = DATA.signals, S = SIGS.length, SIDX = Object.fromEntries(SIGS.map((s, i) => [s.id, i]));
+const CATS = DATA.categories, C = CATS.length, CIDX = Object.fromEntries(CATS.map((c, i) => [c.id, i]));
+const MISSING = 255;
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// The defaults with a saved copy's valid values on top.
+function mergeScoring(user) {
+  const cfg = JSON.parse(JSON.stringify(DATA.builtin));
+  if (!user || typeof user !== "object" || Array.isArray(user)) return cfg;
+  for (const [k, lo, hi] of [["target", 0, 100], ["stale_days", 1, 35], ["min_cohort", 1, 100]]) if (isNum(user[k])) cfg[k] = clamp(user[k], lo, hi);
+  if (typeof user.host_views === "boolean") cfg.host_views = user.host_views;
+  const g = user.grades;
+  if (Array.isArray(g) && g.length && g.every((x) => Array.isArray(x) && x.length === 2 && typeof x[0] === "string" && x[0].trim() && isNum(x[1]))) {
+    cfg.grades = g.map((x) => [x[0].trim().slice(0, 3), clamp(x[1], 0, 100)]).sort((a, b) => b[1] - a[1]);
+  }
+  const ucats = user.categories && typeof user.categories === "object" ? user.categories : {};
+  for (const [cid, cat] of Object.entries(cfg.categories)) {
+    const uc = ucats[cid];
+    if (!uc || typeof uc !== "object") continue;
+    if (isNum(uc.weight)) cat.weight = Math.max(0, uc.weight);
+    const usigs = uc.signals && typeof uc.signals === "object" ? uc.signals : {};
+    for (const [sid, sc] of Object.entries(cat.signals)) {
+      const us = usigs[sid];
+      if (!us || typeof us !== "object") continue;
+      if (isNum(us.weight)) sc.weight = Math.max(0, us.weight);
+      if (["skip", "neutral", "worst"].includes(us.missing)) sc.missing = us.missing;
+      if (isNum(us.neutral)) sc.neutral = clamp(us.neutral, 0, 100);
+      if (sc.points && us.points && typeof us.points === "object") {
+        for (const k of Object.keys(sc.points)) if (isNum(us.points[k])) sc.points[k] = clamp(us.points[k], 0, 100);
+      }
+      const b = us.bands;
+      if (sc.bands && Array.isArray(b) && b.length && b.every((x) => Array.isArray(x) && x.length === 2 && (x[0] === null || isNum(x[0])) && isNum(x[1]))) {
+        const lower = SIGS[SIDX[sid]].better === "lower";
+        const ts = b.filter((x) => x[0] !== null).sort((x, y) => (lower ? x[0] - y[0] : y[0] - x[0]));
+        const restBand = b.find((x) => x[0] === null);
+        const rest = restBand ? restBand[1] : ts.length ? ts[ts.length - 1][1] : 0;
+        sc.bands = [...ts.map((x) => [x[0], clamp(x[1], 0, 100)]), [null, clamp(rest, 0, 100)]];
+      }
+    }
+  }
+  return cfg;
+}
+
+function bandPoints(sig, bands, v) {
+  for (const [t, p] of bands) if (t === null || (sig.better === "lower" ? v <= t : v >= t)) return +p;
+  return 0;
+}
+
+function compile(cfg) {
+  return Object.entries(cfg.categories).map(([cid, cat]) => ({
+    cid, ci: CIDX[cid], cw: +cat.weight,
+    sigs: Object.entries(cat.signals).flatMap(([sid, sc]) => {
+      const sig = SIGS[SIDX[sid]];
+      if (!sig || !(sc.weight > 0)) return [];
+      const pts = sig.kind === "levels" ? sig.levels.map(([k]) => +(sc.points[k] ?? 0))
+        : Array.from({ length: sig.cap + 1 }, (_, c) => bandPoints(sig, sc.bands, c * sig.step));
+      const vals = sig.kind === "levels" ? Object.values(sc.points) : sc.bands.map((x) => x[1]);
+      const m = sc.missing || "skip";
+      const miss = m === "skip" ? null : m === "neutral" ? +(sc.neutral ?? 75) : Math.min(...vals);
+      return [{ s: SIDX[sid], sid, sig, plats: sig.plats || null, w: +sc.weight, pts, miss }];
+    }),
+  }));
+}
+
+// Scores one computer-day from its codes (a slice of S values) into catOut; returns the score or NaN.
+function scoreCodes(plan, codes, off, plat, catOut) {
+  let total = 0, tw = 0;
+  catOut.fill(NaN);
+  for (const c of plan) {
+    let sw = 0, sp = 0;
+    for (const g of c.sigs) {
+      if (g.plats && !g.plats.includes(plat)) continue;
+      const v = codes[off + g.s];
+      let p;
+      if (v === MISSING) {
+        if (g.miss === null) continue;
+        p = g.miss;
+      } else p = g.pts[Math.min(g.pts.length - 1, v)];
+      sw += g.w;
+      sp += g.w * p;
+    }
+    if (sw > 0) {
+      const cs = sp / sw;
+      catOut[c.ci] = cs;
+      if (c.cw > 0) { total += c.cw * cs; tw += c.cw; }
+    }
+  }
+  return tw > 0 ? total / tw : NaN;
+}
+// ---- end scoring core ----
+
+const DAYS = DATA.days, N = DATA.hosts.length, TODAY = DAYS - 1;
+const START = Date.parse(DATA.start + "T00:00:00Z");
+const dateOf = (di) => new Date(START + di * 864e5).toISOString().slice(0, 10);
+const CODES = new Uint8Array(N * DAYS * S);
+const PRESENT = new Uint8Array(N * DAYS);
+const HOSTS = DATA.hosts.map(([id, name, fi, p, mi, ci, oi, di, codes], i) => {
+  for (let d = 0; d < DAYS; d++) {
+    let any = 0;
+    for (let s = 0; s < S; s++) {
+      const k = d * S + s, c = codes.charCodeAt(k), at = (i * DAYS + d) * S + s;
+      CODES[at] = c === 46 || Number.isNaN(c) ? MISSING : c <= 57 ? c - 48 : c - 87;
+      if (CODES[at] !== MISSING) any = 1;
+    }
+    PRESENT[i * DAYS + d] = any;
+  }
+  const n = DATA.names;
+  return { id, _id: id, i, name, p, fleet: n.fleets[fi], model: n.models[mi] || "Unknown model", chip: n.chips[ci] || "Unknown CPU",
+    os: n.oses[oi] || "", dept: n.depts[di] || "" };
+});
+const BY_ID = new Map(HOSTS.map((h) => [String(h.id), h]));
+const code = (h, di, sid) => CODES[(h.i * DAYS + di) * S + SIDX[sid]];
+const CHECKIN = SIDX.checkin;
+
+// ---- settings state ----
+let SAVED = mergeScoring(DATA.scoring);
+let SAVED_META = null; // {at, by} once the page's store answers
+// Unsaved settings: DRAFT is what the editor's inputs change, DRAFT_EFF its cleaned-up
+// copy (bands in order, values in range) that the page scores with.
+let DRAFT = null, DRAFT_EFF = null;
+let DB = null, USER = null, DOWNLOADS = null, EDIT = false, LOG = null, SAVE_ERROR = "";
+const active = () => (DRAFT ? DRAFT_EFF : SAVED);
+const draftDirty = () => Boolean(DRAFT) && JSON.stringify(DRAFT_EFF) !== JSON.stringify(SAVED);
+function setDraft(cfg) {
+  DRAFT = cfg ? JSON.parse(JSON.stringify(cfg)) : null;
+  DRAFT_EFF = cfg ? mergeScoring(DRAFT) : null;
+}
+
+let PLAN, COMP, CATSC, STALE;
+function computeAll(cfg) {
+  PLAN = compile(cfg);
+  COMP = new Float64Array(N * DAYS).fill(NaN);
+  CATSC = new Float64Array(N * DAYS * C).fill(NaN);
+  STALE = new Uint8Array(N * DAYS);
+  const tmp = new Float64Array(C);
+  const trend = new Map();
+  for (const h of HOSTS) {
+    const key = `${h.fleet}|${h.p}`;
+    for (let d = 0; d < DAYS; d++) {
+      const at = h.i * DAYS + d;
+      if (!PRESENT[at]) continue;
+      const chk = CODES[at * S + CHECKIN];
+      if (chk !== MISSING && chk > cfg.stale_days) STALE[at] = 1;
+      COMP[at] = scoreCodes(PLAN, CODES, at * S, h.p, tmp);
+      CATSC.set(tmp, at * C);
+      if (STALE[at] || !Number.isFinite(COMP[at])) continue;
+      const date = dateOf(d);
+      if (!trend.has(date)) trend.set(date, {});
+      const row = (trend.get(date)[key] ||= {});
+      row.scored = (row.scored || 0) + 1;
+      row.score = (row.score || 0) + COMP[at];
+      if (COMP[at] >= cfg.target) row.good = (row.good || 0) + 1;
+      for (let c = 0; c < C; c++) {
+        if (!Number.isFinite(tmp[c])) continue;
+        row[`c_${CATS[c].id}`] = (row[`c_${CATS[c].id}`] || 0) + tmp[c];
+        row[`n_${CATS[c].id}`] = (row[`n_${CATS[c].id}`] || 0) + 1;
+      }
+    }
+  }
+  DATA.trend = [...trend.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+}
+
+const comp = (h, d = TODAY) => COMP[h.i * DAYS + d];
+const catScore = (h, ci, d = TODAY) => CATSC[(h.i * DAYS + d) * C + ci];
+const scored = (h, d = TODAY) => Number.isFinite(comp(h, d)) && !STALE[h.i * DAYS + d];
+// The day a week back, or the closest earlier day with a score within 3 more days.
+function weekAgo(h) {
+  for (let d = TODAY - 7; d >= Math.max(0, TODAY - 10); d--) if (scored(h, d)) return d;
+  return null;
+}
+
+// Each signal's points and the points it costs the computer's score on one day.
+function breakdown(h, d, cfg = active(), plan = PLAN) {
+  const at = (h.i * DAYS + d) * S;
+  const tw = plan.reduce((a, c) => {
+    if (!(c.cw > 0)) return a;
+    const any = c.sigs.some((g) => (!g.plats || g.plats.includes(h.p)) && (CODES[at + g.s] !== MISSING || g.miss !== null));
+    return a + (any ? c.cw : 0);
+  }, 0);
+  const cats = plan.map((c) => {
+    const sigs = [];
+    let sw = 0;
+    for (const g of c.sigs) {
+      if (g.plats && !g.plats.includes(h.p)) continue;
+      const v = CODES[at + g.s];
+      if (v === MISSING && g.miss === null) { sigs.push({ g, v, p: null, w: 0 }); continue; }
+      const p = v === MISSING ? g.miss : g.pts[Math.min(g.pts.length - 1, v)];
+      sw += g.w;
+      sigs.push({ g, v, p, w: g.w });
+    }
+    const share = c.cw > 0 && tw > 0 && sw > 0 ? c.cw / tw : 0;
+    for (const x of sigs) x.lost = x.p === null || !sw ? 0 : (100 - x.p) * (x.w / sw) * share;
+    return { c, sigs, share, score: catScore(h, c.ci, d) };
+  });
+  return { cats, comp: comp(h, d), cfg };
+}
+
+// ---- formatting ----
+const r1 = (x) => (Number.isFinite(x) ? Math.round(x * 10) / 10 : null);
+const scoreFmt = (x) => (Number.isFinite(x) ? String(Math.round(x)) : "---");
+function gradeOf(x, cfg = active()) {
+  if (!Number.isFinite(x)) return null;
+  return (cfg.grades.find(([, lo]) => x >= lo) || ["F"])[0];
+}
+function gradeTone(g, cfg = active()) {
+  if (!g) return "neutral";
+  const i = cfg.grades.findIndex(([l]) => l === g);
+  return ["good", "info", "warn"][i] || "bad";
+}
+const toneOf = (x, cfg = active()) => gradeTone(gradeOf(x, cfg), cfg);
+function gradeBadge(x, lg) {
+  const g = gradeOf(x);
+  return g ? h("span", { class: `grade${lg ? " lg" : ""}`, style: `--tone:var(--${gradeTone(g)})`, title: `Grade ${g}` }, g) : null;
+}
+function deltaEl(dv, suffix = "") {
+  if (!Number.isFinite(dv)) return h("span", { class: "delta" }, "---");
+  const v = Math.round(dv * 10) / 10;
+  if (Math.abs(v) < 0.5) return h("span", { class: "delta" }, `no change${suffix}`);
+  return h("span", { class: `delta ${v > 0 ? "up" : "down"}` }, `${v > 0 ? "+" : "−"}${Math.abs(Math.round(v))}${suffix}`);
+}
+function valueLabel(sig, c) {
+  if (c === MISSING || c == null) return "not reported";
+  if (sig.kind === "levels") return sig.levels[c] ? sig.levels[c][1] : "---";
+  const v = c * sig.step, more = c >= sig.cap;
+  if (sig.unit === "%") return more ? `${v}% or more` : `${v}%`;
+  if (sig.unit === "days") return more ? `${v} days or more` : fmt.plural(v, "day");
+  if (sig.unit === "years") return more ? `${v} years or more` : fmt.plural(v, "year");
+  return more ? `${v} or more` : String(v);
+}
+const unitWord = (sig, v) => (sig.unit === "%" ? `${v}%` : sig.unit ? fmt.plural(v, sig.unit.replace(/s$/, "")) : String(v));
+// Labels for a number signal's bands, in their order.
+function bandLabels(sig, bands) {
+  const lower = sig.better === "lower";
+  return bands.map(([t], i) => {
+    const prev = i ? bands[i - 1][0] : null;
+    if (t === null) return bands.length === 1 ? "Any" : lower ? `More than ${unitWord(sig, prev)}` : `Under ${unitWord(sig, prev)}`;
+    if (lower) {
+      if (prev === null) return t === 0 ? (sig.unit ? unitWord(sig, 0) : "None") : `${unitWord(sig, t)} or less`;
+      const from = prev + sig.step;
+      return from >= t ? unitWord(sig, t) : `${sig.unit === "%" ? from : fmt.n(from)} to ${unitWord(sig, t)}`;
+    }
+    if (prev === null) return `${unitWord(sig, t)} or more`;
+    return `${sig.unit === "%" ? t : fmt.n(t)} to under ${unitWord(sig, prev)}`;
+  });
+}
+const platTags = (sig) => (sig.plats ? sig.plats.map(platformLabel).join(", ") : "All platforms");
+const sigConf = (cfg, sid) => {
+  for (const cat of Object.values(cfg.categories)) if (cat.signals[sid]) return cat.signals[sid];
+  return null;
+};
+const catLabel = (cid) => (CATS[CIDX[cid]] || { label: cid }).label;
+const CAT_COLORS = { performance: "var(--info)", device: "var(--serious)", security: "var(--good)", software: "var(--warn)", connectivity: "var(--neutral)" };
+function linkTo(page, label) {
+  return DATA.links && DATA.links[page] ? pageLink(DATA.links[page], {}, label) : label;
+}
+const hostHref = (x) => `#host=${x.id}`;
+function hostCell(x) {
+  return [active().host_views ? h("a", { href: hostHref(x), class: "cell-main" }, x.name) : h("span", { class: "cell-main" }, x.name),
+    PLATFORM ? null : h("span", { class: "plat" }, platformLabel(x.p))];
+}
+const pluralComputers = (n) => fmt.plural(n, "computer");
+
+// ---- views ----
+let VIEW = { kind: "fleet" };
+let CAT_SEL = store.get("dex-exp-cat") || "";
+let COHORT = store.get("dex-exp-cohort") || "fleet";
+let GRADE_SEL = new Set();
+let QUERY = "";
+
+function route() {
+  const m = location.hash.match(/^#(host|compare)=(.*)$/);
+  VIEW = m ? { kind: m[1], arg: decodeURIComponent(m[2]) } : location.hash === "#scoring" ? { kind: "scoring" } : { kind: "fleet" };
+  // Opening the settings without changing anything leaves no draft behind.
+  if (VIEW.kind !== "scoring" && DRAFT && !draftDirty()) setDraft(null);
+  render();
+  window.scrollTo(0, 0);
+}
+
+function selectedNow() {
+  return HOSTS.filter((h) => PRESENT[h.i * DAYS + TODAY] && inFleet(h.fleet) && inPlatform(h.p));
+}
+
+function render() {
+  hideTip();
+  renderPreview();
+  if (VIEW.kind === "host") return renderHost(BY_ID.get(VIEW.arg));
+  if (VIEW.kind === "compare") return renderCompare(VIEW.arg);
+  if (VIEW.kind === "scoring") return renderScoring();
+  return renderFleet();
+}
+
+function renderPreview() {
+  mount("preview", draftDirty() && VIEW.kind !== "scoring" ? h("div", { class: "notice", role: "status" },
+    h("span", {}, h("b", {}, "Previewing unsaved scoring settings. "), "Every score on this page uses them until you save or discard them."),
+    h("span", { class: "acts" }, h("a", { href: "#scoring", class: "btn" }, "Back to settings"),
+      h("button", { type: "button", class: "btn", onclick: discardDraft }, "Discard"))) : null);
+}
+
+function titleRow(title, subtitle, tools, back) {
+  mount("title",
+    h("div", {}, back ? h("p", { class: "back", style: "margin:0 0 8px" }, h("a", { href: "#" }, "← Experience score")) : null,
+      h("h1", {}, title), subtitle ? h("p", { class: "subtitle" }, subtitle) : null),
+    tools ? h("div", { class: "title-tools" }, tools) : null);
+}
+
+// ---- fleet view ----
+function renderFleet() {
+  const cfg = active();
+  titleRow("Experience score",
+    "One score from 0 to 100 for each computer, built from every dashboard: performance, hardware, security, and software. Admins choose what counts and how much.",
+    [cfg.host_views ? h("a", { href: "#compare=", class: "btn" }, "Compare computers") : null,
+      h("a", { href: "#scoring", class: "btn" }, EDIT ? "Edit scoring" : "Scoring settings")]);
+  const now = selectedNow();
+  const sc = now.filter((x) => scored(x));
+  const stale = now.filter((x) => STALE[x.i * DAYS + TODAY]).length;
+  const avg = mean(sc.map((x) => comp(x)));
+  const good = sc.filter((x) => comp(x) >= cfg.target).length;
+  const lastGrade = cfg.grades.length ? cfg.grades[cfg.grades.length - 1][0] : null;
+  const low = sc.filter((x) => { const g = gradeOf(comp(x)); return g === "F" || g === lastGrade; }).length;
+  const prevPairs = sc.map((x) => [x, weekAgo(x)]).filter(([, d]) => d !== null);
+  const avgPrev = mean(prevPairs.map(([x, d]) => comp(x, d)));
+  const avgNowSame = mean(prevPairs.map(([x]) => comp(x)));
+  const delta = prevPairs.length ? avgNowSame - avgPrev : NaN;
+
+  // Where the points go: what each category and signal costs the average computer.
+  const lostSig = new Map(), lostCat = new Map();
+  const bds = sc.map((x) => breakdown(x, TODAY));
+  for (const b of bds) for (const c of b.cats) {
+    let catLost = 0;
+    for (const s of c.sigs) { lostSig.set(s.g.sid, (lostSig.get(s.g.sid) || 0) + s.lost); catLost += s.lost; }
+    lostCat.set(c.c.cid, (lostCat.get(c.c.cid) || 0) + catLost);
+  }
+  const perHost = (m, k) => (sc.length ? (m.get(k) || 0) / sc.length : 0);
+  const scoredCats = PLAN.filter((c) => c.cw > 0);
+  const worstCat = scoredCats.slice().sort((a, b) => perHost(lostCat, b.cid) - perHost(lostCat, a.cid))[0];
+
+  const lede = !sc.length ? "No computer has a score yet."
+    : `${fmt.pct(pct(good, sc.length))} of ${PLATFORM === "macos" ? "Macs" : "computers"} have a good experience, scoring ${cfg.target} or more.`;
+  const support = [];
+  if (worstCat && sc.length) support.push(`${catLabel(worstCat.cid)} costs the most: ${r1(perHost(lostCat, worstCat.cid))} points on the average computer.`);
+  if (Number.isFinite(delta)) support.push(Math.abs(delta) < 0.5 ? "About the same as a week ago." : `${delta > 0 ? "Up" : "Down"} ${r1(Math.abs(delta))} points from a week ago, for the same computers.`);
+  if (stale) support.push(`${pluralComputers(stale)} that haven't checked in for more than ${fmt.plural(cfg.stale_days, "day")} aren't scored.`);
+  mount("view",
+    h("section", { class: "hero", "aria-label": "Summary" },
+      h("div", {}, h("div", { class: "eyebrow" }, "Average score"),
+        h("div", { class: "big" }, h("b", {}, scoreFmt(avg)), gradeBadge(avg, true), h("span", {}, `of 100 · ${pluralComputers(sc.length)}`))),
+      h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support.join(" "))),
+      h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
+        h("div", { class: "rail-row" }, h("span", {}, `Good experience (${cfg.target}+)`), h("b", {}, fmt.n(good))),
+        h("div", { class: "rail-row" }, h("span", {}, "Below target"), h("b", { class: sc.length - good ? "hl-bad" : null }, fmt.n(sc.length - good))),
+        h("div", { class: "rail-row" }, h("span", {}, lastGrade ? `Grade ${lastGrade} or F` : "Grade F"), h("b", { class: low ? "hl-bad" : null }, fmt.n(low))),
+        h("div", { class: "rail-row" }, h("span", {}, "Not scored"), h("b", {}, fmt.n(now.length - sc.length))))),
+    trendSection(cfg),
+    categorySection(cfg, sc, bds, lostCat, lostSig, perHost),
+    cohortSection(cfg, sc),
+    cfg.host_views ? moversSection(sc) : null,
+    cfg.host_views ? hostsSection(cfg, now) : h("div", { class: "notice" }, h("span", {}, h("b", {}, "Per-computer views are off. "), "An admin turned them off in the scoring settings, so this page shows groups only.")),
+    methodSection(cfg));
+  renderTrend(["scored", "score", "good", ...CATS.flatMap((c) => [`c_${c.id}`, `n_${c.id}`])], [
+    { title: "Average score", series: [{ label: "Score", color: "var(--info)", value: (r) => (r.scored ? r.score / r.scored : NaN) }], yFmt: scoreFmt, yMax: 100 },
+    { title: "Good experience", series: [{ label: `Scoring ${cfg.target}+`, color: "var(--good)", value: (r) => pct(r.good || 0, r.scored) ?? NaN }], yFmt: fmt.pct, yMax: 100 },
+    { title: "By category", series: PLAN.filter((c) => c.cw > 0).map((c) => ({ label: catLabel(c.cid), color: CAT_COLORS[c.cid] || "var(--info)",
+      value: (r) => (r[`n_${c.cid}`] ? r[`c_${c.cid}`] / r[`n_${c.cid}`] : NaN) })), yFmt: scoreFmt, yMax: 100 },
+  ]);
+  footer();
+}
+
+function trendSection(cfg) {
+  return h("section", { class: "sec", "aria-labelledby": "trend-h" },
+    h("div", { class: "sec-head" }, h("h2", { id: "trend-h" }, "Over time"), h("div", { class: "trend-tools", id: "trend-tools" })),
+    h("p", { class: "hint", style: "margin:-8px 0 0" }, `Every day is scored with today's settings, so a change applies to the past too. Scores go back ${fmt.plural(DAYS, "day")}.`),
+    h("div", { class: "grid", id: "trend" }));
+}
+
+function categorySection(cfg, sc, bds, lostCat, lostSig, perHost) {
+  const prev = sc.map((x) => [x, weekAgo(x)]).filter(([, d]) => d !== null);
+  const totalW = PLAN.reduce((a, c) => a + (c.cw > 0 ? c.cw : 0), 0);
+  if (!CAT_SEL || !PLAN.some((c) => c.cid === CAT_SEL)) {
+    CAT_SEL = (PLAN.filter((c) => c.cw > 0).sort((a, b) => perHost(lostCat, b.cid) - perHost(lostCat, a.cid))[0] || PLAN[0]).cid;
+  }
+  const cards = PLAN.map((c) => {
+    const vals = sc.map((x) => catScore(x, c.ci)).filter(Number.isFinite);
+    const a = mean(vals);
+    const pv = prev.map(([x, d]) => [catScore(x, c.ci), catScore(x, c.ci, d)]).filter(([u, v]) => Number.isFinite(u) && Number.isFinite(v));
+    const dv = pv.length ? mean(pv.map(([u]) => u)) - mean(pv.map(([, v]) => v)) : NaN;
+    return h("button", { type: "button", class: "cat", "aria-pressed": CAT_SEL === c.cid ? "true" : "false",
+      onclick: () => { CAT_SEL = c.cid; store.set("dex-exp-cat", c.cid); render(); } },
+      h("h3", {}, catLabel(c.cid)),
+      h("span", { class: "s" }, c.cw > 0 ? `${fmt.pct(pct(c.cw, totalW))} of the score` : "Shown, not scored"),
+      h("div", { class: "big" }, h("b", {}, scoreFmt(a)), gradeBadge(a)),
+      h("span", { class: "s" }, deltaEl(dv, " in 7 days"), c.cw > 0 && sc.length ? ` · costs ${r1(perHost(lostCat, c.cid))} points` : ""));
+  });
+  const sel = PLAN.find((c) => c.cid === CAT_SEL);
+  const cat = active().categories[sel.cid];
+  const rows = Object.entries(cat.signals).map(([sid, scf]) => {
+    const sig = SIGS[SIDX[sid]];
+    const applies = sc.filter((x) => !sig.plats || sig.plats.includes(x.p));
+    const sw = Object.entries(cat.signals).reduce((a, [, s]) => a + (s.weight > 0 ? s.weight : 0), 0);
+    const reporting = applies.filter((x) => code(x, TODAY, sid) !== MISSING);
+    const bins = sig.kind === "levels" ? sig.levels.map(([k, label], i) => ({ label, pts: scf.points[k] ?? 0, test: (v) => v === i }))
+      : bandLabels(sig, scf.bands).map((label, i) => ({ label, pts: scf.bands[i][1], test: null, i }));
+    if (sig.kind !== "levels") {
+      for (const b of bins) b.test = (v) => scf.bands.findIndex(([t]) => t === null || (sig.better === "lower" ? v * sig.step <= t : v * sig.step >= t)) === b.i;
+    }
+    const segs = bins.map((b) => {
+      const n = reporting.filter((x) => b.test(code(x, TODAY, sid))).length;
+      return { value: n, color: `var(--${toneOf(b.pts)})`, tip: `${b.label}: ${pluralComputers(n)}, ${b.pts} points` };
+    });
+    const pts = reporting.map((x) => { const g = PLAN.flatMap((c) => c.sigs).find((y) => y.sid === sid); const v = code(x, TODAY, sid); return g ? g.pts[Math.min(g.pts.length - 1, v)] : sig.kind === "levels" ? scf.points[sig.levels[v][0]] : bandPoints(sig, scf.bands, v * sig.step); });
+    const off = !(scf.weight > 0);
+    return h("div", { class: `sig-row${off ? " off" : ""}` },
+      h("div", { class: "sig-name" }, h("b", {}, sig.label),
+        h("span", { class: "cell-sub" }, `${off ? "Shown, not scored" : `${fmt.pct(pct(scf.weight, sw))} of ${catLabel(sel.cid)}`} · ${platTags(sig)}`)),
+      reporting.length ? h("div", { class: "track", role: "img", "aria-label": `${sig.label}: ${segs.map((s) => s.tip).join("; ")}` },
+        segs.filter((s) => s.value > 0).map((s) => tip(h("div", { class: "seg", style: `flex:${s.value} 1 0;background:${s.color}` }), s.tip)))
+        : h("span", { class: "cell-sub" }, applies.length ? "No computer here reports it" : "Doesn't apply to these computers"),
+      h("div", { class: "sig-num" }, reporting.length ? `${scoreFmt(mean(pts))} points avg` : "---",
+        h("span", { class: "cell-sub" }, off || !sc.length ? `${fmt.n(reporting.length)} of ${fmt.n(applies.length)} report it` : `costs ${r1(perHost(lostSig, sid))} · ${fmt.n(reporting.length)} of ${fmt.n(applies.length)} report it`)));
+  });
+  return h("section", { class: "sec", "aria-labelledby": "cats-h" },
+    h("div", { class: "sec-head" }, h("h2", { id: "cats-h" }, "Where the points go"),
+      h("span", { class: "hint" }, "Average of each category. Pick one to see its signals.")),
+    h("div", { class: "cats" }, cards),
+    h("div", { class: "panel" }, h("h3", {}, `${catLabel(sel.cid)} signals`),
+      h("p", { class: "panel-note", style: "margin:-4px 0 8px" }, (CATS[CIDX[sel.cid]] || {}).about || ""),
+      h("div", { class: "sig-list" }, rows),
+      h("div", {}, legend(pointsLegend(cfg)))));
+}
+
+// One legend entry per color: grades that share a color merge into "under N".
+function pointsLegend(cfg) {
+  const out = [];
+  for (const [g, lo] of cfg.grades) {
+    const tone = gradeTone(g, cfg);
+    if (tone === "bad") { out.push([`Under ${out.length ? cfg.grades[out.length - 1][1] : 100}`, "var(--bad)"]); return out; }
+    out.push([`${lo}+ points`, `var(--${tone})`]);
+  }
+  out.push([`Under ${cfg.grades.length ? cfg.grades[cfg.grades.length - 1][1] : 100}`, "var(--bad)"]);
+  return out;
+}
+
+const COHORTS = [
+  ["fleet", "Fleet", (x) => x.fleet], ["platform", "Platform", (x) => platformLabel(x.p)], ["model", "Model", (x) => x.model],
+  ["chip", "CPU", (x) => x.chip], ["ram", "Memory", (x) => valueLabel(SIGS[SIDX.ram], code(x, TODAY, "ram"))],
+  ["os", "OS", (x) => x.os || "Unknown"], ["dept", "Department", (x) => x.dept || "No department"],
+];
+function cohortSection(cfg, sc) {
+  const hasDept = HOSTS.some((x) => x.dept);
+  const list = COHORTS.filter(([k]) => k !== "dept" || hasDept);
+  if (!list.some(([k]) => k === COHORT)) COHORT = "fleet";
+  const [, label, key] = list.find(([k]) => k === COHORT);
+  const groups = new Map();
+  for (const x of sc) {
+    const k = key(x);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(comp(x));
+  }
+  const all = [...groups.entries()].map(([k, v]) => ({ k, n: v.length, avg: mean(v), good: v.filter((s) => s >= cfg.target).length }));
+  const shown = all.filter((g) => g.n >= cfg.min_cohort).sort((a, b) => a.avg - b.avg);
+  const hidden = all.length - shown.length;
+  return h("section", { class: "sec", "aria-labelledby": "coh-h" },
+    h("div", { class: "sec-head" }, h("h2", { id: "coh-h" }, "Who has the lowest scores"),
+      dropdown("Group by", list.map(([k, l]) => [k, `By ${l.toLowerCase()}`]), COHORT, (k) => { COHORT = k; store.set("dex-exp-cohort", k); render(); })),
+    h("div", { class: "panel" }, h("h3", {}, `Average score by ${label.toLowerCase()}, lowest first`),
+      shown.length ? barRows(shown.slice(0, 15).map((g) => ({ label: `${g.k} (${fmt.n(g.n)})`, valueText: scoreFmt(g.avg),
+        segs: [{ value: g.avg, color: `var(--${toneOf(g.avg)})`, tip: `${g.k}: average ${scoreFmt(g.avg)} over ${pluralComputers(g.n)}, ${fmt.pct(pct(g.good, g.n))} scoring ${cfg.target}+` }] })), 100)
+        : empty("No groups to show", `Groups need at least ${pluralComputers(cfg.min_cohort)}.`),
+      h("p", { class: "panel-note" }, [shown.length > 15 ? `Showing the 15 lowest of ${fmt.n(shown.length)} groups.` : "",
+        hidden ? `${fmt.plural(hidden, "group")} with fewer than ${pluralComputers(cfg.min_cohort)} ${hidden === 1 ? "isn't" : "aren't"} shown.` : ""].filter(Boolean).join(" ") || null)));
+}
+
+// What changed a computer's score between two days: each signal's change in the points it costs.
+function drivers(x, d0, d1) {
+  const a = breakdown(x, d0), b = breakdown(x, d1);
+  const out = [];
+  b.cats.forEach((c, ci) => c.sigs.forEach((s, si) => {
+    const before = a.cats[ci].sigs.find((t) => t.g.sid === s.g.sid);
+    const lost0 = before ? before.lost : 0;
+    const change = lost0 - s.lost;
+    if (Math.abs(change) >= 0.05) out.push({ sig: s.g.sig, change, from: before ? before.v : MISSING, to: s.v, cid: c.c.cid });
+  }));
+  return out.sort((p, q) => Math.abs(q.change) - Math.abs(p.change));
+}
+function driverText(dv) {
+  const pts = `${dv.change > 0 ? "+" : "−"}${r1(Math.abs(dv.change))} points`;
+  const what = dv.from === MISSING ? `started reporting ${valueLabel(dv.sig, dv.to)}`
+    : dv.to === MISSING ? "stopped reporting" : dv.from === dv.to ? "kept the same value, but weighs differently now"
+      : `went from ${valueLabel(dv.sig, dv.from)} to ${valueLabel(dv.sig, dv.to)}`;
+  return [`${dv.sig.label} ${what}`, pts];
+}
+
+function moversSection(sc) {
+  const rows = sc.map((x) => { const d = weekAgo(x); return d === null ? null : { x, d, delta: comp(x) - comp(x, d) }; })
+    .filter((m) => m && Math.abs(m.delta) >= 1).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 8);
+  const columns = [
+    { key: "name", label: "Computer", value: (m) => m.x.name.toLowerCase(), cell: (m) => hostCell(m.x) },
+    { key: "then", label: "A week ago", num: true, value: (m) => comp(m.x, m.d), cell: (m) => scoreFmt(comp(m.x, m.d)) },
+    { key: "now", label: "Now", num: true, value: (m) => comp(m.x), cell: (m) => [scoreFmt(comp(m.x)), " ", gradeBadge(comp(m.x))] },
+    { key: "delta", label: "Change", num: true, value: (m) => Math.abs(m.delta), cell: (m) => deltaEl(m.delta) },
+    { key: "why", label: "Biggest reason", value: () => 0, cell: (m) => { const dv = drivers(m.x, m.d, TODAY)[0]; return dv ? h("span", { class: "cell-sub" }, driverText(dv).join(", ")) : "---"; } },
+  ];
+  return h("section", { class: "sec", "aria-labelledby": "mov-h" },
+    h("div", { class: "sec-head" }, h("h2", { id: "mov-h" }, "Biggest changes this week"), h("span", { class: "hint" }, "Scores that moved the most since a week ago.")),
+    rows.length ? sortTable({ columns, groups: [{ rows: rows.map((m) => ({ ...m, _id: m.x.id })) }], sort: ["delta", "desc"], id: "movers" })
+      : empty("Nothing moved much", "No computer's score changed by a point or more since a week ago."));
+}
+
+function topIssue(x) {
+  const b = breakdown(x, TODAY);
+  let best = null;
+  for (const c of b.cats) for (const s of c.sigs) if (s.lost > 0.05 && (!best || s.lost > best.lost)) best = s;
+  return best;
+}
+function hostsSection(cfg, now) {
+  const rows = now.map((x) => {
+    const s = comp(x), st = STALE[x.i * DAYS + TODAY], d = weekAgo(x);
+    const cats = PLAN.filter((c) => c.cw > 0).map((c) => [c.cid, catScore(x, c.ci)]).filter(([, v]) => Number.isFinite(v)).sort((a, b) => a[1] - b[1]);
+    return { _id: x.id, x, s: st ? NaN : s, stale: st, grade: st ? null : gradeOf(s), delta: d === null || st ? NaN : s - comp(x, d), weakest: cats[0] || null };
+  });
+  const gradesAll = [...cfg.grades.map(([g]) => g), "F", "Not scored"];
+  const gk = (r) => r.grade || "Not scored";
+  const counts = Object.fromEntries(gradesAll.map((g) => [g, rows.filter((r) => gk(r) === g).length]));
+  const filtered = () => rows.filter((r) => (!GRADE_SEL.size || GRADE_SEL.has(gk(r))) && (!QUERY || r.x.name.toLowerCase().includes(QUERY)));
+  const columns = [
+    { key: "name", label: "Computer", value: (r) => r.x.name.toLowerCase(), cell: (r) => hostCell(r.x) },
+    { key: "score", label: "Score", num: true, value: (r) => (Number.isFinite(r.s) ? r.s : null),
+      cell: (r) => (r.stale ? h("span", { class: "cell-sub" }, "not checking in") : Number.isFinite(r.s) ? [scoreFmt(r.s), " ", gradeBadge(r.s)] : "---") },
+    { key: "delta", label: "Change, 7 days", num: true, value: (r) => (Number.isFinite(r.delta) ? r.delta : null), cell: (r) => deltaEl(r.delta) },
+    { key: "weak", label: "Lowest category", value: (r) => (r.weakest ? r.weakest[1] : null),
+      cell: (r) => (r.weakest ? [catLabel(r.weakest[0]), " ", h("span", { class: "cell-sub" }, scoreFmt(r.weakest[1]))] : "---") },
+    { key: "issue", label: "Costs the most", value: () => 0, cell: (r) => { const t = r.stale ? null : topIssue(r.x); return t ? h("span", { class: "cell-sub" }, `${t.g.sig.label}: ${valueLabel(t.g.sig, t.v)}`) : "---"; } },
+    { key: "fleet", label: "Fleet", value: (r) => r.x.fleet.toLowerCase(), cell: (r) => h("span", { class: "cell-sub", style: "white-space:nowrap" }, r.x.fleet) },
+  ];
+  const search = h("input", { class: "search", type: "search", placeholder: "Search computers", "aria-label": "Search computers", value: QUERY });
+  search.addEventListener("input", () => { QUERY = search.value.trim().toLowerCase(); const t = document.getElementById("hosts-table-wrap"); if (t) t.replaceChildren(table()); });
+  const table = () => {
+    const vis = filtered();
+    return vis.length ? sortTable({ columns, groups: [{ rows: vis }], sort: ["score", "asc"], id: "hosts" }) : empty("No computers match", "Change the grade filter or the search.");
+  };
+  return h("section", { class: "sec", "aria-labelledby": "hosts-h" },
+    h("div", { class: "sec-head" }, h("h2", { id: "hosts-h" }, "Computers"), h("span", { class: "hint" }, "Lowest scores first. Open one for its signals and what changed.")),
+    h("div", { class: "act-bar", style: "display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center" },
+      h("div", { class: "chips" }, gradesAll.map((g) => h("button", { type: "button", class: "chip", style: `--tone:var(--${g === "Not scored" ? "neutral" : gradeTone(g)})`,
+        "aria-pressed": GRADE_SEL.has(g) ? "true" : "false", onclick: () => { GRADE_SEL.has(g) ? GRADE_SEL.delete(g) : GRADE_SEL.add(g); render(); } },
+        h("i"), g === "Not scored" ? g : `Grade ${g}`, h("b", {}, fmt.n(counts[g]))))),
+      h("span", { style: "display:flex;gap:8px;flex-wrap:wrap" }, search, rows.length ? copyButton("Copy as CSV", () => csv([["host", "fleet", "platform", "score", "grade", "change_7d", "lowest_category", "fleet_url"],
+        ...filtered().map((r) => [r.x.name, r.x.fleet, platformLabel(r.x.p), Number.isFinite(r.s) ? r1(r.s) : "", r.grade || "", Number.isFinite(r.delta) ? r1(r.delta) : "",
+          r.weakest ? catLabel(r.weakest[0]) : "", hostUrl(r.x.id)])])) : null)),
+    h("div", { id: "hosts-table-wrap" }, table()));
+}
+
+function methodSection(cfg) {
+  const totalW = Object.values(cfg.categories).reduce((a, c) => a + (c.weight > 0 ? c.weight : 0), 0);
+  const scoredCats = Object.entries(cfg.categories).filter(([, c]) => c.weight > 0);
+  const context = Object.entries(cfg.categories).filter(([, c]) => !(c.weight > 0));
+  const grades = cfg.grades.map(([g, lo]) => `${g} is ${lo} or more`).join(", ");
+  const rule = (sid, sc) => {
+    const sig = SIGS[SIDX[sid]];
+    const pts = sig.kind === "levels" ? sig.levels.map(([k, l]) => `${l.toLowerCase()} ${sc.points[k]}`) : bandLabels(sig, sc.bands).map((l, i) => `${l.toLowerCase()} ${sc.bands[i][1]}`);
+    const miss = sc.missing === "neutral" ? ` Not reported counts as ${sc.neutral ?? 75}.` : sc.missing === "worst" ? " Not reported counts as its lowest points." : "";
+    return `${pts.join(", ")}.${miss}`;
+  };
+  return h("details", { class: "method" }, h("summary", {}, "How it's scored"),
+    h("p", {}, `Each computer's score is the weighted average of its category scores: ${scoredCats.map(([cid, c]) => `${catLabel(cid)} ${fmt.pct(pct(c.weight, totalW))}`).join(", ")}.`
+      + (context.length ? ` ${context.map(([cid]) => catLabel(cid)).join(" and ")} ${context.length === 1 ? "is" : "are"} shown but ${context.length === 1 ? "doesn't" : "don't"} count.` : "")
+      + ` Grades: ${grades}, and F is anything lower. A good experience is ${cfg.target} or more.`),
+    h("p", {}, `A category's score is the weighted average of its signals' points, from 0 to 100. A signal that doesn't apply to a computer's platform, or that the computer doesn't report, is left out unless its settings say otherwise, and the rest share its weight. Computers that haven't checked in for more than ${fmt.plural(cfg.stale_days, "day")} aren't scored, since their data is old.`),
+    h("div", { class: "cols" }, Object.entries(cfg.categories).map(([cid, cat]) => h("div", {},
+      h("p", {}, h("span", { class: "term" }, `${catLabel(cid)}${cat.weight > 0 ? "" : " (not scored)"}`)),
+      Object.entries(cat.signals).map(([sid, sc]) => {
+        const sig = SIGS[SIDX[sid]];
+        const sw = Object.values(cat.signals).reduce((a, s) => a + (s.weight > 0 ? s.weight : 0), 0);
+        return h("p", {}, h("b", {}, sig.label), ` (${sc.weight > 0 ? fmt.pct(pct(sc.weight, sw)) : "not scored"}${sig.plats ? `, ${platTags(sig)}` : ""}): `, rule(sid, sc), " ", h("span", { class: "cell-sub" }, sig.about));
+      })))),
+    h("p", {}, settingsSourceText()));
+}
+
+function settingsSourceText() {
+  if (SAVED_META) return `These settings were saved on this page${SAVED_META.at ? ` on ${fmt.date(SAVED_META.at)}` : ""}.`;
+  return { file: "These settings come from the scoring file this dashboard was built with.", page: "These settings were saved on this page.",
+    "built-in": "These are Fleet's default settings." }[DATA.scoring_source] || "";
+}
+
+// ---- one computer ----
+function renderHost(x) {
+  const cfg = active();
+  if (!cfg.host_views) return blocked();
+  if (!x) {
+    titleRow("Computer not found", null, null, true);
+    mount("view", empty("No computer with that ID", "It may have been removed from Fleet, or it hasn't checked in for a long time."));
+    return footer();
+  }
+  const f = DATA.facts[String(x.id)] || {};
+  const st = STALE[x.i * DAYS + TODAY], present = PRESENT[x.i * DAYS + TODAY];
+  const s = comp(x), d7 = weekAgo(x);
+  const meta = [x.fleet, platformLabel(x.p), f.model || x.model, f.chip, f.ram ? `${f.ram} GB` : null, f.os ? f.os[0] : x.os, x.dept].filter(Boolean).join(" · ");
+  titleRow(x.name, meta, [h("a", { href: hostUrl(x.id), target: "_blank", rel: "noopener", class: "btn" }, "Open in Fleet"),
+    h("a", { href: `#compare=${x.id}`, class: "btn" }, "Compare with…")], true);
+  const fleetNow = HOSTS.filter((y) => scored(y));
+  const sameModel = fleetNow.filter((y) => y.model === x.model && y !== x);
+  const others = fleetNow.filter((y) => y !== x);
+  const share = (group) => pct(group.filter((y) => comp(y) < s).length, group.length);
+  const rank = (group, all, some) => { const p = share(group); return p === 0 ? all : `${some} ${fmt.pct(p)}`; };
+  const lede = st ? `Not scored: it last checked in ${fmt.ago(f.seen ? (Date.parse(DATA.generated_at) - Date.parse(f.seen)) / 864e5 : null)}.`
+    : !present ? "Not scored: it hasn't checked in for over 30 days."
+      : d7 === null ? "Not enough history yet to show a change over the week."
+        : (() => {
+          const dv = s - comp(x, d7);
+          const top = drivers(x, d7, TODAY)[0];
+          if (Math.abs(dv) < 0.5) return "About the same as a week ago.";
+          const why = top && top.from !== MISSING && top.to !== MISSING && top.from !== top.to
+            ? `, mostly from ${top.sig.label} (${valueLabel(top.sig, top.from)} → ${valueLabel(top.sig, top.to)})` : top ? `, mostly from ${top.sig.label}` : "";
+          return `${dv > 0 ? "Up" : "Down"} ${r1(Math.abs(dv))} points from a week ago${why}.`;
+        })();
+  const support = Number.isFinite(s) && !st && others.length ? [`Scores ${rank(others, "lower than every other computer", "higher than")}${share(others) === 0 ? "" : " of other computers"}`,
+    sameModel.length >= 2 ? `, and ${rank(sameModel, `lowest of the ${fmt.n(sameModel.length + 1)} of the same model`, "higher than")}${share(sameModel) === 0 ? "" : ` of the ${fmt.n(sameModel.length)} others of the same model`}` : "", "."].join("") : "";
+  const bd = breakdown(x, TODAY);
+  const prev = d7 !== null ? breakdown(x, d7) : null;
+
+  // Score over time for this computer.
+  const rows = [];
+  for (let d = 0; d < DAYS; d++) {
+    if (!PRESENT[x.i * DAYS + d]) continue;
+    const r = { date: dateOf(d), comp: STALE[x.i * DAYS + d] ? NaN : comp(x, d) };
+    for (const c of PLAN) r[c.cid] = catScore(x, c.ci, d);
+    rows.push(r);
+  }
+  const chartSeries = [{ label: "Score", color: "var(--ink)", value: (r) => r.comp },
+    ...PLAN.filter((c) => c.cw > 0).map((c) => ({ label: catLabel(c.cid), color: CAT_COLORS[c.cid] || "var(--info)", value: (r) => r[c.cid] }))];
+
+  const sigRows = bd.cats.map((c, ci) => ({ label: `${catLabel(c.c.cid)}${c.c.cw > 0 ? "" : " (not scored)"}`,
+    hint: Number.isFinite(c.score) ? `${scoreFmt(c.score)} points${c.share ? ` · ${fmt.pct(c.share * 100)} of this computer's score` : ""}` : "nothing reported",
+    rows: c.sigs.map((t) => ({ _id: `${c.c.cid}-${t.g.sid}`, t, then: prev ? (prev.cats[ci].sigs.find((u) => u.g.sid === t.g.sid) || {}).v : undefined })) }))
+    .filter((g) => g.rows.length);
+  const columns = [
+    { key: "sig", label: "Signal", value: (r) => r.t.g.sig.label.toLowerCase(), cell: (r) => h("span", { title: r.t.g.sig.about }, r.t.g.sig.label) },
+    { key: "now", label: "Now", value: (r) => r.t.v, cell: (r) => valueLabel(r.t.g.sig, r.t.v) },
+    { key: "pts", label: "Points", num: true, value: (r) => r.t.p, cell: (r) => (r.t.p === null ? "left out" : [String(Math.round(r.t.p)), mini(r.t.p, toneOf(r.t.p))]) },
+    { key: "lost", label: "Costs", num: true, value: (r) => r.t.lost, cell: (r) => (r.t.lost >= 0.05 ? `${r1(r.t.lost)} points` : "---") },
+    { key: "then", label: "A week ago", value: (r) => r.then ?? -1, cell: (r) => (r.then === undefined ? "---" : valueLabel(r.t.g.sig, r.then)) },
+  ];
+  const moved = d7 !== null ? drivers(x, d7, TODAY).slice(0, 6) : [];
+  const verdicts = { refresh: "Refresh", battery: "Battery service", investigate: "Investigate", watch: "Watch", defer: "Defer", healthy: "Healthy", stale: "Not checking in", virtual: "Virtual machine" };
+  const factRow = (k, v) => (v == null || v === "" ? null : h("li", {}, h("span", {}, k), h("span", {}, v)));
+  mount("view",
+    h("section", { class: "hero", "aria-label": "Summary" },
+      h("div", {}, h("div", { class: "eyebrow" }, "Score"),
+        h("div", { class: "big" }, h("b", {}, st ? "---" : scoreFmt(s)), st ? null : gradeBadge(s, true), h("span", {}, "of 100"))),
+      h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), support ? h("p", { class: "support" }, support) : null),
+      h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "By category"), PLAN.map((c) => h("div", { class: "rail-row" },
+        h("span", {}, catLabel(c.cid), c.cw > 0 ? "" : h("span", { class: "cell-sub" }, " (not scored)")),
+        h("b", { style: Number.isFinite(catScore(x, c.ci)) ? `color:var(--${toneOf(catScore(x, c.ci))})` : null }, scoreFmt(catScore(x, c.ci))))))),
+    h("section", { class: "sec" }, h("div", { class: "sec-head" }, h("h2", {}, "Score over time")),
+      h("div", { class: "panel" }, rows.length >= 2 ? trendChart({ rows, series: chartSeries, yFmt: scoreFmt, yMax: 100, label: `${x.name} score over time` })
+        : empty("Not enough history yet", "A chart appears once two days are recorded."))),
+    h("section", { class: "sec" }, h("div", { class: "sec-head" }, h("h2", {}, "What changed this week"), h("span", { class: "hint" }, "Each signal's effect on the score since a week ago.")),
+      h("div", { class: "panel" }, moved.length ? h("ul", { class: "drivers" }, moved.map((dv) => { const [t, p] = driverText(dv); return h("li", {}, h("span", {}, t), h("b", { class: dv.change > 0 ? "hl-good" : "hl-bad" }, p)); }))
+        : empty(d7 === null ? "No week-old score to compare" : "No change in points", d7 === null ? "This computer has less than a week of history." : "Every signal earns the same points as a week ago, even where its value moved."))),
+    h("section", { class: "sec" }, h("div", { class: "sec-head" }, h("h2", {}, "Signals"), h("span", { class: "hint" }, "What each signal reads now, its points, and what it costs the score.")),
+      sortTable({ columns, groups: sigRows, sort: ["lost", "desc"], id: "host-signals" })),
+    h("section", { class: "sec" }, h("div", { class: "sec-head" }, h("h2", {}, "Details from the other dashboards")),
+      h("div", { class: "grid" },
+        h("div", { class: "panel" }, h("h3", {}, linkTo("patch", "Apps behind on updates")),
+          f.apps ? [h("ul", { class: "facts" }, f.apps.map(([n, v, nv]) => h("li", {}, h("span", {}, n), h("span", { class: "mono" }, `${v} → ${nv}`)))),
+            f.apps_more ? h("p", { class: "panel-note" }, `And ${fmt.n(f.apps_more)} more.`) : null] : h("p", { class: "cell-sub" }, "Every tracked app is on its newest version.")),
+        h("div", { class: "panel" }, h("h3", {}, linkTo("policies", "Failing policies")),
+          f.pol ? h("ul", { class: "facts" }, f.pol.map((pid) => { const p = DATA.policy_names[String(pid)] || [`Policy ${pid}`, 0]; return h("li", {}, h("span", {}, p[0]), h("span", {}, p[1] ? h("span", { class: "tag" }, "Critical") : "")); }))
+            : h("p", { class: "cell-sub" }, "Passing every policy that reported.")),
+        h("div", { class: "panel" }, h("h3", {}, linkTo("lifecycle", "Hardware")), h("ul", { class: "facts" },
+          factRow("Lifecycle", verdicts[f.verdict] || null), factRow("Battery capacity", f.battery != null ? `${Math.round(f.battery)}%` : null),
+          factRow("Battery cycles", f.cycles != null ? fmt.n(f.cycles) : null), factRow("Warranty ends", f.warranty ? fmt.date(f.warranty) : null),
+          factRow("Free disk", f.disk != null ? `${f.disk}%${f.gb != null ? ` (${f.gb} GB)` : ""}` : null), factRow("Up for", f.up != null ? fmt.days(f.up) : null))),
+        h("div", { class: "panel" }, h("h3", {}, "OS, network, and AI"), h("ul", { class: "facts" },
+          factRow("OS", f.os ? f.os[0] : null), factRow("Current for its release", f.os && f.os[1] ? f.os[1] : null),
+          factRow("Wi-Fi", f.wifi ? `${f.wifi[0]} dBm, ${f.wifi[1]}` : null), factRow("Last check-in", f.seen ? fmt.date(f.seen) : null),
+          factRow("High-risk AI findings", f.ai ? f.ai.join("; ") : null))))));
+  footer();
+}
+
+function blocked() {
+  titleRow("Per-computer views are off", null, null, true);
+  mount("view", empty("Per-computer views are off", "An admin turned them off in the scoring settings, so this page shows groups only."));
+  footer();
+}
+
+// ---- compare ----
+const CMP_KINDS = [["host", "Another computer"], ["model", "Same model, average"], ["os", "Same OS, average"], ["fleet", "Whole fleet, average"]];
+function renderCompare(arg) {
+  const cfg = active();
+  if (!cfg.host_views) return blocked();
+  const [aId = "", bArg = ""] = (arg || "").split(",");
+  const a = BY_ID.get(aId);
+  const kind = ["model", "os", "fleet"].includes(bArg) ? bArg : "host";
+  const b = kind === "host" ? BY_ID.get(bArg) : null;
+  titleRow("Compare computers", "Two computers side by side, or one against the average of similar computers. Every signal shows its value and points.",
+    a ? h("a", { href: hostHref(a), class: "btn" }, `Open ${a.name}`) : null, true);
+  const list = h("datalist", { id: "host-list" }, HOSTS.filter((y) => PRESENT[y.i * DAYS + TODAY]).map((y) => h("option", { value: `${y.name} · ${y.id}` })));
+  const parse = (v) => { const m = String(v).match(/·\s*(\d+)\s*$/); return m && BY_ID.has(m[1]) ? m[1] : null; };
+  const go = (ai, bi) => { location.hash = `#compare=${ai || ""},${bi || ""}`; };
+  const inA = h("input", { class: "search", list: "host-list", placeholder: "Pick a computer", "aria-label": "First computer", value: a ? `${a.name} · ${a.id}` : "" });
+  inA.addEventListener("change", () => { const id = parse(inA.value); if (id) go(id, bArg); });
+  const inB = h("input", { class: "search", list: "host-list", placeholder: "Pick a computer", "aria-label": "Second computer", value: b ? `${b.name} · ${b.id}` : "" });
+  inB.addEventListener("change", () => { const id = parse(inB.value); if (id) go(aId, id); });
+  const controls = h("div", { class: "pick" },
+    h("label", {}, "Computer", inA),
+    h("label", {}, "Compare with", h("div", { class: "seg-toggle small", role: "group", "aria-label": "Compare with" }, CMP_KINDS.map(([k, l]) => h("button", { type: "button",
+      "aria-pressed": kind === k ? "true" : "false", onclick: () => go(aId, k === "host" ? (b ? b.id : "") : k) }, l)))),
+    kind === "host" ? h("label", {}, "Second computer", inB) : null,
+    kind === "host" && a && b ? h("button", { type: "button", class: "btn", onclick: () => go(b.id, a.id) }, "Swap") : null, list);
+  if (!a) {
+    mount("view", h("div", { class: "panel" }, controls), empty("Pick a computer to start", "Type part of its name, then pick it from the list."));
+    return footer();
+  }
+  const group = kind === "host" ? null : HOSTS.filter((y) => y !== a && scored(y) && (kind === "fleet" || (kind === "model" ? y.model === a.model : y.os === a.os)));
+  if (kind === "host" && !b) {
+    mount("view", h("div", { class: "panel" }, controls), empty("Pick a second computer", "Or compare with the average of computers like it."));
+    return footer();
+  }
+  if (group && group.length < cfg.min_cohort) {
+    mount("view", h("div", { class: "panel" }, controls), empty("Not enough computers to average", `This group has ${pluralComputers(group.length)} besides this one; it needs ${fmt.n(cfg.min_cohort)}.`));
+    return footer();
+  }
+  const ba = breakdown(a, TODAY), bb = b ? breakdown(b, TODAY) : null;
+  const bName = b ? b.name : `${CMP_KINDS.find(([k]) => k === kind)[1].replace(", average", "")} (${pluralComputers(group.length)})`;
+  const avgOf = (fn) => mean(group.map(fn).filter(Number.isFinite));
+  const row = (label, av, bv, aText, bText, strong) => {
+    const diff = Number.isFinite(av) && Number.isFinite(bv) ? av - bv : NaN;
+    return h("tr", {}, h("td", {}, strong ? h("b", {}, label) : label),
+      h("td", { class: Number.isFinite(diff) && diff >= 1 ? "better" : Number.isFinite(diff) && diff <= -1 ? "worse" : null }, aText),
+      h("td", { class: Number.isFinite(diff) && diff <= -1 ? "better" : Number.isFinite(diff) && diff >= 1 ? "worse" : null }, bText),
+      h("td", { class: "r" }, deltaEl(diff)));
+  };
+  const body = [row("Score", comp(a), b ? comp(b) : avgOf((y) => comp(y)), [scoreFmt(comp(a)), " ", gradeBadge(comp(a))],
+    b ? [scoreFmt(comp(b)), " ", gradeBadge(comp(b))] : [scoreFmt(avgOf((y) => comp(y))), " avg"], true)];
+  ba.cats.forEach((c, ci) => {
+    const bvCat = b ? catScore(b, c.c.ci) : avgOf((y) => catScore(y, c.c.ci));
+    body.push(h("tr", { class: "group" }, h("td", { colspan: 4 }, `${catLabel(c.c.cid)}${c.c.cw > 0 ? "" : " (not scored)"}`)));
+    body.push(row("Category score", c.score, bvCat, scoreFmt(c.score), b ? scoreFmt(bvCat) : `${scoreFmt(bvCat)} avg`));
+    const sids = new Set([...c.sigs.map((t) => t.g.sid), ...(bb ? bb.cats[ci].sigs.map((t) => t.g.sid) : [])]);
+    for (const sid of sids) {
+      const ta = c.sigs.find((t) => t.g.sid === sid), tb = bb ? bb.cats[ci].sigs.find((t) => t.g.sid === sid) : null;
+      const sig = SIGS[SIDX[sid]];
+      const g = PLAN[ci].sigs.find((y) => y.sid === sid);
+      const ptsOf = (y) => { const v = code(y, TODAY, sid); return v === MISSING ? (g.miss ?? NaN) : g.pts[Math.min(g.pts.length - 1, v)]; };
+      const ap = ta && ta.p !== null ? ta.p : NaN;
+      const bp = b ? (tb && tb.p !== null ? tb.p : NaN) : avgOf((y) => (!sig.plats || sig.plats.includes(y.p) ? ptsOf(y) : NaN));
+      const txt = (t) => (!t ? "doesn't apply" : t.p === null ? valueLabel(sig, t.v) : `${valueLabel(sig, t.v)} · ${Math.round(t.p)}`);
+      body.push(row(sig.label, ap, bp, txt(ta), b ? txt(tb) : Number.isFinite(bp) ? `${Math.round(bp)} points avg` : "---"));
+    }
+  });
+  const fa = DATA.facts[String(a.id)] || {}, fb = b ? DATA.facts[String(b.id)] || {} : null;
+  const setOf = (f) => new Set((f.apps || []).map((x) => x[0]));
+  const polOf = (f) => new Set((f.pol || []).map(String));
+  const diffList = (title, onlyA, onlyB, nameOf) => h("div", { class: "panel" }, h("h3", {}, title),
+    onlyA.length || onlyB.length ? h("ul", { class: "facts" },
+      onlyA.map((k) => h("li", {}, h("span", {}, nameOf(k)), h("span", { class: "cell-sub" }, `only ${a.name}`))),
+      onlyB.map((k) => h("li", {}, h("span", {}, nameOf(k)), h("span", { class: "cell-sub" }, `only ${b.name}`))))
+      : h("p", { class: "cell-sub" }, "No difference."));
+  mount("view", h("div", { class: "panel" }, controls),
+    h("div", { class: "tbl-wrap" }, h("table", { class: "tbl cmp" }, h("thead", {}, h("tr", {}, h("th", {}, h("button", { type: "button", tabindex: "-1" }, "Signal")),
+      h("th", {}, h("button", { type: "button", tabindex: "-1" }, a.name)), h("th", {}, h("button", { type: "button", tabindex: "-1" }, bName)),
+      h("th", { class: "r" }, h("button", { type: "button", tabindex: "-1" }, "Difference")))), h("tbody", {}, body))),
+    h("p", { class: "hint", style: "margin:0" }, "Each signal shows its value and its points. Green marks the better one by a point or more."),
+    fb ? h("div", { class: "grid" },
+      diffList("Apps behind on updates", [...setOf(fa)].filter((k) => !setOf(fb).has(k)), [...setOf(fb)].filter((k) => !setOf(fa).has(k)), (k) => k),
+      diffList("Failing policies", [...polOf(fa)].filter((k) => !polOf(fb).has(k)), [...polOf(fb)].filter((k) => !polOf(fa).has(k)), (k) => (DATA.policy_names[k] || [`Policy ${k}`])[0])) : null);
+  footer();
+}
+
+// ---- scoring settings ----
+function discardDraft() {
+  setDraft(null);
+  computeAll(active());
+  render();
+}
+// Inputs change DRAFT in place; scoring follows a moment later, so typing stays quick on a big fleet.
+let recomputeTimer = null;
+function draftChanged() {
+  clearTimeout(recomputeTimer);
+  recomputeTimer = setTimeout(() => { DRAFT_EFF = mergeScoring(DRAFT); computeAll(active()); renderImpact(); renderEditorButtons(); }, 200);
+}
+const canSave = () => Boolean(DB && EDIT);
+
+// Plain-language list of what changed between two settings.
+function diffText(a, b) {
+  const out = [];
+  const num = (x) => (x === null || x === undefined ? "---" : String(x));
+  if (a.target !== b.target) out.push(`Good experience target ${a.target} → ${b.target}`);
+  if (a.stale_days !== b.stale_days) out.push(`Days before a computer isn't scored ${a.stale_days} → ${b.stale_days}`);
+  if (a.min_cohort !== b.min_cohort) out.push(`Smallest group shown ${a.min_cohort} → ${b.min_cohort}`);
+  if (a.host_views !== b.host_views) out.push(`Per-computer views ${a.host_views ? "on" : "off"} → ${b.host_views ? "on" : "off"}`);
+  if (JSON.stringify(a.grades) !== JSON.stringify(b.grades)) out.push(`Grades ${a.grades.map(([g, lo]) => `${g} ${lo}`).join(", ")} → ${b.grades.map(([g, lo]) => `${g} ${lo}`).join(", ")}`);
+  for (const [cid, ca] of Object.entries(a.categories)) {
+    const cb = b.categories[cid];
+    if (!cb) continue;
+    if (ca.weight !== cb.weight) out.push(`${catLabel(cid)} weight ${ca.weight} → ${cb.weight}`);
+    for (const [sid, sa] of Object.entries(ca.signals)) {
+      const sb = cb.signals[sid], sig = SIGS[SIDX[sid]];
+      if (!sb || !sig) continue;
+      if (sa.weight !== sb.weight) out.push(`${sig.label} weight ${sa.weight} → ${sb.weight}`);
+      if ((sa.missing || "skip") !== (sb.missing || "skip") || (sb.missing === "neutral" && sa.neutral !== sb.neutral)) {
+        out.push(`${sig.label} when not reported: ${sa.missing || "skip"} → ${sb.missing || "skip"}${sb.missing === "neutral" ? ` (${num(sb.neutral ?? 75)})` : ""}`);
+      }
+      if (sa.points) for (const [k, l] of sig.levels) if (sa.points[k] !== sb.points[k]) out.push(`${sig.label}, ${l.toLowerCase()}: ${sa.points[k]} → ${sb.points[k]} points`);
+      if (sa.bands && JSON.stringify(sa.bands) !== JSON.stringify(sb.bands)) {
+        out.push(`${sig.label} points: ${bandLabels(sig, sb.bands).map((l, i) => `${l.toLowerCase()} ${sb.bands[i][1]}`).join(", ")}`);
+      }
+    }
+  }
+  return out;
+}
+
+async function saveDraft() {
+  if (!canSave() || !draftDirty()) return;
+  const next = mergeScoring(DRAFT);
+  clearTimeout(recomputeTimer);
+  const changes = diffText(SAVED, next);
+  const at = new Date().toISOString();
+  try {
+    const by = USER ? await USER.id() : null;
+    await DB.doc("scoring/config").set({ settings: next, updated_at: at, updated_by: by });
+    await DB.collection("scoring-log").add({ at, by, changes: changes.slice(0, 40), more: Math.max(0, changes.length - 40) });
+    SAVED = next;
+    SAVED_META = { at, by };
+    setDraft(null);
+    SAVE_ERROR = "";
+  } catch (e) {
+    SAVE_ERROR = e && e.code === "quota_exceeded" ? "The change log is full. Ask the dashboard's owner to clear old entries."
+      : "Those settings weren't saved. You may not have edit access to this dashboard.";
+  }
+  computeAll(active());
+  render();
+}
+
+function downloadSettings() {
+  const text = JSON.stringify(mergeScoring(DRAFT || SAVED), null, 2) + "\n";
+  if (DOWNLOADS) {
+    DOWNLOADS.save({ filename: "dex-scoring.json", data: text }).catch(() => {});
+    return;
+  }
+  const a = h("a", { href: URL.createObjectURL(new Blob([text], { type: "application/json" })), download: "dex-scoring.json" });
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
+let IMPORT_OPEN = false, IMPORT_ERR = "";
+function renderScoring() {
+  // A fresh render starts from the cleaned-up copy, so bands show in their real order.
+  setDraft(DRAFT ? mergeScoring(DRAFT) : SAVED);
+  titleRow("Scoring settings", "Choose what counts toward each computer's score and how much. Changes preview on this page right away, and every day in the history is scored again.", null, true);
+  const cfg = DRAFT;
+  const hint = canSave() ? "Saved for everyone who opens this dashboard, and logged."
+    : DB ? "Only people who can edit this dashboard can save. You can still try changes here: they preview on this page for you alone."
+      : "This copy of the dashboard can't save settings. Try changes here, then download them and set DEX_SCORING_FILE to that file, or change them on the published dashboard.";
+  const n = (val, onset, attrs = {}) => {
+    const el = attrs.letter ? h("input", { type: "text", class: "num letter", maxlength: 3, value: val ?? "", "aria-label": attrs.label })
+      : h("input", { type: "number", class: "num", min: attrs.min ?? 0, max: attrs.max ?? 100, step: attrs.step ?? 1, value: val ?? "", "aria-label": attrs.label });
+    el.addEventListener("input", () => {
+      const v = attrs.letter ? el.value : el.value === "" ? null : Number(el.value);
+      if (!attrs.letter && (v === null || !Number.isFinite(v))) return;
+      onset(v);
+      draftChanged();
+    });
+    return el;
+  };
+  const totalW = () => Object.values(cfg.categories).reduce((a, c) => a + (c.weight > 0 ? c.weight : 0), 0);
+  const general = h("div", { class: "panel" }, h("h3", {}, "Grades and thresholds"),
+    h("div", { class: "pick" },
+      cfg.grades.map((g, i) => h("label", {}, `Grade ${i + 1}`, h("span", { class: "ed-field" },
+        n(g[0], (v) => { if (v.trim()) cfg.grades[i][0] = v.trim(); }, { letter: true, label: `Grade ${i + 1} letter` }), "from",
+        n(g[1], (v) => { cfg.grades[i][1] = v; }, { label: `Grade ${i + 1} lowest score` })))),
+      h("label", {}, "Good experience from", n(cfg.target, (v) => { cfg.target = v; }, { label: "Good experience target" })),
+      h("label", {}, "Skip computers not seen for (days)", n(cfg.stale_days, (v) => { cfg.stale_days = v; }, { min: 1, max: 35, label: "Days before a computer isn't scored" })),
+      h("label", {}, "Smallest group shown", n(cfg.min_cohort, (v) => { cfg.min_cohort = v; }, { min: 1, label: "Smallest group shown" })),
+      h("label", {}, "Per-computer views", h("div", { class: "seg-toggle small", role: "group", "aria-label": "Per-computer views" }, [[true, "On"], [false, "Off"]].map(([v, l]) =>
+        h("button", { type: "button", "aria-pressed": cfg.host_views === v ? "true" : "false", onclick: () => { cfg.host_views = v; draftChanged(); renderScoring(); } }, l))))),
+    h("p", { class: "panel-note" }, "Anything under the last grade is F. With per-computer views off, the page shows groups only: no computer list, details, or comparisons."));
+  const catPanels = Object.entries(cfg.categories).map(([cid, cat]) => {
+    const share = h("span", { class: "cell-sub" });
+    const updShare = () => { share.textContent = cat.weight > 0 ? `${fmt.pct(pct(cat.weight, totalW()))} of the score` : "shown, not scored"; };
+    updShare();
+    const sw = () => Object.values(cat.signals).reduce((a, s) => a + (s.weight > 0 ? s.weight : 0), 0);
+    const rows = Object.entries(cat.signals).map(([sid, sc]) => {
+      const sig = SIGS[SIDX[sid]];
+      const shareEl = h("span", { class: "cell-sub" });
+      const upd = () => { shareEl.textContent = sc.weight > 0 ? `${fmt.pct(pct(sc.weight, sw()))} of ${catLabel(cid)}` : "not scored"; };
+      upd();
+      let pointsEl;
+      if (sig.kind === "levels") {
+        pointsEl = h("div", { class: "bands" }, sig.levels.map(([k, l]) => h("span", { class: "band" }, h("span", { class: "band-when" }, l),
+          "→", n(sc.points[k], (v) => { sc.points[k] = v; }, { label: `${sig.label}, ${l} points` }))));
+      } else {
+        const drawBands = () => {
+          const labels = bandLabels(sig, sc.bands);
+          pointsEl.replaceChildren(...sc.bands.map(([t, p], i) => h("span", { class: "band" },
+            t === null ? h("span", { class: "band-when" }, labels[i]) : h("span", { class: "band-when" },
+              sig.better === "lower" ? "Up to" : "At least", n(t, (v) => { sc.bands[i][0] = v; }, { max: sig.cap * sig.step, step: sig.step, label: `${sig.label} threshold ${i + 1}` }), sig.unit || ""),
+            "→", n(p, (v) => { sc.bands[i][1] = v; }, { label: `${sig.label}, ${labels[i]} points` }),
+            t !== null && sc.bands.length > 2 ? h("button", { type: "button", class: "btn icon", title: `Remove ${labels[i]}`, "aria-label": `Remove ${labels[i]}`, onclick: () => { sc.bands.splice(i, 1); draftChanged(); drawBands(); } }, "×") : null)),
+          h("span", { class: "band" }, h("button", { type: "button", class: "btn", onclick: () => {
+            const ts = sc.bands.filter(([t]) => t !== null);
+            const last = ts.length ? ts[ts.length - 1][0] : 0;
+            const nt = clamp(sig.better === "lower" ? last + Math.max(sig.step, Math.round(sig.cap * sig.step / 6)) : Math.max(0, last - Math.max(sig.step, Math.round(sig.cap * sig.step / 6))), 0, sig.cap * sig.step);
+            sc.bands.splice(sc.bands.length - 1, 0, [nt, sc.bands[sc.bands.length - 1][1]]);
+            draftChanged();
+            drawBands();
+          } }, "Add a band")));
+        };
+        pointsEl = h("div", { class: "bands" });
+        drawBands();
+      }
+      const missSeg = h("div", { class: "seg-toggle small", role: "group", "aria-label": `${sig.label} when not reported` });
+      const neutralIn = n(sc.neutral ?? 75, (v) => { sc.neutral = v; }, { label: `${sig.label} neutral points` });
+      const drawMiss = () => {
+        missSeg.replaceChildren(...[["skip", "Leave out"], ["neutral", "Neutral"], ["worst", "Lowest"]].map(([k, l]) => h("button", { type: "button",
+          "aria-pressed": (sc.missing || "skip") === k ? "true" : "false", onclick: () => { sc.missing = k; draftChanged(); drawMiss(); } }, l)));
+        neutralIn.hidden = sc.missing !== "neutral";
+      };
+      drawMiss();
+      return h("tr", {},
+        h("td", {}, h("b", {}, sig.label), h("div", { class: "cell-sub" }, platTags(sig)), h("div", { class: "cell-sub sig-about" }, sig.about)),
+        h("td", {}, h("div", { class: "miss" }, h("span", { class: "ed-field" }, n(sc.weight, (v) => { sc.weight = Math.max(0, v); upd(); }, { label: `${sig.label} weight`, max: 1000 }), shareEl),
+          h("span", { class: "cell-sub" }, "When not reported"), h("span", { class: "ed-field" }, missSeg, neutralIn))),
+        h("td", {}, pointsEl));
+    });
+    return h("div", { class: "panel ed-cat" },
+      h("div", { class: "ed-head" }, h("h3", {}, catLabel(cid)),
+        h("span", { class: "ed-field" }, "Weight", n(cat.weight, (v) => { cat.weight = Math.max(0, v); updShare(); }, { label: `${catLabel(cid)} weight`, max: 1000 }), share)),
+      h("p", { class: "panel-note", style: "margin:0" }, (CATS[CIDX[cid]] || {}).about || ""),
+      h("div", { class: "tbl-wrap" }, h("table", { class: "tbl ed-tbl" }, h("thead", {}, h("tr", {},
+        ["Signal", "Weight", "Points"].map((t) => h("th", {}, h("button", { type: "button", tabindex: "-1" }, t))))), h("tbody", {}, rows))));
+  });
+  const importBox = IMPORT_OPEN ? h("div", { class: "panel" }, h("h3", {}, "Import settings"),
+    h("p", { class: "panel-note", style: "margin:0 0 8px" }, "Paste settings JSON, such as a file you downloaded here. Anything it leaves out, or any value that isn't valid, uses Fleet's default."),
+    h("textarea", { class: "json", id: "import-json", "aria-label": "Settings JSON" }),
+    IMPORT_ERR ? h("p", { class: "err" }, IMPORT_ERR) : null,
+    h("div", { class: "btn-row", style: "margin-top:8px" },
+      h("button", { type: "button", class: "btn", onclick: () => {
+        try {
+          setDraft(mergeScoring(JSON.parse(document.getElementById("import-json").value)));
+          IMPORT_OPEN = false; IMPORT_ERR = "";
+          computeAll(active());
+          renderScoring();
+        } catch (e) { IMPORT_ERR = `That isn't valid JSON: ${e.message}`; renderScoring(); }
+      } }, "Apply"),
+      h("button", { type: "button", class: "btn", onclick: () => { IMPORT_OPEN = false; IMPORT_ERR = ""; renderScoring(); } }, "Cancel"))) : null;
+  mount("view",
+    h("div", { class: "notice" }, h("span", {}, hint), SAVE_ERROR ? h("b", { class: "err" }, SAVE_ERROR) : null),
+    h("section", { class: "sec", "aria-labelledby": "impact-h" }, h("div", { class: "sec-head" }, h("h2", { id: "impact-h" }, "What changes"), h("span", { class: "hint" }, "Today's scores, saved settings against these.")),
+      h("div", { id: "impact" }), h("div", { class: "btn-row", id: "editor-buttons" })),
+    importBox, general, catPanels,
+    h("section", { class: "sec", "aria-labelledby": "log-h" }, h("div", { class: "sec-head" }, h("h2", { id: "log-h" }, "Change log")), h("div", { class: "panel", id: "log" })));
+  renderImpact();
+  renderEditorButtons();
+  renderLog();
+  footer();
+}
+
+function renderEditorButtons() {
+  const el = document.getElementById("editor-buttons");
+  if (!el) return;
+  const dirty = draftDirty();
+  el.replaceChildren(...[
+    canSave() ? h("button", { type: "button", class: "btn primary", disabled: !dirty, onclick: saveDraft }, "Save for everyone") : null,
+    h("button", { type: "button", class: "btn", disabled: !dirty, onclick: () => { discardDraft(); location.hash = "#"; } }, "Discard changes"),
+    h("button", { type: "button", class: "btn", onclick: () => { setDraft(DATA.builtin); computeAll(active()); renderScoring(); } }, "Reset to Fleet's defaults"),
+    h("button", { type: "button", class: "btn", onclick: downloadSettings }, "Download settings"),
+    copyButton("Copy settings JSON", () => JSON.stringify(mergeScoring(DRAFT || SAVED), null, 2)),
+    h("button", { type: "button", class: "btn", onclick: () => { IMPORT_OPEN = true; renderScoring(); } }, "Import settings"),
+    dirty ? h("a", { href: "#", class: "btn", style: "display:inline-flex;align-items:center;text-decoration:none" }, "Preview on the page") : null].filter(Boolean));
+}
+
+function renderImpact() {
+  const el = document.getElementById("impact");
+  if (!el) return;
+  const now = HOSTS.filter((x) => PRESENT[x.i * DAYS + TODAY]);
+  const next = active();
+  const before = scoreToday(SAVED, now), after = scoreToday(next, now);
+  const both = now.filter((x) => Number.isFinite(before.get(x)) && Number.isFinite(after.get(x)));
+  let up = 0, down = 0;
+  const moves = [];
+  for (const x of both) {
+    const g0 = gradeOf(before.get(x), SAVED), g1 = gradeOf(after.get(x), next);
+    if (g0 !== g1) {
+      const rank = (g, cfg) => { const i = cfg.grades.findIndex(([l]) => l === g); return i < 0 ? cfg.grades.length : i; };
+      if (rank(g1, next) < rank(g0, SAVED)) up++; else down++;
+    }
+    moves.push([x, after.get(x) - before.get(x)]);
+  }
+  const avg0 = mean(both.map((x) => before.get(x))), avg1 = mean(both.map((x) => after.get(x)));
+  const good0 = both.filter((x) => before.get(x) >= SAVED.target).length, good1 = both.filter((x) => after.get(x) >= next.target).length;
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  moves.sort((p, q) => Math.abs(q[1]) - Math.abs(p[1]));
+  el.replaceChildren(h("div", { class: "impact" },
+    stat("Average score", `${scoreFmt(avg0)} → ${scoreFmt(avg1)}`, Number.isFinite(avg1 - avg0) ? `${avg1 - avg0 >= 0 ? "+" : "−"}${r1(Math.abs(avg1 - avg0))} points` : ""),
+    stat("Good experience", `${fmt.pct(pct(good0, both.length))} → ${fmt.pct(pct(good1, both.length))}`, `${fmt.n(good1)} of ${pluralComputers(both.length)}`),
+    stat("Grade changes", fmt.n(up + down), `${fmt.n(up)} up, ${fmt.n(down)} down`),
+    stat("Biggest move", moves.length && Math.abs(moves[0][1]) >= 0.5 ? `${moves[0][1] > 0 ? "+" : "−"}${r1(Math.abs(moves[0][1]))}` : "---", moves.length && Math.abs(moves[0][1]) >= 0.5 ? moves[0][0].name : "no computer moves")),
+    draftDirty() ? h("ul", { class: "drivers", style: "margin-top:12px" }, diffText(SAVED, next).slice(0, 12).map((t) => h("li", {}, h("span", {}, t)))) : h("p", { class: "panel-note" }, "No changes yet."));
+}
+function scoreToday(cfg, hosts) {
+  const plan = compile(cfg), tmp = new Float64Array(C), out = new Map();
+  for (const x of hosts) {
+    const at = x.i * DAYS + TODAY, chk = CODES[at * S + CHECKIN];
+    if (chk !== MISSING && chk > cfg.stale_days) continue;
+    out.set(x, scoreCodes(plan, CODES, at * S, x.p, tmp));
+  }
+  return out;
+}
+
+async function renderLog() {
+  const el = document.getElementById("log");
+  if (!el) return;
+  if (!DB) { el.replaceChildren(empty("No change log here", "The change log works in the published dashboard.")); return; }
+  if (LOG === null) { el.replaceChildren(h("p", { class: "cell-sub" }, "Loading...")); return; }
+  if (!LOG.length) { el.replaceChildren(empty("No changes yet", "Saved changes show here with who made them and when.")); return; }
+  const ids = [...new Set(LOG.map((e) => e.by).filter(Boolean))];
+  const ps = USER && ids.length ? await USER.profiles(ids).catch(() => ({})) : {};
+  const who = (id) => (id && ps[id] && ps[id].name) || "Someone";
+  el.replaceChildren(h("ul", { class: "log" }, LOG.map((e) => h("li", {},
+    h("div", {}, h("b", {}, who(e.by)), " changed the scoring",
+      h("ul", { class: "changes" }, (e.changes || []).map((t) => h("li", {}, t)), e.more ? h("li", {}, `and ${fmt.n(e.more)} more`) : null)),
+    h("span", { class: "cell-sub" }, `${fmt.date(e.at)}, ${String(e.at).slice(11, 16)} UTC`)))));
+}
+
+function footer() {
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API, through the other dashboards. Scores computed in your browser with the settings above. Rebuilt daily.`;
+}
+
+async function initStore() {
+  const cl = window.claude;
+  if (!cl || !cl.use) return;
+  const [db, user, downloads] = await Promise.all([cl.use("db"), cl.use("user"), cl.use("downloads")]);
+  DB = db; USER = user; DOWNLOADS = downloads;
+  EDIT = user ? await user.canEdit() : false;
+  if (db) {
+    db.doc("scoring/config").onSnapshot((s) => {
+      const d = s.exists ? s.data() : null;
+      SAVED = mergeScoring(d && d.settings ? d.settings : DATA.scoring);
+      SAVED_META = d && d.settings ? { at: d.updated_at, by: d.updated_by } : null;
+      if (DRAFT && !draftDirty()) setDraft(null);
+      computeAll(active());
+      if (VIEW.kind !== "scoring") render();
+      else { renderImpact(); renderEditorButtons(); }
+    }, () => {});
+    db.collection("scoring-log").orderBy("at", "desc").limit(30).onSnapshot((s) => {
+      LOG = s.docs.map((d) => d.data());
+      renderLog();
+    }, () => { LOG = []; renderLog(); });
+  }
+  if (VIEW.kind === "fleet") render();
+}
+
+const fleets = [...new Set(HOSTS.map((x) => x.fleet))].sort();
+const platformCounts = {};
+for (const x of HOSTS) if (PRESENT[x.i * DAYS + TODAY]) platformCounts[x.p] = (platformCounts[x.p] || 0) + 1;
+computeAll(active());
+renderTop(fleets, render, platformCounts);
+window.addEventListener("hashchange", route);
+route();
+initStore();
+</script>
