@@ -1059,7 +1059,7 @@ The number of requests per minute allowed to the [SSO callback endpoint](https:/
 
 External OpenID Connect (OIDC) issuers whose JSON Web Tokens (JWTs) can authenticate [API-only users](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user). An automation, such as `fleetctl gitops` in GitHub Actions, sends a short-lived JWT from its own identity provider as its API token, so no Fleet API token has to be stored. Fleet holds only each issuer's public signing keys.
 
-A JWT authenticates only after a global admin binds its subject to an API-only user with the [Update API-only user's external identities](https://fleetdm.com/docs/rest-api/rest-api#update-api-only-users-external-identities) API endpoint. The request then has that user's role and fleet access.
+A JWT authenticates only after a global admin binds its subject to an API-only user. Do this in **Settings > Users**: edit the API-only user, then under **External identities** pick the issuer and enter the subject. You can also use the [Update API-only user's external identities](https://fleetdm.com/docs/rest-api/rest-api#update-api-only-users-external-identities) API endpoint. The request then has that user's role and fleet access.
 
 Each issuer has these fields:
 
