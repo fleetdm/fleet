@@ -4815,6 +4815,7 @@ func testProfileResendResetsRetries(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	winHost := test.NewHost(t, ds, "winhost", "2", "winhostkey", "winhostuuid", time.Now(), test.WithPlatform("windows"))
+	otherWinHost := test.NewHost(t, ds, "otherwinhost", "3", "otherwinhostkey", "otherwinhostuuid", time.Now(), test.WithPlatform("windows"))
 
 	ca := newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), "seat", nil)
 	caProf := newDigiCertProfile(t, ds, "ca_prof", "ca", 0)
@@ -4846,19 +4847,19 @@ func testProfileResendResetsRetries(t *testing.T, ds *Datastore) {
 		})
 		return n
 	}
-	failWindowsAfterRetries := func(p *fleet.MDMWindowsConfigProfile) {
-		forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	failWindowsAfterRetries := func(h *fleet.Host, p *fleet.MDMWindowsConfigProfile) {
+		forceSetWindowsHostProfileStatus(t, ds, h.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET retries = ? WHERE host_uuid = ? AND profile_uuid = ?`,
-				mdm_types.MaxWindowsProfileRetries, winHost.UUID, p.ProfileUUID)
+				mdm_types.MaxWindowsProfileRetries, h.UUID, p.ProfileUUID)
 			return err
 		})
 	}
-	windowsRetries := func(p *fleet.MDMWindowsConfigProfile) uint {
+	windowsRetries := func(h *fleet.Host, p *fleet.MDMWindowsConfigProfile) uint {
 		var n uint
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &n, `SELECT retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
-				winHost.UUID, p.ProfileUUID)
+				h.UUID, p.ProfileUUID)
 		})
 		return n
 	}
@@ -4877,28 +4878,30 @@ func testProfileResendResetsRetries(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, 1, n)
 		require.Zero(t, retries(plainProf))
 
-		failWindowsAfterRetries(winPlainProf)
+		failWindowsAfterRetries(winHost, winPlainProf)
 		n, err = ds.BatchResendMDMProfileToHosts(ctx, winPlainProf.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 		require.NoError(t, err)
 		require.EqualValues(t, 1, n)
-		require.Zero(t, windowsRetries(winPlainProf))
+		require.Zero(t, windowsRetries(winHost, winPlainProf))
 	})
 
 	t.Run("IdP user change", func(t *testing.T) {
 		failAfterRetries(idpProf)
 		failAfterRetries(caProf)
 		failAfterRetries(plainProf)
-		failWindowsAfterRetries(winIDPProf)
-		failWindowsAfterRetries(winPlainProf)
+		failWindowsAfterRetries(winHost, winIDPProf)
+		failWindowsAfterRetries(winHost, winPlainProf)
+		failWindowsAfterRetries(otherWinHost, winIDPProf)
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID, winHost.ID}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername})
 		})
 		require.Zero(t, retries(idpProf))
 		require.Zero(t, retries(caProf))
-		require.Zero(t, windowsRetries(winIDPProf))
+		require.Zero(t, windowsRetries(winHost, winIDPProf))
 		// not resent, so their retries stay
 		require.EqualValues(t, 3, retries(plainProf))
-		require.EqualValues(t, mdm_types.MaxWindowsProfileRetries, windowsRetries(winPlainProf))
+		require.EqualValues(t, mdm_types.MaxWindowsProfileRetries, windowsRetries(winHost, winPlainProf))
+		require.EqualValues(t, mdm_types.MaxWindowsProfileRetries, windowsRetries(otherWinHost, winIDPProf))
 	})
 
 	t.Run("custom host vital change", func(t *testing.T) {
@@ -4910,14 +4913,16 @@ func testProfileResendResetsRetries(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		failAfterRetries(vitalProf)
 		failAfterRetries(plainProf)
-		failWindowsAfterRetries(winVitalProf)
-		failWindowsAfterRetries(winPlainProf)
+		failWindowsAfterRetries(winHost, winVitalProf)
+		failWindowsAfterRetries(winHost, winPlainProf)
+		failWindowsAfterRetries(otherWinHost, winVitalProf)
 		require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
 		require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, winHost.ID, vitalID, "Engineering"))
 		require.Zero(t, retries(vitalProf))
 		require.EqualValues(t, 3, retries(plainProf))
-		require.Zero(t, windowsRetries(winVitalProf))
-		require.EqualValues(t, mdm_types.MaxWindowsProfileRetries, windowsRetries(winPlainProf))
+		require.Zero(t, windowsRetries(winHost, winVitalProf))
+		require.EqualValues(t, mdm_types.MaxWindowsProfileRetries, windowsRetries(winHost, winPlainProf))
+		require.EqualValues(t, mdm_types.MaxWindowsProfileRetries, windowsRetries(otherWinHost, winVitalProf))
 	})
 
 	t.Run("certificate authority edit", func(t *testing.T) {
