@@ -4150,6 +4150,9 @@ func TestGenerateGitopsFleetFilenameCollision(t *testing.T) {
 		"macawin-2":  "Mac/Win\n",
 		"Un/ssigned": "Un/ssigned\n",
 		"unassigned": "Unassigned\n",
+		"no t?am":    "No t?am\n",
+		"MAC/WIN":    "Mac/Win\n",
+		"un/ssigned": "Un/ssigned\n",
 	} {
 		require.Equal(t, want, runGenerateGitops(t, client, map[string]string{"fleet": selected, "key": "name"}), "--fleet %q", selected)
 	}

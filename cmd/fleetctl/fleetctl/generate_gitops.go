@@ -476,6 +476,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		if selected := cmd.CLI.String(fleetFlagName); selected != "" {
 			i := slices.IndexFunc(teams, func(t fleet.Team) bool { return t.Name == selected })
 			if i < 0 {
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return strings.EqualFold(t.Name, selected) })
+			}
+			if i < 0 {
 				selectedFileName := generateFilename(selected)
 				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return fileNames[t.ID] == selectedFileName })
 			}
