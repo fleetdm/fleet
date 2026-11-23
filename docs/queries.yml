@@ -2158,58 +2158,10 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for domain-joined accounts
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   bash: "printf \"uid,username,description,path,encrypted\\n\"; for u in $(last | awk '{print $1}' | grep -vE '^(wtmp|reboot)$' | sort -u); do [ -d \"/Users/$u/.ssh\" ] && for f in $(find \"/Users/$u/.ssh\" -type f -name \"authorized_keys*\" 2>/dev/null); do uid=$(id -u \"$u\"); desc=$(dscl . -read /Users/\"$u\" RealName 2>/dev/null | cut -d: -f2- | sed 's/^ //'); echo \"$uid,$u,$desc,$f,0\"; done; done"
-  powershell: >-
-    $lastOutput = & last
-
-    $lastUsernames = $lastOutput | ForEach-Object {
-        if ($_ -match '^\s*(\S+)') { $matches[1] }
-    } | Select-Object -Unique
-
-
-    $passwdFile = "/etc/passwd"
-
-    if (Test-Path $passwdFile) {
-        $lines = Get-Content $passwdFile
-        foreach ($line in $lines) {
-            # /etc/passwd format: username:password:UID:GID:GECOS:home_directory:shell
-            $fields = $line -split ":"
-            if ($fields.Length -ge 7) {
-                $username = $fields[0]
-                $uid = $fields[2]
-                $description = $fields[4]
-                $homeDir = $fields[5]
-
-                if ($lastUsernames -contains $username) {
-                    # Assume the user's SSH authorized_keys file is in .ssh/authorized_keys in their home directory
-                    $sshKeyPath = Join-Path $homeDir ".ssh/authorized_keys"
-                    if (Test-Path $sshKeyPath) {
-                        $keyLines = Get-Content $sshKeyPath
-                        foreach ($keyLine in $keyLines) {
-                            if ([string]::IsNullOrWhiteSpace($keyLine)) {
-                                continue
-                            }
-                            # Determine if the key is encrypted by looking for the keyword "ENCRYPTED"
-                            $encrypted = if ($keyLine -match "ENCRYPTED") { 1 } else { 0 }
-                            if ($encrypted -eq 0) {
-                                $result = [PSCustomObject]@{
-                                    uid         = $uid
-                                    username    = $username
-                                    description = $description
-                                    path        = $sshKeyPath
-                                    encrypted   = $encrypted
-                                }
-                                Write-Output $result
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
   purpose: Informational
   tags: inventory, compliance, ssh, active directory
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
@@ -2716,7 +2668,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get servers with root login in the last 24 hours
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Returns servers with root login in the last 24 hours and the time the users were logged in.
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
@@ -3198,7 +3150,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Mount Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check mount on the host - ATT&CK T1025,T1052
   query: SELECT device, device_alias, flags, path,type from mounts;
   purpose: Detection
@@ -3257,7 +3209,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - USB Device Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check USB device on the host - ATT&CK T1052
   query: SELECT * FROM usb_devices;
   purpose: Detection
@@ -3295,8 +3247,8 @@ spec:
   platform: linux, darwin, windows
   description: Lists all Opera extensions - ATT&CK T1176
   query: |-
-    SELECT u.username, ce.* FROM users u CROSS JOIN opera_extensions ce USING
-    (uid);
+    SELECT u.username, ce.* FROM users u CROSS JOIN chrome_extensions ce USING
+    (uid) WHERE ce.browser_type = 'opera';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: teoseller,tux234
@@ -4535,7 +4487,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Services Snapshot
-  platform: linux, darwin, windows
+  platform: windows
   description: Snapshot Services query
   query: SELECT * FROM services;
   purpose: Detection
