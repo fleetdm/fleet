@@ -179,8 +179,8 @@ describe("EditQueryForm - component", () => {
     expect(screen.getByText("Enter a report name")).toBeInTheDocument();
   });
 
-  it("does not show a syntax error on mount for an invalid-SQL stored query", async () => {
-    const invalidSQL = "SELEKT * FROM bogus";
+  it("shows the syntax error on mount for an invalid-SQL stored report", async () => {
+    const invalidSQL = "SELECT * FRM osquery_info;";
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -240,11 +240,9 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    // Give the former debounce window plenty of time to NOT fire.
-    await new Promise((resolve) => setTimeout(resolve, 600));
     expect(
-      screen.queryByText(/Syntax error\. Please review before saving\./)
-    ).not.toBeInTheDocument();
+      await screen.findByText(/Syntax error on line 1, column 10\./)
+    ).toBeInTheDocument();
   });
 
   it("caps the report name input at 255 characters in edit mode", () => {

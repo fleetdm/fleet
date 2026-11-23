@@ -295,20 +295,24 @@ const EditQueryForm = ({
 
   queryIdForEdit = queryIdForEdit || 0;
 
-  // Compute compatibility once the stored query lands. On-change updates
-  // happen in onChangeQuery; syntax validation runs on blur / submit, not
-  // on every keystroke, so incomplete SQL doesn't flash "Syntax error".
-  useEffect(() => {
-    if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
-      setCompatiblePlatforms(lastEditedQueryBody);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryIdForEdit, lastEditedQueryId, isStoredQueryLoading]);
-
   const validateSqlOnBlur = (sql: string) => {
     const { errors: newErrors } = validateQuerySQL(sql);
     setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
   };
+
+  // Compute compatibility and surface any stored syntax error once the query
+  // lands. On-change updates happen in onChangeQuery; syntax validation runs
+  // on blur / submit, not on every keystroke, so incomplete SQL doesn't flash
+  // "Syntax error". Skip empty bodies so new forms don't flash "Enter a query".
+  useEffect(() => {
+    if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
+      setCompatiblePlatforms(lastEditedQueryBody);
+      if (lastEditedQueryBody.trim()) {
+        validateSqlOnBlur(lastEditedQueryBody);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryIdForEdit, lastEditedQueryId, isStoredQueryLoading]);
 
   // Also validate 3s after the user stops typing, so a stale pause surfaces
   // an error without flashing mid-token. Blur / submit still fire immediately.

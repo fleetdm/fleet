@@ -427,7 +427,7 @@ describe("PolicyForm - component", () => {
     // invalid query must be savable. Only empty queries block Save.
     it("allows saving a policy whose query has a SQL syntax error", async () => {
       const onUpdate = jest.fn();
-      const invalidSQL = "SELEKT * FROM bogus";
+      const invalidSQL = "SELECT * FRM osquery_info;";
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
@@ -489,12 +489,11 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      // Validation runs on editor blur / submit, not on mount: the user
-      // should not see a syntax error before they interact with the editor.
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      // A saved policy with a syntax error surfaces its error on mount so the
+      // user sees it without first interacting with the editor.
       expect(
-        screen.queryByText(/Syntax error\. Please review before saving\./)
-      ).not.toBeInTheDocument();
+        await screen.findByText(/Syntax error on line 1, column 10\./)
+      ).toBeInTheDocument();
 
       // Save stays enabled for syntactically invalid (but non-empty) SQL.
       const saveButton = screen.getByRole("button", { name: "Save" });

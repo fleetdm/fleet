@@ -395,9 +395,11 @@ const PolicyForm = ({
     }
   }, []);
 
-  // Compute compatibility once a policy loads. On-change updates happen
-  // in onChangePolicySql; syntax validation runs on blur / submit, not on
-  // every keystroke, so incomplete SQL doesn't flash "Syntax error".
+  // Compute compatibility and surface any stored syntax error once a policy
+  // loads. On-change updates happen in onChangePolicySql; syntax validation
+  // runs on blur / submit, not on every keystroke, so incomplete SQL doesn't
+  // flash "Syntax error". Skip empty bodies so new forms don't flash
+  // "Enter a query".
   useEffect(() => {
     if (
       (policyIdForEdit && policyIdForEdit !== lastEditedQueryId) ||
@@ -406,6 +408,9 @@ const PolicyForm = ({
       return;
     }
     setCompatiblePlatforms(lastEditedQueryBody);
+    if (lastEditedQueryBody.trim()) {
+      validateSqlOnBlur(lastEditedQueryBody);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [policyIdForEdit, lastEditedQueryId, isNewTemplatePolicy]);
 
