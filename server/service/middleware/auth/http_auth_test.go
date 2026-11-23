@@ -60,16 +60,24 @@ func requestWithBearer(token string) *http.Request {
 // authenticate runs the request through SetRequestsContexts and then AuthenticatedUser,
 // as Fleet's handler chain does, and returns the authn method recorded for the request.
 func authenticate(t *testing.T, svc fleet.Service, token string, opts ...RequestContextOption) (authz.AuthenticationMethod, *viewer.Viewer, error) {
+	method, v, _, err := authenticateWithMarker(t, svc, token, opts...)
+	return method, v, err
+}
+
+// authenticateWithMarker also reports whether the endpoint saw the external-auth marker.
+func authenticateWithMarker(t *testing.T, svc fleet.Service, token string, opts ...RequestContextOption) (authz.AuthenticationMethod, *viewer.Viewer, bool, error) {
 	ctx := SetRequestsContexts(svc, opts...)(t.Context(), requestWithBearer(token))
 	ac := &authz.AuthorizationContext{}
 	ctx = authz.NewContext(ctx, ac)
 	var got *viewer.Viewer
+	var marked bool
 	_, err := AuthenticatedUser(svc, func(ctx context.Context, _ any) (any, error) {
 		v, _ := viewer.FromContext(ctx)
 		got = &v
+		marked = externalauth.FromContext(ctx)
 		return nil, nil
 	})(ctx, nil)
-	return ac.AuthnMethod(), got, err
+	return ac.AuthnMethod(), got, marked, err
 }
 
 func TestSetRequestsContextsExternalAuth(t *testing.T) {
@@ -86,9 +94,11 @@ func TestSetRequestsContextsExternalAuth(t *testing.T) {
 	t.Run("session key never reaches the authenticator", func(t *testing.T) {
 		svc := sessionService()
 		spy := &spyExternalAuth{}
-		method, v, err := authenticate(t, svc, sessionKey, WithExternalAuth(spy, clientIP))
+		method, v, marked, err := authenticateWithMarker(t, svc, sessionKey, WithExternalAuth(spy, clientIP))
 		require.NoError(t, err)
 		assert.Zero(t, spy.calls)
+		// AuthnUserToken is the zero value, so the marker is what proves nothing leaked.
+		assert.False(t, marked, "session requests must not carry the external-auth marker")
 		assert.Equal(t, authz.AuthnUserToken, method)
 		assert.Equal(t, uint(1), v.SessionID())
 	})
@@ -96,8 +106,9 @@ func TestSetRequestsContextsExternalAuth(t *testing.T) {
 	t.Run("JWT authenticates without a session lookup", func(t *testing.T) {
 		svc := sessionService()
 		spy := &spyExternalAuth{viewer: &viewer.Viewer{User: &fleet.User{ID: 7, APIOnly: true}}}
-		method, v, err := authenticate(t, svc, jwtToken, WithExternalAuth(spy, clientIP))
+		method, v, marked, err := authenticateWithMarker(t, svc, jwtToken, WithExternalAuth(spy, clientIP))
 		require.NoError(t, err)
+		assert.True(t, marked)
 		assert.Equal(t, 1, spy.calls)
 		assert.Equal(t, "ip-from-192.0.2.10:5555", spy.ip)
 		assert.Equal(t, authz.AuthnExternalJWT, method)
