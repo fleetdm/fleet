@@ -85,6 +85,23 @@ auth:
 		require.Panics(t, func() { loadTestConfig(t, "", `FLEET_AUTH_JWT_ISSUERS=not-json`) })
 	})
 
+	t.Run("unknown key panics", func(t *testing.T) {
+		// A misspelled key must fail loudly rather than silently fall back to a default.
+		require.Panics(t, func() {
+			loadTestConfig(t, `
+auth:
+  jwt_issuers:
+    - name: a
+      issuer: https://a.example.com
+      audience: x
+      max_token_lifetme: 1h`)
+		})
+		require.Panics(t, func() {
+			loadTestConfig(t, "",
+				`FLEET_AUTH_JWT_ISSUERS=[{"name":"a","issuer":"https://a.example.com","audiance":"x"}]`)
+		})
+	})
+
 	t.Run("malformed duration panics", func(t *testing.T) {
 		require.Panics(t, func() {
 			loadTestConfig(t, `
@@ -114,6 +131,9 @@ func TestValidateJWTIssuers(t *testing.T) {
 	require.NoError(t, AuthConfig{}.ValidateJWTIssuers())
 	require.NoError(t, AuthConfig{JWTIssuers: []JWTIssuerConfig{valid()}}.ValidateJWTIssuers())
 	require.NoError(t, AuthConfig{JWTIssuers: []JWTIssuerConfig{
+		with(func(c *JWTIssuerConfig) { c.MaxTokenLifetime = 24 * time.Hour; c.Name = strings.Repeat("n", 255) }),
+	}}.ValidateJWTIssuers())
+	require.NoError(t, AuthConfig{JWTIssuers: []JWTIssuerConfig{
 		valid(), with(func(c *JWTIssuerConfig) { c.Name = "b"; c.Issuer = "https://b.example.com" }),
 	}}.ValidateJWTIssuers())
 
@@ -137,6 +157,8 @@ func TestValidateJWTIssuers(t *testing.T) {
 		"no algorithms":    {with(func(c *JWTIssuerConfig) { c.AllowedAlgorithms = nil })},
 		"zero lifetime":    {with(func(c *JWTIssuerConfig) { c.MaxTokenLifetime = 0 })},
 		"negative life":    {with(func(c *JWTIssuerConfig) { c.MaxTokenLifetime = -time.Minute })},
+		"lifetime > 24h":   {with(func(c *JWTIssuerConfig) { c.MaxTokenLifetime = 25 * time.Hour })},
+		"name too long":    {with(func(c *JWTIssuerConfig) { c.Name = strings.Repeat("n", 256) })},
 		"duplicate name":   {valid(), with(func(c *JWTIssuerConfig) { c.Issuer = "https://b.example.com" })},
 		"duplicate issuer": {valid(), with(func(c *JWTIssuerConfig) { c.Name = "b" })},
 	}
