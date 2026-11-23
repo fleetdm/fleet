@@ -1065,7 +1065,7 @@ type Service interface {
 
 	// MDMListHostConfigurationProfiles returns configuration profiles for a given host
 	//
-	// Deprecated: This returns a list of all known configuration profiles on the fleet the host is assigned to, not the individual host profiles
+	// Deprecated: This returns a list of all known Apple configuration profiles on the fleet the host is assigned to, not the individual host profiles
 	// to get that, use the platform respective datastore method.
 	// To list config profiles on a given fleet use ListMDMConfigProfiles
 	MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*MDMAppleConfigProfile, error)
