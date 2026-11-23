@@ -168,8 +168,9 @@ relaunch_application() {
       return
     fi
     echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
-    # Back off 2, 4, 8, then 10 seconds, stopping before the budget is spent
-    # rather than after, so a failing relaunch never runs past it.
+    # Back off 2, 4, 8, then 10 seconds. The budget bounds when the last
+    # attempt may start, not how long one takes: a slow 'open' is usually
+    # Gatekeeper checking the newly copied bundle, which is worth waiting out.
     (( SECONDS + delay <= timeout_duration )) || break
     sleep "$delay"
     delay=$(( delay * 2 > 10 ? 10 : delay * 2 ))
