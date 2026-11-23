@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -1717,14 +1719,22 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	}
 	checkChallengeExists(newFleetChallenge, true)
 
-	// Consume the new challenge (simulates what PKIOperation does)
-	err = s.ds.ConsumeChallenge(ctx, newFleetChallenge)
+	pkcsReq, err := os.ReadFile("./testdata/PKCSReq.der")
 	require.NoError(t, err)
+	message := base64.StdEncoding.EncodeToString(pkcsReq)
 
-	// Verify the challenge is gone after consumption — a second consume must fail
+	// PKIOperation without the challenge is rejected and leaves the host's challenge in place.
+	noChallengeIdentifier := url.PathEscape(fmt.Sprintf("%s,g%d,%s,", host.UUID, certTemplateID, caName))
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+noChallengeIdentifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	checkChallengeExists(newFleetChallenge, true)
+
+	// PKIOperation with the challenge consumes it, so it only works once.
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
 	checkChallengeExists(newFleetChallenge, false)
-	err = s.ds.ConsumeChallenge(ctx, newFleetChallenge)
-	require.Error(t, err, "consuming the same challenge twice should fail")
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
 
 	// Resend for a non-existent host should return 404
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", 99999, certTemplateID),
