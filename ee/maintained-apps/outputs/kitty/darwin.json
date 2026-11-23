@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.51.0",
+      "version": "0.51.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.kitty';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.kitty' AND version_compare(bundle_short_version, '0.51.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.kitty' AND version_compare(bundle_short_version, '0.51.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'net.kovidgoyal.kitty' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/kovidgoyal/kitty/releases/download/v0.51.0/kitty-0.51.0.dmg",
+      "installer_url": "https://github.com/kovidgoyal/kitty/releases/download/v0.51.1/kitty-0.51.1.dmg",
       "install_script_ref": "d6476f85",
       "uninstall_script_ref": "ef1a9edb",
-      "sha256": "e7d51ec9f1978ff2fee61647b6f7eb59530e06d9bb1af876b00357ca7779638d",
+      "sha256": "7a1c492103d7e5ff825351bdda1833bdf6f95d33da9e1ae22e52f61cc5ec013e",
       "default_categories": [
         "Developer tools"
       ]
