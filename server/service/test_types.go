@@ -312,7 +312,7 @@ func unwrapDatastore(ds fleet.Datastore) fleet.Datastore {
 		if !ok || !field.Anonymous {
 			return ds
 		}
-		inner, ok := v.Elem().FieldByIndex(field.Index).Interface().(fleet.Datastore)
+		inner, ok := reflect.TypeAssert[fleet.Datastore](v.Elem().FieldByIndex(field.Index))
 		if !ok || inner == nil {
 			return ds
 		}
