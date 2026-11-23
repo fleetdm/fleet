@@ -74,6 +74,8 @@ func TestSetAPIOnlyUserExternalIdentities(t *testing.T) {
 		"empty subject":       {apiUser.ID, []fleet.ExternalIdentity{gh("")}},
 		"subject too long":    {apiUser.ID, []fleet.ExternalIdentity{gh(string(make([]byte, 256)))}},
 		"duplicate in body":   {apiUser.ID, []fleet.ExternalIdentity{gh("a"), gh("a")}},
+		"trailing whitespace": {apiUser.ID, []fleet.ExternalIdentity{gh("a ")}},
+		"leading whitespace":  {apiUser.ID, []fleet.ExternalIdentity{gh("\ta")}},
 	}
 	for name, c := range invalid {
 		t.Run(name, func(t *testing.T) {

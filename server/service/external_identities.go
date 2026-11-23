@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -102,6 +103,9 @@ func (svc *Service) SetAPIOnlyUserExternalIdentities(ctx context.Context, userID
 		}
 		if id.Subject == "" || len(id.Subject) > maxExternalIdentityFieldLen {
 			invalid.Appendf("external_identities", "subject must be 1 to %d characters", maxExternalIdentityFieldLen)
+		} else if strings.TrimSpace(id.Subject) != id.Subject {
+			// Subjects are matched exactly; surrounding whitespace is almost certainly a paste error.
+			invalid.Appendf("external_identities", "subject %q has leading or trailing whitespace", id.Subject)
 		}
 		if _, dup := seen[id]; dup {
 			invalid.Appendf("external_identities", "duplicate identity (%s, %s)", id.Issuer, id.Subject)

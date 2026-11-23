@@ -669,16 +669,21 @@ func replaceUserAPIEndpoints(ctx context.Context, tx sqlx.ExtContext, userID uin
 }
 
 func (ds *Datastore) UserByExternalIdentity(ctx context.Context, issuer, subject string) (*fleet.User, error) {
-	var userID uint
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &userID,
-		`SELECT user_id FROM user_external_identities WHERE issuer = ? AND subject = ?`, issuer, subject)
-	if errors.Is(err, sql.ErrNoRows) {
+	var row struct {
+		UserID  uint   `db:"user_id"`
+		Issuer  string `db:"issuer"`
+		Subject string `db:"subject"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row,
+		`SELECT user_id, issuer, subject FROM user_external_identities WHERE issuer = ? AND subject = ?`, issuer, subject)
+	// utf8mb4_bin still ignores trailing spaces (PAD SPACE), so confirm the match byte-for-byte.
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && (row.Issuer != issuer || row.Subject != subject)) {
 		return nil, ctxerr.Wrap(ctx, notFound("User").WithMessage("for external identity"))
 	}
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select user by external identity")
 	}
-	return ds.findUser(ctx, "id", userID)
+	return ds.findUser(ctx, "id", row.UserID)
 }
 
 func (ds *Datastore) ListUserExternalIdentities(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, error) {
@@ -697,6 +702,15 @@ func listUserExternalIdentitiesDB(ctx context.Context, q sqlx.QueryerContext, us
 func (ds *Datastore) SetUserExternalIdentities(ctx context.Context, userID uint, ids []fleet.ExternalIdentity) (added, removed []fleet.ExternalIdentity, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		added, removed = nil, nil
+		// Lock the user row so concurrent replaces for one user run one at a time and
+		// compute their diff from the committed state.
+		var lockedID uint
+		if err := sqlx.GetContext(ctx, tx, &lockedID, `SELECT id FROM users WHERE id = ? FOR UPDATE`, userID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("User").WithID(userID))
+			}
+			return ctxerr.Wrap(ctx, err, "lock user for external identities")
+		}
 		current, err := listUserExternalIdentitiesDB(ctx, tx, userID)
 		if err != nil {
 			return err
