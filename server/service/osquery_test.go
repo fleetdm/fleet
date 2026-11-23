@@ -2733,6 +2733,12 @@ func TestDistributedReadSkipsUnsavedResend(t *testing.T) {
 	_, policy = sent()
 	require.True(t, policy)
 
+	// The check alone records nothing.
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+	unsaved, ok := serv.hasUnsavedSend(ctx, "policy", host.ID, mockClock.Now())
+	require.True(t, ok)
+	require.False(t, unsaved)
+
 	require.Len(t, ttls, 5)
 	for _, ttl := range ttls {
 		require.Equal(t, unsavedResendTTL, ttl)
