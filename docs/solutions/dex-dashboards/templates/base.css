@@ -83,12 +83,17 @@ b, strong { font-weight: 600; color: var(--ink); }
   display: flex; flex-direction: column; gap: 24px;
 }
 
-/* Nav bar across every page, in Fleet's primary tab style (frontend/components/TabNav). */
-.dash-nav { display: flex; flex-wrap: wrap; gap: 4px 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-@media (max-width: 600px) {
-  .dash-nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  .dash-nav::-webkit-scrollbar { display: none; }
+/* Nav bar across every page, in Fleet's primary tab style (frontend/components/TabNav):
+   one centered row that slides sideways when it doesn't fit. */
+.dash-nav-wrap { position: relative; }
+.dash-nav {
+  position: relative; display: flex; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
 }
+.dash-nav::-webkit-scrollbar { display: none; }
+/* Auto margins rather than justify-content: center, so a row that overflows still scrolls back to its first tab. */
+.dash-nav a:first-child { margin-left: auto; }
+.dash-nav a:last-child { margin-right: auto; }
 .dash-nav a {
   display: inline-flex; flex-direction: column; align-items: center; flex-shrink: 0;
   padding: 6px 8px; border-radius: 8px; font-size: 14px; line-height: 21px; font-weight: 400; color: var(--ink); white-space: nowrap; text-decoration: none;
@@ -97,6 +102,24 @@ b, strong { font-weight: 600; color: var(--ink); }
 .dash-nav a:hover, .dash-nav a[aria-current="page"] { background: var(--ui-fleet-black-5); color: var(--ink); }
 .dash-nav a[aria-current="page"] { font-weight: 600; }
 .dash-nav a:focus-visible { outline-offset: -1px; }
+.nav-arrow {
+  display: none; position: absolute; top: 0; z-index: 2; width: 64px; height: 33px;
+  padding: 0; border: 0; align-items: center; cursor: pointer;
+}
+.nav-arrow.l { left: 0; justify-content: flex-start; background: linear-gradient(to right, var(--bg) 45%, transparent); }
+.nav-arrow.r { right: 0; justify-content: flex-end; background: linear-gradient(to left, var(--bg) 45%, transparent); }
+.dash-nav-wrap.more-l .nav-arrow.l, .dash-nav-wrap.more-r .nav-arrow.r { display: flex; }
+.nav-arrow span {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--panel); box-shadow: 0 0 0 1px var(--line-2), 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.nav-arrow:hover span { box-shadow: 0 0 0 1px var(--ink), 0 1px 3px rgba(0, 0, 0, 0.12); }
+.nav-arrow svg { width: 14px; height: 14px; fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+/* Phones swipe the row, so the edges only fade. */
+@media (max-width: 720px) {
+  .nav-arrow { width: 40px; pointer-events: none; }
+  .nav-arrow span { display: none; }
+}
 
 /* Top bar: platform toggle on the left, fleet filter and theme on the right, freshness below */
 .top { display: flex; flex-direction: column; gap: 8px; }
@@ -188,9 +211,13 @@ h3 a:hover { text-decoration: underline; }
 .empty { padding: 24px 16px; text-align: center; color: var(--ink-2); background: var(--panel-2); border-radius: 8px; }
 .empty b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
 
-/* Horizontal bars */
-.bars { display: flex; flex-direction: column; gap: 8px; }
-.bar-row { display: grid; grid-template-columns: minmax(70px, min(190px, 40%)) minmax(40px, 1fr) auto; align-items: center; gap: 12px; }
+/* Horizontal bars. The rows share one set of columns (subgrid), so every bar in a chart starts
+   and ends in the same place, whatever its label and value. */
+.bars { display: grid; grid-template-columns: minmax(70px, min(190px, 40%)) minmax(40px, 1fr) max-content; gap: 8px 12px; align-items: center; }
+.bar-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
+/* A box shadow widens the highlight without moving the row off the shared columns. */
+.bar-row.click { cursor: pointer; border-radius: 4px; }
+.bar-row.click:hover, .bar-row.click[aria-pressed="true"] { background: var(--panel-2); box-shadow: 0 0 0 4px var(--panel-2); }
 .bar-row .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
 .bar-row .val { font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; min-width: 3ch; white-space: nowrap; }
 .track { display: flex; gap: 2px; height: 12px; border-radius: 4px; background: var(--ui-fleet-black-5); overflow: hidden; }
@@ -309,7 +336,7 @@ svg text { fill: var(--ink-2); font: 12px var(--font-ui); }
   .hero-mid { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 16px; }
 }
 @media (max-width: 480px) {
-  .bar-row { grid-template-columns: minmax(60px, 35%) minmax(40px, 1fr) auto; }
+  .bars { grid-template-columns: minmax(60px, 45%) minmax(40px, 1fr) max-content; }
   .panel { padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {

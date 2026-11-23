@@ -37,6 +37,13 @@
       "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
     },
     {
+      "name": "3Dconnexion 3DxWare 10",
+      "slug": "3dxware-10/windows",
+      "platform": "windows",
+      "unique_identifier": "3Dconnexion 3DxWare 10",
+      "description": "3Dconnexion 3DxWare 10 is the driver and configuration software for 3Dconnexion 3D mice and keyboards."
+    },
+    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",
@@ -3611,6 +3618,13 @@
       "slug": "front/darwin",
       "platform": "darwin",
       "unique_identifier": "com.frontapp.Front",
+      "description": "Front is a customer communication platform."
+    },
+    {
+      "name": "Front",
+      "slug": "front/windows",
+      "platform": "windows",
+      "unique_identifier": "Front",
       "description": "Front is a customer communication platform."
     },
     {
@@ -7744,6 +7758,13 @@
       "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
     },
     {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/windows",
+      "platform": "windows",
+      "unique_identifier": "Rocket.Chat",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
@@ -8780,6 +8801,13 @@
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
+      "name": "Tableau Reader",
+      "slug": "tableau-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Reader",
+      "description": "Tableau Reader is a free desktop application for opening and interacting with data visualizations built in Tableau."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
@@ -9114,6 +9142,13 @@
       "platform": "windows",
       "unique_identifier": "TortoiseGit",
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
+    },
+    {
+      "name": "TortoiseSVN",
+      "slug": "tortoisesvn/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseSVN",
+      "description": "TortoiseSVN is an Apache Subversion (SVN) client for Windows, implemented as a File Explorer shell extension with overlay icons and context menu commands."
     },
     {
       "name": "Tower",
@@ -10220,6 +10255,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Rooms",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom VDI Universal Plugin",
+      "slug": "zoom-vdi-universal-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom VDI Universal Plugin(64bit)",
+      "description": "Zoom VDI Universal Plugin is an endpoint media plug-in that offloads Zoom audio and video processing to the local device in virtual desktop environments."
     },
     {
       "name": "Zoom",

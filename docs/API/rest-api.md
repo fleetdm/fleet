@@ -14157,7 +14157,7 @@ Creates a global report or fleet report.
 | labels_include_any              | array   | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
 | labels_include_all              | array   | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **all of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
-| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
+| automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. (Default: `false`) |
 | logging                         | string  | body | The type of log output for this report. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data                    | boolean | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. Default: `false`. |
 

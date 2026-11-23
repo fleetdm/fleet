@@ -294,6 +294,9 @@ will be disabled and/or hidden in the UI.
               }
               res.locals.me = undefined;
 
+              // Query strings and trailing slashes are dropped so each page has one URL for search engines.
+              res.locals.canonicalUrlForMeta = sails.config.custom.baseUrl + (req.path === '/' ? '/' : _.trimRight(req.path, '/'));
+
               // Set security headers for all GET and HEAD requests.
               res.setHeader(`X-Content-Type-Options`, `nosniff`);//[?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Content-Type-Options
               res.setHeader('X-Frame-Options', 'SAMEORIGIN');// [?]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options

@@ -74,6 +74,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "View unlock PIN",
+    value: "viewUnlockPin",
+    disabled: false,
+  },
+  {
     label: "Wipe",
     value: "wipe",
     disabled: false,
@@ -142,6 +147,7 @@ interface IHostActionConfigOptions {
   wipeAllowed?: boolean;
   lockAllowed?: boolean;
   clearPasscodeAllowed?: boolean;
+  unlockPinAvailable?: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -476,6 +482,18 @@ const canReleaseFromAB = (config: IHostActionConfigOptions) => {
   return true;
 };
 
+const canViewUnlockPin = (config: IHostActionConfigOptions) =>
+  config.isPremiumTier &&
+  isAndroid(config.hostPlatform) &&
+  !!config.unlockPinAvailable &&
+  // Same rule as Clear passcode: hide while a Lock, Unenroll, Wipe or Clear
+  // passcode is pending, since the stored PIN may not be the one the device accepts yet.
+  config.hostMdmDeviceStatus === "unlocked" &&
+  (config.isGlobalAdmin ||
+    config.isGlobalMaintainer ||
+    config.isTeamAdmin ||
+    config.isTeamMaintainer);
+
 const canClearPasscode = (config: IHostActionConfigOptions) => {
   if (!config.isPremiumTier) {
     return false;
@@ -590,6 +608,10 @@ const removeUnavailableOptions = (
 
   if (!canClearPasscode(config)) {
     options = options.filter((option) => option.value !== "clearPasscode");
+  }
+
+  if (!canViewUnlockPin(config)) {
+    options = options.filter((option) => option.value !== "viewUnlockPin");
   }
 
   if (!canTurnOffMdm(config)) {

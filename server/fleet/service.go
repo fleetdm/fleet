@@ -1425,7 +1425,7 @@ type Service interface {
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
-	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	UnlockHost(ctx context.Context, hostID uint) (*HostUnlockResult, error)
 	WipeHost(ctx context.Context, hostID uint) error
 	// ResetHost erases a Windows host but keeps its provisioning packages, so a host set up with one can re-enroll itself.
 	ResetHost(ctx context.Context, hostID uint) error

@@ -2,6 +2,7 @@
 """One run: collect a Fleet snapshot and the vendors' latest releases, then rebuild every page.
 
   run.py --work DIR --in DIR [--first-run] [--link lifecycle=URL ... --link overview=URL] [--site DIR]
+         [--scoring FILE]
 
 --in holds each page's last history: IN/<page>/history.json, plus any part
 files it lists, or a copy of the last run's WORK/out. For each page, writes WORK/out/<page>/index.html and
@@ -15,6 +16,11 @@ which is the Artifact publish call for that page, file removals included.
 overview's cards. --site also writes a static copy of every page, without
 histories, for hosting on your own domain. Its pages link to each other by
 relative path and open in the same tab.
+
+The experience score uses scoring settings from --scoring, else IN/experience/scoring.json
+(the settings saved on the Experience page, which the routine reads first), else
+DEX_SCORING_FILE, else Fleet's defaults. The page itself always uses the settings saved on
+it; these only set the overview's card and the page's starting point.
 
 A large fleet can take longer than one 10-minute command. When the time budget
 runs out, run.py saves what it collected under WORK and prints CONTINUE; run
@@ -35,7 +41,11 @@ import build  # noqa: E402
 import collect  # noqa: E402
 import vendor  # noqa: E402
 
-PAGES = ("lifecycle", "software", "patch", "ai", "connectivity", "analytics", "sustainability", "policies")
+# Experience comes last: it scores computers from the other pages' data.
+PAGES = ("lifecycle", "software", "patch", "ai", "connectivity", "analytics", "sustainability", "policies", "experience")
+# Pages whose history can start over without harm, so a setup that adds one later keeps
+# running: Experience only keeps the signals it scores, which it rebuilds from tomorrow on.
+FRESH_OK = {"experience"}
 # Room left in the time budget for building and writing pages.
 BUILD_RESERVE = 150
 # One Artifact publish carries at most 64 MB.
@@ -55,6 +65,17 @@ def check_size(page, paths):
         sys.exit(f"FATAL: {page} is {total} bytes in all, over what one publish carries (64 MB).")
 
 
+def scoring_settings(args):
+    """(settings, where they came from) for the experience score."""
+    saved = os.path.join(args.indir, "experience", "scoring.json") if args.indir else None
+    for path, source in ((args.scoring, "file"), (saved, "page"), (build.SCORING_FILE, "file")):
+        settings = build.load_scoring(path)
+        if settings is not None:
+            print(f"Experience scoring settings from {path}.")
+            return settings, source
+    return None, "built-in"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
@@ -63,6 +84,7 @@ def main():
     ap.add_argument("--link", action="append", default=[], help="page=URL of that page's artifact")
     ap.add_argument("--site", help="also write a static copy of the pages here, for your own web host")
     ap.add_argument("--budget", type=int, default=540, help="seconds before saving progress and printing CONTINUE")
+    ap.add_argument("--scoring", help="a JSON file of experience scoring settings")
     args = ap.parse_args()
     args.work = os.path.abspath(args.work)
     started = time.monotonic()
@@ -74,7 +96,7 @@ def main():
         if p and not os.path.exists(p):
             # A previous run's out folder keeps each page's files under data/.
             p = os.path.join(args.indir, page, "data", "history.json")
-        if not args.first_run and (not p or not os.path.exists(p) or os.path.getsize(p) == 0):
+        if not args.first_run and page not in FRESH_OK and (not p or not os.path.exists(p) or os.path.getsize(p) == 0):
             sys.exit(f"FATAL: history for {page} is missing ({p}). Re-read it from the artifact; "
                      "pass --first-run only when starting over.")
         hist[page] = build.load_history(p) if p and os.path.exists(p) else ({}, [], [])
@@ -116,7 +138,11 @@ def main():
     publish, page_data = [], {}
     for page in PAGES:
         h, old_hist_parts, old_page_parts = hist[page]
-        data = build.BUILDERS[page](snap, h)
+        if page == "experience":
+            scoring, source = scoring_settings(args)
+            data = build.build_experience(snap, h, page_data, {p: hist[p][0] for p in PAGES}, scoring, source)
+        else:
+            data = build.BUILDERS[page](snap, h)
         data["page"], data["links"] = page, build.nav_links(page, links)
         page_data[page] = data
         page_dir = os.path.join(out, page)

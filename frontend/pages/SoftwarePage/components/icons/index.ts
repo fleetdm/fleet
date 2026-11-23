@@ -31,6 +31,7 @@ import { TMatchedIcon } from "./MatchedIcon";
 import OnePassword from "./OnePassword";
 import Package from "./Package";
 import ZeroOneZeroEditor from "./png/010Editor.png";
+import ThreeDconnexion3DxWare10 from "./png/3Dconnexion3DxWare10.png";
 import ThreeDfZephyrFree from "./png/3DfZephyrFree.png";
 import SevenZip from "./png/7Zip.png";
 import EightXEightWork from "./png/8X8Work.png";
@@ -1009,6 +1010,7 @@ import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
+import TableauReader from "./png/TableauReader.png";
 import TablePlus from "./png/TablePlus.png";
 import Tabtab from "./png/Tabtab.png";
 import Tailscale from "./png/Tailscale.png";
@@ -1041,6 +1043,7 @@ import TopazVideoAi from "./png/TopazVideoAi.png";
 import Topnotch from "./png/Topnotch.png";
 import TorBrowser from "./png/TorBrowser.png";
 import Tortoisegit from "./png/Tortoisegit.png";
+import Tortoisesvn from "./png/Tortoisesvn.png";
 import Tower from "./png/Tower.png";
 import Tradingview from "./png/Tradingview.png";
 import Transfer from "./png/Transfer.png";
@@ -1178,6 +1181,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "3dconnexion 3dxware 10": ThreeDconnexion3DxWare10,
   "3df zephyr free": ThreeDfZephyrFree,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
@@ -2216,6 +2220,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
+  "tableau reader": TableauReader,
   tableplus: TablePlus,
   tabtab: Tabtab,
   tailscale: Tailscale,
@@ -2251,6 +2256,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   topnotch: Topnotch,
   "tor browser": TorBrowser,
   tortoisegit: Tortoisegit,
+  tortoisesvn: Tortoisesvn,
   tower: Tower,
   "tradingview desktop": Tradingview,
   transfer: Transfer,
@@ -2375,6 +2381,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
+  "zoom vdi universal plugin": Zoom,
   zotero: Zotero,
   zulip: Zulip,
   zwift: Zwift,

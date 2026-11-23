@@ -24,6 +24,8 @@ func TestXMLEscapeString(t *testing.T) {
 		{"", ""},
 		// multiple special characters
 		{"A&B<C>D\"'E\tF\nG\r", "A&amp;B&lt;C&gt;D&#34;&#39;E&#x9;F&#xA;G&#xD;"},
+		// runes outside the XML character range
+		{"abc\x01def", "abc�def"},
 	}
 
 	for _, tt := range tests {

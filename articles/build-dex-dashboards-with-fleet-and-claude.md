@@ -1,6 +1,6 @@
 # Build DEX dashboards with Fleet and Claude
 
-Fleet already knows what hardware your computers run, which apps people open, and which versions are installed. This guide shows you how to turn that data into eight digital employee experience (DEX) dashboards that rebuild themselves every day:
+Fleet already knows what hardware your computers run, which apps people open, and which versions are installed. This guide shows you how to turn that data into nine digital employee experience (DEX) dashboards that rebuild themselves every day:
 
 - Hardware lifecycle: which computers to replace, repair, or leave alone.
 - Software usage: which installed apps nobody opens.
@@ -9,17 +9,18 @@ Fleet already knows what hardware your computers run, which apps people open, an
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
 - Sustainability: how much energy your Macs use, which computers never sleep, and which laptop batteries need service.
+- Experience score: one score from 0 to 100 for each computer, built from the other dashboards, with a page for each computer and a side-by-side comparison with another computer, the average for its model or OS version, or the average for all computers. Admins choose what counts toward the score and how much, on the page itself.
 - Policies: which Fleet policies your computers pass and fail, on the latest run or on any day in the past year. You can see patch policies on their own or with the rest, and narrow any view to critical policies.
 
-An overview page sums up all eight, with today's key numbers and a 30-day trend for each, and links to every dashboard.
+An overview page sums up all nine, with today's key numbers and a 30-day trend for each, and links to every dashboard.
 
 A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads the Fleet API and publishes each dashboard as a private Claude artifact. You don't run a server or a database. Every dashboard covers macOS, Windows, and Linux, with a toggle to show one platform at a time and a light or dark theme that follows your system setting until you pick one.
 
 ## How it works
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
-- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 15 DEX reports, then build the eight pages and the overview. Devices assigned to Fleet in Apple Business that haven't enrolled yet are left out, since Fleet has only their serial number and model.
-- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer. Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Sustainability uses it to turn each Mac's running energy total into kWh per day. Each page also charts its key numbers over time, for up to a year, and the overview reads the same daily counts, so its numbers match each dashboard's. All of this gets more useful over the first few weeks.
+- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 15 DEX reports, then build the nine pages and the overview. Devices assigned to Fleet in Apple Business that haven't enrolled yet are left out, since Fleet has only their serial number and model.
+- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer. Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Sustainability uses it to turn each Mac's running energy total into kWh per day. Each page also charts its key numbers over time, for up to a year, and the overview reads the same daily counts, so its numbers match each dashboard's. Experience score keeps each computer's signals, not its score, so when an admin changes the scoring, every past day is scored again. All of this gets more useful over the first few weeks.
 
 ## Tradeoffs
 
@@ -28,7 +29,7 @@ These dashboards replace a business intelligence (BI) tool with a scheduled Clau
 ### Strengths
 
 - There's nothing to host. You don't run or patch a server, database, or BI tool. Each dashboard keeps its own history in a file next to its page.
-- The scripts compute every number. Claude reads the artifacts, checks the code's hash, runs the scripts, and publishes the pages. It doesn't calculate, summarize, or write anything that appears on a dashboard.
+- The scripts compute every number. Claude reads the artifacts and the saved experience score settings, checks the code's hash, runs the scripts, and publishes the pages. It doesn't calculate, summarize, or write anything that appears on a dashboard.
 - Access is read-only. The API-only user can call five read endpoints and nothing else. The token stays in the cloud environment, which can reach only your Fleet server and three public release feeds. The feeds never get the token.
 - Version targets come from outside your fleet. The newest macOS comes from SOFA, the Mac admins' public feed of Apple's releases. The newest Windows build comes from Microsoft's Security Update Guide. Fleet's agent versions come from Fleet's update server, and app versions from your patch policies. Each run checks them again, so the share of computers on the newest version drops the day a release ships and climbs as computers update.
 - The dashboards are easy to change. The scripts are plain Python and HTML with no dependencies. Ask Claude Code to add a chart or a whole dashboard, review the change, then ship it by updating the hash.
@@ -37,7 +38,7 @@ These dashboards replace a business intelligence (BI) tool with a scheduled Clau
 ### Limitations
 
 - The data is a snapshot, not live. Each dashboard is only as fresh as its last run. The Fleet API returns current state, not history, so trend charts and Patch velocity's timing start on the day you set this up.
-- Fleet data passes through Claude. The routine reads each page, host names included, and the pages are stored as Claude artifacts. Check that this fits your organization's data-handling commitments.
+- Fleet data passes through Claude. The routine's session handles every page and history file, host names included, and the pages are stored as Claude artifacts. Check that this fits your organization's data-handling commitments.
 - Viewers see every fleet. Anyone who can open a dashboard sees all the computers the API-only user can read. The fleet filter changes the view, not who can see what.
 - Size has limits. The scripts are tested with a simulated fleet of 10,000 computers. Each run downloads every computer's software list from Fleet, about 0.6 MB per computer, and requests each computer's details, so bigger fleets mean longer runs and more load on your Fleet server. Past 10,000 computers, use a data pipeline instead (see "Choose how often it runs").
 - Runs depend on Claude. Routines, cloud environments, and artifacts are Claude features, and each run uses Claude usage on your plan. The prompt tells the routine to stop and report a failure instead of working around it. You find out from the Slack alert or the routine's run log.
@@ -81,6 +82,8 @@ The dashboards read 15 reports, all in [`dex-reports.yml`](https://github.com/fl
 | `DEX - Sustainability - Windows power` | Windows | Sustainability, for battery draw while unplugged, the power plan's sleep and display-off timeouts, Fast Startup, and sleep events. |
 | `DEX - Sustainability - Linux power` | Linux | Sustainability, for systemd and GNOME sleep settings, batteries, and power sensors. |
 
+Experience score also uses Device health, OS health (for crash reports), Security posture, Wi-Fi signal quality, and the three Windows security reports.
+
 Analytics also checks every report for missing or stale results. Where no report covers a platform, the dashboards use Fleet's built-in host data, such as check-in times, disk encryption, and policy results.
 
 - **GitOps:** copy `dex-reports.yml` into your GitOps repository, for example to `lib/all/reports/dex-reports.yml`, and add it under `reports:` in `default.yml` to cover every host, or in each fleet file whose computers you want on the dashboards:
@@ -108,7 +111,7 @@ The scripts only read data. Create an API-only user that can read only what they
 
 | Endpoint | Why the dashboards need it |
 |:--|:--|
-| [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) (`GET /api/v1/fleet/hosts`) | Hardware, OS version, check-in times, disk encryption, MDM enrollment, failing policies, and each host's software with its last-opened time. |
+| [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) (`GET /api/v1/fleet/hosts`) | Hardware, OS version, uptime, disk space, check-in times, disk encryption, MDM enrollment, failing policies, critical vulnerability counts, and each host's software with its last-opened time. |
 | [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) (`GET /api/v1/fleet/hosts/:id`) | Battery health (macOS and Windows), custom host vitals such as warranty dates, each computer's policy results, its country from GeoIP, and the department and email domain of its end user from your identity provider. |
 | [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) (`GET /api/v1/fleet/fleets`) | Finds the DEX reports in each fleet. |
 | [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports) (`GET /api/v1/fleet/reports`) | Looks up each DEX report by name. |
@@ -168,10 +171,10 @@ Set up the Fleet DEX dashboards from the files in this folder.
 - Slack alerts: send failure DMs to Slack member ID <your Slack member ID>
 
 1. Run `python3 bundle.py --out <dir>`, where <dir> is a new temporary directory outside this folder that you choose. It prints a sha256 hash. Don't change any files in this folder.
-2. Publish nine new private artifacts from placeholder-overview.html, placeholder-lifecycle.html, placeholder-software.html, placeholder-patch.html, placeholder-ai.html, placeholder-connectivity.html, placeholder-analytics.html, placeholder-sustainability.html, and placeholder-policies.html in that output directory. On the Hardware lifecycle artifact, also publish dex-dashboards.json as src/dex-dashboards.json with content type application/json. Publish the AI governance artifact with these capabilities, so its policy decisions are saved and only editors can change them: {"db": {"rules": [{"path": "governance", "read": "view", "write": "admin"}, {"path": "governance-log", "read": "view", "write": "admin"}]}, "user": {"scopes": ["profile"]}, "downloads": true}. Publish the other eight with these capabilities, so each viewer's theme choice is saved: {"db": {}, "user": {}}. Note the nine artifact URLs.
-3. Read routine-prompt.md. Take the text between "PROMPT START" and "PROMPT END", and fill in {{LIFECYCLE_URL}}, {{SOFTWARE_URL}}, {{PATCH_URL}}, {{AI_URL}}, {{CONNECTIVITY_URL}}, {{ANALYTICS_URL}}, {{SUSTAINABILITY_URL}}, {{POLICIES_URL}}, {{OVERVIEW_URL}}, and {{BUNDLE_SHA256}}. Replace {{IF_THE_RUN_FAILS}} with the Slack block (and my member ID) if I asked for Slack alerts above, otherwise with the block for no Slack.
-4. Create a disabled routine named "DEX dashboards (daily rebuild)" with that prompt: the environment above, a daily schedule at the run time above converted to UTC, the Sonnet model, no repository, and the tools Bash, Read, Write, ToolSearch, and Artifact. A new routine gets every connector on my account by default, so remove them all. If I asked for Slack alerts, keep only the Slack connector and allow its slack_send_message tool. If you can't find my Slack connector, create the routine without it and tell me.
-5. Run the routine once. When it finishes, read its run log. If it published all nine artifacts, enable the routine and send me the overview's link. If it didn't, show me the error and leave the routine disabled.
+2. Publish ten new private artifacts from placeholder-overview.html, placeholder-experience.html, placeholder-lifecycle.html, placeholder-software.html, placeholder-patch.html, placeholder-ai.html, placeholder-connectivity.html, placeholder-analytics.html, placeholder-sustainability.html, and placeholder-policies.html in that output directory. On the Hardware lifecycle artifact, also publish dex-dashboards.json as src/dex-dashboards.json with content type application/json. Publish the AI governance artifact with these capabilities, so its policy decisions are saved and only editors can change them: {"db": {"rules": [{"path": "governance", "read": "view", "write": "admin"}, {"path": "governance-log", "read": "view", "write": "admin"}]}, "user": {"scopes": ["profile"]}, "downloads": true}. Publish the Experience score artifact with these capabilities, so its scoring settings are saved and only editors can change them: {"db": {"rules": [{"path": "scoring", "read": "view", "write": "admin"}, {"path": "scoring-log", "read": "view", "write": "admin"}]}, "user": {"scopes": ["profile"]}, "downloads": true}. Publish the other eight with these capabilities, so each viewer's theme choice is saved: {"db": {}, "user": {}}. Note the ten artifact URLs.
+3. Read routine-prompt.md. Take the text between "PROMPT START" and "PROMPT END", and fill in {{LIFECYCLE_URL}}, {{SOFTWARE_URL}}, {{PATCH_URL}}, {{AI_URL}}, {{CONNECTIVITY_URL}}, {{ANALYTICS_URL}}, {{SUSTAINABILITY_URL}}, {{POLICIES_URL}}, {{EXPERIENCE_URL}}, {{OVERVIEW_URL}}, and {{BUNDLE_SHA256}}. Replace {{IF_THE_RUN_FAILS}} with the Slack block (and my member ID) if I asked for Slack alerts above, otherwise with the block for no Slack.
+4. Create a disabled routine named "DEX dashboards (daily rebuild)" with that prompt: the environment above, a daily schedule at the run time above converted to UTC, the Sonnet model, no repository, and the tools Bash, Read, Write, ToolSearch, Artifact, and ArtifactData. A new routine gets every connector on my account by default, so remove them all. If I asked for Slack alerts, keep only the Slack connector and allow its slack_send_message tool. If you can't find my Slack connector, create the routine without it and tell me.
+5. Run the routine once. When it finishes, read its run log. If it published all ten artifacts, enable the routine and send me the overview's link. If it didn't, show me the error and leave the routine disabled.
 
 Never ask me for the Fleet API token. It lives only in the cloud environment.
 ```
@@ -208,18 +211,27 @@ On a large fleet, keep these in mind:
 - A run that takes longer than one 10-minute command saves what it collected and continues in the next command. The routine prompt handles this, up to 10 commands per run.
 - A page or history that's bigger than about 8 MB is split into part files, because an artifact file can't be larger than 16 MB. Pages load their parts before they draw.
 - The scripts send up to 8 requests to Fleet at once. If your Fleet server is busy during runs, add `DEX_WORKERS=4` to the cloud environment's variables.
-- Tables show 200 rows at a time, with a button to show more.
+- Tables show their first 200 rows, with a button to show more.
+
+### Change how the experience score works
+
+Each computer's score is a weighted average of its category scores (performance, device health, security, and software), and each category is a weighted average of its signals, such as days since restart, free disk space, disk encryption, and apps behind on updates. Connectivity is shown but doesn't count by default, since Wi-Fi changes by the minute. By default, computers that haven't checked in for more than 7 days aren't scored, since their data is old.
+
+To change the scoring, open the Experience score dashboard and select **Scoring settings**. You can change each category's and signal's weight, the points each value earns, what happens when a computer doesn't report a signal, the grades, the score that counts as a good experience, how many days without a check-in before a computer isn't scored, and whether the page shows individual computers. Changes preview on the page right away and apply to every day in its history. Only people who can edit the dashboard can save them, and each save is logged.
+
+The overview's Experience score card picks up saved settings on the routine's next run. Select **Download settings** to keep a copy of the settings as JSON.
 
 ## Verify
 
-1. Open the overview. Each card shows today's numbers and opens its dashboard in the same tab. Each dashboard shows today's date next to **Updated**, and the tabs across the top of every page open the overview and the other dashboards.
+1. Open the overview. Each card shows today's numbers and opens its dashboard in the same tab. Each dashboard shows today's date next to **Updated**, and the tabs across the top of every page open the overview and the other dashboards. Some tabs use a short name, such as **Experience** for Experience score and **Patching** for Patch velocity.
 2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead. Under **macOS updates waiting to install**, updates that were already queued on the first run show a "+" after their waiting time, since the page can't tell when they were queued.
 3. Under **Over time**, each chart says "Not enough history yet," and the overview's cards say the trend starts after a second day. The charts fill in after the second daily run.
 4. On AI governance, pick a posture under **AI policy**. The change log shows your name and the time. People who can only view the dashboard see the policy but can't change it.
 5. On Sustainability, the summary shows each Mac's average power since boot. Energy in kWh starts after the second run, once there are two readings to compare.
 6. On Policies, the date picker starts at today's run. Each run adds a day, so you can go back to any day since setup, for up to a year. Pick **Patch policies** or **Other policies** to see the policies Fleet keeps for Fleet-maintained apps apart from the rest, or **All policies** for both. Turn on **Critical only** to limit any of these to the policies marked critical. Click a policy to see which computers fail it.
-7. On Analytics, check the **Data sources** table. Each report shows how many computers sent results in the last 7 days. A report marked **Not set up** isn't in Fleet yet, or its name doesn't match `dex-reports.yml`.
-8. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
+7. On Experience score, open **Scoring settings** and change a weight. **What changes** shows the effect on today's scores, and the rest of the page previews it until you select **Save for everyone** or **Discard changes**. Save it, and the change log shows your name and the time. To undo it, select **Reset to Fleet's defaults** and save again. Open a computer from the **Computers** list to see its signals and what changed this week, then select **Compare with…**.
+8. On Analytics, check the **Data sources** table. Each report shows how many computers sent results in the last 7 days. A report marked **Not set up** isn't in Fleet yet, or its name doesn't match `dex-reports.yml`.
+9. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
 
 ## Share the dashboards on your own domain
 
@@ -234,7 +246,7 @@ Point an address on your domain, or a short link in your organization's link sho
 The routine can also write a copy of every page that works on any web server, and upload it to yours. Before you choose this, weigh what changes:
 
 - You own access control. The pages show computer names, which apps each person opens, and their AI tools, so put the site behind your single sign-on. Never make it public.
-- Features that need claude.ai don't work there. AI governance shows the inventory and risk findings, but not the policy decisions saved on the artifact, and nobody can change the policy or see its change log. Each viewer's theme choice stays in their browser only.
+- Features that need claude.ai don't work there. AI governance shows the inventory and risk findings, but not the policy decisions saved on the artifact, and nobody can change the policy or see its change log. Experience score uses the settings saved on the artifact as of the last run, and anyone can preview or download changes, but nobody can save them or see the change log. Each viewer's theme choice stays in their browser only.
 - The upload credential lives in the cloud environment, next to the Fleet token, so give it access to that one site and nothing else.
 
 To set it up:
@@ -336,7 +348,7 @@ When Fleet updates these scripts, or you change them:
 1. Run `git pull` in `fleet-dex`, and review what changed.
 2. Ask Claude Code to run `bundle.py` again, publish the new `dex-dashboards.json` to the Hardware lifecycle artifact as `src/dex-dashboards.json`, and replace the hash in the routine's prompt with the new one.
 3. If `routine-prompt.md` changed, ask Claude Code to fill it in again with your artifact URLs, the new hash, and your failure block, and to replace the routine's prompt with it.
-4. If the update adds a dashboard, also ask Claude Code to publish it from its placeholder page with `empty-history.json` as `data/history.json`, and to update the routine's prompt from the new `routine-prompt.md`. The routine stops when some dashboards have history and others don't, so the new one needs an empty history file to start from. The overview is the exception: it keeps no history, so publish it from `placeholder-overview.html` without one.
+4. If the update adds a dashboard, also ask Claude Code to publish it from its placeholder page with `empty-history.json` as `data/history.json` and the capabilities the setup prompt in step 5 gives it, and to update the routine's prompt from the new `routine-prompt.md`, adding any tool the new prompt uses that the routine doesn't have yet, such as ArtifactData. The routine stops when some dashboards have history and others don't, so the new one needs an empty history file to start from. The overview is the exception: it keeps no history, so publish it from `placeholder-overview.html` without one.
 
 The history files stay where they are, so the dashboards keep their history.
 
@@ -353,4 +365,4 @@ The history files stay where they are, so the dashboards keep their history.
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-11-20">
 <meta name="category" value="guides">
-<meta name="description" value="Build eight daily DEX dashboards from Fleet data with a Claude Code routine, from hardware lifecycle and patching to AI governance and policies.">
+<meta name="description" value="Build nine daily DEX dashboards from Fleet data with a Claude Code routine, from hardware lifecycle and patching to AI governance and policies.">
