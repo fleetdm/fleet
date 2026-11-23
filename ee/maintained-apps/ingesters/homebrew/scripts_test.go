@@ -1118,7 +1118,7 @@ func TestWezTermScriptsQuitWithSIGTERM(t *testing.T) {
 		require.True(t, strings.HasSuffix(script, tail))
 		return script[:i+len(quitCall)] + marker + tail
 	}
-	install = cut(install, "\nquit_and_track_wezterm || exit 1\n", "echo 'Installing WezTerm.'\n", "\nrelaunch_application 'com.github.wez.wezterm'\n")
+	install = cut(install, "\nquit_and_track_wezterm || exit 1\n", "echo 'Installing WezTerm.'\n", "\nrelaunch_application 'com.github.wez.wezterm' \"$APPDIR/WezTerm.app\"\n")
 	uninstall = cut(uninstall, "\nquit_wezterm || exit 1\n", "echo 'Removing WezTerm.'\n", "")
 
 	type result struct {
@@ -1216,7 +1216,7 @@ kill() {
 		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
 		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' quit successfully.")
 		require.Contains(t, r.out, "Installing WezTerm.")
-		require.Equal(t, "-b com.github.wez.wezterm\n", r.opened)
+		require.Equal(t, "/Applications//WezTerm.app\n", r.opened)
 	})
 
 	t.Run("install stops when it won't quit", func(t *testing.T) {

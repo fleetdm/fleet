@@ -123,6 +123,7 @@ quit_and_track_application() {
 
 relaunch_application() {
   local bundle_id="$1"
+  local app_path="$2"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
@@ -146,20 +147,34 @@ relaunch_application() {
   # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
   # and GUI session — 'sudo -u' alone doesn't do this, which can cause
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
-  local open_status=0
-  if [[ $EUID -eq 0 ]]; then
-    local console_uid
-    console_uid=$(id -u "$console_user")
-    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  else
-    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  fi
+  local open_args=(-b "$bundle_id")
+  [[ -z "$app_path" ]] || open_args=("$app_path")
+  local timeout_duration=30
+  local attempt=0 delay=2 open_status open_output
+  SECONDS=0
+  while true; do
+    attempt=$((attempt + 1))
+    open_status=0
+    if [[ $EUID -eq 0 ]]; then
+      local console_uid
+      console_uid=$(id -u "$console_user")
+      open_output=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" open "${open_args[@]}" 2>&1) || open_status=$?
+    else
+      open_output=$(open "${open_args[@]}" 2>&1) || open_status=$?
+    fi
 
-  if [[ $open_status -eq 0 ]]; then
-    echo "Application '$bundle_id' relaunched successfully."
-  else
-    echo "Failed to relaunch application '$bundle_id'."
-  fi
+    if [[ $open_status -eq 0 ]]; then
+      echo "Application '$bundle_id' relaunched successfully."
+      return
+    fi
+    echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
+    # Back off 2, 4, 8, then 10 seconds, stopping before the budget is spent
+    # rather than after, so a failing relaunch never runs past it.
+    (( SECONDS + delay <= timeout_duration )) || break
+    sleep "$delay"
+    delay=$(( delay * 2 > 10 ? 10 : delay * 2 ))
+  done
+  echo "Failed to relaunch application '$bundle_id'."
 }
 
 
@@ -204,4 +219,4 @@ if ! sudo cp -R "$TMPDIR/Webex.app" "$APPDIR"; then
 	exit 1
 fi
 remove_stale_upgrade_bundles
-relaunch_application 'Cisco-Systems.Spark'
+relaunch_application 'Cisco-Systems.Spark' "$APPDIR/Webex.app"
