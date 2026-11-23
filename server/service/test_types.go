@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -290,13 +291,33 @@ type immediatePolicyMembershipCleanup struct {
 }
 
 // RegisterImmediatePolicyMembershipCleanup makes triggers of the policy_membership_cleanup schedule run the cleanup
-// immediately. A mocked datastore is skipped, since it only implements what a test sets.
+// immediately. A mocked datastore is skipped, since it only implements what a test sets, including one wrapped in the
+// cached datastore, as fleetctl tests do.
 func RegisterImmediatePolicyMembershipCleanup(schedules *fleet.CronSchedules, ds fleet.Datastore) {
-	switch ds.(type) {
+	switch unwrapDatastore(ds).(type) {
 	case *fleet_mock.Store, *fleet_mock.DataStore:
 		return
 	}
 	schedules.Schedules[string(fleet.CronPolicyMembershipCleanup)] = immediatePolicyMembershipCleanup{ds: ds}
+}
+
+// unwrapDatastore returns the datastore that ds wraps through an embedded fleet.Datastore, as the cached datastore does.
+func unwrapDatastore(ds fleet.Datastore) fleet.Datastore {
+	for {
+		v := reflect.ValueOf(ds)
+		if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
+			return ds
+		}
+		field, ok := v.Elem().Type().FieldByName("Datastore")
+		if !ok || !field.Anonymous {
+			return ds
+		}
+		inner, ok := v.Elem().FieldByIndex(field.Index).Interface().(fleet.Datastore)
+		if !ok || inner == nil {
+			return ds
+		}
+		ds = inner
+	}
 }
 
 func (c immediatePolicyMembershipCleanup) Trigger(ctx context.Context) (*fleet.CronStats, bool, error) {
