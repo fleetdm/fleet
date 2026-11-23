@@ -392,5 +392,8 @@ func TestValidatePolicyReportNameLength(t *testing.T) {
 
 	err := ValidatePolicyReportNameLength("policy", strings.Repeat("é", 256))
 	require.NotNil(t, err)
-	require.Equal(t, `policy "`+strings.Repeat("é", 40)+`..." name may not exceed 255 characters`, err.Invalid()[0]["reason"])
+	require.Equal(t, []map[string]string{{
+		"name":   "name",
+		"reason": `policy "` + strings.Repeat("é", 40) + `..." name may not exceed 255 characters`,
+	}}, err.Invalid())
 }
