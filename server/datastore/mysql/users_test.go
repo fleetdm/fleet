@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +37,8 @@ func TestUsers(t *testing.T) {
 		{"CreateWithTeams", testUsersCreateWithTeams},
 		{"SaveMany", testUsersSaveMany},
 		{"ExternalIdentities", testUsersExternalIdentities},
+		{"ExternalIdentitiesExactMatch", testUsersExternalIdentitiesExactMatch},
+		{"ExternalIdentitiesConcurrent", testUsersExternalIdentitiesConcurrent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -562,4 +565,65 @@ func testUsersExternalIdentities(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteUser(ctx, u1.ID))
 	_, err = ds.UserByExternalIdentity(ctx, "gh", "a")
 	require.True(t, fleet.IsNotFound(err), err)
+}
+
+// Concurrent replaces for one user are serialized: none reports a conflict with
+// itself, and exactly one reports each identity as added.
+func testUsersExternalIdentitiesConcurrent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "u1", "u1@example.com", false)
+	ids := []fleet.ExternalIdentity{{Issuer: "gh", Subject: "a"}, {Issuer: "gh", Subject: "b"}}
+
+	const n = 8
+	var wg sync.WaitGroup
+	addedCounts := make([]int, n)
+	errs := make([]error, n)
+	for i := range n {
+		wg.Go(func() {
+			added, _, err := ds.SetUserExternalIdentities(ctx, u.ID, ids)
+			addedCounts[i], errs[i] = len(added), err
+		})
+	}
+	wg.Wait()
+
+	total := 0
+	for i := range n {
+		require.NoError(t, errs[i])
+		total += addedCounts[i]
+	}
+	assert.Equal(t, len(ids), total)
+	got, err := ds.ListUserExternalIdentities(ctx, u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ids, got)
+}
+
+// OIDC subjects are case-sensitive opaque strings: a lookalike must never match a binding.
+func testUsersExternalIdentitiesExactMatch(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u1 := test.NewUser(t, ds, "u1", "u1@example.com", false)
+	u2 := test.NewUser(t, ds, "u2", "u2@example.com", false)
+	sub := "repo:acme/infra:ref:refs/heads/main"
+	_, _, err := ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{{Issuer: "github", Subject: sub}})
+	require.NoError(t, err)
+
+	for _, lookalike := range []string{
+		"repo:acme/infra:ref:refs/heads/MAIN",
+		"repo:acme/infra:ref:refs/heads/maín",
+		"repo:acme/infra:ref:refs/heads/main ",
+		"REPO:ACME/INFRA:REF:REFS/HEADS/MAIN",
+	} {
+		_, err := ds.UserByExternalIdentity(ctx, "github", lookalike)
+		require.True(t, fleet.IsNotFound(err), "lookalike %q must not resolve: %v", lookalike, err)
+	}
+	_, err = ds.UserByExternalIdentity(ctx, "GITHUB", sub)
+	require.True(t, fleet.IsNotFound(err), "issuer name must match exactly")
+
+	// Case variants are distinct identities and can be bound to different users.
+	_, _, err = ds.SetUserExternalIdentities(ctx, u2.ID, []fleet.ExternalIdentity{
+		{Issuer: "github", Subject: "repo:acme/infra:ref:refs/heads/MAIN"},
+	})
+	require.NoError(t, err)
+	got, err := ds.UserByExternalIdentity(ctx, "github", sub)
+	require.NoError(t, err)
+	require.Equal(t, u1.ID, got.ID)
 }

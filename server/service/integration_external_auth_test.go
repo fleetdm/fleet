@@ -173,6 +173,11 @@ func (s *integrationExternalAuthTestSuite) TestExternalJWTAuth() {
 	require.True(t, found, "created_label activity not found")
 
 	// Unbound subjects, wrong audiences and other issuers are rejected.
+	// Subjects match byte-for-byte: a branch named MAIN or maín is not main.
+	for _, lookalike := range []string{"repo:acme/posture:ref:refs/heads/MAIN", "repo:acme/posture:ref:refs/heads/maín", "repo:acme/posture:ref:refs/heads/main "} {
+		s.token = jwtFor(lookalike)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusUnauthorized)
+	}
 	s.token = jwtFor("not-bound")
 	s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusUnauthorized)
 	s.token = s.issuer.Token(t, "repo:acme/posture:ref:refs/heads/main", "some-other-app", 5*time.Minute)
