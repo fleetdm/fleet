@@ -141,6 +141,8 @@ func TestMaybeSendStatistics(t *testing.T) {
 			FleetDesktopSSOEnabled:            true,
 			NumHostsFleetMDMEnrolledMacOS:     12,
 			NumHostsFleetMDMEnrolledWindows:   34,
+			NumHostsFleetMDMEnrolledIOS:       56,
+			NumHostsFleetMDMEnrolledIpadOS:    78,
 			ResultLogDestination:              "firehose",
 			StatusLogDestination:              "filesystem",
 			AuditLogDestination:               "kinesis",
