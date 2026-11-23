@@ -782,22 +782,6 @@ module.exports = {
                     }
                   }
                 }
-                // If this is a webinar article, we'll check to make sure it has a webinarEmbeddedVideoUrl meta tag.
-                if(embeddedMetadata.category === 'webinar') {
-                  if(!embeddedMetadata.webinarEmbeddedVideoUrl){
-                    throw new Error(`Failed compiling markdown content: A webinar article is missing a 'webinarEmbeddedVideoUrl' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a webinarEmbeddedVideoUrl meta tag with a value that is the URL of the webinar this article is presenting, and try running this script again.`);
-                  } else {
-                    let parsedVideoUrl;
-                    try {
-                      parsedVideoUrl = new URL(embeddedMetadata.webinarEmbeddedVideoUrl);
-                    } catch(err) {
-                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings. Full error: ${util.inspect(err)}`);
-                    }
-                    if(parsedVideoUrl.search) {
-                      throw new Error(`Failed compiling markdown content: A webinar article has a "webinarEmbeddedVideoUrl" value that contains query strings (${parsedVideoUrl.search}) at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, remove the query strings from this value and try running this script again. `);
-                    }
-                  }
-                }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
                   if(!embeddedMetadata.articleSlugInCategory){

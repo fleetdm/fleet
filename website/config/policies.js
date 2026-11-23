@@ -81,7 +81,6 @@ module.exports.policies = {
   'deliver-whitepaper-download-request': true,
   'deliver-partner-registration-submission': true,
   'view-partners': true,
-  'deliver-webinar-access-request': true,
   'view-download': true,
   'view-endpoint-governance': true,
   'view-security-and-control': true,

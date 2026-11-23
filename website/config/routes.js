@@ -687,16 +687,7 @@ module.exports.routes = {
   'GET /webinars/:slug': {
     action: 'articles/view-basic-webinar',
     locals: {
-      displayVideo: false,
-    }
-  },
-
-  'GET /webinars/:slug/watch': {
-    action: 'articles/view-basic-webinar',
-    locals: {
-      displayVideo: true,
-      disableChatbotAndIndexing: true,
-      hideFooterLinks: true,
+      currentSection: 'more'
     }
   },
 
@@ -1186,7 +1177,6 @@ module.exports.routes = {
   'GET /guides/macos-mdm-setup': '/guides/apple-mdm-setup',
   'GET /guides/macos-setup-experience': '/guides/setup-experience',
   'GET /guides/install-vpp-apps-on-macos-using-fleet': '/guides/install-app-store-apps',
-
   'GET /articles/fleet-management-software': '/compare/jamf-vs-intune-vs-fleet',
   'GET /articles/mdm-providers-compared': '/compare/workspace-one-vs-fleet',
   'GET /articles/fleet-vs-jamf-pro-ninjaone-mdm-comparison': '/compare/jamf-vs-ninjaone-vs-fleet',
@@ -1195,6 +1185,9 @@ module.exports.routes = {
   'GET /compare/fleet-vs-jamf-vs-intune': '/compare/jamf-vs-intune-vs-fleet',
   'GET /articles/fleet-vs-jamf-vs-iru-mdm-comparison': '/compare/jamf-vs-iru-vs-fleet',
   'GET /articles/fleet-vs-jamf-vs-iru-kandji-mdm-comparison': '/compare/jamf-vs-iru-vs-fleet',
+  'GET /webinars/device-management-that-actually-works-for-it/watch': '/webinars/device-management-that-actually-works-for-it',
+  'GET /webinars/beyond-the-hype-practical-ai-for-device-management/watch': '/webinars/beyond-the-hype-practical-ai-for-device-management',
+  'GET /webinars/the-trust-gap-in-endpoint-management/watch': '/webinars/the-trust-gap-in-endpoint-management',
 
   // Software catalog redirects
   'GET /software-catalog/abstract': '/software-catalog/abstract-darwin',
@@ -1692,7 +1685,6 @@ module.exports.routes = {
   'POST /api/v1/admin/grant-superadmin': { action: 'admin/grant-superadmin' },
   'POST /api/v1/admin/revoke-superadmin': { action: 'admin/revoke-superadmin' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
-  'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
   'POST /api/v1/admin/deliver-newsletter-emails': { action: 'admin/deliver-newsletter-emails' },
 
