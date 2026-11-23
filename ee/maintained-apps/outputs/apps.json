@@ -975,6 +975,13 @@
       "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
     },
     {
+      "name": "Bambu Studio",
+      "slug": "bambu-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Bambu Studio",
+      "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
       "name": "BandiView",
       "slug": "bandiview/windows",
       "platform": "windows",
