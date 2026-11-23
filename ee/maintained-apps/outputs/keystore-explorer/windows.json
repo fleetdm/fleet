@@ -10,7 +10,7 @@
       "installer_url": "https://github.com/kaikramer/keystore-explorer/releases/download/v5.7.1/kse-571-setup.exe",
       "install_script_ref": "e5e5d9ff",
       "uninstall_script_ref": "2470a3d3",
-      "sha256": "4b970b86965c88d191bbdd1b04a0ac0591f32043a66d95045b24f9829b24412a",
+      "sha256": "fd1313696debd534a9176c2ff0ff147f1219765f6acfe56c00f06215e925c807",
       "default_categories": [
         "Productivity"
       ]
