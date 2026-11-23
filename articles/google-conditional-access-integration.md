@@ -217,7 +217,7 @@ Removing the ID resets the host:
 - An iPhone or iPad signs in again the next time the end user opens **Self-service**.
 - A company-owned Android host that's still enrolled is registered again within minutes. To keep it unmarked, unenroll it.
 
-To remove a device from Google, delete the host in Fleet, not in the Google Admin console. Fleet doesn't check devices that are already marked, so if you delete a device in the Google Admin console, **Host details** keeps the old Google device ID and the host doesn't register again on its own. To register it again, remove its Google device ID.
+To remove a device, delete the host in Fleet. If you already deleted the device in the Google Admin console, you can still delete the host in Fleet afterward. Fleet doesn't check devices that are already marked, so until you do, **Host details** keeps the old Google device ID. To keep the host in Fleet and register it again instead, remove its Google device ID.
 
 ## Disable
 
