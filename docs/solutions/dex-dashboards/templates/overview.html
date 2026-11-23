@@ -129,7 +129,7 @@ const CARDS = [
     key: (r, rows) => sumSince(rows, "kwh", 7), keyFmt: kwhFmt, unit: () => "kWh, Macs",
     rows: (r, rows) => [[`Carbon, ${windowLabel("sustainability", 7)}`, offMac() ? "---" : kgFmt(sumSince(rows, "co2", 7))],
       ["Haven't slept", fmt.n(r.never_slept), r.never_slept], ["Sleep turned off", fmt.n(r.sleep_off)]] },
-  { page: "experience", title: "Experience", pair: true,
+  { page: "experience", title: "Experience score", pair: true,
     about: "One score from 0 to 100 for each computer, from the other dashboards, weighted the way your admins choose.",
     label: () => "Average experience score", spark: (r) => (r.scored ? r.score10 / r.scored / 10 : NaN), yMax: 100,
     keyFmt: (x) => (Number.isFinite(x) ? String(Math.round(x)) : "---"),

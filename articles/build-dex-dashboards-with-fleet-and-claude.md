@@ -219,11 +219,11 @@ Each computer's score is a weighted average of its category scores (performance,
 
 To change the scoring, open the Experience score dashboard and select **Scoring settings**. You can change each category's and signal's weight, the points each value earns, what happens when a computer doesn't report a signal, the grades, the score that counts as a good experience, how many days without a check-in before a computer isn't scored, and whether the page shows individual computers. Changes preview on the page right away and apply to every day in its history. Only people who can edit the dashboard can save them, and each save is logged.
 
-The overview's Experience card picks up saved settings on the routine's next run. Select **Download settings** to keep a copy of the settings as JSON.
+The overview's Experience score card picks up saved settings on the routine's next run. Select **Download settings** to keep a copy of the settings as JSON.
 
 ## Verify
 
-1. Open the overview. Each card shows today's numbers and opens its dashboard in the same tab. Each dashboard shows today's date next to **Updated**, and the tabs across the top of every page open the overview and the other dashboards.
+1. Open the overview. Each card shows today's numbers and opens its dashboard in the same tab. Each dashboard shows today's date next to **Updated**, and the tabs across the top of every page open the overview and the other dashboards. Some tabs use a short name, such as **Experience** for Experience score and **Patching** for Patch velocity.
 2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead. Under **macOS updates waiting to install**, updates that were already queued on the first run show a "+" after their waiting time, since the page can't tell when they were queued.
 3. Under **Over time**, each chart says "Not enough history yet," and the overview's cards say the trend starts after a second day. The charts fill in after the second daily run.
 4. On AI governance, pick a posture under **AI policy**. The change log shows your name and the time. People who can only view the dashboard see the policy but can't change it.

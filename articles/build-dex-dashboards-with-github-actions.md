@@ -154,7 +154,7 @@ The dashboards keep all their history, since it lives in the files. You lose the
 
 ## Verify
 
-1. Open the site. The overview shows each dashboard's numbers for today. Click any card, or any tab in the bar across the top, to open that dashboard in the same tab.
+1. Open the site. The overview shows each dashboard's numbers for today. Click any card, or any tab in the bar across the top, to open that dashboard in the same tab. Some tabs use a short name, such as **Experience** for Experience score and **Patching** for Patch velocity.
 2. Check that each dashboard shows today's date next to **Updated**.
 3. Open the `dex-data` branch. It has a `history` folder with one folder per dashboard.
 4. Open the site in a private browser window. GitHub should ask you to sign in before it shows the page. If it doesn't, the site is public: turn off GitHub Pages under **Settings > Pages** until you fix its visibility.
