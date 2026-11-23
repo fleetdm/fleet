@@ -1691,7 +1691,6 @@ module.exports.routes = {
   'POST /api/v1/admin/grant-superadmin': { action: 'admin/grant-superadmin' },
   'POST /api/v1/admin/revoke-superadmin': { action: 'admin/revoke-superadmin' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
-  'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
   'POST /api/v1/admin/deliver-newsletter-emails': { action: 'admin/deliver-newsletter-emails' },
 
