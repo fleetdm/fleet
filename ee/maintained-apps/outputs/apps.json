@@ -8122,13 +8122,6 @@
       "description": "SideNotes is an app for note-taking application."
     },
     {
-      "name": "SigmaOS",
-      "slug": "sigmaos/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.sigmaos.sigmaos.macos",
-      "description": "SigmaOS is a web browser."
-    },
-    {
       "name": "Signal",
       "slug": "signal/darwin",
       "platform": "darwin",

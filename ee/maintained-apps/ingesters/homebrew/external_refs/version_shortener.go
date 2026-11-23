@@ -78,7 +78,6 @@ var (
 	ChromeRemoteDesktopHostVersionShortener = makeVersionShortener(3) // "157.0.8103.38" → "157.0.8103"
 	MalwarebytesVersionShortener            = makeVersionShortener(3) // "5.29.2.4310" → "5.29.2"
 	PlexMediaServerVersionShortener         = makeVersionShortener(3) // "1.43.5.11079" → "1.43.5"
-	SigmaOSVersionShortener                 = makeVersionShortener(3) // "1.19.0.4" → "1.19.0"
 )
 
 // makeTrailingZeroTrimmer returns a manifest enricher that drops trailing ".0"

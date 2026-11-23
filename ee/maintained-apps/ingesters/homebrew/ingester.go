@@ -421,7 +421,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	}
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
-		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
+		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server",
 		"axure-rp", "gotomeeting", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "redcine-x-pro":
 		// CFBundleVersion carries the full cask version, but CFBundleShortVersionString
 		// drops part of it ("26.3" for cask "26.3.5", "0.99" for JASP's "0.99.0.0",

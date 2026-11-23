@@ -830,7 +830,6 @@ func TestBundleVersionPatchedQueryUsesCaskVersion(t *testing.T) {
 		wantVersion string
 		wantPatched string
 	}{
-		{"sigmaos", "com.sigmaos.sigmaos.macos", "1.19.0.4", "1.19.0", "1.19.0.4"},
 		{"malwarebytes", "com.malwarebytes.mbam.frontend.application", "5.29.2.4310", "5.29.2", "5.29.2.4310"},
 		{"plex-media-server", "com.plexapp.plexmediaserver", "1.43.5.11079,b3b13e506", "1.43.5", "1.43.5.11079"},
 		{"axure-rp", "com.axure.AxureRP11", "11.0.0.4150", "11.0.0.4150", "11.0.0.4150"},
