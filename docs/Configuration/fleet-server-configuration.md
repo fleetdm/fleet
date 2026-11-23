@@ -388,7 +388,7 @@ Whether or not to duplicate results to another Redis channel named `LQDuplicate`
 
 Timeout for redis connection.
 
-- Default value: 5s
+- Default value: `5s`
 - Environment variable: `FLEET_REDIS_CONNECT_TIMEOUT`
 - Config file format:
   ```yaml
@@ -400,7 +400,7 @@ Timeout for redis connection.
 
 The interval between keep-alive probes.
 
-- Default value: 10s
+- Default value: `10s`
 - Environment variable: `FLEET_REDIS_KEEP_ALIVE`
 - Config file format:
   ```yaml
@@ -503,7 +503,7 @@ The server name or IP address used by the client certificate.
 
 The timeout for the Redis TLS handshake part of the connection. A value of 0 means no timeout.
 
-- Default value: 10s
+- Default value: `10s`
 - Environment variable: `FLEET_REDIS_TLS_HANDSHAKE_TIMEOUT`
 - Config file format:
   ```yaml
@@ -551,7 +551,7 @@ The maximum time a Redis connection may be reused. A value of 0 means no limit.
 
 The maximum time a Redis connection may stay idle. A value of 0 means no limit.
 
-- Default value: 240s
+- Default value: `4m`
 - Environment variable: `FLEET_REDIS_IDLE_TIMEOUT`
 - Config file format:
   ```yaml
@@ -577,7 +577,7 @@ limit is reached. A value of 0 means no wait.
 The maximum time to wait to receive a response from a Redis server.
 A value of 0 means no timeout.
 
-- Default value: 10s
+- Default value: `10s`
 - Environment variable: `FLEET_REDIS_READ_TIMEOUT`
 - Config file format:
   ```yaml
@@ -590,7 +590,7 @@ A value of 0 means no timeout.
 The maximum time to wait to send a command to a Redis server.
 A value of 0 means no timeout.
 
-- Default value: 10s
+- Default value: `10s`
 - Environment variable: `FLEET_REDIS_WRITE_TIMEOUT`
 - Config file format:
   ```yaml
@@ -619,7 +619,7 @@ Base TTL for entries in the Redis-backed host lookup cache. Each entry's actual 
 by ±10% to avoid synchronized expiry waves. Must be greater than 0 when `redis_host_cache_enabled`
 is true; to disable the cache, set `redis_host_cache_enabled=false` instead of zeroing this value.
 
-- Default value: 60s
+- Default value: `1m`
 - Environment variable: `FLEET_REDIS_HOST_CACHE_TTL`
 - Config file format:
   ```yaml
@@ -951,7 +951,7 @@ This is only supported as an environment variable.
 
 Minimum time since a script run recorded its result before Fleet's hourly cleanup deletes it. Runs still waiting on a host are kept, as are runs a host lock, wipe, unlock, setup experience, software uninstall, or batch run depends on. Set to 0 to disable the cleanup.
 
-- Default value: 720h
+- Default value: `720h` (30 days)
 - Environment variable: `FLEET_SERVER_SCRIPT_RESULTS_RETENTION`
 - Config file format:
   ```yaml
@@ -963,7 +963,7 @@ Minimum time since a script run recorded its result before Fleet's hourly cleanu
 
 Minimum time since a software install or uninstall finished before Fleet's hourly cleanup deletes its record. Records a host is still working on are kept, as are records setup experience depends on and the most recent install and uninstall per host and package. Set to 0 to disable the cleanup.
 
-- Default value: 720h
+- Default value: `720h` (30 days)
 - Environment variable: `FLEET_SERVER_SOFTWARE_INSTALL_RESULTS_RETENTION`
 - Config file format:
   ```yaml
@@ -975,7 +975,7 @@ Minimum time since a software install or uninstall finished before Fleet's hourl
 
 Minimum time since a certificate was removed from a host before Fleet's hourly cleanup permanently deletes Fleet's record of it. Certificates still on a host are never deleted. Set to 0 to disable the cleanup.
 
-- Default value: 720h
+- Default value: `720h` (30 days)
 - Environment variable: `FLEET_SERVER_DELETED_HOST_CERTIFICATES_RETENTION`
 - Config file format:
   ```yaml
@@ -1310,7 +1310,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Sets the in
 
 It can be set to a single duration value (e.g., "30s"), which defines the interval for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=10s&policy_membership=1m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
 
-- Default value: 30s
+- Default value: `30s`
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
 - Config file format:
   ```yaml
@@ -1336,7 +1336,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of 
 
 It can be set to a single duration value (e.g., "1m"), which defines the lock timeout for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=2m&policy_membership=5m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
 
-- Default value: 1m
+- Default value: `1m`
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
 - Config file format:
   ```yaml
@@ -1348,7 +1348,7 @@ It can be set to a single duration value (e.g., "1m"), which defines the lock ti
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Interval at which the host collection statistics are logged, 0 to disable logging of statistics. Note that logging is done at the "debug" level.
 
-- Default value: 1m
+- Default value: `1m`
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOG_STATS_INTERVAL`
 - Config file format:
   ```yaml
@@ -1420,7 +1420,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
 
 The minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
 
-- Default value: 1h
+- Default value: `1h`
 - Environment variable: `FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`
 - Config file format:
   ```yaml
@@ -1642,7 +1642,7 @@ The amount of time to keep an error. Unique instances of errors are stored tempo
 with troubleshooting, this setting controls that duration. Set to 0 to keep them without expiration,
 and a negative value to disable storage of errors in Redis.
 
-- Default value: 24h
+- Default value: `24h` (1 day)
 - Environment variable: `FLEET_LOGGING_ERROR_RETENTION_PERIOD`
 - Config file format:
   ```yaml
@@ -2680,7 +2680,7 @@ This flag only has effect if one of the following is true:
 
 Timeout for NATS publish operations.
 
-- Default value: 30s
+- Default value: `30s`
 - Environment variable: `FLEET_NATS_TIMEOUT`
 - Config file format:
   ```yaml
@@ -3912,7 +3912,7 @@ In a future major release, the default will change to `false`.
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business (AB) is configured.
 
-- Default value: 1m
+- Default value: `1m`
 - Environment variable: `FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY`
 - Config file format:
   ```yaml
@@ -3928,7 +3928,7 @@ Fleet only deletes a command after the host responds with a final status (`Ackno
 
 Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
 
-- Default value: 24h
+- Default value: `24h` (1 day)
 - Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
 - Config file format:
   ```yaml
@@ -3944,7 +3944,7 @@ Fleet never deletes commands it needs to determine a host's state, such as `Devi
 
 Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
 
-- Default value: 720h (30 days)
+- Default value: `720h` (30 days)
 - Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
 - Config file format:
   ```yaml
@@ -4016,7 +4016,7 @@ The minimum time since Windows MDM command history was recorded, or last updated
 
 Two things are kept regardless of age: commands still queued for a device that hasn't acknowledged them, and the wipe command a host's wiped status depends on. Set it to `0` to disable the cleanup.
 
-- Default value: 720h (30 days)
+- Default value: `720h` (30 days)
 - Environment variable: `FLEET_MDM_WINDOWS_COMMAND_RETENTION`
 - Config file format:
   ```yaml
@@ -4032,7 +4032,7 @@ Fleet only deletes a command after the host responds with a final status (`Ackno
 
 Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
 
-- Default value: 24h
+- Default value: `24h` (1 day)
 - Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
 - Config file format:
   ```yaml
@@ -4048,7 +4048,7 @@ Fleet never deletes commands it needs to determine a host's state, such as `Devi
 
 Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
 
-- Default value: 720h (30 days)
+- Default value: `720h` (30 days)
 - Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
 - Config file format:
   ```yaml
@@ -4088,7 +4088,7 @@ How long Fleet keeps a Windows MDM enrollment that is orphaned or superseded bef
 
 Enrollments are kept after a host is deleted so that a device that's still online relinks to a new host record when fleetd re-enrolls it. If you use host expiry, a device that stays offline for longer than the expiry window plus this value has to be unenrolled and re-enrolled manually. Set it to `0` to disable the cleanup.
 
-- Default value: 720h (30 days)
+- Default value: `720h` (30 days)
 - Environment variable: `FLEET_MDM_WINDOWS_ENROLLMENT_RETENTION`
 - Config file format:
   ```yaml
