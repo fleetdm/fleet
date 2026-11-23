@@ -105,7 +105,7 @@ type ModifyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) 
 
 type ModifyAPIOnlyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
 
-type ListAPIOnlyUserExternalIdentitiesFunc func(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, error)
+type ListAPIOnlyUserExternalIdentitiesFunc func(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, []string, error)
 
 type SetAPIOnlyUserExternalIdentitiesFunc func(ctx context.Context, userID uint, ids []fleet.ExternalIdentity) ([]fleet.ExternalIdentity, error)
 
@@ -2774,7 +2774,7 @@ func (s *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.Us
 	return s.ModifyAPIOnlyUserFunc(ctx, userID, p)
 }
 
-func (s *Service) ListAPIOnlyUserExternalIdentities(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, error) {
+func (s *Service) ListAPIOnlyUserExternalIdentities(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, []string, error) {
 	s.mu.Lock()
 	s.ListAPIOnlyUserExternalIdentitiesFuncInvoked = true
 	s.mu.Unlock()

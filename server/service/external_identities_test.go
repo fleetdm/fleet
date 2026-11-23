@@ -59,7 +59,7 @@ func TestSetAPIOnlyUserExternalIdentities(t *testing.T) {
 		_, err := svc.SetAPIOnlyUserExternalIdentities(as(maintainer), apiUser.ID, []fleet.ExternalIdentity{gh("a")})
 		var forbidden *authz.Forbidden
 		require.ErrorAs(t, err, &forbidden)
-		_, err = svc.ListAPIOnlyUserExternalIdentities(as(maintainer), apiUser.ID)
+		_, _, err = svc.ListAPIOnlyUserExternalIdentities(as(maintainer), apiUser.ID)
 		require.ErrorAs(t, err, &forbidden)
 		assert.False(t, ds.SetUserExternalIdentitiesFuncInvoked)
 	})

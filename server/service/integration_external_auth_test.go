@@ -81,6 +81,8 @@ func (s *integrationExternalAuthTestSuite) TestExternalIdentitiesManagement() {
 
 	s.DoJSON("GET", path, nil, http.StatusOK, &resp)
 	require.Len(t, resp.ExternalIdentities, 2)
+	// The UI offers these names when adding a binding.
+	require.Equal(t, []string{"github"}, resp.Issuers)
 
 	// A no-op PUT does not add activities.
 	before := s.lastActivityOfTypeMatches("added_user_external_identity", "", 0)
