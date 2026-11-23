@@ -3,7 +3,7 @@
 
 # Watch the Fleet Virtual Summit 2026
 
-Fleet hosted its first virtual summit on Tuesday, November 10, 2026. Four panels of IT and security practitioners talked about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streamed free on LinkedIn Live, and you can watch the sessions on demand.
+Fleet hosted its first virtual summit on Tuesday, November 10, 2026. Four panels of IT and security practitioners talked about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streamed free on LinkedIn Live, and you can watch the recording on YouTube.
 
 ## What to expect from the sessions
 
@@ -47,9 +47,6 @@ Engineering teams version-control production infrastructure, review changes in p
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Watch this session</a>
-
-
 ### Open source in enterprise device management
 
 Open source runs most enterprise infrastructure, but the tools that manage employee devices are still mostly closed. This panel covers why organizations choose auditable code and portable data, and how that choice plays out in procurement, security reviews, and vendor negotiations.
@@ -79,9 +76,6 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
   </tbody>
 </table>
 
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Watch this session</a>
-
-
 ### AI agents as a device management problem
 
 AI agents are showing up on employee devices faster than IT can inventory them. They read files, call APIs, and act with the permissions of whoever installed them. At the same time, AI-driven exploits are shrinking the time between disclosure and attack. This panel covers both sides of the problem.
@@ -107,9 +101,6 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
   </tbody>
 </table>
 
-
-
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Watch this session</a>
 
 
 ### Device management 2027
@@ -142,12 +133,9 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Watch this session</a>
-
-
 ## Watch the sessions
 
-All four panels are available on demand. [Watch the sessions on LinkedIn](https://www.linkedin.com/events/7518683538410459136), and [follow Fleet on LinkedIn](https://www.linkedin.com/company/fleetdm) to catch the next one.
+[Watch the full summit on YouTube](https://www.youtube.com/watch?v=-CA-vLlicUc). The four panels appear in the order listed above. [Follow Fleet on LinkedIn](https://www.linkedin.com/company/fleetdm) to catch the next one.
 
 
 <meta name="category" value="announcements">
@@ -156,4 +144,4 @@ All four panels are available on demand. [Watch the sessions on LinkedIn](https:
 <meta name="publishedOn" value="2026-10-02">
 <meta name="articleTitle" value="Watch the Fleet Virtual Summit 2026">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-2026-banner-600x313@2x.png">
-<meta name="description" value="Watch Fleet's first virtual summit on demand: four panels on GitOps, open source, AI agents, and device management in 2027.">
+<meta name="description" value="Watch Fleet's first virtual summit: four panels on GitOps, open source, AI agents, and device management in 2027.">
