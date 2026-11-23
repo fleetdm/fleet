@@ -89,7 +89,15 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		}
 		if externalauth.IsJWTShaped(string(sessionKey)) {
 			// Already rejected by SetRequestsContexts; it cannot be a session key.
-			return nil, fleet.NewAuthRequiredError("invalid token")
+			err := externalAuthRejection(ctx)
+			var rl *externalauth.RateLimitedError
+			if errors.As(err, &rl) {
+				// skipauth: nothing was accessed. Without this, authzcheck turns the 429 into a 403.
+				if ac, ok := authz.FromContext(ctx); ok {
+					ac.SetChecked()
+				}
+			}
+			return nil, err
 		}
 
 		v, err := AuthViewer(ctx, string(sessionKey), svc)

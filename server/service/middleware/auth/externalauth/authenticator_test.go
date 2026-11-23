@@ -457,7 +457,11 @@ func TestAuthViewerRateLimit(t *testing.T) {
 		require.NoError(t, err)
 	}
 	_, err = a.AuthViewer(t.Context(), tok, "192.0.2.1")
-	require.Error(t, err)
+	// Rate limiting is a 429, distinguishable from an invalid token.
+	var rl *RateLimitedError
+	require.ErrorAs(t, err, &rl)
+	require.Equal(t, http.StatusTooManyRequests, rl.StatusCode())
+	require.Positive(t, rl.RetryAfter())
 	require.Contains(t, logs.String(), "rate_limited")
 
 	// Buckets are per client IP.

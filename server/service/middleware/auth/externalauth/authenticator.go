@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -157,12 +158,13 @@ func (a *Authenticator) AuthViewer(ctx context.Context, token, clientIP string) 
 	rj := rejection{a: a, ctx: ctx, clientIP: clientIP}
 
 	if a.limiter != nil {
-		limited, _, err := a.limiter.RateLimit("external_jwt:"+clientIP, 1)
+		limited, res, err := a.limiter.RateLimit("external_jwt:"+clientIP, 1)
 		if err != nil {
 			return rj.reject("rate_limit_error", err)
 		}
 		if limited {
-			return rj.reject("rate_limited", nil)
+			_, _ = rj.reject("rate_limited", nil)
+			return nil, &RateLimitedError{RetryAfterSeconds: max(1, int(math.Ceil(res.RetryAfter.Seconds())))}
 		}
 	}
 
@@ -338,3 +340,16 @@ func FromContext(ctx context.Context) bool {
 	v, _ := ctx.Value(ctxKey{}).(bool)
 	return v
 }
+
+// RateLimitedError is returned when a client IP exceeds the JWT authentication rate.
+// It is a 429, so callers can tell throttling apart from an invalid token.
+type RateLimitedError struct {
+	RetryAfterSeconds int
+}
+
+func (e *RateLimitedError) Error() string {
+	return fmt.Sprintf("external jwt authentication rate limit exceeded, retry after: %ds", e.RetryAfterSeconds)
+}
+func (e *RateLimitedError) StatusCode() int     { return http.StatusTooManyRequests }
+func (e *RateLimitedError) RetryAfter() int     { return e.RetryAfterSeconds }
+func (e *RateLimitedError) IsClientError() bool { return true }

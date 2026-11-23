@@ -63,7 +63,12 @@ func SetRequestsContexts(svc fleet.Service, opts ...RequestContextOption) kithtt
 		bearer := token.FromHTTPRequest(r)
 		ctx = token.NewContext(ctx, bearer)
 		if bearer != "" {
-			if vctx, v, err := ViewerForBearer(ctx, r, string(bearer), svc, opts...); err == nil {
+			vctx, v, err := ViewerForBearer(ctx, r, string(bearer), svc, opts...)
+			if err != nil && externalauth.IsJWTShaped(string(bearer)) {
+				// Kept so AuthenticatedUser can return a 429 rather than a generic 401.
+				ctx = context.WithValue(ctx, externalAuthErrKey{}, err)
+			}
+			if err == nil {
 				ctx = viewer.NewContext(vctx, *v)
 				// Register viewer as error context provider for ctxerr enrichment
 				ctx = ctxerr.AddErrorContextProvider(ctx, v)
@@ -79,6 +84,17 @@ func SetRequestsContexts(svc fleet.Service, opts ...RequestContextOption) kithtt
 }
 
 var errNoExternalAuth = errors.New("external jwt authentication is not configured")
+
+type externalAuthErrKey struct{}
+
+// externalAuthRejection returns the error to report for a JWT that SetRequestsContexts rejected.
+func externalAuthRejection(ctx context.Context) error {
+	var rl *externalauth.RateLimitedError
+	if err, _ := ctx.Value(externalAuthErrKey{}).(error); errors.As(err, &rl) {
+		return rl
+	}
+	return fleet.NewAuthRequiredError("invalid token")
+}
 
 func SetRequestsContextMiddleware(svc fleet.Service, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

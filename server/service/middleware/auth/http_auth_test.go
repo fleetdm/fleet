@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth/externalauth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,11 +26,15 @@ type spyExternalAuth struct {
 	calls  int
 	viewer *viewer.Viewer
 	ip     string
+	err    error
 }
 
 func (s *spyExternalAuth) AuthViewer(_ context.Context, _, clientIP string) (*viewer.Viewer, error) {
 	s.calls++
 	s.ip = clientIP
+	if s.err != nil {
+		return nil, s.err
+	}
 	if s.viewer == nil {
 		return nil, errors.New("rejected")
 	}
@@ -124,6 +129,21 @@ func TestSetRequestsContextsExternalAuth(t *testing.T) {
 		var authErr *fleet.AuthRequiredError
 		require.ErrorAs(t, err, &authErr)
 		assert.Equal(t, 1, spy.calls)
+		assert.False(t, svc.GetSessionByKeyFuncInvoked)
+	})
+
+	t.Run("rate-limited JWT is a 429", func(t *testing.T) {
+		svc := sessionService()
+		spy := &spyExternalAuth{err: &externalauth.RateLimitedError{RetryAfterSeconds: 3}}
+		// Through authzcheck, as in Fleet's handler chain, which turns unchecked errors into 403s.
+		ctx := SetRequestsContexts(svc, WithExternalAuth(spy, clientIP))(t.Context(), requestWithBearer(jwtToken))
+		_, err := authzcheck.NewMiddleware().AuthzCheck()(AuthenticatedUser(svc, func(context.Context, any) (any, error) {
+			t.Fatal("endpoint must not run")
+			return nil, nil
+		}))(ctx, nil)
+		var coder interface{ StatusCode() int }
+		require.ErrorAs(t, err, &coder)
+		assert.Equal(t, http.StatusTooManyRequests, coder.StatusCode())
 		assert.False(t, svc.GetSessionByKeyFuncInvoked)
 	})
 
