@@ -284,7 +284,7 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 		// The removed reports by name path is DELETE-only, so other methods get a 405 rather than a 410 naming an endpoint that never existed.
 		s.Do("GET", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
 		s.Do("PATCH", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
-		
+
 		s.Do("GET", "/api/latest/fleet/queries/"+url.PathEscape(r.Name), nil, http.StatusGone)
 		s.Do("PUT", byIDPath(r.ID), nil, http.StatusMethodNotAllowed)
 		s.Do("GET", "/api/latest/fleet/reports/delete", nil, http.StatusMethodNotAllowed)
