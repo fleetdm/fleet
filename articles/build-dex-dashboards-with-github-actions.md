@@ -214,6 +214,7 @@ If you deleted the sparse copy, clone it again as in step 1. Commit the changes 
 
 - **AI governance policy decisions don't save.** The page shows the inventory and risk findings, but nobody can record a posture or decision, and there's no change log. Those need the artifact's shared store.
 - **AI governance has no report download.** The **Download report** button saves the report through the Claude artifact, so the site doesn't show it. **Copy as CSV** works the same as in the Claude version.
+- **Experience score settings don't save on the page.** Anyone can preview changes under **Scoring settings** and download them, but the page always starts from the settings in `DEX_SCORING_FILE`, or Fleet's defaults, and there's no change log. To change the scoring for everyone, commit a downloaded settings file and point `DEX_SCORING_FILE` at it (step 3).
 - **Theme choices stay in each browser.** Each viewer's Light, Dark, or System choice is saved in their browser only.
 - **One site per repository.** GitHub Pages serves one site from each repository. To build dashboards for more than one Fleet server, for example a test server and production, use one repository for each.
 
