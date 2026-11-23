@@ -1649,7 +1649,7 @@ None.
 - `""`: Google isn't configured. `customer_id` and `admin_email` are `""`.
 - `"pending"`: Fleet is connecting.
 - `"connected"`: Fleet marks hosts as managed in Google.
-- `"delegation_failed"`: Google refuses the service account. Fleet checks every 5 minutes, and `error_message` has Google's reason. Hosts that are already marked stay marked.
+- `"delegation_failed"`: Google refused the service account the last time Fleet marked or unmarked a host. Fleet checks again every 5 minutes, and `error_message` has Google's reason. Hosts that are already marked stay marked.
 - `"registration_failed"`: Fleet couldn't register with fleetdm.com. `error_message` has the reason.
 - `"deleted"`: A delete didn't finish. [Delete Google](#delete-google) again.
 
