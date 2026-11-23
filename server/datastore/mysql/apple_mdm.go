@@ -3558,17 +3558,31 @@ func sqlCaseMDMAppleStatus(cfg fleet.DiskEncryptionConfig) string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
 	var (
-		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
-		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
-		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
-		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		failed            = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending           = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying         = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified          = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install           = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+		filevault         = fmt.Sprintf("'%s'", mobileconfig.FleetFileVaultPayloadIdentifier)
+		reservedDeclNames = fmt.Sprintf("'%s', '%s', '%s'", fleetmdm.FleetMacOSUpdatesProfileName, fleetmdm.FleetIOSUpdatesProfileName, fleetmdm.FleetIPadOSUpdatesProfileName)
 	)
+	// Verified rows are the bulk of both tables, so instead of aggregating them in the status joins, each
+	// verified check is an index lookup on (status, host_uuid) that stops at the first match. CASE only
+	// reaches these for hosts with no failed/pending/verifying rows.
+	profVerified := `EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmapv WHERE hmapv.host_uuid = h.uuid
+			AND hmapv.status = ` + verified + ` AND hmapv.operation_type = ` + install + ` AND hmapv.profile_identifier != ` + filevault + `)`
+	fvVerified := `EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmapv WHERE hmapv.host_uuid = h.uuid
+			AND hmapv.status = ` + verified + ` AND hmapv.operation_type = ` + install + ` AND hmapv.profile_identifier = ` + filevault + `)`
+	declVerified := `EXISTS (SELECT 1 FROM host_mdm_apple_declarations hmadv WHERE hmadv.host_uuid = h.uuid
+			AND hmadv.status = ` + verified + ` AND hmadv.operation_type = ` + install + ` AND hmadv.declaration_name NOT IN (` + reservedDeclNames + `))`
+
 	fvConfirmed, fvNotConfirmed, fvUnknown := fileVaultVerificationPredicates(cfg)
 	// a delivered profile awaiting removal is pending, like removing enforcement
 	fvDeliveredPending := fvNotConfirmed
 	if cfg.MacOSFileVaultOff() {
 		fvDeliveredPending = `TRUE`
 	}
+	// The encryption predicates come before fvVerified so the lookup is skipped when they're false.
 	return `
 	CASE WHEN (prof_failed
 		OR decl_failed
@@ -3583,9 +3597,9 @@ func sqlCaseMDMAppleStatus(cfg fleet.DiskEncryptionConfig) string {
 		-- special case for filevault, it's pending if the profile is
 		-- pending OR the profile is delivered but encryption is not confirmed
 		OR(fv_pending
-			OR((fv_verifying
-				OR fv_verified)
-			AND ` + fvDeliveredPending + `))) THEN
+			OR(` + fvDeliveredPending + `
+			AND (fv_verifying
+				OR ` + fvVerified + `)))) THEN
 		` + pending + `
 	WHEN (prof_verifying
 		OR decl_verifying
@@ -3595,15 +3609,15 @@ func sqlCaseMDMAppleStatus(cfg fleet.DiskEncryptionConfig) string {
 		OR(fv_verifying
 			AND (` + fvUnknown + ` OR ` + fvConfirmed + `))
 		-- fv profile verified but encryption unknown
-		OR(fv_verified
-			AND ` + fvUnknown + `)) THEN
+		OR(` + fvUnknown + `
+			AND ` + fvVerified + `)) THEN
 		` + verifying + `
-	WHEN (prof_verified
-		OR decl_verified
+	WHEN (` + profVerified + `
+		OR ` + declVerified + `
 		OR rl_verified
 		OR dn_verified
-		OR(fv_verified
-			AND ` + fvConfirmed + `)) THEN
+		OR(` + fvConfirmed + `
+			AND ` + fvVerified + `)) THEN
 		` + verified + `
 	END
 `
@@ -3611,9 +3625,10 @@ func sqlCaseMDMAppleStatus(cfg fleet.DiskEncryptionConfig) string {
 
 // sqlJoinMDMAppleProfilesStatus returns a SQL snippet that can be used to join a table derived from
 // host_mdm_apple_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
-// it derives a boolean value for each status category. The value will be 1 if the host has any
-// profile in the given status category. Separate columns are used for status of the filevault profile
-// vs. all other profiles. The snippet assumes the hosts table to be aliased as 'h'.
+// it derives a boolean value for the failed, pending and verifying status categories. The value will be 1
+// if the host has any profile in the given status category. Separate columns are used for status of the
+// filevault profile vs. all other profiles. Only non-verified rows are read, via the status index; verified
+// is checked per host in sqlCaseMDMAppleStatus. The snippet assumes the hosts table to be aliased as 'h'.
 func sqlJoinMDMAppleProfilesStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
@@ -3621,7 +3636,6 @@ func sqlJoinMDMAppleProfilesStatus() string {
 		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
 		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
 		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
-		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
 		filevault = fmt.Sprintf("'%s'", mobileconfig.FleetFileVaultPayloadIdentifier)
 	)
@@ -3634,13 +3648,13 @@ func sqlJoinMDMAppleProfilesStatus() string {
 			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_pending,
 			MAX( IF(status = ` + failed + ` AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_failed,
 			MAX( IF(status = ` + verifying + ` AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verifying,
-			MAX( IF(status = ` + verified + `  AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verified,
 			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_pending,
 			MAX( IF(status = ` + failed + ` AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_failed,
-			MAX( IF(status = ` + verifying + ` AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verifying,
-			MAX( IF(status = ` + verified + `  AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verified
+			MAX( IF(status = ` + verifying + ` AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verifying
 		FROM
 			host_mdm_apple_profiles
+		WHERE
+			status IS NULL OR status IN (` + pending + `, ` + failed + `, ` + verifying + `)
 		GROUP BY
 			host_uuid) hmap ON h.uuid = hmap.host_uuid
 `
@@ -3707,8 +3721,10 @@ func sqlJoinDeviceNameStatus() string {
 
 // sqlJoinMDMAppleDeclarationsStatus returns a SQL snippet that can be used to join a table derived from
 // host_mdm_apple_declarations (grouped by host_uuid and status) and the hosts table. For each host_uuid,
-// it derives a boolean value for each status category. The value will be 1 if the host has any
-// declaration in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+// it derives a boolean value for the failed, pending and verifying status categories. The value will be 1
+// if the host has any declaration in the given status category. Only non-verified rows are read, via the
+// status index; verified is checked per host in sqlCaseMDMAppleStatus. The snippet assumes the hosts table
+// to be aliased as 'h'.
 func sqlJoinMDMAppleDeclarationsStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
@@ -3716,7 +3732,6 @@ func sqlJoinMDMAppleDeclarationsStatus() string {
 		failed            = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
 		pending           = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
 		verifying         = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
-		verified          = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 		install           = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
 		reservedDeclNames = fmt.Sprintf("'%s', '%s', '%s'", fleetmdm.FleetMacOSUpdatesProfileName, fleetmdm.FleetIOSUpdatesProfileName, fleetmdm.FleetIPadOSUpdatesProfileName)
 	)
@@ -3727,12 +3742,12 @@ func sqlJoinMDMAppleDeclarationsStatus() string {
 			host_uuid,
 			MAX( IF((status IS NULL OR status = ` + pending + `), 1, 0)) AS decl_pending,
 			MAX( IF(status = ` + failed + `, 1, 0)) AS decl_failed,
-			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + ` , 1, 0)) AS decl_verifying,
-			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + ` , 1, 0)) AS decl_verified
+			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + ` , 1, 0)) AS decl_verifying
 		FROM
 			host_mdm_apple_declarations
 		WHERE
 			declaration_name NOT IN(` + reservedDeclNames + `)
+			AND (status IS NULL OR status IN (` + pending + `, ` + failed + `, ` + verifying + `))
 		GROUP BY
 			host_uuid) hmad ON h.uuid = hmad.host_uuid
 `
