@@ -64,7 +64,9 @@ describe('profile generator endpoints over HTTP', function() {
     };
   });
 
-  after(function() {
+  after(async function() {
+    // Every request with the license key counts on a usage row for it.
+    await ProfileGeneratorLicenseUsage.destroy({ licenseKeyHash: crypto.createHash('sha256').update(premiumLicenseKey.split('.').slice(0, 2).join('.')).digest('hex') });
     sails.helpers.generateConfigurationProfile = originalGenerationHelper;
     sails.helpers.ai.prompt = originalPromptHelper;
     sails.config.custom.licenseKeyGeneratorPublicKey = originalLicensePublicKey;

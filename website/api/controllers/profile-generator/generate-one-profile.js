@@ -7,7 +7,7 @@ module.exports = {
   description: 'Generate a configuration profile from an IT admin\'s instructions, for a Fleet server.',
 
 
-  extendedDescription: 'Fleet Premium is not limited.  A Fleet Free registration is limited per UTC month, counting each request once it is sent to the AI service, and giving it back if the AI service never answers.',
+  extendedDescription: 'A Fleet Free registration and a Fleet Premium license are each limited per UTC month, counting each request once it is sent to the AI service, and giving it back if the AI service never answers.',
 
 
   inputs: {
@@ -53,7 +53,7 @@ module.exports = {
     },
 
     generationLimitReached: {
-      description: 'This Fleet server has reached its limit on profile generation for the month.',
+      description: 'This Fleet server\'s registration or license has reached its limit on profile generation for the month.',
       statusCode: 429,
     },
 
@@ -73,16 +73,14 @@ module.exports = {
       return 'unauthorized';
     });
 
-    let usage;
-    if(fleetServer.registration) {
-      usage = await sails.helpers.profileGenerator.countOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'profile' })
-      .intercept('limitReached', (err)=>{
-        return {generationLimitReached: {error: 'generationLimitReached', resetsAt: err.raw}};
-      });
-      sails.log.info(`Generating a configuration profile for Fleet Free registration ${fleetServer.registration.id} (${usage.profileGenerationsThisMonth} of ${sails.config.custom.profileGeneratorMonthlyProfileLimit} this month).`);
-    } else {
-      sails.log.info(`Generating a configuration profile for Fleet Premium license ${fleetServer.licenseSubject}.`);
-    }
+    // Fleet Free is counted per registration, and Fleet Premium per license.
+    let credential = fleetServer.registration ? { registrationId: fleetServer.registration.id } : { licenseUsageId: fleetServer.licenseUsage.id };
+    let usage = await sails.helpers.profileGenerator.countOneRequest.with(_.extend({ requestType: 'profile' }, credential))
+    .intercept('limitReached', (err)=>{
+      return {generationLimitReached: {error: 'generationLimitReached', resetsAt: err.raw.resetsAt, limit: err.raw.profileLimit}};
+    });
+    let fleetServerName = fleetServer.registration ? `Fleet Free registration ${fleetServer.registration.id}` : `the Fleet Premium license of ${fleetServer.licenseUsage.organization}`;
+    sails.log.info(`Generating a configuration profile for ${fleetServerName} (${usage.profileGenerationsThisMonth} of ${usage.profileLimit} profiles this month).`);
 
     let generationResult;
     try {
@@ -95,8 +93,8 @@ module.exports = {
       sails.log.warn(`When trying to generate a configuration profile for a Fleet server, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       // Only a request the AI service never answered is given back.  An answer that could not be used still
       // cost a generation, and a caller could write instructions that produce one on purpose.
-      if(usage && err.llmDidNotAnswer) {
-        await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'profile', usageMonth: usage.usageMonth });
+      if(err.llmDidNotAnswer) {
+        await sails.helpers.profileGenerator.giveBackOneRequest.with(_.extend({ requestType: 'profile', usageMonth: usage.usageMonth }, credential));
       }
       throw err;
     }

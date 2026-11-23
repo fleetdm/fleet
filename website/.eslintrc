@@ -55,6 +55,7 @@
     "AndroidEnterprise": true,
     "RenderProofOfValue": true,
     "ProfileGeneratorRegistration": true,
+    "ProfileGeneratorLicenseUsage": true,
     "GoogleConditionalAccessServer": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

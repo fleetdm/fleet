@@ -1,6 +1,6 @@
 /**
- * Who can generate profiles through the Fleet server routes, and how a Fleet Free registration's monthly
- * limit is counted, checked without calling a model: generation is stubbed, and each request goes through
+ * Who can generate profiles through the Fleet server routes, and how the monthly limits of a Fleet Free
+ * registration and a Fleet Premium license are counted, checked without calling a model: generation is stubbed, and each request goes through
  * the registered route as a Sails virtual request.
  */
 const assert = require('assert');
@@ -21,6 +21,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
   let stubbedOutcome;
   let stubCalls;
   let createdRegistrationIds = [];
+  let createdLicenseUsageIds = [];
 
   // Mimics a Sails helper call closely enough for .intercept() and .tolerate() the way the actions use them.
   let stubbedHelper = ()=>{
@@ -42,10 +43,13 @@ describe('profile generator credentials and limits for Fleet servers', function(
     };
   };
 
+  // Every license these tests sign is issued to this organization, so their usage rows can be removed after.
+  const LICENSE_ORGANIZATION = 'credentials-and-limits-tests';
   let licenseSigningKeys = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  // A nonce makes each call a different license, with its own usage, even within one second.
   let licenseKey = (claims, signingKey = licenseSigningKeys.privateKey)=>{
     return require('jsonwebtoken').sign(
-      Object.assign({ iss: 'Fleet Device Management Inc.', sub: 'credentials-and-limits-tests', tier: 'premium', devices: 10, exp: Math.floor(Date.now() / 1000) + 3600 }, claims),
+      Object.assign({ iss: 'Fleet Device Management Inc.', sub: LICENSE_ORGANIZATION, tier: 'premium', devices: 10, exp: Math.floor(Date.now() / 1000) + 3600, nonce: crypto.randomBytes(8).toString('hex') }, claims),
       signingKey,
       { algorithm: 'ES256' }
     );
@@ -75,6 +79,10 @@ describe('profile generator credentials and limits for Fleet servers', function(
     sails.config.custom.licenseKeyGeneratorPublicKey = originalLicensePublicKey;
     if(createdRegistrationIds.length > 0) {
       await ProfileGeneratorRegistration.destroy({ id: { in: createdRegistrationIds } });
+    }
+    let licenseUsageIds = _.pluck(await ProfileGeneratorLicenseUsage.find({ organization: LICENSE_ORGANIZATION }), 'id').concat(createdLicenseUsageIds);
+    if(licenseUsageIds.length > 0) {
+      await ProfileGeneratorLicenseUsage.destroy({ id: { in: licenseUsageIds } });
     }
   });
 
@@ -122,42 +130,79 @@ describe('profile generator credentials and limits for Fleet servers', function(
   let usedThisMonth = (profileGenerationsThisMonth, nameAndDescriptionRequestsThisMonth)=>{
     return { usageMonth: thisMonth(), profileGenerationsThisMonth, nameAndDescriptionRequestsThisMonth };
   };
+  let licenseKeyHashOf = (fleetLicenseKey)=>{
+    return crypto.createHash('sha256').update(fleetLicenseKey.split('.').slice(0, 2).join('.')).digest('hex');
+  };
+  // A license's usage made directly, as its first request would make it.
+  let createLicenseUsage = async (fleetLicenseKey, usage)=>{
+    let licenseUsage = await ProfileGeneratorLicenseUsage.create(_.extend({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey), organization: LICENSE_ORGANIZATION }, usage)).fetch();
+    createdLicenseUsageIds.push(licenseUsage.id);
+    return licenseUsage;
+  };
+  let licenseUsageOf = async (fleetLicenseKey)=>{
+    let licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) });
+    return licenseUsage && _.pick(licenseUsage, 'usageMonth', 'profileGenerationsThisMonth', 'nameAndDescriptionRequestsThisMonth');
+  };
   // What the prompt helper throws when the AI service gives no answer.
   let aiServiceDown = ()=>{ throw _.extend(new Error('overloaded'), { statusCode: 529, llmDidNotAnswer: true }); };
 
   describe('credentials', function() {
 
-    it('generates without a limit, counting nothing, for a premium, trial, or basic license', async function() {
+    it('counts a premium, trial, or basic license on its own usage, not on the registration it also sends', async function() {
       let registration = await createRegistration({ usageMonth: thisMonth(), profileGenerationsThisMonth: 15, nameAndDescriptionRequestsThisMonth: 45 });
       for (let tier of ['premium', 'trial', 'basic']) {
+        let fleetLicenseKey = licenseKey({ tier });
         stubbedOutcome = generatedResult;
         // The registration's secret is sent too, and is at its limit: a valid license takes precedence.
-        let response = await requestProfile(registration.fleetServerSecret, { fleetLicenseKey: licenseKey({ tier }) });
+        let response = await requestProfile(registration.fleetServerSecret, { fleetLicenseKey });
         assert.strictEqual(response.status, 200, `expected a 200 for a ${tier} license`);
         stubbedOutcome = namedResult;
-        response = await requestNameAndDescription(registration.fleetServerSecret, { fleetLicenseKey: licenseKey({ tier }) });
+        response = await requestNameAndDescription(registration.fleetServerSecret, { fleetLicenseKey });
         assert.strictEqual(response.status, 200, `expected a 200 for a ${tier} license`);
+        assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(1, 1), `expected the ${tier} license's own usage`);
       }
       assert.deepStrictEqual(await usageOf(registration), usedThisMonth(15, 45));
     });
 
-    it('accepts the development license Fleet serves with --dev_license', async function() {
+    it('records the organization a license was issued to', async function() {
+      let fleetLicenseKey = licenseKey({});
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
+      let licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) });
+      assert.strictEqual(licenseUsage.organization, LICENSE_ORGANIZATION);
+    });
+
+    it('accepts the development license Fleet serves with --dev_license, and limits it like any license', async function() {
       let serveGo = fs.readFileSync(path.resolve(__dirname, '../../../cmd/fleet/serve.go'), 'utf8');
       let developmentLicenseKey = serveGo.match(/if devLicense \{[^}]*config\.License\.Key = "([^"]+)"/)[1];
       let originalNow = Date.now;
       // Pinned inside the license's validity, so this keeps passing after it expires and is replaced.
       let { iat } = require('jsonwebtoken').decode(developmentLicenseKey);
+      // A local website run with --dev_license may already have counted it, so its usage is put back after.
+      let usageBefore = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash: licenseKeyHashOf(developmentLicenseKey) });
       sails.config.custom.licenseKeyGeneratorPublicKey = fs.readFileSync(path.resolve(__dirname, '../../../ee/server/licensing/pubkey.pem'), 'utf8');
       Date.now = ()=>{ return (iat + 60) * 1000; };
       let response;
+      let limited;
+      let usageMonth;
       try {
+        usageMonth = new Date().toISOString().slice(0, 7);
         stubbedOutcome = generatedResult;
         response = await requestProfile(undefined, { fleetLicenseKey: developmentLicenseKey });
+        await ProfileGeneratorLicenseUsage.updateOne({ licenseKeyHash: licenseKeyHashOf(developmentLicenseKey) }).set({ usageMonth, profileGenerationsThisMonth: 300 });
+        limited = await requestProfile(undefined, { fleetLicenseKey: developmentLicenseKey });
       } finally {
         Date.now = originalNow;
         sails.config.custom.licenseKeyGeneratorPublicKey = licenseSigningKeys.publicKey.export({ type: 'spki', format: 'pem' });
+        if(usageBefore) {
+          await ProfileGeneratorLicenseUsage.updateOne({ id: usageBefore.id }).set(_.pick(usageBefore, 'usageMonth', 'profileGenerationsThisMonth', 'nameAndDescriptionRequestsThisMonth'));
+        } else {
+          await ProfileGeneratorLicenseUsage.destroy({ licenseKeyHash: licenseKeyHashOf(developmentLicenseKey) });
+        }
       }
       assert.strictEqual(response.status, 200);
+      assert.strictEqual(limited.status, 429);
+      assert.strictEqual(limited.body.limit, 300);
     });
 
     it('is a 401 for an expired license alone, and limits it like Fleet Free with a registration secret', async function() {
@@ -213,7 +258,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
       assert.strictEqual(fifteenth.status, 200);
       let sixteenth = await requestProfile(registration.fleetServerSecret);
       assert.strictEqual(sixteenth.status, 429);
-      assert.deepStrictEqual(sixteenth.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth() });
+      assert.deepStrictEqual(sixteenth.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth(), limit: 15 });
       assert.strictEqual(stubCalls.length, 1);
       assert.deepStrictEqual(await usageOf(registration), usedThisMonth(15, 0));
     });
@@ -341,7 +386,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
       let registration = await createRegistration({ usageMonth: thisMonth(), profileGenerationsThisMonth: 15 });
       let response = await requestNameAndDescription(registration.fleetServerSecret);
       assert.strictEqual(response.status, 429);
-      assert.deepStrictEqual(response.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth() });
+      assert.deepStrictEqual(response.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth(), limit: 15 });
       assert.strictEqual(stubCalls.length, 0);
     });
 
@@ -351,7 +396,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
       assert.strictEqual((await requestNameAndDescription(registration.fleetServerSecret)).status, 200);
       let response = await requestNameAndDescription(registration.fleetServerSecret);
       assert.strictEqual(response.status, 429);
-      assert.deepStrictEqual(response.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth() });
+      assert.deepStrictEqual(response.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth(), limit: 15 });
       stubbedOutcome = generatedResult;
       assert.strictEqual((await requestProfile(registration.fleetServerSecret)).status, 200);
       assert.deepStrictEqual(await usageOf(registration), usedThisMonth(1, 45));
@@ -401,6 +446,146 @@ describe('profile generator credentials and limits for Fleet servers', function(
       stubbedOutcome = ()=>{ throw { exit: 'refused' }; };
       assert.strictEqual((await requestNameAndDescription(registration.fleetServerSecret)).status, 400);
       assert.deepStrictEqual(await usageOf(registration), usedThisMonth(0, 1));
+    });
+
+  });
+
+  describe('Fleet Premium limit', function() {
+
+    it('allows the 300th profile in a month and is a 429 for the 301st, until the 1st of next month (UTC)', async function() {
+      let fleetLicenseKey = licenseKey({});
+      await createLicenseUsage(fleetLicenseKey, { usageMonth: thisMonth(), profileGenerationsThisMonth: 299 });
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
+      let response = await requestProfile(undefined, { fleetLicenseKey });
+      assert.strictEqual(response.status, 429);
+      assert.deepStrictEqual(response.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth(), limit: 300 });
+      assert.strictEqual(stubCalls.length, 1);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(300, 0));
+    });
+
+    it('limits a trial and a basic license the same way', async function() {
+      for (let tier of ['trial', 'basic']) {
+        let fleetLicenseKey = licenseKey({ tier });
+        await createLicenseUsage(fleetLicenseKey, { usageMonth: thisMonth(), profileGenerationsThisMonth: 300 });
+        let response = await requestProfile(undefined, { fleetLicenseKey });
+        assert.strictEqual(response.status, 429, `expected a 429 for a ${tier} license`);
+        assert.strictEqual(response.body.limit, 300);
+      }
+      assert.strictEqual(stubCalls.length, 0);
+    });
+
+    it('shares one count between Fleet servers that send the same license', async function() {
+      let fleetLicenseKey = licenseKey({});
+      let firstFleetServer = await createRegistration();
+      let secondFleetServer = await createRegistration();
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(firstFleetServer.fleetServerSecret, { fleetLicenseKey })).status, 200);
+      assert.strictEqual((await requestProfile(secondFleetServer.fleetServerSecret, { fleetLicenseKey })).status, 200);
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(3, 0));
+      assert.strictEqual(await ProfileGeneratorLicenseUsage.count({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) }), 1);
+    });
+
+    it('shares one count between two signatures of the same license', async function() {
+      // ES256 signatures are randomized, so signing the same claims again gives a different key for the same license.
+      let iat = Math.floor(Date.now() / 1000);
+      let claims = { iat, exp: iat + 3600, nonce: crypto.randomBytes(8).toString('hex') };
+      let fleetLicenseKey = licenseKey(claims);
+      let resignedLicenseKey = licenseKey(claims);
+      assert.notStrictEqual(resignedLicenseKey, fleetLicenseKey);
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey: resignedLicenseKey })).status, 200);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(2, 0));
+    });
+
+    it('counts a decline, but not a request rejected for bad input or one the AI service never answers', async function() {
+      let fleetLicenseKey = licenseKey({});
+      stubbedOutcome = { couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: 'This request needs two profiles.' };
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 400);
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey, naturalLanguageInstructions: 'a'.repeat(2001) })).status, 400);
+      stubbedOutcome = aiServiceDown;
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 500);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(1, 0));
+    });
+
+    it('lets exactly one of several concurrent requests through at 299 used', async function() {
+      let fleetLicenseKey = licenseKey({});
+      await createLicenseUsage(fleetLicenseKey, { usageMonth: thisMonth(), profileGenerationsThisMonth: 299 });
+      stubbedOutcome = generatedResult;
+      let responses = await Promise.all(_.times(5, ()=>{ return requestProfile(undefined, { fleetLicenseKey }); }));
+      assert.deepStrictEqual(_.pluck(responses, 'status').sort(), [200, 429, 429, 429, 429]);
+      assert.strictEqual(stubCalls.length, 1);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(300, 0));
+    });
+
+    it('answers two concurrent first requests for a license and keeps one usage row', async function() {
+      let fleetLicenseKey = licenseKey({});
+      // Fleet asks for a profile and for its name and description at the same time, so the two stubs answer
+      // differently here.
+      stubbedOutcome = generatedResult;
+      let originalPrompt = sails.helpers.ai.prompt;
+      sails.helpers.ai.prompt = { with() { let named = Promise.resolve(namedResult); named.tolerate = ()=>{ return named; }; return named; } };
+      let responses;
+      try {
+        responses = await Promise.all([
+          requestProfile(undefined, { fleetLicenseKey }),
+          requestNameAndDescription(undefined, { fleetLicenseKey }),
+          requestProfile(undefined, { fleetLicenseKey }),
+        ]);
+      } finally {
+        sails.helpers.ai.prompt = originalPrompt;
+      }
+      assert.deepStrictEqual(_.pluck(responses, 'status'), [200, 200, 200]);
+      assert.strictEqual(await ProfileGeneratorLicenseUsage.count({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) }), 1);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(2, 1));
+    });
+
+    it('starts the counters from zero with the first request in a new month', async function() {
+      let fleetLicenseKey = licenseKey({});
+      await createLicenseUsage(fleetLicenseKey, { usageMonth: '2026-01', profileGenerationsThisMonth: 300, nameAndDescriptionRequestsThisMonth: 900 });
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(1, 0));
+    });
+
+  });
+
+  describe('Fleet Premium names and descriptions', function() {
+
+    it('counts names and descriptions separately from profiles, and gives back one the AI service never answers', async function() {
+      let fleetLicenseKey = licenseKey({});
+      await createLicenseUsage(fleetLicenseKey, { usageMonth: thisMonth(), profileGenerationsThisMonth: 299 });
+      stubbedOutcome = namedResult;
+      for (let i = 0; i < 3; i++) {
+        assert.strictEqual((await requestNameAndDescription(undefined, { fleetLicenseKey })).status, 200);
+      }
+      stubbedOutcome = aiServiceDown;
+      assert.strictEqual((await requestNameAndDescription(undefined, { fleetLicenseKey })).status, 500);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(299, 3));
+    });
+
+    it('is a 429 with the profile limit once the profile limit is reached', async function() {
+      let fleetLicenseKey = licenseKey({});
+      await createLicenseUsage(fleetLicenseKey, { usageMonth: thisMonth(), profileGenerationsThisMonth: 300 });
+      let response = await requestNameAndDescription(undefined, { fleetLicenseKey });
+      assert.strictEqual(response.status, 429);
+      assert.deepStrictEqual(response.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth(), limit: 300 });
+      assert.strictEqual(stubCalls.length, 0);
+    });
+
+    it('is a 429 with the profile limit after 900 in a month, which leaves profiles available', async function() {
+      let fleetLicenseKey = licenseKey({});
+      await createLicenseUsage(fleetLicenseKey, { usageMonth: thisMonth(), nameAndDescriptionRequestsThisMonth: 899 });
+      stubbedOutcome = namedResult;
+      assert.strictEqual((await requestNameAndDescription(undefined, { fleetLicenseKey })).status, 200);
+      let response = await requestNameAndDescription(undefined, { fleetLicenseKey });
+      assert.strictEqual(response.status, 429);
+      assert.deepStrictEqual(response.body, { error: 'generationLimitReached', resetsAt: firstOfNextMonth(), limit: 300 });
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(1, 900));
     });
 
   });
