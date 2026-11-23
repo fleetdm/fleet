@@ -79,6 +79,14 @@ type extraHandlerOpts struct {
 	agentWSHub      *agentws.Hub
 	mcpConn         *MCPConn
 	mcpHandler      http.Handler
+	externalAuth    auth.ExternalAuthenticator
+}
+
+// WithExternalAuth enables authentication of API-only users by JWTs from external issuers.
+func WithExternalAuth(a auth.ExternalAuthenticator) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.externalAuth = a
+	}
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
@@ -168,11 +176,18 @@ func MakeHandler(
 		return nil, fmt.Errorf("invalid server.trusted_proxies configuration: %w", err)
 	}
 
+	var requestContextOpts []auth.RequestContextOption
+	if eopts.externalAuth != nil {
+		requestContextOpts = append(requestContextOpts, auth.WithExternalAuth(eopts.externalAuth, func(r *http.Request) string {
+			return ipStrategy.ClientIP(r.Header, r.RemoteAddr)
+		}))
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			func(ctx context.Context, _ *http.Request) context.Context { return redact.NewContext(ctx) },
-			auth.SetRequestsContexts(svc),
+			auth.SetRequestsContexts(svc, requestContextOpts...),
 			setCarveStoreInRequestContext(carveStore),
 		),
 		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),

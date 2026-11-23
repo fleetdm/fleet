@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"testing"
+	"time"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -13,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 func TestSetAPIOnlyUserExternalIdentities(t *testing.T) {
@@ -122,4 +125,59 @@ func TestSetAPIOnlyUserExternalIdentities(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, activities)
 	})
+}
+
+// A viewer authenticated by an external JWT carries a user but no session.
+func TestSessionlessViewer(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	bot := &fleet.User{ID: 7, APIOnly: true, GlobalRole: new(fleet.RoleObserver)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: bot})
+
+	t.Run("/me returns the user", func(t *testing.T) {
+		u, err := svc.AuthenticatedUser(ctx)
+		require.NoError(t, err)
+		require.Equal(t, bot.ID, u.ID)
+	})
+
+	t.Run("logout explains there is no session", func(t *testing.T) {
+		err := svc.DestroySession(ctx)
+		var invErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invErr)
+		assert.Contains(t, err.Error(), "external token")
+		assert.False(t, ds.SessionByIDFuncInvoked)
+	})
+
+	t.Run("forced password reset is refused without panicking", func(t *testing.T) {
+		forced := *bot
+		forced.AdminForcedPasswordReset = true
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: &forced})
+		require.NotPanics(t, func() {
+			_, err := svc.PerformRequiredPasswordReset(ctx, "new-Passw0rd!!")
+			var permErr *fleet.PermissionError
+			require.ErrorAs(t, err, &permErr)
+		})
+	})
+}
+
+func TestNewExternalAuthenticatorRateDefault(t *testing.T) {
+	cfg := config.TestConfig()
+	cfg.Auth.JWTIssuers = []config.JWTIssuerConfig{{
+		Name: "t", Issuer: "http://127.0.0.1:1", Audience: "fleet", SubjectClaim: "sub",
+		AllowedAlgorithms: []string{"RS256"}, MaxTokenLifetime: time.Minute,
+	}}
+	store, err := memstore.New(10)
+	require.NoError(t, err)
+	for _, rate := range []int{0, -1} {
+		cfg.Auth.JWTRateLimitPerMinute = rate
+		require.NotPanics(t, func() {
+			a, err := NewExternalAuthenticator(t.Context(), cfg, new(mock.Store), store, slog.New(slog.DiscardHandler))
+			require.NoError(t, err)
+			require.NotNil(t, a)
+		})
+	}
+	cfg.Auth.JWTIssuers = nil
+	a, err := NewExternalAuthenticator(t.Context(), cfg, new(mock.Store), store, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+	require.Nil(t, a)
 }

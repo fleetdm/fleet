@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	jwtIssuersKey            = "auth.jwt_issuers"
-	defaultJWTSubjectClaim   = "sub"
-	defaultJWTTokenLifetime  = 15 * time.Minute
-	defaultJWTRatePerMinute  = 1200
-	jwtRateLimitPerMinuteKey = "auth.jwt_rate_limit_per_minute"
+	jwtIssuersKey                = "auth.jwt_issuers"
+	defaultJWTSubjectClaim       = "sub"
+	defaultJWTTokenLifetime      = 15 * time.Minute
+	DefaultJWTRateLimitPerMinute = 1200
+	jwtRateLimitPerMinuteKey     = "auth.jwt_rate_limit_per_minute"
 )
 
 var (
