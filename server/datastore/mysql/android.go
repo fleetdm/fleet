@@ -203,7 +203,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 
 		// create entry in host_mdm as enrolled (manually), because currently all
 		// android hosts are necessarily MDM-enrolled when created.
-		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
+		if err := ds.upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
@@ -336,7 +336,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
-			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
+			if err := ds.upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
 			}
 			// Certificate template records for re-enrolling hosts are created by the caller
@@ -864,7 +864,7 @@ func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (b
 			// Already enrolled: nothing to recover.
 			return nil
 		}
-		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, current.PersonalEnrollmentType, true, hostID); err != nil {
+		if err := ds.upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, current.PersonalEnrollmentType, true, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "re-enroll android host_mdm info")
 		}
 		didEnroll = true
@@ -883,23 +883,10 @@ func androidPersonalEnrollmentType(companyOwned bool) fleet.PersonalEnrollmentTy
 	return fleet.PersonalEnrollmentTypeWorkProfile
 }
 
-func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, personalType fleet.PersonalEnrollmentType, enrolled bool, hostID uint) error {
-	result, err := tx.ExecContext(ctx, `
-		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
-		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
-		fleet.WellKnownMDMFleet, serverURL)
+func (ds *Datastore) upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, personalType fleet.PersonalEnrollmentType, enrolled bool, hostID uint) error {
+	mdmID, err := ds.getOrInsertMDMSolutionWithWriter(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert mdm solution")
-	}
-
-	var mdmID int64
-	if insertOnDuplicateDidInsertOrUpdate(result) {
-		mdmID, _ = result.LastInsertId()
-	} else {
-		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
-		if err := sqlx.GetContext(ctx, tx, &mdmID, stmt, fleet.WellKnownMDMFleet, serverURL); err != nil {
-			return ctxerr.Wrap(ctx, err, "query mdm solution id")
-		}
+		return ctxerr.Wrap(ctx, err, "get or insert mdm solution")
 	}
 
 	args := []any{}
