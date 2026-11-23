@@ -1067,9 +1067,18 @@ Each issuer has these fields:
 - `issuer` (required): Must match the token's `iss` claim exactly. Must be an `https://` URL.
 - `audience` (required): Must appear in the token's `aud` claim. Use a value unique to this Fleet server so tokens minted for other services are rejected.
 - `jwks_url`: Where to fetch the issuer's signing keys. If empty, Fleet discovers it from `{issuer}/.well-known/openid-configuration`.
-- `subject_claim`: The claim to match against bindings. Default: `sub`.
+- `subject_claim`: The claim to match against bindings. Default: `sub`. If set to `email`, the token must also have `email_verified: true`.
 - `allowed_algorithms`: Signing algorithms to accept, from `RS256`, `RS384`, `RS512`, `ES256`, and `ES384`. Default: `[RS256, ES256]`.
 - `max_token_lifetime`: The longest a token may be valid (`exp` minus `iat`), up to `24h`. Default: `15m`. Google ID tokens are valid for 1 hour, so use `1h` for Google.
+
+> GitHub Actions and Google are shared issuers: any repository, or any service account in any Google Cloud project, can get a token for any audience. The binding is what limits access, so bind exact subjects. For GitHub, prefer an [environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) subject with required reviewers, such as `repo:my-org/fleet-gitops:environment:production`, over a branch subject. For Google, bind the service account's unique ID (`gcloud iam service-accounts describe SA_EMAIL --format='value(uniqueId)'`), which is the token's `sub`.
+
+Google Cloud workloads on Compute Engine, GKE (with Workload Identity), Cloud Run, and Cloud Functions get a Google ID token for the configured audience from the metadata server, with no stored credential:
+
+```sh
+curl -s -H 'Metadata-Flavor: Google' \
+  'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https://fleet.example.com'
+```
 
 Fleet fetches each issuer's keys at startup and every hour, and keeps serving cached keys if the issuer is unreachable. Key fetches follow the [`server_allow_private_network_integrations`](#server-allow-private-network-integrations) setting, so an issuer on a private network needs that setting enabled.
 
