@@ -2228,6 +2228,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	multiError = multierror.Append(multiError, validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"})...)
 	for _, item := range policies {
 		if item.Path == nil {
+			multiError = validatePolicyNameLength(multiError, item.Name, parentFilePath)
 			if err := checkPolicyAutomationKeys(parentFilePath, result.TeamName, &item.GitOpsPolicySpec); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
@@ -2272,6 +2273,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
+							multiError = validatePolicyNameLength(multiError, pp.Name, *item.Path)
 							if err := checkPolicyAutomationKeys(*item.Path, result.TeamName, &pp.GitOpsPolicySpec); err != nil {
 								multiError = multierror.Append(multiError, err)
 								continue
@@ -2370,9 +2372,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if err := item.Verify(); err != nil {
 			multiError = multierror.Append(multiError, fmt.Errorf("Couldn't apply policy %q: %w", item.Name, err))
-		}
-		if err := fleet.ValidatePolicyReportNameLength("policy", item.Name); err != nil {
-			multiError = multierror.Append(multiError, fmt.Errorf("%w in %s", invalidReasons(err), filepath.Base(parentFilePath)))
 		}
 	}
 	duplicates := getDuplicateNames(
@@ -2632,6 +2631,14 @@ func validateReport(r *fleet.QuerySpec, filePath string, itemPath string) error 
 		return fmt.Errorf("%w in %s at %s", invalidReasons(err), filepath.Base(filePath), itemPath)
 	}
 	return nil
+}
+
+// validatePolicyNameLength reports an over-long policy name against the file that holds it.
+func validatePolicyNameLength(multiError *multierror.Error, name, filePath string) *multierror.Error {
+	if err := fleet.ValidatePolicyReportNameLength("policy", name); err != nil {
+		return multierror.Append(multiError, fmt.Errorf("%w in %s", invalidReasons(err), filepath.Base(filePath)))
+	}
+	return multiError
 }
 
 // invalidReasons keeps only the reasons, without the generic "validation failed: name" prefix.

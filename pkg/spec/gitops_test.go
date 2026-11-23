@@ -7130,6 +7130,11 @@ reports:
 	require.ErrorContains(t, err, nameErr("policy")+" in "+file)
 	require.NotContains(t, err.Error(), "validation failed")
 
+	// A policy from a path: file is reported against that file, where its name is.
+	policyFile, _ := createTempFile(t, "", fmt.Sprintf("- name: %q\n  query: SELECT 1;\n", strings.Repeat("a", 256)))
+	_, err = parse(getTeamConfig([]string{"policies"}) + "\npolicies:\n  - path: " + policyFile + "\n")
+	require.ErrorContains(t, err, nameErr("policy")+" in "+filepath.Base(policyFile))
+
 	_, err = parse(reportYAML(strings.Repeat("a", 255)))
 	require.NoError(t, err)
 	file, err = parse(reportYAML(strings.Repeat("a", 256)))
