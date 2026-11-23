@@ -217,6 +217,12 @@ func (a *Authenticator) AuthViewer(ctx context.Context, token, clientIP string) 
 	if subject == "" {
 		return rj.reject("missing subject claim", nil)
 	}
+	// OIDC Core 5.1: an email is only an identifier once the issuer asserts it's verified.
+	if iss.cfg.SubjectClaim == "email" {
+		if verified, _ := claims["email_verified"].(bool); !verified {
+			return rj.reject("email not verified", nil)
+		}
+	}
 	rj.subject = subject
 
 	user, err := a.users.UserByExternalIdentity(ctx, iss.cfg.Name, subject)

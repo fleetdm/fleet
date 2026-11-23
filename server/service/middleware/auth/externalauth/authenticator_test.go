@@ -366,12 +366,12 @@ func TestAuthViewer(t *testing.T) {
 	})
 
 	t.Run("subject_claim", func(t *testing.T) {
-		e := newEnv(t, func(c *config.JWTIssuerConfig) { c.SubjectClaim = "email" })
+		e := newEnv(t, func(c *config.JWTIssuerConfig) { c.SubjectClaim = "repository" })
 		c := e.claims("ignored")
-		c["email"] = "bot-sub"
+		c["repository"] = "bot-sub"
 		_, err := e.a.AuthViewer(t.Context(), e.iss.sign(t, jwt.SigningMethodRS256, "rsa1", c), "192.0.2.1")
 		require.NoError(t, err)
-		delete(c, "email")
+		delete(c, "repository")
 		e.requireRejected(t, e.iss.sign(t, jwt.SigningMethodRS256, "rsa1", c), "missing subject claim")
 	})
 
@@ -388,6 +388,26 @@ func TestAuthViewer(t *testing.T) {
 		// Anything in the project can mint an ID token for the same account with another audience.
 		c["aud"] = "https://some-other-service.example.com"
 		e.requireRejected(t, e.iss.sign(t, jwt.SigningMethodRS256, "rsa1", c), "audience")
+	})
+
+	t.Run("email subject requires email_verified", func(t *testing.T) {
+		e := newEnv(t, func(c *config.JWTIssuerConfig) { c.SubjectClaim = "email" })
+		const email = "clarion-posture@my-project.iam.gserviceaccount.com"
+		e.users.bindings[[2]string{"test", email}] = e.bot
+		c := e.claims("112233445566778899")
+		c["email"] = email
+
+		c["email_verified"] = true
+		_, err := e.a.AuthViewer(t.Context(), e.iss.sign(t, jwt.SigningMethodRS256, "rsa1", c), "192.0.2.1")
+		require.NoError(t, err)
+
+		for _, v := range []any{false, "true", nil} {
+			c["email_verified"] = v
+			if v == nil {
+				delete(c, "email_verified")
+			}
+			e.requireRejected(t, e.iss.sign(t, jwt.SigningMethodRS256, "rsa1", c), "email not verified")
+		}
 	})
 }
 
