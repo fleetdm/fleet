@@ -1126,7 +1126,11 @@ func ingestEntraDeviceID(
 	}
 
 	candidates := make([]entraDeviceIDCandidate, 0, len(rows))
+	var noSource bool
 	for _, row := range rows {
+		if _, ok := row["source"]; !ok {
+			noSource = true
+		}
 		if row["device_id"] == "" {
 			continue
 		}
@@ -1163,8 +1167,9 @@ func ingestEntraDeviceID(
 	}
 
 	if accepted == "" {
-		// A signed device ID stays: its certificate may be hidden because its user is signed out.
-		if current == nil || isSigned(current.DeviceID) {
+		// A signed device ID stays: its certificate may be hidden because its user is signed out. Rows without a source
+		// come from the query an older Fleet server sent during an upgrade, which can't show a certificate is anchored.
+		if current == nil || isSigned(current.DeviceID) || noSource {
 			return nil
 		}
 		if err := ds.DeleteHostConditionalAccessStatus(ctx, host.ID, current.DeviceID); err != nil {
@@ -4580,8 +4585,7 @@ func GetDetailQueries(
 		q.DirectIngestFunc = entraDeviceIDIngester(
 			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly, integrations.RecordActivity,
 		)
-		// Legacy results lack certificate source information and must not trigger reconciliation.
-		generatedMap["conditional_access_microsoft_device_id_windows_v2"] = q
+		generatedMap["conditional_access_microsoft_device_id_windows"] = q
 	}
 
 	// IdP host vitals and AI agent sessions are premium features.

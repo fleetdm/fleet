@@ -6881,6 +6881,21 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			wantDeleted: true,
 		},
 		{
+			name:        "trusted only: a result without a source from an older Fleet's query keeps the stored device ID",
+			trustedOnly: true,
+			rows:        []map[string]string{{"device_id": joinedID}},
+			stored:      stored(joinedID),
+		},
+		{
+			name:         "trusted only: a result without a source still accepts a signed device ID",
+			trustedOnly:  true,
+			rows:         []map[string]string{{"device_id": registeredID}},
+			enrollmentID: registeredID,
+			stored:       stored(joinedID),
+			wantCreated:  &created{registeredID, true},
+			wantWarned:   []string{joinedID},
+		},
+		{
 			name:        "trusted only: replacing the device ID warns about the old one",
 			trustedOnly: true,
 			rows:        []map[string]string{anchored(joinedID, "1000")},
@@ -6930,8 +6945,7 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly = c.trustedOnly
 			queries := GetDetailQueries(t.Context(), fleetConfig, nil, nil,
 				Integrations{ConditionalAccessMicrosoft: true, RecordActivity: recordActivity}, nil)
-			require.NotContains(t, queries, "conditional_access_microsoft_device_id_windows")
-			q, ok := queries["conditional_access_microsoft_device_id_windows_v2"]
+			q, ok := queries["conditional_access_microsoft_device_id_windows"]
 			require.True(t, ok)
 			require.NoError(t, q.DirectIngestFunc(t.Context(), logger, host, ds, c.rows))
 			require.Equal(t, c.wantCreated, gotCreated)

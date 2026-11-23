@@ -115,7 +115,7 @@ SELECT
 SELECT email FROM users
 ```
 
-## conditional_access_microsoft_device_id_windows_v2
+## conditional_access_microsoft_device_id_windows
 
 - Platforms: windows
 
