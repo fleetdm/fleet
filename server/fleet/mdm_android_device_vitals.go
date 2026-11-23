@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 // MDMAndroidDeviceVitalMaxLength is the width of the varchar columns in
 // host_mdm_android_device_vitals. AMAPI values are device-reported, so they're
 // truncated to this before being written.
@@ -114,4 +116,17 @@ type HostMDMAndroidDeviceVitals struct {
 
 	SecurityPostureDetails []MDMAndroidPostureDetail `json:"security_posture_details,omitempty" db:"-" csv:"-"`
 	TelephonyInfos         []MDMAndroidTelephonyInfo `json:"telephony_infos,omitempty" db:"-" csv:"-"`
+
+	// Roaming is reported by the Fleet Android agent rather than AMAPI, which
+	// doesn't expose it, so it's written separately (SetHostMDMAndroidRoaming)
+	// and carries its own timestamp.
+	Roaming          *bool      `json:"roaming,omitempty" db:"-" csv:"-"`
+	RoamingUpdatedAt *time.Time `json:"roaming_updated_at,omitempty" db:"-" csv:"-"`
+}
+
+// AndroidAgentVitals are the vitals the Fleet Android agent reports through
+// PUT /api/fleetd/vitals, for those AMAPI doesn't expose.
+type AndroidAgentVitals struct {
+	// Roaming is whether the device's cellular network is roaming. Required.
+	Roaming *bool `json:"roaming"`
 }

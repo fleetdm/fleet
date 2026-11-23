@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -36,6 +37,10 @@ type androidDeviceVitalsRow struct {
 
 	SecurityPostureDetails []byte `db:"security_posture_details"`
 	TelephonyInfos         []byte `db:"telephony_infos"`
+
+	// Written only by SetHostMDMAndroidRoaming; the AMAPI upsert never binds them.
+	Roaming          *bool      `db:"roaming"`
+	RoamingUpdatedAt *time.Time `db:"roaming_updated_at"`
 }
 
 func newAndroidDeviceVitalsRow(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) (*androidDeviceVitalsRow, error) {
@@ -137,12 +142,28 @@ func (ds *Datastore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, 
 	})
 }
 
+// SetHostMDMAndroidRoaming upserts only the roaming columns, so it neither
+// clobbers nor is clobbered by the AMAPI status report upsert above. The agent
+// can report before the first status report creates the row, hence the insert.
+func (ds *Datastore) SetHostMDMAndroidRoaming(ctx context.Context, hostUUID string, roaming bool) error {
+	const stmt = `
+		INSERT INTO host_mdm_android_device_vitals (host_uuid, roaming, roaming_updated_at)
+		VALUES (?, ?, NOW(6))
+		ON DUPLICATE KEY UPDATE
+			roaming = VALUES(roaming),
+			roaming_updated_at = VALUES(roaming_updated_at)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, roaming); err != nil {
+		return ctxerr.Wrap(ctx, err, "set host mdm android roaming")
+	}
+	return nil
+}
+
 const androidDeviceVitalsSelectStmt = `
 	SELECT
 		host_uuid, adb_enabled, passcode_protected, play_protect_enabled, encryption_type,
 		manufacturer, security_update_version, device_kernel_version, bootloader_version,
 		system_update_status, security_posture, imei, meid, api_level,
-		security_posture_details, telephony_infos
+		security_posture_details, telephony_infos, roaming, roaming_updated_at
 	FROM host_mdm_android_device_vitals
 	WHERE host_uuid = ?`
 
@@ -164,6 +185,8 @@ func (ds *Datastore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *f
 		host.IMEI = row.IMEI
 		host.MEID = row.MEID
 		host.APILevel = row.APILevel
+		host.Roaming = row.Roaming
+		host.RoamingUpdatedAt = row.RoamingUpdatedAt
 
 		if row.SecurityPostureDetails != nil {
 			if err := json.Unmarshal(row.SecurityPostureDetails, &host.SecurityPostureDetails); err != nil {

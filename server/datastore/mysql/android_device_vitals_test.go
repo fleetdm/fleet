@@ -23,6 +23,8 @@ func TestHostMDMAndroidDeviceVitals(t *testing.T) {
 		{"Load", testLoadHostMDMAndroidDeviceVitalsDB},
 		{"LoadPartial", testLoadHostMDMAndroidDeviceVitalsDBPartial},
 		{"LoadNoRow", testLoadHostMDMAndroidDeviceVitalsDBNoRow},
+		{"RoamingBeforeStatusReport", testHostMDMAndroidRoamingBeforeStatusReport},
+		{"RoamingAfterStatusReport", testHostMDMAndroidRoamingAfterStatusReport},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -226,4 +228,63 @@ func testLoadHostMDMAndroidDeviceVitalsDBNoRow(t *testing.T, ds *Datastore) {
 	require.Nil(t, host.TelephonyInfos)
 	require.Nil(t, host.IMEI)
 	require.Nil(t, host.MEID)
+}
+
+func testHostMDMAndroidRoamingBeforeStatusReport(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "android-roaming-first", "1.1.1.7", "android-roaming-first-key", "android-roaming-first-uuid", time.Now(),
+		test.WithPlatform("android"))
+	otherHost := test.NewHost(t, ds, "android-roaming-other", "1.1.1.8", "android-roaming-other-key", "android-roaming-other-uuid", time.Now(),
+		test.WithPlatform("android"))
+
+	// The agent can report before the first AMAPI status report creates the row.
+	require.NoError(t, ds.SetHostMDMAndroidRoaming(ctx, host.UUID, true))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.NotNil(t, host.Roaming)
+	require.True(t, *host.Roaming)
+	require.NotNil(t, host.RoamingUpdatedAt)
+	require.Nil(t, host.Manufacturer)
+	firstReportedAt := *host.RoamingUpdatedAt
+
+	// The status report's full overwrite of AMAPI vitals keeps the agent's value.
+	vitals := fullAndroidVitals()
+	require.NoError(t, ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.UUID, vitals))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.Equal(t, vitals.Manufacturer, host.Manufacturer)
+	require.NotNil(t, host.Roaming)
+	require.True(t, *host.Roaming)
+	require.True(t, host.RoamingUpdatedAt.Equal(firstReportedAt))
+
+	// Reporting false records false, not NULL, and moves the timestamp.
+	require.NoError(t, ds.SetHostMDMAndroidRoaming(ctx, host.UUID, false))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.NotNil(t, host.Roaming)
+	require.False(t, *host.Roaming)
+	require.True(t, host.RoamingUpdatedAt.After(firstReportedAt))
+
+	// Other hosts are unaffected.
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, otherHost))
+	require.Nil(t, otherHost.Roaming)
+	require.Nil(t, otherHost.RoamingUpdatedAt)
+}
+
+func testHostMDMAndroidRoamingAfterStatusReport(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "android-roaming-after", "1.1.1.9", "android-roaming-after-key", "android-roaming-after-uuid", time.Now(),
+		test.WithPlatform("android"))
+
+	vitals := fullAndroidVitals()
+	require.NoError(t, ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.UUID, vitals))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.Nil(t, host.Roaming, "AMAPI status reports never set roaming")
+	require.Nil(t, host.RoamingUpdatedAt)
+
+	// Writing roaming leaves the AMAPI vitals in place.
+	require.NoError(t, ds.SetHostMDMAndroidRoaming(ctx, host.UUID, true))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.NotNil(t, host.Roaming)
+	require.True(t, *host.Roaming)
+	require.Equal(t, vitals.Manufacturer, host.Manufacturer)
+	require.Equal(t, vitals.TelephonyInfos, host.TelephonyInfos)
+	require.Equal(t, vitals.APILevel, host.APILevel)
 }
