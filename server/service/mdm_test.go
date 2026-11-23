@@ -5632,6 +5632,13 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 						wantRefetches = 1
 					}
 					assert.Equal(t, wantRefetches, refetches, "at most one refetch per enrollment")
+
+					// The device keeps its MDM device ID when it enrolls again, but the new enrollment row gets its own refetch.
+					reenrolled := *enrolledDevice
+					reenrolled.ID++
+					_, err = svc.processIncomingMDMCmds(ctx, &reenrolled, buildReqMsg(t, serialResults(testSerial)), RequestAuthStateTrusted)
+					require.NoError(t, err)
+					assert.Equal(t, 2*wantRefetches, refetches, "a re-enrollment of the same device requests its own refetch")
 				}
 			})
 		}

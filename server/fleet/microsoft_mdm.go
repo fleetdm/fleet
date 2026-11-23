@@ -26,7 +26,8 @@ const (
 	WindowsSCEPSubjectNameSuffix = "/Install/SubjectName"
 
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
-	// WindowsMDMUnlinkedEnrollmentRefetchPrefix marks, per MDM device ID, that an unlinked enrollment already requested its one host refetch.
+	// WindowsMDMUnlinkedEnrollmentRefetchPrefix marks, per enrollment row ID, that an unlinked enrollment already requested its one host
+	// refetch.
 	WindowsMDMUnlinkedEnrollmentRefetchPrefix = "mwerefetch:"
 )
 

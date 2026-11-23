@@ -2009,9 +2009,10 @@ func (svc *Service) windowsHostEnrolledByAgent(ctx context.Context, enrolledDevi
 }
 
 // requestRefetchToLinkWindowsEnrollment requests one refetch per enrollment, since the identifier naming the host is unverified and
-// every message of an unlinked enrollment comes through here.
+// every message of an unlinked enrollment comes through here. The key is per enrollment row, not per MDM device ID: a device keeps
+// its MDM device ID when it enrolls again, and its new enrollment needs its own refetch.
 func (svc *Service) requestRefetchToLinkWindowsEnrollment(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) {
-	key := fleet.WindowsMDMUnlinkedEnrollmentRefetchPrefix + enrolledDevice.MDMDeviceID
+	key := fleet.WindowsMDMUnlinkedEnrollmentRefetchPrefix + strconv.FormatUint(uint64(enrolledDevice.ID), 10)
 	requested, err := svc.keyValueStore.Get(ctx, key)
 	if err == nil && requested == nil {
 		// Marked before the refetch, so a failure falls back to the host's next detail queries instead of retrying every message.
