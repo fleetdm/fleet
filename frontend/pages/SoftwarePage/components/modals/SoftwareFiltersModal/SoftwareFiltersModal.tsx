@@ -31,6 +31,8 @@ interface ISoftwareFiltersModalProps {
   availableTypes?: readonly ISoftwareType[];
   /** Shows the Premium-only "AI tools" toggle. */
   showAiToolFilter?: boolean;
+  /** Shows the vulnerable software toggle and its KEV and severity options. */
+  showVulnerabilityFilters?: boolean;
 }
 
 type IFormData = {
@@ -45,6 +47,7 @@ const SoftwareFiltersModal = ({
   isPremiumTier,
   availableTypes,
   showAiToolFilter = false,
+  showVulnerabilityFilters = true,
 }: ISoftwareFiltersModalProps) => {
   const [selectedTypes, setSelectedTypes] = useState(filters.types ?? []);
   const [aiToolFilterEnabled, setAiToolFilterEnabled] = useState(
@@ -180,13 +183,15 @@ const SoftwareFiltersModal = ({
             ariaLabel="AI tools"
           />
         )}
-        <Slider
-          value={vulnSoftwareFilterEnabled}
-          onChange={onToggleVulnSoftware}
-          inactiveText="Vulnerable software"
-          activeText="Vulnerable software"
-        />
-        {isPremiumTier && (
+        {showVulnerabilityFilters && (
+          <Slider
+            value={vulnSoftwareFilterEnabled}
+            onChange={onToggleVulnSoftware}
+            inactiveText="Vulnerable software"
+            activeText="Vulnerable software"
+          />
+        )}
+        {showVulnerabilityFilters && isPremiumTier && (
           <>
             <div className={`${baseClass}__kev`}>
               <h3 className={`${baseClass}__section-title`}>

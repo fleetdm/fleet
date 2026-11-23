@@ -86,6 +86,7 @@ export interface IMdmConfig {
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
   ipados_updates: IAppleDeviceUpdates;
+  tvos_updates: IAppleDeviceUpdates;
   apple_settings: {
     configuration_profiles: null | ICustomSetting[];
     enable_disk_encryption: boolean;

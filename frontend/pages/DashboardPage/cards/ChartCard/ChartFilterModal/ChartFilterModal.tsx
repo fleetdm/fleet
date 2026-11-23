@@ -51,6 +51,7 @@ export const PLATFORM_OPTIONS = [
   { label: "ChromeOS", value: "chrome" },
   { label: "iOS", value: "ios" },
   { label: "iPadOS", value: "ipados" },
+  { label: "tvOS", value: "tvos" },
   { label: "Android", value: "android" },
 ];
 

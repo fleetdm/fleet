@@ -22,7 +22,11 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
+import {
+  HostPlatform,
+  isAppleMdmOnlyPlatform,
+  isAndroid,
+} from "interfaces/platform";
 import {
   IHostSoftware,
   IVPPHostSoftware,
@@ -138,7 +142,7 @@ const HostSoftwareLibrary = ({
 
   const isUnsupported = isAndroid(platform); // no Android software
   const isWindowsHost = platform === "windows";
-  const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
+  const isMdmOnlyAppleHost = isAppleMdmOnlyPlatform(platform);
   const isAndroidHost = isAndroid(platform);
   const isMacOSHost = platform === "darwin";
 
@@ -370,7 +374,7 @@ const HostSoftwareLibrary = ({
     } = { fleet_id: hostTeamId };
 
     switch (true) {
-      case isIPadOrIPhoneHost || isAndroidHost:
+      case isMdmOnlyAppleHost || isAndroidHost:
         path = PATHS.SOFTWARE_ADD_APP_STORE;
         params.platform = isAndroidHost ? "android" : "apple";
         break;
@@ -384,7 +388,7 @@ const HostSoftwareLibrary = ({
     router.push(getPathWithQueryParams(path, params));
   }, [
     hostTeamId,
-    isIPadOrIPhoneHost,
+    isMdmOnlyAppleHost,
     isAndroidHost,
     isMacOSHost,
     isWindowsHost,

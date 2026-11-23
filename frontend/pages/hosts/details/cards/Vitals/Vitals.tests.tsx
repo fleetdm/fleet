@@ -603,13 +603,16 @@ describe("View all vitals button", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not render the button for non-iOS/iPadOS hosts even when toggleVitalsModal is provided", () => {
-    renderVitalsCard({ platform: "darwin", withToggle: true });
+  it.each(["darwin", "tvos"] as const)(
+    "does not render the button for non-iOS/iPadOS hosts (%s) even when toggleVitalsModal is provided",
+    (platform) => {
+      renderVitalsCard({ platform, withToggle: true });
 
-    expect(
-      screen.queryByRole("button", { name: "View all" })
-    ).not.toBeInTheDocument();
-  });
+      expect(
+        screen.queryByRole("button", { name: "View all" })
+      ).not.toBeInTheDocument();
+    }
+  );
 
   it.each(["On (personal)", "On (manual - personal)"] as const)(
     "does not render the button for a personal (BYOD) iOS host (%s) even when toggleVitalsModal is provided",
@@ -1029,6 +1032,22 @@ describe("Agent data", () => {
     await user.hover(screen.getByText(new RegExp(fleetdChromeVersion, "i")));
     expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
   });
+
+  it("hides the osquery-sourced vitals for tvOS hosts", () => {
+    render(<Vitals vitalsData={createMockHost({ platform: "tvos" })} />);
+
+    [
+      "Agent",
+      "Memory",
+      "Processor type",
+      "Private IP address",
+      "Public IP address",
+      "MAC address",
+    ].forEach((title) =>
+      expect(screen.queryByText(title)).not.toBeInTheDocument()
+    );
+    expect(screen.getByText("Hardware model")).toBeInTheDocument();
+  });
 });
 
 describe("Last restarted vital", () => {
@@ -1046,7 +1065,7 @@ describe("Last restarted vital", () => {
     }
   );
 
-  it.each(["ios", "ipados", "android"])(
+  it.each(["ios", "ipados", "tvos", "android"])(
     "does not render Last restarted for unsupported platform: %s",
     (platform) => {
       const mockHost = createMockHost({
@@ -1078,6 +1097,18 @@ describe("Disk space field visibility", () => {
       gigs_disk_space_available: -1,
       percent_disk_space_available: 0,
       platform: "android",
+    });
+
+    render(<Vitals vitalsData={mockHost} />);
+
+    expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
+  });
+
+  it("hides disk space field for tvOS hosts", () => {
+    const mockHost = createMockHost({
+      gigs_disk_space_available: 0,
+      percent_disk_space_available: 0,
+      platform: "tvos",
     });
 
     render(<Vitals vitalsData={mockHost} />);

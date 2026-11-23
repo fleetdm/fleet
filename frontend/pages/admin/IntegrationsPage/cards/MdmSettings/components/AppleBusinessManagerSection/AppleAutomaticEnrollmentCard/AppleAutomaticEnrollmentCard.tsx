@@ -18,9 +18,9 @@ const AppleAutomaticEnrollmentCard = ({
   onlyAllowAppleBusinessEnrollment,
 }: IAppleAutomaticEnrollmentCardProps) => {
   const AppleMdmDisabledCard = (
-    <SectionCard header="Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.">
-      To enable automatic enrollment for macOS, iOS, and iPadOS hosts, first
-      turn on Apple MDM.
+    <SectionCard header="Automatic enrollment for Apple (macOS, iOS, iPadOS, tvOS) hosts.">
+      To enable automatic enrollment for macOS, iOS, iPadOS, and tvOS hosts,
+      first turn on Apple MDM.
     </SectionCard>
   );
 
@@ -34,8 +34,8 @@ const AppleAutomaticEnrollmentCard = ({
       }
     >
       {onlyAllowAppleBusinessEnrollment
-        ? "Company-owned (ADE) enrollment for Apple (macOS, iOS, iPadOS) is enabled."
-        : "Company-owned (ADE) and personal (BYOD) enrollment for Apple (macOS, iOS, iPadOS) is enabled."}
+        ? "Company-owned (ADE) enrollment for Apple (macOS, iOS, iPadOS, tvOS) is enabled."
+        : "Company-owned (ADE) and personal (BYOD) enrollment for Apple (macOS, iOS, iPadOS, tvOS) is enabled."}
     </SectionCard>
   );
 
@@ -43,8 +43,8 @@ const AppleAutomaticEnrollmentCard = ({
     <SectionCard
       header={
         onlyAllowAppleBusinessEnrollment
-          ? "Apple (macOS, iOS, iPadOS) company-owned hosts enrollment"
-          : "Apple (macOS, iOS, iPadOS) company-owned and personal hosts enrollment"
+          ? "Apple (macOS, iOS, iPadOS, tvOS) company-owned hosts enrollment"
+          : "Apple (macOS, iOS, iPadOS, tvOS) company-owned and personal hosts enrollment"
       }
       cta={
         <Button className="add-abm-button" onClick={viewDetails}>

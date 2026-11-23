@@ -53,6 +53,7 @@ const buildSoftwareItems = (
         "linux",
         "ios",
         "ipados",
+        "tvos",
         "android",
         "chrome",
       ],

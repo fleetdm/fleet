@@ -1,7 +1,7 @@
 import React from "react";
 
 import ActivityItem from "components/ActivityItem";
-import { isMobilePlatform } from "interfaces/platform";
+import { isAppleTV, isMobilePlatform } from "interfaces/platform";
 import {
   getInstallUninstallStatusPredicate,
   getInstallUninstallStatusPredicatePassive,
@@ -15,13 +15,15 @@ const baseClass = "installed-software-activity-item";
 
 // Mirror of GlobalActivityItem's makeVersionSuffix so the host activity feed
 // reads the same "<App> (Version name)" copy as the dashboard. macOS activities
-// carry version_name ("Default version") too; scope the suffix to mobile so
-// macOS copy stays unchanged.
+// carry version_name ("Default version") too; scope the suffix to the
+// versioned platforms so macOS copy stays unchanged.
 const makeVersionSuffix = (
   platform: string | undefined,
   versionName: string | undefined
 ): string =>
-  versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
+  versionName && (isMobilePlatform(platform || "") || isAppleTV(platform || ""))
+    ? ` (${versionName})`
+    : "";
 
 const InstalledSoftwareActivityItem = ({
   tab,

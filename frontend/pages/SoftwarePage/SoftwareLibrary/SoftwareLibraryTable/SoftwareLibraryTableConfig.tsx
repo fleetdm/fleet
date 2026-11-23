@@ -12,7 +12,7 @@ import {
   ISoftwareTitle,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
 } from "interfaces/software";
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
@@ -135,7 +135,7 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
+            isIosOrIpadosApp={isAppleMdmOnlySoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
             isAppStoreApp={!!cellProps.row.original.app_store_apps?.length}
             autoUpdateEnabled={cellProps.row.original.auto_update_enabled}

@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { InstallIconWithTooltip } from "components/TableContainer/DataTable/SoftwareNameCell/SoftwareNameCell";
 import {
   formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
 import {
@@ -43,7 +43,7 @@ const getInstallerProps = (title: ISoftwareTitle) => {
   return {
     isSelfService: installer.self_service,
     automaticInstallPoliciesCount: getAutomaticInstallPoliciesCount(title),
-    isIosOrIpadosApp: isIpadOrIphoneSoftwareSource(title.source),
+    isIosOrIpadosApp: isAppleMdmOnlySoftwareSource(title.source),
     isAndroidPlayStoreApp:
       !!firstAppStoreApp && title.source === "android_apps",
     isAppStoreApp: !!firstAppStoreApp,

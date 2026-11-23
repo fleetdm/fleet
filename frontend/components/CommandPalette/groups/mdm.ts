@@ -27,7 +27,7 @@ const buildMdmItems = (
       ? [
           {
             id: "turn-on-apple-mdm",
-            label: "Turn on Apple (macOS, iOS, iPadOS) MDM",
+            label: "Turn on Apple (macOS, iOS, iPadOS, tvOS) MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_APPLE,
             keywords: [
@@ -46,7 +46,7 @@ const buildMdmItems = (
       : [
           {
             id: "edit-apple-mdm",
-            label: "Edit Apple (macOS, iOS, iPadOS) MDM",
+            label: "Edit Apple (macOS, iOS, iPadOS, tvOS) MDM",
             group: "MDM" as const,
             path: paths.ADMIN_INTEGRATIONS_MDM_APPLE,
             keywords: [

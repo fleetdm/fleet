@@ -80,6 +80,18 @@ describe("SoftwareFiltersModal component", () => {
     expect(screen.getByRole("button", { name: /Cancel/i })).toBeInTheDocument();
   });
 
+  it("hides the vulnerability filters when showVulnerabilityFilters is false", () => {
+    renderModal({ showVulnerabilityFilters: false });
+    expect(screen.queryByText(/Vulnerable software/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("CISA known exploit (KEV)")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Advanced" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Apply/i })).toBeInTheDocument();
+  });
+
   it("disables input fields when Vulnerable software is off", async () => {
     const { user } = setUpModal({
       filters: { ...filtersDefault, minCvssScore: 2 },

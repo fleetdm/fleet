@@ -27,6 +27,7 @@ describe("ChartFilterModal PLATFORM_OPTIONS", () => {
       "chrome",
       "ios",
       "ipados",
+      "tvos",
       "android",
     ]);
   });

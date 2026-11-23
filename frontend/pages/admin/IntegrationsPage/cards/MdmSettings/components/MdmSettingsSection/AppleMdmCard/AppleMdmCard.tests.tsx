@@ -19,7 +19,7 @@ describe("AppleMdmCard", () => {
     );
 
     expect(
-      screen.getByText("Turn on Apple (macOS, iOS, iPadOS) MDM")
+      screen.getByText("Turn on Apple (macOS, iOS, iPadOS, tvOS) MDM")
     ).toBeInTheDocument();
   });
 
@@ -34,7 +34,7 @@ describe("AppleMdmCard", () => {
     );
 
     expect(
-      screen.getByText("Apple (macOS, iOS, iPadOS) MDM turned on.")
+      screen.getByText("Apple (macOS, iOS, iPadOS, tvOS) MDM turned on.")
     ).toBeInTheDocument();
   });
 

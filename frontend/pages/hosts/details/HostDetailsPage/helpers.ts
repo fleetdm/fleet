@@ -2,6 +2,7 @@ import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import {
   isAndroid,
+  isAppleTV,
   isChrome,
   isIPadOrIPhone,
   isLinuxLike,
@@ -55,12 +56,14 @@ export const canShowMyDeviceButton = (
   fleetDesktopSSOEnabled: boolean,
   isPremiumTier: boolean
 ) => {
-  // Android and ChromeOS have no My device page, so the link would only lead to
-  // an error. GET /hosts/:id/device_url rejects them for the same reason.
+  // Android, ChromeOS, and tvOS have no My device page, so the link would only
+  // lead to an error. GET /hosts/:id/device_url rejects Android and ChromeOS
+  // for the same reason.
   if (
     isAndroid(host.platform) ||
     isChrome(host.platform) ||
-    host.platform === "CrOS"
+    host.platform === "CrOS" ||
+    isAppleTV(host.platform)
   ) {
     return false;
   }

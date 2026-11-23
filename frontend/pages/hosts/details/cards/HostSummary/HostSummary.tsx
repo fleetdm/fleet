@@ -9,7 +9,11 @@ import StatusIndicator from "components/StatusIndicator";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IHostMaintenanceWindow } from "interfaces/host";
 import { BootstrapPackageStatus } from "interfaces/mdm";
-import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleMdmOnlyPlatform,
+  isMacOS,
+} from "interfaces/platform";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import { getHostStatus, getHostStatusTooltipText } from "pages/hosts/helpers";
 import {
@@ -53,7 +57,7 @@ const HostSummary = ({
   const { status, platform, mdm } = summaryData;
 
   const isAndroidHost = isAndroid(platform);
-  const isIosOrIpadosHost = isIPadOrIPhone(platform);
+  const isMdmOnlyAppleHost = isAppleMdmOnlyPlatform(platform);
   const isMacHost = isMacOS(platform);
 
   const renderIssues = () => (
@@ -176,10 +180,10 @@ const HostSummary = ({
   const showTeam = !!isPremiumTier;
   const showIssues =
     summaryData.issues?.total_issues_count > 0 &&
-    !isIosOrIpadosHost &&
+    !isMdmOnlyAppleHost &&
     !isAndroidHost;
   const showBootstrapPackage =
-    !!bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost;
+    !!bootstrapPackageData?.status && !isMdmOnlyAppleHost && !isAndroidHost;
   const showPatchDeadlineTile =
     !!showPatchDeadline && !!isPremiumTier && isMacHost;
   const showMaintenanceWindow =

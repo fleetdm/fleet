@@ -193,7 +193,7 @@ const EditConfigurationModal = ({
           <CustomLink
             newTab
             text="Learn more"
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/ios-software-managed-configuration`}
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/app-managed-configuration`}
           />
         </div>
       );

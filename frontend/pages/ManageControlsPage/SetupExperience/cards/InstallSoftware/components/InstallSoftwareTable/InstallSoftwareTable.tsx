@@ -19,6 +19,7 @@ const generateHelpText = (platform: SetupExperiencePlatform) => {
       return "Policies are checked before software is installed on compatible platforms. Currently, custom targets (labels) don't apply during setup experience.";
     case "ios":
     case "ipados":
+    case "tvos":
     case "android":
       // Versioned platforms: disclaim that labels don't apply during setup.
       return "Software will be installed on all hosts. Currently, custom targets (labels) don't apply during setup experience, so the first-added version will always be installed.";

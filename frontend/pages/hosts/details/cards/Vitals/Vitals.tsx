@@ -20,6 +20,8 @@ import {
 } from "interfaces/mdm";
 import {
   isAndroid,
+  isAppleTV,
+  isAppleMdmOnlyPlatform,
   isIPadOrIPhone,
   isChrome,
   platformSupportsDiskEncryption,
@@ -176,7 +178,9 @@ export const buildHostVitals = ({
   onEditCustomHostVital,
 }: IHostVitalsSources): VitalForSort[] => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  const isMdmOnlyAppleHost = isAppleMdmOnlyPlatform(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
+  const isAppleTVHost = isAppleTV(vitalsData.platform);
   const isChromeHost = isChrome(vitalsData.platform);
 
   const {
@@ -207,7 +211,7 @@ export const buildHostVitals = ({
   });
 
   // Agent / Osquery
-  if (!isIosOrIpadosHost && !isAndroidHost) {
+  if (!isMdmOnlyAppleHost && !isAndroidHost) {
     const {
       orbit_version,
       osquery_version,
@@ -320,9 +324,10 @@ export const buildHostVitals = ({
     });
   }
 
-  // Disk space
+  // Disk space. tvOS doesn't report storage over MDM.
   if (
     !isChromeHost &&
+    !isAppleTVHost &&
     !(
       typeof vitalsData.gigs_disk_space_available === "number" &&
       vitalsData.gigs_disk_space_available < 0
@@ -447,7 +452,7 @@ export const buildHostVitals = ({
   });
 
   // Last restarted
-  if (!isIosOrIpadosHost && !isAndroidHost) {
+  if (!isMdmOnlyAppleHost && !isAndroidHost) {
     vitals.push({
       sortKey: "Last restarted",
       element: (
@@ -560,7 +565,7 @@ export const buildHostVitals = ({
     );
   }
 
-  if (!isIosOrIpadosHost) {
+  if (!isMdmOnlyAppleHost) {
     vitals.push({
       sortKey: "Memory",
       element: (
@@ -678,7 +683,7 @@ export const buildHostVitals = ({
   }
 
   // IP addresses
-  if (!isIosOrIpadosHost && !isAndroidHost) {
+  if (!isMdmOnlyAppleHost && !isAndroidHost) {
     vitals.push({
       sortKey: "Private IP address",
       element: (
@@ -715,7 +720,7 @@ export const buildHostVitals = ({
     });
   }
 
-  if (!isIosOrIpadosHost) {
+  if (!isMdmOnlyAppleHost) {
     vitals.push({
       sortKey: "Processor type",
       element: (
@@ -730,12 +735,14 @@ export const buildHostVitals = ({
 
   const hasValidTimezone =
     !!vitalsData?.timezone && vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
-  // Android and Chrome don't report a timezone. iOS/iPadOS report one only
-  // after MDM check-in, so the row stays hidden until that lands. macOS,
+  // Android and Chrome don't report a timezone. iOS/iPadOS/tvOS report one
+  // only after MDM check-in, so the row stays hidden until that lands. macOS,
   // Windows, and Linux always show the row, with "---" until osquery fills
   // it in.
   const showTimezone =
-    !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
+    !isAndroidHost &&
+    !isChromeHost &&
+    (!isMdmOnlyAppleHost || hasValidTimezone);
   if (showTimezone) {
     // toZonedTime shifts the instant so its epoch value reads as the host's
     // timezone under the system's own default-timezone formatting, letting

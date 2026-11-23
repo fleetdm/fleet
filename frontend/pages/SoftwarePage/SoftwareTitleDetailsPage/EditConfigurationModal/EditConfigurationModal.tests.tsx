@@ -233,7 +233,7 @@ describe("EditConfigurationModal", () => {
       const learnMore = screen.getByText("Learn more").closest("a");
       expect(learnMore).toHaveAttribute(
         "href",
-        expect.stringContaining("ios-software-managed-configuration")
+        expect.stringContaining("app-managed-configuration")
       );
     });
   });

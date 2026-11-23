@@ -63,6 +63,12 @@ const OSRequirementDescription = ({
           />
         </>
       );
+    case "tvos":
+      return (
+        <>
+          <h3>End user experience</h3>
+        </>
+      );
     default:
       return <></>;
   }
@@ -81,6 +87,9 @@ const OSRequirementImage = ({
         return IOSUpdateScreenshot;
       case "ipados":
         return IPadOSUpdateScreenshot;
+      case "tvos":
+        // TODO: swap for a real Apple TV screenshot.
+        return IOSUpdateScreenshot;
       default:
         return MacOSUpdateScreenshot;
     }

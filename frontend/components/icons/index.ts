@@ -58,6 +58,7 @@ import Text from "./Text";
 import TotalHosts from "./TotalHosts";
 import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
+import tvOS from "./tvOS";
 import Update from "./Update";
 import Upload from "./Upload";
 import User from "./User";
@@ -119,6 +120,8 @@ export const ICON_MAP = {
   iPadOS,
   ios: iOS,
   iOS,
+  tvos: tvOS,
+  tvOS,
   android: Android,
   "premium-feature": PremiumFeature,
   profile: Profile,

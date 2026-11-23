@@ -19,6 +19,7 @@ import { formatWeekdayList } from "interfaces/patch_deadline_settings";
 import {
   AppleDisplayPlatform,
   isAndroid,
+  isAppleTV,
   isIPadOrIPhone,
   isMobilePlatform,
   PLATFORM_DISPLAY_NAMES,
@@ -69,7 +70,7 @@ const getProfilesPlatformDisplayName = (
 ) => {
   switch (platform) {
     case "apple":
-      return "macOS, iOS, and iPadOS";
+      return "macOS, iOS, iPadOS, and tvOS";
     case "android":
       return "Android";
     case "windows":
@@ -188,7 +189,9 @@ const makeVersionSuffix = (
   platform: string | undefined,
   versionName: string | undefined
 ): string =>
-  versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
+  versionName && (isMobilePlatform(platform || "") || isAppleTV(platform || ""))
+    ? ` (${versionName})`
+    : "";
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -2507,6 +2510,9 @@ const TAGGED_TEMPLATES = {
       case "ipados":
         platformText = "iPadOS";
         break;
+      case "tvos":
+        platformText = "tvOS";
+        break;
       default:
         platformText = capitalize(platform); // e.g. Windows, Android
     }
@@ -2817,6 +2823,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedIpadosMinVersion: {
       return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
+    }
+    case ActivityType.EditedTvosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("tvOS", activity);
     }
     case ActivityType.EnabledMacosUpdateNewHosts: {
       return TAGGED_TEMPLATES.enabledAppleosUpdateNewHosts("macOS", activity);

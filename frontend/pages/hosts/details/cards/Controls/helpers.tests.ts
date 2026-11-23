@@ -17,6 +17,17 @@ describe("shouldShowControlsTab", () => {
     expect(shouldShowControlsTab(args)).toBe(true);
   });
 
+  it("shows the tab for an enrolled tvOS host", () => {
+    expect(
+      shouldShowControlsTab({
+        ...args,
+        platform: "tvos" as const,
+        osVersion: "tvOS 18.4",
+        enrollmentStatus: "On (automatic)" as const,
+      })
+    ).toBe(true);
+  });
+
   it("hides the tab for ChromeOS even when rows were derived", () => {
     expect(
       shouldShowControlsTab({

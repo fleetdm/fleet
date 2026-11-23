@@ -48,6 +48,7 @@ const getAddSoftwareUrl = (
   switch (platform) {
     case "ios":
     case "ipados":
+    case "tvos":
     case "android":
       path = PATHS.SOFTWARE_ADD_APP_STORE;
       break;

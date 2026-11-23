@@ -5,6 +5,7 @@
     td.macos_team__cell,
     td.ios_team__cell,
     td.ipados_team__cell,
+    td.tvos_team__cell,
     td.byod_team__cell {
       max-width: 120px;
     }
@@ -22,10 +23,17 @@
   }
 
   // The desired behavior is to hide the header and team cell one by one
-  // as the viewport gets smaller, starting with iPadOS fleet since it's the
-  // least commonly used assignment. This is achieved by using the max-width
-  // media query with the breakpoint values taken from when the table content
-  // starts to overflow.
+  // as the viewport gets smaller, starting with the least commonly used
+  // assignments: tvOS fleet, then iPadOS fleet, then BYOD fleet. This is
+  // achieved by using the max-width media query with the breakpoint values
+  // taken from when the table content starts to overflow.
+  @media (max-width: $break-xl) {
+    .tvos_team__header,
+    .tvos_team__cell {
+      display: none;
+    }
+  }
+
   @media (max-width: $break-lg) {
     .ipados_team__header,
     .ipados_team__cell {

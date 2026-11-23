@@ -20,6 +20,7 @@ import { ICommandResult } from "interfaces/command";
 import {
   isAndroid,
   isAppleDevice,
+  isAppleMdmOnlyPlatform,
   isIPadOrIPhone,
   isMacOS,
 } from "interfaces/platform";
@@ -680,11 +681,11 @@ export const VppInstallDetailsModal = ({
       // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
       // display some minimal pending UI. This should be updated once the API response is fixed.
     }
-    // iOS and iPadOS App Store apps re-install whenever the admin edits the
+    // iOS, iPadOS, and tvOS App Store apps re-install whenever the admin edits the
     // managed app configuration, so a successful install details view notes
     // this so admins don't read a later re-install as a fresh install.
     const showConfigUpdateNote =
-      isIPadOrIPhone(platform || "") &&
+      isAppleMdmOnlyPlatform(platform || "") &&
       (displayStatus === "installed" || isPendingInstall);
 
     const showLicenseSentence =

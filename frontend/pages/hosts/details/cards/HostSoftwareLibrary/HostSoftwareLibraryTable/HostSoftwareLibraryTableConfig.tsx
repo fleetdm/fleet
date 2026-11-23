@@ -13,7 +13,7 @@ import {
   IHostAppStoreApp,
   IHostSoftware,
   IVPPHostSoftware,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
 } from "interfaces/software";
 import VersionCell, {
   VersionsColumnCell,
@@ -121,7 +121,7 @@ export const generateHostSWLibraryTableHeaders = ({
         const isAndroidPlayStoreApp =
           !!app_store_app && source === "android_apps";
 
-        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
+        const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(source);
 
         // BE gates presence of version_name.
         const deliveredVersionName =

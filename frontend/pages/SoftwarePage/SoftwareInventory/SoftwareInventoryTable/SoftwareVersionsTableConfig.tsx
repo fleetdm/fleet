@@ -10,6 +10,7 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   formatSoftwareType,
   formatSoftwareVersion,
+  isAppleMdmOnlySoftwareSource,
   ISoftwareVersion,
   ISoftwareVulnerability,
   NO_VERSION_TOOLTIP_BY_SOURCE,
@@ -108,9 +109,7 @@ const generateTableHeaders = (
         if (noVulnerabilitiesTip) {
           return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
         }
-        if (
-          ["ipados_apps", "ios_apps"].includes(cellProps.row.original.source)
-        ) {
+        if (isAppleMdmOnlySoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
         }
         return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;

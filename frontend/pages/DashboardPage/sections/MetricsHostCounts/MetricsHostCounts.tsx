@@ -70,6 +70,7 @@ const MetricsHostCounts = ({
   const showMissingAndLowDiskHosts =
     selectedPlatform !== "ios" &&
     selectedPlatform !== "ipados" &&
+    selectedPlatform !== "tvos" &&
     selectedPlatform !== "android";
 
   return (

@@ -80,6 +80,7 @@ import {
   isAppleDevice,
   isMacOS,
   isAndroid,
+  isAppleMdmOnlyPlatform,
   isIPadOrIPhone,
   isLinuxLike,
   isWindows,
@@ -683,7 +684,7 @@ const HostDetailsPage = ({
               // Timer just started - poll again after interval!
               if (
                 returnedHost.status === "online" ||
-                isIPadOrIPhone(returnedHost.platform)
+                isAppleMdmOnlyPlatform(returnedHost.platform)
               ) {
                 scheduleNextPoll();
               } else {
@@ -693,7 +694,7 @@ const HostDetailsPage = ({
               // Timer running, still inside poll window
               if (
                 returnedHost.status === "online" ||
-                isIPadOrIPhone(returnedHost.platform)
+                isAppleMdmOnlyPlatform(returnedHost.platform)
               ) {
                 scheduleNextPoll();
               } else {
@@ -1618,15 +1619,18 @@ const HostDetailsPage = ({
 
   const isMacOSHost = isMacOS(host.platform);
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
+  const isMdmOnlyAppleHost = isAppleMdmOnlyPlatform(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
   const isLinuxHost = isLinuxLike(host.platform);
   const isAppleDeviceHost = isAppleDevice(host.platform);
   const isChromeOsHost = host?.platform === "chrome";
 
+  // Reports and policies both need osquery, which the MDM-only Apple platforms
+  // and Android don't have.
   const showReportsTab =
-    !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
-  const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
+    !isMdmOnlyAppleHost && !isAndroidHost && !isChromeOsHost;
+  const showPoliciesTab = !isMdmOnlyAppleHost && !isAndroidHost;
 
   const failedControlsCount = countFailedControls(controls);
 
@@ -1822,8 +1826,8 @@ const HostDetailsPage = ({
     host.platform
   );
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
-  const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
-  const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showAgentOptionsCard = !isMdmOnlyAppleHost && !isAndroidHost;
+  const showLocalUserAccountsCard = !isMdmOnlyAppleHost && !isAndroidHost;
   const showCertificatesCard =
     (isAppleDeviceHost || isWindowsHost) &&
     (isErrorHostCertificates || !!hostCertificates?.certificates.length);

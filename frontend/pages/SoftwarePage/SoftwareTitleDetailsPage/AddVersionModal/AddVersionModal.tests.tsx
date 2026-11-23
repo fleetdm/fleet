@@ -96,6 +96,13 @@ describe("AddVersionModal", () => {
     expect(screen.getByText(/Enable auto updates/i)).toBeInTheDocument();
   });
 
+  it("shows Category without a Self-service toggle on tvOS titles", () => {
+    const tvosApp = createMockAppStoreAppVersionIos({ platform: "tvos" });
+    renderModal({ appStore: tvosApp });
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByText("Category")).toBeInTheDocument();
+  });
+
   it("hides the Auto updates section on Android titles", () => {
     const androidApp = createMockAppStoreAppVersionIos({
       platform: "android",

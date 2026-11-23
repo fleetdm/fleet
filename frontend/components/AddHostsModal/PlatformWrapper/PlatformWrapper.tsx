@@ -48,6 +48,10 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "ios-ipados",
   },
   {
+    name: "tvOS",
+    type: "tvos",
+  },
+  {
     name: "Android",
     type: "android",
   },
@@ -344,6 +348,10 @@ const PlatformWrapper = ({
           }
         />
       );
+    }
+
+    if (packageType === "tvos") {
+      return <p>Only tvOS hosts in Apple Business can enroll.</p>;
     }
 
     if (packageType === "android") {

@@ -22,7 +22,7 @@ import { ISelfServiceCategory } from "interfaces/self_service_category";
 import {
   IAppStoreApp,
   isAndroidSoftwareSource,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   ISoftwarePackage,
   InstallerType,
 } from "interfaces/software";
@@ -160,7 +160,7 @@ const EditIconModal = ({
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const isSoftwarePackage = installerType === "package";
-  const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
+  const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(
     previewInfo?.source || ""
   );
   const isAndroidApp = isAndroidSoftwareSource(previewInfo?.source || "");
@@ -532,6 +532,7 @@ const EditIconModal = ({
             style={{
               width: 24,
               height: 24,
+              objectFit: "contain",
               borderRadius: "4px",
               overflow: "hidden",
             }}
@@ -560,6 +561,7 @@ const EditIconModal = ({
                 style={{
                   width: 24,
                   height: 24,
+                  objectFit: "contain",
                   borderRadius: "4px",
                   overflow: "hidden",
                 }}

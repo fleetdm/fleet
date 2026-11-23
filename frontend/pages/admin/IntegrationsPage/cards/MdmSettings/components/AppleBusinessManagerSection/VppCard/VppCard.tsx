@@ -16,7 +16,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, viewDetails }: IVppCardProps) => {
   const AppleMdmDisabledCard = (
     <SectionCard header="Volume Purchasing Program (VPP)">
       To enable Volume Purchasing Program (VPP), first turn on Apple (macOS,
-      iOS, iPadOS) MDM.
+      iOS, iPadOS, tvOS) MDM.
     </SectionCard>
   );
 

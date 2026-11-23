@@ -10,7 +10,7 @@ describe("Vpp Card", () => {
 
     expect(
       await screen.findByText(
-        "To enable Volume Purchasing Program (VPP), first turn on Apple (macOS, iOS, iPadOS) MDM."
+        "To enable Volume Purchasing Program (VPP), first turn on Apple (macOS, iOS, iPadOS, tvOS) MDM."
       )
     ).toBeInTheDocument();
   });

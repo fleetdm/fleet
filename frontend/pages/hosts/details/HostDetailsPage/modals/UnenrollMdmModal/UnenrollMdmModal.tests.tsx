@@ -130,6 +130,27 @@ describe("UnenrollMdmModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the Turn off MDM wording for a tvOS host without pointing at My device", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <UnenrollMdmModal
+        {...MOCK_PROPS}
+        hostPlatform="tvos"
+        hostName="apple-tv-1"
+        enrollmentStatus="On (automatic)"
+      />
+    );
+
+    expect(screen.getByText("Turn off MDM")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Turn off" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/make sure that the host is still in Apple Business/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/My device/i)).not.toBeInTheDocument();
+  });
+
   describe("when onlyAllowAppleBusinessEnrollment is true", () => {
     describe("and depAssignedToFleet is false", () => {
       it.each(["ios", "ipados", "macos"])(
