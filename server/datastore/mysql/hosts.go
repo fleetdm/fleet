@@ -7933,19 +7933,24 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 	}
 
 	// Each batch is written before the next one is read, so a failure keeps the batches already done.
+	var updated int
 	for hostIDs := range slices.Chunk(allHostIDs, hostIssuesCriticalVulnerabilitiesBatchSize) {
 		if err := ds.updateHostIssuesVulnerabilitiesBatch(ctx, hostIDs); err != nil {
-			return err
+			return ctxerr.Wrapf(ctx, err, "batch starting at host %d (%d of %d hosts already updated)",
+				hostIDs[0], updated, len(allHostIDs))
 		}
+		updated += len(hostIDs)
 	}
 	return nil
 }
 
 // updateHostIssuesVulnerabilitiesBatch expects hostIDs sorted, so that host_issues rows are always locked in the same order.
 func (ds *Datastore) updateHostIssuesVulnerabilitiesBatch(ctx context.Context, hostIDs []uint) error {
-	// The critical CVEs are materialized once per query (NO_MERGE) and looked up from the hosts' own
-	// rows (STRAIGHT_JOIN). Left to the optimizer, each batch scans software_cve and then every host
-	// that has each vulnerable software, which makes small batches slower as hosts are added.
+	// The batch's critical CVEs are materialized once per query (NO_MERGE) and looked up from the
+	// hosts' own rows (STRAIGHT_JOIN). Left to the optimizer, each batch scans software_cve and then
+	// every host that has each vulnerable software, which makes small batches slower as hosts are added.
+	// The materialized lists are limited to the batch's software and OS so that their size, like the
+	// rest of the query's temporary tables, depends on the batch and not on the whole inventory.
 	const criticalVulnerabilitiesCountStmt = `
 		SELECT combined.host_id, COUNT(*) as count
 		FROM (
@@ -7956,6 +7961,7 @@ func (ds *Datastore) updateHostIssuesVulnerabilitiesBatch(ctx context.Context, h
 				FROM software_cve sc
 				INNER JOIN cve_meta cm ON cm.cve = sc.cve
 				WHERE cm.cvss_score > ?
+				AND sc.software_id IN (SELECT software_id FROM host_software WHERE host_id IN (?))
 			) csc ON csc.software_id = hs.software_id
 			WHERE hs.host_id IN (?)
 
@@ -7968,12 +7974,16 @@ func (ds *Datastore) updateHostIssuesVulnerabilitiesBatch(ctx context.Context, h
 				FROM operating_system_vulnerabilities osv
 				INNER JOIN cve_meta cm ON cm.cve = osv.cve
 				WHERE cm.cvss_score > ?
+				AND osv.operating_system_id IN (SELECT os_id FROM host_operating_system WHERE host_id IN (?))
 			) cosv ON cosv.operating_system_id = hos.os_id
 			WHERE hos.host_id IN (?)
 		) combined
 		GROUP BY combined.host_id
 		ORDER BY combined.host_id`
-	stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, criticalCVSSScoreCutoff, hostIDs, criticalCVSSScoreCutoff, hostIDs)
+	stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt,
+		criticalCVSSScoreCutoff, hostIDs, hostIDs,
+		criticalCVSSScoreCutoff, hostIDs, hostIDs,
+	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building IN statement for getting critical vulnerabilities count")
 	}
