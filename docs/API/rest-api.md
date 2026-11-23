@@ -8835,7 +8835,7 @@ The generated name is meant for declaration (DDM) and Windows profiles. A .mobil
 
 Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
 
-On Fleet Free, this request doesn't count toward the [monthly generation limit](#autofill-configuration-profile-content), but it returns `429` once the limit is reached.
+This request doesn't count toward the [monthly generation limit](#autofill-configuration-profile-content), but it returns `429` once the limit is reached.
 
 `POST /api/v1/fleet/autofill/configuration_profile/name_description`
 
@@ -8893,7 +8893,7 @@ Returned when Fleet can't reach the AI service, or the AI service returns an err
 `Status: 429 Too Many Requests`
 `Header: retry-after: N`
 
-Returned on Fleet Free once this Fleet instance has used its monthly generation limit. The `retry-after` header is the number of seconds until the limit resets.
+Returned once the [monthly generation limit](#autofill-configuration-profile-content) is used. `limit` is the number of content requests allowed per month. The `retry-after` header is the number of seconds until the limit resets.
 
 ```json
 {
@@ -8901,9 +8901,10 @@ Returned on Fleet Free once this Fleet instance has used its monthly generation 
   "errors": [
     {
       "name": "base",
-      "reason": "You have reached the monthly limit for AI-generated configuration profiles on Fleet Free."
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles."
     }
-  ]
+  ],
+  "limit": 300
 }
 ```
 
@@ -8937,7 +8938,7 @@ For Apple, Fleet generates a declaration (DDM) profile when one declaration can 
 
 Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
 
-On Fleet Free, each Fleet instance can make 15 content requests per month. Every request that reaches the AI service counts, including requests the AI declines. The limit resets on the 1st of each month (UTC). Fleet Premium has no limit. A Fleet Premium instance whose license has expired gets the Fleet Free limit.
+Content requests are limited each month. On Fleet Free, each Fleet instance can make 15. On Fleet Premium, each license can make 300, and Fleet instances that use the same license key share that limit. Every request that reaches the AI service counts, including requests the AI declines. The limit resets on the 1st of each month (UTC). A Fleet Premium instance whose license has expired gets the Fleet Free limit.
 
 On Fleet Free, or with an expired license, the Fleet server needs a [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) to generate profiles.
 
@@ -9024,7 +9025,7 @@ Returned when Fleet can't reach the AI service, the AI service returns an error 
 `Status: 429 Too Many Requests`
 `Header: retry-after: N`
 
-Returned on Fleet Free once this Fleet instance has used its monthly generation limit. The `retry-after` header is the number of seconds until the limit resets.
+Returned once the [monthly generation limit](#autofill-configuration-profile-content) is used. `limit` is the number of content requests allowed per month. The `retry-after` header is the number of seconds until the limit resets.
 
 ```json
 {
@@ -9032,9 +9033,10 @@ Returned on Fleet Free once this Fleet instance has used its monthly generation 
   "errors": [
     {
       "name": "base",
-      "reason": "You have reached the monthly limit for AI-generated configuration profiles on Fleet Free."
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles."
     }
-  ]
+  ],
+  "limit": 300
 }
 ```
 
