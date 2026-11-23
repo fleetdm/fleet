@@ -158,7 +158,7 @@ The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also 
 Fleet 4 already supports reports with an `interval`, so change them before you upgrade.
 
 1. Search for the old paths: `grep -rnE '/schedule\b' .`
-2. Create or update reports with an `interval` instead. The old schedule endpoints always created the report with `automations_enabled` set to `true`, but `POST /reports` sets it to `false` unless you send it. A report with `automations_enabled` set to `false` isn't put on hosts' schedules with `differential` logging, and with `snapshot` logging its results are collected but not sent to the log destination. Send `automations_enabled` set to `true`, or the migrated schedules stop reporting. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
+2. Create or update reports with an `interval` instead. The old schedule endpoints always created the report with `automations_enabled` set to `true`, but `POST /reports` sets it to `false` unless you send it. A report with `automations_enabled` set to `false` isn't put on hosts' schedules with `differential` or `differential_ignore_removals` logging, and with `snapshot` logging its results are collected but not sent to the log destination. Send `automations_enabled` set to `true`, or the migrated schedules stop reporting. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
 
 GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
