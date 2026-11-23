@@ -39,6 +39,7 @@ type testIssuer struct {
 
 	mu       sync.Mutex
 	rsaAlgIn string // "alg" published on the RSA JWK
+	rsaUse   string // "use" published on the RSA JWK
 }
 
 func newTestIssuer(t *testing.T) *testIssuer {
@@ -62,15 +63,16 @@ func newTestIssuer(t *testing.T) *testIssuer {
 				return
 			}
 			iss.mu.Lock()
-			alg := iss.rsaAlgIn
+			alg, use := iss.rsaAlgIn, iss.rsaUse
 			iss.mu.Unlock()
 			var set jwkset.JWKSMarshal
 			for _, k := range []struct {
 				key any
 				kid string
 				alg jwkset.ALG
-			}{{rsaKey.Public(), "rsa1", jwkset.ALG(alg)}, {ecKey.Public(), "ec1", jwkset.AlgES256}} {
-				jwk, err := jwkset.NewJWKFromKey(k.key, jwkset.JWKOptions{Metadata: jwkset.JWKMetadataOptions{KID: k.kid, ALG: k.alg}})
+				use jwkset.USE
+			}{{rsaKey.Public(), "rsa1", jwkset.ALG(alg), jwkset.USE(use)}, {ecKey.Public(), "ec1", jwkset.AlgES256, ""}} {
+				jwk, err := jwkset.NewJWKFromKey(k.key, jwkset.JWKOptions{Metadata: jwkset.JWKMetadataOptions{KID: k.kid, ALG: k.alg, USE: k.use}})
 				require.NoError(t, err)
 				set.Keys = append(set.Keys, jwk.Marshal())
 			}
@@ -148,7 +150,7 @@ func newEnv(t *testing.T, mutate ...func(*config.JWTIssuerConfig)) *testEnv {
 		m(&cfg)
 	}
 	a, err := New(t.Context(), []config.JWTIssuerConfig{cfg}, env.users, nil,
-		slog.New(slog.NewJSONHandler(env.logs, nil)),
+		slog.New(slog.NewJSONHandler(env.logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
 		WithClock(func() time.Time { return env.now }))
 	require.NoError(t, err)
 	env.a = a
@@ -321,6 +323,24 @@ func TestAuthViewer(t *testing.T) {
 		e.requireRejected(t, e.iss.sign(t, jwt.SigningMethodES256, "rsa1", e.claims("bot-sub")), "algorithm")
 	})
 
+	t.Run("JWK use", func(t *testing.T) {
+		e := newEnv(t)
+		tok := e.iss.sign(t, jwt.SigningMethodRS256, "rsa1", e.claims("bot-sub"))
+		e.iss.mu.Lock()
+		e.iss.rsaUse = "sig"
+		e.iss.mu.Unlock()
+		require.NoError(t, e.a.refreshAll(t.Context()))
+		_, err := e.a.AuthViewer(t.Context(), tok, "192.0.2.1")
+		require.NoError(t, err, `a "sig" key verifies tokens`)
+
+		// An encryption key must never verify a signature (RFC 7517 section 4.2).
+		e.iss.mu.Lock()
+		e.iss.rsaUse = "enc"
+		e.iss.mu.Unlock()
+		require.NoError(t, e.a.refreshAll(t.Context()))
+		e.requireRejected(t, tok, "unknown kid")
+	})
+
 	t.Run("JWK alg mismatch", func(t *testing.T) {
 		e := newEnv(t, func(c *config.JWTIssuerConfig) { c.AllowedAlgorithms = []string{"RS256", "RS384"} })
 		e.iss.mu.Lock()
@@ -467,4 +487,25 @@ func TestAuthViewerRateLimit(t *testing.T) {
 	// Buckets are per client IP.
 	_, err = a.AuthViewer(t.Context(), tok, "192.0.2.2")
 	require.NoError(t, err)
+}
+
+func TestDiscoveredJWKSURIMustBeHTTPS(t *testing.T) {
+	var jwksURI string
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]string{"issuer": "https://" + r.Host, "jwks_uri": jwksURI})
+	}))
+	t.Cleanup(srv.Close)
+	cfg := config.JWTIssuerConfig{
+		Name: "tls", Issuer: srv.URL, Audience: "fleet", SubjectClaim: "sub",
+		AllowedAlgorithms: []string{"RS256"}, MaxTokenLifetime: time.Minute,
+	}
+
+	// An https issuer must not hand Fleet a plaintext key URL that a network attacker could answer.
+	jwksURI = "http://keys.example.com/jwks.json"
+	a, err := New(t.Context(), []config.JWTIssuerConfig{cfg}, &fakeUsers{}, nil, slog.New(slog.DiscardHandler),
+		WithHTTPClient(srv.Client()))
+	require.NoError(t, err)
+	err = a.refreshAll(t.Context())
+	require.ErrorContains(t, err, "jwks_uri")
+	require.False(t, a.issuers[srv.URL].hasKeys())
 }

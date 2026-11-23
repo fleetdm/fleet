@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +12,12 @@ import (
 )
 
 const (
-	jwtIssuersKey                = "auth.jwt_issuers"
-	defaultJWTSubjectClaim       = "sub"
-	defaultJWTTokenLifetime      = 15 * time.Minute
+	jwtIssuersKey           = "auth.jwt_issuers"
+	defaultJWTSubjectClaim  = "sub"
+	defaultJWTTokenLifetime = 15 * time.Minute
+	maxJWTTokenLifetime     = 24 * time.Hour
+	// maxJWTIssuerNameLen matches user_external_identities.issuer.
+	maxJWTIssuerNameLen          = 255
 	DefaultJWTRateLimitPerMinute = 1200
 	jwtRateLimitPerMinuteKey     = "auth.jwt_rate_limit_per_minute"
 )
@@ -46,8 +50,8 @@ func (a AuthConfig) ValidateJWTIssuers() error {
 	issuers := make(map[string]struct{}, len(a.JWTIssuers))
 	for i, c := range a.JWTIssuers {
 		prefix := fmt.Sprintf("%s[%d]", jwtIssuersKey, i)
-		if c.Name == "" {
-			return fmt.Errorf("%s: name is required", prefix)
+		if c.Name == "" || len(c.Name) > maxJWTIssuerNameLen {
+			return fmt.Errorf("%s: name must be 1 to %d characters", prefix, maxJWTIssuerNameLen)
 		}
 		prefix = fmt.Sprintf("%s (%s)", prefix, c.Name)
 		if _, dup := names[c.Name]; dup {
@@ -80,8 +84,8 @@ func (a AuthConfig) ValidateJWTIssuers() error {
 				return fmt.Errorf("%s: algorithm %q is not permitted; use one of %v", prefix, alg, PermittedJWTAlgorithms)
 			}
 		}
-		if c.MaxTokenLifetime <= 0 {
-			return fmt.Errorf("%s: max_token_lifetime must be positive", prefix)
+		if c.MaxTokenLifetime <= 0 || c.MaxTokenLifetime > maxJWTTokenLifetime {
+			return fmt.Errorf("%s: max_token_lifetime must be between 1s and %s", prefix, maxJWTTokenLifetime)
 		}
 	}
 	return nil
@@ -94,6 +98,10 @@ func isLoopbackHost(host string) bool {
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
 }
+
+// RequireHTTPSOrLoopback reports an error unless raw is an https URL, or an http URL
+// whose host is loopback.
+func RequireHTTPSOrLoopback(raw string) error { return requireHTTPS(raw) }
 
 func requireHTTPS(raw string) error {
 	if raw == "" {
@@ -113,6 +121,14 @@ func requireHTTPS(raw string) error {
 	return fmt.Errorf("%q must be an https URL", raw)
 }
 
+// decodeJSONStrict rejects unknown keys, so a misspelled option such as
+// "max_token_lifetme" fails at startup instead of silently using the default.
+func decodeJSONStrict(b []byte, v any) error {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	return dec.Decode(v)
+}
+
 // getConfigJWTIssuers accepts a YAML list from a config file or a JSON array from
 // an environment variable or flag, like server.endpoint_request_size_overrides.
 func (man Manager) getConfigJWTIssuers() []JWTIssuerConfig {
@@ -125,7 +141,7 @@ func (man Manager) getConfigJWTIssuers() []JWTIssuerConfig {
 		if v == "" {
 			return nil
 		}
-		if err := json.Unmarshal([]byte(v), &raw); err != nil {
+		if err := decodeJSONStrict([]byte(v), &raw); err != nil {
 			panic(fmt.Sprintf("Unable to parse %s: %s", jwtIssuersKey, err))
 		}
 	case []any:
@@ -133,7 +149,7 @@ func (man Manager) getConfigJWTIssuers() []JWTIssuerConfig {
 		if err != nil {
 			panic(fmt.Sprintf("Unable to encode value for key %s: %s", jwtIssuersKey, err))
 		}
-		if err := json.Unmarshal(b, &raw); err != nil {
+		if err := decodeJSONStrict(b, &raw); err != nil {
 			panic(fmt.Sprintf("Unable to parse %s: %s", jwtIssuersKey, err))
 		}
 	default:

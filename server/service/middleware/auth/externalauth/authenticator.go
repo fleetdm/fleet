@@ -19,6 +19,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/golang-jwt/jwt/v4"
@@ -63,7 +64,7 @@ func New(ctx context.Context, issuers []config.JWTIssuerConfig, users UserLookup
 	logger *slog.Logger, opts ...Option,
 ) (*Authenticator, error) {
 	if len(issuers) == 0 {
-		return nil, errors.New("no jwt issuers configured")
+		return nil, ctxerr.New(ctx, "no jwt issuers configured")
 	}
 	a := &Authenticator{
 		issuers:         make(map[string]*issuer, len(issuers)),
@@ -81,14 +82,14 @@ func New(ctx context.Context, issuers []config.JWTIssuerConfig, users UserLookup
 	client := *a.client
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if len(via) >= maxKeyFetchRedirects {
-			return errors.New("too many redirects")
+			return ctxerr.New(req.Context(), "too many redirects")
 		}
 		return config.RequireHTTPSOrLoopback(req.URL.String())
 	}
 	a.client = &client
 	for _, c := range issuers {
 		if _, dup := a.issuers[c.Issuer]; dup {
-			return nil, fmt.Errorf("duplicate jwt issuer %q", c.Issuer)
+			return nil, ctxerr.Errorf(ctx, "duplicate jwt issuer %q", c.Issuer)
 		}
 		a.issuers[c.Issuer] = newIssuer(c, a.client)
 	}
@@ -229,7 +230,8 @@ func (a *Authenticator) AuthViewer(ctx context.Context, token, clientIP string) 
 		return rj.reject("bound user is not api-only", nil)
 	}
 
-	a.logger.InfoContext(ctx, "external jwt authenticated", "issuer_name", iss.cfg.Name, "sub", subject,
+	// Debug, not Info: an automation authenticates on every request it makes.
+	a.logger.DebugContext(ctx, "external jwt authenticated", "issuer_name", iss.cfg.Name, "sub", subject,
 		"jti", claims["jti"], "user_id", user.ID, "client_ip", clientIP)
 	return &viewer.Viewer{User: user}, nil
 }

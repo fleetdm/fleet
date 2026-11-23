@@ -3,8 +3,6 @@ package externalauth
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/MicahParks/jwkset"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 const (
@@ -73,7 +72,9 @@ func (i *issuer) refresh(ctx context.Context) error {
 	}
 	keys := make(map[string]jwkset.JWK, len(set.Keys))
 	for _, m := range set.Keys {
-		if m.KID == "" {
+		// A key without a kid can't be selected, and an encryption key must never
+		// verify a signature (RFC 7517 section 4.2).
+		if m.KID == "" || (m.USE != "" && m.USE != jwkset.UseSig) {
 			continue
 		}
 		// Without JWKMarshalOptions.Private, symmetric ("oct") keys fail to parse and are skipped.
@@ -85,7 +86,7 @@ func (i *issuer) refresh(ctx context.Context) error {
 	}
 	if len(keys) == 0 {
 		// Treat this as an outage rather than a key rotation, so cached keys keep serving.
-		return fmt.Errorf("jwks at %s has no usable keys", jwksURL)
+		return ctxerr.Errorf(ctx, "jwks at %s has no usable keys", jwksURL)
 	}
 
 	i.mu.Lock()
@@ -104,10 +105,13 @@ func (i *issuer) discover(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if doc.Issuer != i.cfg.Issuer {
-		return "", fmt.Errorf("discovery document issuer %q does not match configured issuer %q", doc.Issuer, i.cfg.Issuer)
+		return "", ctxerr.Errorf(ctx, "discovery document issuer %q does not match configured issuer %q", doc.Issuer, i.cfg.Issuer)
 	}
 	if doc.JWKSURI == "" {
-		return "", fmt.Errorf("discovery document at %s has no jwks_uri", u)
+		return "", ctxerr.Errorf(ctx, "discovery document at %s has no jwks_uri", u)
+	}
+	if err := config.RequireHTTPSOrLoopback(doc.JWKSURI); err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "discovery document at %s: jwks_uri", u)
 	}
 	return doc.JWKSURI, nil
 }
@@ -115,25 +119,25 @@ func (i *issuer) discover(ctx context.Context) (string, error) {
 func (i *issuer) getJSON(ctx context.Context, u string, v any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return fmt.Errorf("build request for %s: %w", u, err)
+		return ctxerr.Wrapf(ctx, err, "build request for %s", u)
 	}
 	resp, err := i.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("fetch %s: %w", u, err)
+		return ctxerr.Wrapf(ctx, err, "fetch %s", u)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("fetch %s: status %d", u, resp.StatusCode)
+		return ctxerr.Errorf(ctx, "fetch %s: status %d", u, resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxJWKSResponseBytes+1))
 	if err != nil {
-		return fmt.Errorf("read %s: %w", u, err)
+		return ctxerr.Wrapf(ctx, err, "read %s", u)
 	}
 	if len(body) > maxJWKSResponseBytes {
-		return errors.New("response from " + u + " exceeds size limit")
+		return ctxerr.Errorf(ctx, "response from %s exceeds size limit", u)
 	}
 	if err := json.Unmarshal(body, v); err != nil {
-		return fmt.Errorf("decode %s: %w", u, err)
+		return ctxerr.Wrapf(ctx, err, "decode %s", u)
 	}
 	return nil
 }
