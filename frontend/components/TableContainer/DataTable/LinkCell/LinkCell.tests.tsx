@@ -15,15 +15,24 @@ describe("Link cell", () => {
     // Note: Testing react-router Link would require Router or MemoryRouter wrapper which is app level
   });
 
-  it("renders a truncation tooltip that does not capture clicks meant for the row above", () => {
-    const { container } = renderWithSetup(
-      <LinkCell value={VALUE} path={PATHS.MANAGE_HOSTS} tooltipTruncate />
+  it("renders the truncation tooltip outside the link so clicking it does not follow the link", async () => {
+    const onClick = jest.fn();
+    const { container, user } = renderWithSetup(
+      <LinkCell
+        value={VALUE}
+        path={PATHS.MANAGE_HOSTS}
+        customOnClick={onClick}
+        tooltipTruncate
+      />
     );
 
-    // react-tooltip's allow_click class switches the tooltip to pointer-events: auto, which lets it sit on top of
-    // the row above and navigate to this row's link when clicked.
-    const tooltip = container.querySelector(".__react_component_tooltip");
+    // The tooltip overlaps the row above, so a click on it must not navigate to this row.
+    const link = container.querySelector("a");
+    const tooltip = document.querySelector(".__react_component_tooltip");
     expect(tooltip).toBeInTheDocument();
-    expect(tooltip).not.toHaveClass("allow_click");
+    expect(link).not.toContainElement(tooltip as HTMLElement);
+
+    await user.click(tooltip as HTMLElement);
+    expect(onClick).not.toHaveBeenCalled();
   });
 });

@@ -44,6 +44,19 @@
     }
   }
 
+  .data-table__suffix,
+  .data-table__prefix {
+    display: flex;
+    gap: $gap-icon-text;
+    height: 24px;
+    align-items: center;
+    flex-shrink: 0; /* Prevent suffix from shrinking */
+  }
+}
+
+// Shared with the wrapper that a link cell's tooltip is portaled into, since that tooltip is no longer inside the cell.
+.tooltip-truncated-cell,
+.tooltip-truncated-cell-portal {
   .truncated-tooltip {
     text-wrap: wrap;
     overflow-wrap: break-word;
@@ -60,16 +73,13 @@
     }
   }
 
-  .data-table__suffix,
-  .data-table__prefix {
-    display: flex;
-    gap: $gap-icon-text;
-    height: 24px;
-    align-items: center;
-    flex-shrink: 0; /* Prevent suffix from shrinking */
-  }
-
   .__react_component_tooltip {
     font-size: $xx-small;
   }
+}
+
+// Escape hides the tooltip without moving the pointer; react-tooltip's own hide() refuses while the pointer is on it.
+.tooltip-truncated-cell-portal .__react_component_tooltip.truncated-tooltip--dismissed {
+  visibility: hidden;
+  pointer-events: none;
 }

@@ -58,7 +58,7 @@ const LinkCell = ({
           value={value}
           prefix={prefix}
           suffix={suffix}
-          tooltipClickable={false}
+          isInsideLink
         />
       </Link>
     );
