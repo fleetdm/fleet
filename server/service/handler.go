@@ -80,6 +80,8 @@ type extraHandlerOpts struct {
 	mcpConn         *MCPConn
 	mcpHandler      http.Handler
 	externalAuth    auth.ExternalAuthenticator
+	// requestContextOpts is derived from externalAuth in MakeHandler.
+	requestContextOpts []auth.RequestContextOption
 }
 
 // WithExternalAuth enables authentication of API-only users by JWTs from external issuers.
@@ -176,9 +178,8 @@ func MakeHandler(
 		return nil, fmt.Errorf("invalid server.trusted_proxies configuration: %w", err)
 	}
 
-	var requestContextOpts []auth.RequestContextOption
 	if eopts.externalAuth != nil {
-		requestContextOpts = append(requestContextOpts, auth.WithExternalAuth(eopts.externalAuth, func(r *http.Request) string {
+		eopts.requestContextOpts = append(eopts.requestContextOpts, auth.WithExternalAuth(eopts.externalAuth, func(r *http.Request) string {
 			return ipStrategy.ClientIP(r.Header, r.RemoteAddr)
 		}))
 	}
@@ -187,7 +188,7 @@ func MakeHandler(
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			func(ctx context.Context, _ *http.Request) context.Context { return redact.NewContext(ctx) },
-			auth.SetRequestsContexts(svc, requestContextOpts...),
+			auth.SetRequestsContexts(svc, eopts.requestContextOpts...),
 			setCarveStoreInRequestContext(carveStore),
 		),
 		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: logger}),
@@ -451,11 +452,11 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token", getSoftwareInstallerTokenEndpoint,
 		getSoftwareInstallerRequest{})
 	// Software package endpoints are already limited to max installer size in serve.go
-	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
+	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger, extra.requestContextOpts...)).POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
 	ue.POST("/api/_version_/fleet/staged_upload", createStagedUploadEndpoint, createStagedUploadRequest{})
 	ue.PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/name", updateSoftwareNameEndpoint, updateSoftwareNameRequest{})
 	// Software package endpoints are already limited to max installer size in serve.go
-	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
+	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger, extra.requestContextOpts...)).PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
 	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
 	ue.GET("/api/_version_/fleet/software/install/{install_uuid}/results", getSoftwareInstallResultsEndpoint,
 		getSoftwareInstallResultsRequest{})
@@ -667,7 +668,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	// bootstrap-package routes
 
 	// Bootstrap endpoints are already max size limited to installer size in serve.go
-	mdmAppleMW.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).POST("/api/_version_/fleet/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
+	mdmAppleMW.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger, extra.requestContextOpts...)).POST("/api/_version_/fleet/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/bootstrap/{fleet_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
 	mdmAppleMW.DELETE("/api/_version_/fleet/bootstrap/{fleet_id:[0-9]+}", deleteBootstrapPackageEndpoint, deleteBootstrapPackageRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/bootstrap/summary", getMDMAppleBootstrapPackageSummaryEndpoint, getMDMAppleBootstrapPackageSummaryRequest{})
@@ -1602,7 +1603,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 
 // uploadPreAuth rejects package uploads without a package write role before the
 // body is read, and only then lifts the read deadline for large uploads.
-func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) http.Handler {
+func uploadPreAuth(svc fleet.Service, logger *slog.Logger, authOpts ...auth.RequestContextOption) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -1619,13 +1620,13 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 				reject(fleet.NewAuthHeaderRequiredError("no auth token"))
 				return
 			}
-			v, err := auth.AuthViewer(ctx, string(bearer), svc)
+			vctx, v, err := auth.ViewerForBearer(ctx, r, string(bearer), svc, authOpts...)
 			if err != nil {
 				reject(err)
 				return
 			}
 			// Runs the forced password reset and API-only checks that follow decode, in the same order.
-			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(ctx, r), *v)
+			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(vctx, r), *v)
 			noop := func(context.Context, any) (any, error) { return nil, nil }
 			if _, err := auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(noop))(probeCtx, nil); err != nil {
 				reject(err)

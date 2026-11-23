@@ -83,7 +83,7 @@ func newUploadPreAuthTestService(t *testing.T, users map[string]*fleet.User) fle
 	return svc
 }
 
-func serveUploadPreAuth(t *testing.T, svc fleet.Service, route uploadPreAuthRoute, bearer string) (*uploadPreAuthRecorder, int, bool) {
+func serveUploadPreAuth(t *testing.T, svc fleet.Service, route uploadPreAuthRoute, bearer string, opts ...auth.RequestContextOption) (*uploadPreAuthRecorder, int, bool) {
 	t.Helper()
 	body := &uploadPreAuthBody{Reader: strings.NewReader(strings.Repeat("x", 8192))}
 	ran := false
@@ -98,7 +98,7 @@ func serveUploadPreAuth(t *testing.T, svc fleet.Service, route uploadPreAuthRout
 		Methods:  []string{route.method},
 		Path:     "/api/_version_/fleet" + route.template,
 		Versions: []string{"v1", "2022-04", "latest"},
-	}, uploadPreAuth(svc, slog.New(slog.DiscardHandler))(next))
+	}, uploadPreAuth(svc, slog.New(slog.DiscardHandler), opts...)(next))
 	req := httptest.NewRequest(route.method, route.path, body)
 	req.Header.Set("Authorization", "Bearer "+strings.ReplaceAll(bearer, " ", "_"))
 	w := &uploadPreAuthRecorder{ResponseRecorder: httptest.NewRecorder()}
@@ -237,4 +237,57 @@ func TestUploadPreAuthMatchesAuthz(t *testing.T) {
 			}
 		})
 	}
+}
+
+type uploadSpyExternalAuth struct {
+	user  *fleet.User
+	calls int
+}
+
+func (s *uploadSpyExternalAuth) AuthViewer(context.Context, string, string) (*viewer.Viewer, error) {
+	s.calls++
+	if s.user == nil {
+		return nil, fleet.NewAuthRequiredError("invalid token")
+	}
+	return &viewer.Viewer{User: s.user}, nil
+}
+
+func TestUploadPreAuthExternalJWT(t *testing.T) {
+	const jwt = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJib3QifQ.c2ln"
+	route := uploadPreAuthRoutes[0]
+	clientIP := func(*http.Request) string { return "192.0.2.1" }
+
+	t.Run("bound API-only maintainer may upload", func(t *testing.T) {
+		svc := newUploadPreAuthTestService(t, nil)
+		spy := &uploadSpyExternalAuth{user: &fleet.User{ID: 9, APIOnly: true, GlobalRole: new(fleet.RoleMaintainer)}}
+		w, bytesRead, ran := serveUploadPreAuth(t, svc, route, jwt, auth.WithExternalAuth(spy, clientIP))
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.True(t, ran)
+		assert.Equal(t, 8192, bytesRead)
+		assert.Equal(t, 1, spy.calls)
+	})
+
+	t.Run("bound API-only observer is forbidden before the body is read", func(t *testing.T) {
+		svc := newUploadPreAuthTestService(t, nil)
+		spy := &uploadSpyExternalAuth{user: &fleet.User{ID: 9, APIOnly: true, GlobalRole: new(fleet.RoleObserver)}}
+		w, bytesRead, ran := serveUploadPreAuth(t, svc, route, jwt, auth.WithExternalAuth(spy, clientIP))
+		assert.Equal(t, http.StatusForbidden, w.Code)
+		assert.False(t, ran)
+		assert.Zero(t, bytesRead)
+	})
+
+	t.Run("rejected JWT is a 401", func(t *testing.T) {
+		svc := newUploadPreAuthTestService(t, nil)
+		w, bytesRead, ran := serveUploadPreAuth(t, svc, route, jwt, auth.WithExternalAuth(&uploadSpyExternalAuth{}, clientIP))
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.False(t, ran)
+		assert.Zero(t, bytesRead)
+	})
+
+	t.Run("JWT without external auth configured is a 401", func(t *testing.T) {
+		svc := newUploadPreAuthTestService(t, nil)
+		w, _, ran := serveUploadPreAuth(t, svc, route, jwt)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.False(t, ran)
+	})
 }
