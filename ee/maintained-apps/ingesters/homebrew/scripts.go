@@ -37,6 +37,18 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 		sb.AddFunction("relaunch_application", relaunchApplicationFunc)
 	}
 
+	// A cask can install apps from more than one artifact, and the relaunch only
+	// knows which bundle carries app.UniqueIdentifier when there is exactly one.
+	// Count across every artifact, not just the one being written.
+	totalApps := 0
+	for _, artifact := range cask.Artifacts {
+		for _, appItem := range artifact.App {
+			if appItem.String != "" {
+				totalApps++
+			}
+		}
+	}
+
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
@@ -45,7 +57,9 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 			// Stop if it won't quit: fleetd deletes $TMPDIR after the install, which
 			// would take the moved-aside bundle the app is still running from.
 			sb.Writef("quit_and_track_application '%s' || exit 1", app.UniqueIdentifier)
-			var appPaths []string
+			// 'cp -R "$TMPDIR/<path>" "$APPDIR"' installs the bundle's basename, so
+			// a nested artifact path is not where the app ends up.
+			var appBases []string
 			for _, appItem := range artifact.App {
 				// Only process string values (skip objects with target, those are handled by custom scripts)
 				if appItem.String == "" {
@@ -55,7 +69,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				// strings alongside "$APPDIR"/"$TMPDIR"; escape it so a payload like
 				// $(...) can't reach the root-privileged mv/cp/rm below.
 				appPath := shellDoubleQuoteEscape(appItem.String)
-				appPaths = append(appPaths, appPath)
+				appBases = append(appBases, shellDoubleQuoteEscape(path.Base(appItem.String)))
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
@@ -70,10 +84,10 @@ fi`, appPath)
 fi`, appPath)
 			}
 			// Relaunch the app if it was running before installation. Open it by
-			// path when the artifact installs a single app; with several, which one
-			// has the bundle ID isn't known, so open it by bundle ID.
-			if len(appPaths) == 1 {
-				sb.Writef(`relaunch_application '%s' "$APPDIR/%s"`, app.UniqueIdentifier, appPaths[0])
+			// path when the cask installs a single app; with several, which one has
+			// the bundle ID isn't known, so open it by bundle ID.
+			if totalApps == 1 && len(appBases) == 1 {
+				sb.Writef(`relaunch_application '%s' "$APPDIR/%s"`, app.UniqueIdentifier, appBases[0])
 			} else {
 				sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
 			}
@@ -1234,12 +1248,13 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 // relaunch that keeps failing doesn't fail the install.
 const relaunchApplicationFunc = `relaunch_application() {
   local bundle_id="$1"
-  local app_path="$2"
+  local app_path="${2:-}"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
-  # Check if the app was running before installation
-  eval "was_running=\$$var_name"
+  # Check if the app was running before installation. Default the variable so a
+  # script running under 'set -u' doesn't abort when the quit helper never ran.
+  eval "was_running=\${$var_name:-0}"
   if [[ "$was_running" != "1" ]]; then
     return
   fi

@@ -1290,21 +1290,27 @@ func TestInstallScriptRelaunchRetriesAndLogs(t *testing.T) {
 		return a
 	}
 	for name, tc := range map[string]struct {
-		format   string
-		artifact *brewArtifact
-		openArgs []string
+		format    string
+		artifacts []*brewArtifact
+		openArgs  []string
 	}{
-		"single app":   {"zip", app("Foo.app"), []string{"/Applications//Foo.app"}},
-		"app with $":   {"zip", app("Foo $HOME.app"), []string{"/Applications//Foo", "$HOME.app"}},
-		"several apps": {"zip", app("Foo.app", "Foo Helper.app"), []string{"-b", "com.example.Foo"}},
-		"pkg":          {"pkg", &brewArtifact{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "Foo-1.0.pkg"}}}, []string{"-b", "com.example.Foo"}},
+		"single app":   {"zip", []*brewArtifact{app("Foo.app")}, []string{"/Applications//Foo.app"}},
+		"app with $":   {"zip", []*brewArtifact{app("Foo $HOME.app")}, []string{"/Applications//Foo", "$HOME.app"}},
+		"several apps": {"zip", []*brewArtifact{app("Foo.app", "Foo Helper.app")}, []string{"-b", "com.example.Foo"}},
+		// Two artifacts each installing one app: the cask still has no single
+		// bundle to open, so it must fall back to the bundle ID rather than
+		// opening whichever app the last artifact copied.
+		"apps in two artifacts": {"zip", []*brewArtifact{app("Foo.app"), app("Foo Helper.app")}, []string{"-b", "com.example.Foo"}},
+		// 'cp -R "$TMPDIR/Suite/Foo.app" "$APPDIR"' lands on /Applications/Foo.app.
+		"nested app path": {"zip", []*brewArtifact{app("Suite/Foo.app")}, []string{"/Applications//Foo.app"}},
+		"pkg":             {"pkg", []*brewArtifact{{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "Foo-1.0.pkg"}}}}, []string{"-b", "com.example.Foo"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			script, err := installScriptForApp(inputApp{
 				Token:            "foo",
 				UniqueIdentifier: "com.example.Foo",
 				InstallerFormat:  tc.format,
-			}, &brewCask{Artifacts: []*brewArtifact{tc.artifact}})
+			}, &brewCask{Artifacts: tc.artifacts})
 			require.NoError(t, err)
 
 			// open fails its first openFailures calls, and records each call's

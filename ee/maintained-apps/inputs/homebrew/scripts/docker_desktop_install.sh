@@ -89,12 +89,13 @@ quit_and_track_application() {
 
 relaunch_application() {
   local bundle_id="$1"
-  local app_path="$2"
+  local app_path="${2:-}"
   local var_name
   var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
-  # Check if the app was running before installation
+  # Check if the app was running before installation. Default the variable so a
+  # script running under 'set -u' doesn't abort when the quit helper never ran.
   eval "was_running=\${$var_name:-0}"
   if [[ "$was_running" != "1" ]]; then
     return
