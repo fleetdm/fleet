@@ -1528,6 +1528,13 @@
       "description": "Cato Client is a zero trust network access (ZTNA) and VPN client that connects devices to the Cato SASE Cloud."
     },
     {
+      "name": "Cato Enterprise Browser",
+      "slug": "cato-enterprise-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Cato Browser",
+      "description": "Cato Enterprise Browser is a Chromium-based browser that secures access to business applications through the Cato SASE Cloud."
+    },
+    {
       "name": "Cavalry",
       "slug": "cavalry/darwin",
       "platform": "darwin",
