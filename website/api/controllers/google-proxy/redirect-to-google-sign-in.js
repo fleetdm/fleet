@@ -42,7 +42,7 @@ module.exports = {
       throw 'customerNotFound';
     }
     // Return a fleetInstanceNotOnAllowlist response if this server url has not been added to sails.config.custom.googleConditionalAccessAllowedOrigins
-    if(!sails.config.custom.googleConditionalAccessAllowedOrigins.includes(fleetInstanceUrl)) {
+    if(!sails.config.custom.googleConditionalAccessAllowedOrigins.includes(informationAboutThisCustomer.fleetInstanceUrl)) {
       throw 'fleetInstanceNotOnAllowlist';
     }
 
