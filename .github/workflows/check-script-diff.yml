@@ -72,24 +72,43 @@ jobs:
                   if (hasRealChanges) {
                     // Split content by processing headers and rebuild properly
                     const parts = output.split(/=== Processing (.+?) ===/);
+                    const header = '## Script Diff Results\n\n';
+                    // A comment body is capped at 65536 characters, which a run
+                    // that regenerates the whole catalog goes past. Stop at the
+                    // last section that fits and say how many were left out.
+                    const bodyLimit = 65536;
+                    const noteFor = (n) => `\n\n_Output truncated: ${n} more changed manifest(s) not shown._`;
+                    // Reserve for the longest note this run could need, so the
+                    // body stays under the cap whatever the final count is.
+                    const noteReserve = noteFor(parts.length).length;
                     let formattedOutput = '';
+                    let omitted = 0;
 
                     // Skip first empty part, then process pairs of (filename, content)
                     for (let i = 1; i < parts.length; i += 2) {
                       const filename = parts[i];
                       const content = parts[i + 1] || '';
                       if (filename && content.trim()) {
-                        formattedOutput += `### ${filename}\n\`\`\`diff\n${content.trim()}\n\`\`\`\n\n`;
+                        const section = `### ${filename}\n\`\`\`diff\n${content.trim()}\n\`\`\`\n\n`;
+                        if (omitted > 0 ||
+                            header.length + formattedOutput.length + section.length +
+                              noteReserve > bodyLimit) {
+                          omitted++;
+                          continue;
+                        }
+                        formattedOutput += section;
                       }
                     }
 
+                    const body = header + formattedOutput.trim() +
+                      (omitted > 0 ? noteFor(omitted) : '');
                     await github.rest.issues.createComment({
                       issue_number: context.issue.number,
                       owner: context.repo.owner,
                       repo: context.repo.repo,
-                      body: `## Script Diff Results\n\n${formattedOutput.trim()}`
+                      body
                     });
-                    console.log('Posted comment with script diff results');
+                    console.log(`Posted comment with script diff results (${omitted} section(s) omitted)`);
                   } else {
                     console.log('No meaningful changes detected, skipping comment');
                   }
