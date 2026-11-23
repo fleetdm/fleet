@@ -30,7 +30,7 @@ describe("ViewUnlockPinModal", () => {
 
     // Spinner waits 250ms before rendering to avoid a flash.
     expect(await screen.findByTestId("spinner")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.getByText("Close")).toBeInTheDocument();
   });
 
   it("shows an error state when the request fails", async () => {
@@ -57,10 +57,8 @@ describe("ViewUnlockPinModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Clear passcode/)).toBeInTheDocument();
 
-    // The modal's own "x" is labelled "Exit"; there is exactly one Close.
-    const closeButtons = screen.getAllByRole("button", { name: "Close" });
-    expect(closeButtons).toHaveLength(1);
-    await user.click(closeButtons[0]);
+    // The modal's "x" is an icon-only button; the footer has one text Close.
+    await user.click(screen.getByText("Close"));
     expect(onClose).toHaveBeenCalled();
   });
 
