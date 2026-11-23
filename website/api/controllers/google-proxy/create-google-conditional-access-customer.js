@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Create Google conditional access customer',// TODO: update this name to be create-or-update-google-conditional-access-customer
+  friendlyName: 'Create Google conditional access customer',
 
 
   description: 'Registers a Fleet server for a provided Google customer ID and returns a generated secret.',
@@ -17,7 +17,7 @@ module.exports = {
 
   exits: {
     success: { description: 'Details about a Google conditional access registration have been returned to a Fleet instance' },
-    connectionAlreadyExists: { description: 'The provided Google customer ID is already registered from another Origin.', statusCode: 409 },
+    connectionAlreadyExists: { description: 'The provided Google customer ID is already registered.', statusCode: 409 },
     missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest' },
     invalidOriginHeader: { description: 'The Origin header is not an HTTPS URL.', responseType: 'badRequest' },
   },
@@ -54,24 +54,22 @@ module.exports = {
       }
     }
 
-    let fleetServerSecret = require('node:crypto').randomBytes(15).toString('hex');
-
+    // A customer ID can only be registered once. The Origin header is set by the caller, so a request with the same Origin as
+    // the existing registration is not proof that it comes from the Fleet server that registered it, and it can't replace the secret.
+    // To register again, a Fleet server deletes its registration first, which requires its secret.
     let existingRegistration = await GoogleConditionalAccessServer.findOne({googleCustomerId});
     if(existingRegistration) {
-      // Only the Fleet server that registered this customer ID can re-create its registration, which replaces the secret.
-      if(existingRegistration.fleetInstanceUrl !== this.req.get('origin')) {
-        throw 'connectionAlreadyExists';
-      }
-      // Currently, this approach requires treating your Google Customer ID as a secret. In the upcoming GA release of this feature, you will be able to treat your Google Customer ID as a less sensitive credential.
-      await GoogleConditionalAccessServer.updateOne({id: existingRegistration.id}).set({fleetServerSecret});
-    } else {
-      await GoogleConditionalAccessServer.create({
-        fleetServerSecret: fleetServerSecret,
-        googleCustomerId: googleCustomerId,
-        fleetInstanceUrl: this.req.get('origin'),
-      })
-      .intercept('E_UNIQUE', 'connectionAlreadyExists');
+      throw 'connectionAlreadyExists';
     }
+
+    let fleetServerSecret = require('node:crypto').randomBytes(15).toString('hex');
+
+    await GoogleConditionalAccessServer.create({
+      fleetServerSecret: fleetServerSecret,
+      googleCustomerId: googleCustomerId,
+      fleetInstanceUrl: this.req.get('origin'),
+    })
+    .intercept('E_UNIQUE', 'connectionAlreadyExists');
 
     return {
       fleetServerSecret: fleetServerSecret,

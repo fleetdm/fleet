@@ -11,7 +11,8 @@ import (
 // Relay registers this server with the relay on fleetdm.com. Customer IDs include the
 // leading "C". serverURL is this server's current URL, which fleetdm.com calls back.
 type Relay interface {
-	// Register replaces the secret when called again from the same server.
+	// Register returns a 409 RelayStatusError when the customer is already registered, even
+	// by this server: Deregister first.
 	Register(ctx context.Context, serverURL, customerID string) (*Registration, error)
 	// Deregister returns a fleet.IsNotFound error when there's no matching registration.
 	Deregister(ctx context.Context, serverURL, customerID, secret string) error

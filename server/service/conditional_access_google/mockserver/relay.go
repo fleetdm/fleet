@@ -62,8 +62,9 @@ func (s *Server) handleCreateRegistration(w http.ResponseWriter, r *http.Request
 	}
 
 	s.mu.Lock()
-	existing := s.registrations[req.CustomerID]
-	if existing != nil && existing.origin != origin {
+	// As on fleetdm.com, a customer registers once: the caller sets the Origin, so a
+	// matching one doesn't prove who is asking.
+	if existing := s.registrations[req.CustomerID]; existing != nil {
 		s.mu.Unlock()
 		http.Error(w, "customer already registered from "+existing.origin, http.StatusConflict)
 		return

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http"
 	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -18,6 +19,11 @@ import (
 )
 
 const missingServerPrivateKeyMessage = "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
+
+// googleConditionalAccessCustomerRegisteredMessage stands in for fleetdm.com's 409, which
+// gives the admin nothing to act on.
+const googleConditionalAccessCustomerRegisteredMessage = "This Google customer ID is already connected to a Fleet server. " +
+	"If it's another Fleet server of yours, delete the integration there and try again. Otherwise, contact Fleet support."
 
 ////////////////////////////////////////////////////////////////////////////////
 // POST /api/_version_/fleet/conditional_access/google
@@ -791,7 +797,7 @@ func (svc *Service) registerGoogleConditionalAccess(
 
 	resp, err := svc.googleConditionalAccess.Relay.Register(ctx, serverURL, settings.CustomerID)
 	if err != nil {
-		gwErr := newFleetdmRelayError("Couldn't register with fleetdm.com", err)
+		gwErr := newGoogleConditionalAccessRegisterError(err)
 		reason := gwErr.Error()
 		if saveErr := svc.saveGoogleConditionalAccessRow(ctx, nil, fleet.ConditionalAccessGoogleStateRegistrationFailed, &reason); saveErr != nil {
 			svc.logger.ErrorContext(ctx, "record google conditional access registration error", "err", saveErr)
@@ -847,6 +853,15 @@ func (svc *Service) deleteGoogleConditionalAccessRegistration(ctx context.Contex
 // would read as an expired Fleet session.
 func newFleetdmRelayError(message string, err error) *fleet.GatewayError {
 	return fleet.NewBadGatewayError(message, err)
+}
+
+// newGoogleConditionalAccessRegisterError words a failed registration for the admin. A 409
+// means fleetdm.com already has the customer ID registered.
+func newGoogleConditionalAccessRegisterError(err error) *fleet.GatewayError {
+	if se, ok := errors.AsType[*conditional_access_google.RelayStatusError](err); ok && se.Code == http.StatusConflict {
+		return newFleetdmRelayError(googleConditionalAccessCustomerRegisteredMessage, nil)
+	}
+	return newFleetdmRelayError("Couldn't register with fleetdm.com", err)
 }
 
 func (svc *Service) saveGoogleConditionalAccessSettings(

@@ -135,17 +135,20 @@ func TestRelayRegistration(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, reg.FleetServerSecret)
 
+	// A customer registers once, whichever server asks again.
 	_, err = e.relay.Register(ctx, "https://fleet-b.example.com", customer)
 	require.Equal(t, http.StatusConflict, relayStatus(t, err))
+	_, err = e.relay.Register(ctx, "https://fleet-a.example.com", customer)
+	require.Equal(t, http.StatusConflict, relayStatus(t, err))
 
-	again, err := e.relay.Register(ctx, "https://fleet-a.example.com", customer)
-	require.NoError(t, err)
-	require.NotEqual(t, reg.FleetServerSecret, again.FleetServerSecret)
-
-	err = e.relay.Deregister(ctx, "https://fleet-a.example.com", customer, reg.FleetServerSecret)
+	err = e.relay.Deregister(ctx, "https://fleet-a.example.com", customer, "not-the-secret")
 	require.True(t, fleet.IsNotFound(err), "%v", err)
-	require.NoError(t, e.relay.Deregister(ctx, "https://fleet-a.example.com", customer, again.FleetServerSecret))
+	require.NoError(t, e.relay.Deregister(ctx, "https://fleet-a.example.com", customer, reg.FleetServerSecret))
 	require.Empty(t, e.mock.State().Registrations)
+
+	// Deregistering frees the customer for another server.
+	_, err = e.relay.Register(ctx, "https://fleet-b.example.com", customer)
+	require.NoError(t, err)
 }
 
 var continueLink = regexp.MustCompile(`id="continue" href="([^"]+)"`)

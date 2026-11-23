@@ -2597,6 +2597,19 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Contains(t, *st.ErrorMessage, "fleetdm.com unavailable")
 	g.client.reset()
 
+	// A customer fleetdm.com already has registered tells the admin what to do, in the
+	// response and on the integration, instead of reporting the conflict.
+	g.client.registerErr = &conditional_access_google.RelayStatusError{Code: http.StatusConflict, RespErr: "Conflict"}
+	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
+	}, http.StatusBadGateway)
+	require.Contains(t, extractServerErrorText(res.Body), googleConditionalAccessCustomerRegisteredMessage)
+	st = g.status()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, st.State)
+	require.NotNil(t, st.ErrorMessage)
+	require.Equal(t, googleConditionalAccessCustomerRegisteredMessage, *st.ErrorMessage)
+	g.client.reset()
+
 	// Sending the same values again retries the check and the registration, which logs
 	// the addition.
 	addedBefore, editedBefore = g.addedCount(), g.editedCount()
