@@ -20543,6 +20543,8 @@ or
 
 Returns the external identities bound to an API-only user. A JWT from a configured [`auth.jwt_issuers`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-jwt-issuers) issuer whose subject matches one of these identities authenticates as this user.
 
+The response also includes `issuers`, the names of the configured issuers that bindings can use. It's omitted when no issuers are configured.
+
 Only global admins can use this endpoint.
 
 `GET /api/v1/fleet/users/api_only/:id/external_identities`
@@ -20568,7 +20570,8 @@ Only global admins can use this endpoint.
       "issuer": "github",
       "subject": "repo:acme/fleet-gitops:environment:production"
     }
-  ]
+  ],
+  "issuers": ["github", "google"]
 }
 ```
 
