@@ -3843,6 +3843,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 - [Escrow LUKS data](#escrow-luks-data)
 - [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
 - [Set or update device token](#set-or-update-device-token)
+- [Report Entra device token](#report-entra-device-token)
 - [Get orbit script](#get-orbit-script)
 - [Post orbit script result](#post-orbit-script-result)
 - [Put orbit device mapping](#put-orbit-device-mapping)
@@ -4033,6 +4034,38 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
 {
   "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
   "device_auth_token": "2267a440-4cfb-48af-804b-d52224a05e1b"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Report Entra device token
+
+Used by fleetd on macOS hosts for [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). When conditional access is on for the host, [Get Orbit config](#get-orbit-config) returns `entra_device_token_request` with a `tenant_id`, `client_id`, and `nonce`. fleetd uses them to get an Entra ID token through the Company Portal single sign-on extension, then sends the token to this endpoint. Fleet verifies the token before it saves the host's Entra device ID.
+
+An Entra device ID can belong to only one host. If another host already has it, Fleet returns `Status: 409`. To move it, delete the other host in Fleet.
+
+`POST /api/fleet/orbit/entra_device_token`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                      |
+| -------------- | ------ | ---- | ---------------------------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.                           |
+| id_token       | string | body | The Entra ID token, with the `deviceid` claim and the `nonce` from the Orbit config. |
+
+##### Example
+
+`POST /api/fleet/orbit/entra_device_token`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "id_token": "<Entra ID token>"
 }
 ```
 
