@@ -33,6 +33,8 @@ Authorization: Bearer <your token>
 
 > For SSO and MFA users, email/password login is disabled. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
 
+> An [API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user) can instead authenticate with a short-lived JWT from an external identity provider, sent the same way. See [`auth.jwt_issuers`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-jwt-issuers).
+
 ### Log in
 
 ((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
@@ -19443,6 +19445,8 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Create API-only user](#create-api-only-user)
 - [Update API-only user](#update-api-only-user)
 - [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
+- [Get API-only user's external identities](#get-api-only-users-external-identities)
+- [Update API-only user's external identities](#update-api-only-users-external-identities)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
 
@@ -20532,6 +20536,88 @@ or
     "has_previous_results": false
   },
   "count": 1
+}
+```
+
+### Get API-only user's external identities
+
+Returns the external identities bound to an API-only user. A JWT from a configured [`auth.jwt_issuers`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-jwt-issuers) issuer whose subject matches one of these identities authenticates as this user.
+
+Only global admins can use this endpoint.
+
+`GET /api/v1/fleet/users/api_only/:id/external_identities`
+
+#### Parameters
+
+| Name | Type    | In   | Description                       |
+| ---- | ------- | ---- | --------------------------------- |
+| id   | integer | path | **Required**. The API-only user's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/users/api_only/42/external_identities`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "external_identities": [
+    {
+      "issuer": "github",
+      "subject": "repo:acme/fleet-gitops:environment:production"
+    }
+  ]
+}
+```
+
+### Update API-only user's external identities
+
+Replaces the external identities bound to an API-only user. Send an empty list to remove them all. Fleet adds an [added_user_external_identity](https://fleetdm.com/docs/api/global-audit-logs#added-user-external-identity) or [deleted_user_external_identity](https://fleetdm.com/docs/api/global-audit-logs#deleted-user-external-identity) activity for each identity that changes.
+
+Only global admins can use this endpoint, and an API-only user can't update its own external identities.
+
+`PUT /api/v1/fleet/users/api_only/:id/external_identities`
+
+#### Parameters
+
+| Name                | Type    | In   | Description |
+| ------------------- | ------- | ---- | ----------- |
+| id                  | integer | path | **Required**. The API-only user's ID. |
+| external_identities | array   | body | **Required**. The identities to bind. Each has an `issuer`, the `name` of a configured [`auth.jwt_issuers`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-jwt-issuers) entry, and a `subject`, the exact value of that issuer's subject claim (up to 255 characters). Subjects are case-sensitive. |
+
+An identity can be bound to only one user. If one is already bound to a different user, the request fails with `409 Conflict` and nothing changes.
+
+#### Example
+
+`PUT /api/v1/fleet/users/api_only/42/external_identities`
+
+##### Request body
+
+```json
+{
+  "external_identities": [
+    {
+      "issuer": "github",
+      "subject": "repo:acme/fleet-gitops:environment:production"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "external_identities": [
+    {
+      "issuer": "github",
+      "subject": "repo:acme/fleet-gitops:environment:production"
+    }
+  ]
 }
 ```
 

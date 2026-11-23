@@ -4240,6 +4240,8 @@ This activity contains a field "teams" where each item contains the fleet detail
 - [deleted_user_global_role](#deleted-user-global-role)
 - [changed_user_team_role](#changed-user-team-role)
 - [deleted_user_team_role](#deleted-user-team-role)
+- [added_user_external_identity](#added-user-external-identity)
+- [deleted_user_external_identity](#deleted-user-external-identity)
 
 ### created_user
 
@@ -4376,6 +4378,52 @@ This activity contains the following fields:
   "team_name": "Zoo",
   "fleet_id": 2,
   "fleet_name": "Zoo"
+}
+```
+
+### added_user_external_identity
+
+Generated when an external identity is bound to an API-only user, so a JWT from that identity authenticates as the user.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the API-only user in Fleet.
+- "user_name": Name of the API-only user.
+- "user_email": E-mail of the API-only user.
+- "issuer": Name of the [`auth.jwt_issuers`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-jwt-issuers) entry.
+- "subject": The subject the issuer asserts for the external identity.
+
+#### Example
+
+```json
+{
+  "user_id": 42,
+  "user_name": "GitOps",
+  "user_email": "gitops@example.com",
+  "issuer": "github",
+  "subject": "repo:acme/fleet-gitops:environment:production"
+}
+```
+
+### deleted_user_external_identity
+
+Generated when an external identity is unbound from an API-only user.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the API-only user in Fleet.
+- "user_name": Name of the API-only user.
+- "user_email": E-mail of the API-only user.
+- "issuer": Name of the [`auth.jwt_issuers`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-jwt-issuers) entry.
+- "subject": The subject the issuer asserts for the external identity.
+
+#### Example
+
+```json
+{
+  "user_id": 42,
+  "user_name": "GitOps",
+  "user_email": "gitops@example.com",
+  "issuer": "github",
+  "subject": "repo:acme/fleet-gitops:environment:production"
 }
 ```
 
