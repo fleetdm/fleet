@@ -258,7 +258,7 @@ func (s *integrationEnterpriseTestSuite) reportEntraDeviceToken(
 
 func genDistributedReqWithEntraIDDetailsForWindows(host *fleet.Host, deviceID string) submitDistributedQueryResultsRequestShim {
 	results := make(map[string]json.RawMessage)
-	results["fleet_detail_query_conditional_access_microsoft_device_id_windows"] = json.RawMessage(fmt.Sprintf(`[{"device_id": "%s"}]`, deviceID))
+	results["fleet_detail_query_conditional_access_microsoft_device_id_windows_v2"] = json.RawMessage(fmt.Sprintf(`[{"device_id": "%s", "not_valid_after": "2000000000", "source": "unanchored"}]`, deviceID))
 	return submitDistributedQueryResultsRequestShim{
 		NodeKey:  *host.NodeKey,
 		Results:  results,
@@ -1047,7 +1047,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		"queries": {
 			"%[2]s": [{"1": "1"}],
 			"%[5]s": [],
-			"%[3]s": [{"device_id": "%[4]s"}]
+			"%[3]s": [{"device_id": "%[4]s", "not_valid_after": "2000000000", "source": "unanchored"}]
 		},
 		"messages": {},
 		"statuses": {
@@ -1057,7 +1057,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 		}
 	}`, *h1.NodeKey,
 		hostPolicyQueryPrefix+fmt.Sprint(cp1.ID),
-		hostDetailQueryPrefix+"conditional_access_microsoft_device_id_windows", "entraDeviceID",
+		hostDetailQueryPrefix+"conditional_access_microsoft_device_id_windows_v2", "entraDeviceID",
 		hostPolicyQueryPrefix+fmt.Sprint(cp2.ID),
 	)
 	s.DoRaw("POST", "/api/osquery/distributed/write", []byte(rawJSON), http.StatusOK)
@@ -2302,15 +2302,15 @@ func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDevi
 		}
 		return got
 	}
-	checkIn := func(cert map[string]string, policyPasses bool) {
+	checkIn := func(queryName string, cert map[string]string, policyPasses bool) {
 		certRows := []map[string]string{}
 		if cert != nil {
 			certRows = append(certRows, cert)
 		}
 		certJSON, err := json.Marshal(certRows)
 		require.NoError(t, err)
-		queries := map[string]json.RawMessage{hostDetailQueryPrefix + "conditional_access_microsoft_device_id_windows": certJSON}
-		statuses := map[string]int{hostDetailQueryPrefix + "conditional_access_microsoft_device_id_windows": 0}
+		queries := map[string]json.RawMessage{queryName: certJSON}
+		statuses := map[string]int{queryName: 0}
 		if policyPasses {
 			queries[hostPolicyQueryPrefix+fmt.Sprint(pr.Policy.ID)] = json.RawMessage(`[{"1": "1"}]`)
 			statuses[hostPolicyQueryPrefix+fmt.Sprint(pr.Policy.ID)] = 0
@@ -2330,12 +2330,13 @@ func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDevi
 	}
 
 	// The joined device's ID is stored and reported compliant.
-	checkIn(anchored(joinedID), true)
+	const queryName = hostDetailQueryPrefix + "conditional_access_microsoft_device_id_windows_v2"
+	checkIn(queryName, anchored(joinedID), true)
 	require.Equal(t, []report{{joinedID, false, true}}, nextReports(1))
 	requireReported(joinedID)
 
 	// After a rejoin, only the new ID is reported. Fleet leaves the old one as Entra last saw it and logs a warning.
-	checkIn(anchored(rejoinedID), true)
+	checkIn(queryName, anchored(rejoinedID), true)
 	require.Equal(t, []report{{rejoinedID, false, true}}, nextReports(1))
 	requireReported(rejoinedID)
 	// The host's activity feed tells admins which device to check in Entra.
@@ -2345,8 +2346,17 @@ func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDevi
 		host.ID, host.DisplayName(), joinedID, rejoinedID,
 	), 0)
 
+	// Results from a query issued before the upgrade cannot clear the stored ID.
+	const legacyQueryName = hostDetailQueryPrefix + "conditional_access_microsoft_device_id_windows"
+	for _, cert := range []map[string]string{{"device_id": userStoreOnly}, nil} {
+		checkIn(legacyQueryName, cert, false)
+		status, err := s.ds.LoadHostConditionalAccessStatus(ctx, host.ID)
+		require.NoError(t, err)
+		require.Equal(t, rejoinedID, status.DeviceID)
+	}
+
 	// A certificate that isn't join-backed isn't accepted: the stored ID is cleared, and nothing more is sent to Entra.
-	checkIn(map[string]string{"device_id": userStoreOnly, "not_valid_after": "2000000000", "source": "unanchored"}, false)
+	checkIn(queryName, map[string]string{"device_id": userStoreOnly, "not_valid_after": "2000000000", "source": "unanchored"}, false)
 	_, err = s.ds.LoadHostConditionalAccessStatus(ctx, host.ID)
 	require.True(t, fleet.IsNotFound(err), err)
 

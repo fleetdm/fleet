@@ -6930,7 +6930,8 @@ func TestEntraDeviceIDIngester(t *testing.T) {
 			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly = c.trustedOnly
 			queries := GetDetailQueries(t.Context(), fleetConfig, nil, nil,
 				Integrations{ConditionalAccessMicrosoft: true, RecordActivity: recordActivity}, nil)
-			q, ok := queries["conditional_access_microsoft_device_id_windows"]
+			require.NotContains(t, queries, "conditional_access_microsoft_device_id_windows")
+			q, ok := queries["conditional_access_microsoft_device_id_windows_v2"]
 			require.True(t, ok)
 			require.NoError(t, q.DirectIngestFunc(t.Context(), logger, host, ds, c.rows))
 			require.Equal(t, c.wantCreated, gotCreated)

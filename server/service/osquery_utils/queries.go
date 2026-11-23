@@ -4580,7 +4580,8 @@ func GetDetailQueries(
 		q.DirectIngestFunc = entraDeviceIDIngester(
 			fleetConfig.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly, integrations.RecordActivity,
 		)
-		generatedMap["conditional_access_microsoft_device_id_windows"] = q
+		// Legacy results lack certificate source information and must not trigger reconciliation.
+		generatedMap["conditional_access_microsoft_device_id_windows_v2"] = q
 	}
 
 	// IdP host vitals and AI agent sessions are premium features.
