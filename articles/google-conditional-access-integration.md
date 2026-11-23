@@ -264,6 +264,8 @@ How it works:
 2. The bookmark opens a page you host on Google Cloud behind Identity-Aware Proxy (IAP). IAP signs in the end user and tells the page which device in Google the request comes from.
 3. The page asks Fleet whether the host is enrolled and company-owned. If so, it saves the device's Google device ID on the host in Fleet, and Fleet marks the device as managed in Google. Once a host has a Google device ID, Fleet refuses a different one, so the link doesn't work on any other device. Fleet also refuses a device that's already registered to another host.
 
+Until a company-owned device registers, its link works on any device. If someone copies the link to a personal device and opens it there first, Fleet registers the personal device as that host and marks it as managed. Fleet only deploys the link to enrolled hosts, so someone would have to copy it from their company-owned device. The Self-service sign-in in [Step 5](#step-5-set-up-iphones-and-ipads) doesn't have this gap, because it only works on the device with Fleet's Gmail configuration.
+
 Hosts that register this way are unmarked like any other host. See [Remove a device](#remove-a-device).
 
 #### Upgrade from Fleet 4.95
