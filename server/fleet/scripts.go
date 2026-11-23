@@ -18,7 +18,7 @@ import (
 // Script represents a saved script that can be executed on a host.
 type Script struct {
 	ID     uint   `json:"id" db:"id"`
-	TeamID *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint  `json:"fleet_id" db:"team_id"`
 	Name   string `json:"name" db:"name"`
 	// ScriptContents is not returned in payloads nor is it returned
 	// from reading from the database, it is only used as payload to
@@ -175,7 +175,7 @@ type HostScriptRequestPayload struct {
 	ScriptContents  string `json:"script_contents"`
 	ScriptContentID uint   `json:"-"`
 	ScriptName      string `json:"script_name"`
-	TeamID          uint   `json:"team_id,omitempty" renameto:"fleet_id"`
+	TeamID          uint   `json:"fleet_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
@@ -225,7 +225,7 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 		case r.ScriptName != "":
 			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_name' is allowed.`)
 		case r.TeamID > 0:
-			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'team_id' is allowed.`)
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'fleet_id' is allowed.`)
 		}
 	}
 	if r.ScriptContents != "" {
@@ -233,7 +233,7 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 		case r.ScriptName != "":
 			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
 		case r.TeamID > 0:
-			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
+			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'fleet_id' is allowed.`)
 		}
 	}
 
@@ -301,9 +301,8 @@ type HostScriptResult struct {
 	// user-requested run. Not returned as part of any API endpoint.
 	IsInternal bool `json:"-" db:"is_internal"`
 
-	// TeamID is only used for authorization, it must be set to the team id of
-	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"-"` // TODO: should we omit this from the json result?
+	// TeamID carries the fleet of the host or script being authorized to the policy through ExtraAuthz. It is never serialized or stored.
+	TeamID *uint `json:"-" db:"-"`
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -338,6 +337,11 @@ type HostScriptResult struct {
 
 func (hsr HostScriptResult) AuthzType() string {
 	return "host_script_result"
+}
+
+// ExtraAuthz implements authz.ExtraAuthzer so the policy reads team_id without it being in the response.
+func (hsr HostScriptResult) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{"team_id": hsr.TeamID}, nil
 }
 
 type BatchScriptHost struct {
@@ -725,9 +729,12 @@ type HostLockWipeStatus struct {
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
-	// macOS and Windows use MDM commands for Wipe
+	// macOS and Windows use MDM commands for Wipe. A Windows Reset is tracked here too, see IsReset.
 	WipeMDMCommand       *MDMCommand
 	WipeMDMCommandResult *MDMCommandResult
+	// WipeQueuedAfterReset is set when a Windows wipe waits behind a reset the host already acknowledged. The wipe goes out
+	// if the reset is interrupted; until then the wipe MDM command above stays the reset.
+	WipeQueuedAfterReset bool
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
@@ -745,7 +752,7 @@ type HostLockWipeStatus struct {
 type ScriptResponse struct {
 	// TeamID is the id of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// ID is the id of the script
 	ID uint `json:"id" db:"id"`
 	// Name is the name of the script
@@ -756,12 +763,15 @@ type DeviceStatus string
 
 const (
 	DeviceStatusWiped    DeviceStatus = "wiped"
+	DeviceStatusReset    DeviceStatus = "reset"
 	DeviceStatusLocked   DeviceStatus = "locked"
 	DeviceStatusUnlocked DeviceStatus = "unlocked"
 )
 
 func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 	switch {
+	case s.IsWiped() && s.IsReset():
+		return DeviceStatusReset
 	case s.IsWiped():
 		return DeviceStatusWiped
 	case s.IsLocked():
@@ -777,9 +787,13 @@ const (
 	PendingActionLock          PendingDeviceAction = "lock"
 	PendingActionUnlock        PendingDeviceAction = "unlock"
 	PendingActionWipe          PendingDeviceAction = "wipe"
+	PendingActionReset         PendingDeviceAction = "reset"
 	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
 	PendingActionLocation      PendingDeviceAction = "location"
-	PendingActionNone          PendingDeviceAction = ""
+	// PendingActionUnenroll is never derived from HostLockWipeStatus. It replaces "wipe" for Android BYOD hosts, where the
+	// pending WIPE only removes the work profile (see suppressAndroidBYODWipeStatus).
+	PendingActionUnenroll PendingDeviceAction = "unenroll"
+	PendingActionNone     PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
@@ -790,7 +804,9 @@ func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 		return PendingActionLock
 	case s.IsPendingUnlock():
 		return PendingActionUnlock
-	case s.IsPendingWipe():
+	case s.IsPendingWipe() && s.IsReset():
+		return PendingActionReset
+	case s.IsPendingWipe(), s.WipeQueuedAfterReset:
 		return PendingActionWipe
 	case s.IsPendingClearPasscode():
 		return PendingActionClearPasscode
@@ -896,6 +912,13 @@ func (s HostLockWipeStatus) IsWiped() bool {
 	}
 }
 
+// IsReset reports whether the host's wipe command is a Windows Reset. A reset counts as a wipe everywhere else (pending,
+// wiped, the re-enrollment check), and only changes the reported device status and pending action.
+func (s HostLockWipeStatus) IsReset() bool {
+	return s.HostFleetPlatform == "windows" && s.WipeMDMCommand != nil &&
+		s.WipeMDMCommand.RequestType == WindowsRemoteWipeLocURI(WindowsRemoteWipePersistProvisionedData)
+}
+
 var (
 	BatchExecuteIncompatiblePlatform = "incompatible-platform"
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
@@ -905,8 +928,8 @@ var (
 
 type BatchExecutionStatusFilter struct {
 	ScriptID *uint   `json:"script_id,omitempty"`
-	TeamID   *uint   `json:"team_id,omitempty" renameto:"fleet_id"` // if nil, it is scoped to hosts that are assigned to "No team"
-	Status   *string `json:"status,omitempty"`                      // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	TeamID   *uint   `json:"fleet_id,omitempty"` // if nil, it is scoped to hosts that are assigned to "No team"
+	Status   *string `json:"status,omitempty"`   // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
 	// ExecutionID is the unique identifier for a single execution of the script.
 	ExecutionID *string `json:"execution_id,omitempty"`
 	// Limit is the maximum number of results to return.
@@ -932,7 +955,7 @@ type BatchActivity struct {
 	ActivityType     BatchExecutionActivityType    `json:"-" db:"activity_type"`
 	ScriptID         *uint                         `json:"script_id" db:"script_id"`
 	ScriptName       string                        `json:"script_name" db:"script_name"`
-	TeamID           *uint                         `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID           *uint                         `json:"fleet_id" db:"team_id"`
 	CreatedAt        time.Time                     `json:"created_at" db:"created_at"`
 	UpdatedAt        time.Time                     `json:"updated_at" db:"updated_at"`
 	NotBefore        *time.Time                    `json:"not_before,omitempty" db:"not_before"`

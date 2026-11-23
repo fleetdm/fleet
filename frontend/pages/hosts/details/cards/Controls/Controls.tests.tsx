@@ -314,7 +314,7 @@ describe("Controls card", () => {
 
     it.each([
       ["a fleet", 3, "fleet_id=3"],
-      // A no-team host reports team_id: null. Dropping the param entirely
+      // A no-team host reports fleet_id: null. Dropping the param entirely
       // would land the user on whatever fleet they were last viewing.
       ["no team", null, "fleet_id=0"],
     ])("links to the Controls page for %s", (_label, teamId, expected) => {

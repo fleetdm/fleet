@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -64,7 +65,7 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return ptr.RawMessage(json.RawMessage(`{}`)), nil
 		}
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -128,7 +129,7 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return ptr.RawMessage(json.RawMessage(`{}`)), nil
 		}
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -420,12 +421,14 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 }
 
 func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
-	setupCtx := func(wsEnabled, orbitConfigEnabled bool) (fleet.Service, context.Context) {
+	setupCtx := func(wsEnabled, orbitConfigEnabled bool, osqueryConfigEnabled ...bool) (fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		cfg := config.TestConfig()
 		cfg.WebSocket.TransportEnabled = wsEnabled
 		cfg.WebSocket.OrbitConfigEnabled = orbitConfigEnabled
 		cfg.WebSocket.OrbitConfigPollInterval = 5 * time.Minute
+		cfg.WebSocket.OsqueryConfigEnabled = len(osqueryConfigEnabled) > 0 && osqueryConfigEnabled[0]
+		cfg.WebSocket.OsqueryConfigPollInterval = 10 * time.Minute
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
@@ -435,7 +438,7 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return new(json.RawMessage(`{}`)), nil
 		}
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -458,12 +461,22 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
-			OsqueryHostID: new("test"),
-			ID:            1,
-			Platform:      "ubuntu",
-			TeamID:        new(uint(1)),
+			OsqueryHostID:  new("test"),
+			ID:             1,
+			Platform:       "ubuntu",
+			TeamID:         new(uint(1)),
+			LastEnrolledAt: time.Now().Add(-2 * time.Hour),
 		})
 		return svc, ctx
+	}
+
+	// setOrbitEnrolled leaves the host as EnrollOrbit creates it, before
+	// osquery enrolls.
+	setOrbitEnrolled := func(host *fleet.Host) {
+		host.OsqueryHostID = new("test")
+		host.LastEnrolledAt = common_mysql.GetDefaultNonZeroTime()
+		host.OrbitNodeKey = new("orbit-node-key")
+		host.NodeKey = host.OrbitNodeKey
 	}
 
 	t.Run("enabled", func(t *testing.T) {
@@ -474,6 +487,31 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		require.True(t, cfg.WebSocketTransport.Enabled)
 		// No orbit config nudges, so orbit keeps its default poll interval.
 		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
+		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
+	})
+
+	t.Run("osquery config nudges send the poll interval", func(t *testing.T) {
+		svc, ctx := setupCtx(true, false, true)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.Equal(t, new(600), cfg.WebSocketTransport.OsqueryConfigPollInterval)
+		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
+	})
+
+	t.Run("onboarding hosts keep osquery's config plugin", func(t *testing.T) {
+		svc, ctx := setupCtx(true, false, true)
+		host, _ := hostctx.FromContext(ctx)
+		host.LastEnrolledAt = time.Now().Add(-time.Minute)
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.WebSocketTransport)
+		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
+
+		setOrbitEnrolled(host)
+		cfg, err = svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.WebSocketTransport.OsqueryConfigPollInterval)
 	})
 
 	t.Run("orbit config nudges send the poll interval", func(t *testing.T) {
@@ -493,8 +531,7 @@ func TestGetOrbitConfigWebSocketTransport(t *testing.T) {
 		require.NotNil(t, cfg.WebSocketTransport)
 		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
 
-		host.LastEnrolledAt = time.Now().Add(-2 * time.Hour)
-		host.OsqueryHostID = nil
+		setOrbitEnrolled(host)
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.Nil(t, cfg.WebSocketTransport.OrbitConfigPollInterval)
@@ -521,7 +558,7 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return teamAgentOpts, nil
 		}
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -1103,6 +1140,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			stmt = `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`
 		case "notify_before_patching":
 			stmt = `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`
+		case "patch_deadline":
+			stmt = `UPDATE policies SET patch_deadline = 1 WHERE id = ?`
 		}
 		if stmt != "" {
 			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1180,6 +1219,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
 		require.True(t, act.PatchWhenClosed, "a skip must record which patch option its install ran under")
+		require.False(t, act.NotifyBeforePatching)
+		require.False(t, act.PatchDeadline)
 
 		// The host software list must surface the skip so the UI can render "Patch
 		// skipped" instead of "Failed" for the row (issue #52297).
@@ -1267,6 +1308,8 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		require.True(t, ok, "an installed_software activity should have been emitted")
 		require.True(t, act.SkippedInstall, "activity should be flagged as an app-open skip")
 		require.False(t, act.PatchWhenClosed, "a notify before patching skip records patch_when_closed false")
+		require.True(t, act.NotifyBeforePatching, "the activity payload must carry notify_before_patching so the automation activities table can tell notify from deadline")
+		require.False(t, act.PatchDeadline)
 
 		// The two patch options are told apart by the pre-install output the details modal shows.
 		res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
@@ -1276,6 +1319,33 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		res.EnhanceOutputDetails()
 		require.NotNil(t, res.PreInstallQueryOutput)
 		require.Equal(t, fleet.SoftwareInstallerAppOpenNotifyCopy, *res.PreInstallQueryOutput)
+	})
+
+	t.Run("patch deadline -> activity carries patch_deadline so the automation activities table shows deadline copy", func(t *testing.T) {
+		host := test.NewHost(t, ds, "deadline-host", "10.0.0.6", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "patch_deadline"), true)
+
+		result := &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""),
+		}
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.True(t, act.SkippedInstall)
+		require.False(t, act.PatchWhenClosed)
+		require.False(t, act.NotifyBeforePatching)
+		require.True(t, act.PatchDeadline, "the activity payload must carry patch_deadline — the automation activities endpoint returns raw pre_install_output (empty on skips), so a boolean is the only reliable discriminator")
+
+		res, err := ds.GetSoftwareInstallResults(ctx, installUUID)
+		require.NoError(t, err)
+		require.True(t, res.PatchDeadline)
+		require.False(t, res.PatchWhenClosed)
+		require.False(t, res.NotifyBeforePatching)
 	})
 
 	patchNotificationsForHost := func(t *testing.T, hostID uint) []string {
@@ -1301,6 +1371,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	t.Run("two skips on one host make one notification listing both apps", func(t *testing.T) {
 		host := test.NewHost(t, ds, "batch-host", "10.0.0.5", uuid.NewString(), uuid.NewString(), time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host.TeamID = &team.ID
 
 		// a second app, so the two skips are for different titles
 		otherPayload := *installerPayload
@@ -1358,8 +1429,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("a retry of an Update now install installs with the app open", func(t *testing.T) {
-		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), false)
 
 		hctx := hostctx.NewContext(ctx, host)
@@ -1391,8 +1461,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
-		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, ""), false)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
@@ -1547,7 +1616,7 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
 			return &fleet.OperatingSystem{Platform: "windows", Version: "10.0.19045"}, nil
 		}
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
@@ -2003,10 +2072,10 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 
 		host := &fleet.Host{ID: 1, OsqueryHostID: new("test"), UUID: "host-uuid-1", Platform: "windows"}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
+		appCfg.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(settingEnabled)
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) { return nil, nil }
@@ -2142,7 +2211,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			return &fleet.MDMWindowsEnrolledDevice{HostUUID: hostUUID}, nil
 		}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
-		appCfg.MDM.WindowsSettings.EnableManagedLocalAccount = optjson.SetBool(settingEnabled)
+		appCfg.MDM.MacOSSetup.EnableManagedLocalAccountWindows = optjson.SetBool(settingEnabled)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error { return nil }
 		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }
@@ -2657,6 +2726,9 @@ func newEnrollOrbitEUATestService(
 	ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
 		return false, nil
 	}
+	ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		return false, nil
+	}
 	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 		// Echo the requested platform so post-enrollment platform-scoped logic runs as it would in production.
 		var cfg fleet.DatastoreEnrollOrbitConfig
@@ -2802,6 +2874,9 @@ func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
 	ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}
+	ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		return false, nil
+	}
 	newHost := true
 	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 		enrollConfig := &fleet.DatastoreEnrollOrbitConfig{}
@@ -2832,6 +2907,22 @@ func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, nodeKey)
 	require.Equal(t, []int{1}, hostCountIncrs)
+}
+
+// The datastore decides from the matched host's stored platform whether a host is back from a Windows reset, so the end user
+// clear runs whatever platform fleetd reports.
+func TestEnrollOrbitChecksResetWhateverPlatformReported(t *testing.T) {
+	f := newOneTimeEnrollFixture(t, false)
+	var checked []string
+	f.ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		checked = append(checked, orbitEnrollConfig(opts).HostInfo.HardwareUUID)
+		return false, nil
+	}
+	info := f.orbitInfo()
+	require.Equal(t, "darwin", info.Platform)
+	_, err := f.svc.EnrollOrbit(f.ctx, info, "shared-secret", "")
+	require.NoError(t, err)
+	require.Equal(t, []string{info.HardwareUUID}, checked)
 }
 
 func TestRecordOrbitConfigFallbackChanges(t *testing.T) {

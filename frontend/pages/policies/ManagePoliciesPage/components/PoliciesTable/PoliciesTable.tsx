@@ -14,9 +14,9 @@ import { SelectedPlatform } from "interfaces/platform";
 import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PATHS from "router/paths";
-import { AutomationType } from "services/entities/team_policies";
 import { getNextLocationPath } from "utilities/helpers";
 
+import { PoliciesAutomationFilter } from "../../helpers";
 import {
   DEFAULT_SORT_COLUMN,
   DEFAULT_SORT_DIRECTION,
@@ -68,7 +68,6 @@ interface IPoliciesTableProps {
   canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
-  currentAutomatedPolicies?: number[];
   isPremiumTier?: boolean;
   renderPoliciesCount: () => JSX.Element | null;
   onQueryChange: (newTableQuery: ITableQueryData) => void;
@@ -86,11 +85,13 @@ interface IPoliciesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
     page?: string;
-    automation_type?: AutomationType;
+    automation_type?: PoliciesAutomationFilter;
     platform?: string;
   };
   platform?: SelectedPlatform;
   otherAutomationType?: OtherAutomationType;
+  /** For "All fleets" policies listed in a fleet. */
+  inheritedOtherAutomationType?: OtherAutomationType;
   onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
@@ -102,7 +103,6 @@ const PoliciesTable = ({
   canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
-  currentAutomatedPolicies,
   isPremiumTier,
   onQueryChange,
   renderPoliciesCount,
@@ -117,6 +117,7 @@ const PoliciesTable = ({
   queryParams,
   platform = "all",
   otherAutomationType,
+  inheritedOtherAutomationType,
   onOpenManageAutomationsModal,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
@@ -150,7 +151,7 @@ const PoliciesTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
-        iconName="filter-alt"
+        iconName="filter"
       />
     );
   }, [platform, handlePlatformFilterDropdownChange]);
@@ -207,7 +208,7 @@ const PoliciesTable = ({
   const pageHasSelectableRows =
     !viewingTeamPolicies ||
     isPrimoMode ||
-    policiesList.some((p) => p.team_id !== null);
+    policiesList.some((p) => p.fleet_id !== null);
 
   const hasPermissionAndPoliciesToDelete =
     canAddOrDeletePolicies && hasPoliciesToDelete && pageHasSelectableRows;
@@ -221,6 +222,7 @@ const PoliciesTable = ({
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
             otherAutomationType,
+            inheritedOtherAutomationType,
             onOpenManageAutomationsModal,
           },
           isPremiumTier,
@@ -228,7 +230,6 @@ const PoliciesTable = ({
         )}
         data={generateDataSet(
           policiesList,
-          currentAutomatedPolicies,
           config?.update_interval?.osquery_policy
         )}
         isLoading={isLoading}

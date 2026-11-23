@@ -217,7 +217,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		// reload the host by identifier, tests might
 		// delete hosts and create new records with different IDs
 		var err error
-		host, err = s.ds.HostByIdentifier(context.Background(), host.UUID)
+		host, err = s.ds.HostByIdentifier(t.Context(), device.UUID)
 		require.NoError(t, err)
 
 		sCmds, sSumm, sHostMDM := s.recordAppleHostStatus(host, device)
@@ -286,6 +286,68 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 	t := s.T()
 	s.setupLifecycleSettings()
 
+	// A host comes back from a wipe or a reset the same way: the command is acknowledged, then fleetd reports it
+	// un-enrolled and it turns MDM on again.
+	wipedHostTurnsOnMDM := func(action, node string) mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient] {
+		return func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/%s", host.ID, action), nil, http.StatusOK)
+
+			status, err := s.ds.GetHostLockWipeStatus(t.Context(), host)
+			require.NoError(t, err)
+
+			cmds, err := device.StartManagementSession()
+			require.NoError(t, err)
+
+			// two status + the wipe command we enqueued
+			require.Len(t, cmds, 3)
+			wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
+			require.NotNil(t, wipeCmd)
+			require.Equal(t, fleet.CmdExec, wipeCmd.Verb)
+			require.Len(t, wipeCmd.Cmd.Items, 1)
+			require.Equal(t, "./Device/Vendor/MSFT/RemoteWipe/"+node, *wipeCmd.Cmd.Items[0].Target)
+
+			msgID, err := device.GetCurrentMsgID()
+			require.NoError(t, err)
+
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &status.WipeMDMCommand.CommandUUID,
+				Cmd:     new("Exec"),
+				Data:    new("200"),
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+			cmds, err = device.SendResponse()
+			require.NoError(t, err)
+			// the ack of the message should be the only returned command
+			require.Len(t, cmds, 1)
+
+			// Simulate the host having fleetd installed and reporting back in as un-enrolled
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(t.Context(), `
+              UPDATE host_mdm
+              SET enrolled = 0, server_url = ''
+              WHERE host_id = ?
+	`, host.ID)
+				return err
+			})
+
+			// re-enroll
+			require.NoError(t, device.Enroll())
+
+			status, err = s.ds.GetHostLockWipeStatus(t.Context(), host)
+			require.NoError(t, err)
+			require.False(t, status.IsWiped(), "re-enrolling in MDM clears the wiped status")
+			var wipeRefs int
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(t.Context(), q, &wipeRefs,
+					`SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ? AND wipe_ref IS NOT NULL`, host.ID)
+			})
+			require.Zero(t, wipeRefs, "re-enrolling in MDM clears the wipe reference")
+		}
+	}
+
 	testCases := []struct {
 		Name   string
 		Action mdmLifecycleAssertion[*mdmtest.TestWindowsMDMClient]
@@ -304,62 +366,8 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 		// invariant the test exists to prove. Draining would turn that into statuses-vs-installs and fail spuriously.
 		DrainEnrollBacklog bool
 	}{
-		{
-			"wiped host turns on MDM",
-			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
-				s.Do(
-					"POST",
-					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
-					json.RawMessage(`{ "windows": {"wipe_type": "doWipe"}}`),
-					http.StatusOK,
-				)
-
-				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
-				require.NoError(t, err)
-
-				cmds, err := device.StartManagementSession()
-				require.NoError(t, err)
-
-				// two status + the wipe command we enqueued
-				require.Len(t, cmds, 3)
-				wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
-				require.NotNil(t, wipeCmd)
-				require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
-				require.Len(t, wipeCmd.Cmd.Items, 1)
-				require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipe", *wipeCmd.Cmd.Items[0].Target)
-
-				msgID, err := device.GetCurrentMsgID()
-				require.NoError(t, err)
-
-				device.AppendResponse(fleet.SyncMLCmd{
-					XMLName: xml.Name{Local: fleet.CmdStatus},
-					MsgRef:  &msgID,
-					CmdRef:  &status.WipeMDMCommand.CommandUUID,
-					Cmd:     ptr.String("Exec"),
-					Data:    ptr.String("200"),
-					Items:   nil,
-					CmdID:   fleet.CmdID{Value: uuid.NewString()},
-				})
-				cmds, err = device.SendResponse()
-				require.NoError(t, err)
-				// the ack of the message should be the only returned command
-				require.Len(t, cmds, 1)
-
-				// Simulate the host having fleetd installed and reporting back in as un-enrolled
-				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(context.Background(), `
-	              UPDATE host_mdm
-	              SET enrolled = 0, server_url = ''
-	              WHERE host_id = ?
-		`, host.ID)
-					return err
-				})
-
-				// re-enroll
-				require.NoError(t, device.Enroll())
-			},
-			false,
-		},
+		{"wiped host turns on MDM", wipedHostTurnsOnMDM("wipe", fleet.WindowsRemoteWipeProtected), false},
+		{"wiped host turns on MDM after a reset", wipedHostTurnsOnMDM("reset", fleet.WindowsRemoteWipePersistProvisionedData), false},
 		{
 			"locked host turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestWindowsMDMClient) {
@@ -919,8 +927,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	}
 	s.Do(
 		"POST",
-		"/api/v1/fleet/mdm/apple/profiles/batch",
-		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles},
+		"/api/v1/fleet/mdm/profiles/batch",
+		appleProfilesBatchRequest(globalProfiles),
 		http.StatusNoContent,
 	)
 	expectedProfiles := 4 // Fleetd configuration, Fleet root cert, N1, N2
@@ -955,7 +963,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 					require.NotNil(t, manifest)
 					require.Len(t, manifest.ManifestItems, 1)
 					require.Len(t, manifest.ManifestItems[0].Assets, 1)
-					require.Contains(t, manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+					require.Contains(t, manifest.ManifestItems[0].Assets[0].URL, "/api/latest/fleet/bootstrap?token=")
 					foundBootstrapInstall = true
 				}
 			case "InstallProfile":
@@ -1236,7 +1244,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// enqueue refetch commands and report results
 	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
-	}))
+	}, 1000))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
 	reportResultsRefetchCmds(iPadMdmDevice)
 
@@ -1332,7 +1340,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// enqueue refetch commands and report results
 	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
-	}))
+	}, 1000))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
 	reportResultsRefetchCmds(iPadMdmDevice)
 
@@ -1472,7 +1480,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	// mu.Unlock()
 
 	hostByIdentifierResp := getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	// iOS/iPadOS enrollment sets refetch_requested=true so the iphone_ipad_refetcher
@@ -1484,7 +1492,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
 
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	// The cron queues commands but doesn't clear refetch_requested — that happens
 	// only after the device acks the DeviceInformation command below.
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
@@ -1517,7 +1525,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostID), nil, http.StatusOK)
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 
 	awaitRefetchCommands(hostID, 3) // expect three commands: refetch UUID, apps, certs
@@ -1532,7 +1540,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	require.Len(t, commands, 0)
 
 	hostByIdentifierResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	// Re-enrollment re-flags iOS/iPadOS hosts with refetch_requested=true so the cron
 	// will pick them up again; the flag is cleared by the next DeviceInformation ack.
 	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
@@ -1561,7 +1569,7 @@ func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
 	require.NoError(t, mdmDevice.Enroll())
 
 	hostByIdentifierResp := getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	hostID := hostByIdentifierResp.Host.ID
 

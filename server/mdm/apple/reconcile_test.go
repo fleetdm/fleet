@@ -1524,7 +1524,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
-	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP), func(t *testing.T) {
+	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostHardwareSerial), func(t *testing.T) {
 		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -1532,17 +1532,18 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 			require.Len(t, payload, 8)
 		}
 		enqueueFailForOp = ""
-		newContents := "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP
+		newContents := "$FLEET_VAR_" + fleet.FleetVarHostHardwareSerial
 		originalContents1 := contents1
 		contents1 = []byte(newContents)
 		t.Cleanup(func() {
 			contents1 = originalContents1
+			ds.ListHostsLiteByUUIDsFunc = nil
 		})
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return nil, errors.New("GetHostEmailsFuncError")
+		ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			return nil, errors.New("ListHostsLiteByUUIDsFuncError")
 		}
 		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, nil)
-		require.ErrorContains(t, err, "GetHostEmailsFuncError")
+		require.ErrorContains(t, err, "ListHostsLiteByUUIDsFuncError")
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
@@ -2335,6 +2336,53 @@ func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
 		require.Empty(t, res.deletedCmds, "nothing to supersede, so the queued command must stand")
 		require.Empty(t, res.enqueued, "a cancel-only row must never send a RemoveProfile")
 		require.Empty(t, res.cleanedUp)
+	})
+}
+
+func TestMDMAppleExecuteReconcileBatchRemovesUnsentInstall(t *testing.T) {
+	const hostUUID = "uuid-A"
+
+	row := func(status *fleet.MDMDeliveryStatus, cmdUUID string) *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aDeletedProfileUUID", ProfileIdentifier: "com.example.wifi", ProfileName: "Wi-Fi",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
+			OperationType: fleet.MDMOperationTypeInstall, Status: status, CommandUUID: cmdUUID,
+		}
+	}
+
+	t.Run("install not sent (e.g. resend): RemoveProfile sent, error tolerated", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(nil, "")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Empty(t, res.deletedCmds)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+
+	t.Run("install failed without verification: RemoveProfile sent, row kept", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(&fleet.MDMDeliveryFailed, "install-cmd")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+
+	t.Run("install pending: queued command deleted and RemoveProfile sent", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(&fleet.MDMDeliveryPending, "install-cmd")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{hostUUID}, res.deletedCmds["install-cmd"])
+		require.Empty(t, res.cleanedUp, "the row must be converted in place to keep has_acme_payload")
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
 	})
 }
 

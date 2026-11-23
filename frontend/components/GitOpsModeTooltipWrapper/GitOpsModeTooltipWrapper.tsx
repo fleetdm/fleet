@@ -21,6 +21,9 @@ interface IGitOpsModeTooltipWrapper {
    *  full form width. By default the wrapper hugs its content so the tooltip centers on the
    *  control; inputs opt back into full width. */
   isInputField?: boolean;
+  /** Keeps the children disabled in GitOps mode but hides this tooltip, for controls that
+   *  already explain a more basic reason they're disabled (e.g. MDM is off). */
+  disableTooltip?: boolean;
 }
 
 const baseClass = "gitops-mode-tooltip-wrapper";
@@ -39,6 +42,7 @@ const GitOpsModeTooltipWrapper = ({
   fixedPositionStrategy,
   entityType,
   isInputField = false,
+  disableTooltip = false,
 }: IGitOpsModeTooltipWrapper) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode(entityType);
 
@@ -62,6 +66,10 @@ const GitOpsModeTooltipWrapper = ({
 
   if (!gitOpsModeEnabled) {
     return <>{renderChildren()}</>;
+  }
+
+  if (disableTooltip) {
+    return <>{renderChildren(true)}</>;
   }
 
   const tipContent = (

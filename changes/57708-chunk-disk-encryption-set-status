@@ -1,0 +1,1 @@
+- Fixed an issue where more than ~64k hosts all trying to set it's disk encryption status at once would fail and block the cron forever.

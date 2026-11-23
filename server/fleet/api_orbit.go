@@ -198,6 +198,29 @@ type OrbitPutDeviceMappingResponse struct {
 func (r OrbitPutDeviceMappingResponse) Error() error { return r.Err }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Post Orbit Entra device token
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPostEntraDeviceTokenRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	IDToken      string `json:"id_token"`
+}
+
+func (r *OrbitPostEntraDeviceTokenRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostEntraDeviceTokenRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostEntraDeviceTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostEntraDeviceTokenResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit disk encryption key
 /////////////////////////////////////////////////////////////////////////////////
 

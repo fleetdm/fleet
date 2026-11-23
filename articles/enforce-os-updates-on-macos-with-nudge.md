@@ -126,7 +126,6 @@ Check the post-install script output on the host's **Activity** tab. If the plis
 
 - [Enforce OS updates](https://fleetdm.com/guides/enforce-os-updates)
 - [Nudge wiki](https://github.com/macadmins/nudge/wiki)
-- [Fleet's own Nudge setup](https://github.com/fleetdm/fleet/tree/main/it-and-security)
 
 <meta name="articleTitle" value="Enforce OS updates on macOS with Nudge">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">

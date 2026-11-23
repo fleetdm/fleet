@@ -80,7 +80,7 @@ const FORM_VALIDATIONS: IFormValidations = {
       {
         name: "required",
         isValid: (formData) => formData.name.trim().length > 0,
-        message: "Label name must be present",
+        message: "Enter a label name",
       },
     ],
   },
@@ -94,7 +94,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           }
           return formData.labelQuery.trim().length > 0;
         },
-        message: "Query text must be present",
+        message: "Enter a query",
       },
     ],
   },
@@ -108,7 +108,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           }
           return formData.vitalValue.trim().length > 0;
         },
-        message: "Label criteria must be completed",
+        message: "Select a criterion",
       },
       {
         // A custom-vital criterion is incomplete without a selected definition id.
@@ -122,7 +122,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           }
           return formData.customHostVitalId != null;
         },
-        message: "Label criteria must be completed",
+        message: "Select a criterion",
       },
     ],
   },

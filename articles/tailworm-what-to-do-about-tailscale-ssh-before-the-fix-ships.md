@@ -11,7 +11,7 @@
 - **A policy keeps it closed.** A Fleet policy fails on any host where Tailscale SSH can still forward, and a script fixes it on the next check-in, including hosts that join later.
 - **The control plane still decides who can try.** Narrow SSH rules, key expiry, and Tailnet Lock limit how far a stolen device gets, and they're worth doing whatever the patch says.
 
-<a purpose="cta-button" href="https://fleetdm.com/linux-management">See Linux management in Fleet</a>
+<a purpose="cta-button" href="https://fleetdm.com/linux">See Linux management in Fleet</a>
 
 On October 25, 2026, Erica Windisch of Cyberdione Labs published [Tailworm](https://tailworm.com/), 11 findings from three days of lab testing against Tailscale 1.104.2 and headscale 0.29.5. The headline finding: with Tailscale SSH turned on, one compromised device that an SSH rule lets in can get root on the server it connects to. Windisch calls it wormable, and advises turning Tailscale SSH off.
 

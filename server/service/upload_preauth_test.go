@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,24 +18,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type uploadPreAuthRoute struct {
 	method, template, path, endpointPath string
-	inCatalog                            bool
 }
 
 var uploadPreAuthRoutes = []uploadPreAuthRoute{
-	{"POST", "/software/package", "/api/latest/fleet/software/package", "/api/v1/fleet/software/package", true},
-	{"PATCH", "/software/titles/{id}/package", "/api/v1/fleet/software/titles/1/package", "/api/v1/fleet/software/titles/{id}/package", true},
-	{"POST", "/bootstrap", "/api/2022-04/fleet/bootstrap", "/api/v1/fleet/bootstrap", true},
-	{"POST", "/mdm/bootstrap", "/api/latest/fleet/mdm/bootstrap", "/api/v1/fleet/mdm/bootstrap", false},
-	{"POST", "/mdm/apple/bootstrap", "/api/latest/fleet/mdm/apple/bootstrap", "/api/v1/fleet/mdm/apple/bootstrap", false},
+	{"POST", "/software/package", "/api/latest/fleet/software/package", "/api/v1/fleet/software/package"},
+	{"PATCH", "/software/titles/{id}/package", "/api/v1/fleet/software/titles/1/package", "/api/v1/fleet/software/titles/{id}/package"},
+	{"POST", "/bootstrap", "/api/2022-04/fleet/bootstrap", "/api/v1/fleet/bootstrap"},
 }
 
 type uploadPreAuthBody struct {
@@ -94,9 +93,12 @@ func serveUploadPreAuth(t *testing.T, svc fleet.Service, route uploadPreAuthRout
 		assert.NoError(t, err)
 		w.WriteHeader(http.StatusNoContent)
 	})
-	router := mux.NewRouter()
-	router.Handle("/api/{fleetversion:(?:v1|2022-04|latest)}/fleet"+route.template,
-		uploadPreAuth(svc, slog.New(slog.DiscardHandler))(next)).Methods(route.method)
+	router := endpointer.NewRouter()
+	router.Handle(endpointer.Route{
+		Methods:  []string{route.method},
+		Path:     "/api/_version_/fleet" + route.template,
+		Versions: []string{"v1", "2022-04", "latest"},
+	}, uploadPreAuth(svc, slog.New(slog.DiscardHandler))(next))
 	req := httptest.NewRequest(route.method, route.path, body)
 	req.Header.Set("Authorization", "Bearer "+strings.ReplaceAll(bearer, " ", "_"))
 	w := &uploadPreAuthRecorder{ResponseRecorder: httptest.NewRecorder()}
@@ -129,11 +131,6 @@ func TestUploadPreAuthRoles(t *testing.T) {
 				{"route API-only global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin), APIOnly: true,
 					APIEndpoints: []fleet.APIEndpointRef{{Method: route.method, Path: route.endpointPath}}}, http.StatusNoContent, "", ""},
 			}
-			if !route.inCatalog {
-				cases[len(cases)-1].status = http.StatusForbidden
-				cases[len(cases)-1].message = "Forbidden"
-				cases[len(cases)-1].reason = auth.EndpointRestrictionDeniedMessage
-			}
 			users := make(map[string]*fleet.User, len(cases))
 			for i, tc := range cases {
 				u := *tc.user
@@ -164,6 +161,26 @@ func TestUploadPreAuthRoles(t *testing.T) {
 					}
 				})
 			}
+		})
+	}
+}
+
+func TestUploadPreAuthDatastoreError(t *testing.T) {
+	ds := new(mock.Store)
+	svc, _ := newTestService(t, ds, nil, nil)
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return nil, &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connect: connection refused")}
+	}
+	for _, route := range uploadPreAuthRoutes {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			w, bytesRead, ran := serveUploadPreAuth(t, svc, route, "token")
+			assert.Equal(t, http.StatusInternalServerError, w.Code)
+			assert.False(t, ran)
+			assert.Zero(t, bytesRead)
+			var jsonErr endpointer.JsonError
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &jsonErr))
+			assert.Equal(t, platform_http.GenericErrorMessage, jsonErr.Message)
+			assert.NotContains(t, w.Body.String(), "connection refused")
 		})
 	}
 }

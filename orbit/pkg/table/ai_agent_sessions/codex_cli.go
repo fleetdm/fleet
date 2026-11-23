@@ -246,100 +246,105 @@ func parseCodexCLI(src *source, r *recorder) {
 	s := r.s
 	ext, _ := src.extra.(codexSession)
 	var total codexUsage
-	for i, path := range src.files {
-		p := &codexParser{r: r, sub: i > 0 || !ext.main}
-		var seed codexTokens
-		var forkStart time.Time
-		first := true
-		_ = scanJSONL(src.sc, path, func(line []byte) bool {
-			if r.done() {
-				return false
-			}
-			var rec codexLine
-			if json.Unmarshal(line, &rec) != nil {
-				return true
-			}
-			p.ts = parseTime(rec.Timestamp)
-			if first {
-				first = false
-				switch rec.Type {
-				case "session_meta":
-					var m codexMeta
-					_ = json.Unmarshal(rec.Payload, &m)
-					if !p.sub {
-						s.ProjectPath, s.AgentVersion = m.CWD, m.CLIVersion
-						s.GitBranch, s.GitRepository = m.Git.Branch, sanitizeRepoURL(m.Git.RepositoryURL)
-						if m.ModelProvider != "" && m.ModelProvider != "openai" {
-							s.provider = m.ModelProvider
-						}
-					}
-					p.cwd = m.CWD
-					if m.ForkedFromID != "" {
-						forkStart = firstNonZero(parseTime(m.Timestamp), p.ts)
-					}
-					r.seen = true
-					s.observe(p.ts)
-					return true
-				case "":
-					p.flat = true
-					r.seen = true
-					s.observe(p.ts)
-					return true
-				}
-			}
-			// A fork's rollout opens with the parent's history, copied with
-			// its original times; only what follows is the fork's own. The
-			// parent's totals up to there are what the fork started from.
-			if !forkStart.IsZero() && !p.ts.IsZero() && p.ts.Before(forkStart) {
-				codexTokenRecord(&seed, rec)
-				return true
-			}
-			r.seen = true
-			s.observe(p.ts)
-			if r.skipNext() {
-				p.skip(rec, line)
-				return true
-			}
-			switch rec.Type {
-			case "turn_context":
-				var tc struct {
-					Model string `json:"model"`
-					CWD   string `json:"cwd"`
-				}
-				_ = json.Unmarshal(rec.Payload, &tc)
-				p.model, p.cwd = cmp.Or(tc.Model, p.model), cmp.Or(tc.CWD, p.cwd)
-				if tc.Model != "" && !p.sub {
-					s.Model = tc.Model
-				}
-			case "response_item":
-				var it codexItem
-				if json.Unmarshal(rec.Payload, &it) == nil {
-					p.item(it)
-				} else {
-					p.skip(rec, line) // counted as the skip path would
-				}
-			case "event_msg":
-				if !p.event(rec.Payload) {
-					p.skip(rec, line)
-				}
-			case "token_usage_record", "session_meta", "compacted", "turn_aborted":
-				codexTokenRecord(&p.tokens, rec)
-			default:
-				var it codexItem
-				if !p.flat {
-					break
-				}
-				if json.Unmarshal(line, &it) == nil {
-					p.item(it)
-				} else {
-					p.skip(rec, line)
-				}
-			}
+	// Each file keeps its own parser state; a fork's rollout also keeps the
+	// totals it started from.
+	type codexFile struct {
+		p         *codexParser
+		seed      codexTokens
+		forkStart time.Time
+		first     bool
+	}
+	files := make([]*codexFile, len(src.files))
+	scanFiles(src.sc, src.files, recordStamp, func(i int, line []byte) bool {
+		if r.done() {
+			return false
+		}
+		cf := files[i]
+		if cf == nil {
+			cf = &codexFile{p: &codexParser{r: r, sub: i > 0 || !ext.main}, first: true}
+			files[i] = cf
+		}
+		p := cf.p
+		var rec codexLine
+		if json.Unmarshal(line, &rec) != nil {
 			return true
-		})
-		u := p.tokens.total()
-		if seed.record != nil || seed.count != nil {
-			u = u.minus(seed.total())
+		}
+		p.ts = parseTime(rec.Timestamp)
+		if cf.first {
+			cf.first = false
+			switch rec.Type {
+			case "session_meta":
+				var m codexMeta
+				_ = json.Unmarshal(rec.Payload, &m)
+				if !p.sub {
+					s.ProjectPath, s.AgentVersion = m.CWD, m.CLIVersion
+					s.GitBranch, s.GitRepository = m.Git.Branch, sanitizeRepoURL(m.Git.RepositoryURL)
+					if m.ModelProvider != "" && m.ModelProvider != "openai" {
+						s.provider = m.ModelProvider
+					}
+				}
+				p.cwd = m.CWD
+				if m.ForkedFromID != "" {
+					cf.forkStart = firstNonZero(parseTime(m.Timestamp), p.ts)
+				}
+				r.seen = true
+				s.observe(p.ts)
+				return true
+			case "":
+				p.flat = true
+				r.seen = true
+				s.observe(p.ts)
+				return true
+			}
+		}
+		// A fork's rollout opens with the parent's history, copied with
+		// its original times; only what follows is the fork's own. The
+		// parent's totals up to there are what the fork started from.
+		if !cf.forkStart.IsZero() && !p.ts.IsZero() && p.ts.Before(cf.forkStart) {
+			codexTokenRecord(&cf.seed, rec)
+			return true
+		}
+		r.seen = true
+		s.observe(p.ts)
+		if r.skipNext() && p.skip(rec, line) {
+
+			return true
+		}
+		switch rec.Type {
+		case "turn_context":
+			var tc struct {
+				Model string `json:"model"`
+				CWD   string `json:"cwd"`
+			}
+			_ = json.Unmarshal(rec.Payload, &tc)
+			p.model, p.cwd = cmp.Or(tc.Model, p.model), cmp.Or(tc.CWD, p.cwd)
+			if tc.Model != "" && !p.sub {
+				s.Model = tc.Model
+			}
+		case "response_item":
+			var it codexItem
+			_ = json.Unmarshal(rec.Payload, &it)
+			p.item(it)
+		case "event_msg":
+			p.event(rec.Payload)
+		case "token_usage_record", "session_meta", "compacted", "turn_aborted":
+			codexTokenRecord(&p.tokens, rec)
+		default:
+			if p.flat {
+				var it codexItem
+				_ = json.Unmarshal(line, &it)
+				p.item(it)
+			}
+		}
+		return true
+	})
+	for _, cf := range files {
+		if cf == nil {
+			continue
+		}
+		u := cf.p.tokens.total()
+		if cf.seed.record != nil || cf.seed.count != nil {
+			u = u.minus(cf.seed.total())
 		}
 		total.Input += u.Input
 		total.Cached += u.Cached
@@ -385,36 +390,60 @@ func codexTokenRecord(t *codexTokens, rec codexLine) {
 	}
 }
 
-// skip counts a record before the requested page, decoding only what says
-// whether it is a message, and keeps the model and directory current.
-func (p *codexParser) skip(rec codexLine, line []byte) {
-	var h struct {
-		Type  string `json:"type"`
-		Role  string `json:"role"`
-		Model string `json:"model"`
-		CWD   string `json:"cwd"`
-		Item  *struct {
-			Type string `json:"type"`
-		} `json:"item"`
+// skip handles a record before the page by decoding only what numbers the
+// messages and calls, reporting false when the record may hold a wanted
+// row and so must be handled in full.
+func (p *codexParser) skip(rec codexLine, line []byte) bool {
+	h, isMessage := p.head(rec, line)
+	if !isMessage {
+		return true
 	}
+	return p.r.skip(codexItemCalls(h.Type))
+}
+
+type codexHead struct {
+	Type  string `json:"type"`
+	Role  string `json:"role"`
+	Model string `json:"model"`
+	CWD   string `json:"cwd"`
+	Item  *struct {
+		Type string `json:"type"`
+	} `json:"item"`
+}
+
+// head decodes what says whether a record is a message, keeping up with the
+// model and working directory on the way.
+//
+// Here and in the full decode a field of the wrong type is skipped rather
+// than failing the record (the payload is known to be valid JSON), so both
+// number a record the same way and every numbered call is handled.
+func (p *codexParser) head(rec codexLine, line []byte) (h codexHead, isMessage bool) {
 	switch rec.Type {
 	case "turn_context":
-		if json.Unmarshal(rec.Payload, &h) == nil {
-			p.model, p.cwd = cmp.Or(h.Model, p.model), cmp.Or(h.CWD, p.cwd)
-		}
+		_ = json.Unmarshal(rec.Payload, &h)
+		p.model, p.cwd = cmp.Or(h.Model, p.model), cmp.Or(h.CWD, p.cwd)
 	case "response_item":
-		if json.Unmarshal(rec.Payload, &h) == nil && codexItemIsMessage(h.Type, h.Role, p.flat) {
-			p.r.next()
-		}
+		_ = json.Unmarshal(rec.Payload, &h)
+		isMessage = codexItemIsMessage(h.Type, h.Role, p.flat)
 	case "event_msg":
-		if json.Unmarshal(rec.Payload, &h) == nil && codexEventIsMessage(h.Type, h.Item != nil && h.Item.Type == "UserMessage") {
-			p.r.next()
-		}
+		_ = json.Unmarshal(rec.Payload, &h)
+		isMessage = codexEventIsMessage(h.Type, h.Item != nil && h.Item.Type == "UserMessage")
 	default:
-		if p.flat && json.Unmarshal(line, &h) == nil && codexItemIsMessage(h.Type, h.Role, p.flat) {
-			p.r.next()
+		if p.flat {
+			_ = json.Unmarshal(line, &h)
+			isMessage = codexItemIsMessage(h.Type, h.Role, p.flat)
 		}
 	}
+	return h, isMessage
+}
+
+// codexItemCalls is how many tool calls item() records for an item type.
+func codexItemCalls(itemType string) int {
+	switch itemType {
+	case "function_call", "custom_tool_call", "local_shell_call", "web_search_call":
+		return 1
+	}
+	return 0
 }
 
 // codexItemIsMessage says whether a response item is a message of the
@@ -434,8 +463,8 @@ func codexEventIsMessage(typ string, userItem bool) bool {
 	return typ == "user_message" || (typ == "item_completed" && userItem)
 }
 
-// event handles an event_msg, reporting false when it couldn't be decoded.
-func (p *codexParser) event(raw json.RawMessage) bool {
+// event handles an event_msg.
+func (p *codexParser) event(raw json.RawMessage) {
 	var e struct {
 		Type    string          `json:"type"`
 		Message json.RawMessage `json:"message"`
@@ -447,9 +476,7 @@ func (p *codexParser) event(raw json.RawMessage) bool {
 			Total codexUsage `json:"total_token_usage"`
 		} `json:"info"`
 	}
-	if json.Unmarshal(raw, &e) != nil {
-		return false
-	}
+	_ = json.Unmarshal(raw, &e)
 	userItem := e.Item != nil && e.Item.Type == "UserMessage"
 	switch {
 	case !codexEventIsMessage(e.Type, userItem):
@@ -464,7 +491,6 @@ func (p *codexParser) event(raw json.RawMessage) bool {
 		}
 	}
 	// agent_message duplicates the assistant's response_item.
-	return true
 }
 
 // prompt records what the user typed. Codex also writes user-role

@@ -8,6 +8,8 @@ import {
 } from "__mocks__/softwareMock";
 import { InstallerType } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import { emptySelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
 import EditIconModal from "./EditIconModal";
@@ -33,6 +35,11 @@ const MOCK_PROPS = {
     countsUpdatedAt: "2025-09-03T12:00:00Z",
   },
 };
+
+// The modal loads the self-service categories when it renders.
+beforeEach(() => {
+  mockServer.use(emptySelfServiceCategoriesHandler);
+});
 
 describe("EditIconModal", () => {
   it("disables fields and gates Save behind the GitOps tooltip when GitOps mode is on", () => {
@@ -186,7 +193,7 @@ describe("EditIconModal", () => {
       expect(editSoftwarePackageSpy).toHaveBeenCalledWith({
         data: { displayName: "New Name" }, // whitespace was trimmed
         // Multi-package titles require installer_id on every PATCH; the modal
-        // targets `software_package` (mirror of `packages[0]`).
+        // targets `packages[0]`.
         installerId: softwarePackage.installer_id,
         softwareId: 123,
         teamId: 456,
@@ -231,7 +238,7 @@ describe("EditIconModal", () => {
       // Regression guard for the multi-package Edit-appearance flow: the
       // backend rejects display-name PATCHes without installer_id on titles
       // with multiple packages, so the modal must always send the id of the
-      // package it's targeting (software_package == packages[0]).
+      // package it's targeting (packages[0]).
       const editSoftwarePackageSpy = jest
         .spyOn(softwareAPI, "editSoftwarePackage")
         .mockResolvedValue({});

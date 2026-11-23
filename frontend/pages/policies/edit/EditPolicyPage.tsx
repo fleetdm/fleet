@@ -22,10 +22,8 @@ import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { DEFAULT_POLICY } from "pages/policies/constants";
 import QueryEditor from "pages/policies/edit/screens/QueryEditor";
 import PATHS from "router/paths";
-import globalPoliciesAPI from "services/entities/global_policies";
 import policiesAPI from "services/entities/policies";
 import statusAPI from "services/entities/status";
-import teamPoliciesAPI from "services/entities/team_policies";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -157,7 +155,7 @@ const PolicyPage = ({
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
-        const deNulledReturnedQueryTeamId = returnedQuery.team_id ?? undefined;
+        const deNulledReturnedQueryTeamId = returnedQuery.fleet_id ?? undefined;
 
         setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
@@ -201,25 +199,21 @@ const PolicyPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredPolicyLoading &&
-    storedPolicy?.team_id !== undefined &&
-    storedPolicy?.team_id !== null &&
-    !(storedPolicy?.team_id?.toString() === location.query.fleet_id)
+    storedPolicy?.fleet_id !== undefined &&
+    storedPolicy?.fleet_id !== null &&
+    !(storedPolicy?.fleet_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        fleet_id: storedPolicy?.team_id?.toString(),
+        fleet_id: storedPolicy?.fleet_id?.toString(),
       })
     );
   }
 
   // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
-  const { mutateAsync: createPolicy } = useMutation(
-    (formData: IPolicyFormData) => {
-      return formData.team_id !== undefined
-        ? teamPoliciesAPI.create(formData)
-        : globalPoliciesAPI.create(formData);
-    }
-  );
+  const {
+    mutateAsync: createPolicy,
+  } = useMutation((formData: IPolicyFormData) => policiesAPI.create(formData));
 
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
@@ -258,7 +252,10 @@ const PolicyPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
+    if (
+      isLiveQueryRunnable ||
+      config?.server_settings.live_reporting_disabled
+    ) {
       return null;
     }
 

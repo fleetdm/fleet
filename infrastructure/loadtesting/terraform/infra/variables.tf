@@ -122,7 +122,7 @@ variable "enable_otel" {
 }
 
 variable "enable_websocket_transport" {
-  description = "Enable the agent WebSocket transport, with live query and orbit config notifications over it. Agents poll as before when false"
+  description = "Enable the agent WebSocket transport, with live query, orbit config and osquery config notifications over it. Agents poll as before when false"
   type        = bool
   default     = true
 }

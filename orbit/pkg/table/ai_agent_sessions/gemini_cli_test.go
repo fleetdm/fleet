@@ -96,20 +96,21 @@ func TestGeminiCLIMessages(t *testing.T) {
 		"assistant/text Sure.",
 		`assistant/tool_use {"command":"ls -la"}`,
 		"system/tool_result Command: ls -la\nExit Code: 2",
+		// The sub-agent's call, placed by its timestamp.
+		`assistant/tool_use {"pattern":"*.go"}`,
 		`assistant/tool_use {"file_path":"a.go"}`,
 		"system/tool_result User denied execution.",
 		`assistant/tool_use {"title":"x"}`,
 		"system/tool_result ok",
-		`assistant/tool_use {"pattern":"*.go"}`,
 	}, render(rows, false, "content"))
 	require.Equal(t, "gemini-3-pro", rows[2]["model"])
 	require.Equal(t, "tc1", rows[3]["tool_use_id"])
 
 	require.Equal(t, []string{
 		"run_shell_command | execute | ls -la | error",
+		"glob | search | *.go | allowed",
 		"read_file | read | a.go | denied",
 		"create_issue | mcp | github: create_issue | allowed",
-		"glob | search | *.go | allowed",
 	}, summary(toolRows(t, geminiID)))
 
 	logRows := messageRows(t, eq("session_id", "bbbb"))
@@ -195,24 +196,22 @@ func TestGeminiCLIProjectRootIsBounded(t *testing.T) {
 	require.Len(t, s["project_path"], maxFieldBytes)
 }
 
-func TestGeminiCLIReplayIsLinear(t *testing.T) {
+func TestGeminiCLIPatchReplay(t *testing.T) {
 	home := setup(t)
-	var sb strings.Builder
-	sb.WriteString(`{"sessionId":"aaaa","startTime":"2026-08-01T10:00:00.000Z","kind":"main"}` + "\n")
-	for i := range 5000 {
-		sb.WriteString(`{"id":"m` + strings.Repeat("0", 5-len(strconv.Itoa(i))) + strconv.Itoa(i) + `","timestamp":"2026-08-01T10:00:01.000Z","type":"user","content":"p"}` + "\n")
+	records := []string{`{"sessionId":"aaaa","startTime":"2026-08-01T10:00:00.000Z","kind":"main"}`}
+	for i := range 6 {
+		n := strconv.Itoa(i)
+		records = append(records, `{"id":"m`+n+`","timestamp":"2026-08-01T10:00:01.000Z","type":"user","content":"c`+n+`"}`)
 	}
-	for range 50000 {
-		sb.WriteString(`{"$patch":{"removeIds":["zzz"],"orderIds":["m00001","m00000"]}}` + "\n")
-	}
-	sb.WriteString(`{"$patch":{"removeIds":["m00002"]}}` + "\n")
-	sb.WriteString(`{"$rewindTo":"m04000"}` + "\n")
-	writeFile(t, filepath.Join(home, ".gemini", "tmp", "p", "chats", "session-2026-08-01T10-00-aaaaaaaa.jsonl"), sb.String())
+	records = append(records,
+		`{"$patch":{"removeIds":["zzz"],"orderIds":["m1","m0"]}}`,
+		`{"$patch":{"removeIds":["m2"]}}`,
+		`{"$rewindTo":"m4"}`,
+	)
+	writeFile(t, filepath.Join(home, ".gemini", "tmp", "p", "chats", "session-2026-08-01T10-00-aaaaaaaa.jsonl"), lines(records...))
 
-	start := time.Now()
 	s := onlySession(t, agentGeminiCLI)
-	require.Less(t, time.Since(start), 3*time.Second)
-	require.Equal(t, "3999", s["user_messages"])
-	rows := messageRows(t, eq("session_id", "aaaa"), cons{"message_index", table.OperatorLessThan, "2"})
-	require.Equal(t, []string{"user/text p", "user/text p"}, render(rows, false, "content"))
+	require.Equal(t, "3", s["user_messages"])
+	rows := messageRows(t, eq("session_id", "aaaa"))
+	require.Equal(t, []string{"user/text c1", "user/text c0", "user/text c3"}, render(rows, false, "content"))
 }

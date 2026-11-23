@@ -9,12 +9,71 @@
 # home, then registers them with LaunchServices so osquery's apps table (which
 # enumerates LaunchServices) and the box.com web app can find them.
 
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
+app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids kill_cmd=(kill)
+  [[ $EUID -ne 0 ]] || kill_cmd=(sudo -u "$console_user" kill)
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    if ! app_process_running "$bundle_id" &&
+      [[ "$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)" == "false" ]]; then
+      echo "Application '$bundle_id' is no longer running."
+      return 0
+    fi
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  "${kill_cmd[@]}" -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    "${kill_cmd[@]}" -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+
 quit_and_track_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
-  # check if the application is running
   local app_running
   app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
@@ -30,17 +89,26 @@ quit_and_track_application() {
     return
   fi
 
-  # App was running, mark it for relaunch
   eval "export $var_name=1"
   echo "Application '$bundle_id' was running; will relaunch after installation."
 
   echo "Quitting application '$bundle_id'..."
 
-  # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
+        echo "Application '$bundle_id' quit successfully."
+      fi
+      quit_success=true
+      break
+    fi
+    quit_sent=true
     sleep 1
     if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
@@ -51,17 +119,20 @@ quit_and_track_application() {
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
-    return 1
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 
 relaunch_application() {
   local bundle_id="$1"
+  local app_path="${2:-}"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
-  # Check if the app was running before installation
-  eval "was_running=\$$var_name"
+  # Check if the app was running before installation. Default the variable so a
+  # script running under 'set -u' doesn't abort when the quit helper never ran.
+  eval "was_running=\${$var_name:-0}"
   if [[ "$was_running" != "1" ]]; then
     return
   fi
@@ -80,20 +151,39 @@ relaunch_application() {
   # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
   # and GUI session — 'sudo -u' alone doesn't do this, which can cause
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
-  local open_status=0
-  if [[ $EUID -eq 0 ]]; then
-    local console_uid
-    console_uid=$(id -u "$console_user")
-    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  else
-    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  fi
+  local open_args=(-b "$bundle_id")
+  [[ -z "$app_path" ]] || open_args=("$app_path")
+  local timeout_duration=30
+  local attempt=0 delay=2 open_status open_output
+  SECONDS=0
+  while true; do
+    attempt=$((attempt + 1))
+    open_status=0
+    if [[ $EUID -eq 0 ]]; then
+      local console_uid
+      console_uid=$(id -u "$console_user")
+      open_output=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" open "${open_args[@]}" 2>&1) || open_status=$?
+    else
+      open_output=$(open "${open_args[@]}" 2>&1) || open_status=$?
+    fi
 
-  if [[ $open_status -eq 0 ]]; then
-    echo "Application '$bundle_id' relaunched successfully."
-  else
-    echo "Failed to relaunch application '$bundle_id'."
-  fi
+    if [[ $open_status -eq 0 ]]; then
+      echo "Application '$bundle_id' relaunched successfully."
+      return
+    fi
+    echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
+    # Back off 2, 4, 8, then 10 seconds. The budget bounds when the last
+    # attempt may start, not how long one takes: a slow 'open' is usually
+    # Gatekeeper checking the newly copied bundle, which is worth waiting out.
+    (( SECONDS + delay <= timeout_duration )) || break
+    sleep "$delay"
+    # sleep only guarantees at least $delay, so a late wake-up — the Mac
+    # suspending mid-sleep, say — can land past the budget. Check again rather
+    # than trusting the estimate above; landing exactly on it still retries.
+    (( SECONDS <= timeout_duration )) || break
+    delay=$(( delay * 2 > 10 ? 10 : delay * 2 ))
+  done
+  echo "Failed to relaunch application '$bundle_id'."
 }
 
 # An interrupted run of the earlier root-based installer can leave Box, Box
@@ -180,7 +270,7 @@ else
   status=1
 fi
 
-hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true
 rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
 
 [[ $status -eq 0 ]] || exit "$status"

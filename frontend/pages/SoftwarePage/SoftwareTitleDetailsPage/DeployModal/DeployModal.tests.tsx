@@ -8,8 +8,8 @@ import {
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
 import { notify } from "components/ToastNotification";
+import policiesAPI from "services/entities/policies";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 import { createCustomRenderer } from "test/test-utils";
 
 import DeployModal from "./DeployModal";
@@ -40,7 +40,7 @@ const renderModal = ({
       softwareTitle={createMockSoftwareTitle({
         id: 10,
         name: "Firefox",
-        software_package: softwarePackage,
+        packages: [softwarePackage],
       })}
       teamId={1}
       onExit={onExit}
@@ -54,9 +54,9 @@ describe("DeployModal", () => {
     jest.spyOn(softwareAPI, "getFleetMaintainedApp").mockResolvedValue({
       fleet_maintained_app: createMockFleetMaintainedAppDetails(),
     });
-    jest.spyOn(teamPoliciesAPI, "create").mockResolvedValue({} as never);
-    jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
-    jest.spyOn(teamPoliciesAPI, "destroy").mockResolvedValue({} as never);
+    jest.spyOn(policiesAPI, "create").mockResolvedValue({} as never);
+    jest.spyOn(policiesAPI, "update").mockResolvedValue({} as never);
+    jest.spyOn(policiesAPI, "destroy").mockResolvedValue({} as never);
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -91,22 +91,27 @@ describe("DeployModal", () => {
     ).toBeChecked();
   });
 
-  it("creates a Force patch policy through the policy endpoint", async () => {
+  it("creates a Force patch + Deadline policy by default on macOS", async () => {
     const { user } = renderModal();
 
     await user.click(screen.getByRole("checkbox", { name: "patch" }));
     await user.click(screen.getByRole("radio", { name: "Force patch" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
+    // Deadline is the preselected end-user experience when Force patch is
+    // chosen on a macOS title (Figma dev note), so a user who clicks Save
+    // without touching the dropdown gets patch_deadline: true and continuous
+    // automations locked on.
     await waitFor(() =>
-      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 1,
+      expect(policiesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 1,
         type: "patch",
-        patch_software_title_id: 10,
         software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
-        continuous_automations_enabled: false,
+        patch_deadline: true,
+        continuous_automations_enabled: true,
       })
     );
   });
@@ -132,13 +137,14 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 1,
+      expect(policiesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 1,
         type: "patch",
-        patch_software_title_id: 10,
         software_title_id: 10,
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: true,
+        patch_deadline: false,
         continuous_automations_enabled: true,
       })
     );
@@ -176,14 +182,65 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
-        software_title_id: 10,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: true,
+        patch_deadline: false,
         continuous_automations_enabled: true,
       })
     );
+  });
+
+  it("loads a legacy Force + Immediate policy with Patch immediately selected", async () => {
+    // Regression guard: when deadline shipped, the default for new Force
+    // selections flipped to Deadline. A pre-existing Force + no-flags policy
+    // (every policy saved before this PR) must still load as Patch
+    // immediately — not be silently rewritten to Deadline on open.
+    renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+          notify_before_patching: false,
+          // patch_deadline deliberately omitted — legacy shape.
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("radio", { name: "Force patch" })).toBeChecked();
+    expect(await screen.findByText("Patch immediately")).toBeInTheDocument();
+    expect(screen.queryByText("Deadline")).not.toBeInTheDocument();
+  });
+
+  it("loads an existing deadline policy with Deadline selected", async () => {
+    renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+          notify_before_patching: false,
+          patch_deadline: true,
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("radio", { name: "Force patch" })).toBeChecked();
+    // react-select-5 renders the current value inside the combobox; the
+    // visible text is enough to confirm the hydrated choice.
+    expect(await screen.findByText("Deadline")).toBeInTheDocument();
   });
 
   it("creates Force install with the current FMA query and platform", async () => {
@@ -196,8 +253,8 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
-        team_id: 1,
+      expect(policiesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 1,
         name: "[Install software] Firefox",
         description:
           "Policy triggers automatic install of Firefox on each host that's missing this software.",
@@ -230,7 +287,7 @@ describe("DeployModal", () => {
         "Couldn't create the Force install policy. Try again."
       )
     );
-    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(policiesAPI.create).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -256,7 +313,7 @@ describe("DeployModal", () => {
         response: manifestError,
       })
     );
-    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(policiesAPI.create).not.toHaveBeenCalled();
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -277,13 +334,16 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("radio", { name: "Force patch" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
+    // Clicking Force patch (re)defaults the end-user experience to Deadline
+    // per the Figma dev note, so a user who flips Manual → Force patch and
+    // hits Save gets patch_deadline: true + continuous automations locked on.
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
-        software_title_id: 10,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
-        continuous_automations_enabled: false,
+        patch_deadline: true,
+        continuous_automations_enabled: true,
       })
     );
   });
@@ -310,17 +370,68 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
-        software_title_id: null,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: null,
         patch_when_closed: false,
         notify_before_patching: false,
+        patch_deadline: false,
         continuous_automations_enabled: false,
       })
     );
   });
 
-  it("turns continuous automation off when saving a Force patch policy that has it on", async () => {
+  it("keeps another automation on a manual patch policy saved unchanged", async () => {
+    const onSuccess = jest.fn();
+    const { user } = renderModal({
+      onSuccess,
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        // A script automation with continuous on: not a software install.
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    expect(policiesAPI.update).not.toHaveBeenCalled();
+  });
+
+  it("clears stale patch flags on a manual patch policy without touching its automation", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: true,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    await user.click(
+      screen.getByRole("radio", { name: "End user initiated (manual)" })
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: false,
+      })
+    );
+  });
+
+  it("clears stale continuous_automations_enabled when saving a Force + Immediate policy that still has it on", async () => {
     const { user } = renderModal({
       softwarePackage: createMockSoftwarePackage({
         fleet_maintained_app_id: 1,
@@ -339,12 +450,16 @@ describe("DeployModal", () => {
     expect(screen.getByRole("radio", { name: "Force patch" })).toBeChecked();
     await user.click(screen.getByRole("button", { name: "Save" }));
 
+    // Stored Force + continuous_automations_enabled policy carries no deadline
+    // or notify flag, so it loads as Patch immediately and clears continuous
+    // automations when saved untouched. Preselect-on-click doesn't fire
+    // because the user never re-clicks the radio.
     await waitFor(() =>
-      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
-        team_id: 1,
-        software_title_id: 10,
+      expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        automation_type: "software",
         patch_when_closed: false,
         notify_before_patching: false,
+        patch_deadline: false,
         continuous_automations_enabled: false,
       })
     );
@@ -371,8 +486,8 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(teamPoliciesAPI.destroy).toHaveBeenNthCalledWith(1, 1, [11]);
-      expect(teamPoliciesAPI.destroy).toHaveBeenNthCalledWith(2, 1, [22]);
+      expect(policiesAPI.destroy).toHaveBeenNthCalledWith(1, [11]);
+      expect(policiesAPI.destroy).toHaveBeenNthCalledWith(2, [22]);
     });
   });
 
@@ -380,7 +495,7 @@ describe("DeployModal", () => {
     const onExit = jest.fn();
     const onSuccess = jest.fn();
     const errorSpy = jest.spyOn(notify, "error");
-    (teamPoliciesAPI.create as jest.Mock)
+    (policiesAPI.create as jest.Mock)
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error("Patch failed"));
     const { user } = renderModal({ onExit, onSuccess });
@@ -393,7 +508,7 @@ describe("DeployModal", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(teamPoliciesAPI.create).toHaveBeenCalledTimes(2);
+      expect(policiesAPI.create).toHaveBeenCalledTimes(2);
       expect(onSuccess).toHaveBeenCalledTimes(1);
       expect(onExit).toHaveBeenCalledTimes(1);
     });

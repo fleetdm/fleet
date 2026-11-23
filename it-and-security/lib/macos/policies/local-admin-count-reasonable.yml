@@ -10,8 +10,8 @@
   critical: false
   description: |-
     Flags Macs with more than five distinct users in the local `admin` group (review for over-privileged accounts).
-  resolution: |-
-    Review local administrators in  > System Settings > Users & Groups. Remove unnecessary admin rights and use a standard user account day-to-day.
-
-    If you need help, please reach out in #help-it.
+  resolution: >-
+    No action needed from you. IT reviews failing hosts and reaches out if any local admin accounts need to be
+    removed or changed to standard accounts.
+  hidden: true
   platform: darwin

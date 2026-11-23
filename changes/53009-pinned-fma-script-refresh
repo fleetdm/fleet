@@ -1,0 +1,1 @@
+- Fixed Fleet-maintained apps not updating scripts when the version is pinned.

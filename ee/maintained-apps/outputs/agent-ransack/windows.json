@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.3.3566.1",
+      "version": "9.3.3568.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Agent Ransack' AND publisher = 'Mythicsoft Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Agent Ransack' AND publisher = 'Mythicsoft Ltd' AND version_compare(version, '9.3.3566.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Agent Ransack' AND publisher = 'Mythicsoft Ltd' AND version_compare(version, '9.3.3568.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'agent ransack.exe');"
       },
-      "installer_url": "https://download.mythicsoft.com/flp/3566/oun.aqt1ebc7/agentransack_x64_msi_3566.zip",
+      "installer_url": "https://download.mythicsoft.com/flp/3568/uwf5zkn.ctz5MUW4abu/agentransack_x64_msi_3568.zip",
       "install_script_ref": "84fc806b",
       "uninstall_script_ref": "c5bcb449",
-      "sha256": "05f7ef76d27b794280c2c949fdce558e3f8fc64b2fed02d433177964c166635d",
+      "sha256": "8edb4a4ddc49572e5c18a369699636aef9fdf65a7857247795d1b5f831e64326",
       "default_categories": [
         "Utilities"
       ]

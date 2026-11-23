@@ -1,6 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
-import { HostStatus } from "interfaces/host";
+import { HostStatusFilter } from "interfaces/host";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -35,12 +35,11 @@ export interface IHostCountLoadOptions {
   perPage?: number;
   selectedLabels?: string[];
   globalFilter?: string;
-  status?: HostStatus;
+  status?: Exclude<HostStatusFilter, "pending">;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: string;
@@ -73,7 +72,6 @@ export default {
     const policyResponse = options?.policyResponse;
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
-    const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
@@ -116,7 +114,6 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareStatus,
         appStoreAppVersionId,

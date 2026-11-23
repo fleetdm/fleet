@@ -1172,6 +1172,13 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 	return nil
 }
 
+// SendEntraDeviceToken reports the Entra ID token that proves the host's Entra device ID.
+func (oc *OrbitClient) SendEntraDeviceToken(idToken string) error {
+	verb, path := "POST", "/api/fleet/orbit/entra_device_token"
+	var resp fleet.OrbitPostEntraDeviceTokenResponse
+	return oc.authenticatedRequest(verb, path, &fleet.OrbitPostEntraDeviceTokenRequest{IDToken: idToken}, &resp)
+}
+
 // SendLinuxKeyEscrowStatus reports progress on a LUKS escrow request.
 func (oc *OrbitClient) SendLinuxKeyEscrowStatus(status string) error {
 	verb, path := "POST", "/api/fleet/orbit/luks_data"

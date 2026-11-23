@@ -57,8 +57,6 @@ const (
 	// Deprecated: Use AccountDrivenEnrollTokenPath instead.
 	AccountDrivenEnrollPath      = "/api/mdm/apple/account_driven_enroll"
 	AccountDrivenEnrollTokenPath = "/api/mdm/apple/account_driven_enroll/{token}" // nolint:gosec // Not a secret
-	// InstallerPath is the HTTP path that serves installers to Apple devices.
-	InstallerPath = "/api/mdm/apple/installer"
 
 	// FleetUISSOCallbackPath is the front-end route used to
 	// redirect after the SSO flow is completed.
@@ -337,7 +335,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	}
 
 	if len(orgNames) == 0 {
-		d.logger.InfoContext(ctx, "skipping defining profile for team with no relevant ABM token")
+		d.logger.InfoContext(ctx, "skipping defining profile for fleet with no relevant ABM token")
 		return "", time.Time{}, nil
 	}
 
@@ -1195,7 +1193,7 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					logger.ErrorContext(ctx, "Apple DEP client: failed to save app config", "err", err)
 				}
 				logger.InfoContext(ctx, "Apple DEP client: updated app config Terms Expired flag",
-					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
+					"apple_business_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
 
@@ -1729,8 +1727,11 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 // NewActivityFunc is an alias for fleet.NewActivityFunc.
 type NewActivityFunc = fleet.NewActivityFunc
 
+// IOSiPadOSRefetch sends refetch commands to at most batchSize iOS/iPadOS hosts,
+// longest-waiting first, so a large fleet's hourly refetch is spread across
+// cron ticks instead of sent at once.
 func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger *slog.Logger,
-	newActivityFn NewActivityFunc,
+	newActivityFn NewActivityFunc, batchSize int,
 ) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -1743,14 +1744,15 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 
 	start := time.Now()
-	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, fleet.MobileRefetchInterval, batchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
 	}
 	if len(devices) == 0 {
 		return nil
 	}
-	logger.InfoContext(ctx, "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
+	logger.InfoContext(ctx, "sending commands to refetch", "count", len(devices),
+		"batch_full", len(devices) >= batchSize, "lookup-duration", time.Since(start))
 
 	type deviceGroup struct {
 		hostIDs []uint
@@ -3027,4 +3029,18 @@ func AppleMDMAcmeCertificateSubject(newEnrollment bool) pkix.Name {
 	}
 
 	return subject
+}
+
+const (
+	MacOSDDMSoftwareUpdateIdentifier  = "macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IOSDDMSoftwareUpdateIdentifier    = "ios-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	IpadOSDDMSoftwareUpdateIdentifier = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+)
+
+func FleetReservedDeclarationIdentifiers() map[string]struct{} {
+	return map[string]struct{}{
+		MacOSDDMSoftwareUpdateIdentifier:  {},
+		IOSDDMSoftwareUpdateIdentifier:    {},
+		IpadOSDDMSoftwareUpdateIdentifier: {},
+	}
 }

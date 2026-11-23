@@ -44,9 +44,16 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
+
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Import package signing keys
         env:
@@ -65,7 +72,7 @@ jobs:
 
       - name: Install fleetctl
         run: |
-          curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+          bash website/assets/resources/install-fleetctl.sh
           echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Build PKG, sign, and notarize
@@ -80,8 +87,8 @@ jobs:
             --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize \
             --orbit-channel ${{ github.event.inputs.orbit-channel }} \
             --osqueryd-channel ${{ github.event.inputs.osqueryd-channel }} \
-            --desktop-channel ${{ github.event.inputs.desktop-channel }}
-          mv fleet-osquery*.pkg fleetd-base.pkg
+            --desktop-channel ${{ github.event.inputs.desktop-channel }} \
+            --outfile fleetd-base.pkg
           : # Calculate the SHA256 checksum of the package
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 

@@ -4,9 +4,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func TestConfigCommand(t *testing.T) {
@@ -139,6 +143,57 @@ func TestConfigCommand(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("unset tls-skip-verify and clear rootca", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{
+			"config", "set", "--config", configFile,
+			"--tls-skip-verify", "--rootca", "./rootca",
+		})
+
+		populated, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.True(t, populated.Contexts["default"].TLSSkipVerify)
+		require.Equal(t, "./rootca", populated.Contexts["default"].RootCA)
+
+		runAppForTest(t, []string{
+			"config", "set", "--config", configFile,
+			"--tls-skip-verify=false", "--rootca", "",
+		})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		cfgCtx, ok := cfg.Contexts["default"]
+		require.True(t, ok)
+		require.False(t, cfgCtx.TLSSkipVerify)
+		require.Empty(t, cfgCtx.RootCA)
+	})
+
+	t.Run("unset tls-skip-verify on its own", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--tls-skip-verify"})
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--tls-skip-verify=false"})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.False(t, cfg.Contexts["default"].TLSSkipVerify)
+	})
+
+	t.Run("clear rootca on its own", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--rootca", "./rootca"})
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--rootca", ""})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.Empty(t, cfg.Contexts["default"].RootCA)
+	})
 }
 
 func TestCustomHeadersConfig(t *testing.T) {
@@ -147,8 +202,11 @@ func TestCustomHeadersConfig(t *testing.T) {
 
 	// start a server that will receive requests
 	var called bool
+	var userAgent, clientVersion string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
+		userAgent = r.UserAgent()
+		clientVersion = r.Header.Get(fleet.HeaderClientVersion)
 		require.Equal(t, "custom", r.Header.Get("X-Fleet-Test"))
 		require.Equal(t, "another", r.Header.Get("X-Fleet-MoreTest"))
 		w.WriteHeader(http.StatusOK)
@@ -164,8 +222,23 @@ func TestCustomHeadersConfig(t *testing.T) {
 		"--custom-header", "X-Fleet-MoreTest:another",
 		"--address", srv.URL,
 	})
-	runAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
+	runAppNoChecks([]string{"get", "labels", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
+	require.True(t, strings.HasPrefix(userAgent, "fleetctl/"), userAgent)
+	require.Equal(t, version.Version().Version, clientVersion)
+
+	// A User-Agent among the custom headers replaces fleetctl's, but the client version header can't be replaced.
+	runAppForTest(t, []string{
+		"config", "set",
+		"--config", configFile,
+		"--custom-header", "X-Fleet-Test:custom",
+		"--custom-header", "X-Fleet-MoreTest:another",
+		"--custom-header", "User-Agent:custom-agent",
+		"--custom-header", fleet.HeaderClientVersion + ":0.0.1",
+	})
+	runAppNoChecks([]string{"get", "labels", "--config", configFile}) //nolint:errcheck
+	require.Equal(t, "custom-agent", userAgent)
+	require.Equal(t, version.Version().Version, clientVersion)
 }
 
 func TestConfigGetShowsHelp(t *testing.T) {
@@ -195,4 +268,18 @@ func TestConfigGetShowsHelp(t *testing.T) {
 		require.Contains(t, output, "fleetctl config set")
 		require.Contains(t, output, "Set config options")
 	})
+}
+
+// package reads the fleet name from the same config file
+// as other commands: --config, CONFIG, or the default.
+func TestPackageConfigFlag(t *testing.T) {
+	var flag *cli.StringFlag
+	for _, f := range packageCommand().Flags {
+		if sf, ok := f.(*cli.StringFlag); ok && sf.Name == "config" {
+			flag = sf
+		}
+	}
+	require.NotNil(t, flag)
+	require.Equal(t, []string{"CONFIG"}, flag.EnvVars)
+	require.Equal(t, defaultConfigPath(), flag.Value)
 }

@@ -66,9 +66,9 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
         }
       }
 
-      const { user, available_teams, settings } = await usersAPI.me();
+      const { user, available_fleets, settings } = await usersAPI.me();
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setUserSettings(settings);
       router.push(DASHBOARD);
       window.location.reload();

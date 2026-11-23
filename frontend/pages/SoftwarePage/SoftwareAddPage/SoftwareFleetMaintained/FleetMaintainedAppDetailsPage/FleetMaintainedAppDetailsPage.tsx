@@ -21,8 +21,8 @@ import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import PATHS from "router/paths";
+import policiesAPI from "services/entities/policies";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -214,12 +214,12 @@ const FleetMaintainedAppDetailsPage = ({
       softwareFmaTitleId = addedSoftwareTitleId;
 
       if (formData.patch) {
-        await teamPoliciesAPI.create({
-          team_id: parseInt(teamId, 10),
+        await policiesAPI.create({
+          fleet_id: parseInt(teamId, 10),
           type: "patch",
-          patch_software_title_id: addedSoftwareTitleId,
+          software_title_id: addedSoftwareTitleId,
           ...(formData.patchOption !== "manual" && {
-            software_title_id: addedSoftwareTitleId,
+            automation_type: "software",
           }),
           ...getPatchPolicyFlags(
             formData.patchOption,
