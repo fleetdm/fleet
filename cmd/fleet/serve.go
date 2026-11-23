@@ -193,6 +193,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		applyDevFlags(&config)
 	}
 
+	if err := config.Auth.ValidateJWTIssuers(); err != nil {
+		initFatal(err, "invalid auth.jwt_issuers configuration")
+	}
+
 	// Set network blocking mode for outbound integration requests.
 	fleethttp.SetNetworkBlockingMode(networkBlockingModeFor(dev_mode.IsEnabled, config.Server))
 
