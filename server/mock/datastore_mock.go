@@ -80,6 +80,12 @@ type UserByEmailFunc func(ctx context.Context, email string) (*fleet.User, error
 
 type UserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
+type UserByExternalIdentityFunc func(ctx context.Context, issuer string, subject string) (*fleet.User, error)
+
+type ListUserExternalIdentitiesFunc func(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, error)
+
+type SetUserExternalIdentitiesFunc func(ctx context.Context, userID uint, ids []fleet.ExternalIdentity) (added []fleet.ExternalIdentity, removed []fleet.ExternalIdentity, err error)
+
 type UserOrDeletedUserByIDFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
 type SaveUserFunc func(ctx context.Context, user *fleet.User) error
@@ -2738,6 +2744,15 @@ type DataStore struct {
 
 	UserByIDFunc        UserByIDFunc
 	UserByIDFuncInvoked bool
+
+	UserByExternalIdentityFunc        UserByExternalIdentityFunc
+	UserByExternalIdentityFuncInvoked bool
+
+	ListUserExternalIdentitiesFunc        ListUserExternalIdentitiesFunc
+	ListUserExternalIdentitiesFuncInvoked bool
+
+	SetUserExternalIdentitiesFunc        SetUserExternalIdentitiesFunc
+	SetUserExternalIdentitiesFuncInvoked bool
 
 	UserOrDeletedUserByIDFunc        UserOrDeletedUserByIDFunc
 	UserOrDeletedUserByIDFuncInvoked bool
@@ -6797,6 +6812,27 @@ func (s *DataStore) UserByID(ctx context.Context, id uint) (*fleet.User, error) 
 	s.UserByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UserByIDFunc(ctx, id)
+}
+
+func (s *DataStore) UserByExternalIdentity(ctx context.Context, issuer string, subject string) (*fleet.User, error) {
+	s.mu.Lock()
+	s.UserByExternalIdentityFuncInvoked = true
+	s.mu.Unlock()
+	return s.UserByExternalIdentityFunc(ctx, issuer, subject)
+}
+
+func (s *DataStore) ListUserExternalIdentities(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, error) {
+	s.mu.Lock()
+	s.ListUserExternalIdentitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListUserExternalIdentitiesFunc(ctx, userID)
+}
+
+func (s *DataStore) SetUserExternalIdentities(ctx context.Context, userID uint, ids []fleet.ExternalIdentity) (added []fleet.ExternalIdentity, removed []fleet.ExternalIdentity, err error) {
+	s.mu.Lock()
+	s.SetUserExternalIdentitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetUserExternalIdentitiesFunc(ctx, userID, ids)
 }
 
 func (s *DataStore) UserOrDeletedUserByID(ctx context.Context, id uint) (*fleet.User, error) {

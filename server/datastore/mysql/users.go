@@ -667,3 +667,81 @@ func replaceUserAPIEndpoints(ctx context.Context, tx sqlx.ExtContext, userID uin
 	)
 	return ctxerr.Wrap(ctx, err, "insert user api endpoints")
 }
+
+func (ds *Datastore) UserByExternalIdentity(ctx context.Context, issuer, subject string) (*fleet.User, error) {
+	var userID uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &userID,
+		`SELECT user_id FROM user_external_identities WHERE issuer = ? AND subject = ?`, issuer, subject)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, notFound("User").WithMessage("for external identity"))
+	}
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select user by external identity")
+	}
+	return ds.findUser(ctx, "id", userID)
+}
+
+func (ds *Datastore) ListUserExternalIdentities(ctx context.Context, userID uint) ([]fleet.ExternalIdentity, error) {
+	return listUserExternalIdentitiesDB(ctx, ds.reader(ctx), userID)
+}
+
+func listUserExternalIdentitiesDB(ctx context.Context, q sqlx.QueryerContext, userID uint) ([]fleet.ExternalIdentity, error) {
+	ids := []fleet.ExternalIdentity{}
+	if err := sqlx.SelectContext(ctx, q, &ids,
+		`SELECT issuer, subject FROM user_external_identities WHERE user_id = ? ORDER BY issuer, subject`, userID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list user external identities")
+	}
+	return ids, nil
+}
+
+func (ds *Datastore) SetUserExternalIdentities(ctx context.Context, userID uint, ids []fleet.ExternalIdentity) (added, removed []fleet.ExternalIdentity, err error) {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		added, removed = nil, nil
+		current, err := listUserExternalIdentitiesDB(ctx, tx, userID)
+		if err != nil {
+			return err
+		}
+		want := make(map[fleet.ExternalIdentity]struct{}, len(ids))
+		for _, id := range ids {
+			want[id] = struct{}{}
+		}
+		have := make(map[fleet.ExternalIdentity]struct{}, len(current))
+		for _, id := range current {
+			have[id] = struct{}{}
+			if _, ok := want[id]; !ok {
+				removed = append(removed, id)
+			}
+		}
+		for _, id := range ids {
+			if _, ok := have[id]; !ok {
+				added = append(added, id)
+				have[id] = struct{}{}
+			}
+		}
+
+		for _, id := range removed {
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM user_external_identities WHERE user_id = ? AND issuer = ? AND subject = ?`,
+				userID, id.Issuer, id.Subject); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete user external identity")
+			}
+		}
+		for _, id := range added {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO user_external_identities (user_id, issuer, subject) VALUES (?, ?, ?)`,
+				userID, id.Issuer, id.Subject); err != nil {
+				if IsDuplicate(err) {
+					return ctxerr.Wrap(ctx, &fleet.ConflictError{
+						Message: fmt.Sprintf("external identity (%s, %s) is already bound to another user", id.Issuer, id.Subject),
+					})
+				}
+				return ctxerr.Wrap(ctx, err, "insert user external identity")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return added, removed, nil
+}

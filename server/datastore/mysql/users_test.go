@@ -35,6 +35,7 @@ func TestUsers(t *testing.T) {
 		{"Teams", testUsersTeams},
 		{"CreateWithTeams", testUsersCreateWithTeams},
 		{"SaveMany", testUsersSaveMany},
+		{"ExternalIdentities", testUsersExternalIdentities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -493,4 +494,72 @@ func testUsersSaveMany(t *testing.T, ds *Datastore) {
 	gotU3, err := ds.UserByID(context.Background(), u3.ID)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
+}
+
+func testUsersExternalIdentities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u1 := test.NewUser(t, ds, "u1", "u1@example.com", false)
+	u2 := test.NewUser(t, ds, "u2", "u2@example.com", false)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "t1"})
+	require.NoError(t, err)
+	u1.GlobalRole = nil
+	u1.Teams = []fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}
+	require.NoError(t, ds.SaveUser(ctx, u1))
+
+	a, b, c := fleet.ExternalIdentity{Issuer: "gh", Subject: "a"},
+		fleet.ExternalIdentity{Issuer: "gh", Subject: "b"},
+		fleet.ExternalIdentity{Issuer: "okta", Subject: "c"}
+
+	added, removed, err := ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{a, b})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []fleet.ExternalIdentity{a, b}, added)
+	assert.Empty(t, removed)
+
+	added, removed, err = ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{b, c})
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.ExternalIdentity{c}, added)
+	assert.Equal(t, []fleet.ExternalIdentity{a}, removed)
+
+	added, removed, err = ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{c, b})
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.Empty(t, removed)
+
+	got, err := ds.ListUserExternalIdentities(ctx, u1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.ExternalIdentity{b, c}, got)
+
+	// An identity bound to u1 cannot be bound to u2, and u1 keeps it.
+	_, _, err = ds.SetUserExternalIdentities(ctx, u2.ID, []fleet.ExternalIdentity{b})
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	got, err = ds.ListUserExternalIdentities(ctx, u2.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	got, err = ds.ListUserExternalIdentities(ctx, u1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.ExternalIdentity{b, c}, got)
+
+	user, err := ds.UserByExternalIdentity(ctx, "gh", "b")
+	require.NoError(t, err)
+	assert.Equal(t, u1.ID, user.ID)
+	require.Len(t, user.Teams, 1)
+	assert.Equal(t, team.ID, user.Teams[0].ID)
+
+	_, err = ds.UserByExternalIdentity(ctx, "gh", "a")
+	require.True(t, fleet.IsNotFound(err), err)
+	// The issuer is part of the key: the same subject under another issuer is a different identity.
+	_, err = ds.UserByExternalIdentity(ctx, "okta", "b")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	added, removed, err = ds.SetUserExternalIdentities(ctx, u1.ID, nil)
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []fleet.ExternalIdentity{b, c}, removed)
+
+	_, _, err = ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{a})
+	require.NoError(t, err)
+	require.NoError(t, ds.DeleteUser(ctx, u1.ID))
+	_, err = ds.UserByExternalIdentity(ctx, "gh", "a")
+	require.True(t, fleet.IsNotFound(err), err)
 }
