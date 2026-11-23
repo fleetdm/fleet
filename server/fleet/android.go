@@ -441,7 +441,7 @@ var androidAppPolicyEnums = map[string][]string{
 	"alwaysOnVpnLockdownExemption": {"ALWAYS_ON_VPN_LOCKDOWN_EXEMPTION_UNSPECIFIED", "VPN_LOCKDOWN_ENFORCED", "VPN_LOCKDOWN_EXEMPTION"},
 	"autoUpdateMode":               {"AUTO_UPDATE_MODE_UNSPECIFIED", "AUTO_UPDATE_DEFAULT", "AUTO_UPDATE_POSTPONED", "AUTO_UPDATE_HIGH_PRIORITY"},
 	"connectedWorkAndPersonalApp":  {"CONNECTED_WORK_AND_PERSONAL_APP_UNSPECIFIED", "CONNECTED_WORK_AND_PERSONAL_APP_DISALLOWED", "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED"},
-	"credentialProviderPolicy":     {"CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED", "CREDENTIAL_PROVIDER_ALLOWED"},
+	"credentialProviderPolicy":     {"CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED", "CREDENTIAL_PROVIDER_ALLOWED", "CREDENTIAL_PROVIDER_DISALLOWED"},
 	"customAppConfig.userUninstallSettings": {
 		"USER_UNINSTALL_SETTINGS_UNSPECIFIED", "DISALLOW_UNINSTALL_BY_USER", "ALLOW_UNINSTALL_BY_USER",
 	},
@@ -464,6 +464,9 @@ var androidAppPolicyEnums = map[string][]string{
 		"PREFERENTIAL_NETWORK_ID_UNSPECIFIED", "NO_PREFERENTIAL_NETWORK", "PREFERENTIAL_NETWORK_ID_ONE",
 		"PREFERENTIAL_NETWORK_ID_TWO", "PREFERENTIAL_NETWORK_ID_THREE", "PREFERENTIAL_NETWORK_ID_FOUR",
 		"PREFERENTIAL_NETWORK_ID_FIVE",
+	},
+	"roles.extraCapabilities.localDeviceWipeCommand": {
+		"LOCAL_DEVICE_WIPE_COMMAND_UNSPECIFIED", "LOCAL_DEVICE_WIPE_COMMAND_DISALLOWED", "LOCAL_DEVICE_WIPE_COMMAND_ALLOWED",
 	},
 	"roles.roleType": {
 		"ROLE_TYPE_UNSPECIFIED", "COMPANION_APP", "KIOSK", "MOBILE_THREAT_DEFENSE_ENDPOINT_DETECTION_RESPONSE",
@@ -567,6 +570,11 @@ func validateAndroidAppPolicyValues(cfg *androidmanagement.ApplicationPolicy) er
 		fieldPath := fmt.Sprintf("roles.%d.roleType", i)
 		if err := checkEnum("roles.roleType", fieldPath, role.RoleType); err != nil {
 			return err
+		}
+		if role.ExtraCapabilities != nil {
+			if err := checkEnum("roles.extraCapabilities.localDeviceWipeCommand", fmt.Sprintf("roles.%d.extraCapabilities.localDeviceWipeCommand", i), role.ExtraCapabilities.LocalDeviceWipeCommand); err != nil {
+				return err
+			}
 		}
 		// Google rejects a role without a type, which an omitted roleType also is.
 		if role.RoleType == "" || role.RoleType == "ROLE_TYPE_UNSPECIFIED" {

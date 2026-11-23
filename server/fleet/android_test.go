@@ -78,9 +78,9 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 		},
 		{
 			name:        "invalid - credentialProviderPolicy bad value",
-			config:      json.RawMessage(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_DISALLOWED"}`),
+			config:      json.RawMessage(`{"credentialProviderPolicy": "CREDENTIAL_PROVIDER_BLOCKED"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "CREDENTIAL_PROVIDER_DISALLOWED" is not a supported value for "credentialProviderPolicy".`,
+			errorMsg:    `Couldn't update configuration. "CREDENTIAL_PROVIDER_BLOCKED" is not a supported value for "credentialProviderPolicy".`,
 		},
 		{
 			name:        "invalid - credentialProviderPolicy bad type",
