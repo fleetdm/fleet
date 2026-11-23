@@ -1133,8 +1133,6 @@ How long a session can be idle before it expires. Every authenticated request re
 
 In the Fleet UI, the browser cookie is set at login to expire after this duration and isn't refreshed. UI users are logged out when the cookie expires, even if they're active.
 
-Valid time units are `s`, `m`, `h`.
-
 - Default value: `120h` (5 days)
 - Environment variable: `FLEET_SESSION_DURATION`
 - Config file format:
@@ -1197,8 +1195,6 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 
 > Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
 
-Valid time units are `s`, `m`, `h`.
-
 - Default value: `1h`
 - Environment variable: `FLEET_OSQUERY_LABEL_UPDATE_INTERVAL`
 - Config file format:
@@ -1215,8 +1211,6 @@ Setting this to a higher value can reduce baseline load on the Fleet server in l
 
 > Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
 
-Valid time units are `s`, `m`, `h`.
-
 - Default value: `1h`
 - Environment variable: `FLEET_OSQUERY_POLICY_UPDATE_INTERVAL`
 - Config file format:
@@ -1232,8 +1226,6 @@ The interval at which Fleet will ask Fleet's agent (fleetd) to update host detai
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
 > Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
-
-Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
 - Environment variable: `FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL`
@@ -2686,7 +2678,7 @@ This flag only has effect if one of the following is true:
 - `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
 - `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
 
-Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
+Timeout for NATS publish operations.
 
 - Default value: 30s
 - Environment variable: `FLEET_NATS_TIMEOUT`

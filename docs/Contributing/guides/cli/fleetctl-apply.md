@@ -473,7 +473,7 @@ spec:
     cve_feed_prefix_url: ""
     disable_schedule: false
     disable_data_sync: false
-    recent_vulnerability_max_age: 30d
+    recent_vulnerability_max_age: 720h
     disable_win_os_vulnerabilities: false
   webhook_settings:
     failing_policies_webhook:
