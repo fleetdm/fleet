@@ -24,14 +24,16 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
 
-> **Android**: Lock is available on company-owned and BYOD Android hosts. Lock replaces the host's PIN or password with one that Fleet generates, and locks the host as soon as it receives the command. The old PIN stops working, so the end user needs the new one to unlock the host.
->
-> - **Company-owned**: Lock locks the whole device.
-> - **BYOD**: Lock locks the work profile only, and the work apps need the new PIN. The personal unlock isn't changed. If the host uses one lock for both personal and work, Android gives the work profile its own lock that uses Fleet's PIN. The screen doesn't lock.
->
-> Fleet generates a 6-digit PIN unless the host's password policy requires more, for example letters or a longer code. Android shows a **Lock pending** badge until the host acknowledges the lock, then the badge clears (no **Locked** badge).
->
-> To get the PIN, select **Actions > View unlock PIN** after the host acknowledges the lock. You can also run `fleetctl mdm unlock` or use the [REST API](https://fleetdm.com/docs/rest-api/rest-api#unlock-host). See [Unlock a host](#unlock-a-host).
+### Lock an Android host
+
+Lock is available on company-owned and BYOD Android hosts. Fleet replaces the host's PIN or password with one it generates and locks the host right away. The old PIN stops working, so the end user needs the new one to unlock the host.
+
+- **Company-owned**: Locks the whole device.
+- **BYOD**: Locks the work profile only. The personal unlock doesn't change. If the host uses one lock for both personal and work, Android gives the work profile its own lock with Fleet's PIN, and the screen doesn't lock.
+
+Fleet generates a 6-digit PIN unless the host's password policy requires more, like letters or a longer code. The host shows a **Lock pending** badge until it acknowledges the lock. There's no **Locked** badge.
+
+To get the PIN, see [Unlock a host](#unlock-a-host).
 
 ### Find a lost Android host
 
@@ -186,7 +188,7 @@ Deleting the host before the reset runs may hide the "Reset pending" badge, but 
     - **Android**: There's no **Unlock** action. Select **View unlock PIN** instead. A dialog shows the PIN that Fleet set when it locked the host, and when the host was locked. Give the PIN to the end user to enter on the device.
 4. When you click **Unlock**, Windows, Linux, iOS and iPadOS hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS and Android hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
 
-> **Android**: **View unlock PIN** appears after the host acknowledges the lock. It doesn't appear while the lock is pending, or if the host re-enrolled after it was locked. Viewing the PIN is logged as a `viewed_host_unlock_pin` activity. Fleet doesn't send an unlock command, so there's no `unlocked_host` activity.
+On Android, **View unlock PIN** appears once the host acknowledges the lock. It doesn't appear if the host re-enrolled after it was locked. Viewing the PIN is logged as a `viewed_host_unlock_pin` activity, not `unlocked_host`. You can also get the PIN with `fleetctl mdm unlock` or the [REST API](https://fleetdm.com/docs/rest-api/rest-api#unlock-host).
 
 > **Linux hosts**: The system will automatically reboot after approximately 10 seconds to complete the unlock process and ensure the user interface is properly restored. If the host loses connection to Fleet, the unlock process may run again, causing the host to reboot again.
 
