@@ -803,6 +803,7 @@ import Popchar from "./png/Popchar.png";
 import Popclip from "./png/Popclip.png";
 import Popsql from "./png/Popsql.png";
 import Portfolioperformance from "./png/Portfolioperformance.png";
+import Positron from "./png/Positron.png";
 import PostgresApp from "./png/PostgresApp.png";
 import Postgresql15 from "./png/Postgresql15.png";
 import Postgresql16 from "./png/Postgresql16.png";
@@ -2004,6 +2005,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   popclip: Popclip,
   popsql: Popsql,
   "portfolio performance": Portfolioperformance,
+  positron: Positron,
   postgres: PostgresApp,
   "postgresql 15": Postgresql15,
   "postgresql 16": Postgresql16,
