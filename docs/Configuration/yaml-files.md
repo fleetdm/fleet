@@ -692,7 +692,7 @@ Currently, you can specify `install_software` in the [`policies` YAML](#policies
 Currently, Fleet only allows one Apple App Store app or Fleet-maintained app for a specific software. The same custom package at different versions can upload side by side.
 This means, if you specify a Google Chrome at the same version for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet. Google Chrome at two different versions (i.e. Google Chrome v1.0 and v2.0) will upload together and both will be available in Fleet.
 
-Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
+Currently, when a `.ipa` file built for iOS is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). A `.ipa` file built for tvOS adds software for tvOS only. If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
 
 Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fleet replaces them with their values when the install script is sent to the host.
 
@@ -757,13 +757,13 @@ software:
 
 #### self_service, labels, categories, setup_experience, and display_name
 
-- `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
+- `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS. Self-service isn't available for tvOS, so a tvOS `.ipa` can't be combined with `self_service: true`.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
 - `categories` is a list of self-service category names. Categories group self-service software on your end users' **Fleet Desktop > My device** page so that end users can filter by category and install all software in a category at once. They can be created and modified via GitOps.
   - Category names support emojis and can be up to 255 characters long. The uniqueness checks ignore emojis, so `"🌎 Browsers"` and `"🔍 Browsers"` are treated as the same name.
   - For Fleet-maintained apps, if `categories` is omitted, apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `categories` is empty, default categories are removed. If custom categories are specified, apps don't get their default categories unless they're specified explicitly. 
 - `setup_experience` installs the software when hosts enroll (default: `false`). On Windows and Linux hosts, if the software has associated policies, Fleet checks them first and skips the install when the host passes all of them. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
-- `setup_experience_platform` specifies which platform to target for the `.sh` and `.py` script-only packages and `.ipa` packages in setup experience. For `.sh` packages, options are `darwin` and `linux`. For `.ipa` packages, options are `ios` and `ipados`.For `.py` packages, options are `darwin`, `linux`, and `windows`. If not specified and `setup_experience` is `true`, Linux is the default platform for `.sh` and `ios` is the default for `.ipa`.
+- `setup_experience_platform` specifies which platform to target for the `.sh` and `.py` script-only packages and `.ipa` packages in setup experience. For `.sh` packages, options are `darwin` and `linux`. For `.ipa` packages built for iOS, options are `ios` and `ipados`. For `.ipa` packages built for tvOS, the only option is `tvos`. For `.py` packages, options are `darwin`, `linux`, and `windows`. If not specified and `setup_experience` is `true`, Linux is the default platform for `.sh`, `ios` is the default for an iOS `.ipa`, and `tvos` is the default for a tvOS `.ipa`.
 - `display_name` is a custom name that will be displayed in the UI. If not set, the default depends on the software type:
   - `packages`: the name [extracted from the package](https://fleetdm.com/guides/deploy-software-packages#package-metadata-extraction) is used. For script-only packages, the filename is used.
   - `fleet_maintained_apps`: the Fleet-maintained app name is used.

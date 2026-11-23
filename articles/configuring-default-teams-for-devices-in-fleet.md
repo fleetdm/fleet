@@ -1,6 +1,6 @@
 # Configuring default fleets for macOS, iOS, and iPadOS devices in Fleet
 
-Fleet allows you to configure default fleets for macOS, iOS, and iPadOS devices as they automatically enroll in your instance. This ensures that hosts receive the appropriate apps and configuration profiles at enrollment.
+Fleet allows you to configure default fleets for macOS, iOS, iPadOS, and tvOS devices as they automatically enroll in your instance. This ensures that hosts receive the appropriate apps and configuration profiles at enrollment.
 
 ## Why configure default fleets?
 
@@ -20,7 +20,7 @@ Follow these steps to assign default fleets to your devices:
 
 3. **Assign default fleets**:
 
-   - In the modal, use the dropdowns to select the appropriate default fleet for each platform (macOS, iOS, and iPadOS).
+   - In the modal, use the dropdowns to select the appropriate default fleet for each platform (macOS, iOS, iPadOS, and tvOS).
 
 4. **Save your changes**: 
 

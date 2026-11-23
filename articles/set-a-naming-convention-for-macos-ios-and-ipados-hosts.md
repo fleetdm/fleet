@@ -1,6 +1,6 @@
 # Set a naming convention for macOS, iOS, and iPadOS hosts
 
-Fleet can automatically rename macOS, iOS, and iPadOS hosts as they enroll, so you don't have to rename each device by hand or script the [Fleet API](https://fleetdm.com/guides/set-device-hostname-via-fleet-api) for a whole fleet. Set a host name template once, and Fleet keeps every matching host's name in sync with it.
+Fleet can automatically rename macOS, iOS, iPadOS, and tvOS hosts as they enroll, so you don't have to rename each device by hand or script the [Fleet API](https://fleetdm.com/guides/set-device-hostname-via-fleet-api) for a whole fleet. Set a host name template once, and Fleet keeps every matching host's name in sync with it.
 
 > **Note:** Host name templates are a Fleet Premium feature.
 
@@ -10,7 +10,7 @@ Fleet can automatically rename macOS, iOS, and iPadOS hosts as they enroll, so y
 - A Fleet Premium license
 - Global admin, team admin, or team maintainer access
 - MDM turned on and configured for the hosts you want to rename
-- Hosts enrolled to Fleet with MDM turned on (macOS, iOS, and iPadOS only; other platforms aren't supported)
+- Hosts enrolled to Fleet with MDM turned on (macOS, iOS, iPadOS, and tvOS only; other platforms aren't supported)
 
 
 ## Set the template

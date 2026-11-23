@@ -116,7 +116,7 @@ not a soft check.
 
 Devices that already enrolled via SCEP don't need to re-enroll. Qualifying devices (Apple
 Silicon Macs on macOS 14+, iPhones on iOS 16+, and iPads on iPadOS 16.1+ with an A11 Bionic
-chip or later, all from ADE) receive ACME certificates on their next renewal cycle.
+chip or later, and Apple TV 4K (2nd generation) or later on tvOS 16+, all from ADE) receive ACME certificates on their next renewal cycle.
 
 Intel Macs fall back to SCEP because they don't have a Secure Enclave to bind keys to. iPhones
 and iPads with an A10X Fusion chip or earlier also fall back to SCEP, because Apple's ACME
@@ -150,6 +150,8 @@ Turning on both gives you ACME-only enrollment. That's a real trade-off:
 - Macs running macOS 13 or earlier can't enroll.
 - iPhones and iPads can't enroll unless they have an A11 Bionic chip or later
   and run iOS/iPadOS 16 or later.
+- Apple TVs can't enroll unless they're an Apple TV 4K (2nd generation) or later
+  and run tvOS 16 or later.
 - BYOD and Silent-Migration are off the table.
 
 
