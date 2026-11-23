@@ -7262,7 +7262,7 @@ Supported agents are Claude Code (`claude_code`), GitHub Copilot CLI (`copilot_c
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's ID. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | query | string | query | Search query keywords. Searchable fields include `username`, `project_path`, `git_repository`, and `model`. |
 | agent | string | query | Filters to only include sessions from the specified agent. Options include `"claude_code"`, `"copilot_cli"`, `"cursor"`, `"codex_cli"`, and `"gemini_cli"`. |
 | category | string | query | Filters to only include sessions with at least one tool call in the specified category. Options include `"command"` and `"file_access"`. |
@@ -7370,7 +7370,7 @@ Only admins and maintainers, globally or of the host's fleet, can see AI session
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's ID. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | ai_session_id | integer | path | **Required**. The ID of the AI session. |
 
 See [List host's AI sessions](#list-hosts-ai-sessions) for how each field is reported.
@@ -7431,7 +7431,7 @@ Fleet collects a session's tool calls on the refresh after it collects the sessi
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's ID. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | ai_session_id | integer | path | **Required**. The ID of the AI session. |
 | category | string | query | Filters to only include events in the specified category. Options include `"command"` and `"file_access"`. |
 | page | integer | query | Page number of the results to fetch.|
