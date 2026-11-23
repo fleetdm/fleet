@@ -28,7 +28,7 @@ require (
 	github.com/smallstep/scep v0.0.0-20241223071629-a37a330173bc // indirect
 	go.mozilla.org/pkcs7 v0.9.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
