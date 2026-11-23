@@ -159,9 +159,8 @@ func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) e
 	}
 }
 
-// TriggerPolicyMembershipCleanup starts the policy_membership_cleanup schedule, so the policy results a change invalidated
-// are removed soon after the change rather than at the schedule's next periodic run. A run already in progress picks up
-// the change itself, so that conflict isn't an error.
+// TriggerPolicyMembershipCleanup starts the policy_membership_cleanup schedule. A run already in progress picks up the
+// change itself, so that conflict isn't an error.
 func TriggerPolicyMembershipCleanup(ctx context.Context, schedules CronSchedulesService) error {
 	err := schedules.TriggerCronSchedule(ctx, string(CronPolicyMembershipCleanup))
 	if _, isConflict := errors.AsType[triggerConflictError](err); isConflict {
