@@ -42,8 +42,8 @@ var (
 	// Synchronization mutex
 	mu sync.Mutex
 
-	// MDM Management stack initialization executor
-	mdmManagementStackInit sync.Once
+	// Set once RegisterDeviceWithLocalManagement succeeds. Guarded by mu, which executeMDMcommand holds.
+	localMgmtRegistered bool
 
 	// Value written to the EmbeddedMode Flags registry entry to allow MDM command execution without an MDM server. The
 	// local management API (Register/ApplyLocalManagementSyncML) returns ERROR_NOT_SUPPORTED unless
@@ -538,23 +538,31 @@ func getFlagsValue() ([]byte, error) {
 
 	// The walks disagree, so ask Windows. It re-reads Flags on every IsEmbeddedModeAllowed call. Probe failures fall back to
 	// Windows' walk rather than failing, since this runs once per process.
+	if err := procIsEmbeddedModeAllowed.Find(); err != nil {
+		log.Warn().Err(err).Msg("mdm_bridge: SMBIOS walks disagree and IsEmbeddedModeAllowed is unavailable, using Windows' walk")
+		return windowsHash[:], nil
+	}
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, flagsRegistryLocation, registry.SET_VALUE)
-	if err == nil && procIsEmbeddedModeAllowed.Find() == nil {
-		defer k.Close()
-		// Remove the probe value; enableCmdExecution writes the chosen one before each command.
-		defer func() { _ = k.DeleteValue(flagsRegistryName) }()
-		for i, candidate := range [][]byte{windowsHash[:], specHash[:]} {
-			if err := k.SetBinaryValue(flagsRegistryName, candidate); err != nil {
-				break
-			}
-			var allowed int32
-			if hr, _, _ := procIsEmbeddedModeAllowed.Call(uintptr(unsafe.Pointer(&allowed))); hr != 0 {
-				break
-			}
-			if allowed != 0 {
-				log.Info().Bool("windows_walk", i == 0).Msg("mdm_bridge: SMBIOS walks disagree, Windows confirmed the EmbeddedMode Flags value")
-				return candidate, nil
-			}
+	if err != nil {
+		log.Warn().Err(err).Msg("mdm_bridge: SMBIOS walks disagree and the EmbeddedMode key can't be opened, using Windows' walk")
+		return windowsHash[:], nil
+	}
+	defer k.Close()
+	// Remove the probe value; enableCmdExecution writes the chosen one before each command.
+	defer func() { _ = k.DeleteValue(flagsRegistryName) }()
+	for i, candidate := range [][]byte{windowsHash[:], specHash[:]} {
+		if err := k.SetBinaryValue(flagsRegistryName, candidate); err != nil {
+			log.Warn().Err(err).Msg("mdm_bridge: SMBIOS walks disagree and writing a probe Flags value failed, using Windows' walk")
+			return windowsHash[:], nil
+		}
+		var allowed int32
+		if hr, _, _ := procIsEmbeddedModeAllowed.Call(uintptr(unsafe.Pointer(&allowed))); hr != 0 {
+			log.Warn().Msgf("mdm_bridge: SMBIOS walks disagree and IsEmbeddedModeAllowed failed (0x%X), using Windows' walk", hr)
+			return windowsHash[:], nil
+		}
+		if allowed != 0 {
+			log.Info().Bool("windows_walk", i == 0).Msg("mdm_bridge: SMBIOS walks disagree, Windows confirmed the EmbeddedMode Flags value")
+			return candidate, nil
 		}
 	}
 	log.Warn().Msg("mdm_bridge: SMBIOS walks disagree and Windows confirmed neither EmbeddedMode Flags value, using Windows' walk")
@@ -594,11 +602,14 @@ func enableCmdExecution() error {
 
 	// Registering is gated by Flags too, so it must follow the write above. ApplyLocalManagementSyncML fails with
 	// ERROR_INVALID_STATE until a registration succeeds, which Windows persists.
-	mdmManagementStackInit.Do(func() {
+	// Retried on every command until it succeeds, so a transient failure doesn't break mdm_bridge until fleetd restarts.
+	if !localMgmtRegistered {
 		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {
 			log.Error().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
+		} else {
+			localMgmtRegistered = true
 		}
-	})
+	}
 
 	return nil
 }
