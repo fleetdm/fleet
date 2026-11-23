@@ -2634,8 +2634,9 @@ func validateReport(r *fleet.QuerySpec, filePath string, itemPath string) error 
 }
 
 // validatePolicyNameLength reports an over-long policy name against the file that holds it.
+// It measures the NFC form, because that is the name parsePolicies keeps.
 func validatePolicyNameLength(multiError *multierror.Error, name, filePath string) *multierror.Error {
-	if err := fleet.ValidatePolicyReportNameLength("policy", name); err != nil {
+	if err := fleet.ValidatePolicyReportNameLength("policy", norm.NFC.String(name)); err != nil {
 		return multierror.Append(multiError, fmt.Errorf("%w in %s", invalidReasons(err), filepath.Base(filePath)))
 	}
 	return multiError

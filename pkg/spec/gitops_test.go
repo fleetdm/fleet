@@ -7130,6 +7130,13 @@ reports:
 	require.ErrorContains(t, err, nameErr("policy")+" in "+file)
 	require.NotContains(t, err.Error(), "validation failed")
 
+	// GitOps stores policy names in NFC, so the limit applies to the NFC form: 128 "e" + combining
+	// acute (256 runes) become 128 "é", and U+0344 expands to two runes.
+	_, err = parse(policyYAML(strings.Repeat("e\u0301", 128)))
+	require.NoError(t, err)
+	_, err = parse(policyYAML("\u0344" + strings.Repeat("a", 254)))
+	require.ErrorContains(t, err, "name may not exceed 255 characters")
+
 	// A policy from a path: file is reported against that file, where its name is.
 	policyFile, _ := createTempFile(t, "", fmt.Sprintf("- name: %q\n  query: SELECT 1;\n", strings.Repeat("a", 256)))
 	_, err = parse(getTeamConfig([]string{"policies"}) + "\npolicies:\n  - path: " + policyFile + "\n")
