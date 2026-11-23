@@ -1581,7 +1581,9 @@ func (ds *Datastore) GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context,
 func accountDrivenEnrollmentIDTaken(ctx context.Context, q sqlx.QueryerContext, enrollmentID string) (bool, error) {
 	var taken bool
 	if err := sqlx.GetContext(ctx, q, &taken, `
-		SELECT EXISTS(SELECT 1 FROM hosts WHERE osquery_host_id = ? AND NOT (uuid = ? AND hardware_serial = ?))`,
+		SELECT EXISTS(SELECT 1 FROM hosts h WHERE h.osquery_host_id = ?
+ 			AND NOT (h.uuid = ? AND h.hardware_serial = ? AND EXISTS (
+ 				SELECT 1 FROM host_mdm hm WHERE hm.host_id = h.id AND hm.personal_enrollment_type = 'account_driven')))`,
 		enrollmentID, enrollmentID, enrollmentID); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "checking for another host with the enrollment ID")
 	}
@@ -6820,7 +6822,8 @@ LIMIT ?`
 	}
 	args := []any{refetchTypes}
 	for _, platform := range []string{"ios", "ipados"} {
-		args = append(args,
+		args = append(
+			args,
 			refetchTypes, len(refetchTypes), platform, limit,
 			refetchTypes, len(refetchTypes), platform, int(interval.Seconds()), limit,
 		)
