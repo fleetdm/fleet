@@ -49,18 +49,22 @@ func TestUp_20261123184557_RenamesConflictingLabel(t *testing.T) {
 	execNoErr(t, db, `
 		INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id)
 		VALUES ('a1', 'TVOS', ?)`, conflictingID)
+	// The same profile still holds the name of a deleted label.
+	execNoErr(t, db, `
+		INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id)
+		VALUES ('a1', 'tvOS 3', NULL)`)
 
 	applyNext(t, db)
 
 	var name string
 	require.NoError(t, db.Get(&name, `SELECT name FROM labels WHERE id = ?`, conflictingID))
-	require.Equal(t, "tvOS 3", name)
+	require.Equal(t, "tvOS 4", name)
 	require.NoError(t, db.Get(&name, `SELECT label_name FROM mdm_configuration_profile_labels WHERE label_id = ?`, conflictingID))
-	require.Equal(t, "tvOS 3", name)
+	require.Equal(t, "tvOS 4", name)
 
 	// A fleet's label can't share a name with an all-fleets label, so it's renamed too.
 	require.NoError(t, db.Get(&name, `SELECT name FROM labels WHERE id = ?`, fleetLabelID))
-	require.Equal(t, "tvOS 4", name)
+	require.Equal(t, "tvOS 5", name)
 
 	var labelTypes []uint
 	require.NoError(t, db.Select(&labelTypes, `SELECT label_type FROM labels WHERE name = 'tvOS'`))

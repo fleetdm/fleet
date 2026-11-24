@@ -58,20 +58,18 @@ func renameConflictingTvOSLabel20261123184557(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("select labels named %q: %w", fleet.BuiltinLabelTvOS, err)
 	}
+	defer rows.Close()
 	var ids []uint
 	for rows.Next() {
 		var id uint
 		if err := rows.Scan(&id); err != nil {
-			rows.Close()
 			return fmt.Errorf("scan label named %q: %w", fleet.BuiltinLabelTvOS, err)
 		}
 		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
 		return fmt.Errorf("select labels named %q: %w", fleet.BuiltinLabelTvOS, err)
 	}
-	rows.Close()
 
 	n := 2
 	for _, id := range ids {
@@ -79,7 +77,14 @@ func renameConflictingTvOSLabel20261123184557(tx *sql.Tx) error {
 		for ; ; n++ {
 			newName = fmt.Sprintf("%s %d", fleet.BuiltinLabelTvOS, n)
 			var taken bool
-			if err := tx.QueryRow(`SELECT EXISTS (SELECT 1 FROM labels WHERE name = ?)`, newName).Scan(&taken); err != nil {
+			// A profile or declaration keeps the name of a label that was since
+			// deleted, and a name is unique per profile.
+			if err := tx.QueryRow(`
+				SELECT EXISTS (SELECT 1 FROM labels WHERE name = ?)
+					OR EXISTS (SELECT 1 FROM mdm_configuration_profile_labels WHERE label_name = ?)
+					OR EXISTS (SELECT 1 FROM mdm_declaration_labels WHERE label_name = ?)`,
+				newName, newName, newName,
+			).Scan(&taken); err != nil {
 				return fmt.Errorf("check label name %q: %w", newName, err)
 			}
 			if !taken {
