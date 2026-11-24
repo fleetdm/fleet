@@ -166,6 +166,11 @@ func TestCatalogHasNoRemovedPaths(t *testing.T) {
 		catalog[e.Fingerprint()] = struct{}{}
 	}
 
+	// A fingerprint ignores variable names, so it can't tell these removed paths from the live route with the same shape.
+	sameShapeAsLiveRoute := map[string]struct{}{
+		"DELETE /api/_version_/fleet/reports/{name}": {}, // DELETE /reports/{id}
+	}
+
 	allMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
 	removedPaths := removednames.Filter(removednames.KindPath, removednames.ScopeRequest)
 	require.NotEmpty(t, removedPaths)
@@ -175,6 +180,9 @@ func TestCatalogHasNoRemovedPaths(t *testing.T) {
 			methods = []string{entry.Context}
 		}
 		for _, method := range methods {
+			if _, ok := sameShapeAsLiveRoute[method+" "+entry.Old]; ok {
+				continue
+			}
 			_, listed := catalog[fleet.NewAPIEndpointFromTpl(method, entry.Old).Fingerprint()]
 			assert.False(t, listed, "api_endpoints.yml lists %s %s, which was removed", method, entry.Old)
 		}
