@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -1203,6 +1204,113 @@ func (s *integrationMDMTestSuite) TestAppStoreAppVersions() {
 	require.Equal(t, "03:00", *secondVersion.AutoUpdateEndTime)
 	require.NoError(t, json.Unmarshal(secondVersion.Configuration, &gotTestPlist))
 	require.Equal(t, editedTestPlist, gotTestPlist)
+
+	// per-item URLs carry the version id in the path
+	appURL := func(tID, vID uint) string {
+		return fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_apps/%d", tID, vID)
+	}
+	pkgURL := func(tID, pkgID uint) string {
+		return fmt.Sprintf("/api/latest/fleet/software/titles/%d/packages/%d", tID, pkgID)
+	}
+
+	// edit the first version by URL with a stray version_id naming the second, only the first version should change
+	updResp = updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", appURL(titleID, addDefaultResp.VersionID),
+		map[string]any{"fleet_id": team.ID, "version_id": addTestResp.VersionID, "self_service": true}, http.StatusOK, &updResp)
+	require.NotNil(t, updResp.AppStoreApp)
+	require.Equal(t, addDefaultResp.VersionID, updResp.AppStoreApp.VPPAppsTeamsID)
+	require.True(t, updResp.AppStoreApp.SelfService)
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"fleet_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
+	require.True(t, titleResp.SoftwareTitle.AppStoreApps[0].SelfService)
+	require.False(t, titleResp.SoftwareTitle.AppStoreApps[1].SelfService)
+	require.Equal(t, "Staging", titleResp.SoftwareTitle.AppStoreApps[1].VersionName)
+
+	// a package on the fleet, for cross-type checks
+	pkgFile, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/bash\necho 'cross'\n"), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer pkgFile.Close()
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "app-store-versions-cross.sh", TeamID: &team.ID, InstallerFile: pkgFile,
+	}, http.StatusOK, "")
+	var pkgTitleID, pkgID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pkgTitleID,
+			`SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "app-store-versions-cross.sh")
+	})
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pkgID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "app-store-versions-cross.sh")
+	})
+
+	// wrong title, wrong fleet, unknown id, and cross-type ids all return 404
+	for _, tc := range []struct {
+		name    string
+		url     string
+		fleetID uint
+	}{
+		{"wrong title", appURL(addIPadOSResp.TitleID, addDefaultResp.VersionID), team.ID},
+		{"wrong fleet", appURL(titleID, addTestResp.VersionID), otherTeam.ID},
+		{"unknown id", appURL(titleID, 999999), team.ID},
+		{"zero id", appURL(titleID, 0), team.ID},
+		{"package id on app store url", appURL(pkgTitleID, pkgID), team.ID},
+		{"version id on package url", pkgURL(titleID, addDefaultResp.VersionID), team.ID},
+	} {
+		if strings.Contains(tc.url, "/packages/") {
+			body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+				"fleet_id": {fmt.Sprint(tc.fleetID)}, "self_service": {"true"},
+			})
+			s.DoRawWithHeaders("PATCH", tc.url, body.Bytes(), http.StatusNotFound, headers)
+		} else {
+			s.Do("PATCH", tc.url, map[string]any{"fleet_id": tc.fleetID, "self_service": true}, http.StatusNotFound)
+		}
+		s.Do("DELETE", tc.url, nil, http.StatusNotFound, "fleet_id", fmt.Sprint(tc.fleetID))
+	}
+
+	// the old package PATCH without installer_id on the App Store-only title keeps its 400
+	oldBody, oldHeaders := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"fleet_id": {fmt.Sprint(team.ID)}, "self_service": {"true"},
+	})
+	s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), oldBody.Bytes(),
+		http.StatusBadRequest, oldHeaders)
+
+	// a user without access to the fleet gets 403 before any id lookup
+	otherMaintainer := &fleet.User{
+		Name:  "app-store-app-versions-other-maintainer",
+		Email: "app-store-app-versions-other-maintainer@example.com",
+		Teams: []fleet.UserTeam{{Team: *otherTeam, Role: fleet.RoleMaintainer}},
+	}
+	require.NoError(t, otherMaintainer.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, otherMaintainer)
+	require.NoError(t, err)
+	adminToken := s.token
+	defer func() { s.token = adminToken }()
+	s.token = s.getTestToken(otherMaintainer.Email, test.GoodPassword)
+	for _, id := range []uint{addDefaultResp.VersionID, 999999, 0} {
+		s.Do("PATCH", appURL(titleID, id), map[string]any{"fleet_id": team.ID, "self_service": true}, http.StatusForbidden)
+		s.Do("DELETE", appURL(titleID, id), nil, http.StatusForbidden, "fleet_id", fmt.Sprint(team.ID))
+	}
+	s.token = adminToken
+
+	// add a third version and delete it by URL with a stray version_id naming the first, only the third should be deleted
+	var addPerItemResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: iosAdamID,
+		Platform:   fleet.IOSPlatform,
+		Name:       "Per item",
+	}, http.StatusOK, &addPerItemResp)
+	s.Do("DELETE", appURL(titleID, addPerItemResp.VersionID), nil, http.StatusNoContent,
+		"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(addDefaultResp.VersionID))
+	require.Equal(t, "Per item", lastActivityVersionName(fleet.ActivityDeletedAppStoreApp{}.ActivityName()))
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"fleet_id", fmt.Sprint(team.ID))
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
+	require.Equal(t, addDefaultResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[0].VPPAppsTeamsID)
+	require.Equal(t, addTestResp.VersionID, titleResp.SoftwareTitle.AppStoreApps[1].VPPAppsTeamsID)
 
 	// get the title without a fleet, no App Store app versions should be returned
 	titleResp = getSoftwareTitleResponse{}

@@ -389,6 +389,22 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("DELETE", "/api/latest/fleet/software/titles/123/available_for_install", nil, http.StatusPaymentRequired,
 		"fleet_id", "0", "version_id", "1")
 
+	// per-item package and App Store app URLs, and the old package PATCH, each require premium license
+	for _, id := range []string{"1", "0"} {
+		s.DoJSON("PATCH", "/api/latest/fleet/software/titles/123/app_store_apps/"+id,
+			&updateAppStoreAppRequest{Name: new("Test")}, http.StatusPaymentRequired, &updateAppStoreAppResponse{})
+		s.Do("DELETE", "/api/latest/fleet/software/titles/123/app_store_apps/"+id, nil, http.StatusPaymentRequired, "fleet_id", "0")
+		s.Do("DELETE", "/api/latest/fleet/software/titles/123/packages/"+id, nil, http.StatusPaymentRequired, "fleet_id", "0")
+	}
+	for _, path := range []string{
+		"/api/latest/fleet/software/titles/123/packages/1",
+		"/api/latest/fleet/software/titles/123/packages/0",
+		"/api/latest/fleet/software/titles/123/package",
+	} {
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{"fleet_id": {"0"}})
+		s.DoRawWithHeaders("PATCH", path, body.Bytes(), http.StatusPaymentRequired, headers)
+	}
+
 	// get and edit patch deadline settings
 	s.Do("GET", "/api/latest/fleet/software/patch_deadline_settings", nil, http.StatusPaymentRequired, "fleet_id", "0")
 	s.Do("PATCH", "/api/latest/fleet/software/patch_deadline_settings",

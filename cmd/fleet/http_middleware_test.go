@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,8 +17,9 @@ import (
 
 type deadlineRecorder struct {
 	*httptest.ResponseRecorder
-	readDeadlineSet bool
-	writeDeadline   time.Time
+	readDeadlineSet  bool
+	writeDeadlineSet bool
+	writeDeadline    time.Time
 }
 
 func (d *deadlineRecorder) SetReadDeadline(time.Time) error {
@@ -24,6 +28,7 @@ func (d *deadlineRecorder) SetReadDeadline(time.Time) error {
 }
 
 func (d *deadlineRecorder) SetWriteDeadline(t time.Time) error {
+	d.writeDeadlineSet = true
 	d.writeDeadline = t
 	return nil
 }
@@ -48,6 +53,12 @@ func TestAPITimeoutOverrideHandler(t *testing.T) {
 			wantInstallerSize: customMax,
 		},
 		{
+			name:              "per-item package update threads configured max size",
+			method:            http.MethodPatch,
+			path:              "/api/latest/fleet/software/titles/1/packages/2",
+			wantInstallerSize: customMax,
+		},
+		{
 			name:              "bootstrap package upload threads configured max size",
 			method:            http.MethodPost,
 			path:              "/api/latest/fleet/bootstrap",
@@ -62,23 +73,32 @@ func TestAPITimeoutOverrideHandler(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
-				called bool
-				seen   int64
+				called  bool
+				seen    int64
+				readErr error
 			)
 			downstream := http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 				called = true
 				seen = installersize.FromContext(req.Context())
+				_, readErr = io.ReadAll(req.Body)
 			})
 
 			rec := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+			body := strings.NewReader(strings.Repeat("x", int(customMax)+1))
 			apiTimeoutOverrideHandler(downstream, cfg, logger, func() time.Duration { return 40 * time.Second }).ServeHTTP(
 				rec,
-				httptest.NewRequest(tc.method, tc.path, nil),
+				httptest.NewRequest(tc.method, tc.path, body),
 			)
 
 			assert.True(t, called, "the wrapped API handler must always be invoked")
 			assert.Equal(t, tc.wantInstallerSize, seen)
 			assert.False(t, rec.readDeadlineSet)
+			upload := tc.wantInstallerSize == customMax
+			// Uploads lift the write deadline (zero time) and cap the body at the configured max.
+			assert.Equal(t, upload, rec.writeDeadlineSet)
+			assert.True(t, rec.writeDeadline.IsZero())
+			var maxBytesErr *http.MaxBytesError
+			assert.Equal(t, upload, errors.As(readErr, &maxBytesErr))
 		})
 	}
 }

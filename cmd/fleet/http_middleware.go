@@ -44,8 +44,8 @@ func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, 
 		}
 
 		if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
-			(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
-				"/fleet/software/titles/")) ||
+			(req.Method == http.MethodPatch && strings.Contains(req.URL.Path, "/fleet/software/titles/") &&
+				(strings.HasSuffix(req.URL.Path, "/package") || strings.Contains(req.URL.Path, "/packages/"))) ||
 			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||
 			(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet_maintained_apps")) ||
 			(req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/package/token")) ||

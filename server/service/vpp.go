@@ -117,7 +117,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 //////////////////////////////////////////////////////////////////////////////
 
 type updateAppStoreAppRequest struct {
-	TitleID           uint            `url:"title_id"`
+	TitleID uint `url:"title_id"`
+	// PathVersionID is the version id from the per-item URL; nil on the deprecated route, which reads version_id from
+	// the body.
+	PathVersionID     *uint           `url:"version_id,optional" json:"-"`
 	TeamID            *uint           `json:"fleet_id"`
 	VersionID         *uint           `json:"version_id"`
 	Name              *string         `json:"name"`
@@ -148,8 +151,14 @@ func (r updateAppStoreAppResponse) Error() error { return r.Err }
 func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
+	versionID := req.PathVersionID
+	if versionID == nil {
+		versionID = req.VersionID
+		logDeprecatedSoftwarePath(ctx, "PATCH /api/v1/fleet/software/titles/:title_id/app_store_app",
+			"PATCH /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id")
+	}
 	updatedApp, activity, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, fleet.AppStoreAppUpdatePayload{
-		VersionID:        req.VersionID,
+		VersionID:        versionID,
 		VersionName:      req.Name,
 		SelfService:      req.SelfService,
 		LabelsIncludeAny: req.LabelsIncludeAny,

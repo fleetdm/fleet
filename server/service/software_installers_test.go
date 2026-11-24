@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -925,5 +926,129 @@ func TestSoftwareBatchProgressWriteFailure(t *testing.T) {
 			t.Fatal("batch never completed")
 		case <-time.After(20 * time.Millisecond):
 		}
+	}
+}
+
+// softwareItemService records the item selector that the software item endpoints pass to the service.
+type softwareItemService struct {
+	fleet.Service
+	installerID, versionID *uint
+}
+
+var errSoftwareItemRecorded = errors.New("recorded")
+
+func (s *softwareItemService) UpdateSoftwareInstaller(_ context.Context, p *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+	s.installerID = &p.InstallerID
+	return nil, errSoftwareItemRecorded
+}
+
+func (s *softwareItemService) UpdateAppStoreApp(_ context.Context, _ uint, _ *uint, p fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
+	s.versionID = p.VersionID
+	return nil, nil, errSoftwareItemRecorded
+}
+
+func (s *softwareItemService) DeleteSoftwareInstaller(_ context.Context, _ uint, _ *uint, installerID, versionID *uint) error {
+	s.installerID, s.versionID = installerID, versionID
+	return errSoftwareItemRecorded
+}
+
+func TestSoftwareItemEndpointsSelectorAndDeprecationLog(t *testing.T) {
+	warning := func(deprecated, path string) []any {
+		return []any{
+			"deprecated_path", deprecated,
+			"deprecation_warning", "API `" + deprecated + "` is deprecated, use `" + path + "` instead",
+		}
+	}
+	const (
+		oldPatchPackage  = "PATCH /api/v1/fleet/software/titles/:id/package"
+		newPatchPackage  = "PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id"
+		oldPatchAppStore = "PATCH /api/v1/fleet/software/titles/:title_id/app_store_app"
+		newPatchAppStore = "PATCH /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id"
+		oldDelete        = "DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install"
+		newDeletePackage = "DELETE /api/v1/fleet/software/titles/:software_title_id/packages/:package_id"
+		newDeleteVersion = "DELETE /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id"
+	)
+
+	for _, tc := range []struct {
+		name            string
+		call            func(context.Context, fleet.Service) (fleet.Errorer, error)
+		wantInstallerID *uint
+		wantVersionID   *uint
+		wantExtras      []any
+	}{
+		{
+			name: "package URL wins over installer_id",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return updateSoftwareInstallerEndpoint(ctx, &updateSoftwareInstallerRequest{PackageID: new(uint(2)), InstallerID: new(uint(3))}, svc)
+			},
+			wantInstallerID: new(uint(2)),
+		},
+		{
+			name: "deprecated package PATCH uses installer_id and logs",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return updateSoftwareInstallerEndpoint(ctx, &updateSoftwareInstallerRequest{InstallerID: new(uint(3))}, svc)
+			},
+			wantInstallerID: new(uint(3)),
+			wantExtras:      warning(oldPatchPackage, newPatchPackage),
+		},
+		{
+			name: "App Store URL wins over version_id",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return updateAppStoreAppEndpoint(ctx, &updateAppStoreAppRequest{PathVersionID: new(uint(4)), VersionID: new(uint(5))}, svc)
+			},
+			wantVersionID: new(uint(4)),
+		},
+		{
+			name: "deprecated App Store PATCH uses version_id and logs",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return updateAppStoreAppEndpoint(ctx, &updateAppStoreAppRequest{VersionID: new(uint(5))}, svc)
+			},
+			wantVersionID: new(uint(5)),
+			wantExtras:    warning(oldPatchAppStore, newPatchAppStore),
+		},
+		{
+			name: "package DELETE URL ignores query selectors",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return deleteSoftwareInstallerEndpoint(ctx, &deleteSoftwareInstallerRequest{PackageID: new(uint(6)), InstallerID: new(uint(7)), VersionID: new(uint(8))}, svc)
+			},
+			wantInstallerID: new(uint(6)),
+		},
+		{
+			name: "App Store DELETE URL ignores query selectors",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return deleteSoftwareInstallerEndpoint(ctx, &deleteSoftwareInstallerRequest{AppStoreAppVersionID: new(uint(9)), InstallerID: new(uint(7)), VersionID: new(uint(8))}, svc)
+			},
+			wantVersionID: new(uint(9)),
+		},
+		{
+			name: "deprecated DELETE with version_id names the App Store URL",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return deleteSoftwareInstallerEndpoint(ctx, &deleteSoftwareInstallerRequest{VersionID: new(uint(8))}, svc)
+			},
+			wantVersionID: new(uint(8)),
+			wantExtras:    warning(oldDelete, newDeleteVersion),
+		},
+		{
+			name: "deprecated DELETE without a selector deletes all and names the package URL",
+			call: func(ctx context.Context, svc fleet.Service) (fleet.Errorer, error) {
+				return deleteSoftwareInstallerEndpoint(ctx, &deleteSoftwareInstallerRequest{}, svc)
+			},
+			wantExtras: warning(oldDelete, newDeletePackage),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &softwareItemService{}
+			lc := &logging.LoggingContext{}
+			resp, err := tc.call(logging.NewContext(t.Context(), lc), svc)
+			require.NoError(t, err)
+			require.ErrorIs(t, resp.Error(), errSoftwareItemRecorded)
+			require.Equal(t, tc.wantInstallerID, svc.installerID)
+			require.Equal(t, tc.wantVersionID, svc.versionID)
+			require.Equal(t, tc.wantExtras, lc.Extras)
+			if tc.wantExtras != nil {
+				require.NotNil(t, lc.ForceLevel)
+				require.Equal(t, slog.LevelWarn, *lc.ForceLevel)
+			}
+		})
 	}
 }
