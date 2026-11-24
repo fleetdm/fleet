@@ -14,5 +14,5 @@
   "default_categories": [
     "Productivity"
   ],
-  "exists_query": "SELECT 1 FROM programs WHERE name = 'goldendict-ng';"
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'goldendict-ng%';"
 }
