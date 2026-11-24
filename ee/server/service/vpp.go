@@ -487,12 +487,17 @@ func (svc *Service) getAndroidAppsFromPlayStore(ctx context.Context, enterpriseN
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// Google collapses "enterprise unknown" and "app not in catalog" into the same 404.
-				// IsEnterpriseAlive distinguishes the two without destructive cleanup — surface the
-				// reconnect copy only when the probe confidently returns alive=false.
-				if alive, probeErr := svc.androidModule.IsEnterpriseAlive(ctx); probeErr == nil && !alive {
-					return nil, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. Fleet is no longer connected to your Android Enterprise. An admin can reconnect Android MDM in Settings > Integrations > Mobile device management, then try again.")
+				// IsEnterpriseAlive distinguishes the two without destructive cleanup. Only surface
+				// the reconnect copy when the probe confidently returns alive=false; on probe
+				// failure, fall back to the managed Play copy and log so the fallback is traceable.
+				alive, probeErr := svc.androidModule.IsEnterpriseAlive(ctx)
+				switch {
+				case probeErr == nil && !alive:
+					return nil, fleet.NewInvalidArgumentError("app_store_id", androidEnterpriseReconnectErrMsg)
+				case probeErr != nil:
+					svc.logger.WarnContext(ctx, "android enterprise probe failed; falling back to managed Play copy", "err", probeErr)
 				}
-				return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in your organization's managed Google Play. Approve it at https://play.google.com/work, or verify the ID and try again.", a.AdamID))
+				return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf(androidManagedPlayErrFmt, a.AdamID))
 			}
 			return nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
 		}
@@ -1292,6 +1297,15 @@ var androidApplicationID = regexp.MustCompile(`^([A-Za-z]{1}[A-Za-z\d_]*\.)+[A-Z
 // IT admins should not be able to add this app manually via the Software page as it is managed automatically by Fleet.
 const fleetAgentPackagePrefix = "com.fleetdm.agent"
 
+// Shared user-facing copy for the two Android add-app 404 paths. The frontend
+// intercepts the reconnect message on the admin-nav substring (see
+// SoftwareAppStoreAndroid/helpers.tsx), so any edit here must stay in sync with
+// the ANDROID_RECONNECT_PATH constant there.
+const (
+	androidEnterpriseReconnectErrMsg = "Couldn't add software. Fleet is no longer connected to your Android Enterprise. An admin can reconnect Android MDM in Settings > Integrations > Mobile device management, then try again."
+	androidManagedPlayErrFmt         = "Couldn't add software. The application ID %q isn't available in your organization's managed Google Play. Approve it at https://play.google.com/work, or verify the ID and try again."
+)
+
 func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID fleet.VPPAppTeam) (*fleet.VPPApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -1464,12 +1478,17 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		if err != nil {
 			if fleet.IsNotFound(err) {
 				// Google collapses "enterprise unknown" and "app not in catalog" into the same 404.
-				// IsEnterpriseAlive distinguishes the two without destructive cleanup — surface the
-				// reconnect copy only when the probe confidently returns alive=false.
-				if alive, probeErr := svc.androidModule.IsEnterpriseAlive(ctx); probeErr == nil && !alive {
-					return nil, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. Fleet is no longer connected to your Android Enterprise. An admin can reconnect Android MDM in Settings > Integrations > Mobile device management, then try again.")
+				// IsEnterpriseAlive distinguishes the two without destructive cleanup. Only surface
+				// the reconnect copy when the probe confidently returns alive=false; on probe
+				// failure, fall back to the managed Play copy and log so the fallback is traceable.
+				alive, probeErr := svc.androidModule.IsEnterpriseAlive(ctx)
+				switch {
+				case probeErr == nil && !alive:
+					return nil, fleet.NewInvalidArgumentError("app_store_id", androidEnterpriseReconnectErrMsg)
+				case probeErr != nil:
+					svc.logger.WarnContext(ctx, "android enterprise probe failed; falling back to managed Play copy", "err", probeErr)
 				}
-				return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in your organization's managed Google Play. Approve it at https://play.google.com/work, or verify the ID and try again.", appID.AdamID))
+				return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf(androidManagedPlayErrFmt, appID.AdamID))
 			}
 			return nil, ctxerr.Wrap(ctx, err, "add app store app: check if android app exists")
 		}

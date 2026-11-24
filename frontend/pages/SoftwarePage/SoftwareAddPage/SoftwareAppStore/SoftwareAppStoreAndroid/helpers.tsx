@@ -17,6 +17,7 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
   const reason = getErrorReason(e);
 
   // Dead Android Enterprise: bold the nav path so admins can spot it in a long toast.
+  // Pre-prefixed by the backend, so skip the ADD_SOFTWARE_ERROR_PREFIX concat below.
   if (reason.includes(ANDROID_RECONNECT_PATH)) {
     const [before, after] = reason.split(ANDROID_RECONNECT_PATH);
     return (
@@ -28,8 +29,8 @@ export const getErrorMessage = (e: unknown): string | ReactElement => {
     );
   }
 
-  // Backend's Android managed-Play copy already starts with "Couldn't add software." —
-  // pass through so we don't double-prefix.
+  // Managed Play copy is also pre-prefixed by the backend. Pass through unchanged to
+  // avoid a doubled "Couldn't add software." from the generic branch below.
   if (
     reason.includes(
       "isn't available in your organization's managed Google Play"

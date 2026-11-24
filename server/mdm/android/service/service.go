@@ -927,6 +927,10 @@ func (svc *Service) IsEnterpriseAlive(ctx context.Context) (bool, error) {
 		return false, nil
 	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "checking for existing enterprise")
+	case !enterprise.IsValid():
+		// Blank enterprise row (no bound ID) is semantically the same as not-found;
+		// skip the Google call rather than compare against "enterprises/".
+		return false, nil
 	}
 
 	secret, err := svc.getClientAuthenticationSecret(ctx)

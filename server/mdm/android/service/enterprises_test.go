@@ -635,6 +635,20 @@ func TestIsEnterpriseAlive(t *testing.T) {
 		assert.False(t, apiClient.EnterprisesListFuncInvoked)
 	})
 
+	t.Run("blank enterprise row - returns false without calling Google", func(t *testing.T) {
+		svc, apiClient := newSvc(t,
+			func(context.Context) (*android.Enterprise, error) {
+				return &android.Enterprise{}, nil
+			},
+			nil,
+		)
+
+		alive, err := svc.IsEnterpriseAlive(ctx)
+		require.NoError(t, err)
+		assert.False(t, alive)
+		assert.False(t, apiClient.EnterprisesListFuncInvoked)
+	})
+
 	t.Run("enterprise in list - returns true", func(t *testing.T) {
 		svc, apiClient := newSvc(t,
 			func(context.Context) (*android.Enterprise, error) {
