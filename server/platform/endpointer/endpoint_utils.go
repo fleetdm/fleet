@@ -344,6 +344,17 @@ func DecodeURLTagValue(r *http.Request, field reflect.Value, urlTagValue string,
 		}
 		field.SetString(v)
 
+	case reflect.Pointer:
+		// A pointer tells an absent optional variable (nil) apart from a zero value.
+		if _, ok := platform_http.PathVar(r, urlTagValue); !ok && optional {
+			return nil
+		}
+		v := reflect.New(field.Type().Elem())
+		if err := DecodeURLTagValue(r, v.Elem(), urlTagValue, optional); err != nil {
+			return err
+		}
+		field.Set(v)
+
 	default:
 		return fmt.Errorf("unsupported type for field %s for 'url' decoding: %s", urlTagValue, field.Kind())
 	}

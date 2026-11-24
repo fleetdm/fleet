@@ -31,6 +31,8 @@ func TestUniversalDecoderIDs(t *testing.T) {
 	type universalStruct struct {
 		ID1        uint `url:"some-id"`
 		OptionalID uint `url:"some-other-id,optional"`
+		// OptionalPtrID is nil when the route has no such variable, and set even when the value is 0.
+		OptionalPtrID *uint `url:"some-ptr-id,optional"`
 	}
 	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
@@ -44,6 +46,17 @@ func TestUniversalDecoderIDs(t *testing.T) {
 
 	assert.Equal(t, uint(999), casted.ID1)
 	assert.Equal(t, uint(0), casted.OptionalID)
+	assert.Nil(t, casted.OptionalPtrID)
+
+	req = httptest.NewRequest("POST", "/target", nil)
+	req.SetPathValue("some-id", "999")
+	req.SetPathValue("some-ptr-id", "0")
+	decoded, err = decoder(context.Background(), req)
+	require.NoError(t, err)
+	casted, ok = decoded.(*universalStruct)
+	require.True(t, ok)
+	require.NotNil(t, casted.OptionalPtrID)
+	assert.Equal(t, uint(0), *casted.OptionalPtrID)
 
 	// fails if non optional IDs are not provided
 	req = httptest.NewRequest("POST", "/target", nil)
