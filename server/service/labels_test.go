@@ -1830,7 +1830,7 @@ func TestLabelActivities(t *testing.T) {
 		activities = activities[:0]
 		const hostID = uint(7000)
 		const targetTeamID = uint(42)
-		host := &fleet.Host{ID: hostID, TeamID: ptr.Uint(targetTeamID), Platform: "darwin", ComputerName: "Anna's MacBook Pro"}
+		host := &fleet.Host{ID: hostID, TeamID: new(targetTeamID), Platform: "darwin", ComputerName: "Anna's MacBook Pro"}
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			require.Equal(t, hostID, id)
 			return host, nil
