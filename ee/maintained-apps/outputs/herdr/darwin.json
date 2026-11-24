@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.1.17",
+      "version": "0.1.18",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.herdr.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.herdr.app' AND version_compare(bundle_short_version, '0.1.17') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.herdr.app' AND version_compare(bundle_short_version, '0.1.18') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.herdr.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.herdr.dev/app/0.1.17/Herdr.dmg",
+      "installer_url": "https://releases.herdr.dev/app/0.1.18/Herdr.dmg",
       "install_script_ref": "76d3d7a0",
       "uninstall_script_ref": "f8d2e672",
-      "sha256": "d73e6f87f781da85d0d7764d412f47f19723fe38fed6ac96a7e922d2310414c8",
+      "sha256": "694f37e062fca24a9e043867aebbbacdd94b53a14c3ada73b213b155e5b0a365",
       "default_categories": [
         "Developer tools"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.4",
+      "version": "3.0.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.versionsapp.v3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.versionsapp.v3' AND version_compare(bundle_short_version, '3.0.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.versionsapp.v3' AND version_compare(bundle_short_version, '3.0.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.versionsapp.v3' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.versionsapp.com/v3/prod/Versions-3.0.4-3010.zip",
+      "installer_url": "https://updates.versionsapp.com/v3/prod/Versions-3.0.5-3012.zip",
       "install_script_ref": "a9d2d27e",
       "uninstall_script_ref": "c94236b8",
-      "sha256": "a2c205a05b293d323f6532231fbc4f05fcd3dad7fac593a6b9db72f8f18a3c3a",
+      "sha256": "f9dd52326c4d3923081a3b4647c82fc1703789900350074b61ac8eb620c0769c",
       "default_categories": [
         "Productivity"
       ]
