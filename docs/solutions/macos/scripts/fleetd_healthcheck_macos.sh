@@ -233,7 +233,7 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 out ""
 out "── 4. LaunchDaemon configuration (redacted) ────────────────"
-FLEET_URL=""
+FLEET_URL=""; FLEET_CERT=""; FLEET_INSECURE=""
 if [[ -f "${LAUNCH_DAEMON_PLIST}" ]]; then
   # In XML plists the value is on the line after its <key>, so redact the
   # <string> that follows any secret-looking key (except *_PATH, which is a path).
@@ -245,6 +245,8 @@ if [[ -f "${LAUNCH_DAEMON_PLIST}" ]]; then
     | indent >/dev/null
   ok "Collected redacted LaunchDaemon plist contents (in summary.txt)"
   FLEET_URL=$(/usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:ORBIT_FLEET_URL" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
+  FLEET_CERT=$(/usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:ORBIT_FLEET_CERTIFICATE" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
+  FLEET_INSECURE=$(/usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:ORBIT_INSECURE" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
 else
   fail "${LAUNCH_DAEMON_PLIST} not found"
   OVERALL_EXIT=1
@@ -277,14 +279,21 @@ INSTALL_DIR="${WORK_DIR}/logs/install"
 mkdir -p "${INSTALL_DIR}"
 
 FLEETD_PKGS=$(pkgutil --pkgs 2>/dev/null | grep -i -E 'fleet|orbit' || true)
+# A package built with a custom identifier has a receipt without fleet/orbit in
+# its name, so also look the receipt up by a file the package installs.
+if [[ -z "${FLEETD_PKGS}" && -f "${LAUNCH_DAEMON_PLIST}" ]]; then
+  FLEETD_PKGS=$(pkgutil --file-info "${LAUNCH_DAEMON_PLIST}" 2>/dev/null | sed -n 's/^pkgid: //p' || true)
+fi
 if [[ -n "${FLEETD_PKGS}" ]]; then
   ok "fleetd package receipt(s) found:"
   echo "${FLEETD_PKGS}" | indent
   while read -r pkg; do
     pkgutil --pkg-info "${pkg}" >> "${INSTALL_DIR}/pkg_receipts.txt" 2>&1 || true
   done <<< "${FLEETD_PKGS}"
+elif [[ -e "${ORBIT_BIN}" || -f "${LAUNCH_DAEMON_PLIST}" ]]; then
+  warn "No fleetd package receipt found, but fleetd files are present (installed without a receipt, or receipt removed)"
 else
-  fail "No fleetd package receipt (pkgutil --pkgs): the fleetd package was never installed on this Mac"
+  fail "No fleetd package receipt and no fleetd files: the fleetd package was never installed on this Mac"
   OVERALL_EXIT=1
 fi
 
@@ -330,7 +339,13 @@ if [[ -z "${FLEET_URL}" ]]; then
   FLEET_URL=$(echo "${MDM_STATUS}" | sed -n 's|^MDM server: \(https://[^/]*\).*|\1|p' | head -1)
 fi
 if [[ -n "${FLEET_URL}" ]]; then
-  HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${FLEET_URL%/}/healthz" 2>"${INSTALL_DIR}/curl_error.txt" || true)
+  # Probe the server the way orbit connects: https:// when no scheme is given,
+  # the package's own CA file when set, and no verification when insecure.
+  [[ "${FLEET_URL}" == http* ]] || FLEET_URL="https://${FLEET_URL}"
+  CURL_TLS=()
+  [[ -n "${FLEET_CERT}" && -f "${FLEET_CERT}" ]] && CURL_TLS+=(--cacert "${FLEET_CERT}")
+  [[ "${FLEET_INSECURE}" == "true" ]] && CURL_TLS+=(-k)
+  HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${CURL_TLS[@]+"${CURL_TLS[@]}"}" "${FLEET_URL%/}/healthz" 2>"${INSTALL_DIR}/curl_error.txt" || true)
   if [[ "${HTTP_CODE}" =~ ^[1-5][0-9][0-9]$ && "${HTTP_CODE}" != "000" ]]; then
     ok "Fleet server reachable: ${FLEET_URL} (HTTP ${HTTP_CODE} from /healthz)"
   else
@@ -351,14 +366,21 @@ collect_log() {
   local label="$1"
   local src="$2"
   local dest_dir="$3"
+  # A log can rotate between the check and the copy, so report copy failures.
   if [[ -f "${src}" ]]; then
     mkdir -p "${dest_dir}"
-    cp "${src}" "${dest_dir}/"
-    ok "Collected ${label}: ${src}"
+    if cp "${src}" "${dest_dir}/" 2>/dev/null; then
+      ok "Collected ${label}: ${src}"
+    else
+      warn "Failed to copy ${label}: ${src}"
+    fi
   elif [[ -d "${src}" ]]; then
     mkdir -p "${dest_dir}"
-    cp -r "${src}/." "${dest_dir}/"
-    ok "Collected ${label} directory: ${src}"
+    if cp -r "${src}/." "${dest_dir}/" 2>/dev/null; then
+      ok "Collected ${label} directory: ${src}"
+    else
+      warn "Collected ${label} directory only partly (some files failed to copy): ${src}"
+    fi
   else
     warn "${label} not found at ${src} (skipping)"
   fi

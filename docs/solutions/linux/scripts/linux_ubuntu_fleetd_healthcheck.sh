@@ -181,8 +181,16 @@ if [[ -f /etc/default/orbit ]]; then
       else print
     }' /etc/default/orbit | indent
   ORBIT_FLEET_URL=$(sed -n 's/^ORBIT_FLEET_URL=//p' /etc/default/orbit | head -1)
+  FLEET_CERT=$(sed -n 's/^ORBIT_FLEET_CERTIFICATE=//p' /etc/default/orbit | head -1)
+  FLEET_INSECURE=$(sed -n 's/^ORBIT_INSECURE=//p' /etc/default/orbit | head -1)
   if [[ -n "${ORBIT_FLEET_URL}" ]]; then
-    HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${ORBIT_FLEET_URL%/}/healthz" 2>"${WORK_DIR}/curl_error.txt" || true)
+    # Probe the server the way orbit connects: https:// when no scheme is given,
+    # the package's own CA file when set, and no verification when insecure.
+    [[ "${ORBIT_FLEET_URL}" == http* ]] || ORBIT_FLEET_URL="https://${ORBIT_FLEET_URL}"
+    CURL_TLS=()
+    [[ -n "${FLEET_CERT}" && -f "${FLEET_CERT}" ]] && CURL_TLS+=(--cacert "${FLEET_CERT}")
+    [[ "${FLEET_INSECURE}" == "true" ]] && CURL_TLS+=(-k)
+    HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${CURL_TLS[@]+"${CURL_TLS[@]}"}" "${ORBIT_FLEET_URL%/}/healthz" 2>"${WORK_DIR}/curl_error.txt" || true)
     if [[ "${HTTP_CODE}" =~ ^[1-5][0-9][0-9]$ ]]; then
       ok "Fleet server reachable: ${ORBIT_FLEET_URL} (HTTP ${HTTP_CODE} from /healthz)"
     else
@@ -224,14 +232,21 @@ collect_log() {
   local label="$1"
   local src="$2"
   local dest_dir="$3"
+  # A log can rotate between the check and the copy, so report copy failures.
   if [[ -f "${src}" ]]; then
     mkdir -p "${dest_dir}"
-    cp "${src}" "${dest_dir}/"
-    ok "Collected ${label}: ${src}"
+    if cp "${src}" "${dest_dir}/" 2>/dev/null; then
+      ok "Collected ${label}: ${src}"
+    else
+      warn "Failed to copy ${label}: ${src}"
+    fi
   elif [[ -d "${src}" ]]; then
     mkdir -p "${dest_dir}"
-    cp -r "${src}/." "${dest_dir}/"
-    ok "Collected ${label} directory: ${src}"
+    if cp -r "${src}/." "${dest_dir}/" 2>/dev/null; then
+      ok "Collected ${label} directory: ${src}"
+    else
+      warn "Collected ${label} directory only partly (some files failed to copy): ${src}"
+    fi
   else
     warn "${label} not found at ${src} (skipping)"
   fi

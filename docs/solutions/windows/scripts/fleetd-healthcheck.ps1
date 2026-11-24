@@ -117,7 +117,8 @@ function Check-Process {
   if ($Procs.Count -gt 0) {
     Ok "$Label is running"
     foreach ($p in $Procs) {
-      Add-Content -Path $Summary -Value "    PID $($p.ProcessId): $($p.CommandLine)"
+      # Path only: a manually started orbit.exe can carry --enroll-secret on its command line.
+      Add-Content -Path $Summary -Value "    PID $($p.ProcessId): $($p.ExecutablePath)"
     }
   } else {
     Fail "$Label is NOT running (process name: $Name)"
@@ -272,12 +273,20 @@ if (-not $FleetUrl -and $SvcEnv) {
   $FleetUrl = ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_URL=*' } | Select-Object -First 1) -replace '^ORBIT_FLEET_URL=', ''
 }
 if ($FleetUrl) {
+  # Orbit adds https:// when the URL has no scheme; PowerShell would use http://.
+  if ($FleetUrl -notmatch '^https?://') { $FleetUrl = "https://$FleetUrl" }
+  # A package built with a custom CA (fleet.pem) is trusted by orbit but not by
+  # Windows, so a TLS failure there doesn't mean orbit can't connect.
+  $CustomCa = ($SvcCim.PathName -match '--fleet-certificate') -or
+    ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_CERTIFICATE=?*' })
   try {
     $Resp = Invoke-WebRequest -Uri "$($FleetUrl.TrimEnd('/'))/healthz" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
     Ok "Fleet server reachable: $FleetUrl (HTTP $($Resp.StatusCode) from /healthz)"
   } catch {
     if ($_.Exception.Response) {
       Ok "Fleet server reachable: $FleetUrl (HTTP $([int]$_.Exception.Response.StatusCode) from /healthz)"
+    } elseif ($CustomCa -and $_.Exception.Message -match 'SSL|TLS|trust|certificate') {
+      Warn "Could not verify Fleet server ${FleetUrl} with the Windows trust store; fleetd uses its own CA file (fleet.pem): $($_.Exception.Message)"
     } else {
       Fail "Cannot reach Fleet server ${FleetUrl}: $($_.Exception.Message)"
       $OverallExit = 1
