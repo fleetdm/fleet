@@ -8,6 +8,10 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $timeoutMinutes = 30
+# Chromium installer codes that leave the browser installed and current: 1
+# reinstalled the same version, 2 updated an older one, 3 found it already up
+# to date, 30 updated it while it was running.
+$successCodes = @(0, 1, 2, 3, 30)
 
 try {
     $process = Start-Process -FilePath $exeFilePath `
@@ -28,9 +32,10 @@ try {
         Write-Host "Couldn't read the installer's exit code."
         Exit 1
     }
-    if ($exitCode -ne 0) {
-        Write-Host "If Cato Browser is open, close it and try again."
+    if ($successCodes -contains $exitCode) {
+        Exit 0
     }
+    Write-Host "If Cato Browser is open, close it and try again."
     if ($exitCode -gt [int]::MaxValue -or $exitCode -lt 0) { $exitCode = 1 }
     Exit $exitCode
 
