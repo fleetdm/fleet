@@ -55,6 +55,11 @@ func TestExcludeDiskImages(t *testing.T) {
 			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'x'" + apps + ") OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'x' AND version_compare(bundle_short_version, '1') >= 0" + apps + ");",
 		},
 		{
+			name:  "a read of apps before WHERE",
+			query: "SELECT 1 FROM apps a JOIN processes p ON p.path IN (SELECT path FROM apps WHERE bundle_identifier = 'y') WHERE a.bundle_identifier = 'x';",
+			want:  "SELECT 1 FROM apps a JOIN processes p ON p.path IN (SELECT path FROM apps WHERE bundle_identifier = 'y'" + apps + ") WHERE a.bundle_identifier = 'x'" + a + ";",
+		},
+		{
 			name:  "other tables are left alone",
 			query: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'p') AND (EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'p') OR NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'x'));",
 			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'p') AND (EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'p') OR NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'x'" + apps + "));",

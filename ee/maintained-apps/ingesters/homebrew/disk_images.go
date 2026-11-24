@@ -30,6 +30,10 @@ func excludeDiskImages(query string) (string, error) {
 		if where < 0 {
 			return "", fmt.Errorf("query reads apps without a WHERE clause: %s", query)
 		}
+		head, err := excludeDiskImages(query[afterTable:where])
+		if err != nil {
+			return "", err
+		}
 		bodyStart := where + len("WHERE")
 		body, err := excludeDiskImages(strings.TrimSpace(query[bodyStart:end]))
 		if err != nil {
@@ -44,7 +48,7 @@ func excludeDiskImages(query string) (string, error) {
 			body = "(" + body + ")"
 		}
 
-		out.WriteString(query[i:bodyStart])
+		out.WriteString(query[i:afterTable] + head + "WHERE")
 		out.WriteString(" " + body + " AND " + patch_policy.MacOSNotOnDiskImage(qualifier))
 		i = end
 	}
