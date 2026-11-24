@@ -914,8 +914,6 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 Maximum size for software installer uploads. Accepts human-readable size values with suffixes like `K`, `M`, `G`, `T` (binary, e.g., `10GiB` = 10 * 1024³ bytes) or `KB`, `MB`, `GB`, `TB` (decimal, e.g., `10GB` = 10 * 1000³ bytes). Plain numbers are interpreted as bytes.
 
-Fleet writes each package to its temporary folder while it processes it, so the server needs free temporary storage larger than this value. Learn more about [temporary storage](https://fleetdm.com/docs/deploy/reference-architectures#temporary-storage).
-
 - Default value: `10GiB`
 - Environment variable: `FLEET_SERVER_MAX_INSTALLER_SIZE`
 - Config file format:
