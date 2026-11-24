@@ -6,7 +6,7 @@ const ClaudeClient = require("./claude-client");
 const TEST_MAX_TOOL_CALLS = 5;
 
 // makeStreamingResponse builds a fake of the object returned by
-// `client.messages.stream(...)` — a thenable-ish thing with `.on(...)` for
+// `client.beta.messages.stream(...)` — a thenable-ish thing with `.on(...)` for
 // "text" events and `.finalMessage()` returning a full message.
 function makeStreamingResponse(stopReason, contentBlocks) {
   return {
@@ -68,7 +68,7 @@ test("runAgentLoop forces a final no-tools response when the budget is exhausted
     mcpClient: fakeMcpClient,
     maxToolCalls: TEST_MAX_TOOL_CALLS,
   });
-  client.client = fakeClient;
+  client.client = { beta: fakeClient };
 
   const result = await client.runAgentLoop("Tell me something.");
 
@@ -150,7 +150,7 @@ test("runAgentLoop caps tool calls within a single fanned-out turn", async () =>
     mcpClient: fakeMcpClient,
     maxToolCalls: TEST_MAX_TOOL_CALLS,
   });
-  client.client = fakeClient;
+  client.client = { beta: fakeClient };
   // Wrap callTool to record executions.
   const originalCallTool = fakeMcpClient.callTool.bind(fakeMcpClient);
   client.mcpClient.callTool = async (name, input) => {
@@ -200,7 +200,7 @@ test("runAgentLoop returns end_turn text without forcing the fallback when Claud
     model: "claude-test",
     mcpClient: { getAnthropicTools: () => [] },
   });
-  client.client = fakeClient;
+  client.client = { beta: fakeClient };
 
   const result = await client.runAgentLoop("Hello");
   assert.equal(result, "Done.");
@@ -242,11 +242,13 @@ test("runAgentLoop throws instead of returning a response cut off by max_tokens"
     mcpClient: { getAnthropicTools: () => [] },
   });
   client.client = {
-    messages: {
-      stream() {
-        return makeStreamingResponse("max_tokens", [
-          { type: "text", text: '{"summary": "Adds a policy", "pr_title": "Add' },
-        ]);
+    beta: {
+      messages: {
+        stream() {
+          return makeStreamingResponse("max_tokens", [
+            { type: "text", text: '{"summary": "Adds a policy", "pr_title": "Add' },
+          ]);
+        },
       },
     },
   };
@@ -295,16 +297,18 @@ test("runAgentLoop throws when the forced final response is cut off by max_token
     maxToolCalls: TEST_MAX_TOOL_CALLS,
   });
   client.client = {
-    messages: {
-      stream(params) {
-        calls++;
-        if (calls <= TEST_MAX_TOOL_CALLS) {
-          return makeStreamingResponse("tool_use", [
-            { type: "tool_use", id: `tu_${calls}`, name: "stub_tool", input: {} },
-          ]);
-        }
-        assert.deepEqual(params.tool_choice, { type: "none" });
-        return makeStreamingResponse("max_tokens", [{ type: "text", text: '{"summary": "Adds a' }]);
+    beta: {
+      messages: {
+        stream(params) {
+          calls++;
+          if (calls <= TEST_MAX_TOOL_CALLS) {
+            return makeStreamingResponse("tool_use", [
+              { type: "tool_use", id: `tu_${calls}`, name: "stub_tool", input: {} },
+            ]);
+          }
+          assert.deepEqual(params.tool_choice, { type: "none" });
+          return makeStreamingResponse("max_tokens", [{ type: "text", text: '{"summary": "Adds a' }]);
+        },
       },
     },
   };
@@ -313,4 +317,112 @@ test("runAgentLoop throws when the forced final response is cut off by max_token
     message: ClaudeClient.TRUNCATED_RESPONSE_MESSAGE,
   });
   assert.equal(calls, TEST_MAX_TOOL_CALLS + 1);
+});
+
+test("requests set effort, server-side refusal fallback, and the current web search tool", async () => {
+  const calls = [];
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: { getAnthropicTools: () => [] },
+  });
+  client.client = {
+    beta: {
+      messages: {
+        stream(params) {
+          calls.push(params);
+          return makeStreamingResponse("end_turn", [{ type: "text", text: "Done." }]);
+        },
+      },
+    },
+  };
+
+  await client.runAgentLoop("Hello");
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].output_config, { effort: "medium" });
+  assert.deepEqual(calls[0].betas, ["server-side-fallback-2026-07-01"]);
+  assert.equal(calls[0].fallbacks, "default");
+  assert.ok(calls[0].tools.some((t) => t.type === "web_search_20260209"));
+});
+
+test("runAgentLoop throws when every model in the fallback chain refuses", async () => {
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: { getAnthropicTools: () => [] },
+  });
+  client.client = {
+    beta: {
+      messages: {
+        stream() {
+          return {
+            on() {},
+            finalMessage: () =>
+              Promise.resolve({
+                content: [],
+                stop_reason: "refusal",
+                stop_details: { type: "refusal", category: "cyber" },
+                usage: { input_tokens: 0, output_tokens: 0 },
+              }),
+          };
+        },
+      },
+    },
+  };
+
+  // slack-handlers maps "Claude returned..." errors to a "try rephrasing" reply.
+  await assert.rejects(client.runAgentLoop("Hello"), /^Error: Claude returned a refusal \(category: cyber\)$/);
+});
+
+test("runAgentLoop drops the declined model's thinking and tool calls after a mid-stream fallback", async () => {
+  const calls = [];
+  const executed = [];
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: {
+      getAnthropicTools: () => [{ name: "stub_tool", description: "stub", input_schema: { type: "object" } }],
+      callTool: async (name, input) => {
+        executed.push(input.which);
+        return "ok";
+      },
+    },
+  });
+  client.client = {
+    beta: {
+      messages: {
+        stream(params) {
+          calls.push(params);
+          if (calls.length === 1) {
+            return makeStreamingResponse("tool_use", [
+              { type: "thinking", thinking: "", signature: "sig" },
+              { type: "text", text: "Checking. " },
+              { type: "server_tool_use", id: "srv_1", name: "web_search", input: { query: "a" } },
+              { type: "web_search_tool_result", tool_use_id: "srv_1", content: [] },
+              { type: "server_tool_use", id: "srv_2", name: "web_search", input: { query: "b" } },
+              { type: "tool_use", id: "tu_declined", name: "stub_tool", input: { which: "declined" } },
+              { type: "fallback", from: { model: "claude-test" }, to: { model: "claude-fallback" } },
+              { type: "tool_use", id: "tu_kept", name: "stub_tool", input: { which: "kept" } },
+            ]);
+          }
+          return makeStreamingResponse("end_turn", [{ type: "text", text: "Answer." }]);
+        },
+      },
+    },
+  };
+
+  const result = await client.runAgentLoop("Hello");
+
+  assert.equal(result, "Answer.");
+  assert.deepEqual(executed, ["kept"]);
+  const [, assistant, toolResults] = calls[1].messages;
+  assert.deepEqual(
+    assistant.content.map((b) => b.type),
+    ["text", "server_tool_use", "web_search_tool_result", "fallback", "tool_use"]
+  );
+  assert.deepEqual(
+    toolResults.content.map((b) => b.tool_use_id),
+    ["tu_kept"]
+  );
 });
