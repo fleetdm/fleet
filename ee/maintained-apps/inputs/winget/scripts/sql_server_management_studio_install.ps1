@@ -10,12 +10,21 @@ try {
 # Installer can't update files the IDE holds. Fleet runs as SYSTEM, outside the
 # user's session, so it can't ask SSMS to close: stop it first. Unsaved queries
 # are lost.
-$running = @(Get-Process -Name "SSMS" -ErrorAction SilentlyContinue)
+$getRunning = { @(Get-Process -Name "SSMS" -ErrorAction SilentlyContinue) }
+$running = & $getRunning
 foreach ($proc in $running) {
   Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
   Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
 }
 $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+
+# Wait-Process reports a timeout as a non-terminating error, so confirm the IDE
+# really stopped rather than letting the bootstrapper fail on its open files.
+$stillRunning = & $getRunning
+if ($stillRunning.Count) {
+  Write-Host "Error: SQL Server Management Studio is still running ($(($stillRunning | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', ')). Quit it and try again."
+  Exit 1
+}
 
 $processOptions = @{
   FilePath = "$exeFilePath"

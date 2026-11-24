@@ -22,19 +22,30 @@ $installDirs = @(Get-ChildItem -Path @(
     Where-Object { $_.DisplayName -like 'FreeCAD*' -and $_.InstallLocation } |
     ForEach-Object { $_.InstallLocation.TrimEnd('\') })
 
-$running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
-    $procPath = $_.Path
-    if (-not $procPath) { return $false }
-    foreach ($dir in $installDirs) {
-        if ($procPath.StartsWith("$dir\", [System.StringComparison]::OrdinalIgnoreCase)) { return $true }
-    }
-    return $false
-})
+$getRunning = {
+    @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        $procPath = $_.Path
+        if (-not $procPath) { return $false }
+        foreach ($dir in $installDirs) {
+            if ($procPath.StartsWith("$dir\", [System.StringComparison]::OrdinalIgnoreCase)) { return $true }
+        }
+        return $false
+    })
+}
+$running = & $getRunning
 foreach ($proc in $running) {
     Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
     Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
 }
 $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+
+# Wait-Process reports a timeout as a non-terminating error, so confirm the app
+# really stopped rather than letting setup abort on its open files.
+$stillRunning = & $getRunning
+if ($stillRunning.Count) {
+    Write-Host "Error: FreeCAD is still running ($(($stillRunning | ForEach-Object { "$($_.Name) ($($_.Id))" }) -join ', ')). Quit it and try again."
+    Exit 1
+}
 
 $processOptions = @{
   FilePath = "$exeFilePath"
