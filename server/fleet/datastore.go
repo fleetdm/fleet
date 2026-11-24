@@ -1144,8 +1144,9 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
-	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
-	// and resets automation retry attempts, identical to a query-change side-effect.
+	// ResetPolicy clears pass/fail results: deletes policy_stats, resets automation retry attempts, and requests the
+	// removal of all policy_membership rows, which the policy_membership_cleanup schedule does. Identical to a
+	// query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
 	// ResetPolicyForHost clears a single host's pass/fail result for the policy and
 	// resets its automation retry attempts atomically, then refreshes the policy's counts
@@ -1284,7 +1285,10 @@ type Datastore interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
+	// CleanupPolicyMembership removes the results of hosts that policies updated in the last 24 hours no longer target.
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// CleanupPendingPolicyMembership runs the policy result cleanups that policy changes requested.
+	CleanupPendingPolicyMembership(ctx context.Context) error
 	// IsPolicyFailing checks if a policy is currently failing for a given host.
 	IsPolicyFailing(ctx context.Context, policyID, hostID uint) (bool, error)
 	// CountHostSoftwareInstallAttempts counts how many install attempts exist for a specific
