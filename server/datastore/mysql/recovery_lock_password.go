@@ -166,7 +166,12 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 	// cleared on re-enrollment, so it tells a still-valid password apart from one left over from before.
 	const stmt = `
 		SELECT
-			CASE WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL THEN encrypted_password END AS encrypted_password,
+			CASE
+				WHEN status = 'verifying' AND operation_type = 'install' AND pending_encrypted_password IS NOT NULL
+					THEN pending_encrypted_password
+				WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL
+					THEN encrypted_password
+			END AS encrypted_password,
 			status, updated_at, auto_rotate_at
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
