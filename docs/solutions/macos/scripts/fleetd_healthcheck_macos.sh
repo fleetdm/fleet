@@ -269,13 +269,18 @@ FLEET_URL=""; FLEET_CERT=""; FLEET_INSECURE=""
 if [[ -f "${LAUNCH_DAEMON_PLIST}" ]]; then
   # In XML plists the value is on the line after its <key>, so redact the
   # <string> that follows any secret-looking key (except *_PATH, which is a path).
-  plutil -convert xml1 -o - "${LAUNCH_DAEMON_PLIST}" 2>/dev/null \
-    | awk '
-        redact && /<string>/ { sub(/<string>.*<\/string>/, "<string>REDACTED</string>"); redact=0 }
-        /<key>/ { k=toupper($0); redact = (k ~ /SECRET|PASSWORD|TOKEN|KEY/ && k !~ /_PATH</) }
-        { print }' \
-    | indent >/dev/null
-  ok "Collected redacted LaunchDaemon plist contents (in summary.txt)"
+  # Convert first, so an unreadable plist is reported instead of "Collected".
+  if PLIST_XML=$(plutil -convert xml1 -o - "${LAUNCH_DAEMON_PLIST}" 2>/dev/null); then
+    printf '%s\n' "${PLIST_XML}" \
+      | awk '
+          redact && /<string>/ { sub(/<string>.*<\/string>/, "<string>REDACTED</string>"); redact=0 }
+          /<key>/ { k=toupper($0); redact = (k ~ /SECRET|PASSWORD|TOKEN|KEY/ && k !~ /_PATH</) }
+          { print }' \
+      | indent >/dev/null
+    ok "Collected redacted LaunchDaemon plist contents (in summary.txt)"
+  else
+    warn "Could not read ${LAUNCH_DAEMON_PLIST} with plutil"
+  fi
   FLEET_URL=$(/usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:ORBIT_FLEET_URL" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
   FLEET_CERT=$(/usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:ORBIT_FLEET_CERTIFICATE" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
   FLEET_INSECURE=$(/usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:ORBIT_INSECURE" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
@@ -477,7 +482,11 @@ mkdir -p "${SYSEV_DIR}"
 # Reboots/shutdowns (macOS `last` has no -x; reboot/shutdown are pseudo-users)
 if command -v last >/dev/null 2>&1; then
   last reboot shutdown 2>/dev/null | head -20 > "${SYSEV_DIR}/reboots.log" || true
-  ok "Collected reboot/shutdown history"
+  if [[ -s "${SYSEV_DIR}/reboots.log" ]]; then
+    ok "Collected reboot/shutdown history"
+  else
+    warn "No reboot/shutdown history from \`last\`"
+  fi
 fi
 
 # Installer activity (pkg installs/removals go through installd)

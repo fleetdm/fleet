@@ -331,9 +331,14 @@ fi
 # syslog fallback — orbit/osqueryd stderr goes to syslog on Debian/Ubuntu
 for syslog_path in /var/log/syslog /var/log/messages; do
   if [[ -f "${syslog_path}" ]]; then
+    # grep exits 1 for no matches, 2 when it can't read the file.
     grep -i "orbit\|osquery\|fleet" "${syslog_path}" \
-      > "${WORK_DIR}/logs/syslog_orbit_grep.log" 2>/dev/null || true
-    ok "Grepped syslog for orbit/osquery/fleet: ${syslog_path}"
+      > "${WORK_DIR}/logs/syslog_orbit_grep.log" 2>/dev/null
+    if [[ $? -le 1 ]]; then
+      ok "Grepped syslog for orbit/osquery/fleet: ${syslog_path}"
+    else
+      warn "Could not read ${syslog_path}"
+    fi
     break
   fi
 done
@@ -355,7 +360,11 @@ SINCE_TS=$(date -d "-${LOOKBACK_HOURS} hours" '+%Y-%m-%d %H:%M:%S')
 if command -v last >/dev/null 2>&1; then
   last -x reboot shutdown -F 2>/dev/null | head -20 \
     > "${WORK_DIR}/logs/system_events/reboots.log" || true
-  ok "Collected reboot/shutdown history"
+  if [[ -s "${WORK_DIR}/logs/system_events/reboots.log" ]]; then
+    ok "Collected reboot/shutdown history"
+  else
+    warn "No reboot/shutdown history from \`last\`"
+  fi
 fi
 
 # Package installs/upgrades/removals (dpkg.log lines are ISO-timestamped,
