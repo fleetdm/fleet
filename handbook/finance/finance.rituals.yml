@@ -128,7 +128,7 @@
   moreInfoUrl:
   dri: "rfoo2015"
 - task: "Prepare for OCV meeting"
-  startedOn: "2025-12-15"
+  startedOn: "2025-12-21"
   frequency: "Monthly"
   description: "The CFO follows the steps to prepare for the OCV meeting."
   moreInfoUrl: "https://fleetdm.com/handbook/finance#prepare-for-ocv-meeting"
