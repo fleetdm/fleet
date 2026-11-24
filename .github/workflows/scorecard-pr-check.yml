@@ -170,8 +170,8 @@ jobs:
                   console.log(`  - REGRESSED: ${issue.name} (${issue.baseDetailCount} → ${issue.prDetailCount} issues)`);
                   if (issue.newDetails && issue.newDetails.length > 0) {
                     console.log(`    New issues detected: ${issue.newDetailsCount}`);
-                    issue.newDetails.slice(0, 2).forEach(detail => {
-                      console.log(`      • ${detail.substring(0, 80)}`);
+                    issue.newDetails.forEach(detail => {
+                      console.log(`      • ${detail}`);
                     });
                   }
                 } else if (issue.isRegression) {
