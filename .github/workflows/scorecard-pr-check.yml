@@ -43,7 +43,7 @@ jobs:
 
       - name: Run Scorecard on PR branch
         run: |
-          scorecard --repo . --format json > /tmp/scorecard-results/results_pr.json
+          scorecard --local . --format json > /tmp/scorecard-results/results_pr.json
 
       - name: Checkout base branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Scorecard on base branch
         run: |
-          scorecard --repo . --format json > /tmp/scorecard-results/results_base.json
+          scorecard --local . --format json > /tmp/scorecard-results/results_base.json
 
       - name: Compare Scorecard results
         id: compare
