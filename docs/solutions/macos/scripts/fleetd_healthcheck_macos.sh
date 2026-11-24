@@ -69,6 +69,9 @@ fail() { status "[FAIL]" "${RED}"    "$*"; }
 info() { status "[INFO]" ""          "$*"; }
 # Indented multi-line output (every line indented, not just the first).
 indent() { sed 's/^/    /' | tee -a "${SUMMARY}"; }
+# orbit reads booleans with Go's strconv.ParseBool: 1, t, true in any case.
+# (tr, not ${1,,}: macOS ships bash 3.2.)
+is_true() { case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in 1|t|true) return 0 ;; esac; return 1; }
 
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root (sudo)." >&2
@@ -155,18 +158,29 @@ show_pids() {
   for pid in $1; do ps -o pid=,comm= -p "${pid}" 2>/dev/null; done | sed 's/^ *//' | indent
 }
 
+# PIDs from pgrep whose executable (not just command line) starts with $2. An
+# editor with a file under /opt/orbit open would otherwise count as running.
+pids_with_exe() {
+  local pid exe out=""
+  for pid in $1; do
+    exe=$(ps -o comm= -p "${pid}" 2>/dev/null) || continue
+    case "${exe}" in "$2"*) out="${out} ${pid}" ;; esac
+  done
+  echo "${out# }"
+}
+
 check_process() {
   local label="$1"
-  local pattern="$2"
+  local prefix="$2"
   local pids
   # -a: macOS pgrep skips its own ancestors by default, and when Fleet runs this
   # script, orbit is an ancestor.
-  pids=$(pgrep -a -f "${pattern}" 2>/dev/null || true)
+  pids=$(pids_with_exe "$(pgrep -a -f "${prefix}" 2>/dev/null || true)" "${prefix}")
   if [[ -n "${pids}" ]]; then
     ok "${label} is running"
     show_pids "${pids}"
   else
-    fail "${label} is NOT running (pattern: ${pattern})"
+    fail "${label} is NOT running (no process running from ${prefix})"
     OVERALL_EXIT=1
   fi
 }
@@ -183,8 +197,10 @@ check_process "osqueryd (fleetd)" "${ORBIT_ROOT}/bin/osqueryd/"
 # on macOS can include its environment, ENROLL_SECRET among it.
 OTHER_OSQUERYD=""
 for pid in $(pgrep -x osqueryd 2>/dev/null || true); do
-  case "$(ps -o comm= -p "${pid}" 2>/dev/null)" in
-    "${ORBIT_ROOT}/bin/osqueryd/"*) ;;
+  # Skip a process that exited before the lookup.
+  exe=$(ps -o comm= -p "${pid}" 2>/dev/null) || continue
+  case "${exe}" in
+    ""|"${ORBIT_ROOT}/bin/osqueryd/"*) ;;
     *) OTHER_OSQUERYD="${OTHER_OSQUERYD} ${pid}" ;;
   esac
 done
@@ -195,7 +211,7 @@ fi
 
 # fleet-desktop: only present if package was built with --fleet-desktop;
 # started by orbit itself rather than its own LaunchAgent
-DESKTOP_PIDS=$(pgrep -f "fleet-desktop" 2>/dev/null || true)
+DESKTOP_PIDS=$(pids_with_exe "$(pgrep -f "fleet-desktop" 2>/dev/null || true)" "${ORBIT_ROOT}/bin/desktop/")
 if [[ -n "${DESKTOP_PIDS}" ]]; then
   ok "fleet-desktop is running"
   show_pids "${DESKTOP_PIDS}"
@@ -360,7 +376,7 @@ if [[ -n "${FLEET_URL}" ]]; then
   [[ "${FLEET_URL}" == http* ]] || FLEET_URL="https://${FLEET_URL}"
   CURL_TLS=()
   [[ -n "${FLEET_CERT}" && -f "${FLEET_CERT}" ]] && CURL_TLS+=(--cacert "${FLEET_CERT}")
-  [[ "${FLEET_INSECURE}" == "true" ]] && CURL_TLS+=(-k)
+  is_true "${FLEET_INSECURE}" && CURL_TLS+=(-k)
   HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${CURL_TLS[@]+"${CURL_TLS[@]}"}" "${FLEET_URL%/}/healthz" 2>"${INSTALL_DIR}/curl_error.txt" || true)
   if [[ "${HTTP_CODE}" =~ ^[1-5][0-9][0-9]$ && "${HTTP_CODE}" != "000" ]]; then
     ok "Fleet server reachable: ${FLEET_URL} (HTTP ${HTTP_CODE} from /healthz)"
@@ -420,9 +436,12 @@ for user_home in /Users/*; do
     user_name=$(basename "${user_home}")
     dest_dir="${WORK_DIR}/logs/fleet-desktop/${user_name}"
     mkdir -p "${dest_dir}"
-    cp "${desktop_log}" "${dest_dir}/"
-    ok "Collected fleet-desktop log for user ${user_name}: ${desktop_log}"
-    DESKTOP_LOGS_FOUND=1
+    if cp "${desktop_log}" "${dest_dir}/" 2>/dev/null; then
+      ok "Collected fleet-desktop log for user ${user_name}: ${desktop_log}"
+      DESKTOP_LOGS_FOUND=1
+    else
+      warn "Failed to copy fleet-desktop log for user ${user_name}: ${desktop_log}"
+    fi
   fi
 done
 if [[ "${DESKTOP_LOGS_FOUND}" -eq 0 ]]; then
@@ -478,8 +497,9 @@ fi
 
 # launchd jobs with a non-zero last exit status (unrelated failures often
 # explain "it stopped working"). -9 and -15 are launchd stopping idle on-demand
-# daemons, which is normal: a lab Mac listed over 100 of them.
-FAILED_JOBS=$(launchctl list | awk 'NR>1 && $2 != "0" && $2 != "-" && $2 != "-9" && $2 != "-15" {print}' || true)
+# daemons, which is normal: a lab Mac listed over 100 of them. Fleet's own jobs
+# keep every status.
+FAILED_JOBS=$(launchctl list | awk 'NR>1 && $2 != "0" && $2 != "-" && ($3 ~ /fleetdm/ || ($2 != "-9" && $2 != "-15")) {print}' || true)
 echo "${FAILED_JOBS}" > "${SYSEV_DIR}/launchd_failed_jobs.log"
 if [[ -n "${FAILED_JOBS}" ]]; then
   warn "launchd reports jobs with non-zero last exit status:"

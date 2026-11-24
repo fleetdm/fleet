@@ -260,7 +260,7 @@ if ($Enrollments) {
 try {
   Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin'; StartTime = $Since } -ErrorAction Stop |
     Select-Object TimeCreated, Id, LevelDisplayName, Message |
-    Export-Csv -Path (Join-Path $MdmDir 'mdm_admin_events.csv') -NoTypeInformation
+    Export-Csv -Path (Join-Path $MdmDir 'mdm_admin_events.csv') -NoTypeInformation -ErrorAction Stop
   Ok "Collected MDM diagnostics events (last ${LookbackHours}h)"
 } catch {
   if ($_.Exception.Message -notmatch 'No events were found') { Warn "Failed to query MDM diagnostics events: $_" }
@@ -280,10 +280,14 @@ if ($FleetUrl) {
   $TlsReason = $null
   if (($SvcCim.PathName -match '--fleet-certificate') -or ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_CERTIFICATE=?*' })) {
     $TlsReason = 'fleetd uses its own CA file (fleet.pem)'
-  } elseif (($SvcCim.PathName -match '--insecure(?=\s|$)|--insecure="?(?:1|t|true)"?(?=\s|$)') -or
-    ($SvcEnv | Where-Object { $_ -eq 'ORBIT_INSECURE=true' })) {
-    # Bare flag or an explicit true value only: --insecure="False" keeps verification on.
-    $TlsReason = 'fleetd runs with ORBIT_INSECURE, so it does not verify the certificate'
+  } else {
+    # As orbit reads it: an explicit --insecure value wins over ORBIT_INSECURE,
+    # and true is 1, t or true in any case (Go's strconv.ParseBool).
+    $Insecure = [bool]($SvcEnv | Where-Object { $_ -match '^ORBIT_INSECURE=(1|t|true)$' })
+    if ($SvcCim.PathName -match '--insecure(?:="?(\w+)"?)?(?=\s|$)') {
+      $Insecure = (-not $Matches[1]) -or ($Matches[1] -match '^(1|t|true)$')
+    }
+    if ($Insecure) { $TlsReason = 'fleetd runs in insecure mode, so it does not verify the certificate' }
   }
   try {
     $Resp = Invoke-WebRequest -Uri "$($FleetUrl.TrimEnd('/'))/healthz" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop

@@ -43,6 +43,20 @@ fail() { status "[FAIL]" "${RED}"    "$*"; }
 info() { status "[INFO]" ""          "$*"; }
 indent() { sed 's/^/    /' | tee -a "${SUMMARY}"; }
 
+# /etc/default/orbit read the way systemd's EnvironmentFile reads it, never
+# sourced: backslash continuations joined, KEY=value lines only, surrounding
+# quotes removed. orbit_env prints one variable's value (the last one wins).
+ENV_FILE=/etc/default/orbit
+orbit_env_lines() {
+  [[ -f "${ENV_FILE}" ]] || return 0
+  awk '{ if (sub(/\\$/, "")) { buf = buf $0; next } print buf $0; buf = "" } END { if (buf != "") print buf }' "${ENV_FILE}" \
+    | sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=[[:space:]]*(.*)$/\2=\3/p' \
+    | sed -E "s/^([^=]*)=\"(.*)\"[[:space:]]*\$/\\1=\\2/; s/^([^=]*)='(.*)'[[:space:]]*\$/\\1=\\2/"
+}
+orbit_env() { orbit_env_lines | sed -n "s/^$1=//p" | tail -1; }
+# orbit reads booleans with Go's strconv.ParseBool: 1, t, true in any case.
+is_true() { [[ "${1,,}" =~ ^(1|t|true)$ ]]; }
+
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root." >&2
   exit 1
@@ -100,20 +114,31 @@ log "── 2. Processes ──────────────────�
 show_pids() {
   local pid
   for pid in $1; do
-    printf '%s %s\n' "${pid}" "$(readlink "/proc/${pid}/exe" 2>/dev/null || ps -o comm= -p "${pid}")"
+    printf '%s %s\n' "${pid}" "$(readlink "/proc/${pid}/exe" 2>/dev/null)"
   done | indent
+}
+
+# PIDs from pgrep whose executable (not just command line) starts with $2. An
+# editor with a file under /opt/orbit open would otherwise count as running.
+pids_with_exe() {
+  local pid exe out=""
+  for pid in $1; do
+    exe=$(readlink "/proc/${pid}/exe" 2>/dev/null) || continue
+    [[ "${exe}" == "$2"* ]] && out="${out} ${pid}"
+  done
+  echo "${out# }"
 }
 
 check_process() {
   local label="$1"
-  local pattern="$2"
+  local prefix="$2"
   local pids
-  pids=$(pgrep -f "${pattern}" 2>/dev/null || true)
+  pids=$(pids_with_exe "$(pgrep -f "${prefix}" 2>/dev/null || true)" "${prefix}")
   if [[ -n "${pids}" ]]; then
     ok "${label} is running"
     show_pids "${pids}"
   else
-    fail "${label} is NOT running (pattern: ${pattern})"
+    fail "${label} is NOT running (no process running from ${prefix})"
     OVERALL_EXIT=1
   fi
 }
@@ -128,16 +153,20 @@ check_process "orbit"        "/opt/orbit/bin/orbit/"
 # fleetd being healthy.
 check_process "osqueryd (fleetd)" "/opt/orbit/bin/osqueryd/"
 
-ALL_OSQUERYD=$(pgrep -af "osqueryd" 2>/dev/null || true)
-OTHER_OSQUERYD=$(printf '%s\n' "${ALL_OSQUERYD}" | grep -v -e "/opt/orbit/bin/osqueryd/" -e '^$' || true)
-if [[ -n "${OTHER_OSQUERYD}" ]]; then
+# Classify by executable path; skip a process that exited before the lookup.
+OTHER_OSQUERYD=""
+for pid in $(pgrep -x osqueryd 2>/dev/null || true); do
+  exe=$(readlink "/proc/${pid}/exe" 2>/dev/null) || continue
+  [[ -z "${exe}" || "${exe}" == /opt/orbit/bin/osqueryd/* ]] || OTHER_OSQUERYD="${OTHER_OSQUERYD} ${pid}"
+done
+if [[ -n "${OTHER_OSQUERYD// /}" ]]; then
   warn "osqueryd running from outside /opt/orbit (another osquery install?):"
-  show_pids "$(printf '%s\n' "${OTHER_OSQUERYD}" | awk '{print $1}')"
+  show_pids "${OTHER_OSQUERYD}"
 fi
 
 # fleet-desktop: only present if package was built with --fleet-desktop
 # Source: constant.DesktopAppExecName = "fleet-desktop"
-DESKTOP_PIDS=$(pgrep -f "fleet-desktop" 2>/dev/null || true)
+DESKTOP_PIDS=$(pids_with_exe "$(pgrep -f "fleet-desktop" 2>/dev/null || true)" "/opt/orbit/bin/desktop/")
 if [[ -n "${DESKTOP_PIDS}" ]]; then
   ok "fleet-desktop is running"
   show_pids "${DESKTOP_PIDS}"
@@ -168,12 +197,18 @@ check_file "osquery pidfile"     "/opt/orbit/osquery.pid"
 check_file "env file"            "/etc/default/orbit"
 # The .deb/.rpm put the enroll secret in /etc/default/orbit (ORBIT_ENROLL_SECRET),
 # not in a file. Once orbit has a node key, it doesn't need the secret.
-if [[ -s /opt/orbit/secret.txt ]] || grep -qE '^ORBIT_ENROLL_SECRET(_PATH)?=.+' /etc/default/orbit 2>/dev/null; then
-  ok "enroll secret is configured (/etc/default/orbit or /opt/orbit/secret.txt)"
-elif [[ -s /opt/orbit/secret-orbit-node-key.txt ]]; then
-  info "enroll secret not configured (not needed: orbit is already enrolled)"
+SECRET_PATH=$(orbit_env ORBIT_ENROLL_SECRET_PATH)
+ENROLLED=0; [[ -s /opt/orbit/secret-orbit-node-key.txt ]] && ENROLLED=1
+if [[ -n "$(orbit_env ORBIT_ENROLL_SECRET)" ]]; then
+  ok "enroll secret is configured (ORBIT_ENROLL_SECRET in /etc/default/orbit)"
+elif [[ -n "${SECRET_PATH}" && -r "${SECRET_PATH}" && -s "${SECRET_PATH}" ]]; then
+  ok "enroll secret is configured (${SECRET_PATH})"
+elif [[ -z "${SECRET_PATH}" && -s /opt/orbit/secret.txt ]]; then
+  ok "enroll secret is configured (/opt/orbit/secret.txt)"
+elif [[ "${ENROLLED}" -eq 1 ]]; then
+  info "enroll secret not found${SECRET_PATH:+ at ${SECRET_PATH}} (not needed: orbit is already enrolled)"
 else
-  fail "enroll secret not configured and orbit not enrolled: check ORBIT_ENROLL_SECRET in /etc/default/orbit"
+  fail "enroll secret not found${SECRET_PATH:+ at ${SECRET_PATH}} and orbit is not enrolled: check ORBIT_ENROLL_SECRET in /etc/default/orbit"
   OVERALL_EXIT=1
 fi
 
@@ -191,24 +226,24 @@ fi
 log ""
 log "── 4. Orbit environment (/etc/default/orbit) ───────────────"
 if [[ -f /etc/default/orbit ]]; then
-  # Redact values of secret-looking variables (ORBIT_ENROLL_SECRET holds the
-  # actual secret). Uppercase before matching: IGNORECASE is gawk-only, and
-  # Ubuntu's default awk (mawk) silently ignores it.
-  awk -F= '{
-      name = toupper($1)
-      if (name ~ /SECRET|PASSWORD|TOKEN|KEY/ && name !~ /_PATH$/) print $1 "=<redacted>"
+  # Print parsed KEY=value pairs only (never raw lines, so a continued value
+  # can't slip past), with secret-looking values redacted. Uppercase before
+  # matching: IGNORECASE is gawk-only, and Ubuntu's default awk (mawk) ignores it.
+  orbit_env_lines | awk '{
+      name = toupper(substr($0, 1, index($0, "=") - 1))
+      if (name ~ /SECRET|PASSWORD|TOKEN|KEY/ && name !~ /_PATH$/) print substr($0, 1, index($0, "=")) "<redacted>"
       else print
-    }' /etc/default/orbit | grep -v '^[[:space:]]*$' | indent
-  ORBIT_FLEET_URL=$(sed -n 's/^ORBIT_FLEET_URL=//p' /etc/default/orbit | head -1)
-  FLEET_CERT=$(sed -n 's/^ORBIT_FLEET_CERTIFICATE=//p' /etc/default/orbit | head -1)
-  FLEET_INSECURE=$(sed -n 's/^ORBIT_INSECURE=//p' /etc/default/orbit | head -1)
+    }' | indent
+  ORBIT_FLEET_URL=$(orbit_env ORBIT_FLEET_URL)
+  FLEET_CERT=$(orbit_env ORBIT_FLEET_CERTIFICATE)
+  FLEET_INSECURE=$(orbit_env ORBIT_INSECURE)
   if [[ -n "${ORBIT_FLEET_URL}" ]]; then
     # Probe the server the way orbit connects: https:// when no scheme is given,
     # the package's own CA file when set, and no verification when insecure.
     [[ "${ORBIT_FLEET_URL}" == http* ]] || ORBIT_FLEET_URL="https://${ORBIT_FLEET_URL}"
     CURL_TLS=()
     [[ -n "${FLEET_CERT}" && -f "${FLEET_CERT}" ]] && CURL_TLS+=(--cacert "${FLEET_CERT}")
-    [[ "${FLEET_INSECURE}" == "true" ]] && CURL_TLS+=(-k)
+    is_true "${FLEET_INSECURE}" && CURL_TLS+=(-k)
     HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${CURL_TLS[@]+"${CURL_TLS[@]}"}" "${ORBIT_FLEET_URL%/}/healthz" 2>"${WORK_DIR}/curl_error.txt" || true)
     if [[ "${HTTP_CODE}" =~ ^[1-5][0-9][0-9]$ ]]; then
       ok "Fleet server reachable: ${ORBIT_FLEET_URL} (HTTP ${HTTP_CODE} from /healthz)"
