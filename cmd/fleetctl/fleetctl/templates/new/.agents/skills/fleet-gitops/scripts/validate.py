@@ -1006,6 +1006,8 @@ def check_policies(ctx, fs, policies):
         is_patch = item.get("type") == "patch"
         if "type" in item and not is_patch:
             ctx.fail(isrc, f"{what}: 'type' must be 'patch' or omitted")
+        for k in PATCH_OPTIONS:
+            check_bool(ctx, isrc, item, k, what)
         options = [k for k in PATCH_OPTIONS if item.get(k) is True]
         if is_patch:
             slug = item.get("fleet_maintained_app_slug")
