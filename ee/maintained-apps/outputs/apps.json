@@ -37,6 +37,13 @@
       "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
     },
     {
+      "name": "3Dconnexion 3DxWare 10",
+      "slug": "3dxware-10/windows",
+      "platform": "windows",
+      "unique_identifier": "3Dconnexion 3DxWare 10",
+      "description": "3Dconnexion 3DxWare 10 is the driver and configuration software for 3Dconnexion 3D mice and keyboards."
+    },
+    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",
@@ -812,6 +819,13 @@
       "platform": "windows",
       "unique_identifier": "Audiveris",
       "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
+    },
+    {
+      "name": "AutoHotkey",
+      "slug": "autohotkey/windows",
+      "platform": "windows",
+      "unique_identifier": "AutoHotkey",
+      "description": "AutoHotkey is a scripting language for automating tasks and creating hotkeys on Windows."
     },
     {
       "name": "Autopsy",
@@ -3614,6 +3628,13 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Front",
+      "slug": "front/windows",
+      "platform": "windows",
+      "unique_identifier": "Front",
+      "description": "Front is a customer communication platform."
+    },
+    {
       "name": "FSMonitor",
       "slug": "fsmonitor/darwin",
       "platform": "darwin",
@@ -4725,6 +4746,13 @@
       "platform": "darwin",
       "unique_identifier": "com.p5sys.jump.mac.viewer.web",
       "description": "Jump Desktop is a remote desktop application."
+    },
+    {
+      "name": "k6",
+      "slug": "k6/windows",
+      "platform": "windows",
+      "unique_identifier": "k6",
+      "description": "k6 is an open-source load testing tool for developers, with tests written in JavaScript."
     },
     {
       "name": "Kaleidoscope",
@@ -6960,6 +6988,13 @@
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
     },
     {
+      "name": "Positron",
+      "slug": "positron/windows",
+      "platform": "windows",
+      "unique_identifier": "Positron",
+      "description": "Positron is a data science IDE for working with Python and R."
+    },
+    {
       "name": "Postgres",
       "slug": "postgres-app/darwin",
       "platform": "darwin",
@@ -9128,6 +9163,13 @@
       "platform": "windows",
       "unique_identifier": "TortoiseGit",
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
+    },
+    {
+      "name": "TortoiseSVN",
+      "slug": "tortoisesvn/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseSVN",
+      "description": "TortoiseSVN is an Apache Subversion (SVN) client for Windows, implemented as a File Explorer shell extension with overlay icons and context menu commands."
     },
     {
       "name": "Tower",

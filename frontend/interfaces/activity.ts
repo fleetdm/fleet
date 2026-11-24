@@ -216,6 +216,7 @@ export enum ActivityType {
   EnabledManagedLocalAccount = "enabled_managed_local_account",
   DisabledManagedLocalAccount = "disabled_managed_local_account",
   ViewedManagedLocalAccount = "read_managed_local_account",
+  ViewedHostUnlockPin = "viewed_host_unlock_pin",
   CreatedManagedLocalAccount = "created_managed_local_account",
   RotatedManagedLocalAccountPassword = "rotated_managed_local_account_password",
   FailedToRotateManagedLocalAccountPassword = "failed_to_rotate_managed_local_account_password",
@@ -289,6 +290,7 @@ export type IHostPastActivityType =
   | ActivityType.ResentCertificate
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
+  | ActivityType.ViewedHostUnlockPin
   | ActivityType.CreatedManagedLocalAccount
   | ActivityType.CreatedDiskEncryptionPIN
   | ActivityType.RotatedManagedLocalAccountPassword
@@ -761,6 +763,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.DisabledManagedLocalAccount]:
     "Turned off managed local account",
   [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
+  [ActivityType.ViewedHostUnlockPin]: "Viewed unlock PIN",
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
   [ActivityType.RotatedManagedLocalAccountPassword]:
     "Triggered managed local account password rotation",

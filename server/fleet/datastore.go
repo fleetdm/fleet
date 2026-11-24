@@ -4280,12 +4280,13 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
 
-	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
-	NewChallenge(ctx context.Context) (string, error)
-	// ConsumeChallenge checks if a valid challenge exists in the challenges table
-	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
-	// is not found or is expired.
-	ConsumeChallenge(ctx context.Context, challenge string) error
+	// NewChallenge generates a random, base64-encoded challenge for the given scope and inserts it into the challenges
+	// table.
+	NewChallenge(ctx context.Context, scope ChallengeScope) (string, error)
+	// ConsumeChallenge checks if a valid challenge exists in the challenges table for the given scope and deletes it if
+	// it does. The error will include sql.ErrNoRows if the challenge is not found, is expired, or was created for a
+	// different scope; in the last case the challenge is left in place.
+	ConsumeChallenge(ctx context.Context, challenge string, scope ChallengeScope) error
 	// CleanupExpiredChallenges removes expired challenges from the challenges table,
 	// intended to be run as a cron job.
 	CleanupExpiredChallenges(ctx context.Context) (int64, error)
@@ -4819,10 +4820,10 @@ type AndroidDatastore interface {
 	// cron to retire commands issued under an enterprise Fleet is no longer connected to.
 	FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
-	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
-	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName
-	// (returned by EnterprisesDevicesIssueCommand) before invoking.
-	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+	// LockHostViaAndroidMDM inserts the lock's RESET_PASSWORD row into mdm_android_commands and writes lock_ref and
+	// unlock_pin on host_mdm_actions in a single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate
+	// cmd.CommandUUID and cmd.OperationName (returned by EnterprisesDevicesIssueCommand) before invoking.
+	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand, unlockPIN string) error
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
 	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll

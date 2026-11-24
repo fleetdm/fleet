@@ -1563,12 +1563,11 @@ describe("Device User Page - Google conditional access sign-in", () => {
 
       const { container } = renderPage(platform);
 
-      expect(
-        await screen.findByText("Redirecting to Google sign-in...")
-      ).toBeInTheDocument();
       await waitFor(() =>
         expect(replaceLocation).toHaveBeenCalledWith(SIGN_IN_URL)
       );
+      expect(await screen.findByTestId("spinner")).toBeInTheDocument();
+      expect(screen.queryByText(/Redirecting to Google sign-in/)).toBeNull();
       expect(container.querySelector(".device-user-mobile")).toBeNull();
     }
   );
@@ -1580,7 +1579,6 @@ describe("Device User Page - Google conditional access sign-in", () => {
     const { container } = renderPage("ios");
 
     await expectSelfService(container);
-    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
     expect(replaceLocation).not.toHaveBeenCalled();
   });
 
@@ -1605,7 +1603,6 @@ describe("Device User Page - Google conditional access sign-in", () => {
     });
 
     await expectSelfService(container);
-    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
     expect(replaceLocation).toHaveBeenCalledTimes(1);
     // Each start mints a token and counts an attempt.
     expect(signInStarted).toHaveBeenCalledTimes(1);
@@ -1636,7 +1633,6 @@ describe("Device User Page - Google conditional access sign-in", () => {
     const { container } = renderPage("ios", false);
 
     await expectSelfService(container);
-    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
     expect(statusCalled).not.toHaveBeenCalled();
     expect(replaceLocation).not.toHaveBeenCalled();
   });

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "29.0.0",
+      "version": "29.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Monotype Connect' AND publisher LIKE '%Monotype%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Monotype Connect' AND publisher LIKE '%Monotype%' AND version_compare(version, '29.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Monotype Connect' AND publisher LIKE '%Monotype%' AND version_compare(version, '29.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'monotype connect.exe');"
       },
-      "installer_url": "https://bin.extensis.com/ExtensisConnect-W-29-0-0.zip",
+      "installer_url": "https://bin.extensis.com/ExtensisConnect-W-29-0-1.zip",
       "install_script_ref": "f95cc5cb",
       "uninstall_script_ref": "7dbd5b95",
-      "sha256": "fb58790d8a4481cbdea8621d2d58fa982459b29a7246e1ea16041454de9ddcfe",
+      "sha256": "cb44440d72a917109c76dab76cfae410acacccc1a05c6dbe54f3df5029ba54c2",
       "default_categories": [
         "Productivity"
       ]

@@ -1897,6 +1897,10 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
+	if !host.IsLUKSSupported() {
+		return &fleet.BadRequestError{Message: "Fleet does not support LUKS disk encryption keys on this platform."}
+	}
+
 	if status != "" {
 		return svc.reportLinuxEscrowStatus(ctx, host.ID, status)
 	}

@@ -37,6 +37,18 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 		sb.AddFunction("relaunch_application", relaunchApplicationFunc)
 	}
 
+	// A cask can install apps from more than one artifact, and the relaunch only
+	// knows which bundle carries app.UniqueIdentifier when there is exactly one.
+	// Count across every artifact, not just the one being written.
+	totalApps := 0
+	for _, artifact := range cask.Artifacts {
+		for _, appItem := range artifact.App {
+			if appItem.String != "" {
+				totalApps++
+			}
+		}
+	}
+
 	for _, artifact := range cask.Artifacts {
 		switch {
 		case len(artifact.App) > 0:
@@ -45,6 +57,9 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 			// Stop if it won't quit: fleetd deletes $TMPDIR after the install, which
 			// would take the moved-aside bundle the app is still running from.
 			sb.Writef("quit_and_track_application '%s' || exit 1", app.UniqueIdentifier)
+			// 'cp -R "$TMPDIR/<path>" "$APPDIR"' installs the bundle's basename, so
+			// a nested artifact path is not where the app ends up.
+			var appBases []string
 			for _, appItem := range artifact.App {
 				// Only process string values (skip objects with target, those are handled by custom scripts)
 				if appItem.String == "" {
@@ -54,6 +69,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				// strings alongside "$APPDIR"/"$TMPDIR"; escape it so a payload like
 				// $(...) can't reach the root-privileged mv/cp/rm below.
 				appPath := shellDoubleQuoteEscape(appItem.String)
+				appBases = append(appBases, shellDoubleQuoteEscape(path.Base(appItem.String)))
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
@@ -67,8 +83,14 @@ fi`, appPath)
 	exit 1
 fi`, appPath)
 			}
-			// Relaunch the app if it was running before installation
-			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			// Relaunch the app if it was running before installation. Open it by
+			// path when the cask installs a single app; with several, which one has
+			// the bundle ID isn't known, so open it by bundle ID.
+			if totalApps == 1 && len(appBases) == 1 {
+				sb.Writef(`relaunch_application '%s' "$APPDIR/%s"`, app.UniqueIdentifier, appBases[0])
+			} else {
+				sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			}
 
 		case len(artifact.Pkg) > 0:
 			sb.Write("# install pkg files")
@@ -1212,20 +1234,27 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 }
 `
 
-// relaunchApplicationFunc relaunches an application if it was running before installation.
-// Checks the APP_WAS_RUNNING_<bundle_id> environment variable set by quitAndTrackApplicationFunc.
-// The install script runs as root, but GUI apps must be launched in the logged-in
-// user's session (not root's) to appear in the user's Dock/GUI. We therefore use
-// 'sudo -u "$console_user" open' rather than 'osascript ... to activate', since
-// the latter fails when launching an app that isn't already running from a root
-// context.
+// relaunchApplicationFunc relaunches an app that quit_and_track_application quit
+// before the install. It checks the APP_WAS_RUNNING_<bundle_id> variable that
+// helper sets. The install script runs as root, but GUI apps must be launched in
+// the logged-in user's session to appear in their Dock, so it uses 'open' as the
+// console user rather than 'osascript ... to activate', which fails from a root
+// context for an app that isn't already running. With an app path it opens that
+// bundle, otherwise (pkg installs, casks with several apps) it opens the bundle
+// ID: opening by bundle ID right after the app is replaced has failed for some
+// apps (Affinity, Rider, Grammarly) where opening by path worked. Those reports
+// all say opening the app by hand straight afterwards works, so the retry budget
+// is 30 seconds; a longer one holds up the next queued install for no gain. A
+// relaunch that keeps failing doesn't fail the install.
 const relaunchApplicationFunc = `relaunch_application() {
   local bundle_id="$1"
+  local app_path="${2:-}"
   local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
-  # Check if the app was running before installation
-  eval "was_running=\$$var_name"
+  # Check if the app was running before installation. Default the variable so a
+  # script running under 'set -u' doesn't abort when the quit helper never ran.
+  eval "was_running=\${$var_name:-0}"
   if [[ "$was_running" != "1" ]]; then
     return
   fi
@@ -1244,20 +1273,39 @@ const relaunchApplicationFunc = `relaunch_application() {
   # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
   # and GUI session — 'sudo -u' alone doesn't do this, which can cause
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
-  local open_status=0
-  if [[ $EUID -eq 0 ]]; then
-    local console_uid
-    console_uid=$(id -u "$console_user")
-    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  else
-    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  fi
+  local open_args=(-b "$bundle_id")
+  [[ -z "$app_path" ]] || open_args=("$app_path")
+  local timeout_duration=30
+  local attempt=0 delay=2 open_status open_output
+  SECONDS=0
+  while true; do
+    attempt=$((attempt + 1))
+    open_status=0
+    if [[ $EUID -eq 0 ]]; then
+      local console_uid
+      console_uid=$(id -u "$console_user")
+      open_output=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" open "${open_args[@]}" 2>&1) || open_status=$?
+    else
+      open_output=$(open "${open_args[@]}" 2>&1) || open_status=$?
+    fi
 
-  if [[ $open_status -eq 0 ]]; then
-    echo "Application '$bundle_id' relaunched successfully."
-  else
-    echo "Failed to relaunch application '$bundle_id'."
-  fi
+    if [[ $open_status -eq 0 ]]; then
+      echo "Application '$bundle_id' relaunched successfully."
+      return
+    fi
+    echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
+    # Back off 2, 4, 8, then 10 seconds. The budget bounds when the last
+    # attempt may start, not how long one takes: a slow 'open' is usually
+    # Gatekeeper checking the newly copied bundle, which is worth waiting out.
+    (( SECONDS + delay <= timeout_duration )) || break
+    sleep "$delay"
+    # sleep only guarantees at least $delay, so a late wake-up — the Mac
+    # suspending mid-sleep, say — can land past the budget. Check again rather
+    # than trusting the estimate above; landing exactly on it still retries.
+    (( SECONDS <= timeout_duration )) || break
+    delay=$(( delay * 2 > 10 ? 10 : delay * 2 ))
+  done
+  echo "Failed to relaunch application '$bundle_id'."
 }
 `
 

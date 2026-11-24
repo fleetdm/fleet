@@ -1118,7 +1118,7 @@ func TestWezTermScriptsQuitWithSIGTERM(t *testing.T) {
 		require.True(t, strings.HasSuffix(script, tail))
 		return script[:i+len(quitCall)] + marker + tail
 	}
-	install = cut(install, "\nquit_and_track_wezterm || exit 1\n", "echo 'Installing WezTerm.'\n", "\nrelaunch_application 'com.github.wez.wezterm'\n")
+	install = cut(install, "\nquit_and_track_wezterm || exit 1\n", "echo 'Installing WezTerm.'\n", "\nrelaunch_application 'com.github.wez.wezterm' \"$APPDIR/WezTerm.app\"\n")
 	uninstall = cut(uninstall, "\nquit_wezterm || exit 1\n", "echo 'Removing WezTerm.'\n", "")
 
 	type result struct {
@@ -1216,7 +1216,7 @@ kill() {
 		require.Equal(t, "-TERM 101\n-TERM 102\n", r.signals)
 		require.Contains(t, r.out, "Application 'com.github.wez.wezterm' quit successfully.")
 		require.Contains(t, r.out, "Installing WezTerm.")
-		require.Equal(t, "-b com.github.wez.wezterm\n", r.opened)
+		require.Equal(t, "/Applications//WezTerm.app\n", r.opened)
 	})
 
 	t.Run("install stops when it won't quit", func(t *testing.T) {
@@ -1265,12 +1265,11 @@ kill() {
 	})
 }
 
-// TestInstallScriptsRelaunchByPath runs the Affinity and Rider install scripts
-// with osascript and open stubbed out. Opening these apps by bundle ID right
-// after they're replaced fails, so the scripts open the new copy by path, retry
-// every 10 seconds for up to 2 minutes, and log open's error. A relaunch that
-// keeps failing doesn't fail the install.
-func TestInstallScriptsRelaunchByPath(t *testing.T) {
+// TestRelaunchStopsAfterALateWakeUp runs relaunch_application with a sleep that
+// returns later than it was asked to, as it would if the Mac suspended partway
+// through. The loop picks the next attempt from SECONDS + delay before
+// sleeping, so it has to re-check afterwards instead of trusting that estimate.
+func TestRelaunchStopsAfterALateWakeUp(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
 	}
@@ -1282,16 +1281,88 @@ func TestInstallScriptsRelaunchByPath(t *testing.T) {
 		t.Skip("bash not found")
 	}
 
-	for _, tc := range []struct{ script, bundleID, appPath string }{
-		{"affinity-install.sh", "com.canva.affinity", "/Applications/Affinity.app"},
-		{"rider-install.sh", "com.jetbrains.rider", "/Applications/Rider.app"},
+	for name, tc := range map[string]struct {
+		sleepMultiplier int
+		wantAttempts    int
+	}{
+		// 0, 2, 6, 14, 24; a sixth would start at 34.
+		"sleep is punctual": {1, 5},
+		// The first sleep of 2s returns after 30s. That is the deadline exactly,
+		// which still gets an attempt, and the next would start at 34.
+		"wakes exactly on the deadline": {15, 2},
+		// The first sleep of 2s returns after 100s, well past the budget.
+		"wakes long after the deadline": {50, 1},
 	} {
-		t.Run(tc.script, func(t *testing.T) {
-			b, err := os.ReadFile("../../inputs/homebrew/scripts/" + tc.script)
+		t.Run(name, func(t *testing.T) {
+			script := `opened=` + shellSingleQuote(filepath.Join(t.TempDir(), "opened")) + `
+stat() { echo alice; }
+id() { echo 501; }
+sleep() { SECONDS=$((SECONDS + $1 * ` + strconv.Itoa(tc.sleepMultiplier) + `)); }
+open() { echo open >> "$opened"; echo "LSOpenURLsWithRole() failed with error -10810." >&2; return 1; }
+export APP_WAS_RUNNING_com_example_Foo=1
+` + relaunchApplicationFunc + `
+relaunch_application 'com.example.Foo'
+`
+			out, err := exec.Command(bash, "-c", script).CombinedOutput()
+			require.NoError(t, err, string(out))
+			got := strings.Count(string(out), "to relaunch application 'com.example.Foo' failed")
+			require.Equal(t, tc.wantAttempts, got, string(out))
+			require.Contains(t, string(out), "Failed to relaunch application 'com.example.Foo'.")
+		})
+	}
+}
+
+// TestInstallScriptRelaunchRetriesAndLogs runs generated install scripts with
+// osascript and open stubbed out. An app installed from a single .app is
+// relaunched by path, otherwise by bundle ID; a failed open is retried with a
+// backoff for up to 30 seconds with its error logged, and a relaunch that keeps
+// failing doesn't fail the install.
+func TestInstallScriptRelaunchRetriesAndLogs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	app := func(names ...string) *brewArtifact {
+		a := &brewArtifact{}
+		for _, n := range names {
+			a.App = append(a.App, optjson.StringOr[*brewAppTarget]{String: n})
+		}
+		return a
+	}
+	for name, tc := range map[string]struct {
+		format    string
+		artifacts []*brewArtifact
+		openArgs  []string
+	}{
+		"single app":   {"zip", []*brewArtifact{app("Foo.app")}, []string{"/Applications//Foo.app"}},
+		"app with $":   {"zip", []*brewArtifact{app("Foo $HOME.app")}, []string{"/Applications//Foo", "$HOME.app"}},
+		"several apps": {"zip", []*brewArtifact{app("Foo.app", "Foo Helper.app")}, []string{"-b", "com.example.Foo"}},
+		// Two artifacts each installing one app: the cask still has no single
+		// bundle to open, so it must fall back to the bundle ID rather than
+		// opening whichever app the last artifact copied.
+		"apps in two artifacts": {"zip", []*brewArtifact{app("Foo.app"), app("Foo Helper.app")}, []string{"-b", "com.example.Foo"}},
+		// 'cp -R "$TMPDIR/Suite/Foo.app" "$APPDIR"' lands on /Applications/Foo.app.
+		"nested app path": {"zip", []*brewArtifact{app("Suite/Foo.app")}, []string{"/Applications//Foo.app"}},
+		"pkg":             {"pkg", []*brewArtifact{{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "Foo-1.0.pkg"}}}}, []string{"-b", "com.example.Foo"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			script, err := installScriptForApp(inputApp{
+				Token:            "foo",
+				UniqueIdentifier: "com.example.Foo",
+				InstallerFormat:  tc.format,
+			}, &brewCask{Artifacts: tc.artifacts})
 			require.NoError(t, err)
 
-			// open fails its first openFailures calls. running is whether the app
-			// is open before the install; it quits on the first quit event.
+			// open fails its first openFailures calls, and records each call's
+			// arguments on one line. running is whether the app is open before
+			// the install; it quits on the first quit event.
 			run := func(t *testing.T, running bool, openFailures int) (string, []string) {
 				dir := t.TempDir()
 				openFile := filepath.Join(dir, "opened")
@@ -1302,8 +1373,6 @@ quits=` + shellSingleQuote(filepath.Join(dir, "quits")) + `
 stat() { echo alice; }
 realpath() { echo /tmp/fleet-test/installer; }
 ditto() { :; }
-mktemp() { echo /tmp/fleet-test/mount; }
-hdiutil() { :; }
 sleep() { SECONDS=$((SECONDS + $1)); }
 sudo() { echo "sudo $*"; }
 ps() { :; }
@@ -1321,45 +1390,53 @@ osascript() {
   esac
 }
 `
-				out, err := exec.Command(bash, "-c", stubs+string(b)).CombinedOutput()
+				out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
 				require.NoError(t, err, string(out))
 				opened, err := os.ReadFile(openFile)
 				if !os.IsNotExist(err) {
 					require.NoError(t, err)
 				}
-				return string(out), strings.Fields(string(opened))
+				var lines []string
+				for l := range strings.SplitSeq(strings.TrimSpace(string(opened)), "\n") {
+					if l != "" {
+						lines = append(lines, l)
+					}
+				}
+				return string(out), lines
 			}
-			success := "Application '" + tc.bundleID + "' relaunched successfully."
-			failure := "Failed to relaunch application '" + tc.bundleID + "'."
+			want := strings.Join(tc.openArgs, " ")
+			const (
+				success = "Application 'com.example.Foo' relaunched successfully."
+				failure = "Failed to relaunch application 'com.example.Foo'."
+			)
 			attempt := func(n int) string {
-				return "Attempt " + strconv.Itoa(n) + " to relaunch application '" + tc.bundleID + "' failed"
+				return "Attempt " + strconv.Itoa(n) + " to relaunch application 'com.example.Foo' failed"
 			}
 
 			out, opened := run(t, false, 0)
-			require.Contains(t, out, "sudo cp -R")
 			require.NotContains(t, out, "Relaunching application")
 			require.Empty(t, opened)
 
 			out, opened = run(t, true, 0)
-			require.Contains(t, out, "Application '"+tc.bundleID+"' quit successfully.")
-			require.Less(t, strings.Index(out, "sudo cp -R /tmp/fleet-test/"), strings.Index(out, success))
-			require.Equal(t, []string{tc.appPath}, opened)
+			require.Contains(t, out, success)
+			require.Equal(t, []string{want}, opened)
 
 			out, opened = run(t, true, 2)
 			require.Contains(t, out, attempt(1)+" (exit 1): LSOpenURLsWithRole() failed with error -10810.")
 			require.Contains(t, out, attempt(2))
 			require.Contains(t, out, success)
 			require.NotContains(t, out, failure)
-			require.Equal(t, []string{tc.appPath, tc.appPath, tc.appPath}, opened)
+			require.Equal(t, []string{want, want, want}, opened)
 
-			// sleep advances SECONDS, so the last attempt starts at the 120-second
-			// deadline: 13 attempts in all.
+			// sleep advances SECONDS, so attempts land at 0, 2, 6, 14 and 24
+			// seconds; a sixth would run past the 30-second budget, so the loop
+			// stops at 5 without overshooting.
 			out, opened = run(t, true, 100)
-			require.Contains(t, out, attempt(13))
-			require.NotContains(t, out, attempt(14))
+			require.Contains(t, out, attempt(5))
+			require.NotContains(t, out, attempt(6))
 			require.Contains(t, out, failure)
 			require.NotContains(t, out, success)
-			require.Len(t, opened, 13)
+			require.Len(t, opened, 5)
 		})
 	}
 }

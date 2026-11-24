@@ -2465,7 +2465,8 @@ type enrolledHostInfo struct {
 // number. Any of those fields can be left empty if not available, and it will
 // use the best match in this order:
 //   - if it matched on osquery_host_id (with osqueryID or uuid), use that host
-//   - otherwise if it is Apple MDM host and matched on serial, use that host
+//   - otherwise if it is Apple MDM host and matched on serial, use that host (orbit and osquery enrollments only match
+//     a host that has no UUID yet or has the enrolling UUID)
 //   - otherwise if it is a pending Windows Autopilot host matched on its Autopilot device ID, then on serial, use that host
 //   - otherwise if the enrolling host's platform is "android" and an Android host can be found
 //     with a matching uuid, use that host
@@ -2525,8 +2526,15 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		// The serial stands in for a UUID the host doesn't have yet, so fleetd only matches a host that has a UUID when it
+		// enrolls with that UUID. MDM check-ins handle a serial that's enrolled under another UUID themselves.
+		uuidCond := ""
 		args = append(args, serial)
+		if enrollType != mdmEnroll {
+			uuidCond = ` AND (uuid = '' OR uuid = ?)`
+			args = append(args, uuid)
+		}
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados')%s ORDER BY id LIMIT 1)`, nodeKeyColumn, uuidCond))
 	}
 
 	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find it.
@@ -2810,6 +2818,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				return ctxerr.New(ctx, fmt.Sprintf("orbit host identity cert with identifier %s already belongs to another host with host id: %d",
 					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
 			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAppleSerial(ctx, tx, hostInfo.HardwareSerial, hostInfo.HardwareUUID); err != nil {
+					return err
+				}
+			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hostInfo.HardwareUUID); err != nil {
 					return err
@@ -3000,6 +3013,11 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			if enrollConfig.IdentityCert != nil && enrollConfig.IdentityCert.HostID != nil {
 				return ctxerr.New(ctx, fmt.Sprintf("host identity cert with identifier %s already belongs to another host with host id: %d",
 					osqueryHostID, *enrollConfig.IdentityCert.HostID))
+			}
+			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForAppleMDMHosts {
+				if err := rejectSharedSecretForMDMManagedAppleSerial(ctx, tx, hardwareSerial, hardwareUUID); err != nil {
+					return err
+				}
 			}
 			if enrollConfig.OneTimeEnrollSecretID == nil && enrollConfig.RejectSharedSecretForWindowsMDMHosts {
 				if err := rejectSharedSecretForMDMLinkedWindowsUUID(ctx, tx, hardwareUUID); err != nil {
@@ -4705,7 +4723,8 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 func (ds *Datastore) SetOrUpdateCustomHostDeviceMapping(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
 	const (
 		delStmt = `DELETE FROM host_emails WHERE host_id = ? AND source = ?`
-		updStmt = `UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`
+		// Sets updated_at even when the email is unchanged: a Windows reset keeps only mappings written after its acknowledgment.
+		updStmt = `UPDATE host_emails SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE host_id = ? AND source = ?`
 		insStmt = `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`
 		// for the custom_installer source, we insert it only if there is no
 		// existing custom_override source for that host.
@@ -4945,8 +4964,9 @@ func windowsResetAckDB(ctx context.Context, q sqlx.QueryerContext, hostID uint) 
 	return ack, true, nil
 }
 
-// clearEndUserAfterWindowsResetDB removes the end user mappings, including an IdP username set by an admin, recorded before
-// the host acknowledged its reset. Later ones belong to the next user. It reports whether the host has an acknowledged reset.
+// clearEndUserAfterWindowsResetDB removes the end user mappings, including an IdP username and custom emails set by an admin or
+// fleetd, recorded before the host acknowledged its reset. Later ones belong to the next user. Chrome profiles are left for the
+// device's next report to replace. It reports whether the host has an acknowledged reset.
 func clearEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) (bool, error) {
 	ack, reset, err := windowsResetAckDB(ctx, tx, hostID)
 	if err != nil || !reset {
@@ -4956,7 +4976,10 @@ func clearEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, ho
 	cutoff := ack.AckedAt.Add(time.Second)
 
 	stmt, args, err := sqlx.In(`DELETE FROM host_emails WHERE host_id = ? AND source IN (?) AND COALESCE(updated_at, created_at) < ?`,
-		hostID, []string{fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin}, cutoff)
+		hostID, []string{
+			fleet.DeviceMappingIDP, fleet.DeviceMappingMDMIdpAccounts, fleet.DeviceMappingEntraJoin,
+			fleet.DeviceMappingCustomOverride, fleet.DeviceMappingCustomInstaller,
+		}, cutoff)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "build delete end user emails")
 	}
@@ -7468,31 +7491,35 @@ SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE 
 	return count, nil
 }
 
-// numHostsFleetMDMEnrolledDB returns the number of macOS and Windows hosts that are currently enrolled in Fleet's own
+// numHostsFleetMDMEnrolledDB returns the number of macOS, Windows, iOS, and iPadOS hosts that are currently enrolled in Fleet's own
 // MDM. It excludes hosts enrolled in a third-party MDM, server hosts (host_mdm.is_server = 1), and hosts that are not
 // currently enrolled (host_mdm.enrolled = 0, which includes ABM-pending and unenrolled hosts).
-func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, err error) {
+func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, ios int, ipados int, err error) {
 	var counts struct {
 		MacOS   int `db:"macos"`
 		Windows int `db:"windows"`
+		IOS     int `db:"ios"`
+		IpadOS  int `db:"ipados"`
 	}
 	const stmt = `
 SELECT
 	COALESCE(SUM(CASE WHEN h.platform = 'darwin' THEN 1 ELSE 0 END), 0) AS macos,
-	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows
+	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows,
+	COALESCE(SUM(CASE WHEN h.platform = 'ios' THEN 1 ELSE 0 END), 0) AS ios,
+	COALESCE(SUM(CASE WHEN h.platform = 'ipados' THEN 1 ELSE 0 END), 0) AS ipados
 FROM host_mdm hm
 	JOIN hosts h ON h.id = hm.host_id
 	JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
 WHERE hm.enrolled = 1
 	AND NOT COALESCE(hm.is_server, false)
 	AND mdms.name = ?
-	AND h.platform IN ('darwin', 'windows')
+	AND h.platform IN ('darwin', 'windows', 'ios', 'ipados')
 	`
 	if err := sqlx.GetContext(ctx, db, &counts, stmt, fleet.WellKnownMDMFleet); err != nil {
-		return 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 
-	return counts.MacOS, counts.Windows, nil
+	return counts.MacOS, counts.Windows, counts.IOS, counts.IpadOS, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
