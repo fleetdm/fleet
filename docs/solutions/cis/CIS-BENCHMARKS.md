@@ -569,16 +569,16 @@ it blank — readers otherwise assume it's a gap:
 ```bash
 # Test everything, skip manual policies / policies without test artifacts
 python3 tools/cis/cis-test-runner.py \
-    --macos-version 14 --all --skip-manual \
+    --macos-version 15 --all --skip-manual \
     --fleet-url $FLEET_URL --fleet-token $FLEET_API_TOKEN
 
 # Test specific CIS IDs
 python3 tools/cis/cis-test-runner.py \
-    --macos-version 14 --cis-ids 2.3.3.4,1.1
+    --macos-version 15 --cis-ids 2.3.3.4,1.1
 
 # Clean up everything after
 python3 tools/cis/cis-test-runner.py \
-    --macos-version 14 --all --skip-manual --cleanup
+    --macos-version 15 --all --skip-manual --cleanup
 ```
 
 The runner creates a Fleet team, builds and installs a fleet agent in

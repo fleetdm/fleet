@@ -51,7 +51,14 @@ Fleet stores CIS policies in GitOps format in [`docs/solutions/cis/`](https://gi
 
 To add the policies, copy the YAML file into your GitOps repository. Then reference it in your `default.yml` file or the fleet's YAML file (fleets are Fleet Premium only).
 
-Most platform folders use the same filename, so give each copy a unique name, like `cis-macos-15.yml`. Each `path` is relative to the YAML file that references it. For example:
+Most platform folders use the same filename, so give each copy a unique name, like `cis-macos-15.yml`. Each `path` is relative to the YAML file that references it. For example, in `default.yml`:
+
+```yaml
+policies:
+  - path: ./lib/cis-macos-15.yml
+```
+
+In a fleet's YAML file in `fleets/`:
 
 ```yaml
 policies:

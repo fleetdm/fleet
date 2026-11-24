@@ -8,7 +8,7 @@
 			<key>PayloadDisplayName</key>
 			<string>test</string>
 			<key>PayloadType</key>
-			<string>com.apple.applicationaccess</string>
+			<string>com.apple.assistant.support</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>PayloadIdentifier</key>
