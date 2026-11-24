@@ -927,6 +927,19 @@ def check_bool(ctx, src, item, key, what):
         ctx.fail(src, f"{what}: '{key}' must be true or false")
 
 
+# fleetctl gitops replaces $VAR and ${VAR} in YAML values before parsing.
+def is_env_var_placeholder(value):
+    return isinstance(value, str) and re.fullmatch(r"\$\{?[A-Z][A-Z0-9_]*\}?", value) is not None
+
+
+def check_bool_null_or_placeholder(ctx, src, item, key, what):
+    value = item.get(key)
+    # fleetctl gitops reads null as unset.
+    if value is None or isinstance(value, bool) or is_env_var_placeholder(value):
+        return
+    ctx.fail(src, f"{what}: '{key}' must be true or false")
+
+
 def check_categories(ctx, src, item, what):
     c = item.get("categories")
     if c is not None and (not isinstance(c, list) or not all(isinstance(x, str) for x in c)):
@@ -1004,10 +1017,10 @@ def check_policies(ctx, fs, policies):
         check_bool(ctx, isrc, item, "critical", what)
         check_label_keys(ctx, isrc, item, what, fs.name, "policy")
         is_patch = item.get("type") == "patch"
-        if "type" in item and not is_patch:
-            ctx.fail(isrc, f"{what}: 'type' must be 'patch' or omitted")
+        if "type" in item and item.get("type") not in ("patch", "dynamic"):
+            ctx.fail(isrc, f"{what}: 'type' must be 'patch', 'dynamic', or omitted")
         for k in PATCH_OPTIONS:
-            check_bool(ctx, isrc, item, k, what)
+            check_bool_null_or_placeholder(ctx, isrc, item, k, what)
         options = [k for k in PATCH_OPTIONS if item.get(k) is True]
         if is_patch:
             slug = item.get("fleet_maintained_app_slug")
