@@ -1,3 +1,7 @@
+## fleetd-chrome 1.3.7 (Nov 24, 2026)
+
+* Added `uptime` table
+
 ## fleetd-chrome 1.3.6 (Oct 02, 2026)
 
 * Fixed ChromeOS `system_info` queries and policies failing with "Not allowed" errors when the Google admin `EnterpriseHardwarePlatformAPIEnabled` policy is disabled.
