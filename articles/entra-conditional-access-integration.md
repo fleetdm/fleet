@@ -181,9 +181,10 @@ The `AppAllowList` entry lets fleetd ask Entra for a token that proves the host'
 
 Next, add policies in Fleet that will determine whether a device is marked as "compliant" or "not compliant" in Entra.
 
-Head to **Policies > Automations > Conditional access**.
-1. Make sure the feature is enabled for the fleet.
-2. Select the policies you want enforce conditional access with.
+Head to **Policies** and select the fleet.
+
+1. Click **Manage automations**, make sure **Conditional access** is turned on, and click **Save**.
+2. For each policy you want to enforce conditional access with, select **Conditional access** from the policy's **Automation** dropdown and click **Save**. You can set this when you save a new policy, on the **Edit policy** page, or by clicking the policy's **Automation** cell in the **Policies** table.
 
 ## Step 6: Add Entra policies
 

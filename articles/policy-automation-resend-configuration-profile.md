@@ -17,11 +17,11 @@ Fleet can automatically resend a configuration profile to a host when it fails a
 SELECT 1 FROM disk_encryption WHERE encrypted = 1;
 ```
 
-3. **Set the automation**: In the **Save policy** modal, click **Add automations**, then click the checkbox next to **Resend configuration profile**. From the dropdown, select the profile you want to resend. Click **Save**.
+3. **Set the automation**: In the **Save policy** modal, select **Resend configuration profile** from the **Automation** dropdown. Then select the profile you want to resend from the **Configuration profile** dropdown and click **Save**.
 
 When a host fails the selected policy, Fleet will resend the configuration profile to the host.
 
-If you need to retrigger the automation on hosts that had previously failed, deselect the policy in the **Policies > Manage automations** modal, click Save, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the resend.
+If you need to retrigger the automation on hosts that had previously failed, go to the policy's details page and, under **Automation runs**, select **Reset policy**. Fleet resets the policy's results so the automation runs again on hosts that fail it. Learn more in the [Automations guide](https://fleetdm.com/guides/automations#policy-automations).
 
 ## How does it work?
 - Online hosts report policy status on a configurable cadence, with hourly default.
