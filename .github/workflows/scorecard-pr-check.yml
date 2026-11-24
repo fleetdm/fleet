@@ -103,6 +103,12 @@ jobs:
               });
             }
 
+            // Helper function to find new details
+            function findNewDetails(prDetails, baseDetails) {
+              const baseSet = new Set(baseDetails);
+              return prDetails.filter(detail => !baseSet.has(detail));
+            }
+
             // Find new or regressed issues (score decreased)
             const newIssues = [];
 
@@ -116,7 +122,8 @@ jobs:
                   prScore: prCheck.score,
                   baseScore: null,
                   isNew: true,
-                  reason: prCheck.reason
+                  reason: prCheck.reason,
+                  prDetails: prCheck.details.slice(0, 3) // Show first 3 details
                 });
               }
               // If the score decreased, it's a regression
@@ -126,13 +133,15 @@ jobs:
                   prScore: prCheck.score,
                   baseScore: baseCheck.score,
                   isRegression: true,
-                  reason: prCheck.reason
+                  reason: prCheck.reason,
+                  prDetails: prCheck.details.slice(0, 3)
                 });
               }
-              // For checks with details (like Vulnerabilities), compare detail counts
+              // For checks with details (like Vulnerabilities), compare detail counts and content
               // This catches cases where details change even if score stays the same
               else if (prCheck.details && baseCheck.details && 
                        prCheck.details.length > baseCheck.details.length) {
+                const newDetails = findNewDetails(prCheck.details, baseCheck.details);
                 newIssues.push({
                   name: checkName,
                   prScore: prCheck.score,
@@ -141,7 +150,9 @@ jobs:
                   detailsAdded: true,
                   prDetailCount: prCheck.details.length,
                   baseDetailCount: baseCheck.details.length,
-                  reason: prCheck.reason
+                  newDetailsCount: newDetails.length,
+                  reason: prCheck.reason,
+                  newDetails: newDetails.slice(0, 5) // Show first 5 new details
                 });
               }
             });
@@ -157,6 +168,12 @@ jobs:
                   console.log(`  - NEW: ${issue.name} (score: ${issue.prScore})`);
                 } else if (issue.detailsAdded) {
                   console.log(`  - REGRESSED: ${issue.name} (${issue.baseDetailCount} → ${issue.prDetailCount} issues)`);
+                  if (issue.newDetails && issue.newDetails.length > 0) {
+                    console.log(`    New issues detected: ${issue.newDetailsCount}`);
+                    issue.newDetails.slice(0, 2).forEach(detail => {
+                      console.log(`      • ${detail.substring(0, 80)}`);
+                    });
+                  }
                 } else if (issue.isRegression) {
                   console.log(`  - REGRESSED: ${issue.name} (${issue.baseScore} → ${issue.prScore})`);
                 }
@@ -177,24 +194,43 @@ jobs:
             let comment = '## 🔒 OpenSSF Scorecard Changes Detected\n\n';
             comment += `This PR introduces ${newIssues.length} new or regressed security/quality check(s):\n\n`;
 
-            newIssues.forEach(issue => {
+            newIssues.forEach((issue, index) => {
+              comment += `### ${index + 1}. ${issue.name}\n`;
+              
               if (issue.isNew) {
-                comment += `✨ **${issue.name}** (NEW)\n`;
-                comment += `  - Score: ${issue.prScore}\n`;
-                comment += `  - Reason: ${issue.reason}\n\n`;
+                comment += `**Status**: ✨ NEW\n`;
+                comment += `**Score**: ${issue.prScore}\n`;
+                comment += `**Reason**: ${issue.reason}\n`;
               } else if (issue.detailsAdded) {
-                comment += `⚠️ **${issue.name}** (MORE ISSUES)\n`;
-                comment += `  - Score: ${issue.prScore} (unchanged)\n`;
-                comment += `  - Issue count: ${issue.baseDetailCount} → ${issue.prDetailCount}\n`;
-                comment += `  - Reason: ${issue.reason}\n\n`;
+                comment += `**Status**: ⚠️ MORE ISSUES DETECTED\n`;
+                comment += `**Score**: ${issue.prScore} (unchanged)\n`;
+                comment += `**Issue Count**: ${issue.baseDetailCount} → ${issue.prDetailCount} (+${issue.newDetailsCount} new)\n`;
+                comment += `**Reason**: ${issue.reason}\n`;
+                
+                if (issue.newDetails && issue.newDetails.length > 0) {
+                  comment += `\n**Sample of new issues**:\n`;
+                  issue.newDetails.forEach(detail => {
+                    comment += `- ${detail}\n`;
+                  });
+                }
               } else if (issue.isRegression) {
-                comment += `⚠️ **${issue.name}** (REGRESSED)\n`;
-                comment += `  - Score: ${issue.baseScore} → ${issue.prScore}\n`;
-                comment += `  - Reason: ${issue.reason}\n\n`;
+                comment += `**Status**: ⚠️ REGRESSED\n`;
+                comment += `**Score**: ${issue.baseScore} → ${issue.prScore}\n`;
+                comment += `**Reason**: ${issue.reason}\n`;
+                
+                if (issue.prDetails && issue.prDetails.length > 0) {
+                  comment += `\n**Current details**:\n`;
+                  issue.prDetails.forEach(detail => {
+                    comment += `- ${detail}\n`;
+                  });
+                }
               }
+              
+              comment += '\n';
             });
 
-            comment += '\nSee the [OpenSSF Scorecard documentation](https://github.com/ossf/scorecard/blob/main/docs/checks.md) for details on each check.\n';
+            comment += '\n---\n';
+            comment += 'See the [OpenSSF Scorecard documentation](https://github.com/ossf/scorecard/blob/main/docs/checks.md) for details on each check.\n';
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
