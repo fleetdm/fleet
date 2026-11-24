@@ -1,22 +1,23 @@
 # PowerShell script to undo windows_lock.ps1 and allow logons again
 
-# Restore the default deny-logon policy (Guests group only) for local and
-# Remote Desktop logon.
+$denyRights = 'SeDenyInteractiveLogonRight', 'SeDenyRemoteInteractiveLogonRight'
+
+# Set the "Deny log on locally" and "Deny log on through Remote Desktop
+# Services" policies.
 function Set-DenyLogonRights {
-    param([string[]]$Sids)
+    param([hashtable]$Values)
 
     $id = [guid]::NewGuid().ToString()
     $cfg = Join-Path $env:TEMP "fleet_user_rights_$id.inf"
     $db = Join-Path $env:TEMP "fleet_user_rights_$id.sdb"
-    $value = ($Sids | ForEach-Object { "*$_" }) -join ','
 
     try {
         secedit /export /cfg $cfg /areas USER_RIGHTS | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "secedit export failed with exit code $LASTEXITCODE" }
 
         $lines = @(Get-Content -Path $cfg)
-        foreach ($right in 'SeDenyInteractiveLogonRight', 'SeDenyRemoteInteractiveLogonRight') {
-            $newLine = "$right = $value"
+        foreach ($right in $denyRights) {
+            $newLine = "$right = $($Values[$right])"
             if ($lines -match "^$right\s*=") {
                 $lines = $lines | ForEach-Object { if ($_ -match "^$right\s*=") { $newLine } else { $_ } }
             } else {
@@ -32,32 +33,48 @@ function Set-DenyLogonRights {
     }
 }
 
-try {
-    Set-DenyLogonRights -Sids 'S-1-5-32-546'
-    Write-Host "Logon allowed again for the Users group."
-} catch {
-    Write-Host "Could not restore logon rights: $($_.Exception.Message)"
-    exit 1
-}
+# Restore what windows_lock.ps1 saved: the two deny-logon policies and the
+# local accounts it disabled.
+$stateKey = "HKLM:\SOFTWARE\Fleet\WindowsLock"
+$localUsers = @(Get-LocalUser)
 
-# Get all local user accounts
-$localUsers = Get-LocalUser
+if (Test-Path $stateKey) {
+    $saved = Get-ItemProperty -Path $stateKey
 
-# Enable each disabled user account
-foreach ($user in $localUsers) {
-    if ($user.Enabled -eq $false) {
-        Enable-LocalUser -Name $user.Name
+    if ($null -ne $saved.DenyInteractive -and $null -ne $saved.DenyRemote) {
+        try {
+            Set-DenyLogonRights -Values @{ SeDenyInteractiveLogonRight = $saved.DenyInteractive; SeDenyRemoteInteractiveLogonRight = $saved.DenyRemote }
+            Write-Host "Restored the deny-logon policies."
+        } catch {
+            Write-Host "Could not restore logon rights: $($_.Exception.Message)"
+            exit 1
+        }
+    }
+
+    $savedSids = @($saved.DisabledAccounts)
+    foreach ($user in @($localUsers | Where-Object { $savedSids -contains $_.SID.Value -and -not $_.Enabled })) {
+        Enable-LocalUser -SID $user.SID
         Write-Host "Enabled user account: $($user.Name)"
     }
+
+    Remove-Item -Path $stateKey -Recurse -Force
+} else {
+    # Locked by an older version of windows_lock.ps1, which didn't change the
+    # deny-logon policies or keep a record of the accounts it disabled. It did
+    # turn off cached logins (set to 0), which is how to tell. Enable every
+    # disabled account except the ones Windows never enables on its own: Guest
+    # (-501), DefaultAccount (-503), WDAGUtilityAccount (-504).
+    $cachedLogons = (Get-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name 'CachedLogonsCount' -ErrorAction SilentlyContinue).CachedLogonsCount
+    if ($cachedLogons -eq '0') {
+        New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\" -Name 'CachedLogonsCount' -Value 10 -PropertyType String -Force
+
+        foreach ($user in @($localUsers | Where-Object { -not $_.Enabled -and $_.SID.Value -notmatch '-(501|503|504)$' })) {
+            Enable-LocalUser -SID $user.SID
+            Write-Host "Enabled user account: $($user.Name)"
+        }
+    }
 }
-
-Write-Host "All disabled user accounts have been enabled."
-
 
 # Re-enable additional AD logins. 1 is the default ("allowed"); 0 means "not
 # allowed" and grays out Settings > Accounts > Sign-in options.
 New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions" -Name 'value' -Value 1 -PropertyType DWORD -Force
-
-# Lock no longer changes this, but hosts locked by earlier versions of
-# windows_lock.ps1 have cached logins turned off, so restore them here.
-New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\" -Name 'CachedLogonsCount' -Value 10 -PropertyType String -Force
