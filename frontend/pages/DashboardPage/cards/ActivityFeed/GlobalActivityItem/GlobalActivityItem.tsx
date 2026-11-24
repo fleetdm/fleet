@@ -2442,6 +2442,20 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedLabelToHost: (activity: IActivity) => (
+    <>
+      {" "}
+      added the label <b>{activity.details?.label_name}</b> to{" "}
+      <b>{activity.details?.host_display_name}</b>.
+    </>
+  ),
+  removedLabelFromHost: (activity: IActivity) => (
+    <>
+      {" "}
+      removed the label <b>{activity.details?.label_name}</b> from{" "}
+      <b>{activity.details?.host_display_name}</b>.
+    </>
+  ),
 
   createdCustomVariable: (activity: IActivity) => {
     const { custom_variable_name } = activity.details || {};
@@ -3254,6 +3268,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedLabel: {
       return TAGGED_TEMPLATES.deletedLabel(activity);
+    }
+    case ActivityType.AddedLabelToHost: {
+      return TAGGED_TEMPLATES.addedLabelToHost(activity);
+    }
+    case ActivityType.RemovedLabelFromHost: {
+      return TAGGED_TEMPLATES.removedLabelFromHost(activity);
     }
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);

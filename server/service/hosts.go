@@ -4897,7 +4897,7 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		return ctxerr.Wrap(ctx, err, "add labels to host")
 	}
 
-	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
+	return svc.emitHostLabelActivities(ctx, host, labelNames, true)
 }
 
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -4937,19 +4937,24 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 		return ctxerr.Wrap(ctx, err, "remove labels from host")
 	}
 
-	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
+	return svc.emitHostLabelActivities(ctx, host, labelNames, false)
 }
 
-// emitEditedLabelActivities emits an edited_label activity per label affected
+// emitHostLabelActivities emits an edited_label activity and an
+// added_label_to_host (or removed_label_from_host) activity per label affected
 // by an add/remove-labels-on-host call. labelNames are assumed already
 // validated against the host's team scope.
-func (svc *Service) emitEditedLabelActivities(ctx context.Context, labelNames []string, hostTeamID uint) error {
+func (svc *Service) emitHostLabelActivities(ctx context.Context, host *fleet.Host, labelNames []string, added bool) error {
 	if len(labelNames) == 0 {
 		return nil
 	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
+	}
+	var hostTeamID uint
+	if host.TeamID != nil {
+		hostTeamID = *host.TeamID
 	}
 	labels, err := svc.ds.LabelsByName(ctx, labelNames, fleet.TeamFilter{
 		User:   authz.UserFromContext(ctx),
@@ -4986,6 +4991,24 @@ func (svc *Service) emitEditedLabelActivities(ctx context.Context, labelNames []
 			FleetName: fleetName,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for edited label")
+		}
+
+		var hostActivity fleet.ActivityDetails = fleet.ActivityTypeRemovedLabelFromHost{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+			LabelID:         l.ID,
+			LabelName:       l.Name,
+		}
+		if added {
+			hostActivity = fleet.ActivityTypeAddedLabelToHost{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				LabelID:         l.ID,
+				LabelName:       l.Name,
+			}
+		}
+		if err := svc.NewActivity(ctx, vc.User, hostActivity); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for host label change")
 		}
 	}
 	return nil
