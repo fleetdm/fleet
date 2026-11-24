@@ -3974,7 +3974,7 @@
       "name": "GoldenDict-ng",
       "slug": "goldendict-ng/windows",
       "platform": "windows",
-      "unique_identifier": "GoldenDict-ng",
+      "unique_identifier": "goldendict-ng",
       "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
     },
     {
@@ -4919,7 +4919,7 @@
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",
-      "unique_identifier": "dev.kiro.cli",
+      "unique_identifier": "com.amazon.codewhisperer",
       "description": "Kiro CLI is an AI-powered productivity tool for the command-line."
     },
     {
@@ -7082,7 +7082,7 @@
       "name": "Postman",
       "slug": "postman/windows",
       "platform": "windows",
-      "unique_identifier": "Postman x64 11.75.4",
+      "unique_identifier": "Postman x64",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
@@ -9238,7 +9238,7 @@
       "name": "Transmission",
       "slug": "transmission/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.m0k.transmission.LSSharedFileList",
+      "unique_identifier": "org.m0k.transmission",
       "description": "Transmission is an open-source BitTorrent client."
     },
     {
