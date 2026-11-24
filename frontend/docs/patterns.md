@@ -331,13 +331,12 @@ When building a React-controlled form:
 - Write a submit handler, e.g. `handleSubmit`, that accepts an `evt: React.FormEvent<HTMLFormElement>` argument and, critically:
   - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom handler's logic.
   - runs `validate` against the full form, sets errors on every invalid field, and returns without submitting when any errors are present.
-  - returns the async chain (does not fire-and-forget). Without a returned promise, in-flight state (submit disabled, fields disabled, spinner) does not propagate, and the user can double-click submit to fire the API twice.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`).
 - Disable the submit button only while a submission is in flight, or when the whole form is disabled by GitOps mode. Do not disable it because required fields are empty or values are currently invalid — see [Submit button state](#submit-button-state).
 
 #### Save flows with confirmation modals
 
-When a save handler opens a confirmation modal before writing (destructive edit, Save-as-new, scope-change prompt), run full validation BEFORE opening the modal. If the modal's Submit calls back into the main handler and that handler returns on validation failure, the resulting inline errors render on the form behind the modal where the user can't see them. Gate the modal on `validate(formData) === {}`, not on button click.
+When a save handler opens a confirmation modal before writing (destructive edit, Save-as-new, scope-change prompt), validate before the modal opens, not after it closes. If the modal's Submit calls back into the main save handler and that handler returns on validation failure, the resulting inline errors render on the form behind the modal where the user can't see them. Run the same validation as submit and only open the modal when it reports no errors.
 
 ### Data validation
 
@@ -802,10 +801,6 @@ export const getErrorMessage = (e: unknown) => {
 
 - Preserve field-named keys: folding `email` into `base` removes the inline surface.
 - Strip `base` and `http_status` before setting `formErrors`. Hooks that toast every truthy entry (notably `useFormValidation`) will fire a raw `base` and a status-code toast on top of any intended error. Toast the `base` message separately as needed.
-- Precedence inside the formatter:
-  - First named error wins.
-  - An unnamed error does not overwrite a named one.
-  - Repeated `base` entries collapse to the first.
 
 ## Page routing
 
