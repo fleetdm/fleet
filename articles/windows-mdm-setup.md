@@ -226,7 +226,7 @@ In Intune, select **Devices**, and under **Device onboarding**, open the **Enrol
     }
     ```
 
-    This adds the host's Entra device ID to the access token Windows sends when it enrolls. Fleet uses it to make sure an enrollment matches the device where the end used logged in. The **Token configuration** page doesn't list `deviceid`, so add it in the manifest. Applications that use v1.0 access tokens already include `deviceid`, and adding it to the manifest doesn't change that. Without it, end users can still enroll new devices, but Fleet can't verify which host an enrollment comes from. Fleet logs an error on each enrollment, and a host has to be deleted or wiped in Fleet before it can enroll again.
+    This adds the host's Entra device ID to the access token Windows sends when it enrolls. Fleet uses it to make sure an enrollment matches the device where the end used logged in. The **Token configuration** page doesn't list `deviceid`, so add it in the manifest. Applications that use v1.0 access tokens already include `deviceid`, and adding it to the manifest doesn't change that. Without it, end users can still enroll new devices, but Fleet can't verify which host an enrollment comes from. Fleet logs a warning on each enrollment, and a host has to be deleted or wiped in Fleet before it can enroll again.
 
 **Back in Fleet:**
 
@@ -504,7 +504,7 @@ If you turn the setting off, hosts that enrolled with a one-time enroll secret c
 Windows identifies a device by its hardware ID when it enrolls. Fleet keeps one enrollment per hardware ID, and a new enrollment can replace it only if it comes from the same host:
 
 - Hosts that enroll by installing Fleet's agent are matched by the host the agent is enrolled as.
-- Hosts that enroll through Microsoft Entra are matched by their Entra device ID, which comes from the `deviceid` claim you added in [step 20](#step-2-connect-fleet-to-microsoft-entra-id). If the earlier enrollment came from Fleet's agent, Fleet uses the Entra device ID from the host's Autopilot registration. A host that isn't registered in Autopilot has no Entra device ID to match.
+- Hosts that enroll through Microsoft Entra are matched by their Entra device ID, which comes from the `deviceid` claim you added in [step 20](#step-2-connect-fleet-to-microsoft-entra-id). If the earlier enrollment came from Fleet's agent, Fleet uses the Entra device ID from the host's Autopilot registration, which Fleet reads through [Microsoft Graph](#connect-fleet-to-microsoft-graph). A host that isn't registered in Autopilot, or that Fleet doesn't sync through Microsoft Graph, has no Entra device ID to match.
 
 When an enrollment comes from a different host, Fleet refuses it and the device shows an enrollment error. Find the cause below:
 
