@@ -194,7 +194,7 @@ spec:
         apple_setup_assistant: ""
         macos_manual_agent_install: false
         macos_require_all_software: false
-        script: ""
+        macos_script: ""
         software: []
       macos_updates:
         deadline: ""
