@@ -103,10 +103,26 @@ func encodeTranslatedPayload(translatorType string, identifier string) (fleet.Tr
 	return translatedPayload, nil
 }
 
-func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery string, team string) error {
-	hostIDs, labelID, teamID, err := c.translateTransferHostsToIDs(hosts, label, team)
+func (c *Client) TransferHosts(hosts []string, label, labelFleet string, status, searchQuery string, team string) error {
+	labelToTranslate := label
+	if labelFleet != "" {
+		// The translate endpoint looks a label up by name alone, which fails when several fleets use the name.
+		labelToTranslate = ""
+	}
+	hostIDs, labelID, teamID, err := c.translateTransferHostsToIDs(hosts, labelToTranslate, team)
 	if err != nil {
 		return err
+	}
+	if labelFleet != "" {
+		_, _, labelFleetID, err := c.translateTransferHostsToIDs(nil, "", labelFleet)
+		if err != nil {
+			return err
+		}
+		spec, err := c.GetLabel(label, &labelFleetID)
+		if err != nil {
+			return err
+		}
+		labelID = spec.ID
 	}
 
 	var teamIDPtr *uint

@@ -151,7 +151,7 @@ type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, tea
 
 type GetLabelSpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error)
 
-type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
+type GetLabelSpecFunc func(ctx context.Context, name string, fleetID *uint) (*fleet.LabelSpec, error)
 
 type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.Label, hostIDs []uint, err error)
 
@@ -2930,11 +2930,11 @@ func (s *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.Lab
 	return s.GetLabelSpecsFunc(ctx, teamID)
 }
 
-func (s *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+func (s *Service) GetLabelSpec(ctx context.Context, name string, fleetID *uint) (*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecFunc(ctx, name)
+	return s.GetLabelSpecFunc(ctx, name, fleetID)
 }
 
 func (s *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (label *fleet.Label, hostIDs []uint, err error) {

@@ -1,4 +1,4 @@
-import { omit, pick } from "lodash";
+import { noop, omit, pick } from "lodash";
 import React, {
   useContext,
   useState,
@@ -155,7 +155,6 @@ import LabelsCard from "../cards/Labels";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import MunkiIssuesCard from "../cards/MunkiIssues";
 import PoliciesCard from "../cards/Policies";
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import SoftwareInventoryCard from "../cards/Software";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import UserCard from "../cards/User";
@@ -341,7 +340,6 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [
@@ -393,9 +391,6 @@ const HostDetailsPage = ({
 
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
-  const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
-    null
-  );
   const [
     packageInstallDetails,
     setPackageInstallDetails,
@@ -991,12 +986,23 @@ const HostDetailsPage = ({
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
-  const togglePolicyDetailsModal = useCallback(
+  // The policy page filters its automation runs to this host when the policy
+  // has an automation, which it only knows once the policy loads.
+  const onClickPolicy = useCallback(
     (policy: IHostPolicy) => {
-      setPolicyDetailsModal(!showPolicyDetailsModal);
-      setSelectedPolicy(policy);
+      router.push({
+        pathname: PATHS.POLICY_DETAILS(policy.id),
+        // Inherited policies have no fleet, so keep the host's fleet, or No
+        // fleet (0) for an unassigned host. Free tier has no fleets.
+        query: {
+          fleet_id: isPremiumTier
+            ? policy.fleet_id ?? host?.fleet_id ?? 0
+            : undefined,
+        },
+        state: { hostSearch: host?.display_name },
+      });
     },
-    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+    [router, isPremiumTier, host?.fleet_id, host?.display_name]
   );
 
   const toggleBootstrapPackageModal = useCallback(() => {
@@ -1033,11 +1039,6 @@ const HostDetailsPage = ({
   const toggleClearPasscodeModal = useCallback(() => {
     setShowClearPasscodeModal(!showClearPasscodeModal);
   }, [showClearPasscodeModal, setShowClearPasscodeModal]);
-
-  const onCancelPolicyDetailsModal = useCallback(() => {
-    setPolicyDetailsModal(false);
-    setSelectedPolicy(null);
-  }, [setPolicyDetailsModal, setSelectedPolicy]);
 
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
@@ -2245,8 +2246,8 @@ const HostDetailsPage = ({
                   <PoliciesCard
                     policies={host?.policies || []}
                     isLoading={isLoadingHost}
-                    togglePolicyDetailsModal={togglePolicyDetailsModal}
-                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
+                    togglePolicyDetailsModal={onClickPolicy}
+                    closePolicyDetailsModal={noop}
                     hostPlatform={host.platform}
                     currentTeamId={currentTeam?.id}
                     canManagePolicies={canManagePolicies}
@@ -2299,12 +2300,6 @@ const HostDetailsPage = ({
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
               hostsTeamId={host.fleet_id}
-            />
-          )}
-          {!!host && showPolicyDetailsModal && (
-            <PolicyDetailsModal
-              onCancel={onCancelPolicyDetailsModal}
-              policy={selectedPolicy}
             />
           )}
           {!!host && showReleaseFromABModal && (

@@ -3,6 +3,7 @@ package fleetctl
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -22,6 +23,14 @@ func TestHostTransferFlagChecks(t *testing.T) {
 	runAppCheckErr(t,
 		[]string{"hosts", "transfer", "--fleet", "team1"},
 		"You need to define either --hosts, or one or more of --label, --status, --search_query",
+	)
+	runAppCheckErr(t,
+		[]string{"hosts", "transfer", "--fleet", "team1", "--hosts", "host1", "--label-fleet", "team2"},
+		"--hosts cannot be used along side any other flag",
+	)
+	runAppCheckErr(t,
+		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online", "--label-fleet", "team2"},
+		"--label-fleet can only be used with --label",
 	)
 }
 
@@ -177,6 +186,93 @@ func TestHostsTransferByLabel(t *testing.T) {
 			assert.False(t, ds.AddHostsToTeamFuncInvoked)
 		}
 	}
+}
+
+func TestHostsTransferByLabelSharedByFleets(t *testing.T) {
+	opts := &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
+
+	const (
+		destinationFleetID = uint(99)
+		labelFleetID       = uint(77)
+		labelFleetLabelID  = uint(11)
+		otherFleetLabelID  = uint(12)
+	)
+	fleetIDsByName := map[string]uint{"team1": destinationFleetID, "team2": labelFleetID}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		fleetID, ok := fleetIDsByName[name]
+		require.True(t, ok, "unexpected fleet name %q", name)
+		return &fleet.Team{ID: fleetID, Name: name}, nil
+	}
+
+	ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
+		require.Equal(t, []string{"label1"}, names)
+		return map[string][]uint{"label1": {labelFleetLabelID, otherFleetLabelID}}, nil
+	}
+
+	ds.GetLabelSpecFunc = func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
+		require.Equal(t, "label1", name)
+		require.NotNil(t, filter.TeamID)
+		require.Equal(t, labelFleetID, *filter.TeamID)
+		return &fleet.LabelSpec{ID: labelFleetLabelID, Name: name, TeamID: filter.TeamID}, nil
+	}
+
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		require.Equal(t, labelFleetLabelID, lid)
+		return []*fleet.Host{{ID: 32, TeamID: new(labelFleetID)}, {ID: 12, TeamID: new(labelFleetID)}}, nil
+	}
+
+	var transferredToFleetID *uint
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		transferredToFleetID = params.TeamID
+		require.Equal(t, []uint{32, 12}, params.HostIDs)
+		return nil
+	}
+
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hostIDs []uint) ([]string, error) {
+		return nil, nil
+	}
+
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid, Name: "team1"}, nil
+	}
+
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
+		return nil
+	}
+
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		return nil, nil
+	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return nil, nil
+	}
+
+	_, err := runAppNoChecks([]string{"hosts", "transfer", "--fleet", "team1", "--label", "label1"})
+	require.ErrorContains(t, err, `More than one fleet has a label named "label1".`)
+	require.ErrorContains(t, err, "add --label-fleet <fleet name>")
+	assert.False(t, ds.AddHostsToTeamFuncInvoked)
+
+	ds.AllLabelIDsByNameFuncInvoked = false
+	assert.Empty(t, runAppForTest(t, []string{"hosts", "transfer", "--fleet", "team1", "--label", "label1", "--label-fleet", "team2"}))
+	assert.False(t, ds.AllLabelIDsByNameFuncInvoked)
+	assert.True(t, ds.GetLabelSpecFuncInvoked)
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
+	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	require.NotNil(t, transferredToFleetID)
+	assert.Equal(t, destinationFleetID, *transferredToFleetID)
+
+	ds.AddHostsToTeamFuncInvoked = false
+	assert.Empty(t, runAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--label", "label1", "--label-fleet", "team2"}))
+	assert.False(t, ds.AllLabelIDsByNameFuncInvoked)
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
+	assert.Nil(t, transferredToFleetID)
 }
 
 func TestHostsTransferByStatus(t *testing.T) {

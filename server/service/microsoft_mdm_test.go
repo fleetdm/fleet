@@ -3990,7 +3990,15 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		{name: "different host", enrollingHost: enrollingHost, existing: linked, lockWipe: noLockWipe, wantErr: refused},
 		{name: "different host, existing host's wipe pending", enrollingHost: enrollingHost, existing: linked, lockWipe: pendingWipe, wantErr: refused},
 		{name: "Entra: same host re-enrolling", enrollingEntraDeviceID: existingEntraDeviceID, existing: linkedEntra},
-		{name: "Entra: existing enrollment unbound", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked},
+		{
+			name: "Entra: existing host unbound, its wipe pending", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked,
+			lockWipe: pendingWipe, wantErr: refused,
+		},
+		{name: "Entra: existing host unbound, was wiped", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked, lockWipe: wiped},
+		{
+			name: "Entra: existing enrollment unbound and not linked to a host", enrollingEntraDeviceID: enrollingEntraDeviceID,
+			existing: &fleet.MDMWindowsEnrolledDevice{},
+		},
 		{name: "Entra: different host", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linkedEntra, lockWipe: noLockWipe, wantErr: refused},
 		{name: "Entra: different host, existing host was wiped", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linkedEntra, lockWipe: wiped},
 		{
@@ -3998,7 +4006,7 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			wantErr: refused,
 		},
 		{name: "Entra: no deviceid, enrollment bound", existing: linkedEntra, lockWipe: noLockWipe, wantErr: refused},
-		{name: "Entra: no deviceid, enrollment unbound", existing: linked},
+		{name: "Entra: no deviceid, existing host unbound", existing: linked, lockWipe: noLockWipe, wantErr: refused},
 		{
 			name: "Entra: same Autopilot host", enrollingEntraDeviceID: existingEntraDeviceID, existing: linked,
 			autopilotEntraDeviceID: existingEntraDeviceID,
@@ -4011,10 +4019,12 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			name: "Entra: different host than the Autopilot host", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked,
 			autopilotEntraDeviceID: existingEntraDeviceID, lockWipe: noLockWipe, wantErr: refused,
 		},
-		// A tenant whose tokens never carry deviceid must keep re-enrolling its Autopilot devices.
-		{name: "Entra: no deviceid, Autopilot host", existing: linked, autopilotEntraDeviceID: existingEntraDeviceID},
+		{
+			name: "Entra: no deviceid, Autopilot host", existing: linked, autopilotEntraDeviceID: existingEntraDeviceID,
+			lockWipe: noLockWipe, wantErr: refused,
+		},
 		{name: "same enrollment holds both IDs", enrollingHost: existingHost, existing: linked, byDeviceID: linked},
-		{name: "device ID held by the same host", enrollingHost: existingHost, byDeviceID: linkedOtherHardwareID},
+		{name: "device ID held by the same host, its Entra device ID not carried over", enrollingHost: existingHost, byDeviceID: linkedEntraOtherHardwareID},
 		{
 			name: "device ID held by another host", enrollingHost: enrollingHost, byDeviceID: linkedOtherHardwareID, lockWipe: noLockWipe,
 			wantErr: refusedDeviceID,
@@ -4023,6 +4033,10 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		{
 			name: "Entra: device ID held by another host", enrollingEntraDeviceID: enrollingEntraDeviceID,
 			byDeviceID: linkedEntraOtherHardwareID, lockWipe: noLockWipe, wantErr: refusedDeviceID,
+		},
+		{
+			name: "Entra: device ID held by an unbound host", enrollingEntraDeviceID: enrollingEntraDeviceID,
+			byDeviceID: linkedOtherHardwareID, lockWipe: noLockWipe, wantErr: refusedDeviceID,
 		},
 		{name: "lookup fails", enrollingHost: enrollingHost, dsErr: errors.New("db is down"), wantErr: "db is down"},
 	} {
@@ -4083,6 +4097,14 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			idKey, id, matched := "mdm_hardware_id", hwID, tc.existing
 			if tc.wantErr == refusedDeviceID {
 				idKey, id, matched = "mdm_device_id", deviceID, tc.byDeviceID
+			}
+			if tc.enrollingHost == "" && matched.EntraDeviceID == "" && tc.autopilotEntraDeviceID == "" {
+				require.Equal(t, map[string]string{
+					idKey:                       id,
+					"enrolling_entra_device_id": tc.enrollingEntraDeviceID,
+					"existing_host_uuid":        matched.HostUUID,
+				}, attrs)
+				return
 			}
 			if tc.enrollingHost == "" && tc.enrollingEntraDeviceID == "" {
 				require.Equal(t, map[string]string{

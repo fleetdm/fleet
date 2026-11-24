@@ -34,13 +34,13 @@ on:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT:
         required: true
 
-permissions:
-  contents: read
-  id-token: write # required for attestations
-  attestations: write # required for attestations
+permissions: {}
 
 jobs:
   code-sign-windows:
+    permissions:
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     runs-on: windows-2022
     steps:
       - name: Harden Runner
