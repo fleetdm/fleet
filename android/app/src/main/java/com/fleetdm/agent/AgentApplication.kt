@@ -63,6 +63,8 @@ class AgentApplication : Application() {
 
         refreshEnrollmentCredentials()
         schedulePeriodicCertificateEnrollment()
+        schedulePeriodicDeviceVitals()
+        DeviceVitalsWorker.registerRoamingChangeCallback(this)
     }
 
     private fun refreshEnrollmentCredentials() {
@@ -125,5 +127,23 @@ class AgentApplication : Application() {
             )
 
         Log.i(TAG, "Scheduled periodic certificate enrollment every 15 minutes")
+    }
+
+    private fun schedulePeriodicDeviceVitals() {
+        val workRequest = PeriodicWorkRequestBuilder<DeviceVitalsWorker>(
+            15, // 15 minutes is the minimum
+            TimeUnit.MINUTES,
+        ).setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build(),
+        ).build()
+
+        WorkManager.getInstance(this)
+            .enqueueUniquePeriodicWork(
+                DeviceVitalsWorker.WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                workRequest,
+            )
     }
 }
