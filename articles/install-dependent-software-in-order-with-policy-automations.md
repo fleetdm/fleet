@@ -298,4 +298,4 @@ The script's "already installed" check returned a false positive. Run the check 
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-20">
-<meta name="description" value="Install a prerequisite before the app that depends on it on macOS, Windows, and Linux using gated policies or a custom install script, in the Fleet UI or GitOps.">
+<meta name="description" value="Install a prerequisite before the app that depends on it on macOS, Windows, and Linux using gated policies or a custom install script.">
