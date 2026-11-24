@@ -770,7 +770,7 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, viewedCalled)
 		require.NotNil(t, password.AutoRotateAt)
-		require.Equal(t, *password.AutoRotateAt, expectedRotateAt)
+		require.Equal(t, expectedRotateAt, *password.AutoRotateAt)
 	})
 }
 

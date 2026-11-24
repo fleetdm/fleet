@@ -172,7 +172,7 @@ const viewableRecoveryLockPasswordExpr = `
 		WHEN status <=> 'verifying' AND operation_type = 'install' AND pending_encrypted_password IS NOT NULL
 			THEN pending_encrypted_password
 		WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL THEN encrypted_password
-	END`
+	END` //nolint:gosec // sql query, not a credential
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 	stmt := `
