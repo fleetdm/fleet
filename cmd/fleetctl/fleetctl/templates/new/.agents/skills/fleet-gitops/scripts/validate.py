@@ -1041,9 +1041,9 @@ def check_policies(ctx, fs, policies):
                 if "force_patch" in options:
                     ctx.fail(isrc, f"{what}: if force_patch is true, install_software can't be set")
                 ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies; use '{options[0] if options else 'force_patch'}' instead")
-            if item.get("notify_before_patching") and slug and not str(slug).endswith("/darwin"):
+            if item.get("notify_before_patching") is True and slug and not str(slug).endswith("/darwin"):
                 ctx.fail(isrc, f"{what}: notify_before_patching is macOS-only")
-            if item.get("patch_deadline") and slug and not str(slug).endswith("/darwin"):
+            if item.get("patch_deadline") is True and slug and not str(slug).endswith("/darwin"):
                 ctx.fail(isrc, f"{what}: patch_deadline is macOS-only")
         else:
             if options:
