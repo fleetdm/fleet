@@ -821,6 +821,13 @@
       "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
     },
     {
+      "name": "AutoHotkey",
+      "slug": "autohotkey/windows",
+      "platform": "windows",
+      "unique_identifier": "AutoHotkey",
+      "description": "AutoHotkey is a scripting language for automating tasks and creating hotkeys on Windows."
+    },
+    {
       "name": "Autopsy",
       "slug": "autopsy/windows",
       "platform": "windows",

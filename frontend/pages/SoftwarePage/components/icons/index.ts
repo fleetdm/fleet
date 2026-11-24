@@ -110,6 +110,7 @@ import Atext from "./png/Atext.png";
 import Audacity from "./png/Audacity.png";
 import AudioHijack from "./png/AudioHijack.png";
 import Audiveris from "./png/Audiveris.png";
+import AutoHotkey from "./png/AutoHotkey.png";
 import Autopsy from "./png/Autopsy.png";
 import AvastSecureBrowser from "./png/AvastSecureBrowser.png";
 import AviatrixVpnClient from "./png/AviatrixVpnClient.png";
@@ -1278,6 +1279,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   audacity: Audacity,
   "audio hijack": AudioHijack,
   audiveris: Audiveris,
+  autohotkey: AutoHotkey,
   autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
