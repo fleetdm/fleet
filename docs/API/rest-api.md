@@ -4273,6 +4273,8 @@ To get the number of Linux hosts, use the [Count hosts](#count-hosts) endpoint w
 
 ((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
+> [Get host's OS settings (configuration profile)](https://github.com/fleetdm/fleet/blob/v4.96.0/docs/API/rest-api.md#get-hosts-os-settings-configuration-profile) (`GET /api/v1/fleet/hosts/:id/configuration_profiles`) API endpoint is deprecated as of Fleet 5. It is maintained for backwards compatibility. Please use the below API endpoint instead, to get a list of configuration profiles for a given host.
+
 Returns the information of the host specified using its `id`, `hardware_serial`, `uuid`, or `hostname`.
 
 `GET /api/v1/fleet/hosts/:id`
@@ -6900,50 +6902,6 @@ For macOS hosts, certificates from MDM-delivered profiles containing an ACME pay
 }
 ```
 
-### Get host's OS settings (configuration profile)
-
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician))
-
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
-
-Retrieves a list of the configuration profiles assigned to a host.
-
-`GET /api/v1/fleet/hosts/:id/configuration_profiles`
-
-#### Parameters
-
-| Name | Type    | In   | Description                      |
-| ---- | ------- | ---- | -------------------------------- |
-| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
-
-
-#### Example
-
-`GET /api/v1/fleet/hosts/8/configuration_profiles`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 8,
-  "profiles": [
-    {
-      "profile_uuid": "bc84dae7-396c-4e10-9d45-5768bce8b8bd",
-      "fleet_id": 0,
-      "name": "Example profile",
-      "identifier": "com.example.profile",
-      "created_at": "2023-03-31T00:00:00Z",
-      "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo=",
-      "self_service": true,
-      "hidden": false
-    }
-  ]
-}
-```
-
 ### Lock host
 
 ((Admin)) ((Maintainer))
@@ -8546,6 +8504,8 @@ activation="activation.json"
 ((Admin)) ((Maintainer)) ((GitOps)) ((Technician))
 
 > [List custom macOS settings](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+
+> [Get host's OS settings (configuration profile)](https://github.com/fleetdm/fleet/blob/v4.96.0/docs/API/rest-api.md#get-hosts-os-settings-configuration-profile) (`GET /api/v1/fleet/hosts/:id/configuration_profiles`) API endpoint is deprecated as of Fleet 5. It is maintained for backwards compatibility. Please use the below API endpoint instead, to show a list of configuration profiles for a given fleet.
 
 Get a list of the configuration profiles in Fleet.
 
