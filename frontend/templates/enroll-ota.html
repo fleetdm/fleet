@@ -1097,8 +1097,8 @@
         if (platform === "macos") {
           if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
             renderError(
-              "This URL is invalid or expired.",
-              "Apple devices can only enroll via Apple Business. To enroll your device to Fleet, reach out to your IT admin."
+              "Apple devices can only enroll via Apple Business.",
+              "To enroll your device to Fleet, reach out to your IT admin."
             );
             return;
           }
@@ -1125,8 +1125,8 @@
         if (platform === "ios" || platform === "ipad") {
           if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
             renderError(
-              "This URL is invalid or expired.",
-              "Apple devices can only enroll via Apple Business. To enroll your device to Fleet, reach out to your IT admin."
+              "Apple devices can only enroll via Apple Business.",
+              "To enroll your device to Fleet, reach out to your IT admin."
             );
             return;
           }
