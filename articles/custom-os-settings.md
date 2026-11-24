@@ -291,7 +291,7 @@ Hosts that are running MDM commands or will run MDM commands to apply OS setting
 
 ### Failed
 
-> Apple MDM profiles and Android certificates are automatically attempted up to 4 times (1 initial attempt + 3 retries) before entering the "Failed" state.
+> Apple and Windows MDM profiles are automatically attempted up to 4 times (1 initial attempt + 3 retries) before entering the "Failed" state. Android certificates are automatically attempted up to 8 times (1 initial attempt + 7 retries).
 
 Hosts that failed to apply OS settings. For Windows profiles, status codes are listed in [Microsoft's OMA DM docs](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 

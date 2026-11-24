@@ -1007,7 +1007,7 @@ Automatic renewal is only supported if the validity period is set to 2 days or l
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
-Fleet automatically retries each failed certificate up to 3 times per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). On macOS, iOS, iPadOS, and Windows, manually resending a profile restores its 3 retries. On Android, a manual resend gets one attempt.
+On macOS, iOS, iPadOS, and Windows, Fleet automatically retries each failed certificate up to 3 times per host, checking every 30 seconds for certificates to resend. Manually resending the profile restores its 3 retries. On Android, Fleet retries each failed certificate up to 7 times and waits longer before each retry. A manual resend on Android gets 1 attempt.
 
 > Currently, for NDES, Smallstep, ACME, and SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
@@ -1171,7 +1171,7 @@ Two things do not use up a retry:
 - Resending a profile because its one-time challenge expired. This is Fleet refreshing a stale challenge, not a failure to issue.
 - A temporary error from the NDES admin URL when Fleet fetches a challenge (see [Troubleshooting NDES on Windows](#troubleshooting-ndes-on-windows)).
 
-Resending the profile restores its 3 retries. That includes a manual resend and the resend Fleet does when an IdP or custom host vital variable in the profile changes.
+A manual resend, or the resend Fleet does when an IdP or custom host vital variable in the profile changes, restores the profile's 3 retries.
 
 ### How to get the CAThumbprint for Windows SCEP profiles
 
