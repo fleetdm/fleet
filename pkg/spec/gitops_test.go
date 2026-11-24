@@ -3223,6 +3223,40 @@ func TestExpandBaseItems(t *testing.T) {
 		}
 	})
 
+	// A brace group can span the last separator, so each alternative's own
+	// directory is checked.
+	t.Run("no_matches_brace_alternatives", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "platforms", "macos", "reports"), 0o755))
+		for pattern, wantErr := range map[string]bool{
+			"{platforms/macos/reports/*.yml,policies/*.yml}":    false,
+			"{policies/*.yml,platforms/macos/reports/*.yml}":    false,
+			"platforms/macos/{policies/*.yml,reports/*.yml}":    false,
+			"platforms/{windows,macos}/{reports/*.yml,x/*.yml}": false,
+			"{policies/*.yml,platforms/macos/reprots/*.yml}":    true,
+			"platforms/macos/{policies/*.yml,reprots/*.yml}":    true,
+			"platforms/{windows,linux}/{reports/*.yml,x/*.yml}": true,
+		} {
+			var warnings []string
+			logFn := func(format string, args ...any) {
+				warnings = append(warnings, fmt.Sprintf(format, args...))
+			}
+			items := []fleet.BaseItem{{Paths: new(pattern)}}
+			result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
+			assert.Empty(t, result, pattern)
+			if wantErr {
+				require.Len(t, errs, 1, pattern)
+				assert.Contains(t, errs[0].Error(), "no directory matches", pattern)
+				assert.Empty(t, warnings, pattern)
+				continue
+			}
+			require.Empty(t, errs, pattern)
+			require.Len(t, warnings, 1, pattern)
+			assert.Contains(t, warnings[0], "matched no test", pattern)
+		}
+	})
+
 	t.Run("no_matches_base_is_file_error", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
@@ -3350,6 +3384,21 @@ func TestExpandBaseItems(t *testing.T) {
 		assert.Contains(t, errs[0].Error(), `contains glob characters`)
 		assert.Contains(t, errs[1].Error(), `does not contain glob characters`)
 	})
+}
+
+func TestExpandBraceAlternatives(t *testing.T) {
+	t.Parallel()
+	for pattern, want := range map[string][]string{
+		"reports/*.yml":     {"reports/*.yml"},
+		"{a/*.yml,b/*.yml}": {"a/*.yml", "b/*.yml"},
+		"{a,b}/{c,d}.yml":   {"a/c.yml", "a/d.yml", "b/c.yml", "b/d.yml"},
+		"{a,{b,c}/x}.yml":   {"a.yml", "b/x.yml", "c/x.yml"},
+		`\{a,b}/*.yml`:      {`\{a,b}/*.yml`},
+		"{a,b/*.yml":        {"{a,b/*.yml"},
+		"a}/{b,}*.yml":      {"a}/b*.yml", "a}/*.yml"},
+	} {
+		assert.Equal(t, want, expandBraceAlternatives(pattern), pattern)
+	}
 }
 
 func TestResolveScriptPaths(t *testing.T) {
