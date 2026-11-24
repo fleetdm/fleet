@@ -472,6 +472,50 @@ func TestSaveHostPackStatsReadsPrimary(t *testing.T) {
 	require.Equal(t, []uint64{3}, executions)
 }
 
+func TestGetOrInsertMDMSolutionDB(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	getOrInsert := func(serverURL string) uint {
+		var id uint
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			var err error
+			id, err = getOrInsertMDMSolutionDB(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
+			return err
+		})
+		require.NoError(t, err)
+		return id
+	}
+
+	t.Run("inserts when missing, then reuses", func(t *testing.T) {
+		id := getOrInsert("https://a.example.com")
+		require.NotZero(t, id)
+		require.Equal(t, id, getOrInsert("https://a.example.com"))
+		require.NotEqual(t, id, getOrInsert("https://b.example.com"))
+	})
+
+	t.Run("row committed after the transaction snapshot", func(t *testing.T) {
+		const serverURL = "https://stale.example.com"
+		tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+		require.NoError(t, err)
+		defer func() { _ = tx.Rollback() }()
+
+		// Fix the REPEATABLE READ snapshot before the row exists.
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM mobile_device_management_solutions`))
+
+		res, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`,
+			fleet.WellKnownMDMFleet, serverURL)
+		require.NoError(t, err)
+		committedID, err := res.LastInsertId()
+		require.NoError(t, err)
+
+		id, err := getOrInsertMDMSolutionDB(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
+		require.NoError(t, err)
+		require.EqualValues(t, committedID, id)
+	})
+}
+
 func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host, err := ds.NewHost(ctx, &fleet.Host{

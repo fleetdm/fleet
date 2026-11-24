@@ -203,7 +203,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 
 		// create entry in host_mdm as enrolled (manually), because currently all
 		// android hosts are necessarily MDM-enrolled when created.
-		if err := ds.upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
@@ -317,8 +317,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		// host_seen_times row the host reads as last seen when its row was created.
 		// The stale-message check runs before this and is recorded after, so an older report
 		// processed concurrently can commit last; never move the seen time backwards.
-		if _, err := tx.ExecContext(
-			ctx, `
+		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
 			ON DUPLICATE KEY UPDATE seen_time = GREATEST(COALESCE(seen_time, VALUES(seen_time)), VALUES(seen_time))`,
 			host.Host.ID, seenTime,
@@ -337,7 +336,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
-			if err := ds.upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
+			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, androidPersonalEnrollmentType(companyOwned), true, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
 			}
 			// Certificate template records for re-enrolling hosts are created by the caller
@@ -363,8 +362,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			// value. The condition only reads columns that stay unchanged whenever it holds, so
 			// assignment order doesn't matter.
 			const keepMeasurement = `gigs_disk_space_available >= 0 AND gigs_total_disk_space > 0`
-			if _, err := tx.ExecContext(
-				ctx, `
+			if _, err := tx.ExecContext(ctx, `
 				INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space)
 				VALUES (?, ?, ?, ?, NULL)
 				ON DUPLICATE KEY UPDATE
@@ -866,7 +864,7 @@ func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (b
 			// Already enrolled: nothing to recover.
 			return nil
 		}
-		if err := ds.upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, current.PersonalEnrollmentType, true, hostID); err != nil {
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, current.PersonalEnrollmentType, true, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "re-enroll android host_mdm info")
 		}
 		didEnroll = true
@@ -885,8 +883,8 @@ func androidPersonalEnrollmentType(companyOwned bool) fleet.PersonalEnrollmentTy
 	return fleet.PersonalEnrollmentTypeWorkProfile
 }
 
-func (ds *Datastore) upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, personalType fleet.PersonalEnrollmentType, enrolled bool, hostID uint) error {
-	mdmID, err := ds.getOrInsertMDMSolutionWithWriter(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
+func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, personalType fleet.PersonalEnrollmentType, enrolled bool, hostID uint) error {
+	mdmID, err := getOrInsertMDMSolutionDB(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get or insert mdm solution")
 	}
@@ -1617,8 +1615,7 @@ func (ds *Datastore) FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Cont
 		ORDER BY created_at, command_uuid
 		LIMIT ?
 	`
-	res, err := ds.writer(ctx).ExecContext(
-		ctx, stmt,
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
 		string(android.MDMAndroidCommandStatusError), errorMessage,
 		string(android.MDMAndroidCommandStatusPending), createdBefore, operationNamePrefix, operationNamePrefix, limit,
 	)
