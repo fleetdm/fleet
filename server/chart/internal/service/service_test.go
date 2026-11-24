@@ -841,6 +841,82 @@ func TestGetChartDataScopesDataByViewer(t *testing.T) {
 	})
 }
 
+func TestGetChartDataTimeout(t *testing.T) {
+	blockUntilDone := func(ctx context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	t.Run("deadline returns 422", func(t *testing.T) {
+		ds := &mockDatastore{getSCDDataFunc: blockUntilDone}
+		svc := newCVEService(ds)
+		svc.requestTimeout = 50 * time.Millisecond
+
+		started := time.Now()
+		_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+		require.Less(t, time.Since(started), 5*time.Second)
+		var msgErr *platform_http.UserMessageError
+		require.ErrorAs(t, err, &msgErr)
+		require.Equal(t, http.StatusUnprocessableEntity, msgErr.StatusCode())
+		require.Contains(t, err.Error(), "filters")
+	})
+
+	t.Run("deadline while resolving CVEs returns 422", func(t *testing.T) {
+		ds := &mockDatastore{}
+		ds.resolveCVEEntitiesFn = func(ctx context.Context, _ types.CVEChartFilter) ([]string, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		svc := newCVEService(ds)
+		svc.requestTimeout = 50 * time.Millisecond
+
+		_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+		var msgErr *platform_http.UserMessageError
+		require.ErrorAs(t, err, &msgErr)
+		require.Equal(t, http.StatusUnprocessableEntity, msgErr.StatusCode())
+	})
+
+	t.Run("caller's own deadline is not a 422", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(premiumCtx(t), 50*time.Millisecond)
+		defer cancel()
+		svc := newCVEService(&mockDatastore{getSCDDataFunc: blockUntilDone})
+
+		_, err := svc.GetChartData(ctx, "cve", api.RequestOpts{Days: 7})
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		var msgErr *platform_http.UserMessageError
+		require.NotErrorAs(t, err, &msgErr)
+	})
+
+	t.Run("store error passes through", func(t *testing.T) {
+		storeErr := errors.New("boom")
+		ds := &mockDatastore{}
+		ds.getSCDDataFunc = func(context.Context, string, time.Time, time.Time, time.Duration, api.SampleStrategy, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
+			return nil, storeErr
+		}
+		svc := newCVEService(ds)
+
+		_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+		require.ErrorIs(t, err, storeErr)
+		var msgErr *platform_http.UserMessageError
+		require.NotErrorAs(t, err, &msgErr)
+	})
+
+	t.Run("client disconnect is not a 422", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(premiumCtx(t))
+		ds := &mockDatastore{}
+		ds.getSCDDataFunc = func(ctx context.Context, dataset string, start, end time.Time, size time.Duration, strategy api.SampleStrategy, mask *roaring.Bitmap, ids []string) ([]api.DataPoint, error) {
+			cancel()
+			return blockUntilDone(ctx, dataset, start, end, size, strategy, mask, ids)
+		}
+		svc := newCVEService(ds)
+
+		_, err := svc.GetChartData(ctx, "cve", api.RequestOpts{Days: 7})
+		require.ErrorIs(t, err, context.Canceled)
+		var msgErr *platform_http.UserMessageError
+		require.NotErrorAs(t, err, &msgErr)
+	})
+}
+
 func TestComputeBucketRange(t *testing.T) {
 	t.Run("hourly UTC", func(t *testing.T) {
 		now := time.Date(2026, 4, 8, 14, 37, 12, 0, time.UTC)

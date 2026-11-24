@@ -25,6 +25,10 @@ const (
 	cvssMaxScore = 10.0
 	epssMinScore = 0.0
 	epssMaxScore = 1.0
+
+	// chartRequestTimeout bounds the storage work of one chart request so it
+	// fails before the server's write timeout instead of running unbounded.
+	chartRequestTimeout = 30 * time.Second
 )
 
 // Service is the chart bounded context service implementation.
@@ -36,6 +40,8 @@ type Service struct {
 	datasets  map[string]api.Dataset
 	hostCache *hostFilterCache
 	logger    *slog.Logger
+
+	requestTimeout time.Duration
 }
 
 // NewService creates a new chart service.
@@ -48,6 +54,8 @@ func NewService(authz platform_authz.Authorizer, store types.Datastore, viewerPr
 		datasets:  make(map[string]api.Dataset),
 		hostCache: newHostFilterCache(hostFilterCacheTTL),
 		logger:    logger,
+
+		requestTimeout: chartRequestTimeout,
 	}
 }
 
@@ -145,6 +153,9 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 
 	startDate, endDate := computeBucketRange(time.Now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
 
+	storageCtx, cancel := context.WithTimeout(ctx, s.requestTimeout)
+	defer cancel()
+
 	// Build the host filter. The bitmap mask always encodes "currently visible
 	// hosts" — team scoping, label/platform/include/exclude, and incidentally
 	// dropping hosts deleted since the SCD rows were written.
@@ -156,7 +167,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		ExcludeHostIDs: opts.ExcludeHostIDs,
 	}
 
-	filterMask, err := s.hostCache.Get(ctx, hostFilter, func(ctx context.Context) (*roaring.Bitmap, error) {
+	filterMask, err := s.hostCache.Get(storageCtx, hostFilter, func(ctx context.Context) (*roaring.Bitmap, error) {
 		hostIDs, err := s.store.GetHostIDsForFilter(ctx, hostFilter)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetch host IDs for chart filter")
@@ -164,7 +175,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return chart.NewBitmap(hostIDs), nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, chartStorageError(ctx, storageCtx, err)
 	}
 
 	// entityIDs semantics at the storage layer: nil = no filter (all entities);
@@ -187,15 +198,15 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 			KnownExploit: opts.KnownExploit,
 			ExcludeCVEs:  opts.ExcludeCVEs,
 		}
-		entityIDs, err = s.store.ResolveCVEChartEntities(ctx, cveFilter)
+		entityIDs, err = s.store.ResolveCVEChartEntities(storageCtx, cveFilter)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resolve CVE chart entities")
+			return nil, chartStorageError(ctx, storageCtx, ctxerr.Wrap(ctx, err, "resolve CVE chart entities"))
 		}
 	}
 
-	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
+	data, err := s.store.GetSCDData(storageCtx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
 	if err != nil {
-		return nil, err
+		return nil, chartStorageError(ctx, storageCtx, err)
 	}
 
 	return &api.Response{
@@ -221,6 +232,20 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		},
 		Data: data,
 	}, nil
+}
+
+// chartStorageError turns an error caused by the request deadline into a 422,
+// which the dashboard does not retry, and returns any other error unchanged,
+// including a client disconnect. A request sharing another's host filter fetch
+// can get that request's deadline error first, hence the errors.Is check.
+func chartStorageError(ctx, storageCtx context.Context, err error) error {
+	if ctx.Err() == nil && (storageCtx.Err() != nil || errors.Is(err, context.DeadlineExceeded)) {
+		return platform_http.NewUserMessageError(
+			errors.New("this chart took too long to load. Narrow the filters, for example with a higher minimum severity, and try again"),
+			http.StatusUnprocessableEntity,
+		)
+	}
+	return err
 }
 
 // expandPlatforms resolves platform families (e.g. "linux") into the
@@ -321,8 +346,8 @@ func (s *Service) ScrubDatasetFleet(ctx context.Context, dataset string, fleetID
 	return s.store.ApplyScrubMaskToDataset(ctx, dataset, mask, scrubBatchSize)
 }
 
-// computeBucketRange returns a (startDate, endDate) UTC pair such that the
-// GetSCDData walker will emit (days*24h)/bucketSize data points labeled at
+// computeBucketRange returns a (startDate, endDate) UTC pair such that
+// GetSCDData will emit (days*24h)/bucketSize data points labeled at
 // bucket boundaries aligned to the client's local time. The last label is
 // endDate — i.e., the current (possibly ongoing) bucket in the client's tz.
 func computeBucketRange(now time.Time, bucketSize time.Duration, days, tzOffsetMinutes int) (time.Time, time.Time) {
