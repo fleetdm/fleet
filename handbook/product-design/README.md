@@ -189,9 +189,7 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 Confirm and celebrate happens async, without a call.
 
-The relevant Product Designer (PD) reviews the checkboxes in user stories we shipped but haven't closed. Are they done? If not, notify the relevant contributor to help get them done. If they're done, the PD closes the story.
-
-If a story has customer labels and doesn't fulfill the entire request (more user stories still need to be drafted and shipped), the PD leaves it open, assigns the relevant Customer Success Manager (CSM), and adds the `:help-customers` label to move the story to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79). Customer Success's automation only notifies customers about closed stories.
+The relevant Product Designer (PD) reviews the checkboxes in user stories we shipped but haven't closed. Are they done? If not, notify the relevant contributor to help get them done. If they're done, the PD closes the story, even if it doesn't fulfill the entire request. Customer Success's automation notifies customers when stories close.
 
 
 ### Update a company brand front
