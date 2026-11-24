@@ -112,19 +112,28 @@ const getProfileStatusUI = (raw?: string | null) => {
 const DEFAULT_DEP_ERROR_MESSAGE =
   "Fleet can't retrieve data from Apple right now. Please try again later.";
 
-export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
-  if (!responseUpdatedAt) {
+const parseDate = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+  // ISO 8601 string with Z (UTC), e.g. "2026-03-25T20:15:19Z"
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+// Without a retry time from Apple, Fleet retries a throttled assignment after 24 hours.
+export const getThrottleCopy = (
+  responseUpdatedAt?: string | null,
+  throttledRetryAfter?: string | null
+) => {
+  const lastTime = parseDate(responseUpdatedAt);
+  const retryAt =
+    parseDate(throttledRetryAfter) ?? (lastTime && addHours(lastTime, 24));
+
+  if (!retryAt) {
     return "when available.";
   }
 
-  // responseUpdatedAt is an ISO 8601 string with Z (UTC), e.g. "2026-03-25T20:15:19Z"
-  const lastTime = new Date(responseUpdatedAt);
-
-  if (Number.isNaN(lastTime.getTime())) {
-    return "when available.";
-  }
-
-  const retryAt = addHours(lastTime, 24);
   const now = new Date();
 
   if (now >= retryAt) {
@@ -441,7 +450,8 @@ const MDMStatusModal = ({
             API rate limit when preparing the macOS Setup Assistant for this
             host. Fleet will try again{" "}
             {getThrottleCopy(
-              depAssignmentData.host_dep_assignment?.response_updated_at
+              depAssignmentData.host_dep_assignment?.response_updated_at,
+              depAssignmentData.host_dep_assignment?.throttled_retry_after
             )}
           </>
         ),
