@@ -83,6 +83,7 @@ func TestProxyClientAppCallsExplainRejectedSecret(t *testing.T) {
 		wantRejectedSecret bool
 	}{
 		{name: "unauthorized", status: http.StatusUnauthorized, wantRejectedSecret: true},
+		{name: "forbidden", status: http.StatusForbidden},
 		{name: "server error", status: http.StatusInternalServerError},
 	}
 
@@ -110,7 +111,7 @@ func TestProxyClientAppCallsExplainRejectedSecret(t *testing.T) {
 				var ae *googleapi.Error
 				require.ErrorAs(t, err, &ae)
 				assert.Equal(t, st.status, ae.Code)
-				assert.Equal(t, st.wantRejectedSecret, IsAuthenticationError(err))
+				assert.Equal(t, st.status == http.StatusUnauthorized || st.status == http.StatusForbidden, IsAuthenticationError(err))
 			})
 		}
 	}
