@@ -83,6 +83,7 @@ This activity contains the following fields:
 - [read_managed_local_account](#read-managed-local-account)
 - [locked_host](#locked-host)
 - [unlocked_host](#unlocked-host)
+- [viewed_host_unlock_pin](#viewed-host-unlock-pin)
 - [wiped_host](#wiped-host)
 - [failed_wipe](#failed-wipe)
 - [rotated_host_recovery_lock_password](#rotated-host-recovery-lock-password)
@@ -300,7 +301,7 @@ Generated when a user sends a request to lock a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
-- "view_pin": Whether lock PIN was viewed (for Apple devices).
+- "view_pin": Whether lock PIN was viewed (for Apple and Android devices).
 
 #### Example
 
@@ -328,6 +329,27 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "host_platform": "darwin"
+}
+```
+
+This activity isn't generated for Android hosts, because Fleet doesn't send an unlock command to them. See [viewed_host_unlock_pin](#viewed-host-unlock-pin).
+
+### viewed_host_unlock_pin
+
+Generated when a user views the unlock PIN of an Android host, using **Actions > View unlock PIN**, `fleetctl mdm unlock`, or `POST /api/v1/fleet/hosts/:id/unlock`. Viewing the PIN as part of a lock request (`view_pin=true`) is logged in [locked_host](#locked-host) instead.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's Pixel 9",
+  "host_platform": "android"
 }
 ```
 
