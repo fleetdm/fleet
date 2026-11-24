@@ -1115,6 +1115,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-01 13:31:34
 
+### [CVE-2026-71200](https://nvd.nist.gov/vuln/detail/CVE-2026-71200)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-71199](https://nvd.nist.gov/vuln/detail/CVE-2026-71199)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
 ### [CVE-2026-66046](https://nvd.nist.gov/vuln/detail/CVE-2026-66046)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1763,6 +1779,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:21:36
 
+### [CVE-2026-119079](https://nvd.nist.gov/vuln/detail/CVE-2026-119079)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-118380](https://nvd.nist.gov/vuln/detail/CVE-2026-118380)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
 ### [CVE-2026-11824](https://nvd.nist.gov/vuln/detail/CVE-2026-11824)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1779,6 +1811,78 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-10-26 09:29:44
 
+### [CVE-2026-112323](https://nvd.nist.gov/vuln/detail/CVE-2026-112323)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112322](https://nvd.nist.gov/vuln/detail/CVE-2026-112322)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112321](https://nvd.nist.gov/vuln/detail/CVE-2026-112321)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112320](https://nvd.nist.gov/vuln/detail/CVE-2026-112320)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112319](https://nvd.nist.gov/vuln/detail/CVE-2026-112319)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112318](https://nvd.nist.gov/vuln/detail/CVE-2026-112318)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112317](https://nvd.nist.gov/vuln/detail/CVE-2026-112317)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112316](https://nvd.nist.gov/vuln/detail/CVE-2026-112316)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
+### [CVE-2026-112315](https://nvd.nist.gov/vuln/detail/CVE-2026-112315)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
+
 ### [CVE-2026-111497](https://nvd.nist.gov/vuln/detail/CVE-2026-111497)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -1794,6 +1898,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/apt`,`pkg:deb/debian/libapt-pkg7.0`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-11-06 13:40:33
+
+### [CVE-2026-107364](https://nvd.nist.gov/vuln/detail/CVE-2026-107364)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers; the image only ships krb5 client runtime libraries (no KDC or kadmind).
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-11-24 16:14:02
 
 ### [CVE-2026-103111](https://nvd.nist.gov/vuln/detail/CVE-2026-103111)
 - **Author:** @lucasmrod
