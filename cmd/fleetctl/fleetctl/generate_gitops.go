@@ -2422,7 +2422,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 	// Fill in InstallDuringSetup for software, as that information is only available
 	// from the setup experience endpoint
-	platforms := "macos,windows,linux,ios,ipados,android"
+	platforms := "macos,windows,linux,ios,ipados,tvos,android"
 	setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platforms, teamID)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)

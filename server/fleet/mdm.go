@@ -323,12 +323,12 @@ type ABMTokenTeam struct {
 // id and name columns, which are read separately (the ids live on abm_tokens,
 // the names come from a LEFT JOIN on teams). A nil default fleet id means
 // "Unassigned" and yields the zero id.
-func (t *ABMToken) PopulateTeams() {
-	t.MacOSTeam = ABMTokenTeam{Name: t.MacOSTeamName, ID: ptr.ValOrZero(t.MacOSDefaultTeamID)}
-	t.IOSTeam = ABMTokenTeam{Name: t.IOSTeamName, ID: ptr.ValOrZero(t.IOSDefaultTeamID)}
-	t.IPadOSTeam = ABMTokenTeam{Name: t.IPadOSTeamName, ID: ptr.ValOrZero(t.IPadOSDefaultTeamID)}
-	t.TvOSTeam = ABMTokenTeam{Name: t.TvOSTeamName, ID: ptr.ValOrZero(t.TvOSDefaultTeamID)}
-	t.BYODTeam = ABMTokenTeam{Name: t.BYODTeamName, ID: ptr.ValOrZero(t.BYODDefaultTeamID)}
+func (a *ABMToken) PopulateTeams() {
+	a.MacOSTeam = ABMTokenTeam{Name: a.MacOSTeamName, ID: ptr.ValOrZero(a.MacOSDefaultTeamID)}
+	a.IOSTeam = ABMTokenTeam{Name: a.IOSTeamName, ID: ptr.ValOrZero(a.IOSDefaultTeamID)}
+	a.IPadOSTeam = ABMTokenTeam{Name: a.IPadOSTeamName, ID: ptr.ValOrZero(a.IPadOSDefaultTeamID)}
+	a.TvOSTeam = ABMTokenTeam{Name: a.TvOSTeamName, ID: ptr.ValOrZero(a.TvOSDefaultTeamID)}
+	a.BYODTeam = ABMTokenTeam{Name: a.BYODTeamName, ID: ptr.ValOrZero(a.BYODDefaultTeamID)}
 }
 
 // AppleCSR is the authorization subject of the Apple MDM setup endpoints.

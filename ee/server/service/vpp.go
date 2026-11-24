@@ -2057,8 +2057,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	actConfiguration := payload.Configuration
 	if actConfiguration == nil && len(meta.Configuration) > 0 {
 		actConfiguration = meta.Configuration
-		switch meta.Platform {
-		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+		if meta.Platform.SupportsManagedAppConfiguration() {
 			wrapped, err := json.Marshal(string(meta.Configuration))
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for activity")

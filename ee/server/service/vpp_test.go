@@ -1552,31 +1552,43 @@ func TestUpdateAppStoreAppActivityToken(t *testing.T) {
 
 func TestUpdateAppStoreAppActivityKeepsStoredSettings(t *testing.T) {
 	t.Parallel()
-	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
-	ds := new(mock.Store)
-	svc := newTestService(t, ds)
-	calls := 0
-	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
-		calls++
-		app := &fleet.VPPAppStoreApp{AdamID: "100", Platform: fleet.IOSPlatform, Name: "Canva", VPPAppsTeamsID: 1}
-		if calls == 1 {
-			app.Configuration = json.RawMessage(`<dict></dict>`)
-			app.LabelsIncludeAny = []fleet.SoftwareScopeLabel{{LabelID: 3, LabelName: "Staging"}}
-		}
-		// later reads simulate a lagging replica that still shows no labels or configuration
-		return []*fleet.VPPAppStoreApp{app}, nil
-	}
-	ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
-		return &fleet.VPPApp{AppTeamID: 1}, nil
-	}
-	ds.GetVPPTokenFunc = func(context.Context, uint) (*fleet.VPPTokenDB, error) { return nil, nil }
+	for _, tc := range []struct {
+		platform    fleet.InstallableDevicePlatform
+		selfService bool
+	}{
+		{fleet.IOSPlatform, true},
+		{fleet.TVOSPlatform, false},
+	} {
+		t.Run(string(tc.platform), func(t *testing.T) {
+			t.Parallel()
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
-	// A partial edit (no labels, no configuration) still reports the stored ones, taken from the pre-update read.
-	_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(true)})
-	require.NoError(t, err)
-	require.Equal(t, []fleet.ActivitySoftwareLabel{{ID: 3, Name: "Staging"}}, act.LabelsIncludeAny)
-	require.JSONEq(t, `"<dict></dict>"`, string(act.Configuration))
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+			calls := 0
+			ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
+				calls++
+				app := &fleet.VPPAppStoreApp{AdamID: "100", Platform: tc.platform, Name: "Canva", VPPAppsTeamsID: 1}
+				if calls == 1 {
+					app.Configuration = json.RawMessage(`<dict></dict>`)
+					app.LabelsIncludeAny = []fleet.SoftwareScopeLabel{{LabelID: 3, LabelName: "Staging"}}
+				}
+				// later reads simulate a lagging replica that still shows no labels or configuration
+				return []*fleet.VPPAppStoreApp{app}, nil
+			}
+			ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
+				return &fleet.VPPApp{AppTeamID: 1}, nil
+			}
+			ds.GetVPPTokenFunc = func(context.Context, uint) (*fleet.VPPTokenDB, error) { return nil, nil }
+
+			// A partial edit (no labels, no configuration) still reports the stored ones, taken from the pre-update read.
+			_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(tc.selfService)})
+			require.NoError(t, err)
+			require.Equal(t, []fleet.ActivitySoftwareLabel{{ID: 3, Name: "Staging"}}, act.LabelsIncludeAny)
+			require.JSONEq(t, `"<dict></dict>"`, string(act.Configuration))
+		})
+	}
 }
 
 const batchVPPTeamName = "📱 Mobile"
