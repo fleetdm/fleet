@@ -4,7 +4,8 @@ on:
   pull_request:
     branches: [ main ]
 
-permissions: {}
+permissions:
+  contents: write #intentional error
 
 jobs:
   scorecard-analysis:
