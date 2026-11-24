@@ -129,6 +129,32 @@ describe("SQLEditor syntax highlighting", () => {
       sql: "SELECT * FROM (SELECT time FROM uptime)",
       expected: { time: ["osquery-column"], uptime: ["osquery-token"] },
     },
+    {
+      name: "table after a FROM-clause subquery",
+      sql:
+        "SELECT 1 FROM (\n  SELECT count(uid) FROM users\n) sub_alias, os_version JOIN processes WHERE time > 0",
+      expected: {
+        users: ["osquery-token"],
+        sub_alias: ["identifier"],
+        os_version: ["osquery-token"],
+        processes: ["osquery-token"],
+        time: ["osquery-column"],
+      },
+    },
+    {
+      name: "schema-qualified table",
+      sql: "SELECT 1 FROM main.os_version WHERE uptime > 0",
+      expected: {
+        main: ["identifier"],
+        os_version: ["osquery-token"],
+        uptime: ["osquery-column"],
+      },
+    },
+    {
+      name: "table after a line comment, trailing spaces, and a blank line",
+      sql: "SELECT 1 FROM -- comment\n\nos_version JOIN   \n  processes",
+      expected: { os_version: ["osquery-token"], processes: ["osquery-token"] },
+    },
   ])("highlights $name", ({ sql, expected }) => {
     const types = getTokenTypes(sql);
     Object.entries(expected).forEach(([word, expectedTypes]) => {

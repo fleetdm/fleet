@@ -69,6 +69,18 @@ ace.define(
         ];
       };
 
+      // Parentheses push onto Ace's state stack so the ")" closing a FROM-clause subquery resumes the FROM clause.
+      var pushParen = function (returnState) {
+        return function (currentState, stack) {
+          stack.unshift("start", returnState);
+          return "start";
+        };
+      };
+      var popParen = function (currentState, stack) {
+        stack.shift();
+        return stack.shift() || "start";
+      };
+
       var keywordMapper = this.createKeywordMapper(
         {
           "osquery-token": osqueryTables,
@@ -114,10 +126,12 @@ ace.define(
           {
             token: "paren.lparen",
             regex: "[\\(]",
+            next: pushParen("start"),
           },
           {
             token: "paren.rparen",
             regex: "[\\)]",
+            next: popParen,
           },
           {
             token: "text",
@@ -133,7 +147,16 @@ ace.define(
           {
             token: "paren.lparen",
             regex: "[\\(]",
-            next: "start",
+            next: pushParen("afterTable"),
+          },
+          {
+            // Schema prefix, as in main.os_version
+            token: "identifier",
+            regex: identifierRegex + "(?=\\.)",
+          },
+          {
+            token: "text",
+            regex: "\\.",
           },
           {
             token: tableMapper,
@@ -142,7 +165,7 @@ ace.define(
           },
           {
             token: "empty",
-            regex: "",
+            regex: "(?=\\S)",
             next: "start",
           },
         ]),
@@ -180,7 +203,7 @@ ace.define(
           },
           {
             token: "empty",
-            regex: "",
+            regex: "(?=\\S)",
             next: "start",
           },
         ]),
