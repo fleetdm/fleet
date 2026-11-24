@@ -39,23 +39,7 @@ ProfileManifests is the same community manifest repo that powers ProfileCreator 
 
 > **Note:** If you're coming from Group Policy, the agent can search the DDF files by the Group Policy name you already know. Roughly 900 nodes carry a `MSFT:GpMapping` with a `GpEnglishName` attribute, so "find the CSP node for Allow enhanced PINs for startup" is a question the agent can answer against the schema.
 
-## Step 2: Write down the rules the agent can't infer
-
-The skill gave the agent the schema. What the schema can't cover is your environment, and that's the gap you fill.
-
-These go in `AGENTS.md` or `CLAUDE.md` at the root of your repo. Anything true of every profile you'll ever ship belongs here. Anything specific to one profile, like which fleet it targets or which setting you want, belongs in the prompt instead. The test is whether you'd repeat it next time.
-
-An agent can read your repo and infer the directory layout, the naming, and the YAML style. It can't infer the standing decisions behind them:
-
-- **Which delivery method you prefer.** Many Apple settings can ship as either a `.mobileconfig` or a DDM declaration. Say which one you want for those cases and why, because otherwise the agent picks for you, and not always the same way twice.
-- **Which Windows CSP you prefer when several would work.** A setting is often reachable through both the Policy CSP and a dedicated CSP, and ADMX-backed nodes are reachable through `ADMXInstall` as well. Pick one and say so, or you'll accumulate three ways of doing the same thing.
-- **How a profile gets wired in.** A file committed outside a directory covered by a `paths:` glob does nothing until it has an explicit `path:` entry in the YAML for each fleet that should receive it. Write down which mechanism your repo uses, and the agent will wire new profiles the same way every time. The target fleet itself goes in the prompt, since it changes per profile.
-- **The conventions behind your layout.** Which directory each delivery method lives in, how files are named, and which identifier prefix you use. 
-- **Anything the agent got wrong once.** Both platforms have a few behaviors where a wrong input still produces a passing result, covered in step 3. Noting them here is the same habit as documenting a gotcha for a new teammate, and it's what keeps the second occurrence from happening.
-
-Write these as sentences with reasoning rather than nested bullets, since a rule with a stated reason is one the agent can apply to a case you didn't anticipate.
-
-## Step 3: Describe what you want
+## Step 2: Describe what you want
 
 Setup is done. From here the workflow is a sentence.
 
@@ -77,7 +61,7 @@ The same pattern covers the other delivery methods:
 
 > Normalize every profile under `platforms/macos/configuration-profiles/` to our org identifier and validate them, then summarize what changed.
 
-> **Warning:** Read the agent's command output, not only the file it produced. The most common failure is an agent reporting a successful validation it never ran, or missing that a value was dropped. Step 4 makes that failure impossible to merge.
+> **Warning:** Read the agent's command output, not only the file it produced. The most common failure is an agent reporting a successful validation it never ran, or missing that a value was dropped. Step 3 makes that failure impossible to merge.
 
 ### Apple traps
 
@@ -87,7 +71,7 @@ Fleet builds the `com.apple.activation.simple` declaration for each configuratio
 
 ### Windows traps
 
-The same class of problem, and the DDF is where you catch each one. A GUI hid these by construction, by greying out a dependent setting or filtering by edition, so they're the ones to write into `AGENTS.md` first:
+The same class of problem, and the DDF is where you catch each one. A GUI hid these by construction, by greying out a dependent setting or filtering by edition, so they're the ones to watch for:
 
 - **Values are not always the ones you'd guess.** `DeviceLock/DevicePasswordEnabled` takes `0` for enabled and `1` for disabled. The DDF spells that out in a `ValueDescription` per enum value, so an agent that reads it gets this right while an agent reasoning from the node name gets it backwards.
 - **Some nodes are read-only.** About 500 leaf nodes accept only `Get`. A `Replace` against one is accepted by Fleet, deploys, and fails on the device. `AccessType` tells you before you ship it.
@@ -99,7 +83,7 @@ For ADMX-backed nodes, the DDF gives you the `.admx` filename, the area path, an
 
 Fleet validates what it can on upload. It checks XML well-formedness, requires a supported top-level element, rejects `LocURI` formats that real Windows hosts refuse, and blocks LocURIs that conflict with settings Fleet already manages, such as disk encryption.
 
-> **Note:** Migrating an existing Intune baseline rather than writing new profiles? [Migrating Intune policies to Fleet with the CSP converter](https://fleetdm.com/guides/migrating-intune-policies-to-fleet-csp-converter) covers the bulk path, and the validation in step 4 applies to its output too.
+> **Note:** Migrating an existing Intune baseline rather than writing new profiles? [Migrating Intune policies to Fleet with the CSP converter](https://fleetdm.com/guides/migrating-intune-policies-to-fleet-csp-converter) covers the bulk path, and the validation in step 3 applies to its output too.
 
 ### Android traps
 
@@ -110,7 +94,7 @@ Fleet catches more here than on the other two platforms, because it validates ag
 
 Both are cases where the profile looks right and does nothing, so ask the agent to quote the schema for each field it set. That quote is what you check.
 
-## Step 4: Enforce validation in CI
+## Step 3: Enforce validation in CI
 
 Instructions make the agent likely to validate. CI makes it impossible to skip. The GitHub Actions workflow that `fleetctl new` scaffolds already runs a dry run on every pull request:
 
@@ -122,9 +106,9 @@ A dry run validates every profile without applying anything. For Apple and Windo
 
 > **Warning:** Dry run skips any profile that references a `$FLEET_SECRET_` variable, because the secret may not resolve in CI. Those profiles are validated when you apply them for real, so a clean dry run doesn't mean every profile was checked.
 
-What a dry run can't catch are the traps in step 3: unrecognized Apple keys, Windows nodes that don't exist or values that are in range but wrong, and Android enum values and nested keys. Have the agent cite the schema for each setting in the pull request description, then read the citation against the schema. Checking one citation is a few seconds of review.
+What a dry run can't catch are the traps in step 2: unrecognized Apple keys, Windows nodes that don't exist or values that are in range but wrong, and Android enum values and nested keys. Have the agent cite the schema for each setting in the pull request description, then read the citation against the schema. Checking one citation is a few seconds of review.
 
-## Step 5: Review, then deploy
+## Step 4: Review, then deploy
 
 The agent proposes and a human merges. The agent can't merge, can't deploy, and can't touch a device, and that boundary is the whole safety model. Keep it even when the change is small and the agent is right.
 
