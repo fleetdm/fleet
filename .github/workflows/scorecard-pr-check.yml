@@ -29,7 +29,7 @@ jobs:
         id: scorecard_pr
         uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
         with:
-          results_file: results_pr.sarif
+          results_file: /tmp/results_pr.sarif
           results_format: sarif
           publish_results: false
 
@@ -43,7 +43,7 @@ jobs:
         id: scorecard_base
         uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
         with:
-          results_file: results_base.sarif
+          results_file: /tmp/results_base.sarif
           results_format: sarif
           publish_results: false
 
@@ -54,9 +54,24 @@ jobs:
           script: |
             const fs = require('fs');
 
+            // Check if files exist
+            if (!fs.existsSync('/tmp/results_pr.sarif')) {
+              console.log('Warning: /tmp/results_pr.sarif not found');
+              core.setOutput('newIssuesCount', 0);
+              core.setOutput('newIssuesJson', JSON.stringify([]));
+              return;
+            }
+
+            if (!fs.existsSync('/tmp/results_base.sarif')) {
+              console.log('Warning: /tmp/results_base.sarif not found');
+              core.setOutput('newIssuesCount', 0);
+              core.setOutput('newIssuesJson', JSON.stringify([]));
+              return;
+            }
+
             // Parse SARIF results
-            const prResults = JSON.parse(fs.readFileSync('results_pr.sarif', 'utf8'));
-            const baseResults = JSON.parse(fs.readFileSync('results_base.sarif', 'utf8'));
+            const prResults = JSON.parse(fs.readFileSync('/tmp/results_pr.sarif', 'utf8'));
+            const baseResults = JSON.parse(fs.readFileSync('/tmp/results_base.sarif', 'utf8'));
 
             // Extract checks and their scores
             const prChecks = new Map();
