@@ -1,0 +1,165 @@
+name: OpenSSF Scorecard PR Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions: {}
+
+jobs:
+  scorecard-analysis:
+    name: Run Scorecard on PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard on PR branch
+        id: scorecard_pr
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results_pr.sarif
+          results_format: sarif
+          publish_results: false
+
+      - name: Checkout base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Run Scorecard on base branch
+        id: scorecard_base
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results_base.sarif
+          results_format: sarif
+          publish_results: false
+
+      - name: Compare Scorecard results
+        id: compare
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Parse SARIF results
+            const prResults = JSON.parse(fs.readFileSync('results_pr.sarif', 'utf8'));
+            const baseResults = JSON.parse(fs.readFileSync('results_base.sarif', 'utf8'));
+
+            // Extract checks and their scores
+            const prChecks = new Map();
+            const baseChecks = new Map();
+
+            if (prResults.runs && prResults.runs[0] && prResults.runs[0].results) {
+              prResults.runs[0].results.forEach(result => {
+                if (result.ruleId) {
+                  prChecks.set(result.ruleId, {
+                    level: result.level || 'note',
+                    message: result.message?.text || ''
+                  });
+                }
+              });
+            }
+
+            if (baseResults.runs && baseResults.runs[0] && baseResults.runs[0].results) {
+              baseResults.runs[0].results.forEach(result => {
+                if (result.ruleId) {
+                  baseChecks.set(result.ruleId, {
+                    level: result.level || 'note',
+                    message: result.message?.text || ''
+                  });
+                }
+              });
+            }
+
+            // Find new issues (in PR but not in base, or more severe)
+            const newIssues = [];
+            const severityOrder = { error: 3, warning: 2, note: 1, none: 0 };
+
+            prChecks.forEach((prCheck, checkId) => {
+              const baseCheck = baseChecks.get(checkId);
+              
+              // If the check didn't exist in base, it's new
+              if (!baseCheck) {
+                newIssues.push({
+                  id: checkId,
+                  level: prCheck.level,
+                  message: prCheck.message
+                });
+              }
+              // If the severity increased, it's a regression
+              else if (severityOrder[prCheck.level] > severityOrder[baseCheck.level]) {
+                newIssues.push({
+                  id: checkId,
+                  level: prCheck.level,
+                  message: prCheck.message,
+                  previous: baseCheck.level
+                });
+              }
+            });
+
+            // Store results for comment step
+            core.setOutput('newIssuesCount', newIssues.length);
+            core.setOutput('newIssuesJson', JSON.stringify(newIssues));
+            
+            if (newIssues.length > 0) {
+              console.log(`Found ${newIssues.length} new or regressed Scorecard issues`);
+            } else {
+              console.log('No new Scorecard issues found');
+            }
+
+      - name: Comment on PR with results
+        if: steps.compare.outputs.newIssuesCount > 0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          NEW_ISSUES_JSON: ${{ steps.compare.outputs.newIssuesJson }}
+        with:
+          script: |
+            const newIssues = JSON.parse(process.env.NEW_ISSUES_JSON);
+            
+            let comment = '## 🔒 OpenSSF Scorecard Changes Detected\n\n';
+            comment += `This PR introduces ${newIssues.length} new or regressed security/quality issue(s):\n\n`;
+
+            newIssues.forEach(issue => {
+              const icon = issue.level === 'error' ? '❌' : issue.level === 'warning' ? '⚠️' : 'ℹ️';
+              comment += `${icon} **${issue.id}** (${issue.level})`;
+              if (issue.previous) {
+                comment += ` - Regressed from ${issue.previous}`;
+              }
+              comment += '\n';
+              if (issue.message) {
+                comment += `  > ${issue.message}\n`;
+              }
+              comment += '\n';
+            });
+
+            comment += '\nSee the [OpenSSF Scorecard documentation](https://github.com/ossf/scorecard/blob/main/docs/checks.md) for details on each check.\n';
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.compare.outputs.newIssuesCount }}" -gt "0" ]; then
+            echo "⚠️ Scorecard found ${{ steps.compare.outputs.newIssuesCount }} new or regressed security issues in this PR"
+            echo "See the PR comment above for details"
+          else
+            echo "✓ No new Scorecard issues detected"
+          fi
