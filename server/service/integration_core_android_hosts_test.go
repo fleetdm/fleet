@@ -299,6 +299,22 @@ func (s *integrationTestSuite) TestAndroidAgentVitals() {
 		require.Nil(t, getHost(otherAndroidHost.ID).Roaming, "another host's report doesn't leak")
 	})
 
+	t.Run("hidden for personally-owned hosts", func(t *testing.T) {
+		personalHost := createOrbitEnrolledHost(t, "android", "-personal", s.ds)
+		require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), personalHost.ID, false, true, "https://fleetdm.com", false,
+			fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeWorkProfile))
+		putVitals(*personalHost.OrbitNodeKey, map[string]any{"roaming": true}, http.StatusOK)
+
+		host := getHost(personalHost.ID)
+		require.Nil(t, host.Roaming)
+		require.Nil(t, host.RoamingUpdatedAt)
+
+		// Negative control: the same report on a company-owned host is returned.
+		require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), personalHost.ID, false, true, "https://fleetdm.com", false,
+			fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
+		require.NotNil(t, getHost(personalHost.ID).Roaming)
+	})
+
 	t.Run("missing roaming is rejected", func(t *testing.T) {
 		putVitals(*androidHost.OrbitNodeKey, map[string]any{}, http.StatusUnprocessableEntity)
 		require.False(t, *getHost(androidHost.ID).Roaming, "a rejected report leaves the last value")

@@ -11,8 +11,8 @@ func init() {
 }
 
 func Up_20261123220227(tx *sql.Tx) error {
-	// Roaming is reported by the Fleet Android agent, not AMAPI, so it has its own
-	// timestamp: updated_at moves with every Pub/Sub status report.
+	// Roaming is reported by the Fleet Android agent, not AMAPI, on its own
+	// schedule, so it has its own timestamp; updated_at moves with either writer.
 	if columnExists(tx, "host_mdm_android_device_vitals", "roaming") {
 		return nil
 	}

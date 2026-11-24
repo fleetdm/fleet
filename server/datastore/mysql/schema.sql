@@ -1165,7 +1165,7 @@ CREATE TABLE `host_mdm_android_device_vitals` (
   `roaming` tinyint(1) DEFAULT NULL,
   `roaming_updated_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`host_uuid`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
