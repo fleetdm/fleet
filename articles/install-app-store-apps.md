@@ -324,4 +324,4 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-01-08">
-<meta name="description" value="This guide will walk you through installing Apple App Store, Google Play Store, and Microsoft Store apps on macOS, iOS, iPadOS, Android, and Windows hosts.">
+<meta name="description" value="Install Apple App Store, Google Play Store, and Microsoft Store apps on macOS, iOS, iPadOS, Android, and Windows hosts.">
