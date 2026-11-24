@@ -131,6 +131,7 @@ const renderHostDetails = (overrides?: {
   location?: typeof mockLocation;
   hostId?: string;
   router?: ReturnType<typeof createMockRouter>;
+  isPremiumTier?: boolean;
 }) => {
   const {
     currentUser = ADMIN,
@@ -140,6 +141,7 @@ const renderHostDetails = (overrides?: {
     location = mockLocation,
     hostId = "1",
     router = createMockRouter(),
+    isPremiumTier = true,
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -148,7 +150,7 @@ const renderHostDetails = (overrides?: {
       app: {
         currentUser,
         isGlobalAdmin,
-        isPremiumTier: true,
+        isPremiumTier,
         isMacMdmEnabledAndConfigured,
         isWindowsMdmEnabledAndConfigured,
         config: createMockConfig(),
@@ -879,13 +881,20 @@ describe("HostDetailsPage - policy click", () => {
     jest.resetAllMocks();
   });
 
-  it.each<[string, number | null, number | null, number]>([
-    ["an inherited policy keeps the host's fleet", null, 2, 2],
-    ["an inherited policy on an unassigned host keeps No fleet", null, null, 0],
-    ["a fleet policy opens in its own fleet", 2, 2, 2],
+  it.each<[string, number | null, number | null, boolean, number | undefined]>([
+    ["an inherited policy keeps the host's fleet", null, 2, true, 2],
+    [
+      "an inherited policy on an unassigned host keeps No fleet",
+      null,
+      null,
+      true,
+      0,
+    ],
+    ["a fleet policy opens in its own fleet", 2, 2, true, 2],
+    ["Free tier sends no fleet", null, null, false, undefined],
   ])(
     "opens the policy page with the host's name: %s",
-    async (_, policyFleetId, hostFleetId, expectedFleetId) => {
+    async (_, policyFleetId, hostFleetId, isPremiumTier, expectedFleetId) => {
       const hostPolicy: IHostPolicy = {
         ...createMockPolicy({
           id: 7,
@@ -904,6 +913,7 @@ describe("HostDetailsPage - policy click", () => {
       const router = createMockRouter({ push: jest.fn() });
       const { user } = renderHostDetails({
         router,
+        isPremiumTier,
         location: { ...mockLocation, pathname: "/hosts/1/policies" },
       });
 

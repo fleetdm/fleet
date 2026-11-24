@@ -986,12 +986,16 @@ const HostDetailsPage = ({
       router.push({
         pathname: PATHS.POLICY_DETAILS(policy.id),
         // Inherited policies have no fleet, so keep the host's fleet, or No
-        // fleet (0) for an unassigned host.
-        query: { fleet_id: policy.fleet_id ?? host?.fleet_id ?? 0 },
+        // fleet (0) for an unassigned host. Free tier has no fleets.
+        query: {
+          fleet_id: isPremiumTier
+            ? policy.fleet_id ?? host?.fleet_id ?? 0
+            : undefined,
+        },
         state: { hostSearch: host?.display_name },
       });
     },
-    [router, host?.fleet_id, host?.display_name]
+    [router, isPremiumTier, host?.fleet_id, host?.display_name]
   );
 
   const toggleBootstrapPackageModal = useCallback(() => {

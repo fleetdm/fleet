@@ -215,9 +215,10 @@ const PolicyDetailsPage = ({
 
   const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
 
-  // The host's name only filters the runs of a policy with an automation; a
-  // policy without one has no runs to filter.
-  const hostSearch = location.state?.hostSearch;
+  // Captured on mount: a fleet redirect (e.g. dropping fleet_id on Free tier)
+  // replaces the location and loses its state. The host's name only filters
+  // the runs of a policy with an automation; a policy without one has none.
+  const [hostSearch, setHostSearch] = useState(location.state?.hostSearch);
   const searchQuery =
     location.query.query ??
     (storedPolicy?.automation_type ? hostSearch : undefined);
@@ -238,10 +239,13 @@ const PolicyDetailsPage = ({
   // Once the policy is known, moves the host's name from navigation state into
   // the URL (or drops it), so a reload doesn't depend on the state.
   useEffect(() => {
-    if (storedPolicy && hostSearch !== undefined) {
+    // isRouteOk: a cached policy can be present before a fleet redirect lands.
+    if (isRouteOk && storedPolicy && hostSearch !== undefined) {
       replaceSearchQuery(searchQuery);
+      // Applied once, so clearing the search doesn't bring the host back.
+      setHostSearch(undefined);
     }
-  }, [storedPolicy, hostSearch, searchQuery, replaceSearchQuery]);
+  }, [isRouteOk, storedPolicy, hostSearch, searchQuery, replaceSearchQuery]);
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,

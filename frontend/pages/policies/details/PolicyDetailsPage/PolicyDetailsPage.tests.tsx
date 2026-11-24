@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
@@ -40,27 +40,35 @@ jest.mock("components/modals/ShowQueryModal", () => ({
 }));
 
 // Activities table fetches on mount; stub it out so the render test stays
-// focused on the policy's own fields. It surfaces the host search it receives
-// and lets a test change it.
+// focused on the policy's own fields. Like the real table, it reads the host
+// search once on mount; it shows it and lets a test change it.
 jest.mock("../components/PolicyAutomationsActivitiesTable", () => ({
   __esModule: true,
-  default: ({
+  default: function MockActivitiesTable({
     initialSearchQuery,
     onSearchQueryChange,
   }: {
     initialSearchQuery?: string;
     onSearchQueryChange?: (query: string) => void;
-  }) => (
-    <div>
-      <div data-testid="activities-table">{initialSearchQuery ?? ""}</div>
-      <button type="button" onClick={() => onSearchQueryChange?.("Other host")}>
-        Search other host
-      </button>
-      <button type="button" onClick={() => onSearchQueryChange?.("")}>
-        Clear search
-      </button>
-    </div>
-  ),
+  }) {
+    const [search] = jest
+      .requireActual("react")
+      .useState(initialSearchQuery ?? "");
+    return (
+      <div>
+        <div data-testid="activities-table">{search}</div>
+        <button
+          type="button"
+          onClick={() => onSearchQueryChange?.("Other host")}
+        >
+          Search other host
+        </button>
+        <button type="button" onClick={() => onSearchQueryChange?.("")}>
+          Clear search
+        </button>
+      </div>
+    );
+  },
 }));
 
 const labels = (...names: string[]): ILabelPolicy[] =>
@@ -324,14 +332,21 @@ describe("PolicyDetailsPage - renders fresh policy data (regression #43310)", ()
 });
 
 describe("PolicyDetailsPage - host search", () => {
+  type TestLocation = {
+    query: Record<string, string>;
+    state?: { hostSearch?: string };
+  };
+
   const renderPage = ({
     automationType,
     query = { fleet_id: "2" },
     state,
+    isFreeTier = false,
   }: {
     automationType: PolicyAutomationType | null;
     query?: Record<string, string>;
     state?: { hostSearch?: string };
+    isFreeTier?: boolean;
   }) => {
     mockServer.use(
       http.get(baseUrl(`/policies/${POLICY_ID}`), () =>
@@ -360,21 +375,29 @@ describe("PolicyDetailsPage - host search", () => {
       context: {
         app: {
           ...baseAppContext,
-          isFreeTier: false,
-          isPremiumTier: true,
-          availableTeams: [{ id: 2, name: "Workstations" }],
+          isFreeTier,
+          isPremiumTier: !isFreeTier,
+          availableTeams: isFreeTier ? [] : [{ id: 2, name: "Workstations" }],
           setCurrentTeam: jest.fn(),
         },
       },
     });
-    const { user } = render(
+    const page = (location: TestLocation) => (
       <PolicyDetailsPage
-        {...((props as unknown) as React.ComponentProps<
-          typeof PolicyDetailsPage
-        >)}
+        {...(({
+          ...props,
+          location: {
+            ...props.location,
+            query: location.query,
+            state: location.state,
+          },
+        } as unknown) as React.ComponentProps<typeof PolicyDetailsPage>)}
       />
     );
-    return { user, router };
+    const { user, rerender } = render(page({ query, state }));
+    // Stands in for the router delivering a new location after a replace.
+    const setLocation = (location: TestLocation) => rerender(page(location));
+    return { user, router, setLocation };
   };
 
   it.each<PolicyAutomationType>([
@@ -426,6 +449,50 @@ describe("PolicyDetailsPage - host search", () => {
       "Workstation 1"
     );
     expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps the host filter when Free tier drops the fleet from the URL", async () => {
+    const { router, setLocation } = renderPage({
+      automationType: "webhook_or_ticket",
+      isFreeTier: true,
+      query: { fleet_id: "0" },
+      state: { hostSearch: "Workstation 1" },
+    });
+    // Free tier has no fleets, so the page redirects without fleet_id, and the
+    // string redirect carries no location state.
+    await waitFor(() => expect(router.replace).toHaveBeenCalled());
+    setLocation({ query: {} });
+
+    expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+      "Workstation 1"
+    );
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { query: "Workstation 1" },
+    });
+  });
+
+  it("doesn't bring the host back after the search is cleared", async () => {
+    const { user, router, setLocation } = renderPage({
+      automationType: "script",
+      state: { hostSearch: "Workstation 1" },
+    });
+    await screen.findByTestId("activities-table");
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenLastCalledWith({
+        pathname: `/policies/${POLICY_ID}`,
+        query: { fleet_id: "2", query: "Workstation 1" },
+      })
+    );
+    setLocation({ query: { fleet_id: "2", query: "Workstation 1" } });
+
+    await user.click(screen.getByText("Clear search"));
+    setLocation({ query: { fleet_id: "2" } });
+
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2" },
+    });
   });
 
   it("keeps the URL in sync with the search", async () => {
