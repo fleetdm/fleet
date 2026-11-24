@@ -130,6 +130,7 @@ import Badgeify from "./png/Badgeify.png";
 import BalenaEtcher from "./png/BalenaEtcher.png";
 import BalsamiqWireframes from "./png/BalsamiqWireframes.png";
 import BambuStudio from "./png/BambuStudio.png";
+import Bandicam from "./png/Bandicam.png";
 import Bandiview from "./png/Bandiview.png";
 import Bartender from "./png/Bartender.png";
 import Batfi from "./png/Batfi.png";
@@ -1303,6 +1304,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   balenaetcher: BalenaEtcher,
   "balsamiq wireframes": BalsamiqWireframes,
   "bambu studio": BambuStudio,
+  bandicam: Bandicam,
   bandiview: Bandiview,
   bartender: Bartender,
   batfi: Batfi,

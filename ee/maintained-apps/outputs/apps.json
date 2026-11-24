@@ -989,6 +989,13 @@
       "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
     },
     {
+      "name": "Bandicam",
+      "slug": "bandicam/windows",
+      "platform": "windows",
+      "unique_identifier": "Bandicam",
+      "description": "Bandicam is a screen recorder for capturing the screen, games, and video devices."
+    },
+    {
       "name": "BandiView",
       "slug": "bandiview/windows",
       "platform": "windows",
