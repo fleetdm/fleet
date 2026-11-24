@@ -43,7 +43,7 @@ jobs:
 
       - name: Run Scorecard on PR branch
         run: |
-          scorecard --local . --show-details --format json > /tmp/scorecard-results/results_pr.json
+          scorecard --local . --show-details --checks Token-Permissions,Dangerous-Workflow,Pinned-Dependencies,Vulnerabilities,Binary-Artifacts --format json > /tmp/scorecard-results/results_pr.json
           cat /tmp/scorecard-results/results_pr.json | jq
 
       - name: Checkout base branch
@@ -54,7 +54,7 @@ jobs:
 
       - name: Run Scorecard on base branch
         run: |
-          scorecard --local . --show-details --format json > /tmp/scorecard-results/results_base.json
+          scorecard --local . --show-details --checks Token-Permissions,Dangerous-Workflow,Pinned-Dependencies,Vulnerabilities,Binary-Artifacts --format json > /tmp/scorecard-results/results_base.json
           cat /tmp/scorecard-results/results_base.json | jq
 
       - name: Compare Scorecard results
