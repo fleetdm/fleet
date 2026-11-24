@@ -6442,7 +6442,7 @@ policies:
     patch_when_closed: true
     notify_before_patching: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			// The dry run skips the policy apply, so without this check only a real apply rejects it.
@@ -6549,7 +6549,7 @@ policies:
     patch_when_closed: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline together with notify_before_patching is rejected",
@@ -6563,7 +6563,7 @@ policies:
     notify_before_patching: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline on a Windows Fleet-maintained app is rejected",

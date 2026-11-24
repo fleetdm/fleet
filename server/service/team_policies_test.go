@@ -740,7 +740,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					NotifyBeforePatching:         true,
 					ContinuousAutomationsEnabled: true,
 				},
-				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+				wantErr: `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:              "windows app",
@@ -784,7 +784,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					PatchDeadline:                true,
 					ContinuousAutomationsEnabled: true,
 				},
-				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+				wantErr: `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:              "deadline with notify_before_patching",
@@ -796,7 +796,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 					PatchDeadline:                true,
 					ContinuousAutomationsEnabled: true,
 				},
-				wantErr: `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+				wantErr: `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:              "deadline on a windows app",
@@ -855,7 +855,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				name:      "stored patch_when_closed",
 				storedPWC: true,
 				payload:   fleet.ModifyPolicyPayload{NotifyBeforePatching: new(true)},
-				wantErr:   `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+				wantErr:   `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:           "windows policy",
@@ -878,7 +878,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				name:      "deadline with stored patch_when_closed",
 				storedPWC: true,
 				payload:   fleet.ModifyPolicyPayload{PatchDeadline: new(true)},
-				wantErr:   `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
+				wantErr:   `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`,
 			},
 			{
 				name:           "deadline on a windows policy",

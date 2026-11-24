@@ -159,7 +159,7 @@ func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 		{
 			name:    "force_patch with patch_when_closed is rejected",
 			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", ForcePatch: true, PatchWhenClosed: true},
-			wantErr: errPolicyForcePatchWithOtherPatchOption,
+			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
 		},
 	}
 

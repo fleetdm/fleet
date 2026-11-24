@@ -167,8 +167,7 @@ var (
 	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
 	errPolicyPatchDeadlineRequiresPatch              = errors.New("\"patch_deadline\" is only supported for patch policies")
 	errPolicyForcePatchRequiresPatch                 = errors.New("\"force_patch\" is only supported for patch policies")
-	errPolicyForcePatchWithOtherPatchOption          = errors.New("If \"force_patch\" is true, \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can't be set to true.")
-	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
 	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
 	ErrPolicyPatchDeadlineRequiresMacOS              = errors.New("\"patch_deadline\" is available for macOS Fleet-maintained apps. It's coming soon to Windows.")
 )
@@ -977,11 +976,8 @@ func (p PolicySpec) Verify() error {
 	if p.ForcePatch && p.Type != PolicyTypePatch {
 		return errPolicyForcePatchRequiresPatch
 	}
-	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+	if PatchOptionsConflict(p.ForcePatch, p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
 		return ErrPolicyPatchOptionsMutuallyExclusive
-	}
-	if p.ForcePatch && (p.PatchWhenClosed || p.NotifyBeforePatching || p.PatchDeadline) {
-		return errPolicyForcePatchWithOtherPatchOption
 	}
 	return p.VerifyLabelScopes()
 }
