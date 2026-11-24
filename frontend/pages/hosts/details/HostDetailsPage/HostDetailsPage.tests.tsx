@@ -781,7 +781,7 @@ describe("HostDetailsPage - activity card tab switch", () => {
     jest.resetAllMocks();
   });
 
-  it("refetches all four activity queries when switching tabs so stale data (finished scripts, outdated Upcoming badge) refreshes without a reload", async () => {
+  it("refetches upcoming activity queries on Upcoming click and past activity queries on Past click so finished scripts and the Upcoming badge both refresh without a reload", async () => {
     stubQueries(mockAppleHost());
     const { user } = renderHostDetails({
       isMacMdmEnabledAndConfigured: true,
@@ -796,22 +796,26 @@ describe("HostDetailsPage - activity card tab switch", () => {
       .mock.calls.length;
     const upcomingCallsBefore = (activitiesAPI.getHostUpcomingActivities as jest.Mock)
       .mock.calls.length;
-    const commandsCallsBefore = (commandAPI.getCommands as jest.Mock).mock.calls
-      .length;
 
+    // Click Upcoming: upcoming queries refetch, past queries stay put.
     await user.click(screen.getByRole("tab", { name: /upcoming/i }));
-
     await waitFor(() => {
-      expect(
-        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
-      ).toBeGreaterThan(pastCallsBefore);
       expect(
         (activitiesAPI.getHostUpcomingActivities as jest.Mock).mock.calls.length
       ).toBeGreaterThan(upcomingCallsBefore);
-      // Covers both past (ran,failed) and upcoming (pending) MDM commands.
+    });
+    expect(
+      (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+    ).toBe(pastCallsBefore);
+
+    // Click Past: past queries refetch (upcoming also refetches for the badge).
+    const pastCallsBeforePast = (activitiesAPI.getHostPastActivities as jest.Mock)
+      .mock.calls.length;
+    await user.click(screen.getByRole("tab", { name: /past/i }));
+    await waitFor(() => {
       expect(
-        (commandAPI.getCommands as jest.Mock).mock.calls.length
-      ).toBeGreaterThan(commandsCallsBefore + 1);
+        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(pastCallsBeforePast);
     });
   });
 });

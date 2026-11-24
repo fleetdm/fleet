@@ -1144,13 +1144,18 @@ const HostDetailsPage = ({
   }, [host?.id]);
 
   const onChangeActivityTab = (tabIndex: number) => {
-    setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
+    const newTab = tabIndex === 0 ? "past" : "upcoming";
+    setActiveActivityTab(newTab);
     setActivityPage(0);
-    // Refetch both tabs: the Upcoming count badge is visible from either tab.
-    refetchPastActivities();
+    // Upcoming queries always refetch: they power the Upcoming list AND the
+    // count badge visible on either tab. Past queries only refetch when
+    // switching to Past (Past has no badge).
     refetchUpcomingActivities();
-    refetchPastMDMCommands();
     refetchUpcomingMDMCommands();
+    if (newTab === "past") {
+      refetchPastActivities();
+      refetchPastMDMCommands();
+    }
   };
 
   const onShowActivityDetails = useCallback(
