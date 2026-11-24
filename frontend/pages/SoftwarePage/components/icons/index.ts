@@ -551,6 +551,7 @@ import Joplin from "./png/Joplin.png";
 import JordanbairdIce from "./png/JordanbairdIce.png";
 import JuliaApp from "./png/JuliaApp.png";
 import JumpDesktop from "./png/JumpDesktop.png";
+import K6 from "./png/K6.png";
 import Kaleidoscope from "./png/Kaleidoscope.png";
 import Kap from "./png/Kap.png";
 import Kdenlive from "./png/Kdenlive.png";
@@ -1737,6 +1738,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   joplin: Joplin,
   julia: JuliaApp,
   "jump desktop": JumpDesktop,
+  k6: K6,
   kaleidoscope: Kaleidoscope,
   kap: Kap,
   kdenlive: Kdenlive,
