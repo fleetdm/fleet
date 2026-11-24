@@ -77,6 +77,7 @@ usage() {
     echo "  -f, --force                Skip all confirmations"
     echo "  -h, --help                 Display this help message and exit"
     echo "  -g, --tag                  Run the tag step"
+    echo "  -j, --major                Increment to a major version (X.0.0). Follows the minor release flow on an rc-major-fleet-vX.0.0 branch"
     echo "  -k, --skip_dogfood         Skip deploying to dogfood. Necessary if you need to release without interrupting demos"
     echo "  -m, --minor                Increment to a minor version instead of patch (required if including non-bugs)"
     echo "  -M, --manual_cherry_pick   Have the script prompt you for each found related PR to cherry-pick"
@@ -100,6 +101,7 @@ usage() {
     echo "Examples:"
     echo "  $0 -d                  Dry run the script"
     echo "  $0 -m -v 4.45.1        Set a minor release targeting version 4.45.1"
+    echo "  $0 -j                  Create the release candidate for the next major version"
     echo "  $0 --target_version 4.45.1 --open_api_key examplekey"
     echo ""
 }
@@ -114,6 +116,7 @@ cherry_pick_resolved=false
 continue_from_changelogs=false
 dry_run=false
 force=false
+major=false
 minor=false
 announce_only=false
 open_api_key=""
@@ -139,6 +142,7 @@ for arg in "$@"; do
     "--dry-run") set -- "$@" "-d" ;;
     "--force") set -- "$@" "-f" ;;
     "--help") set -- "$@" "-h" ;;
+    "--major") set -- "$@" "-j" ;;
     "--skip_dogfood") set -- "$@" "-k" ;;
     "--minor") set -- "$@" "-m" ;;
     "--manual_cherry_pick") set -- "$@" "-M" ;;
@@ -158,7 +162,7 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "aCcdfhgkmMno:pQqrs:t:uv:w" opt; do
+while getopts "aCcdfhgjkmMno:pQqrs:t:uv:w" opt; do
     case "$opt" in
         a) minor_cherry_pick=true ;;
         c) cherry_pick_resolved=true ;;
@@ -167,6 +171,8 @@ while getopts "aCcdfhgkmMno:pQqrs:t:uv:w" opt; do
         f) force=true ;;
         h) usage; exit 0 ;;
         g) do_tag=true ;;
+        # A major release follows the minor release flow.
+        j) major=true; minor=true ;;
         k) skip_deploy_dogfood=true ;;
         m) minor=true ;;
         M) manual_cherry_pick_selection=true ;;
@@ -747,7 +753,9 @@ if [[ "$target_version" != "" ]]; then
     fi
     next_ver=$target_version
 else
-    if [[ "$minor" == "true" ]]; then
+    if [[ "$major" == "true" ]]; then
+        next_ver=$(echo ${start_version#v} | awk -F. '{print "v"($1+1)".0.0"}')
+    elif [[ "$minor" == "true" ]]; then
         next_ver=$(echo $start_version | awk -F. '{print $1"."($2+1)".0"}')
     else
         next_ver=$(echo $start_version | awk -F. '{print $1"."$2"."($3+1)}')
@@ -756,7 +764,15 @@ fi
 
 start_ver_tag=fleet-$start_version
 
-if [[ "$minor" == "true" ]]; then
+# So that -m -v X.0.0 resolves to the same rc-major branch as -j at every step.
+if [[ "$minor" == "true" && "$next_ver" =~ ^v[0-9]+\.0\.0$ ]]; then
+    major=true
+fi
+
+if [[ "$major" == "true" ]]; then
+    echo "Major release from $start_version to $next_ver"
+    start_ver_tag="main"
+elif [[ "$minor" == "true" ]]; then
     echo "Minor release from $start_version to $next_ver"
     # For scheduled minor releases, we want to branch off of main
     start_ver_tag="main"
@@ -774,7 +790,9 @@ target_milestone="${next_ver:1}"
 target_milestone_number=$(gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number")
 # patch-fleet-v4.48.0
 target_branch="rc-patch-fleet-$next_ver"
-if [[ "$minor" == "true" ]]; then
+if [[ "$major" == "true" ]]; then
+    target_branch="rc-major-fleet-$next_ver"
+elif [[ "$minor" == "true" ]]; then
     target_branch="rc-minor-fleet-$next_ver"
 fi
 update_changelog_prepare_branch="update-changelog-prepare-$target_milestone"

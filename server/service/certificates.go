@@ -443,8 +443,10 @@ func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet
 			continue
 		}
 
-		// Handle empty string and "No team" as teamID = 0
-		if spec.Team == "" || spec.Team == "No team" {
+		if reason, removed := removedFleetName(spec.Team, false); removed {
+			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
+		}
+		if spec.Team == "" || fleet.IsUnassignedFleetName(spec.Team) {
 			teamNameToID[spec.Team] = 0
 			continue
 		}
@@ -636,7 +638,7 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 	}
 	if len(uniqueIDs) != len(certificateTemplates) {
 		return authz.ForbiddenWithInternal(
-			"can only delete templates from team parameter",
+			"can only delete templates from fleet parameter",
 			authz.UserFromContext(ctx),
 			&fleet.CertificateTemplate{TeamID: teamID},
 			fleet.ActionWrite,

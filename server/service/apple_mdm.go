@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/gorilla/mux"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -41,7 +40,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -90,6 +88,7 @@ var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarSCEPRenewalID, fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
 	fleet.FleetVarPSSODeviceRegistrationToken,
+	fleet.FleetVarConditionalAccessSCEPURL, fleet.FleetVarConditionalAccessSCEPChallenge,
 }
 
 // fleetVarsSupportedInDDMDeclarations is the list of Fleet variables
@@ -341,10 +340,11 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 	}
 
 	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, caVarValidators{
-		digiCert:   additionalDigiCertValidation,
-		customSCEP: additionalCustomSCEPValidation,
-		ndes:       additionalNDESValidation,
-		smallstep:  additionalSmallstepValidation,
+		digiCert:          additionalDigiCertValidation,
+		customSCEP:        additionalCustomSCEPValidation,
+		ndes:              additionalNDESValidation,
+		smallstep:         additionalSmallstepValidation,
+		conditionalAccess: additionalConditionalAccessValidation,
 	})
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
@@ -758,6 +758,35 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	return nil
 }
 
+// additionalConditionalAccessValidation checks that the conditional access SCEP URL variable, and the challenge variable
+// when present, are each the whole value of their field in the profile's one SCEP payload, and that the renewal ID is in
+// its subject. Each variable can appear only once, so that also keeps them out of every other field. A literal challenge
+// is a global enroll secret, which profiles written before the challenge variable carry.
+func additionalConditionalAccessValidation(contents string, conditionalAccessVars *ConditionalAccessVarsFound) error {
+	scepProf, err := unmarshalSCEPProfile(contents)
+	if err != nil {
+		return err
+	}
+	scepPayloadContent, err := checkThatOnlyOneSCEPPayloadIsPresent(scepProf)
+	if err != nil {
+		return err
+	}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
+	}
+	if !isFleetVar(scepPayloadContent.URL, fleet.FleetVarConditionalAccessSCEPURL) {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"URL\" field.", fleet.FleetVarConditionalAccessSCEPURL.WithPrefix()),
+		}
+	}
+	if conditionalAccessVars.ChallengeFound() && !isFleetVar(scepPayloadContent.Challenge, fleet.FleetVarConditionalAccessSCEPChallenge) {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarConditionalAccessSCEPChallenge.WithPrefix()),
+		}
+	}
+	return nil
+}
+
 // Returns nil when no activation was supplied, leaving Fleet to generate one.
 func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, configurationType string) (*fleet.MDMAppleCustomActivation, error) {
 	if len(activation) == 0 {
@@ -852,11 +881,6 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 	}
 
-	fleetNames := mdm_types.FleetReservedProfileNames()
-	if _, ok := fleetNames[name]; ok {
-		err := fleet.NewInvalidArgumentError("declaration", fmt.Sprintf("Profile name %q is not allowed.", name)).WithStatus(http.StatusBadRequest)
-		return nil, err
-	}
 	if err := fleet.ValidateMDMProfileName(name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1067,7 +1091,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 	if _, ok := fleetNames[existing.Name]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
-			InternalErr: fmt.Errorf("editing declaration %s for team %s not allowed because it's managed by Fleet", existing.Name, teamName),
+			InternalErr: fmt.Errorf("editing declaration %s for fleet %s not allowed because it's managed by Fleet", existing.Name, teamName),
 		}
 	}
 
@@ -1773,7 +1797,7 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[existing.Identifier]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be edited using this endpoint.",
-			InternalErr: fmt.Errorf("editing profile %s for team %s not allowed because it's managed by Fleet", existing.Identifier, teamName),
+			InternalErr: fmt.Errorf("editing profile %s for fleet %s not allowed because it's managed by Fleet", existing.Identifier, teamName),
 		}
 	}
 
@@ -1895,7 +1919,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return &fleet.BadRequestError{
 			Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
-			InternalErr: fmt.Errorf("deleting profile %s for team %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
+			InternalErr: fmt.Errorf("deleting profile %s for fleet %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
 		}
 	}
 
@@ -1942,7 +1966,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 	// has been provided by the user and can be deleted. We don't need to validate that it is a Fleet declaration.
 	//
 	// Whether a declaration is Fleet-managed (and therefore protected from
-	// deletion through this endpoint) is determined solely by its reserved name.
+	// deletion through this endpoint) is determined solely by its reserved identifier.
 	// We deliberately do NOT run the upload-time validator (ValidateUserProvided)
 	// here: any declaration already stored was accepted at upload time, so
 	// re-validating it on delete would trap user-uploaded declarations whenever
@@ -1950,7 +1974,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 	// added to ForbiddenDeclTypes). See https://github.com/fleetdm/fleet/issues/47535.
 	hasSecretVariable := len(fleet.ContainsPrefixVars(string(decl.RawJSON), fleet.ServerSecretPrefix)) > 0
 	if !hasSecretVariable {
-		if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
+		if _, ok := apple_mdm.FleetReservedDeclarationIdentifiers()[decl.Identifier]; ok {
 			return &fleet.BadRequestError{
 				Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
 				InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
@@ -2016,196 +2040,6 @@ func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint
 	}
 
 	return ps, nil
-}
-
-type uploadAppleInstallerRequest struct {
-	Installer *multipart.FileHeader
-}
-
-type uploadAppleInstallerResponse struct {
-	ID  uint  `json:"installer_id"`
-	Err error `json:"error,omitempty"`
-}
-
-func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
-	if err != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form",
-			InternalErr: err,
-		}
-	}
-	installer := r.MultipartForm.File["installer"][0]
-	return &uploadAppleInstallerRequest{
-		Installer: installer,
-	}, nil
-}
-
-func (r uploadAppleInstallerResponse) Error() error { return r.Err }
-
-// Deprecated: Not in Use
-func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*uploadAppleInstallerRequest)
-	ff, err := req.Installer.Open()
-	if err != nil {
-		return uploadAppleInstallerResponse{Err: err}, nil
-	}
-	defer ff.Close()
-	installer, err := svc.UploadMDMAppleInstaller(ctx, req.Installer.Filename, req.Installer.Size, ff)
-	if err != nil {
-		return uploadAppleInstallerResponse{Err: err}, nil
-	}
-	return &uploadAppleInstallerResponse{
-		ID: installer.ID,
-	}, nil
-}
-
-func (svc *Service) UploadMDMAppleInstaller(ctx context.Context, name string, size int64, installer io.Reader) (*fleet.MDMAppleInstaller, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	token := uuid.New().String()
-
-	url := svc.installerURL(token, appConfig)
-
-	var installerBuf bytes.Buffer
-	manifest, err := createManifest(size, io.TeeReader(installer, &installerBuf), url)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	inst, err := svc.ds.NewMDMAppleInstaller(ctx, name, size, manifest, installerBuf.Bytes(), token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	return inst, nil
-}
-
-func (svc *Service) installerURL(token string, appConfig *fleet.AppConfig) string {
-	return fmt.Sprintf("%s%s?token=%s", appConfig.ServerSettings.ServerURL, apple_mdm.InstallerPath, token)
-}
-
-func createManifest(size int64, installer io.Reader, url string) (string, error) {
-	manifest, err := appmanifest.New(&readerWithSize{
-		Reader: installer,
-		size:   size,
-	}, url)
-	if err != nil {
-		return "", fmt.Errorf("create manifest file: %w", err)
-	}
-	var buf bytes.Buffer
-	enc := plist.NewEncoder(&buf)
-	enc.Indent("  ")
-	if err := enc.Encode(manifest); err != nil {
-		return "", fmt.Errorf("encode manifest: %w", err)
-	}
-	return buf.String(), nil
-}
-
-type readerWithSize struct {
-	io.Reader
-	size int64
-}
-
-func (r *readerWithSize) Size() int64 {
-	return r.size
-}
-
-type getAppleInstallerDetailsRequest struct {
-	ID uint `url:"installer_id"`
-}
-
-type getAppleInstallerDetailsResponse struct {
-	Installer *fleet.MDMAppleInstaller
-	Err       error `json:"error,omitempty"`
-}
-
-func (r getAppleInstallerDetailsResponse) Error() error { return r.Err }
-
-func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getAppleInstallerDetailsRequest)
-	installer, err := svc.GetMDMAppleInstallerByID(ctx, req.ID)
-	if err != nil {
-		return getAppleInstallerDetailsResponse{Err: err}, nil
-	}
-	return &getAppleInstallerDetailsResponse{
-		Installer: installer,
-	}, nil
-}
-
-func (svc *Service) GetMDMAppleInstallerByID(ctx context.Context, id uint) (*fleet.MDMAppleInstaller, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	inst, err := svc.ds.MDMAppleInstallerDetailsByID(ctx, id)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	return inst, nil
-}
-
-type deleteAppleInstallerDetailsRequest struct {
-	ID uint `url:"installer_id"`
-}
-
-type deleteAppleInstallerDetailsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteAppleInstallerDetailsResponse) Error() error { return r.Err }
-
-func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteAppleInstallerDetailsRequest)
-	if err := svc.DeleteMDMAppleInstaller(ctx, req.ID); err != nil {
-		return deleteAppleInstallerDetailsResponse{Err: err}, nil
-	}
-	return &deleteAppleInstallerDetailsResponse{}, nil
-}
-
-func (svc *Service) DeleteMDMAppleInstaller(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-
-	if err := svc.ds.DeleteMDMAppleInstaller(ctx, id); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-	return nil
-}
-
-type listMDMAppleDevicesRequest struct{}
-
-type listMDMAppleDevicesResponse struct {
-	Devices []fleet.MDMAppleDevice `json:"devices"`
-	Err     error                  `json:"error,omitempty"`
-}
-
-func (r listMDMAppleDevicesResponse) Error() error { return r.Err }
-
-func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	devices, err := svc.ListMDMAppleDevices(ctx)
-	if err != nil {
-		return listMDMAppleDevicesResponse{Err: err}, nil
-	}
-	return &listMDMAppleDevicesResponse{
-		Devices: devices,
-	}, nil
-}
-
-func (svc *Service) ListMDMAppleDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDevice{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	return svc.ds.MDMAppleListDevices(ctx)
 }
 
 type mdmAppleEnrollRequest struct {
@@ -2463,7 +2297,7 @@ func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.R
 		decoded.EnrollReference = ptr.String(strings.Split(auth, "Bearer ")[1])
 	}
 
-	token := mux.Vars(r)["token"]
+	token, _ := platform_http.PathVar(r, "token")
 	if token != "" {
 		decoded.EnrollmentToken = token
 	}
@@ -3185,138 +3019,6 @@ func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	return nil
 }
 
-type mdmAppleGetInstallerRequest struct {
-	Token string `query:"token"`
-}
-
-func (r mdmAppleGetInstallerResponse) Error() error { return r.Err }
-
-type mdmAppleGetInstallerResponse struct {
-	Err error `json:"error,omitempty"`
-
-	// head is used by hijackRender for the response.
-	head bool
-	// Name field is used in hijackRender for the response.
-	name string
-	// Size field is used in hijackRender for the response.
-	size int64
-	// Installer field is used in hijackRender for the response.
-	installer []byte
-}
-
-func (r mdmAppleGetInstallerResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.FormatInt(r.size, 10))
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, r.name))
-
-	if r.head {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided
-	if n, err := w.Write(r.installer); err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
-	}
-}
-
-func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*mdmAppleGetInstallerRequest)
-	installer, err := svc.GetMDMAppleInstallerByToken(ctx, req.Token)
-	if err != nil {
-		return mdmAppleGetInstallerResponse{Err: err}, nil
-	}
-	return mdmAppleGetInstallerResponse{
-		head:      false,
-		name:      installer.Name,
-		size:      installer.Size,
-		installer: installer.Installer,
-	}, nil
-}
-
-func (svc *Service) GetMDMAppleInstallerByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	// skipauth: The installer endpoint uses token authentication.
-	svc.authz.SkipAuthorization(ctx)
-
-	installer, err := svc.ds.MDMAppleInstaller(ctx, token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	return installer, nil
-}
-
-type mdmAppleHeadInstallerRequest struct {
-	Token string `query:"token"`
-}
-
-func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*mdmAppleHeadInstallerRequest)
-	installer, err := svc.GetMDMAppleInstallerDetailsByToken(ctx, req.Token)
-	if err != nil {
-		return mdmAppleGetInstallerResponse{Err: err}, nil
-	}
-	return mdmAppleGetInstallerResponse{
-		head: true,
-		name: installer.Name,
-		size: installer.Size,
-	}, nil
-}
-
-func (svc *Service) GetMDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*fleet.MDMAppleInstaller, error) {
-	// skipauth: The installer endpoint uses token authentication.
-	svc.authz.SkipAuthorization(ctx)
-
-	installer, err := svc.ds.MDMAppleInstallerDetailsByToken(ctx, token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	return installer, nil
-}
-
-type listMDMAppleInstallersRequest struct{}
-
-type listMDMAppleInstallersResponse struct {
-	Installers []fleet.MDMAppleInstaller `json:"installers"`
-	Err        error                     `json:"error,omitempty"`
-}
-
-func (r listMDMAppleInstallersResponse) Error() error { return r.Err }
-
-func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	installers, err := svc.ListMDMAppleInstallers(ctx)
-	if err != nil {
-		return listMDMAppleInstallersResponse{
-			Err: err,
-		}, nil
-	}
-	return listMDMAppleInstallersResponse{
-		Installers: installers,
-	}, nil
-}
-
-func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleInstaller{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	installers, err := svc.ds.ListMDMAppleInstallers(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	for i := range installers {
-		installers[i].URL = svc.installerURL(installers[i].URLToken, appConfig)
-	}
-	return installers, nil
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Lock a device
 ////////////////////////////////////////////////////////////////////////////////
@@ -3330,7 +3032,7 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostProfilesRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type getHostProfilesResponse struct {
@@ -3343,11 +3045,14 @@ func (r getHostProfilesResponse) Error() error { return r.Err }
 
 func getHostProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostProfilesRequest)
-	sums, err := svc.MDMListHostConfigurationProfiles(ctx, req.ID)
+	// GitOps users can't list hosts, so they can't look up an identifier. A host ID still works: the call gets it without a lookup.
+	sums, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+		return svc.MDMListHostConfigurationProfiles(ctx, hostID)
+	})
 	if err != nil {
 		return getHostProfilesResponse{Err: err}, nil
 	}
-	res := getHostProfilesResponse{Profiles: sums, HostID: req.ID}
+	res := getHostProfilesResponse{Profiles: sums, HostID: hostID}
 	if res.Profiles == nil {
 		res.Profiles = []*fleet.MDMAppleConfigProfile{} // return empty json array instead of json null
 	}
@@ -3493,7 +3198,7 @@ type uploadBootstrapPackageResponse struct {
 // TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadBootstrapPackageRequest{}
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -3524,7 +3229,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 
 	// default is no team
 	decoded.TeamID = 0
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok && len(val) > 0 {
 		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
@@ -3645,7 +3350,7 @@ func bootstrapPackageMetadataEndpoint(ctx context.Context, request interface{}, 
 	meta, err := svc.GetMDMAppleBootstrapPackageMetadata(ctx, req.TeamID, req.ForUpdate)
 	switch {
 	case fleet.IsNotFound(err):
-		return bootstrapPackageMetadataResponse{Err: fleet.NewInvalidArgumentError("team_id/fleet_id",
+		return bootstrapPackageMetadataResponse{Err: fleet.NewInvalidArgumentError("fleet_id",
 			"bootstrap package for this fleet does not exist").WithStatus(http.StatusNotFound)}, nil
 	case err != nil:
 		return bootstrapPackageMetadataResponse{Err: err}, nil
@@ -3697,7 +3402,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleBootstrapPackageSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMAppleBootstrapPackageSummaryResponse struct {
@@ -3729,7 +3434,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMAppleSetupAssistantRequest struct {
-	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
+	TeamID            *uint           `json:"fleet_id"`
 	Name              string          `json:"name"`
 	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
 }
@@ -3767,7 +3472,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMAppleSetupAssistantResponse struct {
@@ -3855,7 +3560,7 @@ func (svc *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, 
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type deleteMDMAppleSetupAssistantResponse struct {
@@ -4246,7 +3951,7 @@ type createAppleDDMAssetRequest struct {
 func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := new(createAppleDDMAssetRequest)
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -4254,7 +3959,7 @@ func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Req
 		}
 	}
 
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = new(uint(0))
@@ -4343,7 +4048,7 @@ func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 
 type batchSetAppleDDMAssetsRequest struct {
 	TeamID   *uint                                `json:"-" query:"fleet_id,optional"`
-	TeamName string                               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamName string                               `json:"-" query:"fleet_name,optional"`
 	DryRun   bool                                 `json:"-" query:"dry_run,optional"`
 	Assets   []fleet.MDMAppleDDMAssetBatchPayload `json:"assets"`
 }
@@ -4864,7 +4569,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				attrs,
 				"host_id", info.HostID,
 				"platform", info.Platform,
-				"team_id", info.TeamID,
+				"fleet_id", info.TeamID,
 				"dep_assigned_to_fleet", info.DEPAssignedToFleet,
 				"installed_from_dep", info.InstalledFromDEP,
 				"scep_renewal_in_progress", info.SCEPRenewalInProgress,
@@ -5550,7 +5255,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				cmdUUID := fleet.VerifySoftwareInstallCommandUUID()
 				// for app verification, we always request only managed apps
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.Identifier()}, cmdUUID, true); err != nil {
-					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+					// A failed push leaves the command queued, so it still needs to be associated with the install.
+					if _, pushFailed := errors.AsType[*apple_mdm.NotificationFailedError](err); !pushFailed {
+						return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+					}
+					svc.logger.ErrorContext(r.Context, "sending push notification for install verification", "host_uuid", cmdResult.Identifier(), "err", err)
 				}
 
 				// update the install record
@@ -6050,7 +5759,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	case err == nil:
 		// OK
 	case fleet.IsNotFound(err):
-		logger.DebugContext(ctx, "no VPP token configured for this host's team")
+		logger.DebugContext(ctx, "no VPP token configured for this host's fleet")
 		return nil
 	default:
 		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
@@ -6122,7 +5831,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		logger := logger.With(
 			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
-			"team_id", softwareWithAutoUpdateSchedule.TeamID,
+			"fleet_id", softwareWithAutoUpdateSchedule.TeamID,
 			"update_window_start", softwareWithAutoUpdateSchedule.AutoUpdateStartTime,
 			"update_window_end", softwareWithAutoUpdateSchedule.AutoUpdateEndTime,
 			"host_timezone", *host.TimeZone,
@@ -6171,7 +5880,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			logger.ErrorContext(
 				ctx, "software title by id",
 				"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
-				"team_id", host.TeamID,
+				"fleet_id", host.TeamID,
 				"err", err,
 			)
 			continue
@@ -6191,19 +5900,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			logger.ErrorContext(
 				ctx, "title should be VPP app",
 				"software_title_id", softwareTitle.ID,
-				"team_id", host.TeamID,
+				"fleet_id", host.TeamID,
 			)
 			continue
 		default:
 			logger.ErrorContext(
-				ctx, "get VPP app metadata by team and title",
+				ctx, "get VPP app metadata by fleet and title",
 				"software_title_id", softwareTitle.ID,
-				"team_id", host.TeamID,
+				"fleet_id", host.TeamID,
 				"err", err,
 			)
 			continue
 		}
-		softwareTitle.AppStoreApp = vppAppMetadata
+		softwareTitle.AppStoreApps = []*fleet.VPPAppStoreApp{vppAppMetadata}
 
 		// Incoming softwares have Name, BundleIdentifier, Source and Version.
 		var bundleIdentifier string
@@ -6248,7 +5957,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		latestVersion := toValidSemVer(softwareTitle.AppStoreApp.LatestVersion)
+		latestVersion := toValidSemVer(softwareTitle.AppStoreApps[0].LatestVersion)
 		if _, err := fleet.VersionToSemverVersion(latestVersion); err != nil {
 			logger.ErrorContext(
 				ctx, "invalid latest version",
@@ -6299,11 +6008,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, recent install for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
@@ -6343,19 +6052,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, pending install for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
-		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
@@ -6379,9 +6088,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		}
 		logger := logger.With(
 			"software_title_id", softwareTitle.ID,
-			"team_id", host.TeamID,
-			"adam_id", softwareTitle.AppStoreApp.AdamID,
-			"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+			"fleet_id", host.TeamID,
+			"adam_id", softwareTitle.AppStoreApps[0].AdamID,
+			"latest_version", softwareTitle.AppStoreApps[0].LatestVersion,
 			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
 		)
 
@@ -6392,7 +6101,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID, hostVersion.VPPAppTeamID)
 		if err != nil {
 			logger.ErrorContext(
-				ctx, "get VPP app by team and title",
+				ctx, "get VPP app by fleet and title",
 				"err", err,
 			)
 			continue
@@ -7104,7 +6813,7 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.L
 		if es.Secret == "" {
 			var msg string
 			if es.TeamID != nil {
-				msg += fmt.Sprintf("team_id %d doesn't have an enroll secret, ", *es.TeamID)
+				msg += fmt.Sprintf("fleet_id %d doesn't have an enroll secret, ", *es.TeamID)
 			}
 			if globalSecret == "" {
 				logger.WarnContext(ctx, msg+"no global enroll secret found, skipping the creation of a com.fleetdm.fleetd.config profile")
@@ -7170,7 +6879,7 @@ func removeOneTimeSecretFleetdProfile(ctx context.Context, ds fleet.Datastore, l
 	if err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetdConfigPayloadIdentifier); err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "deleting fleetd configuration profile left by one-time enroll secrets")
 	}
-	logger.InfoContext(ctx, "removed fleetd configuration profile that only carried a one-time enroll secret placeholder", "team_id", teamID)
+	logger.InfoContext(ctx, "removed fleetd configuration profile that only carried a one-time enroll secret placeholder", "fleet_id", teamID)
 	return nil
 }
 
@@ -8598,10 +8307,10 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 
 type updateABMTokenTeamsRequest struct {
 	TokenID      uint  `url:"id"`
-	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
-	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
-	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
-	BYODTeamID   *uint `json:"byod_team_id" renameto:"byod_fleet_id"`
+	MacOSTeamID  *uint `json:"macos_fleet_id"`
+	IOSTeamID    *uint `json:"ios_fleet_id"`
+	IPadOSTeamID *uint `json:"ipados_fleet_id"`
+	BYODTeamID   *uint `json:"byod_fleet_id"`
 }
 
 type updateABMTokenTeamsResponse struct {
@@ -8962,7 +8671,7 @@ func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	req := request.(*mdmAppleOTARequest)
 	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpSessionID, req.Personal, req.DeviceInfo)
 	if err != nil {
-		return mdmAppleGetInstallerResponse{Err: err}, nil
+		return mdmAppleOTAResponse{Err: err}, nil
 	}
 	return mdmAppleOTAResponse{xml: xml}, nil
 }

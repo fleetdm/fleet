@@ -448,29 +448,26 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 // fleetMaintainedAppsTeamJoin is the FROM clause plus the LEFT JOIN that
 // determines, for a given team, whether each Fleet-maintained app has already
 // been added (via a software installer or VPP app). team_titles.id is non-NULL
-// when the app is already added to the team. It expects two `?` args, both the
+// when the app is already added to the team. It expects three `?` args, all the
 // team's global_or_team_id.
 const fleetMaintainedAppsTeamJoin = `
 			FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				-- COALESCE the platform so VPP-added titles (no installer row) still
-				-- carry a platform for the platform-scoped identifier fallback below.
-				SELECT DISTINCT st.id, st.unique_identifier, st.name, COALESCE(si.platform, va.platform) AS platform, si.fleet_maintained_app_id
-				FROM software_titles st
-				LEFT JOIN
-					software_installers si
-					ON si.title_id = st.id AND si.global_or_team_id = ?
-					AND si.platform IN ('darwin','windows')
-				LEFT JOIN
-					vpp_apps va
-					ON va.title_id = st.id
-					AND va.platform = 'darwin'
-				LEFT JOIN
-					vpp_apps_teams vat
-					ON vat.adam_id = va.adam_id
-					AND vat.platform = va.platform
-					AND vat.global_or_team_id = ?
-				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
+				SELECT st.id, st.unique_identifier, st.name, si.platform, si.fleet_maintained_app_id
+				FROM software_installers si
+				INNER JOIN software_titles st ON st.id = si.title_id
+				WHERE si.global_or_team_id = ? AND si.platform IN ('darwin','windows')
+				UNION
+				SELECT st.id, st.unique_identifier, st.name, va.platform, NULL
+				FROM vpp_apps_teams vat
+				INNER JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+				INNER JOIN software_titles st ON st.id = va.title_id
+				WHERE vat.global_or_team_id = ? AND vat.platform = 'darwin'
+					-- Skip VPP titles that also have an installer, the installer row above wins for them
+					AND NOT EXISTS (
+						SELECT 1 FROM software_installers si2
+						WHERE si2.title_id = st.id AND si2.global_or_team_id = ? AND si2.platform IN ('darwin','windows')
+					)
 			) team_titles
 				-- Match the exact FMA the title was added with, so a shared bundle
 				-- identifier (Firefox vs Firefox ESR) doesn't mark the sibling added.
@@ -503,7 +500,7 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 
 	if teamID != nil {
 		stmt += teamFMATitlesJoin
-		args = []any{teamID, teamID}
+		args = []any{teamID, teamID, teamID}
 	} else {
 		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
 	}
@@ -529,7 +526,7 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 
 	if teamID != nil {
 		stmt += teamFMATitlesJoin
-		args = []any{teamID, teamID}
+		args = []any{teamID, teamID, teamID}
 	} else {
 		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
 	}
@@ -552,38 +549,33 @@ func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, te
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	dbReader := ds.reader(ctx)
 
-	// We paginate by distinct app token (the slug prefix, e.g. "figma" in
-	// "figma/darwin"), which identifies an app across its platform entries: the UI
-	// combines an app's macOS and Windows entries into one row, so an app must not
-	// be split across a page boundary. Keying on the token rather than the name
-	// keeps two distinct apps that share a name (e.g. gemini/darwin and
-	// google-gemini/darwin) as separate rows. The count, by contrast, is the
-	// number of installable platform entries: each is separately installable (its
-	// own Add button), so an app shipped on both platforms counts twice. The team
-	// join tells us whether each app is already added, for the "available only"
-	// filter.
+	// Paginate by app name without a platform suffix like " for macOS", and return every platform
+	// entry for the names on a page, so an app's macOS and Windows entries are never split across
+	// pages. The count is the number of installable platform entries, so an app shipped on both
+	// platforms counts twice. The team join tells us whether each app is already added, for the
+	// "available only" filter.
 	fromClause := `FROM fleet_maintained_apps fma`
 	var fromArgs []any
 	if teamID != nil {
 		fromClause = fleetMaintainedAppsTeamJoin
-		fromArgs = []any{teamID, teamID}
+		fromArgs = []any{teamID, teamID, teamID}
 	}
 
 	// Build the filter conditions shared by the count and page-name queries.
 	where := ` WHERE TRUE`
 	var whereArgs []any
 	if match := opt.MatchQuery; match != "" {
-		// Match the name the UI shows: when an app's macOS and Windows entries
-		// differ only by a platform suffix ("R for macOS"/"R for Windows"), the
-		// row drops it, so search must ignore it too. A single-platform app keeps
-		// its suffix ("Google Credential Provider for Windows").
-		// ponytail: correlated subquery per row; fine for the few hundred FMAs.
-		where += ` AND (CASE WHEN EXISTS (
-			SELECT 1 FROM fleet_maintained_apps sib
-			WHERE SUBSTRING_INDEX(sib.slug, '/', 1) = SUBSTRING_INDEX(fma.slug, '/', 1)
-				AND sib.id <> fma.id
-				AND REGEXP_REPLACE(sib.name, ' for (macOS|Mac|Windows)$', '') = REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '')
-		) THEN REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '') ELSE fma.name END) LIKE ?`
+		// Merge names that end with the suffix for macOS/Mac/Windows so that they show up
+		// as the same app in the UI.
+		fromClause += `
+			LEFT JOIN (
+				SELECT REGEXP_REPLACE(name, ' for (macOS|Mac|Windows)$', '') AS merged_name
+				FROM fleet_maintained_apps
+				GROUP BY merged_name
+				HAVING COUNT(*) > 1
+			) merged_names ON merged_names.merged_name = REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '')`
+
+		where += ` AND COALESCE(merged_names.merged_name, fma.name) LIKE ?`
 		whereArgs = append(whereArgs, likePattern(match))
 	}
 	if opt.Platform == "darwin" || opt.Platform == "windows" {
@@ -630,42 +622,40 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		direction = "DESC"
 	}
 
-	// Select the page of app tokens, fetching one extra to detect a next page.
-	// Group by the token and order by the app's name (the token maps to a single
-	// name), with the token as a deterministic tiebreaker for same-named apps.
+	// Select the page of app names, fetching one extra to detect a next page.
 	perPage := opt.GetPerPage()
-	pageTokensStmt := fmt.Sprintf(
-		`SELECT SUBSTRING_INDEX(fma.slug, '/', 1) AS app_token %s%s GROUP BY app_token ORDER BY MIN(fma.name) %s, app_token %s LIMIT %d OFFSET %d`,
-		fromClause, where, direction, direction, perPage+1, perPage*opt.Page,
+	pageNamesStmt := fmt.Sprintf(
+		`SELECT REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '') AS base_name %s%s GROUP BY base_name ORDER BY base_name %s LIMIT %d OFFSET %d`,
+		fromClause, where, direction, perPage+1, perPage*opt.Page,
 	)
-	pageTokensArgs := append(append([]any{}, fromArgs...), whereArgs...)
-	var pageTokens []string
-	if err := sqlx.SelectContext(ctx, dbReader, &pageTokens, pageTokensStmt, pageTokensArgs...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained app page tokens")
+	pageNamesArgs := append(append([]any{}, fromArgs...), whereArgs...)
+	var pageNames []string
+	if err := sqlx.SelectContext(ctx, dbReader, &pageNames, pageNamesStmt, pageNamesArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting fleet maintained app page names")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
-	if uint(len(pageTokens)) > perPage {                                                                   //nolint:gosec // dismiss G115
+	if uint(len(pageNames)) > perPage {                                                                    //nolint:gosec // dismiss G115
 		meta.HasNextResults = true
-		pageTokens = pageTokens[:perPage]
+		pageNames = pageNames[:perPage]
 	}
-	if len(pageTokens) == 0 {
+	if len(pageNames) == 0 {
 		// Page is past the last result.
 		return []fleet.MaintainedApp{}, meta, nil
 	}
 
-	// Fetch every platform row for the apps on this page so the UI can combine
+	// Fetch every platform row for the names on this page so the UI can combine
 	// an app's macOS and Windows entries into a single row.
 	selectStmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var rowsArgs []any
 	if teamID != nil {
-		selectStmt += teamFMATitlesJoin + ` WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
-		rowsArgs = []any{teamID, teamID, pageTokens}
+		selectStmt += teamFMATitlesJoin + ` WHERE REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '') IN (?)`
+		rowsArgs = []any{teamID, teamID, teamID, pageNames}
 	} else {
-		selectStmt += `NULL software_title_id FROM fleet_maintained_apps fma WHERE SUBSTRING_INDEX(fma.slug, '/', 1) IN (?)`
-		rowsArgs = []any{pageTokens}
+		selectStmt += `NULL software_title_id FROM fleet_maintained_apps fma WHERE REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '') IN (?)`
+		rowsArgs = []any{pageNames}
 	}
-	selectStmt += fmt.Sprintf(` ORDER BY fma.name %s, fma.slug ASC`, direction)
+	selectStmt += fmt.Sprintf(` ORDER BY REGEXP_REPLACE(fma.name, ' for (macOS|Mac|Windows)$', '') %s, fma.name %s, fma.slug ASC`, direction, direction)
 
 	selectStmt, rowsArgs, err := sqlx.In(selectStmt, rowsArgs...)
 	if err != nil {

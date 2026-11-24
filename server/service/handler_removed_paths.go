@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 
@@ -11,7 +12,7 @@ import (
 
 // removedPathTemplates are the paths that Fleet 5 removed, as they appear in pkg/removednames. A request to one gets 410 Gone with the
 // message of its table entry, for every method, or only for the entry's Context when it names one. A path moves here from
-// deprecatedPathAliases, or from its own route, in the change that stops serving it. A path that a later template also matches
+// its own route in the change that stops serving it. A path that a later template also matches
 // (/mdm/profiles/summary and /mdm/profiles/{profile_uuid}) must come first to get its own message. A path variable can add a regex
 // constraint that the table entry leaves out.
 var removedPathTemplates = []string{
@@ -33,6 +34,13 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/teams/{fleet_id}/policies/{policy_id}",
 	"/api/_version_/fleet/teams/{fleet_id}/schedule",
 	"/api/_version_/fleet/teams/{fleet_id}/schedule/{report_id}",
+	"/api/_version_/fleet/global/policies",
+	"/api/_version_/fleet/global/policies/delete",
+	"/api/_version_/fleet/global/policies/{policy_id}",
+	"/api/_version_/fleet/fleets/{fleet_id}/policies",
+	"/api/_version_/fleet/fleets/{fleet_id}/policies/count",
+	"/api/_version_/fleet/fleets/{fleet_id}/policies/delete",
+	"/api/_version_/fleet/fleets/{fleet_id}/policies/{policy_id}",
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
 	"/api/_version_/fleet/mdm/apple/profiles/match",
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
@@ -43,6 +51,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/ab_tokens/{id}/teams",
 	"/api/_version_/fleet/abm_tokens/{id}/fleets",
 	"/api/_version_/fleet/abm_tokens/{id}/teams",
+	"/api/_version_/fleet/vpp_tokens/{id}/teams",
 	"/api/_version_/fleet/mdm/apple_bm",
 	"/api/_version_/fleet/mdm/apple/abm_public_key",
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}",
@@ -51,7 +60,37 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/software/count",
 	"/api/_version_/fleet/software/{id:[0-9]+}",
 	"/api/_version_/fleet/hosts/identifier/{identifier}",
-	"/api/_version_/fleet/queries/{name}",
+	"/api/_version_/fleet/hosts/identifier/{identifier}/query",
+	"/api/_version_/fleet/queries/{id}",
+	"/api/_version_/fleet/queries",
+	"/api/_version_/fleet/queries/{id}/report",
+	"/api/_version_/fleet/queries/id/{id}",
+	"/api/_version_/fleet/queries/delete",
+	"/api/_version_/fleet/queries/{id}/run",
+	"/api/_version_/fleet/queries/run",
+	"/api/_version_/fleet/queries/run_by_identifiers",
+	"/api/_version_/fleet/queries/run_by_names",
+	"/api/_version_/fleet/spec/queries",
+	"/api/_version_/fleet/spec/queries/{name}",
+	"/api/_version_/fleet/hosts/{id}/queries",
+	"/api/_version_/fleet/hosts/{id}/queries/{report_id}",
+	"/api/_version_/fleet/reports/id/{id}",
+	"/api/_version_/fleet/reports/{name}",
+	"/api/_version_/fleet/reports/run_by_names",
+	"/api/_version_/fleet/packs",
+	"/api/_version_/fleet/packs/schedule",
+	"/api/_version_/fleet/packs/schedule/{id}",
+	"/api/_version_/fleet/packs/id/{id}",
+	"/api/_version_/fleet/packs/{id}",
+	"/api/_version_/fleet/packs/{id}/scheduled",
+	"/api/_version_/fleet/spec/packs",
+	"/api/_version_/fleet/spec/packs/{name}",
+	"/api/_version_/fleet/global/schedule",
+	"/api/_version_/fleet/global/schedule/{id}",
+	"/api/_version_/fleet/schedule",
+	"/api/_version_/fleet/schedule/{id}",
+	"/api/_version_/fleet/fleets/{fleet_id}/schedule",
+	"/api/_version_/fleet/fleets/{fleet_id}/schedule/{report_id}",
 
 	"/api/_version_/fleet/mdm/commands",
 	"/api/_version_/fleet/mdm/apple/commands",
@@ -94,10 +133,23 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/setup/eula/{token}",
 	"/api/_version_/fleet/mdm/apple/setup/eula/{token}",
 	"/api/_version_/fleet/labels/{name}",
+	"/api/_version_/fleet/mdm/apple/installers",
+	"/api/_version_/fleet/mdm/apple/installers/{installer_id}",
+	"/api/mdm/apple/installer",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
 var removedPathOverlaps = map[string]endpointer.RemovedPathOverlap{
+	// Wildcards the fleet segment rather than reports, so the wildcard only catches DELETE requests under /reports and wrong-method
+	// requests to other /fleet/x/y routes keep their 405.
+	"/api/_version_/fleet/reports/{name}": {
+		Method:        http.MethodDelete,
+		RouteTemplate: "/api/_version_/{fleet_segment}/reports/{name}",
+	},
+	"/api/_version_/fleet/packs/{id}/scheduled": {
+		Method:        http.MethodGet,
+		RouteTemplate: "/api/_version_/fleet/packs/{pack_id}/{scheduled_segment}",
+	},
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}": {
 		Method:        http.MethodPost,
 		RouteTemplate: "/api/_version_/fleet/hosts/{host_id}/configuration_profiles/{resend_segment}/{profile_uuid}",
@@ -135,6 +187,15 @@ func removedPaths() []endpointer.RemovedPath {
 		paths = append(paths, removedPathFor(template, entry))
 	}
 	return paths
+}
+
+// RemovedRootPathHandler answers with the 410 of a removed path that the root mux serves, outside the API router.
+func RemovedRootPathHandler(path string, logger *slog.Logger) http.Handler {
+	entry, ok := removedPathEntry(path)
+	if !ok {
+		panic(fmt.Sprintf("removed path %s has no entry in pkg/removednames", path))
+	}
+	return endpointer.RemovedPathHandler(removedPathFor(path, entry), logger)
 }
 
 var pathVarConstraint = regexp.MustCompile(`\{(\w+):[^}]+\}`)

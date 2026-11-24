@@ -37,6 +37,13 @@
       "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
     },
     {
+      "name": "3Dconnexion 3DxWare 10",
+      "slug": "3dxware-10/windows",
+      "platform": "windows",
+      "unique_identifier": "3Dconnexion 3DxWare 10",
+      "description": "3Dconnexion 3DxWare 10 is the driver and configuration software for 3Dconnexion 3D mice and keyboards."
+    },
+    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",
@@ -814,6 +821,13 @@
       "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
     },
     {
+      "name": "AutoHotkey",
+      "slug": "autohotkey/windows",
+      "platform": "windows",
+      "unique_identifier": "AutoHotkey",
+      "description": "AutoHotkey is a scripting language for automating tasks and creating hotkeys on Windows."
+    },
+    {
       "name": "Autopsy",
       "slug": "autopsy/windows",
       "platform": "windows",
@@ -966,6 +980,20 @@
       "platform": "darwin",
       "unique_identifier": "com.bambulab.bambu-studio",
       "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bambu Studio",
+      "slug": "bambu-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Bambu Studio",
+      "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bandicam",
+      "slug": "bandicam/windows",
+      "platform": "windows",
+      "unique_identifier": "Bandicam",
+      "description": "Bandicam is a screen recorder for capturing the screen, games, and video devices."
     },
     {
       "name": "BandiView",
@@ -1171,6 +1199,13 @@
       "description": "BleachBit is a free utility for cleaning disk space and protecting privacy."
     },
     {
+      "name": "Blender (ARM64)",
+      "slug": "blender-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Blender",
+      "description": "Blender (ARM64) is the native ARM64 build of Blender, a 3D creation suite."
+    },
+    {
       "name": "Blender",
       "slug": "blender/darwin",
       "platform": "darwin",
@@ -1356,14 +1391,14 @@
       "name": "Burp Suite Community Edition",
       "slug": "burp-suite-community/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite is a web security testing toolkit."
     },
     {
       "name": "Burp Suite Professional",
       "slug": "burp-suite-professional/windows",
       "platform": "windows",
-      "unique_identifier": "Burp Suite Professional",
+      "unique_identifier": "Burp Suite",
       "description": "Burp Suite Professional is a toolkit for web application security testing."
     },
     {
@@ -1505,6 +1540,20 @@
       "platform": "darwin",
       "unique_identifier": "com.flexibits.cardhop.mac",
       "description": "Cardhop is a contacts manager."
+    },
+    {
+      "name": "Cato Client",
+      "slug": "cato-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Cato Client",
+      "description": "Cato Client is a zero trust network access (ZTNA) and VPN client that connects devices to the Cato SASE Cloud."
+    },
+    {
+      "name": "Cato Enterprise Browser",
+      "slug": "cato-enterprise-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Cato Browser",
+      "description": "Cato Enterprise Browser is a Chromium-based browser that secures access to business applications through the Cato SASE Cloud."
     },
     {
       "name": "Cavalry",
@@ -1661,11 +1710,32 @@
       "description": "Cisco Webex Recorder and Player plays Webex .wrf meeting recordings."
     },
     {
+      "name": "Citrix Workspace LTSR",
+      "slug": "citrix-workspace-ltsr/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace LTSR is the long-term servicing release of Citrix's unified workspace client, delivering secure access to virtual apps, desktops, and content."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
       "unique_identifier": "com.citrix.receiver.nomas",
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
+      "name": "Claude (ARM64)",
+      "slug": "claude-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Claude",
+      "description": "Claude (ARM64) is the native ARM64 build of Anthropic's official Claude AI desktop app."
     },
     {
       "name": "Claude DevTools",
@@ -2102,6 +2172,13 @@
       "description": "Cube Browser is Rystad Energy’s client for querying and analyzing its energy data cubes."
     },
     {
+      "name": "Cursor (ARM64)",
+      "slug": "cursor-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Cursor",
+      "description": "Cursor (ARM64) is the native ARM64 build of Cursor, an AI code editor with context-aware code suggestions, explanations, and refactors."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
@@ -2212,6 +2289,13 @@
       "platform": "darwin",
       "unique_identifier": "com.kapeli.dashdoc",
       "description": "Dash is an API documentation browser and code snippet manager."
+    },
+    {
+      "name": "Datadog Agent",
+      "slug": "datadog-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Datadog Agent",
+      "description": "Datadog Agent collects metrics, logs, and traces from hosts and sends them to Datadog for monitoring."
     },
     {
       "name": "Dataflare",
@@ -2620,6 +2704,13 @@
       "description": "DockDoor is a window peeking utility app."
     },
     {
+      "name": "Docker Desktop (ARM64)",
+      "slug": "docker-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Docker Desktop",
+      "description": "Docker Desktop (ARM64) is the native ARM64 build of Docker Desktop, an environment for building, sharing, and running containerized applications and microservices."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker-desktop/darwin",
       "platform": "darwin",
@@ -2651,7 +2742,7 @@
       "name": "DockView",
       "slug": "dockview/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.sergey-gerasimenko.DockView",
+      "unique_identifier": "com.macplus-software.com.DockView-2",
       "description": "DockView is a utility to preview application windows in the dock."
     },
     {
@@ -2777,7 +2868,7 @@
       "name": "Druva inSync",
       "slug": "druva-insync/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.druva.inSyncClient",
+      "unique_identifier": "com.druva.inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
@@ -2791,7 +2882,7 @@
       "name": "Druva inSync (GovCloud)",
       "slug": "druva-insync@govcloud/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.druva.inSyncClient",
+      "unique_identifier": "com.druva.inSync",
       "description": "Druva inSync (GovCloud) is the Druva GovCloud release of the inSync endpoint data protection client."
     },
     {
@@ -3299,6 +3390,13 @@
       "description": "Firefly Shimmer is an official wallet for IOTA."
     },
     {
+      "name": "Mozilla Firefox (ARM64)",
+      "slug": "firefox-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox (AArch64 en-US)",
+      "description": "Mozilla Firefox (ARM64) is the native ARM64 build of Firefox, a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
@@ -3332,6 +3430,13 @@
       "platform": "windows",
       "unique_identifier": "Firefox Developer Edition (x64 en-US)",
       "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
+      "name": "Mozilla Firefox ESR (ARM64)",
+      "slug": "firefox@esr-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox ESR (AArch64 en-US)",
+      "description": "Mozilla Firefox ESR (ARM64) is the native ARM64 build of Firefox ESR, the Extended Support Release of the Firefox web browser."
     },
     {
       "name": "Mozilla Firefox ESR",
@@ -3551,6 +3656,13 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Front",
+      "slug": "front/windows",
+      "platform": "windows",
+      "unique_identifier": "Front",
+      "description": "Front is a customer communication platform."
+    },
+    {
       "name": "FSMonitor",
       "slug": "fsmonitor/darwin",
       "platform": "darwin",
@@ -3691,6 +3803,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git (ARM64)",
+      "slug": "git-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Git",
+      "description": "Git (ARM64) is the native ARM64 build of Git, a free and open source distributed version control system."
+    },
+    {
       "name": "Git Extensions",
       "slug": "git-extensions/windows",
       "platform": "windows",
@@ -3724,6 +3843,13 @@
       "platform": "darwin",
       "unique_identifier": "com.github.CopilotForXcode",
       "description": "GitHub Copilot for Xcode is a xcode extension for GitHub Copilot."
+    },
+    {
+      "name": "GitHub Desktop (ARM64)",
+      "slug": "github-desktop-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub Desktop",
+      "description": "GitHub Desktop (ARM64) is the native ARM64 build of GitHub Desktop, a desktop client for GitHub repositories."
     },
     {
       "name": "GitHub Desktop",
@@ -3848,7 +3974,7 @@
       "name": "GoldenDict-ng",
       "slug": "goldendict-ng/windows",
       "platform": "windows",
-      "unique_identifier": "GoldenDict-ng",
+      "unique_identifier": "goldendict-ng",
       "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
     },
     {
@@ -3864,6 +3990,13 @@
       "platform": "windows",
       "unique_identifier": "Google Ads Editor",
       "description": "Google Ads Editor is a free application for managing Google Ads campaigns."
+    },
+    {
+      "name": "Google Chrome (ARM64)",
+      "slug": "google-chrome-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
+      "description": "Google Chrome (ARM64) is the native ARM64 build of Google Chrome, a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Chrome",
@@ -4111,6 +4244,13 @@
       "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
     },
     {
+      "name": "Herdr",
+      "slug": "herdr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.herdr.app",
+      "description": "Herdr is a desktop app for running terminals and coding agents."
+    },
+    {
       "name": "Hex Fiend",
       "slug": "hex-fiend/darwin",
       "platform": "darwin",
@@ -4235,13 +4375,6 @@
       "platform": "darwin",
       "unique_identifier": "com.knollsoft.Hyperkey",
       "description": "Hyperkey is a tool to convert your caps lock key or any of your modifier keys to the hyper key."
-    },
-    {
-      "name": "i1Profiler",
-      "slug": "i1profiler/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.x-rite.i1Profiler",
-      "description": "i1Profiler is an automation and creative controls for photographers and designers."
     },
     {
       "name": "IBM Notifier",
@@ -4454,6 +4587,13 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
+      "name": "IntelliJ IDEA (ARM64)",
+      "slug": "intellij-idea-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "IntelliJ IDEA",
+      "description": "IntelliJ IDEA (ARM64) is the native ARM64 build of IntelliJ IDEA, a Java IDE by JetBrains."
+    },
+    {
       "name": "IntelliJ IDEA",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
@@ -4643,6 +4783,13 @@
       "description": "Jump Desktop is a remote desktop application."
     },
     {
+      "name": "k6",
+      "slug": "k6/windows",
+      "platform": "windows",
+      "unique_identifier": "k6",
+      "description": "k6 is an open-source load testing tool for developers, with tests written in JavaScript."
+    },
+    {
       "name": "Kaleidoscope",
       "slug": "kaleidoscope/darwin",
       "platform": "darwin",
@@ -4772,7 +4919,7 @@
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",
-      "unique_identifier": "dev.kiro.cli",
+      "unique_identifier": "com.amazon.codewhisperer",
       "description": "Kiro CLI is an AI-powered productivity tool for the command-line."
     },
     {
@@ -4823,6 +4970,13 @@
       "platform": "darwin",
       "unique_identifier": "com.objective-see.KnockKnock",
       "description": "KnockKnock is a tool to show what is persistently installed on the computer."
+    },
+    {
+      "name": "KopiaUI",
+      "slug": "kopiaui/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.kopia.ui",
+      "description": "KopiaUI is a backup and restore tool."
     },
     {
       "name": "Krisp",
@@ -5252,6 +5406,13 @@
       "description": "Mailspring is a fork of Nylas Mail."
     },
     {
+      "name": "Make Me Admin",
+      "slug": "make-me-admin/windows",
+      "platform": "windows",
+      "unique_identifier": "Make Me Admin",
+      "description": "Make Me Admin is a tool that lets standard users temporarily elevate their account to administrator."
+    },
+    {
       "name": "Malwarebytes for Mac",
       "slug": "malwarebytes/darwin",
       "platform": "darwin",
@@ -5567,6 +5728,13 @@
       "description": "Microsoft Remote Help is an application that works with Microsoft Intune to provide secure, assisted remote connections between helpdesk staff and users."
     },
     {
+      "name": "Microsoft Teams (ARM64)",
+      "slug": "microsoft-teams-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Teams",
+      "description": "Microsoft Teams (ARM64) is the native ARM64 build of Microsoft Teams, an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
+    },
+    {
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
@@ -5840,11 +6008,25 @@
       "description": "Mullvad VPN is a VPN client."
     },
     {
+      "name": "Mullvad VPN",
+      "slug": "mullvad-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mullvad VPN",
+      "description": "Mullvad VPN is a VPN client."
+    },
+    {
       "name": "Multitouch",
       "slug": "multitouch/darwin",
       "platform": "darwin",
       "unique_identifier": "com.brassmonkery.Multitouch",
       "description": "Multitouch is a tool to add more gestures for Trackpad and Magic Mouse."
+    },
+    {
+      "name": "Munki",
+      "slug": "munki/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.googlecode.munki.ManagedSoftwareCenter",
+      "description": "Munki is a software installation manager."
     },
     {
       "name": "MURAL",
@@ -5878,7 +6060,7 @@
       "name": "MySQL Workbench",
       "slug": "mysqlworkbench/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "unique_identifier": "com.oracle.mysqlworkbench",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
@@ -6001,6 +6183,27 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
+      "name": "Nitro PDF Pro",
+      "slug": "nitro-pdf-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Nitro PDF Pro",
+      "description": "Nitro PDF Pro is a PDF editor for creating, converting, editing, signing, and securing PDF documents."
+    },
+    {
+      "name": "Node.js 22",
+      "slug": "nodejs-22/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 22 is the 22.x long-term support release line of the Node.js JavaScript runtime."
+    },
+    {
+      "name": "Node.js 24",
+      "slug": "nodejs-24/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 24 is the 24.x long-term support release line of the Node.js JavaScript runtime."
+    },
+    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
@@ -6055,6 +6258,13 @@
       "platform": "windows",
       "unique_identifier": "NoSQL Workbench",
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
+    },
+    {
+      "name": "Notepad++ (ARM64)",
+      "slug": "notepad++-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Notepad++ (ARM 64-bit)",
+      "description": "Notepad++ (ARM64) is the native ARM64 build of Notepad++, a text editor for Windows."
     },
     {
       "name": "Notepad++",
@@ -6118,6 +6328,13 @@
       "platform": "windows",
       "unique_identifier": "Notion 6.1.0",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "noTunes",
+      "slug": "notunes/darwin",
+      "platform": "darwin",
+      "unique_identifier": "digital.twisted.noTunes",
+      "description": "noTunes is a menu bar utility that prevents iTunes or Apple Music from launching automatically."
     },
     {
       "name": "Noun Project",
@@ -6547,6 +6764,13 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
+      "name": "Parsec",
+      "slug": "parsec/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tv.parsec.www",
+      "description": "Parsec is a remote desktop app for low-latency streaming and remote access to computers."
+    },
+    {
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",
@@ -6636,6 +6860,13 @@
       "platform": "darwin",
       "unique_identifier": "org.grunenberg.PhotoStickies",
       "description": "PhotoStickies is a tool to show photos or camera feeds on the desktop."
+    },
+    {
+      "name": "PhpStorm (ARM64)",
+      "slug": "phpstorm-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PhpStorm",
+      "description": "PhpStorm (ARM64) is the native ARM64 build of PhpStorm, a PHP IDE by JetBrains."
     },
     {
       "name": "PhpStorm",
@@ -6792,6 +7023,13 @@
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
     },
     {
+      "name": "Positron",
+      "slug": "positron/windows",
+      "platform": "windows",
+      "unique_identifier": "Positron",
+      "description": "Positron is a data science IDE for working with Python and R."
+    },
+    {
       "name": "Postgres",
       "slug": "postgres-app/darwin",
       "platform": "darwin",
@@ -6844,7 +7082,7 @@
       "name": "Postman",
       "slug": "postman/windows",
       "platform": "windows",
-      "unique_identifier": "Postman x64 11.75.4",
+      "unique_identifier": "Postman x64",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
@@ -6876,11 +7114,25 @@
       "description": "PowerPhotos is a tool to organise photo libraries."
     },
     {
+      "name": "PowerShell (ARM64)",
+      "slug": "powershell-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerShell 7-arm64",
+      "description": "PowerShell (ARM64) is the native ARM64 build of PowerShell, a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
+    },
+    {
       "name": "PowerShell",
       "slug": "powershell/windows",
       "platform": "windows",
       "unique_identifier": "PowerShell 7-x64",
       "description": "PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
+    },
+    {
+      "name": "PowerToys (ARM64)",
+      "slug": "powertoys-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerToys (Preview) ARM64",
+      "description": "PowerToys (ARM64) is the native ARM64 build of PowerToys, a set of utilities from Microsoft for power users to tune and streamline their Windows experience."
     },
     {
       "name": "PowerToys",
@@ -7030,6 +7282,13 @@
       "description": "Proton Pass is a desktop client for Proton Pass."
     },
     {
+      "name": "Proton Pass",
+      "slug": "proton-pass/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Pass",
+      "description": "Proton Pass is an open-source, end-to-end encrypted password manager."
+    },
+    {
       "name": "ProtonVPN",
       "slug": "protonvpn/darwin",
       "platform": "darwin",
@@ -7100,6 +7359,13 @@
       "description": "PureVPN is a VPN client."
     },
     {
+      "name": "PuTTY (ARM64)",
+      "slug": "putty-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PuTTY release",
+      "description": "PuTTY (ARM64) is the native ARM64 build of PuTTY, a free, open-source SSH and Telnet client for Windows."
+    },
+    {
       "name": "PuTTY",
       "slug": "putty/windows",
       "platform": "windows",
@@ -7121,18 +7387,25 @@
       "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
     },
     {
-      "name": "PyCharm Professional",
+      "name": "PyCharm",
       "slug": "pycharm/windows",
       "platform": "windows",
       "unique_identifier": "PyCharm",
-      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+      "description": "PyCharm is a Python IDE by JetBrains."
+    },
+    {
+      "name": "Python 3.13 (ARM64)",
+      "slug": "python-3.13-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Python 3.13.15 (ARM64)",
+      "description": "Python 3.13 (ARM64) is the native ARM64 build of Python 3.13, a high-level, general-purpose programming language."
     },
     {
       "name": "Python 3.13",
@@ -7541,6 +7814,13 @@
       "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
     },
     {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/windows",
+      "platform": "windows",
+      "unique_identifier": "Rocket.Chat",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
@@ -7667,6 +7947,13 @@
       "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
     },
     {
+      "name": "Sandboxie-Plus",
+      "slug": "sandboxie-plus/windows",
+      "platform": "windows",
+      "unique_identifier": "Sandboxie-Plus",
+      "description": "Sandboxie-Plus is a sandbox tool for running programs in isolation so they can't make lasting changes to the system."
+    },
+    {
       "name": "SaneSideButtons",
       "slug": "sanesidebuttons/darwin",
       "platform": "darwin",
@@ -7749,6 +8036,13 @@
       "platform": "windows",
       "unique_identifier": "Scrivener",
       "description": "Scrivener is a word processing software with a typewriter style."
+    },
+    {
+      "name": "Scroll Reverser",
+      "slug": "scroll-reverser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pilotmoon.scroll-reverser",
+      "description": "Scroll Reverser is a menu bar utility that reverses the scrolling direction of mice and trackpads independently."
     },
     {
       "name": "Secretive",
@@ -7924,6 +8218,13 @@
       "platform": "darwin",
       "unique_identifier": "com.slab.slab",
       "description": "Slab is a knowledge management for organisations."
+    },
+    {
+      "name": "Slack (ARM64)",
+      "slug": "slack-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Slack",
+      "description": "Slack (ARM64) is the native ARM64 build of Slack, team communication and collaboration software for modern workplaces."
     },
     {
       "name": "Slack",
@@ -8161,6 +8462,13 @@
       "slug": "splashtop-business/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splashtop.stb.macosx",
+      "description": "Splashtop Business is remote access software."
+    },
+    {
+      "name": "Splashtop Business",
+      "slug": "splashtop-business/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Business",
       "description": "Splashtop Business is remote access software."
     },
     {
@@ -8549,6 +8857,13 @@
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
+      "name": "Tableau Reader",
+      "slug": "tableau-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Reader",
+      "description": "Tableau Reader is a free desktop application for opening and interacting with data visualizations built in Tableau."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
@@ -8871,11 +9186,25 @@
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
+      "name": "TortoiseGit (ARM64)",
+      "slug": "tortoisegit-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseGit",
+      "description": "TortoiseGit (ARM64) is the native ARM64 build of TortoiseGit, a Windows shell interface to Git. Requires Git for Windows to be installed."
+    },
+    {
       "name": "TortoiseGit",
       "slug": "tortoisegit/windows",
       "platform": "windows",
       "unique_identifier": "TortoiseGit",
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
+    },
+    {
+      "name": "TortoiseSVN",
+      "slug": "tortoisesvn/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseSVN",
+      "description": "TortoiseSVN is an Apache Subversion (SVN) client for Windows, implemented as a File Explorer shell extension with overlay icons and context menu commands."
     },
     {
       "name": "Tower",
@@ -8909,7 +9238,7 @@
       "name": "Transmission",
       "slug": "transmission/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.m0k.transmission.LSSharedFileList",
+      "unique_identifier": "org.m0k.transmission",
       "description": "Transmission is an open-source BitTorrent client."
     },
     {
@@ -9249,6 +9578,13 @@
       "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers working across desktop, web, mobile, and cloud."
     },
     {
+      "name": "Microsoft Visual Studio Code (ARM64)",
+      "slug": "visual-studio-code-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
+      "description": "Microsoft Visual Studio Code (ARM64) is the native ARM64 build of Visual Studio Code, an open-source, lightweight, and powerful code editor."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -9289,6 +9625,13 @@
       "platform": "darwin",
       "unique_identifier": "com.alienator88.Viz",
       "description": "Viz is a utility for extracting text from images, videos, QR codes and barcodes."
+    },
+    {
+      "name": "VLC media player (ARM64)",
+      "slug": "vlc-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "VLC media player",
+      "description": "VLC media player (ARM64) is the native ARM64 build of VLC media player, a free and open-source media player."
     },
     {
       "name": "VLC media player",
@@ -9585,6 +9928,13 @@
       "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
     },
     {
+      "name": "Windscribe",
+      "slug": "windscribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Windscribe",
+      "description": "Windscribe is a VPN client that encrypts network traffic and blocks ads and trackers."
+    },
+    {
       "name": "Windsurf",
       "slug": "windsurf/windows",
       "platform": "windows",
@@ -9620,6 +9970,13 @@
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
     },
     {
+      "name": "WinZip",
+      "slug": "winzip/windows",
+      "platform": "windows",
+      "unique_identifier": "WinZip",
+      "description": "WinZip is a file compression utility for creating, extracting, and encrypting ZIP and other archives."
+    },
+    {
       "name": "WireGuard",
       "slug": "wireguard/windows",
       "platform": "windows",
@@ -9646,6 +10003,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.wispr-flow",
       "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
+    },
+    {
+      "name": "Wispr Flow",
+      "slug": "wispr-flow/windows",
+      "platform": "windows",
+      "unique_identifier": "Wispr Flow",
+      "description": "Wispr Flow is a voice-to-text dictation app with AI-powered auto-editing."
     },
     {
       "name": "EdrawMax",
@@ -9893,6 +10257,13 @@
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
     },
     {
+      "name": "ZeroTier One",
+      "slug": "zerotier-one/windows",
+      "platform": "windows",
+      "unique_identifier": "ZeroTier One",
+      "description": "ZeroTier One is a virtual networking client that connects devices over encrypted peer-to-peer networks."
+    },
+    {
       "name": "Zettlr",
       "slug": "zettlr/darwin",
       "platform": "darwin",
@@ -9914,6 +10285,13 @@
       "description": "Zight is a visual communication platform."
     },
     {
+      "name": "Zoom (ARM64)",
+      "slug": "zoom-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Workplace (ARM64)",
+      "description": "Zoom (ARM64) is the native ARM64 build of Zoom, a video communication platform for meetings, webinars, and collaboration."
+    },
+    {
       "name": "Zoom Outlook Plugin",
       "slug": "zoom-outlook-plugin/windows",
       "platform": "windows",
@@ -9933,6 +10311,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Rooms",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom VDI Universal Plugin",
+      "slug": "zoom-vdi-universal-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom VDI Universal Plugin(64bit)",
+      "description": "Zoom VDI Universal Plugin is an endpoint media plug-in that offloads Zoom audio and video processing to the local device in virtual desktop environments."
     },
     {
       "name": "Zoom",

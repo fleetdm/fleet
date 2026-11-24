@@ -41,13 +41,7 @@ module.exports = {
       return;
     }
 
-    require('assert')(sails.config.custom.salesforceIntegrationPasskey);
-    require('assert')(sails.config.custom.salesforceIntegrationUsername);
-    let jsforce = require('jsforce');
-    let salesforceConnection = new jsforce.Connection({
-      loginUrl : 'https://fleetdm.my.salesforce.com'
-    });
-    await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+    let salesforceConnection = await sails.helpers.salesforce.getConnection();
 
     await sails.helpers.flow.build(async ()=>{
       return await salesforceConnection.sobject('CampaignMember')

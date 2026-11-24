@@ -21,11 +21,10 @@
       white-space: nowrap;
     }
     [purpose='cta-button'] {
-      .cta-button();
+      .primary-button();
+      display: flex;
       cursor: pointer;
       margin-right: 24px;
-      padding: 16px;
-      height: 36px;
       text-decoration: none;
       overflow: hidden;
     }
@@ -52,14 +51,6 @@
        line-height: 28px;
        margin-bottom: 0px;
      }
-    }
-    [purpose='custom-cta-buttons'] {
-       [purpose='primary-button'] {
-          padding: 16px 63px;
-       }
-       [purpose='secondary-button'] {
-          .btn-animated-arrow-red();
-       }
     }
   }
 
@@ -210,11 +201,6 @@
           margin-bottom: 0px;
         }
       }
-      [purpose='custom-cta-buttons'] {
-        [purpose='primary-button'] {
-          padding: 16px 63px;
-        }
-      }
     }
     [purpose='mdm-beta-cta'] {
       padding-left: 60px;
@@ -274,11 +260,6 @@
       padding: 60px 24px;
       margin-left: -16px;
       margin-right: -16px;
-      [purpose='custom-cta-buttons'] {
-        [purpose='primary-button'] {
-          padding: 16px 63px;
-        }
-      }
 
       [purpose='custom-cta-content'] {
         [purpose='custom-cta-title'] {

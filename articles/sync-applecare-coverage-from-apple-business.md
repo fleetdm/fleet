@@ -212,7 +212,7 @@ The device's serial number doesn't match a host in Fleet. The device may never h
 
 ## Further reading
 
-- [Use custom host vitals in scripts and configuration profiles](https://fleetdm.com/guides/custom-host-vitals)
+- [Custom host vitals](https://fleetdm.com/guides/custom-host-vitals)
 - [Labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet)
 - [Create an API account in Apple Business](https://support.apple.com/guide/business/axm33189f66a/web)
 - [Implementing OAuth for the Apple School Manager and Apple Business API](https://developer.apple.com/documentation/apple-school-and-business-manager-api/implementing-oauth-for-the-apple-school-manager-and-apple-business-api)

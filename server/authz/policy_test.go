@@ -104,6 +104,21 @@ func TestAuthorizeAppConfig(t *testing.T) {
 	})
 }
 
+func TestAuthorizeConditionalAccessGoogle(t *testing.T) {
+	t.Parallel()
+
+	integration := &fleet.ConditionalAccessGoogleIntegration{}
+	var cases []authTestCase
+	for _, user := range []*fleet.User{
+		nil, test.UserNoRoles, test.UserAdmin, test.UserMaintainer, test.UserObserver, test.UserObserverPlus,
+		test.UserTechnician, test.UserGitOps, test.UserTeamAdminTeam1, test.UserTeamMaintainerTeam1,
+		test.UserTeamObserverTeam1, test.UserTeamObserverPlusTeam1, test.UserTeamGitOpsTeam1, test.UserTeamTechnicianTeam1,
+	} {
+		cases = append(cases, authTestCase{user: user, object: integration, action: write, allow: user == test.UserAdmin || user == test.UserGitOps})
+	}
+	runTestCases(t, cases)
+}
+
 func TestAuthorizeSession(t *testing.T) {
 	t.Parallel()
 
@@ -772,7 +787,15 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 	noTeamInstaller := &fleet.SoftwareInstaller{}
 	team1Installer := &fleet.SoftwareInstaller{TeamID: new(uint(1))}
 	team2Installer := &fleet.SoftwareInstaller{TeamID: new(uint(2))}
+	// VPP apps and title icons are authorized as the same rego type (installable_entity).
+	team1VPPApp := &fleet.VPPApp{TeamID: new(uint(1))}
+	team1Icon := &fleet.SoftwareTitleIcon{TeamID: 1}
 	runTestCases(t, []authTestCase{
+		{user: test.UserTeamAdminTeam1, object: team1VPPApp, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1VPPApp, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Icon, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1Icon, action: write, allow: false},
+
 		{user: nil, object: noTeamInstaller, action: read, allow: false},
 		{user: nil, object: noTeamInstaller, action: write, allow: false},
 		{user: nil, object: team1Installer, action: read, allow: false},
@@ -1196,18 +1219,18 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserGitOps, object: host, action: list, allow: false},
 		{user: test.UserGitOps, object: host, action: selectiveList, allow: true},
 		{user: test.UserGitOps, object: host, action: cancelHostActivity, allow: false},
-		{user: test.UserGitOps, object: host, action: transferHost, allow: true},
-		{user: test.UserGitOps, object: host, action: deleteHost, allow: true},
+		{user: test.UserGitOps, object: host, action: transferHost, allow: false},
+		{user: test.UserGitOps, object: host, action: deleteHost, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: write, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
-		{user: test.UserGitOps, object: hostTeam1, action: transferHost, allow: true},
-		{user: test.UserGitOps, object: hostTeam1, action: deleteHost, allow: true},
+		{user: test.UserGitOps, object: hostTeam1, action: transferHost, allow: false},
+		{user: test.UserGitOps, object: hostTeam1, action: deleteHost, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: write, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
-		{user: test.UserGitOps, object: hostTeam2, action: transferHost, allow: true},
-		{user: test.UserGitOps, object: hostTeam2, action: deleteHost, allow: true},
+		{user: test.UserGitOps, object: hostTeam2, action: transferHost, allow: false},
+		{user: test.UserGitOps, object: hostTeam2, action: deleteHost, allow: false},
 
 		// Team observer can read only on appropriate team
 		{user: teamObserver, object: host, action: read, allow: false},
@@ -1285,7 +1308,7 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamAdmin, object: hostTeam2, action: transferHost, allow: false},
 		{user: teamAdmin, object: hostTeam2, action: deleteHost, allow: false},
 
-		// Team GitOps can cannot read hosts, but it can write and selectively read them.
+		// Team GitOps can only selectively list hosts.
 		{user: teamGitOps, object: host, action: read, allow: false},
 		{user: teamGitOps, object: host, action: write, allow: false},
 		{user: teamGitOps, object: host, action: cancelHostActivity, allow: false},
@@ -1296,8 +1319,8 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamGitOps, object: hostTeam1, action: selectiveList, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
-		{user: teamGitOps, object: hostTeam1, action: transferHost, allow: true},
-		{user: teamGitOps, object: hostTeam1, action: deleteHost, allow: true},
+		{user: teamGitOps, object: hostTeam1, action: transferHost, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: deleteHost, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
@@ -2014,60 +2037,6 @@ func TestAuthorizeTarget(t *testing.T) {
 	})
 }
 
-func TestAuthorizeUserCreatedPack(t *testing.T) {
-	t.Parallel()
-
-	userCreatedPack := &fleet.Pack{
-		// Type nil is the type for user-created packs.
-		Type: nil,
-	}
-	runTestCases(t, []authTestCase{
-		{user: nil, object: userCreatedPack, action: read, allow: false},
-		{user: nil, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserNoRoles, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserNoRoles, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserAdmin, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserAdmin, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserMaintainer, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserMaintainer, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserObserver, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserObserver, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserObserverPlus, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserObserverPlus, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTechnician, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTechnician, object: userCreatedPack, action: write, allow: false},
-
-		// This is one exception to the "write only" nature of gitops. To be able to create
-		// and edit packs currently it needs read access too.
-		{user: test.UserGitOps, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserGitOps, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamAdminTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamMaintainerTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: write, allow: false},
-	})
-}
-
 func TestAuthorizeCarve(t *testing.T) {
 	t.Parallel()
 
@@ -2433,10 +2402,14 @@ func TestAuthorizeMDMAppleSettings(t *testing.T) {
 	t.Parallel()
 
 	globalSettings := &fleet.MDMAppleSettingsPayload{}
+	team1SetupSettings := &fleet.MDMAppleSetupPayload{TeamID: new(uint(1))}
 	team1Settings := &fleet.MDMAppleSettingsPayload{
 		TeamID: new(uint(1)),
 	}
 	runTestCases(t, []authTestCase{
+		{user: test.UserTeamAdminTeam1, object: team1SetupSettings, action: write, allow: true},
+		{user: test.UserTeamAdminTeam2, object: team1SetupSettings, action: write, allow: false},
+
 		{user: test.UserNoRoles, object: globalSettings, action: write, allow: false},
 		{user: test.UserNoRoles, object: globalSettings, action: read, allow: false},
 		{user: test.UserNoRoles, object: team1Settings, action: write, allow: false},
@@ -2562,6 +2535,44 @@ func TestAuthorizeABReleaseDevice(t *testing.T) {
 		{user: test.UserTeamMaintainerTeam1, object: team1, action: write, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team1, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeHostAISession(t *testing.T) {
+	t.Parallel()
+
+	noTeam := &fleet.HostAISessionAuthz{}
+	team1 := &fleet.HostAISessionAuthz{TeamID: new(uint(1))}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: noTeam, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1, action: read, allow: false},
+
+		{user: test.UserAdmin, object: noTeam, action: read, allow: true},
+		{user: test.UserAdmin, object: team1, action: read, allow: true},
+		{user: test.UserAdmin, object: team1, action: write, allow: false},
+		{user: test.UserMaintainer, object: noTeam, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1, action: read, allow: true},
+
+		{user: test.UserObserver, object: noTeam, action: read, allow: false},
+		{user: test.UserObserver, object: team1, action: read, allow: false},
+		{user: test.UserObserverPlus, object: team1, action: read, allow: false},
+		{user: test.UserTechnician, object: team1, action: read, allow: false},
+		{user: test.UserGitOps, object: noTeam, action: read, allow: false},
+		{user: test.UserGitOps, object: team1, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: team1, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team1, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: noTeam, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: noTeam, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1TeamAdminTeam2, object: team1, action: read, allow: false},
 	})
 }
 

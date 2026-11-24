@@ -980,7 +980,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "edit-locuri-test", Contents: []byte(twoLocURIProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Trigger profile sync: device gets the new profile + delete commands for old profiles.
 		// Drain all commands from the device without asserting exact counts (cleanup varies).
@@ -994,7 +994,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "edit-locuri-test", Contents: []byte(oneLocURIProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Trigger profile sync: device should get:
 		// - 1 <Delete> for the removed AllowCortana LocURI (enqueued by the reconciler)
@@ -1058,7 +1058,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "shared-locuri-A", Contents: []byte(profileA)},
 				{Name: "shared-locuri-B", Contents: []byte(profileB)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Drain install commands.
 		drainCommands(mdmDevice)
@@ -1070,7 +1070,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "shared-locuri-A", Contents: []byte(profileAEdited)},
 				{Name: "shared-locuri-B", Contents: []byte(profileB)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Trigger sync: should get an install for the updated A, but NO delete
 		// for AllowCamera since profile B still uses it.
@@ -1108,7 +1108,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "fully-protected-A", Contents: []byte(sharedProfile)},
 				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Deliver both profiles so profile A has a host row to leak.
 		drainCommands(mdmDevice)
@@ -1132,7 +1132,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// No <Delete> goes out, since profile B still enforces the LocURI.
 		for _, c := range drainCommands(mdmDevice) {
@@ -1150,100 +1150,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			require.NotEqual(t, "fully-protected-A", p.Name, "deleted profile must not remain listed on the host")
 		}
 	})
-}
-
-func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
-	t := s.T()
-
-	// create a team through the service so it initializes the agent ops
-	teamName := t.Name() + "team1"
-	team := &fleet.Team{
-		Name:        teamName,
-		Description: "desc team1",
-	}
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/fleets", team, http.StatusOK, &createTeamResp)
-	require.NotZero(t, createTeamResp.Team.ID)
-	team = createTeamResp.Team
-
-	rawTeamSpec := func(mdmValue string) json.RawMessage {
-		return json.RawMessage(fmt.Sprintf(`{ "specs": [{ "name": %q, "mdm": %s }] }`, team.Name, mdmValue))
-	}
-
-	// set the windows custom settings fields
-	var applyResp applyTeamSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
-		{
-			"windows_settings": {
-				"custom_settings": [
-					{"path": "foo", "labels": ["baz"]},
-					{"path": "bar", "labels_exclude_any": ["x", "y"]}
-				]
-			}
-		}
-	`), http.StatusOK, &applyResp)
-	require.Len(t, applyResp.TeamIDsByName, 1)
-
-	// check that they are returned by a GET /config
-	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{
-		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
-		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
-	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch without specifying the windows custom settings fields and an unrelated
-	// field, should not remove them
-	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`{ "enable_disk_encryption": true }`), http.StatusOK, &applyResp)
-	require.Len(t, applyResp.TeamIDsByName, 1)
-
-	// check that they are returned by a GET /config
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{
-		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
-		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
-	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch with explicitly empty windows custom settings fields, would remove
-	// them but this is a dry-run
-	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
-		{ "windows_settings": { "custom_settings": null } }
-  `), http.StatusOK, &applyResp, "dry_run", "true")
-	assert.Equal(t, map[string]uint{team.Name: team.ID}, applyResp.TeamIDsByName)
-
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{
-		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
-		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
-	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch with explicitly empty windows custom settings fields, removes them
-	applyResp = applyTeamSpecsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
-		{ "windows_settings": { "custom_settings": null } }
-  `), http.StatusOK, &applyResp)
-	require.Len(t, applyResp.TeamIDsByName, 1)
-
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Empty(t, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
-
-	// apply with invalid mix of labels fails
-	res := s.Do("POST", "/api/latest/fleet/spec/fleets", rawTeamSpec(`
-		{
-			"windows_settings": {
-				"custom_settings": [
-					{"path": "foo", "labels": ["a"], "labels_include_all": ["b"]}
-				]
-			}
-		}
-	`), http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
@@ -1387,7 +1293,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
 				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 					batchSetMDMProfilesRequest{Profiles: tc.profiles},
 					tc.wantStatus,
-					"team_id", fmt.Sprint(*tc.teamID))
+					"fleet_id", fmt.Sprint(*tc.teamID))
 			} else {
 				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 					batchSetMDMProfilesRequest{Profiles: tc.profiles},
@@ -1441,7 +1347,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 			{Name: "TeamProfileWithVar", Contents: teamProfile},
 		}},
 		http.StatusNoContent,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 
 	// Helper to verify profile contains substituted UUID
 	verifyProfileSubstitution := func(device *mdmtest.TestWindowsMDMClient, expectedUUID string, expectedData string) {

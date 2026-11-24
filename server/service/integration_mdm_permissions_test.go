@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -91,7 +92,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			},
 			"enable_disk_encryption": true,
@@ -126,9 +127,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]any{
-				"custom_settings": []any{"foo", "bar"},
-			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
@@ -138,7 +136,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		mobileconfigForTest("N3", "I3"),
 		mobileconfigForTest("N4", "I4"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 	//
 	// Start running permission tests with user gitops2-mdm,
@@ -151,9 +149,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]any{
-				"custom_settings": []any{"foo", "bar"},
-			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK)
@@ -163,14 +158,14 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		mobileconfigForTest("N5", "I5"),
 		mobileconfigForTest("N6", "I6"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 	// Attempt to set profile batch for team t2, should not allow.
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N7", "I7"),
 		mobileconfigForTest("N8", "I8"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusForbidden, "team_id", fmt.Sprint(t2.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(teamProfiles), http.StatusForbidden, "fleet_id", fmt.Sprint(t2.ID))
 
 	// Attempt to retrieve host profiles fails if the host doesn't belong to the team
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -184,10 +179,15 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{h1.ID}))
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
+	// GitOps users can't list hosts, so they can't look one up by identifier, also one that matches no host.
+	for _, identifier := range []string{h1.UUID, "no-such-host"} {
+		res := s.Do("GET", "/api/latest/fleet/hosts/"+url.PathEscape(identifier)+"/configuration_profiles", nil, http.StatusForbidden)
+		assert.Equal(t, fleet.GitOpsViewHostByIdentifierErrorMessage, extractServerErrorText(res.Body), identifier)
+	}
 
 	// GitOps users can't run MDM commands, even on hosts of their fleets.
 	const gitOpsMDMCommandMsg = "Users with the GitOps role can no longer run MDM commands. " +
-		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration"
+		"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 	type mdmCommandEndpoint struct {
 		method string
 		path   string
@@ -199,6 +199,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil},
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", h.ID), nil},
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h.ID), nil},
+			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", h.ID), nil},
 			{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil},
 			{"DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/commands/%s", h.ID, uuid.NewString()), nil},
 			{"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", h.ID), nil},
@@ -365,17 +366,6 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.awaitTriggerProfileSchedule(t)
 	checkNextPayloads(t, globalMacOSMDMClient, false)
 	team1Host.OrbitNodeKey = new(setOrbitEnrollment(t, team1Host, s.ds))
-	ggsr := getGlobalScheduleResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
-	require.NoError(t, ggsr.Err)
-	cpar := createPackResponse{}
-	var userPackID uint
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name:     new("Foobar"),
-		Disabled: new(false),
-	}, http.StatusOK, &cpar)
-	userPackID = cpar.Pack.Pack.ID
-	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		Email:      new("foo42@example.com"),
@@ -650,12 +640,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to list all software, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &listSoftwareVersionsResponse{})
 	var lsr listSoftwareVersionsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &lsr, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &lsr, "fleet_id", fmt.Sprint(t1.ID))
 	require.Len(t, lsr.Software, 1)
 	var lstr listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &lstr, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &lstr, "fleet_id", fmt.Sprint(t1.ID))
 	require.Len(t, lstr.SoftwareTitles, 2)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", lstr.SoftwareTitles[0].ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", lstr.SoftwareTitles[0].ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 
 	// Attempt to list a software, should allow.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", lsr.Software[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResponse{})
@@ -697,7 +687,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 
 	// Attempt to run live queries asynchronously (new unsaved query), should allow.
-	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports/run", createDistributedQueryCampaignRequest{
 		QuerySQL: "SELECT * FROM time;",
 		Selected: fleet.HostTargets{
 			HostIDs: []uint{h1.ID},
@@ -705,7 +695,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusOK, &runLiveQueryResponse{})
 
 	// Attempt to run live queries asynchronously (saved query), should allow.
-	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports/run", createDistributedQueryCampaignRequest{
 		QueryID: new(q1.ID),
 		Selected: fleet.HostTargets{
 			HostIDs: []uint{h1.ID},
@@ -714,66 +704,38 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to create queries, should fail.
 	cqr := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * from osquery_info;"),
 	}, http.StatusForbidden, &cqr)
 
 	// Attempt to edit queries, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", q1.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
 
 	// Attempt to view a query, should work.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", q1.ID), fleet.GetQueryRequest{}, http.StatusOK, &fleet.GetQueryResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.GetQueryRequest{}, http.StatusOK, &fleet.GetQueryResponse{})
 
 	// Attempt to list all queries, should work.
-	s.DoJSON("GET", "/api/latest/fleet/queries", fleet.ListQueriesRequest{}, http.StatusOK, &fleet.ListQueriesResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/reports", fleet.ListQueriesRequest{}, http.StatusOK, &fleet.ListQueriesResponse{})
 
 	// Attempt to delete queries, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
-	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{q1.ID}}, http.StatusForbidden, &fleet.DeleteQueriesResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("POST", "/api/latest/fleet/reports/delete", fleet.DeleteQueriesRequest{IDs: []uint{q1.ID}}, http.StatusForbidden, &fleet.DeleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to add a query to a user pack, should fail.
-	sqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  q1.ID,
-		Interval: 60,
-	}, http.StatusForbidden, &sqr)
-
-	// Attempt to read the global schedule, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
-
-	// Attempt to create a pack, should fail.
-	cpr := createPackResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name: new("foo8"),
-	}, http.StatusForbidden, &cpr)
-
-	// Attempt to edit a pack, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), modifyPackRequest{
-		Name: new("foo9"),
-	}, http.StatusForbidden, &modifyPackResponse{})
-
-	// Attempt to read a pack, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/packs/%d", userPackID), nil, http.StatusForbidden, &getPackResponse{})
-
-	// Attempt to delete a pack, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/id/%d", userPackID), deletePackRequest{}, http.StatusForbidden, &deletePackResponse{})
-
 	// Attempt to create a global policy, should fail.
-	gplr := fleet.GlobalPolicyResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+	gplr := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
 		Name:  "foo9",
 		Query: "SELECT * from plist;",
 	}, http.StatusForbidden, &gplr)
 
 	// Attempt to edit a global policy, should fail.
-	mgplr := fleet.ModifyGlobalPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.ModifyGlobalPolicyRequest{
+	mgplr := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from plist WHERE path = 'foo';"),
 	}, http.StatusForbidden, &mgplr)
 
@@ -784,33 +746,34 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	)
 
 	// Attempt to delete a global policy, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{gp2.ID},
-	}, http.StatusForbidden, &fleet.DeleteGlobalPoliciesResponse{})
+	}, http.StatusForbidden, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to create a team policy, should fail.
-	tplr := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Name:  "foo10",
-		Query: "SELECT * from file;",
+	tplr := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: new(t1.ID),
+		Name:   "foo10",
+		Query:  "SELECT * from file;",
 	}, http.StatusForbidden, &tplr)
 
 	// Attempt to edit a team policy, should fail.
-	mtplr := fleet.ModifyTeamPolicyResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
+	mtplr := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", t2p.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foo';"),
 	}, http.StatusForbidden, &mtplr)
 
 	// Attempt to view a team policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
-		&fleet.GetTeamPolicyByIDResponse{},
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", t2p.ID), nil, http.StatusOK,
+		&fleet.GetPolicyByIDResponse{},
 	)
 
 	// Attempt to delete a team policy, should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", t2.ID), fleet.DeleteTeamPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{t2p.ID},
-	}, http.StatusForbidden, &fleet.DeleteTeamPoliciesResponse{})
+	}, http.StatusForbidden, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to create a user, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
@@ -947,7 +910,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to download installer, should allow.
 	tokenResp := getSoftwareInstallerTokenResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", softwareTitleID), nil, http.StatusOK,
-		&tokenResp, "team_id", fmt.Sprint(t1.ID))
+		&tokenResp, "fleet_id", fmt.Sprint(t1.ID))
 	require.NotEmpty(t, tokenResp.Token)
 	r := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", softwareTitleID, tokenResp.Token), nil,
 		http.StatusOK)
@@ -978,9 +941,9 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", globalHost.ID, softwareTitleIDNoTeam), &uninstallSoftwareRequest{}, http.StatusAccepted)
 
 	// Attempt to read all profiles on t1, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listMDMConfigProfilesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listMDMConfigProfilesResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Attempt to read the summary of profiles on t1, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &getMDMProfilesSummaryResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &getMDMProfilesSummaryResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Attempt to read a profile on t1, should allow.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", mcUUID), getMDMConfigProfileRequest{}, http.StatusOK, &getMDMConfigProfileResponse{})
 
@@ -990,7 +953,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		"test_prof",
 		mobileconfigForTest("test_prof", "test_prof"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprint(t1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 
@@ -1080,68 +1043,35 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to create queries in global domain, should allow.
 	tcqr := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:  new("foo600"),
 		Query: new("SELECT * from orbit_info;"),
 	}, http.StatusForbidden, &tcqr)
 
 	// Attempt to create queries in its team, should fail.
 	tcqr = fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:   new("foo600"),
 		Query:  new("SELECT * from orbit_info;"),
 		TeamID: &t1.ID,
 	}, http.StatusForbidden, &tcqr)
 
 	// Attempt to edit query, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", q1.ID), fleet.ModifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.ModifyQueryRequest{
 		Name:  new("foo4"),
 		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to read the global schedule, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
-
-	// Attempt to read the team's schedule, should allow.
-	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t1.ID), getTeamScheduleRequest{}, http.StatusOK,
-		&getTeamScheduleResponse{},
-	)
-
-	// Attempt to read other team's schedule, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
-
-	// Attempt to add a query to a user pack, should fail.
-	tsqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  q1.ID,
-		Interval: 60,
-	}, http.StatusForbidden, &tsqr)
-
-	// Attempt to add a query to the team's schedule, should fail.
+	// Attempt to create a fleet report, should fail.
 	cqrt1 := fleet.CreateQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
+	s.DoJSON("POST", "/api/latest/fleet/reports", fleet.CreateQueryRequest{
 		Name:   new("foo8"),
 		Query:  new("SELECT * from managed_policies;"),
 		TeamID: &t1.ID,
 	}, http.StatusForbidden, &cqrt1)
-	ttsqr := teamScheduleQueryResponse{}
-	// Attempt to add a schedule with the deprecated APIs (by referencing a global query), should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t1.ID), teamScheduleQueryRequest{
-		QueryID:  new(q1.ID),
-		Interval: new(uint(60)),
-	}, http.StatusForbidden, &ttsqr)
-
-	// Attempt to remove a query from the team's schedule, should fail. q1 is a
-	// global query, so it is not in t1's schedule at all: the fleet_id in the
-	// path no longer matches the report, and the response is the same
-	// not-found a nonexistent report would get rather than a forbidden that
-	// would confirm the report exists outside this fleet.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule/%d", t1.ID, q1.ID), deleteTeamScheduleRequest{}, http.StatusNotFound, &deleteTeamScheduleResponse{})
 
 	// Attempt to add/remove a manual label from a team host, should allow.
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", team1Host.ID), addLabelsToHostRequest{
@@ -1180,40 +1110,41 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &fleet.GetPolicyByIDResponse{})
 
 	// Attempt to delete a global policy, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{gp2.ID},
-	}, http.StatusForbidden, &fleet.DeleteGlobalPoliciesResponse{})
+	}, http.StatusForbidden, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to create a team policy, should fail.
-	ttplr := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
-		Name:  "foo1000",
-		Query: "SELECT * from file;",
+	ttplr := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: new(t1.ID),
+		Name:   "foo1000",
+		Query:  "SELECT * from file;",
 	}, http.StatusForbidden, &ttplr)
 
 	// Attempt to edit a team policy, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, t1p.ID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", t1p.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foobar';"),
-	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
+	}, http.StatusForbidden, &fleet.ModifyPolicyResponse{})
 
 	// Attempt to edit another team's policy, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", t2p.ID), fleet.ModifyPolicyRequest{
 		Query: new("SELECT * from file WHERE path = 'foobar';"),
-	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
+	}, http.StatusForbidden, &fleet.ModifyPolicyResponse{})
 
 	// Attempt to view a team policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, t1p.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK,
-		&fleet.GetTeamPolicyByIDResponse{},
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", t1p.ID), nil, http.StatusOK,
+		&fleet.GetPolicyByIDResponse{},
 	)
 
 	// Attempt to view another team's policy, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t2.ID, t2p.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusForbidden, &fleet.GetTeamPolicyByIDResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", t2p.ID), nil, http.StatusForbidden, &fleet.GetPolicyByIDResponse{})
 
 	// Attempt to delete a team policy, should fail.
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/delete", t1.ID), fleet.DeleteTeamPoliciesRequest{
+	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeletePoliciesRequest{
 		IDs: []uint{t1p.ID},
-	}, http.StatusForbidden, &fleet.DeleteTeamPoliciesResponse{})
+	}, http.StatusForbidden, &fleet.DeletePoliciesResponse{})
 
 	// Attempt to view own team, should allow, but enroll secrets should be masked.
 	teamRes = teamResponse{}
@@ -1315,7 +1246,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to download installer from t1, should allow.
 	tokenResp = getSoftwareInstallerTokenResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", softwareTitleID), nil, http.StatusOK,
-		&tokenResp, "team_id", fmt.Sprint(t1.ID))
+		&tokenResp, "fleet_id", fmt.Sprint(t1.ID))
 	require.NotEmpty(t, tokenResp.Token)
 	r = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token/%s", softwareTitleID, tokenResp.Token), nil,
 		http.StatusOK)
@@ -1324,7 +1255,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to download installer from t2, should fail.
 	tokenResp = getSoftwareInstallerTokenResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package/token?alt=media", softwareTitleID2), nil, http.StatusForbidden,
-		&tokenResp, "team_id", fmt.Sprint(t2.ID))
+		&tokenResp, "fleet_id", fmt.Sprint(t2.ID))
 
 	// Attempt to install software on a host in t1, should allow.
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", team1Host.ID, softwareTitleID), &installSoftwareRequest{}, http.StatusAccepted)
@@ -1357,13 +1288,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", globalHost.ID, softwareTitleIDNoTeam), &uninstallSoftwareRequest{}, http.StatusForbidden)
 
 	// Attempt to read all profiles on t1, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listMDMConfigProfilesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listMDMConfigProfilesResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Attempt to read the summary of profiles on t1, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &getMDMProfilesSummaryResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &getMDMProfilesSummaryResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Attempt to read a profile on t1, should allow.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", mcUUID), getMDMConfigProfileRequest{}, http.StatusOK, &getMDMConfigProfileResponse{})
 	// Attempt to read all profiles on "No team", should fail.
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusForbidden, &listMDMConfigProfilesResponse{}, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusForbidden, &listMDMConfigProfilesResponse{}, "fleet_id", "0")
 	// Attempt to read a profile on "No team", should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", mcUUID2), getMDMConfigProfileRequest{}, http.StatusForbidden, &getMDMConfigProfileResponse{})
 
@@ -1373,7 +1304,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		"test_prof",
 		mobileconfigForTest("test_prof2", "test_prof2"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprint(t1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 

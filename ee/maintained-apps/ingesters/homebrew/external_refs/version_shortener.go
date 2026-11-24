@@ -33,7 +33,6 @@ var (
 	MicrosoftAutoUpdateVersionShortener = makeVersionShortener(2) // "4.82.26020434" → "4.82"
 	OperaVersionShortener               = makeVersionShortener(2) // "129.0.5823.28" → "129.0"
 	TwingateVersionShortener            = makeVersionShortener(2) // "2026.29.22575" → "2026.29"
-	Microsoft365CopilotVersionShortener = makeVersionShortener(2) // "1.2608.0301" → "1.2608"
 	CitrixWorkspaceVersionShortener     = makeVersionShortener(3) // "25.11.1.42" → "25.11.1"
 	ElgatoStreamDeckVersionShortener    = makeVersionShortener(3) // "7.3.1.22604" → "7.3.1"
 	FileMakerProVersionShortener        = makeVersionShortener(3) // "22.0.5.500" → "22.0.5"
@@ -123,16 +122,6 @@ func SublimeVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained
 	return app, nil
 }
 
-// MySQLWorkbenchVersionTransformer appends ".CE" to match what macOS reports as
-// bundle_short_version for MySQL Workbench Community Edition (e.g. "8.0.46" → "8.0.46.CE").
-func MySQLWorkbenchVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
-	if app.Version == "" {
-		return app, errors.New("empty version for MySQL Workbench")
-	}
-	app.Version += ".CE"
-	return app, nil
-}
-
 // LensVersionTransformer appends "-latest" to match what macOS reports as
 // bundle_short_version for Lens (e.g. "2026.3.251250" → "2026.3.251250-latest").
 func LensVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
@@ -217,6 +206,25 @@ func ShottrVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_
 		return app, errors.New("empty version for Shottr")
 	}
 	if m := shottrLetterSuffixPattern.FindStringSubmatch(app.Version); m != nil {
+		app.Version = m[1]
+	}
+	return app, nil
+}
+
+// utmRebuildSuffixPattern matches a UTM cask version with a rebuild suffix
+// (e.g. "5.0.9-2", from the "v5.0.9-2" release tag).
+var utmRebuildSuffixPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)-\d+$`)
+
+// UTMVersionTransformer strips the rebuild suffix UTM release tags sometimes
+// carry (e.g. "5.0.9-2" → "5.0.9"). Rebuilt releases keep the same
+// CFBundleShortVersionString, so without this the validator can't find the
+// installed version and osquery's version_compare treats the installed "5.0.9"
+// as older than "5.0.9-2", breaking patch policy detection.
+func UTMVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for UTM")
+	}
+	if m := utmRebuildSuffixPattern.FindStringSubmatch(app.Version); m != nil {
 		app.Version = m[1]
 	}
 	return app, nil

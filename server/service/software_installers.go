@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -96,7 +95,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded.TitleID = uint(titleID)
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err = parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err = parseMultipartForm(r)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -133,7 +132,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok {
 		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
@@ -376,7 +375,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded := uploadSoftwareInstallerRequest{}
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := parseMultipartForm(r)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -420,7 +419,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok {
 		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
@@ -609,7 +608,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 type deleteSoftwareInstallerRequest struct {
-	TeamID *uint `query:"team_id" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id"`
 	// InstallerID deletes one package; omitted deletes all of the title's packages.
 	InstallerID *uint `query:"installer_id,optional"`
 	// VersionID deletes one App Store app version, omitting it deletes every version of the title.
@@ -645,7 +644,7 @@ type getSoftwareInstallerRequest struct {
 	Alt string `query:"alt,optional"`
 	// TeamID is required. Kept as *uint so a missing query parameter returns a
 	// validation error instead of matching team 0.
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
+	TeamID  *uint `query:"fleet_id"`
 	TitleID uint  `url:"title_id"`
 	// InstallerID pins the download to a specific package on a multi-package
 	// title. Omit for single-package titles or to fall back to the first-added
@@ -950,7 +949,7 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetSoftwareInstallersRequest struct {
-	TeamName string                            `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamName string                            `json:"-" query:"fleet_name,optional"`
 	DryRun   bool                              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Software []*fleet.SoftwareInstallerPayload `json:"software"`
 }
@@ -982,7 +981,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 
 type batchSetSoftwareInstallersResultRequest struct {
 	RequestUUID string `url:"request_uuid"`
-	TeamName    string `query:"team_name,optional" renameto:"fleet_name"`
+	TeamName    string `query:"fleet_name,optional"`
 	DryRun      bool   `query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
@@ -1162,7 +1161,7 @@ func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *
 //////////////////////////////////////////////////////////////////////////////
 
 type batchAssociateAppStoreAppsRequest struct {
-	TeamName string                  `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamName string                  `json:"-" query:"fleet_name,optional"`
 	DryRun   bool                    `json:"-" query:"dry_run,optional"`
 	Apps     []fleet.VPPBatchPayload `json:"app_store_apps"`
 }

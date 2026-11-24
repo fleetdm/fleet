@@ -203,8 +203,21 @@ func scanVulnerabilities(
 
 	scanStart := time.Now()
 
+	// The Go vulnerability database carries the rules for which software is a Go toolchain install.
+	// NVD skips those installs and the govulndb phase matches them, so both get the same rules.
+	// govulndb runs first: it takes over the CVE rows NVD matched before, so NVD's stale cleanup
+	// doesn't delete them only for them to be reinserted and reported as new.
 	phaseStart := time.Now()
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	goVulnDB := syncGoVulnDB(ctx, logger, vulnPath, config)
+	goToolchains := govulndb.ToolchainRulesFrom(ctx, goVulnDB, logger)
+	logger.InfoContext(ctx, "phase completed", "phase", "govulndb_sync", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, goVulnDB, goToolchains, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime, goToolchains)
 	logger.InfoContext(ctx, "phase completed", "phase", "nvd", "elapsed", time.Since(phaseStart))
 
 	var ovalVulns []fleet.SoftwareVulnerability
@@ -240,10 +253,6 @@ func scanVulnerabilities(
 	phaseStart = time.Now()
 	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
-
-	phaseStart = time.Now()
-	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
-	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
 
 	phaseStart = time.Now()
 	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
@@ -821,35 +830,52 @@ func checkGovalDictionaryVulnerabilities(
 	return results
 }
 
+// syncGoVulnDB downloads the latest Go vulnerability database, unless data sync is disabled, and
+// returns the newest artifact on disk, or nil if there is none or it cannot be read.
+func syncGoVulnDB(
+	ctx context.Context,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+) *govulndb.Artifact {
+	ctx, span := tracer.Start(ctx, "vuln.govulndb.sync")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		artifact, err := govulndb.Refresh(ctx, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating Go vulnerability database", err)
+		} else {
+			logger.DebugContext(ctx, "finished sync Go vulnerability database", "artifact", artifact)
+		}
+	}
+
+	artifact, err := govulndb.LoadArtifact(ctx, vulnPath)
+	if err != nil {
+		errHandler(ctx, logger, "loading Go vulnerability database", err)
+		return nil
+	}
+	return artifact
+}
+
 func checkGoVulnDBVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger *slog.Logger,
-	vulnPath string,
-	config *config.VulnerabilitiesConfig,
+	artifact *govulndb.Artifact,
+	toolchains *govulndb.ToolchainRules,
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := tracer.Start(ctx, "vuln.check_govulndb")
 	defer span.End()
 
-	if !config.DisableDataSync {
-		syncCtx, syncSpan := tracer.Start(ctx, "vuln.govulndb.sync")
-		artifact, err := govulndb.Refresh(syncCtx, vulnPath)
-		if err != nil {
-			errHandler(syncCtx, logger, "updating Go vulnerability database", err)
-		} else {
-			logger.DebugContext(syncCtx, "finished sync Go vulnerability database", "artifact", artifact)
-		}
-		syncSpan.End()
-	}
-
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.govulndb.analyze")
 	defer analyzeSpan.End()
 
-	r, err := govulndb.Analyze(analyzeCtx, ds, vulnPath, collectVulns, startTime, logger)
+	r, err := govulndb.Analyze(analyzeCtx, ds, artifact, toolchains, collectVulns, startTime, logger)
 	if err != nil {
-		errHandler(analyzeCtx, logger, "analyzing go binaries for vulnerabilities", err)
+		errHandler(analyzeCtx, logger, "analyzing Go binaries and toolchains for vulnerabilities", err)
 	}
 
 	return r
@@ -863,6 +889,7 @@ func checkNVDVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 	startTime time.Time,
+	toolchains *govulndb.ToolchainRules,
 ) []fleet.SoftwareVulnerability {
 	ctx, span := tracer.Start(ctx, "vuln.check_nvd")
 	defer span.End()
@@ -892,7 +919,9 @@ func checkNVDVulnerabilities(
 	loadSpan.End()
 
 	cpeCtx, cpeSpan := tracer.Start(ctx, "vuln.nvd.translate_software_to_cpe")
-	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
+	// By name, Go toolchain installs match unrelated CPEs (the Homebrew go formula matched
+	// ecies:go), and the govulndb phase matches them against the Go vulnerability database.
+	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger, []func(*fleet.Software) bool{toolchains.IsToolchainInstall})
 	if err != nil {
 		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
 		cpeSpan.End()
@@ -1359,6 +1388,27 @@ func newAppleMDMWorkerSchedule(
 	return s, nil
 }
 
+// newPolicyMembershipCleanupSchedule runs the policy result cleanups that policy changes requested.
+func newPolicyMembershipCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronPolicyMembershipCleanup)
+		defaultInterval = time.Hour
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("pending_policy_membership_cleanup", func(ctx context.Context) error {
+			return ds.CleanupPendingPolicyMembership(ctx)
+		}),
+	)
+	return s, nil
+}
+
 func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -1381,11 +1431,12 @@ func newCleanupsAndAggregationSchedule(
 	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name                          = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval               = 1 * time.Hour
-		expiredHostsCleanupMaxRunTime = 10 * time.Minute
-		expiredHostsCleanupBatchSize  = 5000
-		installerCleanupMaxRunTime    = 10 * time.Minute
+		name                            = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval                 = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime   = 10 * time.Minute
+		hostAISessionsCleanupMaxRunTime = 3 * time.Minute
+		expiredHostsCleanupBatchSize    = 5000
+		installerCleanupMaxRunTime      = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
@@ -1668,6 +1719,13 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
 			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
+		schedule.WithJob("cleanup_host_ai_sessions", func(ctx context.Context) error {
+			deleted, err := ds.CleanupHostAISessions(ctx, time.Now().UTC().Add(-fleet.HostAISessionsMaxAge), hostAISessionsCleanupMaxRunTime)
+			if deleted > 0 {
+				logger.InfoContext(ctx, "cleaned up host ai sessions", "count", deleted)
+			}
+			return err
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),
@@ -1942,7 +2000,7 @@ func newChartDataCollectionSchedule(
 				fleet.ListOptions{},
 			)
 			if err != nil {
-				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				logger.ErrorContext(ctx, "list fleets for chart scope", "err", err)
 				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
 			}
 			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, isPremium, logger))
@@ -2299,6 +2357,7 @@ func newAndroidMDMProfileManagerSchedule(
 	androidAgentConfig config.AndroidAgentConfig,
 	batchSize int,
 	redisPool fleet.RedisPool,
+	oneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
@@ -2311,7 +2370,8 @@ func newAndroidMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter,
+				android_svc.WithReconcileOneTimeEnrollSecrets(oneTimeEnrollSecrets))
 		}),
 	)
 
@@ -2776,6 +2836,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	triggerPolicyMembershipCleanup func(context.Context),
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2795,7 +2856,10 @@ func newMaintainedAppsAutoUpdateSchedule(
 			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
 			defer cancel()
 
-			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
+			err := eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
+			// When the update changed a patch policy's query, it marked the policy's old results for cleanup. This starts that cleanup.
+			triggerPolicyMembershipCleanup(ctx)
+			return err
 		}),
 	)
 
@@ -3300,4 +3364,37 @@ func newAppStoreAppConfigurationReconcilerSchedule(
 	)
 
 	return s, nil
+}
+
+func newGoogleConditionalAccessSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccess, 5*time.Minute, "sync_google_conditional_access",
+		(*service.GoogleConditionalAccessSyncer).Sync)
+}
+
+func newGoogleConditionalAccessAndroidRetrySchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccessAndroidRetry, time.Hour, "retry_google_conditional_access_android_hosts",
+		(*service.GoogleConditionalAccessSyncer).RetryAndroidHosts)
+}
+
+func newGoogleConditionalAccessSyncerSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+	name fleet.CronScheduleName, interval time.Duration, jobID string,
+	job func(*service.GoogleConditionalAccessSyncer, context.Context) error,
+) (*schedule.Schedule, error) {
+	logger = logger.With("cron", string(name))
+	syncer := service.NewGoogleConditionalAccessSyncer(ds, clients, newActivityFn, logger)
+	return schedule.New(
+		ctx, string(name), instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(jobID, func(ctx context.Context) error { return job(syncer, ctx) }),
+	), nil
 }

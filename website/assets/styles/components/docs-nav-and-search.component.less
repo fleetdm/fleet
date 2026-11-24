@@ -13,6 +13,15 @@
     display: flex;
     align-items: center;
   }
+  // When the links and search don't fit on one row, the links scroll sideways instead of pushing the page wider.
+  [purpose='nav-link-container'] {
+    min-width: 0px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
   a {
     height: 29px;
     &[purpose='docs-top-nav-menu-link'] {
@@ -62,7 +71,7 @@
        padding: 8px 15px;
        height: 44px;
        margin: 0;
-       width: 246px;
+       width: 200px;
      }
      .DocSearch-Button:hover {
        box-shadow: none;
@@ -81,7 +90,7 @@
        display: none;
      }
      .input-group:focus-within {
-       border: 1px solid @core-vibrant-blue;
+       border: 1px solid @core-fleet-black;
      }
      .DocSearch-Button-Placeholder {
        font-size: 16px;
@@ -119,14 +128,14 @@
         align-items: center;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-green;
+        border: 1px solid @core-fleet-black;
       }
       .form-control {
         border-radius: 6px;
         height: 36px;
         margin: 0;
         padding: 0px;
-        width: 171px;
+        width: 125px;
         font-size: 16px;
         &:focus {
           border: none;
@@ -201,7 +210,7 @@
         display: none;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-green;
+        border: 1px solid @core-fleet-black;
       }
       .DocSearch-Button-Placeholder {
         font-size: 16px;

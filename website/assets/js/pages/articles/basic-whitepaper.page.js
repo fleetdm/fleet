@@ -55,6 +55,8 @@ parasails.registerPage('basic-whitepaper', {
       if (typeof gtag !== 'undefined') {
         gtag('event', 'fleet_website__whitepaper_download');
       }
+      window.uetq = window.uetq || [];
+      window.uetq.push('event', 'fleet_website__whitepaper_download', {});
       let pdfDownloadLink = document.createElement('a');
       pdfDownloadLink.href = `/pdfs/${this.thisPage.meta.whitepaperFilename}`;
       pdfDownloadLink.download = this.thisPage.meta.whitepaperFilename;

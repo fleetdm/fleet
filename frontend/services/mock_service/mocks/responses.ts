@@ -395,7 +395,6 @@ const globalQueries = {
       author_name: "Test User",
       author_email: "test@example.com",
       observer_can_run: false,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -423,7 +422,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -450,7 +448,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -477,7 +474,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -504,7 +500,6 @@ const globalQueries = {
       author_name: "Test User 2",
       author_email: "test2@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -531,7 +526,6 @@ const globalQueries = {
       author_name: "Test User",
       author_email: "test@example.com",
       observer_can_run: true,
-      packs: [],
       stats: {
         system_time_p50: null,
         system_time_p95: null,
@@ -563,7 +557,6 @@ const teamQueries = {
       author_id: 1,
       author_name: "Jacob",
       author_email: "jacob@fleetdm.com",
-      packs: [],
       stats: {
         system_time_p50: 1,
         // system_time_p95: null,
@@ -593,7 +586,6 @@ const teamQueries = {
       author_id: 1,
       author_name: "Jacob",
       author_email: "jacob@fleetdm.com",
-      packs: [],
       stats: {
         system_time_p50: 4,
         // system_time_p95: null,
@@ -608,7 +600,7 @@ const teamQueries = {
 };
 
 const queryReport = {
-  query_id: 31,
+  report_id: 31,
   results: [
     {
       host_id: 1,
@@ -10591,14 +10583,14 @@ const queryReport = {
   ],
 };
 
-const globalQuery1 = { query: globalQueries.queries[0] };
-const globalQuery2 = { query: globalQueries.queries[1] };
-const globalQuery3 = { query: globalQueries.queries[2] };
-const globalQuery4 = { query: globalQueries.queries[4] };
-const globalQuery5 = { query: globalQueries.queries[5] };
-const globalQuery6 = { query: globalQueries.queries[6] };
-const teamQuery1 = { query: teamQueries.queries[0] };
-const teamQuery2 = { query: teamQueries.queries[1] };
+const globalQuery1 = { report: globalQueries.queries[0] };
+const globalQuery2 = { report: globalQueries.queries[1] };
+const globalQuery3 = { report: globalQueries.queries[2] };
+const globalQuery4 = { report: globalQueries.queries[4] };
+const globalQuery5 = { report: globalQueries.queries[5] };
+const globalQuery6 = { report: globalQueries.queries[6] };
+const teamQuery1 = { report: teamQueries.queries[0] };
+const teamQuery2 = { report: teamQueries.queries[1] };
 const teamPolicy1 = createMockPoliciesResponse();
 const hostDetailsiOS = createMockIosHostResponse;
 const aiAutofillPolicy = {

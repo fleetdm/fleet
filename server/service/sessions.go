@@ -410,7 +410,9 @@ func setSSOCookie(w http.ResponseWriter, sessionID string, cookieDurationSeconds
 		MaxAge:   cookieDurationSeconds,
 		Secure:   cookieSecure,
 		HttpOnly: true,
-		// SameSite: Strict or Lax do not work with SSO.
+		// Must ride the IdP's cross-site POST to the callback. Strict or Lax block it, and
+		// unset lets Chrome drop it once the IdP step takes over ~2 minutes.
+		SameSite: http.SameSiteNoneMode,
 	})
 }
 
@@ -422,6 +424,7 @@ func deleteSSOCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Secure:   cookieSecure,
 		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 }
 
@@ -686,6 +689,8 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			status := ssoOtherError
 			if errors.As(err, &ssoErr) {
 				status = ssoErr.code
+			} else if errors.Is(err, sso.ErrSessionNotFound) {
+				status = ssoSessionExpired
 			}
 			// redirect to login page on front end if there was some problem,
 			// errors should still be logged
@@ -968,7 +973,7 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 
 	sessionDuration := svc.config.Session.Duration
 	if session.APIOnly != nil && *session.APIOnly {
-		sessionDuration = 0 // make API-only tokens unlimited
+		sessionDuration = 0 // API-only tokens remain unlimited until manual rotation is implemented
 	}
 
 	// duration 0 = unlimited

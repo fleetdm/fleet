@@ -129,7 +129,7 @@ GitHub issue: [#39085](https://github.com/fleetdm/fleet/issues/39085)
 - Bounded how much of a Google Workspace directory one IdP sync pass pulls, so a very large directory or a misbehaving response can no longer paginate indefinitely or grow server memory without limit. A sync that exceeds a limit fails with an error naming the limit (visible as the last IdP sync status) instead of ingesting a partial directory.
 - Clarified the failed-install modal copy on Android hosts to explain that the end user can retry via the Google Play Store in their work profile.
 - Added a disabled Refetch button with a tooltip on the Host details page for Android hosts, explaining that Android hosts sync data automatically and linking to how to sync manually.
-- Removed the misleading Self-service preview tab from the "Edit appearance" modal for Android apps. Android apps are installed from the Play Store rather than the Fleet self-service web view, and updating the appearance will not change anything in the Play Store.
+- Removed the misleading Self-service preview tab from the "Edit appearance" modal for Android apps. Android apps are installed from the Google Play Store rather than the Fleet self-service web view, and updating the appearance will not change anything in the Google Play Store.
 - Disabled the Android MDM "Connect" and "Turn off Android MDM" buttons with a GitOps tooltip when GitOps mode is enabled, matching the Windows MDM behavior.
 - Added software upload progress logging to fleetctl GitOps.
 - Added a diagnostic message when an install script can't be run (exit code -1), such as when the interpreter in its shebang is missing on the host, instead of reporting no output.

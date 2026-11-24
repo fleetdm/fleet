@@ -6,5 +6,6 @@
   "slug": "cursorsense/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

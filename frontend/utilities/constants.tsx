@@ -188,7 +188,6 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   created_at: "",
   saved: false,
   author_id: 0,
-  packs: [],
   fleet_id: 0,
   author_email: "",
   stats: {},
@@ -221,7 +220,7 @@ export const DEFAULT_CAMPAIGN = {
   },
 
   id: 0,
-  query_id: 0,
+  report_id: 0,
   updated_at: "",
   user_id: 0,
 } as ICampaign;

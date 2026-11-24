@@ -9,6 +9,7 @@ import helpers, {
   compareVersions,
   willExpireWithinXDays,
   humanLastSeen,
+  humanHostMemory,
   internationalTimeOnlyFormat,
   formatSelectedTargetsForApi,
   formatFleet5RemovalMessage,
@@ -119,6 +120,18 @@ describe("helpers utilities", () => {
     });
   });
 
+  describe("humanHostMemory function", () => {
+    it("returns --- when the memory is unavailable", () => {
+      expect(humanHostMemory(-1)).toEqual("---");
+      expect(humanHostMemory(-1024)).toEqual("---");
+    });
+
+    it("formats bytes in GB", () => {
+      expect(humanHostMemory(8589934592)).toEqual("8.0 GB");
+      expect(humanHostMemory(0)).toEqual("0.0 GB");
+    });
+  });
+
   describe("setupData function", () => {
     it("excludes the org logo file from the JSON setup payload", () => {
       const formData: IRegistrationFormData = {
@@ -215,7 +228,7 @@ describe("helpers utilities", () => {
   });
 
   describe("formatFleet5RemovalMessage function", () => {
-    const guideURL = "https://fleetdm.com/learn-more-about/fleet-5-migration";
+    const guideURL = "https://fleetdm.com/learn-more-about/fleet-5-upgrade";
 
     it("returns null for any other message", () => {
       expect(formatFleet5RemovalMessage("Couldn't add. Learn more")).toBeNull();

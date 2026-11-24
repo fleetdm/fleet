@@ -62,6 +62,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerConflictingFMA", testMatchOrCreateSoftwareInstallerConflictingFMA},
 		{"MatchOrCreateSoftwareInstallerConflictingFMAWindows", testMatchOrCreateSoftwareInstallerConflictingFMAWindows},
 		{"ConflictingFMAReplicaLag", testConflictingFMAReplicaLag},
+		{"SharedUpgradeCodeFMATitleName", testSharedUpgradeCodeFMATitleName},
 		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
@@ -108,6 +109,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit", testBatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit},
 		{"InsertSoftwareInstallRequestRejectsRemovedInstaller", testInsertSoftwareInstallRequestRejectsRemovedInstaller},
 		{"InsertSoftwareUninstallRequestRejectsRemovedInstaller", testInsertSoftwareUninstallRequestRejectsRemovedInstaller},
+		{"BatchSetSoftwareInstallersConflictingFMA", testBatchSetSoftwareInstallersConflictingFMA},
 	}
 
 	for _, c := range cases {
@@ -1132,6 +1134,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.WithinDuration(t, beforeInstallRequest, res.CreatedAt, time.Minute)
 			createdAt := res.CreatedAt
 			require.WithinDuration(t, beforeInstallRequest, *res.UpdatedAt, time.Minute)
+			require.Equal(t, &teamID, res.HostTeamID)
 
 			beforeInstallResult := time.Now()
 			_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1144,6 +1147,13 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				PostInstallScriptOutput:   tc.postInstallScriptOutput,
 			}, nil)
 			require.NoError(t, err)
+
+			// the host's fleet is read with the result, not kept from when the install was queued
+			require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
+			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
+			require.NoError(t, err)
+			require.Nil(t, res.HostTeamID)
+			require.Equal(t, &teamID, res.InstallerGlobalOrTeamID)
 
 			// edit installer to ensure host software install is unaffected
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -5542,6 +5552,83 @@ func testConflictingFMAReplicaLag(t *testing.T, _ *Datastore) {
 	require.ErrorContains(t, err, "Only one of Mozilla Firefox Nightly or Mozilla Firefox Nightly (ARM64) can be added to the same fleet")
 }
 
+// The x64 and ARM64 Chrome MSIs share an upgrade code, so the two FMAs land on one title
+// when added to different fleets. The title takes the x64 FMA's name whichever is added
+// first, instead of being renamed on every add.
+func testSharedUpgradeCodeFMATitleName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	teamX64, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " x64"})
+	require.NoError(t, err)
+	teamARM, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " arm64"})
+	require.NoError(t, err)
+
+	chrome, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Google Chrome", Slug: "google-chrome/windows", Platform: "windows", UniqueIdentifier: "Google Chrome",
+	})
+	require.NoError(t, err)
+	chromeARM, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Google Chrome (ARM64)", Slug: "google-chrome-arm64/windows", Platform: "windows", UniqueIdentifier: "Google Chrome",
+	})
+	require.NoError(t, err)
+
+	mkFMA := func(teamID uint, app *fleet.MaintainedApp, storage, version string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:        tfr,
+			Extension:            "msi",
+			StorageID:            storage,
+			Filename:             storage + ".msi",
+			Title:                app.Name,
+			UpgradeCode:          "{C1DFDF69-5945-32F2-A35E-EE94C99C7CF4}",
+			Version:              version,
+			Source:               "programs",
+			Platform:             "windows",
+			FleetMaintainedAppID: new(app.ID),
+			FMAName:              app.Name,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &teamID,
+		}
+	}
+	titleName := func(titleID uint) string {
+		var name string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &name, `SELECT name FROM software_titles WHERE id = ?`, titleID)
+		})
+		return name
+	}
+
+	x64InstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamX64.ID, chrome, "chrome-x64", "156.0.8078.48"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	_, armTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64", "156.0.8078.48"))
+	require.NoError(t, err)
+	require.Equal(t, titleID, armTitleID)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-next", "157.0.8100.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	// Once the ARM64 FMA is the only one on the title, its adds rename it as before.
+	require.NoError(t, ds.DeleteSoftwareInstaller(ctx, x64InstallerID))
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-later", "158.0.8200.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome (ARM64)", titleName(titleID))
+
+	// Adding the x64 FMA after the ARM64 one takes the name back, and it stays.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamX64.ID, chrome, "chrome-x64-later", "158.0.8200.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(teamARM.ID, chromeARM, "chrome-arm64-latest", "159.0.8300.1"))
+	require.NoError(t, err)
+	require.Equal(t, "Google Chrome", titleName(titleID))
+}
+
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -7644,6 +7731,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 
 	// A non-nil pin is authoritative: it upserts the pin row.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("^1")}, v1ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	require.Equal(t, v1ID, activeID())
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
@@ -7683,6 +7771,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
 	// The query changed on the flip, so the policy's stale results were cleared.
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	membership, stats = policyResultCounts()
 	require.Zero(t, membership, "version flip must clear stale policy membership")
 	require.Zero(t, stats, "version flip must clear stale policy stats")
@@ -7780,6 +7869,7 @@ func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
 	refresh(installerID, "1.0", "echo install", bundleVersionQuery)
 	require.Equal(t, bundleVersionQuery, installerPatchQuery(installerID))
 	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	membership, stats := policyResultCounts(teamPolicy.ID)
 	require.Zero(t, membership, "a changed query must clear stale policy membership")
 	require.Zero(t, stats, "a changed query must clear stale policy stats")
@@ -7804,6 +7894,7 @@ func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
 	require.Equal(t, upperCaseQuery, policyQuery(teamPolicy.ID))
 	refresh(installerID, "1.0", "echo install v2", bundleVersionQuery)
 	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 
 	// A row that has moved to another version isn't refreshed, so the policy isn't either.
 	recordResults()
@@ -9849,4 +9940,62 @@ func TestUnchangedInstallerIDCoversPayload(t *testing.T) {
 	for _, f := range reflect.VisibleFields(reflect.TypeFor[fleet.UploadSoftwareInstallerPayload]()) {
 		assert.Contains(t, handled, f.Name, "add %s to unchangedInstallerID's comparison if BatchSetSoftwareInstallers writes it, then list it here", f.Name)
 	}
+}
+
+func testBatchSetSoftwareInstallersConflictingFMA(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Firefox and Firefox ESR are distinct FMAs sharing bundle id org.mozilla.firefox, so one title.
+	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox", Slug: "firefox/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+	firefoxESR, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox ESR", Slug: "firefox@esr/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+
+	mkFMA := func(teamID *uint, app *fleet.MaintainedApp, storage string, version string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:        tfr,
+			StorageID:            storage,
+			Title:                "Firefox",
+			Version:              version,
+			Source:               "apps",
+			Platform:             "darwin",
+			BundleIdentifier:     "org.mozilla.firefox",
+			FleetMaintainedAppID: new(app.ID),
+			FMAName:              app.Name,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               teamID,
+		}
+	}
+
+	// Add Firefox 154.0 to the fleet.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{mkFMA(&team.ID, firefox, "ff-154", "154.0")})
+	require.NoError(t, err)
+
+	// Swap to Firefox ESR with the same version and bytes as Firefox, it should be rejected and no ESR installer written.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{mkFMA(&team.ID, firefoxESR, "ff-154", "154.0")})
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet")
+	var esrInstallerCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &esrInstallerCount,
+			`SELECT COUNT(*) FROM software_installers WHERE fleet_maintained_app_id = ?`, firefoxESR.ID)
+	})
+	require.Zero(t, esrInstallerCount)
+
+	// Add a new Firefox version to the same fleet, it should be allowed.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{mkFMA(&team.ID, firefox, "ff-155", "155.0")})
+	require.NoError(t, err)
+
+	// Add Firefox ESR to Unassigned, which has no Firefox, it should be allowed.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{mkFMA(nil, firefoxESR, "ff-154", "154.0")})
+	require.NoError(t, err)
 }

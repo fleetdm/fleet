@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -2182,6 +2183,13 @@ func testGetOrCreateFleetChallengeForCertificateTemplate(t *testing.T, ds *Datas
 			`SELECT COUNT(*) FROM challenges WHERE challenge = ?`, challenge)
 		require.NoError(t, err)
 		require.Equal(t, 1, count)
+
+		// The challenge is only accepted for the host and template it was created for.
+		scope := fleet.ChallengeScope{HostUUID: host.UUID, ProfileUUID: fmt.Sprintf("%s%d", fleet.MDMAndroidProfileUUIDPrefix, template.ID)}
+		require.ErrorIs(t, ds.ConsumeChallenge(ctx, challenge, fleet.ChallengeScope{HostUUID: "another-host", ProfileUUID: scope.ProfileUUID}),
+			sql.ErrNoRows)
+		require.ErrorIs(t, ds.ConsumeChallenge(ctx, challenge, fleet.ChallengeScope{HostUUID: host.UUID, ProfileUUID: "g0"}), sql.ErrNoRows)
+		require.NoError(t, ds.ConsumeChallenge(ctx, challenge, scope))
 	})
 }
 

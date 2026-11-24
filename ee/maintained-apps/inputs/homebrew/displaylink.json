@@ -4,6 +4,7 @@
   "token": "displaylink",
   "installer_format": "pkg",
   "slug": "displaylink/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/displaylink-install.sh",
   "default_categories": [
     "Productivity"
   ]

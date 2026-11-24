@@ -39,9 +39,6 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
@@ -358,11 +355,11 @@ Fleet records the last 10,000 characters to prevent downtime.
 				return c.user, nil
 			}
 		}
-		ds.HostLiteByIdentifierFunc = func(ctx context.Context, ident string) (*fleet.HostLite, error) {
+		ds.HostIDByIdentifierFunc = func(ctx context.Context, ident string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 			if ident != "host1" || c.expectNotFound {
-				return nil, &notFoundError{}
+				return 0, &notFoundError{}
 			}
-			return &fleet.HostLite{ID: 42}, nil
+			return 42, nil
 		}
 		ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
 			return time.Now(), nil

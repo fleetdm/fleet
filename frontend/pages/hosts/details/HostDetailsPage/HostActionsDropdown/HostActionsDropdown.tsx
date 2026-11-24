@@ -43,6 +43,7 @@ interface IHostActionsDropdownProps {
   wipeAllowed?: boolean;
   lockAllowed?: boolean;
   clearPasscodeAllowed?: boolean;
+  unlockPinAvailable?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -69,6 +70,7 @@ const HostActionsDropdown = ({
   wipeAllowed,
   lockAllowed,
   clearPasscodeAllowed,
+  unlockPinAvailable,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -114,7 +116,7 @@ const HostActionsDropdown = ({
     isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
     isAppleBusinessEnabledAndConfigured:
-      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
+      globalConfig?.mdm?.apple_business_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
     isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
@@ -134,6 +136,7 @@ const HostActionsDropdown = ({
     wipeAllowed,
     lockAllowed,
     clearPasscodeAllowed,
+    unlockPinAvailable,
   });
 
   // No options to render. Exit early

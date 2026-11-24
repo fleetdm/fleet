@@ -3,6 +3,7 @@ package fleet
 import (
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -165,12 +166,21 @@ type Software struct {
 	DisplayName string `json:"display_name"`
 }
 
-// SoftwareMetadata holds per-software data, stored in the software_metadata table, that is the same
-// on every host with that software but is not part of its identity (not in ToUniqueStr or the
-// checksum), so that collecting a new field doesn't create new software rows.
+// SoftwareMetadata holds per-software data stored in the software_metadata table. It is written
+// when the software row is created.
 type SoftwareMetadata struct {
-	// Epoch is the RPM package epoch, only set when greater than 0.
+	// Epoch is the RPM package epoch, only set when greater than 0. It is part of the software's
+	// identity (ToUniqueStr and the checksum), so every host linked to a row reported its epoch.
 	Epoch *uint32 `json:"-" db:"epoch"`
+}
+
+// epochIdentity returns the epoch as it appears in the software's identity, or "" for software
+// without one. Epoch 0 is the same as no epoch, so it keeps the identity of software without one.
+func (m SoftwareMetadata) epochIdentity() string {
+	if m.Epoch == nil || *m.Epoch == 0 {
+		return ""
+	}
+	return "epoch:" + strconv.FormatUint(uint64(*m.Epoch), 10)
 }
 
 func (Software) AuthzType() string {
@@ -238,6 +248,9 @@ func (s Software) ToUniqueStr() string {
 	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
 		ss = append(ss, *s.UpgradeCode)
 	}
+	if epoch := s.epochIdentity(); epoch != "" {
+		ss = append(ss, epoch)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
@@ -267,7 +280,19 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return h.Sum(nil), nil
+	sum := h.Sum(nil)
+
+	// The epoch is reported by the host and changes vulnerability matching, so it is part of the
+	// identity: a host reporting a different epoch can't change what other hosts are matched with.
+	// It is hashed with the checksum of the other fields, in hex, instead of joined as one more
+	// field. What is hashed then has no NUL, while software without an epoch always hashes
+	// several, so that software can't have the checksum of software with an epoch, whatever its
+	// fields contain.
+	if epoch := s.epochIdentity(); epoch != "" {
+		withEpoch := md5.Sum([]byte(hex.EncodeToString(sum) + epoch)) //nolint:gosec // see above
+		sum = withEpoch[:]
+	}
+	return sum, nil
 }
 
 // SoftwareLite is a lightweight subset of Software, useful for exposing minimal information from a full Software record
@@ -393,7 +418,7 @@ type SoftwareAutoUpdateConfig struct {
 
 type SoftwareAutoUpdateSchedule struct {
 	TitleID      uint `json:"title_id" db:"title_id"`
-	TeamID       uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID       uint `json:"fleet_id" db:"team_id"`
 	VPPAppTeamID uint `json:"-" db:"vpp_app_team_id"`
 	SoftwareAutoUpdateConfig
 }
@@ -502,14 +527,10 @@ type SoftwareTitle struct {
 	// InHouseAppsCount is 0 or 1, indicating if the software title has
 	// an in house app (.ipa) installer
 	InHouseAppCount int `json:"-" db:"in_house_apps_count"`
-	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
-	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
-	// AppStoreApp holds the first-added App Store app version for backwards compatibility, nil when there is none.
-	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
 	// AppStoreApps holds every App Store app version, first-added first, nil when there is none.
-	AppStoreApps []AppStoreAppVersion `json:"app_store_apps" db:"-"`
+	AppStoreApps []*VPPAppStoreApp `json:"app_store_apps" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -529,9 +550,8 @@ type SoftwareTitle struct {
 	SoftwareAutoUpdateConfig
 }
 
-// This type is essentially the same as the above SoftwareTitle type. The only difference is that
-// SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
-// the above type is used when fetching them individually.
+// This type is essentially the same as the above SoftwareTitle type. This type is for use when
+// listing out SoftwareTitles; the above type is used when fetching them individually.
 type SoftwareTitleListResult struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
@@ -552,15 +572,14 @@ type SoftwareTitleListResult struct {
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 
-	// SoftwarePackage is kept for backwards compatibility; it holds the first-added package (nil when none).
-	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
+	// SoftwarePackage holds the first-added package for the setup experience software list, nil when none.
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package,omitempty"`
 
 	// Packages holds the trimmed per-package info, first-added first; nil (marshals to null) when none.
 	Packages []SoftwarePackageListItem `json:"packages"`
 
-	// AppStoreApp provides VPP app information, it is only present if a VPP app
-	// is available for the software title.
-	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	// AppStoreApp is only set when listing setup experience software, nil otherwise.
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app,omitempty"`
 	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
@@ -677,7 +696,7 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID              *uint   `query:"fleet_id,optional"`
 	VulnerableOnly      bool    `query:"vulnerable,optional"`
 	AvailableForInstall bool    `query:"available_for_install,optional"`
 	SelfServiceOnly     bool    `query:"self_service,optional"`
@@ -746,7 +765,7 @@ type HostSoftwareTitleListOptions struct {
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
-	TeamID *uint `json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `json:"fleet_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -835,7 +854,7 @@ type SoftwareListOptions struct {
 
 	// HostID filters software to the specified host if not nil.
 	HostID                      *uint   `json:"-"`
-	TeamID                      *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID                      *uint   `query:"fleet_id,optional"`
 	VulnerableOnly              bool    `query:"vulnerable,optional"`
 	WithoutVulnerabilityDetails bool    `query:"without_vulnerability_details,optional"`
 	IncludeCVEScores            bool    `json:"-"`
@@ -970,6 +989,15 @@ func SoftwareFromOsqueryRow(
 	if source == "" {
 		return nil, errors.New("host reported software with empty source")
 	}
+	// ToUniqueStr and the checksum join fields with a NUL, so a field that contains one reads as
+	// two and can take the identity of different software.
+	for _, field := range []string{
+		name, version, source, vendor, release, arch, bundleIdentifier, extensionId, extensionFor, upgradeCode,
+	} {
+		if strings.Contains(field, SoftwareFieldSeparator) {
+			return nil, errors.New("host reported software with a NUL character")
+		}
+	}
 
 	// We don't fail if only the last_opened_at cannot be parsed.
 	lastOpenedAtTime, _ := ParseSoftwareLastOpenedAtRowValue(lastOpenedAt)
@@ -1071,7 +1099,7 @@ type VPPBatchPayloadWithPlatform struct {
 type SoftwareCategory struct {
 	ID     uint   `json:"id" db:"id"`
 	Name   string `json:"name" db:"name"`
-	TeamID uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID uint   `json:"fleet_id" db:"team_id"`
 	UpdateCreateTimestamps
 }
 

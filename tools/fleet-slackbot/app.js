@@ -3,6 +3,7 @@ const config = require("./config");
 const GitHubClient = require("./github-client");
 const ClaudeClient = require("./claude-client");
 const McpClient = require("./mcp-client");
+const { SkillLoader, REFERENCES } = require("./skill");
 const { registerHandlers } = require("./slack-handlers");
 const { createWebhookHandler } = require("./webhook-handler");
 
@@ -55,11 +56,31 @@ mcpClient.addLocalTool(
   }
 );
 
+const skillLoader = new SkillLoader(github);
+
+mcpClient.addLocalTool(
+  {
+    name: "read_skill_reference",
+    description:
+      "Read one of the fleet-gitops skill's reference files. Read the one that matches your task " +
+      "before writing a profile, policy, report, label, script, or software change.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", enum: REFERENCES },
+      },
+      required: ["name"],
+    },
+  },
+  async (args) => skillLoader.getReference(args.name)
+);
+
 const claude = new ClaudeClient({
   apiKey: config.anthropic.apiKey,
   model: config.anthropic.model,
   maxToolCalls: config.anthropic.maxToolCalls,
   mcpClient,
+  skillLoader,
 });
 
 const app = new App({

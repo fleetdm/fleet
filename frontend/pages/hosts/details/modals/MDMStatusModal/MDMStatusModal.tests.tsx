@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { AxiosError } from "axios";
 import React from "react";
 
@@ -9,7 +9,7 @@ import hostAPI from "services/entities/hosts";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { internationalTimeFormat } from "utilities/helpers";
 
-import MDMStatusModal from "./MDMStatusModal";
+import MDMStatusModal, { getThrottleCopy } from "./MDMStatusModal";
 
 jest.mock("services/entities/hosts");
 jest.mock("components/ToastNotification", () => ({
@@ -22,6 +22,13 @@ jest.mock("components/ToastNotification", () => ({
 }));
 
 const mockRouter = createMockRouter();
+
+/** Lets the DEP assignment query settle, so asserting a hidden section checks
+ * the response's effect rather than the initial loading state. */
+const waitForDepAssignmentToSettle = async () => {
+  await waitFor(() => expect(hostAPI.getDepAssignment).toHaveBeenCalled());
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+};
 
 const mockDepAssignmentResponse = {
   id: 32,
@@ -44,9 +51,10 @@ const mockDepAssignmentResponse = {
     assign_profile_response: "SUCCESS",
     profile_uuid: "762C4D36550103CCC53AA212A8D31CDD",
     response_updated_at: "2025-12-04 01:35:27",
+    throttled_retry_after: null,
     added_at: "2025-12-04 01:35:27",
     deleted_at: null,
-    abm_token_id: 1,
+    ab_token_id: 1,
     mdm_migration_deadline: "2025-12-05 00:00:00.000000",
     mdm_migration_completed: "2025-12-05 00:00:00.000000",
   },
@@ -117,12 +125,11 @@ describe("MDMStatusModal - component", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not render profile assignment section when not premium or not macOS", () => {
+  it("does not render profile assignment section on Fleet Free", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
     );
 
-    // not premium
     render(
       <MDMStatusModal
         hostId={3}
@@ -137,23 +144,8 @@ describe("MDMStatusModal - component", () => {
         onExit={jest.fn()}
       />
     );
-    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
 
-    // not macOS
-    render(
-      <MDMStatusModal
-        hostId={3}
-        enrollmentStatus="On (manual)"
-        router={mockRouter}
-        isPremiumTier
-        platform="windows"
-        user={createMockUser()}
-        lastMDMCheckIn=""
-        onSuccessfulCheckIn={jest.fn()}
-        fleetId={null}
-        onExit={jest.fn()}
-      />
-    );
+    await waitForDepAssignmentToSettle();
     expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
   });
 
@@ -165,7 +157,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -177,11 +169,12 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(await screen.findByText("Profile assignment")).toBeInTheDocument();
+    // "Profile assignment" also renders during loading, so wait on a loaded row.
+    expect(await screen.findByText("Profile assigned")).toBeInTheDocument();
+    expect(screen.getByText("Profile assignment")).toBeInTheDocument();
     expect(
       screen.getByText(/Details about automatic enrollment profile from Apple/i)
     ).toBeInTheDocument();
-    expect(screen.getByText("Profile assigned")).toBeInTheDocument();
     expect(screen.getByText("Profile pushed")).toBeInTheDocument();
     expect(screen.getByText("Profile status")).toBeInTheDocument();
     // profile_status "assigned" renders "Assigned"
@@ -208,9 +201,8 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(
-      await screen.queryByText("Profile assignment")
-    ).not.toBeInTheDocument();
+    await waitForDepAssignmentToSettle();
+    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
     expect(
       screen.queryByText(
         /Details about automatic enrollment profile from Apple/i
@@ -233,7 +225,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -257,7 +249,59 @@ describe("MDMStatusModal - component", () => {
     });
   });
 
-  it("shows spinner while DEP assignment is loading", async () => {
+  it("does not render profile assignment section for a manual host when host_dep_assignment is null", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      id: 3,
+      dep_device: null,
+      dep_device_error: null,
+      host_dep_assignment: null,
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    await waitForDepAssignmentToSettle();
+    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
+  });
+
+  it("renders profile assignment section for a manual host when the API returns a host_dep_assignment", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
+      mockDepAssignmentResponse
+    );
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    expect(await screen.findByText("Profile assigned")).toBeInTheDocument();
+    expect(screen.getByText("Profile assignment")).toBeInTheDocument();
+    expect(screen.getByText("Assigned")).toBeInTheDocument();
+  });
+
+  it("does not show the profile assignment spinner for a manual host while DEP assignment is loading", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
       new Promise(() => {
         // never resolve
@@ -268,6 +312,35 @@ describe("MDMStatusModal - component", () => {
       <MDMStatusModal
         hostId={3}
         enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    // Wait past the spinner's 250ms anti-flash delay so its absence is meaningful.
+    await expect(
+      screen.findByTestId("spinner", {}, { timeout: 500 })
+    ).rejects.toThrow();
+    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
+  });
+
+  it("shows spinner while DEP assignment is loading", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
+      new Promise(() => {
+        // never resolve
+      })
+    );
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -291,7 +364,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -321,7 +394,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -350,7 +423,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -381,7 +454,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -403,6 +476,42 @@ describe("MDMStatusModal - component", () => {
     expect(screen.getByText("Throttled")).toBeInTheDocument();
   });
 
+  it("tells when Fleet will retry a throttled assignment using Apple's retry time", async () => {
+    const minutesFromNow = (minutes: number) =>
+      new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      ...mockDepAssignmentResponse,
+      host_dep_assignment: {
+        ...mockDepAssignmentResponse.host_dep_assignment,
+        assign_profile_response: "THROTTLED",
+        response_updated_at: minutesFromNow(-60),
+        throttled_retry_after: minutesFromNow(150),
+      },
+    });
+
+    const { user } = render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (automatic)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        depProfileError
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    await user.hover(await screen.findByText("Throttled"));
+
+    expect(
+      await screen.findByText(/Fleet will try again in 2 hours/)
+    ).toBeInTheDocument();
+  });
+
   it("navigates to hosts with dep_assign_profile_response filter when profile error row is clicked", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
       ...mockDepAssignmentResponse,
@@ -416,7 +525,7 @@ describe("MDMStatusModal - component", () => {
     const { user } = render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={router}
         isPremiumTier
         platform={"darwin"}
@@ -488,7 +597,7 @@ describe("MDMStatusModal - component", () => {
     render(
       <MDMStatusModal
         hostId={3}
-        enrollmentStatus="On (manual)"
+        enrollmentStatus="On (automatic)"
         router={mockRouter}
         isPremiumTier
         platform={"darwin"}
@@ -528,8 +637,42 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByText("Close"));
     expect(onExit).toHaveBeenCalled();
+  });
+});
+
+describe("getThrottleCopy", () => {
+  const minutesFromNow = (minutes: number) =>
+    new Date(Date.now() + minutes * 60 * 1000).toISOString();
+
+  it("counts down to Apple's retry time", () => {
+    expect(getThrottleCopy(minutesFromNow(-60), minutesFromNow(185))).toBe(
+      "in 3 hours"
+    );
+    expect(getThrottleCopy(minutesFromNow(-60), minutesFromNow(30))).toBe(
+      "in <1 hour"
+    );
+  });
+
+  it("isn't limited to 24 hours when Apple asks for longer", () => {
+    expect(
+      getThrottleCopy(minutesFromNow(0), minutesFromNow(48 * 60 + 5))
+    ).toBe("in 48 hours");
+  });
+
+  it("falls back to 24 hours after the response without a valid retry time", () => {
+    expect(getThrottleCopy(minutesFromNow(-55), null)).toBe("in 23 hours");
+    expect(getThrottleCopy(minutesFromNow(-55), "not a date")).toBe(
+      "in 23 hours"
+    );
+  });
+
+  it("says 'when available.' once the retry time has passed or is unknown", () => {
+    expect(getThrottleCopy(minutesFromNow(-60), minutesFromNow(-1))).toBe(
+      "when available."
+    );
+    expect(getThrottleCopy(null, null)).toBe("when available.");
   });
 });
 

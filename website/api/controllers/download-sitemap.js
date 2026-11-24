@@ -38,6 +38,8 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.policies'};
     } else if (!_.isArray(sails.config.builtStaticContent.appLibrary)) {
       throw {badConfig: 'builtStaticContent.appLibrary'};
+    } else if (!_.isArray(sails.config.builtStaticContent.integrations) || !_.isArray(sails.config.builtStaticContent.integrationCategories)) {
+      throw {badConfig: 'builtStaticContent.integrations'};
     }
 
     // Start with sitemap.xml preamble + the root relative URLs of other webpages that aren't being generated from markdown
@@ -148,6 +150,13 @@ module.exports = {
     for (let appPage of sails.config.builtStaticContent.appLibrary) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/software-catalog/${appPage.identifier}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
+    for (let category of sails.config.builtStaticContent.integrationCategories) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+category.url)}</loc></url>`;
+    }
+    sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+'/integrate/build-anything')}</loc></url>`;
+    for (let integration of sails.config.builtStaticContent.integrations) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+integration.url)}</loc></url>`;
+    }
     for (let script of sails.config.builtStaticContent.scripts) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/scripts/${script.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞

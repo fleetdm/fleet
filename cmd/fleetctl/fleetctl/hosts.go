@@ -2,8 +2,11 @@ package fleetctl
 
 import (
 	"errors"
+	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
 )
 
@@ -81,7 +84,15 @@ func transferCommand() *cli.Command {
 				}
 			}
 
-			return client.TransferHosts(hosts, label, status, searchQuery, team)
+			err = client.TransferHosts(hosts, label, status, searchQuery, team)
+			var sce kithttp.StatusCoder
+			if hosts != nil && errors.As(err, &sce) && sce.StatusCode() == http.StatusForbidden {
+				// GitOps users can't look up hosts by hostname, so they're denied before the transfer request.
+				if me, meErr := client.Me(); meErr == nil && isGitOpsUser(me) {
+					return errors.New(fleet.GitOpsTransferHostErrorMessage)
+				}
+			}
+			return err
 		},
 	}
 }

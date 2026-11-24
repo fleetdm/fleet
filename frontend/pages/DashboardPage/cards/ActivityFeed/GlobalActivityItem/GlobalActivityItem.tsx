@@ -192,7 +192,7 @@ const makeVersionSuffix = (
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
-    const { targets_count: count, query_name: queryName, stats } =
+    const { targets_count: count, report_name: queryName, stats } =
       activity.details || {};
 
     const impactDescription = stats
@@ -689,11 +689,20 @@ const TAGGED_TEMPLATES = {
     );
   },
   setHostGoogleDeviceId: (activity: IActivity) => {
+    const googleEmail = activity.details?.google_email;
     return (
       <>
         {" "}
         marked <b>{activity.details?.host_display_name}</b> as company-owned in
-        Google.
+        Google
+        {googleEmail ? (
+          <>
+            {" "}
+            when <b>{googleEmail}</b> signed in.
+          </>
+        ) : (
+          "."
+        )}
       </>
     );
   },
@@ -777,6 +786,14 @@ const TAGGED_TEMPLATES = {
         {" "}
         viewed the managed local account on{" "}
         <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  viewedHostUnlockPin: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the unlock PIN for <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -1055,9 +1072,7 @@ const TAGGED_TEMPLATES = {
       key.includes("_name")
     );
 
-    const activityType = lowerCase(activity.type)
-      .replace(" saved", "")
-      .replace("team", "fleet");
+    const activityType = lowerCase(activity.type).replace(" saved", "");
 
     return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
@@ -1510,10 +1525,25 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resetHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        reset <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   failedWipe: (activity: IActivity) => {
     return (
       <>
         Wipe failed on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  failedReset: (activity: IActivity) => {
+    return (
+      <>
+        Reset failed on <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -1960,6 +1990,15 @@ const TAGGED_TEMPLATES = {
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
   ),
+  addedConditionalAccessGoogle: () => (
+    <> configured Google conditional access.</>
+  ),
+  editedConditionalAccessGoogle: () => (
+    <> edited Google conditional access configuration.</>
+  ),
+  deletedConditionalAccessGoogle: () => (
+    <> deleted Google conditional access configuration.</>
+  ),
   addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
@@ -2124,7 +2163,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a report <b>{activity.details?.query_name}</b>
+        created a report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2146,7 +2185,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the report <b>{activity.details?.query_name}</b>
+        edited the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2168,7 +2207,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the report <b>{activity.details?.query_name}</b>
+        deleted the report <b>{activity.details?.report_name}</b>
         {teamText}.
       </>
     );
@@ -2791,7 +2830,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RetrievedHostMyDeviceURL: {
       return TAGGED_TEMPLATES.retrievedHostMyDeviceURL(activity);
     }
-    case ActivityType.ViewedHostRecoveryLockPassword: {
+    case ActivityType.ReadHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);
     }
     case ActivityType.SetHostRecoveryLockPassword: {
@@ -2820,6 +2859,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ViewedManagedLocalAccount: {
       return TAGGED_TEMPLATES.viewedManagedLocalAccount(activity);
+    }
+    case ActivityType.ViewedHostUnlockPin: {
+      return TAGGED_TEMPLATES.viewedHostUnlockPin(activity);
     }
     case ActivityType.CreatedManagedLocalAccount: {
       return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
@@ -3022,8 +3064,14 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
     }
+    case ActivityType.ResetHost: {
+      return TAGGED_TEMPLATES.resetHost(activity);
+    }
     case ActivityType.FailedWipe: {
       return TAGGED_TEMPLATES.failedWipe(activity);
+    }
+    case ActivityType.FailedReset: {
+      return TAGGED_TEMPLATES.failedReset(activity);
     }
     case ActivityType.CreatedDeclarationProfile: {
       return TAGGED_TEMPLATES.createdDeclarationProfile(
@@ -3124,6 +3172,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.AddedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.addedConditionalAccessGoogle();
+    }
+    case ActivityType.EditedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.editedConditionalAccessGoogle();
+    }
+    case ActivityType.DeletedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessGoogle();
     }
     case ActivityType.AddedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.addedConditionalAccessOkta();
@@ -3364,6 +3421,10 @@ const GlobalActivityItem = ({
       case ActivityType.UserMFARequested:
         // The template carries its own "Somebody"/"Somebody using <email>"
         // subject, so no actor-name prefix should be rendered.
+        return null;
+      case ActivityType.FailedWipe:
+      case ActivityType.FailedReset:
+        // The template is a full sentence reported by the host.
         return null;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the

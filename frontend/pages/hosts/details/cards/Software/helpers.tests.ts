@@ -144,7 +144,7 @@ describe("getUiStatus", () => {
   it("returns 'failed_install_update_available' when failed_install and update available", () => {
     const sw = createMockHostSoftware({
       status: "failed_install",
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+      package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_update_available");
   });
@@ -162,7 +162,7 @@ describe("getUiStatus", () => {
     const sw = createMockHostSoftware({
       status: "failed_install",
       skipped_install: true,
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+      package: createMockHostSoftwarePackage({ version: "2.0.0" }),
     });
     expect(getUiStatus(sw, true)).toBe("skipped_install");
   });
@@ -174,7 +174,7 @@ describe("getUiStatus", () => {
     const sw = createMockHostSoftware({
       status: "failed_install",
       skipped_install: true,
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+      package: createMockHostSoftwarePackage({ version: "2.0.0" }),
     });
     expect(getUiStatus(sw, true, null, undefined, true)).toBe(
       "failed_install_update_available"
@@ -184,7 +184,7 @@ describe("getUiStatus", () => {
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
     const sw = createMockHostSoftware({
       status: "failed_uninstall",
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+      package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
     });
     expect(getUiStatus(sw, true)).toBe("failed_uninstall_update_available");
   });
@@ -201,7 +201,7 @@ describe("getUiStatus", () => {
   it("returns 'updating' if pending_install and update is available, host online", () => {
     const sw = createMockHostSoftware({
       status: "pending_install",
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+      package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
     });
     expect(getUiStatus(sw, true)).toBe("updating");
   });
@@ -209,7 +209,7 @@ describe("getUiStatus", () => {
   it("returns 'pending_update' if pending_install and update is available, host offline", () => {
     const sw = createMockHostSoftware({
       status: "pending_install",
-      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
+      package: createMockHostSoftwarePackage({ version: "2.0.0" }), // version higher than installed
     });
     expect(getUiStatus(sw, false)).toBe("pending_update");
   });
@@ -266,7 +266,7 @@ describe("getUiStatus", () => {
     const lastInstallDate = now.toISOString();
     const sw = createMockHostSoftware({
       status: "installed",
-      software_package: createMockHostSoftwarePackage({
+      package: createMockHostSoftwarePackage({
         version: "2.0.0",
         last_install: { install_uuid: "abc", installed_at: lastInstallDate },
       }), // newer
@@ -285,7 +285,7 @@ describe("getUiStatus", () => {
     // Installed version matches installer version ⇒ not an update
     const sw = createMockHostSoftware({
       status: "installed",
-      software_package: createMockHostSoftwarePackage({
+      package: createMockHostSoftwarePackage({
         version: "1.0.0",
         last_install: { install_uuid: "abc", installed_at: lastInstallDate },
       }),
@@ -305,7 +305,7 @@ describe("getUiStatus", () => {
     // Installer version is higher (update applied)
     const sw = createMockHostSoftware({
       status: "installed",
-      software_package: createMockHostSoftwarePackage({
+      package: createMockHostSoftwarePackage({
         version: "2.0.0",
         last_install: { install_uuid: "abc", installed_at: lastInstallDate },
       }),
@@ -323,7 +323,7 @@ describe("getUiStatus", () => {
 
     const sw = createMockHostSoftware({
       status: null,
-      software_package: createMockHostSoftwarePackage({
+      package: createMockHostSoftwarePackage({
         // last_uninstall must be present
         last_uninstall: {
           script_execution_id: "def",
@@ -345,8 +345,8 @@ describe("getUiStatus", () => {
     const sw = createMockHostSoftware({
       status: "installed",
       source: "tgz_packages",
-      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
-      software_package: createMockHostSoftwarePackage({
+      // Tarballs never return a version in package, and don't participate in inventory-based checks
+      package: createMockHostSoftwarePackage({
         version: undefined,
         last_install: {
           install_uuid: "abc",
@@ -369,8 +369,8 @@ describe("getUiStatus", () => {
     const sw = createMockHostSoftware({
       status: null,
       source: "tgz_packages",
-      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
-      software_package: createMockHostSoftwarePackage({
+      // Tarballs never return a version in package, and don't participate in inventory-based checks
+      package: createMockHostSoftwarePackage({
         version: undefined,
         last_uninstall: {
           script_execution_id: "def",
@@ -394,7 +394,7 @@ describe("getUiStatus", () => {
     // installed_versions has older version than installerVersion!
     const sw = createMockHostSoftware({
       status: null,
-      software_package: createMockHostSoftwarePackage({
+      package: createMockHostSoftwarePackage({
         version: "2.0.0",
         last_uninstall: {
           script_execution_id: "def",
@@ -417,7 +417,7 @@ describe("getUiStatus", () => {
 
     const sw = createMockHostSoftware({
       status: null,
-      software_package: createMockHostSoftwarePackage({
+      package: createMockHostSoftwarePackage({
         last_uninstall: {
           script_execution_id: "def",
           uninstalled_at: lastUninstallDate,
@@ -455,7 +455,7 @@ describe("getUiStatus", () => {
   it("returns 'installed' for regular package, installed version higher than library version", () => {
     const sw = createMockHostSoftware({
       status: "installed",
-      software_package: createMockHostSoftwarePackage({ version: "0.1.0" }), // version lower than installed
+      package: createMockHostSoftwarePackage({ version: "0.1.0" }), // version lower than installed
     });
     expect(getUiStatus(sw, true)).toBe("installed");
   });
@@ -477,7 +477,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "failed_install",
         source: "sh_packages",
-        software_package: scriptOnlyPackage,
+        package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("failed_script");
     });
@@ -486,7 +486,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "pending_install",
         source: "sh_packages",
-        software_package: scriptOnlyPackage,
+        package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("running_script");
     });
@@ -495,7 +495,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "pending_install",
         source: "sh_packages",
-        software_package: scriptOnlyPackage,
+        package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, false)).toBe("pending_script");
     });
@@ -504,7 +504,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "installed",
         source: "sh_packages",
-        software_package: scriptOnlyPackage,
+        package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("ran_script");
     });
@@ -513,7 +513,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: null,
         source: "sh_packages",
-        software_package: scriptOnlyPackage,
+        package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("never_ran_script");
     });
@@ -528,7 +528,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "installed",
         source: "ps1_packages",
-        software_package: scriptPackageWithUninstall,
+        package: scriptPackageWithUninstall,
         installed_versions: null,
       });
       expect(getUiStatus(sw, true)).toBe("installed");
@@ -538,7 +538,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "failed_install",
         source: "ps1_packages",
-        software_package: scriptPackageWithUninstall,
+        package: scriptPackageWithUninstall,
         installed_versions: null,
       });
       expect(getUiStatus(sw, true)).toBe("failed_install");
@@ -548,7 +548,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "pending_install",
         source: "ps1_packages",
-        software_package: scriptPackageWithUninstall,
+        package: scriptPackageWithUninstall,
         installed_versions: null,
       });
       expect(getUiStatus(sw, true)).toBe("installing");
@@ -558,7 +558,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: null,
         source: "sh_packages",
-        software_package: scriptPackageWithUninstall,
+        package: scriptPackageWithUninstall,
         installed_versions: null,
       });
       expect(getUiStatus(sw, true)).toBe("uninstalled");
@@ -568,7 +568,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "failed_install",
         source: "ps1_packages",
-        software_package: scriptPackageWithUninstall,
+        package: scriptPackageWithUninstall,
         installed_versions: [],
       });
       expect(getUiStatus(sw, true)).toBe("failed_install");
@@ -578,7 +578,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "failed_uninstall",
         source: "ps1_packages",
-        software_package: scriptPackageWithUninstall,
+        package: scriptPackageWithUninstall,
         installed_versions: [],
       });
       expect(getUiStatus(sw, true)).toBe("failed_uninstall");

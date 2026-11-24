@@ -387,7 +387,7 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 		require.EqualValues(t, 1, *opt.TeamID)
 		return []fleet.SoftwareTitleListResult{
 			{ID: 10, Name: "VPPApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "123", Platform: fleet.MacOSPlatform}}},
-			{ID: 20, Name: "Pkg", SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}},
+			{ID: 20, Name: "Pkg", Packages: []fleet.SoftwarePackageListItem{{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}}},
 			{ID: 30, Name: "VersionsApp", AppStoreApps: []fleet.AppStoreAppListItem{{AppStoreID: "456", Platform: fleet.IOSPlatform}}},
 		}, 3, &fleet.PaginationMetadata{}, nil
 	}
@@ -432,9 +432,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   10,
 				Name: "VPPApp",
-				AppStoreApps: []fleet.AppStoreAppVersion{{
-					Name:        fleet.DefaultAppStoreAppVersionName,
-					AppStoreID:  "123",
+				AppStoreApps: []*fleet.VPPAppStoreApp{{
+					VersionName: fleet.DefaultAppStoreAppVersionName,
+					AdamID:      "123",
 					Platform:    fleet.MacOSPlatform,
 					SelfService: true,
 				}},
@@ -443,10 +443,10 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   20,
 				Name: "Pkg",
-				SoftwarePackage: &fleet.SoftwareInstaller{
+				Packages: []fleet.SoftwareInstaller{{
 					URL:       "https://example.com/pkg.pkg",
 					StorageID: "abc123",
-				},
+				}},
 			}, nil
 		case 30:
 			return &fleet.SoftwareTitle{
@@ -539,9 +539,9 @@ func TestGetHosts(t *testing.T) {
 		ComputerName:    "test_host",
 		Hostname:        "test_host",
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.NotEmpty(t, identifier)
-		return &fleet.HostLite{ID: testHost.ID}, nil
+		return testHost.ID, nil
 	}
 	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		return testHost, nil
@@ -558,9 +558,6 @@ func TestGetHosts(t *testing.T) {
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
@@ -734,6 +731,14 @@ func TestGetHosts(t *testing.T) {
 			require.NotContains(t, spec, "team_name", "spec should not contain deprecated 'team_name' key with --remove-deprecated-keys")
 		}
 	})
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		_, err := runAppNoChecks([]string{"get", "hosts", "test_host"})
+		require.ErrorContains(t, err, fleet.GitOpsViewHostByIdentifierErrorMessage)
+	})
 }
 
 func TestGetHostsMDM(t *testing.T) {
@@ -787,9 +792,6 @@ func TestGetHostsMDM(t *testing.T) {
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
@@ -1059,13 +1061,11 @@ func TestGetSoftwareTitles(t *testing.T) {
 apiVersion: "1"
 kind: software_title
 spec:
-- app_store_app: null
-  app_store_apps: null
+- app_store_apps: null
   hosts_count: 2
   icon_url: null
   id: 0
   name: foo
-  software_package: null
   packages: null
   source: chrome_extensions
   extension_for: chrome
@@ -1085,13 +1085,11 @@ spec:
     vulnerabilities:
     - cve-123-456-003
   versions_count: 3
-- app_store_app: null
-  app_store_apps: null
+- app_store_apps: null
   hosts_count: 0
   icon_url: null
   id: 0
   name: bar
-  software_package: null
   packages: null
   source: deb_packages
   extension_for: ""
@@ -1141,9 +1139,7 @@ spec:
           ]
         }
       ],
-      "software_package": null,
       "packages": null,
-      "app_store_app": null,
       "app_store_apps": null
     },
     {
@@ -1162,9 +1158,7 @@ spec:
       "vulnerabilities": null
         }
       ],
-      "software_package": null,
       "packages": null,
-      "app_store_app": null,
       "app_store_apps": null
     }
   ]
@@ -1476,165 +1470,6 @@ spec:
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 }
 
-func TestGetPacks(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return []*fleet.PackSpec{
-			{
-				ID:          7,
-				Name:        "pack1",
-				Description: "some desc",
-				Platform:    "darwin",
-				Disabled:    false,
-			},
-		}, nil
-	}
-
-	expected := `+-------+----------+-------------+----------+
-| NAME  | PLATFORM | DESCRIPTION | DISABLED |
-+-------+----------+-------------+----------+
-| pack1 | darwin   | some desc   | false    |
-+-------+----------+-------------+----------+
-Found 1 2017 "Packs".
-
-Querying in Fleet is becoming more powerful. To learn more, visit:
-https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
-
-To retrieve "Pack" data in a portable format for upgrading, run ` + "`fleetctl upgrade-packs`" + `.
-`
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
-
-	// test output when there are no packs
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return nil, nil
-	}
-
-	expected = `No 2017 "Packs" found.
-`
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--json"}))
-}
-
-func TestGetPack(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
-		if name != "pack1" {
-			return nil, false, nil
-		}
-		return &fleet.Pack{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, true, nil
-	}
-	ds.GetPackSpecFunc = func(ctx context.Context, name string) (*fleet.PackSpec, error) {
-		if name != "pack1" {
-			return nil, nil
-		}
-		return &fleet.PackSpec{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, nil
-	}
-
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
-
-	expectedEmptyYaml := `---
-apiVersion: v1
-kind: pack
-spec: null
-`
-
-	expectedEmptyJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": null
-}`
-
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "no-such-pack"}))
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "no-such-pack"}))
-	assert.JSONEq(t, expectedEmptyJson, runAppForTest(t, []string{"get", "packs", "--json", "no-such-pack"}))
-}
-
 func TestGetQueries(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -1721,52 +1556,52 @@ func TestGetQueries(t *testing.T) {
 		return nil, 0, 0, nil, errors.New("invalid team ID")
 	}
 
-	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |            SCHEDULE            |
-+--------+-------------+-----------+-----------+--------------------------------+
-| query1 | some desc   | select 1; | All teams | interval: 0                    |
-|        |             |           |           |                                |
-|        |             |           |           | platform: all                  |
-|        |             |           |           |                                |
-|        |             |           |           | min_osquery_version: all       |
-|        |             |           |           |                                |
-|        |             |           |           | automations_enabled: false     |
-|        |             |           |           |                                |
-|        |             |           |           | logging:                       |
-|        |             |           |           |                                |
-|        |             |           |           | discard_data: false            |
-+--------+-------------+-----------+-----------+--------------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                    |
-|        |             |           |           |                                |
-|        |             |           |           | platform: all                  |
-|        |             |           |           |                                |
-|        |             |           |           | min_osquery_version: all       |
-|        |             |           |           |                                |
-|        |             |           |           | automations_enabled: false     |
-|        |             |           |           |                                |
-|        |             |           |           | logging:                       |
-|        |             |           |           |                                |
-|        |             |           |           | discard_data: true             |
-|        |             |           |           |                                |
-|        |             |           |           | labels_include_any:            |
-|        |             |           |           |                                |
-|        |             |           |           |   - label1                     |
-|        |             |           |           |                                |
-|        |             |           |           |   - label2                     |
-+--------+-------------+-----------+-----------+--------------------------------+
-| query4 | some desc 4 | select 4; | All teams | interval: 60                   |
-|        |             |           |           |                                |
-|        |             |           |           | platform: darwin,windows       |
-|        |             |           |           |                                |
-|        |             |           |           | min_osquery_version: 5.3.0     |
-|        |             |           |           |                                |
-|        |             |           |           | automations_enabled: true      |
-|        |             |           |           |                                |
-|        |             |           |           | logging:                       |
-|        |             |           |           | differential_ignore_removals   |
-|        |             |           |           |                                |
-|        |             |           |           | discard_data: false            |
-+--------+-------------+-----------+-----------+--------------------------------+
+	expectedGlobal := `+--------+-------------+-----------+------------+--------------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |            SCHEDULE            |
++--------+-------------+-----------+------------+--------------------------------+
+| query1 | some desc   | select 1; | All fleets | interval: 0                    |
+|        |             |           |            |                                |
+|        |             |           |            | platform: all                  |
+|        |             |           |            |                                |
+|        |             |           |            | min_osquery_version: all       |
+|        |             |           |            |                                |
+|        |             |           |            | automations_enabled: false     |
+|        |             |           |            |                                |
+|        |             |           |            | logging:                       |
+|        |             |           |            |                                |
+|        |             |           |            | discard_data: false            |
++--------+-------------+-----------+------------+--------------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                    |
+|        |             |           |            |                                |
+|        |             |           |            | platform: all                  |
+|        |             |           |            |                                |
+|        |             |           |            | min_osquery_version: all       |
+|        |             |           |            |                                |
+|        |             |           |            | automations_enabled: false     |
+|        |             |           |            |                                |
+|        |             |           |            | logging:                       |
+|        |             |           |            |                                |
+|        |             |           |            | discard_data: true             |
+|        |             |           |            |                                |
+|        |             |           |            | labels_include_any:            |
+|        |             |           |            |                                |
+|        |             |           |            |   - label1                     |
+|        |             |           |            |                                |
+|        |             |           |            |   - label2                     |
++--------+-------------+-----------+------------+--------------------------------+
+| query4 | some desc 4 | select 4; | All fleets | interval: 60                   |
+|        |             |           |            |                                |
+|        |             |           |            | platform: darwin,windows       |
+|        |             |           |            |                                |
+|        |             |           |            | min_osquery_version: 5.3.0     |
+|        |             |           |            |                                |
+|        |             |           |            | automations_enabled: true      |
+|        |             |           |            |                                |
+|        |             |           |            | logging:                       |
+|        |             |           |            | differential_ignore_removals   |
+|        |             |           |            |                                |
+|        |             |           |            | discard_data: false            |
++--------+-------------+-----------+------------+--------------------------------+
 `
 
 	expectedYAMLGlobal := `---
@@ -1824,7 +1659,7 @@ spec:
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |  TEAM  |          SCHEDULE          |
+|  NAME  | DESCRIPTION |   QUERY   | FLEET  |          SCHEDULE          |
 +--------+-------------+-----------+--------+----------------------------+
 | query3 | some desc 3 | select 3; | Foobar | interval: 3600             |
 |        |             |           |        |                            |
@@ -2170,21 +2005,21 @@ func TestGetQueriesAsObserver(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setCurrentUserSession(t, ds, tc.user)
 
-			expected := `+--------+-------------+-----------+-----------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
-+--------+-------------+-----------+-----------+----------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
+			expected := `+--------+-------------+-----------+------------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |          SCHEDULE          |
++--------+-------------+-----------+------------+----------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
 `
 			expectedYaml := `---
 apiVersion: v1
@@ -2230,45 +2065,45 @@ spec:
 		},
 	})
 
-	expected := `+--------+-------------+-----------+-----------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
-+--------+-------------+-----------+-----------+----------------------------+
-| query1 | some desc   | select 1; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
-| query3 | some desc 3 | select 3; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
+	expected := `+--------+-------------+-----------+------------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |          SCHEDULE          |
++--------+-------------+-----------+------------+----------------------------+
+| query1 | some desc   | select 1; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
+| query3 | some desc 3 | select 3; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
 `
 	expectedYaml := `---
 apiVersion: v1
@@ -2373,33 +2208,33 @@ spec:
 			},
 		}, 2, 0, nil, nil
 	}
-	expected = `+--------+-------------+-----------+-----------+----------------------------+
-|  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
-+--------+-------------+-----------+-----------+----------------------------+
-| query1 | some desc   | select 1; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
-| query2 | some desc 2 | select 2; | All teams | interval: 0                |
-|        |             |           |           |                            |
-|        |             |           |           | platform: all              |
-|        |             |           |           |                            |
-|        |             |           |           | min_osquery_version: all   |
-|        |             |           |           |                            |
-|        |             |           |           | automations_enabled: false |
-|        |             |           |           |                            |
-|        |             |           |           | logging:                   |
-|        |             |           |           |                            |
-|        |             |           |           | discard_data: false        |
-+--------+-------------+-----------+-----------+----------------------------+
+	expected = `+--------+-------------+-----------+------------+----------------------------+
+|  NAME  | DESCRIPTION |   QUERY   |   FLEET    |          SCHEDULE          |
++--------+-------------+-----------+------------+----------------------------+
+| query1 | some desc   | select 1; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
+| query2 | some desc 2 | select 2; | All fleets | interval: 0                |
+|        |             |           |            |                            |
+|        |             |           |            | platform: all              |
+|        |             |           |            |                            |
+|        |             |           |            | min_osquery_version: all   |
+|        |             |           |            |                            |
+|        |             |           |            | automations_enabled: false |
+|        |             |           |            |                            |
+|        |             |           |            | logging:                   |
+|        |             |           |            |                            |
+|        |             |           |            | discard_data: false        |
++--------+-------------+-----------+------------+----------------------------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "reports"}))
 }
@@ -2410,11 +2245,11 @@ func TestEnrichedAppConfig(t *testing.T) {
       {
         "org_info": {
           "org_name": "Fleet for osquery",
-          "org_logo_url": ""
+          "org_logo_url_dark_mode": ""
         },
         "server_settings": {
           "server_url": "https://localhost:8412",
-          "live_query_disabled": false,
+          "live_reporting_disabled": false,
           "enable_analytics": false,
           "deferred_save_host": false
         },
@@ -2490,7 +2325,6 @@ func TestEnrichedAppConfig(t *testing.T) {
           "failing_policies_webhook": {
             "enable_failing_policies_webhook": false,
             "destination_url": "",
-            "policy_ids": null,
             "host_batch_size": 0
           },
           "vulnerabilities_webhook": {
@@ -2814,6 +2648,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "team1" {
@@ -3656,12 +3493,12 @@ func TestGetMDMCommands(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		fmt.Println("Called", identifier)
 		if identifier == "foo" || identifier == "h1" {
-			return &fleet.HostLite{ID: 1, UUID: "h1", Hostname: "host1"}, nil
+			return 1, nil
 		}
-		return nil, errors.New(fleet.HostIdentiferNotFound)
+		return 0, errors.New(fleet.HostIdentiferNotFound)
 	}
 
 	var empty bool
