@@ -5,6 +5,7 @@ import React from "react";
 import createMockTeam from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
+import { UserRole } from "interfaces/user";
 import { createCustomRenderer } from "test/test-utils";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
@@ -188,23 +189,17 @@ describe("Host Actions Dropdown", () => {
     });
 
     it.each<[HostMdmDeviceStatusUIState, string]>([
-      ["locked", "You can't run a live report on a locked host."],
-      ["wiped", "You can't run a live report on a wiped host."],
-      [
-        "locking",
-        "You can't run a live report while the host's device status is updating.",
-      ],
-      [
-        "unlocking",
-        "You can't run a live report while the host's device status is updating.",
-      ],
-      [
-        "wiping",
-        "You can't run a live report while the host's device status is updating.",
-      ],
+      ["locked", "Live report is unavailable while host is locked."],
+      ["wiped", "Live report is unavailable while host is wiped."],
+      ["locking", "Live report is unavailable while host is locking."],
+      ["unlocking", "Live report is unavailable while host is unlocking."],
+      ["wiping", "Live report is unavailable while host is wiping."],
+      ["resetting", "Live report is unavailable while host is resetting."],
+      ["reset", "Live report is unavailable while host is reset."],
+      ["reset_wipe_pending", "Live report is unavailable while host is reset."],
       [
         "clearing_passcode",
-        "You can't run a live report while the host's device status is updating.",
+        "Live report is unavailable while host is clearing passcode.",
       ],
     ])(
       "explains why Live report is disabled on an online %s host",
@@ -556,6 +551,51 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
     });
+
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locked", "locked"],
+      ["locking", "locking"],
+      ["unlocking", "unlocking"],
+      ["wiped", "wiped"],
+      ["wiping", "wiping"],
+    ])(
+      "renders as disabled with a tooltip when the host is %s",
+      async (status, stateText) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isMacMdmEnabledAndConfigured: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            onSelect={noop}
+            hostTeamId={null}
+            hostStatus="online"
+            hostMdmEnrollmentStatus="On (automatic)"
+            isConnectedToFleetMdm
+            hostPlatform="darwin"
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        const option = screen.getByText("Turn off MDM");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(
+          await screen.findByText(
+            `Turn off MDM is unavailable while host is ${stateText}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
   });
 
   describe("Delete action", () => {
@@ -962,6 +1002,74 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
+
+    it("renders as disabled with a tooltip when the host is locking", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locking"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Lock");
+      expect(option).toHaveAttribute("aria-disabled", "true");
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      await user.hover(option);
+      expect(
+        await screen.findByText("Lock is unavailable while host is locking.")
+      ).toBeInTheDocument();
+    });
+
+    it("is replaced by Unlock when the host is locked", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          hostPlatform="windows"
+          hostMdmDeviceStatus="locked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Unlock")).not.toHaveAttribute(
+        "aria-disabled",
+        "true"
+      );
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+    });
   });
 
   describe("Unlock action", () => {
@@ -1160,7 +1268,7 @@ describe("Host Actions Dropdown", () => {
   });
 
   describe("Wipe action", () => {
-    it("renders only when the host is unlocked", async () => {
+    it("renders as enabled when the host is unlocked", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1187,8 +1295,51 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Wipe")).toBeInTheDocument();
+      expect(screen.getByText("Wipe")).not.toHaveAttribute(
+        "aria-disabled",
+        "true"
+      );
     });
+
+    it.each<HostMdmDeviceStatusUIState>(["locked", "wiping", "wiped"])(
+      "renders as disabled with a tooltip when the host is %s",
+      async (status) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isMacMdmEnabledAndConfigured: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostMdmEnrollmentStatus="On (automatic)"
+            isConnectedToFleetMdm
+            hostPlatform="darwin"
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        const option = screen.getByText("Wipe");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(
+          await screen.findByText(
+            `Wipe is unavailable while host is ${status}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
 
     it("does not renders when a windows host but does not have Fleet windows mdm enabled and configured", async () => {
       const render = createCustomRenderer({
@@ -1292,6 +1443,207 @@ describe("Host Actions Dropdown", () => {
           screen.getByText(/fleetd agent with --enable-scripts/i)
         ).toBeInTheDocument();
       });
+    });
+  });
+
+  describe("Reset action", () => {
+    const renderDropdown = ({
+      hostPlatform = "windows",
+      isWindowsMdmEnabledAndConfigured = true,
+      isConnectedToFleetMdm = true,
+      hostMdmDeviceStatus = "unlocked",
+      hostMdmEnrollmentStatus = "On (automatic)",
+      isPremiumTier = true,
+      isGlobalAdmin = true,
+      isGlobalMaintainer = false,
+      isGlobalObserver = false,
+      currentUser = createMockUser(),
+      hostTeamId = null,
+    }: {
+      hostPlatform?: string;
+      isWindowsMdmEnabledAndConfigured?: boolean;
+      isConnectedToFleetMdm?: boolean;
+      hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
+      hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+      isPremiumTier?: boolean;
+      isGlobalAdmin?: boolean;
+      isGlobalMaintainer?: boolean;
+      isGlobalObserver?: boolean;
+      currentUser?: ReturnType<typeof createMockUser>;
+      hostTeamId?: number | null;
+    }) => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier,
+            isMacMdmEnabledAndConfigured: true,
+            isWindowsMdmEnabledAndConfigured,
+            isGlobalAdmin,
+            isGlobalMaintainer,
+            isGlobalObserver,
+            currentUser,
+          },
+        },
+      });
+      return render(
+        <HostActionsDropdown
+          hostTeamId={hostTeamId}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={hostMdmEnrollmentStatus}
+          isConnectedToFleetMdm={isConnectedToFleetMdm}
+          hostPlatform={hostPlatform}
+          hostMdmDeviceStatus={hostMdmDeviceStatus}
+          hostScriptsEnabled
+        />
+      );
+    };
+
+    it("renders after Wipe for a Windows host with MDM on", async () => {
+      const { user } = renderDropdown({});
+
+      await user.click(screen.getByText("Actions"));
+
+      const labels = screen
+        .getAllByText(/^(Wipe|Reset)$/)
+        .map((el) => el.textContent);
+      expect(labels).toEqual(["Wipe", "Reset"]);
+    });
+
+    it.each([
+      {
+        name: "a global maintainer",
+        props: { isGlobalAdmin: false, isGlobalMaintainer: true },
+      },
+      ...(["admin", "maintainer"] as const).map((role) => ({
+        name: `a fleet ${role} on a host in their fleet`,
+        props: {
+          isGlobalAdmin: false,
+          currentUser: createMockUser({
+            fleets: [createMockTeam({ id: 1, role })],
+          }),
+          hostTeamId: 1,
+        },
+      })),
+    ])("renders for $name", async ({ props }) => {
+      const { user } = renderDropdown(props);
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Reset")).toBeInTheDocument();
+    });
+
+    it.each([
+      { name: "a macOS host", props: { hostPlatform: "darwin" } },
+      { name: "a Linux host", props: { hostPlatform: "ubuntu" } },
+      { name: "an Android host", props: { hostPlatform: "android" } },
+      {
+        name: "a Windows host when Windows MDM is off",
+        props: { isWindowsMdmEnabledAndConfigured: false },
+      },
+      {
+        name: "a Windows host not connected to Fleet MDM",
+        props: { isConnectedToFleetMdm: false },
+      },
+      {
+        name: "a Windows host not enrolled in MDM",
+        props: { hostMdmEnrollmentStatus: "Off" as const },
+      },
+      { name: "Fleet Free", props: { isPremiumTier: false } },
+      {
+        name: "a global observer",
+        props: { isGlobalAdmin: false, isGlobalObserver: true },
+      },
+      {
+        name: "a fleet GitOps user on a host in their fleet",
+        props: {
+          isGlobalAdmin: false,
+          currentUser: createMockUser({
+            fleets: [createMockTeam({ id: 1, role: "gitops" })],
+          }),
+          hostTeamId: 1,
+        },
+      },
+      {
+        name: "a fleet maintainer on another fleet's host",
+        props: {
+          isGlobalAdmin: false,
+          currentUser: createMockUser({
+            fleets: [createMockTeam({ id: 2, role: "maintainer" })],
+          }),
+          hostTeamId: 1,
+        },
+      },
+    ])("does not render for $name", async ({ props }) => {
+      const { user } = renderDropdown(props);
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Reset")).not.toBeInTheDocument();
+    });
+
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locking", "locking"],
+      ["locked", "locked"],
+      ["unlocking", "unlocking"],
+      ["wiping", "wiping"],
+      ["wiped", "wiped"],
+      ["resetting", "resetting"],
+      ["reset", "reset"],
+      ["reset_wipe_pending", "reset"],
+    ])(
+      "renders as disabled with a tooltip when the host is %s",
+      async (status, stateText) => {
+        const { user } = renderDropdown({ hostMdmDeviceStatus: status });
+
+        await user.click(screen.getByText("Actions"));
+
+        const option = screen.getByText("Reset");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(
+          await screen.findByText(
+            `Reset is unavailable while host is ${stateText}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+    it.each(["resetting", "reset"] as const)(
+      "keeps Wipe available and disables Lock for a Windows host that is %s",
+      async (status) => {
+        const { user } = renderDropdown({ hostMdmDeviceStatus: status });
+
+        await user.click(screen.getByText("Actions"));
+
+        expect(screen.getByText("Wipe")).not.toHaveAttribute(
+          "aria-disabled",
+          "true"
+        );
+        const lock = screen.getByText("Lock");
+        expect(lock).toHaveAttribute("aria-disabled", "true");
+        await user.hover(lock);
+        expect(
+          await screen.findByText(
+            `Lock is unavailable while host is ${status}.`
+          )
+        ).toBeInTheDocument();
+      }
+    );
+
+    it("disables Wipe while a wipe waits behind the reset", async () => {
+      const { user } = renderDropdown({
+        hostMdmDeviceStatus: "reset_wipe_pending",
+      });
+
+      await user.click(screen.getByText("Actions"));
+
+      const wipe = screen.getByText("Wipe");
+      expect(wipe).toHaveAttribute("aria-disabled", "true");
+      await user.hover(wipe);
+      expect(
+        await screen.findByText("Wipe is unavailable while host is reset.")
+      ).toBeInTheDocument();
     });
   });
 
@@ -1807,41 +2159,45 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
     });
 
-    // hide Lock / Unenroll / Wipe / Clear passcode whenever any of those four is pending. The four canX helpers all gate on hostMdmDeviceStatus !== "unlocked",
-    // so one table covers the matrix:
-    //   - which COBO/BYO arm of the helpers we exercise (enrollment status)
-    //   - which pending state surfaces the gate (device status)
-    // For COBO, "Unenroll" is always hidden (COBO doesn't have it); the assertion list only
-    // includes options that would otherwise be visible for that enrollment.
     it.each([
       {
         case: "COBO + locking",
         enrollment: "On (automatic)" as const,
         deviceStatus: "locking" as const,
-        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "locking",
+      },
+      {
+        case: "COBO + locked",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "locked" as const,
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "locked",
       },
       {
         case: "COBO + wiping",
         enrollment: "On (automatic)" as const,
         deviceStatus: "wiping" as const,
-        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "wiping",
       },
       {
         case: "COBO + clearing_passcode",
         enrollment: "On (automatic)" as const,
         deviceStatus: "clearing_passcode" as const,
-        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+        expectDisabled: ["Lock", "Wipe", "Clear passcode"],
+        stateText: "clearing passcode",
       },
       {
         case: "BYO + unenrolling",
         enrollment: "On (personal)" as const,
         deviceStatus: "unenrolling" as const,
-        expectHidden: ["Lock", "Unenroll", "Clear passcode"],
-        expectVisible: ["Transfer", "Delete"],
+        expectDisabled: ["Lock", "Unenroll", "Clear passcode"],
+        stateText: "unenrolling",
       },
     ])(
-      "hides pending-gated actions for Android when $case (#41683)",
-      async ({ enrollment, deviceStatus, expectHidden, expectVisible }) => {
+      "disables MDM actions with a tooltip for Android when $case",
+      async ({ enrollment, deviceStatus, expectDisabled, stateText }) => {
         const render = createCustomRenderer({
           context: {
             app: {
@@ -1868,12 +2224,22 @@ describe("Host Actions Dropdown", () => {
 
         await user.click(screen.getByText("Actions"));
 
-        expectHidden.forEach((label) => {
-          expect(screen.queryByText(label)).not.toBeInTheDocument();
-        });
-        expectVisible?.forEach((label) => {
-          expect(screen.getByText(label)).toBeInTheDocument();
-        });
+        expect(screen.getByText("Transfer")).toBeInTheDocument();
+        expect(screen.getByText("Delete")).toBeInTheDocument();
+
+        // eslint-disable-next-line no-restricted-syntax
+        for (const label of expectDisabled) {
+          const option = screen.getByText(label);
+          expect(option).toHaveAttribute("aria-disabled", "true");
+          // eslint-disable-next-line no-await-in-loop
+          await user.hover(option);
+          expect(
+            // eslint-disable-next-line no-await-in-loop
+            await screen.findByText(
+              `${label} is unavailable while host is ${stateText}.`
+            )
+          ).toBeInTheDocument();
+        }
       }
     );
   });
@@ -2929,56 +3295,17 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
     });
 
-    it.each<HostMdmDeviceStatusUIState>([
-      "locked",
-      "locking",
-      "unlocking",
-      "locating",
-    ])("is disabled with tooltip when host status is %s", async (status) => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            isPremiumTier: true,
-            isMacMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="ios"
-          hostMdmEnrollmentStatus="On (company-owned)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus={status}
-          hostScriptsEnabled
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      const option = screen.getByText("Clear passcode");
-      expect(option).toBeInTheDocument();
-      expect(option).toHaveAttribute("aria-disabled", "true");
-
-      await user.hover(option);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            /Clear passcode is unavailable while host is in Lost Mode./i
-          )
-        ).toBeInTheDocument();
-      });
-    });
-
-    it.each<HostMdmDeviceStatusUIState>(["wiping", "wiped"])(
-      "is disabled with tooltip when pending wipe",
-      async (status) => {
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locked", "locked"],
+      ["locking", "locking"],
+      ["unlocking", "unlocking"],
+      ["locating", "locked"],
+      ["wiping", "wiping"],
+      ["wiped", "wiped"],
+      ["clearing_passcode", "clearing passcode"],
+    ])(
+      "is disabled with tooltip when host status is %s",
+      async (status, stateText) => {
         const render = createCustomRenderer({
           context: {
             app: {
@@ -3006,18 +3333,15 @@ describe("Host Actions Dropdown", () => {
         await user.click(screen.getByText("Actions"));
 
         const option = screen.getByText("Clear passcode");
-        expect(option).toBeInTheDocument();
         expect(option).toHaveAttribute("aria-disabled", "true");
 
         await user.hover(option);
 
-        await waitFor(() => {
-          expect(
-            screen.getByText(
-              /Clear passcode is unavailable while host is pending wipe./i
-            )
-          ).toBeInTheDocument();
-        });
+        expect(
+          await screen.findByText(
+            `Clear passcode is unavailable while host is ${stateText}.`
+          )
+        ).toBeInTheDocument();
       }
     );
   });
@@ -3287,5 +3611,163 @@ describe("Host Actions Dropdown", () => {
         );
       }
     );
+  });
+
+  describe("View unlock PIN action", () => {
+    const renderDropdown = async ({
+      currentUser = createMockUser({ global_role: "admin" }),
+      hostTeamId = null,
+      isPremiumTier = true,
+      hostPlatform = "android",
+      unlockPinAvailable,
+      hostMdmDeviceStatus = "unlocked",
+    }: {
+      currentUser?: ReturnType<typeof createMockUser>;
+      hostTeamId?: number | null;
+      isPremiumTier?: boolean;
+      hostPlatform?: string;
+      unlockPinAvailable?: boolean;
+      hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
+    } = {}) => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier,
+            isAndroidMdmEnabledAndConfigured: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: currentUser.global_role === "admin",
+            isGlobalMaintainer: currentUser.global_role === "maintainer",
+            isGlobalObserver: currentUser.global_role === "observer",
+            isGlobalTechnician: currentUser.global_role === "technician",
+            currentUser,
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={hostTeamId}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform={hostPlatform}
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus={hostMdmDeviceStatus}
+          hostScriptsEnabled={false}
+          unlockPinAvailable={unlockPinAvailable}
+        />
+      );
+
+      // The dropdown renders nothing when no actions are available.
+      const actionsButton = screen.queryByText("Actions");
+      if (actionsButton) {
+        await user.click(actionsButton);
+      }
+    };
+
+    it("shows the action directly after Lock for an Android admin when the PIN is available", async () => {
+      await renderDropdown({ unlockPinAvailable: true });
+
+      const labels = screen
+        .getAllByText(
+          /^(Transfer|Unenroll|Lock|View unlock PIN|Wipe|Clear passcode|Delete)$/
+        )
+        .map((element) => element.textContent);
+      expect(labels).toContain("View unlock PIN");
+      expect(labels.indexOf("View unlock PIN")).toBe(
+        labels.indexOf("Lock") + 1
+      );
+    });
+
+    it("shows the action for a team maintainer", async () => {
+      await renderDropdown({
+        unlockPinAvailable: true,
+        hostTeamId: 1,
+        currentUser: createMockUser({
+          global_role: null,
+          fleets: [createMockTeam({ id: 1, role: "maintainer" })],
+        }),
+      });
+      expect(screen.getByText("View unlock PIN")).toBeInTheDocument();
+    });
+
+    it("shows the action for a global maintainer", async () => {
+      await renderDropdown({
+        unlockPinAvailable: true,
+        currentUser: createMockUser({ global_role: "maintainer" }),
+      });
+      expect(screen.getByText("View unlock PIN")).toBeInTheDocument();
+    });
+
+    it("hides the action when the PIN is unavailable", async () => {
+      await renderDropdown({ unlockPinAvailable: false });
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it("hides the action when unlock_pin_available is missing", async () => {
+      await renderDropdown();
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it.each<HostMdmDeviceStatusUIState>([
+      "locking",
+      "locked",
+      "unlocking",
+      "wiping",
+      "wiped",
+      "clearing_passcode",
+      "unenrolling",
+    ])("hides the action while the device status is %s", async (status) => {
+      await renderDropdown({
+        unlockPinAvailable: true,
+        hostMdmDeviceStatus: status,
+      });
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it("hides the action on Fleet Free", async () => {
+      await renderDropdown({ unlockPinAvailable: true, isPremiumTier: false });
+      expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+    });
+
+    it.each<UserRole>(["observer", "observer_plus", "technician"])(
+      "hides the action for a global %s",
+      async (role) => {
+        await renderDropdown({
+          unlockPinAvailable: true,
+          currentUser: createMockUser({ global_role: role }),
+        });
+        expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+      }
+    );
+
+    it.each<UserRole>(["observer", "observer_plus", "technician"])(
+      "hides the action for a team %s",
+      async (role) => {
+        await renderDropdown({
+          unlockPinAvailable: true,
+          hostTeamId: 1,
+          currentUser: createMockUser({
+            global_role: null,
+            fleets: [createMockTeam({ id: 1, role })],
+          }),
+        });
+        expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+      }
+    );
+
+    it.each(["darwin", "ios", "windows", "ubuntu"])(
+      "hides the action for a %s host",
+      async (hostPlatform) => {
+        await renderDropdown({ unlockPinAvailable: true, hostPlatform });
+        expect(screen.queryByText("View unlock PIN")).not.toBeInTheDocument();
+      }
+    );
+
+    it("still shows Lock and never shows Unlock on Android", async () => {
+      await renderDropdown({ unlockPinAvailable: true });
+      expect(screen.getByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+    });
   });
 });

@@ -1,0 +1,14 @@
+{
+  "name": "Cato Enterprise Browser",
+  "slug": "cato-enterprise-browser/windows",
+  "package_identifier": "CatoNetworks.CatoEnterpriseBrowser",
+  "unique_identifier": "Cato Browser",
+  "exists_query": "SELECT 1 FROM programs WHERE name = 'Cato Browser';",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/cato-enterprise-browser_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/cato-enterprise-browser_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "open_process_names": ["catobrowser.exe"],
+  "default_categories": ["Browsers"]
+}

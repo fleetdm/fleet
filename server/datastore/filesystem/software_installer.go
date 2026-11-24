@@ -63,21 +63,31 @@ func (i *SoftwareInstallerStore) Get(ctx context.Context, installerID string) (i
 	return f, sz, nil
 }
 
-// Put stores a software installer in the local filesystem.
+// Put stores a software installer atomically via a temp file and rename, so a
+// failed or interrupted write never leaves a partial file that Exists reports.
 func (i *SoftwareInstallerStore) Put(ctx context.Context, installerID string, content io.ReadSeeker) error {
-	path := i.pathForInstaller(installerID)
+	finalPath := i.pathForInstaller(installerID)
 
-	f, err := os.Create(path)
+	tmp, err := os.CreateTemp(filepath.Dir(finalPath), ".tmp-installer-*")
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating software installer file in filesystem store")
+		return ctxerr.Wrap(ctx, err, "creating temp software installer file in filesystem store")
 	}
-	defer f.Close()
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
 
-	if _, err := io.Copy(f, content); err != nil {
+	if _, err := io.Copy(tmp, content); err != nil {
+		_ = tmp.Close()
 		return ctxerr.Wrap(ctx, err, "writing software installer file in filesystem store")
 	}
-	if err := f.Close(); err != nil {
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return ctxerr.Wrap(ctx, err, "syncing software installer file in filesystem store")
+	}
+	if err := tmp.Close(); err != nil {
 		return ctxerr.Wrap(ctx, err, "closing software installer file in filesystem store")
+	}
+	if err := os.Rename(tmpPath, finalPath); err != nil {
+		return ctxerr.Wrap(ctx, err, "renaming software installer file in filesystem store")
 	}
 	return nil
 }

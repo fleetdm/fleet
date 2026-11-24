@@ -454,15 +454,16 @@ Steps to renew the certificate:
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
 
-1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
-2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role. Check for any existing non-competes that could impact a candidate’s ability to join Fleet.
-3. **Deliver technical assessment**: Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
-4. **Test technical assessment**: Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
-5. **Start the interview process**: Follow the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member) to create a "Why hire" document that will be used to consolidate interview feedback.
+The Head of People (HOP) is responsible for outreach to the candidate, for scheduling the candidate for each interview stage, and for moving the candidate through the process, including handing the candidate off to the next stage after each interview. The CTO is responsible for reviewing candidate profiles and allocating them to a product team.
+
+1. **Reach out** (Head of People): Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
+2. **Schedule HOP interview**: This is the first interview stage. Send the candidate a calendly link for 30m talk with the Head of People @ireedy. Check for any existing non-competes that could impact a candidate’s ability to join Fleet. For the first interview, follow the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member) to create a "Why hire" document that will be used to consolidate interview feedback.
+3. **Conduct screening call** (engineering manager): Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
+4. **Deliver technical assessment** (engineering manager): Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
+5. **Test technical assessment** (engineering manager): Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
 6. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a Software Engineer on your team where the goal is to understand the technical capabilities of the candidate. An additional Software Engineer can optionally join if available. Share the candidate's project with the Software Engineers and ask them to review in advance so they are prepared with questions about the candidate's code.
-7. **Schedule HOP interview**: Send the candidate a calendly link for 30m talk with the Head of People @ireedy.
-8. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
-9. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
+7. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
+8. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
 If the candidate passes all of these steps, then continue with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 

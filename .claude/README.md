@@ -156,13 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 35 workflow skills (invoke with /), see "Skills reference" below
+├── skills/                    # 36 workflow skills (invoke with /), see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
 │   ├── spec-story/            #   Break a story into sub-issues
 │   ├── new-migration/         #   Scaffold a DB migration
-│   └── ...                    #   + 30 more (lint, fleet-gitops, vuln-triage, content-style, …)
+│   └── ...                    #   + 31 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -194,7 +194,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/bump-migration` | `/bump-migration YYYYMMDDHHMMSS_Name.go` | Bumps a migration's timestamp to current time when it conflicts with a migration already merged to main. Renames files and updates function names in both migration and test files. |
 | `/spec-story` | `/spec-story 12345` | Breaks down a GitHub story into sub-issues in four stages (Understand → Skeleton → Draft → Create) and pauses for your approval after each one. Researches GitHub, Slack, Gong, git history, and Figma dev notes. Splits work by skill (backend, frontend, fleetctl and GitOps, agent) and adds a Documentation and engineering QA sub-issue. Reviews the design for data model, security, scalability, simplicity, and scope. Writes a spec doc outside the repo with checked `file:line` anchors, and WHAT-only sub-issue bodies with the parent's `#g-*` label. Then creates the sub-issues, links them to the parent, and fills in its Engineering section. Requires `gh`. Uses Figma, Slack, and Gong MCP tools. |
 | `/lint` | `/lint` or `/lint go` | Runs the appropriate linters (golangci-lint, eslint, prettier) on recently changed files. Accepts `go`, `frontend`, or a file path to narrow scope. |
-| `/cherry-pick` | `/cherry-pick 43082` or `/cherry-pick 43082 rc-minor-fleet-v4.83.0` | Cherry-picks a merged PR into an RC branch. Auto-detects the latest `rc-minor-fleet-v*` or `rc-patch-fleet-v*` branch, or accepts an explicit target. Handles squash-merged and merge commits. Requires `gh`. |
+| `/cherry-pick` | `/cherry-pick 43082` or `/cherry-pick 43082 rc-minor-fleet-v4.83.0` | Cherry-picks a merged PR into an RC branch. Auto-detects the latest `rc-major-fleet-v*`, `rc-minor-fleet-v*`, or `rc-patch-fleet-v*` branch, or accepts an explicit target. Handles squash-merged and merge commits. Requires `gh`. |
 | `/push-reference-docs` | `/push-reference-docs` | Moves reference-doc updates from one release docs branch to another (e.g., 4.89 → 4.90) when a feature slips to a later release. Handles open/closed/merged PR states. Requires `gh`. |
 | `/who-blocks-this-pr` | `/who-blocks-this-pr 12345` | Determines which files still need approval and from whom, based on CODEOWNERS and `website/config/custom.js`. Requires `gh`. |
 | `/triage-bugs` | `/triage-bugs 109` or `/triage-bugs 109 sweep` | Triages the bug Inbox on a product group's board the way the EM does at standup. Finds Inbox bugs a merged PR already fixed, asks openers for missing expected behavior or repro steps, moves bugs that need a design call to Drafting with the Product Designer assigned, and moves complete bugs to Ready. Drafts every comment and move in chat, and posts only what you approve. Requires `gh` with `project` scope. |
@@ -204,6 +204,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/fleet-maintained-apps` | `/fleet-maintained-apps add Slack for Windows` | Adds, fixes, and debugs Fleet-maintained apps for macOS (Homebrew) and Windows (winget): verifies installer identity with real tools and queries with real osquery, and triages validator failures, ingest panics, and soak issues. Uses WebFetch. |
 | `/ai-profile-test` | `/ai-profile-test "Disable the camera"` | Proposes a new prompt test case for the AI configuration profile generator (`website/profile-generator/configuration-profile-generator-cases.js`): checks for duplicate coverage, verifies payload keys and CSP nodes against Apple/Microsoft docs, writes assertions in the file's substring style, and opens a PR. Requires `gh`; uses WebFetch. |
 | `/command-palette` | `/command-palette` | Authoring guide for the Fleet command palette — adding/editing items in `frontend/components/CommandPalette/groups/`, router paths, and new pages/actions that need a palette entry. |
+| `/new-icon` | `/new-icon low battery` | Adds or changes a Fleet UI icon or software/OS logo tile, for designers and engineers. Asks whether it's a standalone task or feature work and who's designing vs. implementing. Designers: draw to the icon guidelines, rule-check the Figma node, get Head of Design approval, add it to the design system Icons page. Engineers: implement only from the design system page, convert strokes to filled paths, add the component to `ICON_MAP`, and verify. Uses the Figma MCP server when connected. |
 | `/tier-modes` | `/tier-modes` | Authoring guide for Fleet Free (`!isPremiumTier`) and Primo (`isPrimoMode`) gating in the frontend — for new pages/surfaces or when introducing new tier gating. |
 | `/content-style` | `/content-style` | Writes, edits, and reviews public-facing Fleet content (website, handbook, docs, articles, release notes, UI copy) to follow Fleet's voice and style guidelines. |
 | `/fleet-article-formatting` | `/fleet-article-formatting` | Applies Fleet's house article format and article-specific voice to articles (`category` `articles` or `comparison`) — title → dek → key takeaways → CTA button → body → closing. Pairs with `/content-style` for word-level voice. |

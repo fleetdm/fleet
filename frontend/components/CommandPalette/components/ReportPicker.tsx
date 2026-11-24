@@ -62,7 +62,7 @@ const ReportPicker = ({
         orderDirection: "asc",
         mergeInherited: true,
       }),
-    selectItems: (data) => data?.queries ?? [],
+    selectItems: (data) => data?.reports ?? [],
   });
 
   const firstItemValue =

@@ -65,7 +65,7 @@ func ReplaceCustomSCEPProxyURLVariable(ctx context.Context, logger *slog.Logger,
 		return "", nil, false, nil
 	}
 	// Generate a new SCEP challenge for the profile
-	challenge, err := ds.NewChallenge(ctx)
+	challenge, err := ds.NewChallenge(ctx, fleet.ChallengeScope{HostUUID: hostUUID, ProfileUUID: profUUID, CAName: caName})
 	if err != nil {
 		return "", nil, false, ctxerr.Wrap(ctx, err, "generating SCEP challenge")
 	}

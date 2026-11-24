@@ -1,9 +1,10 @@
 {
   "name": "Druva inSync",
-  "unique_identifier": "com.druva.inSyncClient",
+  "unique_identifier": "com.druva.inSync",
   "token": "druva-insync",
   "installer_format": "dmg",
   "slug": "druva-insync/darwin",
   "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/druva-insync-install.sh",
   "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/druva-insync.json"
 }

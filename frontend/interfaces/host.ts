@@ -61,7 +61,7 @@ export default PropTypes.shape({
     PropTypes.shape({
       pack_id: PropTypes.number,
       pack_name: PropTypes.string,
-      query_stats: PropTypes.arrayOf(queryStatsInterface),
+      report_stats: PropTypes.arrayOf(queryStatsInterface),
     })
   ),
   fleet_name: PropTypes.string,
@@ -204,11 +204,12 @@ interface IMdmMacOsSetup {
   bootstrap_package_name: string;
 }
 
-export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
+export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped" | "reset";
 export type HostMdmPendingAction =
   | "unlock"
   | "lock"
   | "wipe"
+  | "reset"
   | "clear_passcode"
   | "location"
   | "unenroll"
@@ -257,6 +258,11 @@ export interface IHostMdmData {
   wipe_allowed?: boolean;
   lock_allowed?: boolean;
   clear_passcode_allowed?: boolean;
+  /**
+   * Android only; only populated by host details. True when Fleet has a stored
+   * unlock PIN the host acknowledged and no lock/unenroll/wipe/clear passcode is pending.
+   */
+  unlock_pin_available?: boolean;
 }
 
 export interface IHostMaintenanceWindow {
@@ -289,7 +295,7 @@ export interface IMacadminsResponse {
 export interface IPackStats {
   pack_id: number;
   pack_name: string;
-  query_stats: IQueryStats[];
+  report_stats: IQueryStats[];
   type: string;
 }
 
@@ -329,6 +335,9 @@ export interface IDUPDetails {
   platform?: HostPlatform;
   global_config: IDeviceGlobalConfig;
   self_service: boolean;
+  /** Whether an iOS or iPadOS host should ask the Google status route for a
+   * sign-in URL. */
+  google_conditional_access_sign_in_required?: boolean;
 }
 
 export interface IHostEncrpytionKeyResponse {

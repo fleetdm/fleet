@@ -660,7 +660,11 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 
 func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.GetHostScriptDetailsRequest)
-	scripts, meta, err := svc.GetHostScriptDetails(ctx, req.HostID, req.ListOptions)
+	var meta *fleet.PaginationMetadata
+	scripts, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (scripts []*fleet.HostScriptDetail, err error) {
+		scripts, meta, err = svc.GetHostScriptDetails(ctx, hostID, req.ListOptions)
+		return scripts, err
+	})
 	if err != nil {
 		return fleet.GetHostScriptDetailsResponse{Err: err}, nil
 	}
@@ -715,7 +719,7 @@ func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet
 func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) ([]fleet.ScriptResponse, error) {
 	if maybeTmID != nil && maybeTmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("fleet_name", "cannot specify both fleet_id and fleet_name"))
 	}
 
 	var teamID *uint
@@ -724,14 +728,16 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	if maybeTmID != nil || maybeTmName != nil {
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, maybeTmID, maybeTmName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
-			if dryRun && fleet.IsNotFound(err) {
-				return nil, nil
+			// On a dry run the fleet may not have been created yet. teamID then
+			// stays nil (Unassigned), which is fine: a dry run returns before
+			// anything fleet-specific is read or written.
+			if !dryRun || !fleet.IsNotFound(err) {
+				return nil, err
 			}
-			return nil, err
+		} else {
+			teamID = &team.ID
+			teamName = &team.Name
 		}
-		teamID = &team.ID
-		teamName = &team.Name
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -755,8 +761,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 
 		// unlike the embedded secrets validation below, this is a static check,
 		// so it runs before the post-loop dryRun return to surface errors on
-		// gitops dry runs (like the rest of this loop, it is skipped when a dry
-		// run targets a team that doesn't exist yet)
+		// gitops dry runs
 		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
 			// re-key validation errors on the indexed field, matching the rest
 			// of this loop, so callers can tell which script failed
@@ -1108,7 +1113,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		}
 
 		if opt.TeamFilter == nil {
-			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
+			return "", fleet.NewInvalidArgumentError("filters", "filters must include a fleet filter")
 		}
 
 		filter := fleet.TeamFilter{User: ctxUser, IncludeObserver: true}
@@ -1233,27 +1238,28 @@ func (svc *Service) LockHost(ctx context.Context, _ uint, _ bool) (string, error
 
 func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.UnlockHostRequest)
-	pin, err := svc.UnlockHost(ctx, req.HostID)
+	res, err := svc.UnlockHost(ctx, req.HostID)
 	if err != nil {
 		return fleet.UnlockHostResponse{Err: err}, nil
 	}
 
-	// We bail if a host is unlocked or wiped, so we can assume the host is locked at this point
-	resp := fleet.UnlockHostResponse{HostID: &req.HostID, DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
-	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
-	// call triggers the unlocking without further user action.
-	if pin != "" {
-		resp.UnlockPIN = pin
-	}
-	return resp, nil
+	// Only macOS and Android return an unlock PIN; for other platforms the UnlockHost call
+	// triggers the unlocking without further user action.
+	return fleet.UnlockHostResponse{
+		HostID:        &req.HostID,
+		UnlockPIN:     res.UnlockPIN,
+		LockedAt:      res.LockedAt,
+		DeviceStatus:  res.DeviceStatus,
+		PendingAction: res.PendingAction,
+	}, nil
 }
 
-func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
+func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1262,14 +1268,15 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 
 func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.WipeHostRequest)
-	if err := svc.WipeHost(ctx, req.HostID, req.Metadata); err != nil {
+	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return fleet.WipeHostResponse{Err: err}, nil
 	}
-	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
+	// WipeHost refuses a locked or wiped host. A wipe queued behind an acknowledged reset is reported as unlocked here too,
+	// although getting the host shows its reset status.
 	return fleet.WipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeMetadata) error {
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -1313,17 +1320,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
-	switch {
-	case lockWipe.IsPendingLock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete."))
-	case lockWipe.IsPendingUnlock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete."))
-	case lockWipe.IsPendingWipe():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online."))
-	case lockWipe.IsLocked():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked."))
-	case lockWipe.IsWiped():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict))
+	if err := lockWipe.ValidateWipeRequest(); err != nil {
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	// all good, go ahead with queuing the wipe request.
@@ -1343,4 +1341,25 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")
 	}
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Reset host
+////////////////////////////////////////////////////////////////////////////////
+
+func resetHostEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ResetHostRequest)
+	if err := svc.ResetHost(ctx, req.HostID); err != nil {
+		return fleet.ResetHostResponse{Err: err}, nil
+	}
+	// A locked, wiped or reset host is rejected, so the host is unlocked here.
+	return fleet.ResetHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionReset}, nil
+}
+
+func (svc *Service) ResetHost(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }

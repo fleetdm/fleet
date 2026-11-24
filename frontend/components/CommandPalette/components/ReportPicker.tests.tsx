@@ -18,9 +18,9 @@ const renderPicker = createCustomRenderer({ withBackendMock: true });
 // Minimal valid response — typed so a future IQueriesResponse rename
 // would surface here instead of being hidden by `as any`.
 const emptyQueriesResponse: IQueriesResponse = {
-  queries: [],
+  reports: [],
   count: 0,
-  inherited_query_count: 0,
+  inherited_report_count: 0,
   meta: { has_next_results: false, has_previous_results: false },
 };
 

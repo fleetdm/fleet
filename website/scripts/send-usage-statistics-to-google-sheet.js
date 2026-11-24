@@ -168,6 +168,8 @@ module.exports = {
         statistics.resultLogDestination,
         statistics.statusLogDestination,
         statistics.auditLogDestination,
+        statistics.numHostsFleetMDMEnrolledIOS,
+        statistics.numHostsFleetMDMEnrolledIpadOS,
       ]);
     }//∞
 
@@ -197,7 +199,7 @@ module.exports = {
       'Ticket destination configured', 'SSO for Fleet users', 'SSO for end users', 'Account provisioning configured',
       'SCIM configured', 'Google Workspace configured', 'Vulnerabilities webhook', 'Failing policies webhook',
       'Host activities webhook', 'Global activity webhook', 'Result log destination', 'Status log destination',
-      'Audit log destination',
+      'Audit log destination', 'Hosts enrolled in iOS MDM', 'Hosts enrolled in iPadOS MDM',
     ];
 
     let { google } = require('googleapis');

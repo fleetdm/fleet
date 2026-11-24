@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -659,15 +660,34 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
-	// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	// The Google unmark is queued with the unenrollment because callers may not retry, and
+	// an unqueued name would stay MANAGED in Google. For the same reason a deadlock or a
+	// lock wait on the Google rows is retried here.
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// host_mdm is locked before the Google rows, as in the single-host unenroll, so the
+		// two can't deadlock.
+		// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
+		_, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
 	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+		}
+		// Listing the hosts first keeps the unmark from locking every Google row.
+		var googleHostUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &googleHostUUIDs, `
+			SELECT d.host_uuid FROM google_conditional_access_devices d
+			JOIN hosts h ON h.uuid = d.host_uuid
+			WHERE h.platform = 'android'`); err != nil {
+			return ctxerr.Wrap(ctx, err, "list android hosts registered with google")
+		}
+		return queueGoogleConditionalAccessUnmarkDB(ctx, tx, googleHostUUIDs)
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android hosts in bulk")
+		return err
 	}
 	// Delete all Android custom OS settings for unenrolled hosts.
 	// We do this in one query using a JOIN to avoid doing it one host at a time.
@@ -718,6 +738,9 @@ UPDATE host_mdm
 			_, err = tx.ExecContext(ctx, `DELETE FROM host_certificate_templates WHERE host_uuid = ?`, hostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete certificate templates for unenrolled android host")
+			}
+			if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, []string{hostUUID}); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -1425,22 +1448,22 @@ func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value str
 	return &cmd, nil
 }
 
-// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and upserts
-// host_mdm_actions.lock_ref in a single transaction. Mirrors WipeHostViaWindowsMDM.
-func (ds *Datastore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
-	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "lock_ref")
+// LockHostViaAndroidMDM inserts the lock's RESET_PASSWORD row into mdm_android_commands and upserts
+// host_mdm_actions.lock_ref and unlock_pin in a single transaction. Mirrors WipeHostViaWindowsMDM.
+func (ds *Datastore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, unlockPIN string) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "lock_ref", &unlockPIN)
 }
 
 // WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and upserts
 // host_mdm_actions.wipe_ref in a single transaction.
 func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
-	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref")
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref", nil)
 }
 
 // ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and
 // upserts host_mdm_actions.clear_passcode_ref in a single transaction.
 func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
-	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref", nil)
 }
 
 // GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
@@ -1500,7 +1523,8 @@ func (ds *Datastore) ClearHostMDMActions(ctx context.Context, hostID uint) error
 }
 
 // issueAndroidHostMDMRef performs the two-write transaction. refColumn is hard-coded by callers. The caller is responsible for populating cmd.CommandUUID.
-func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
+// unlockPIN is written alongside the ref when non-nil.
+func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string, unlockPIN *string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
 			INSERT INTO mdm_android_commands
@@ -1521,7 +1545,16 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 			VALUES (?, ?, ?)
 			ON DUPLICATE KEY UPDATE %s = VALUES(%s), fleet_platform = VALUES(fleet_platform)
 		`, refColumn, refColumn, refColumn)
-		if _, err := tx.ExecContext(ctx, actionsStmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
+		args := []any{host.ID, cmd.CommandUUID, host.FleetPlatform()}
+		if unlockPIN != nil {
+			actionsStmt = fmt.Sprintf(`
+				INSERT INTO host_mdm_actions (host_id, %s, unlock_pin, fleet_platform)
+				VALUES (?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE %s = VALUES(%s), unlock_pin = VALUES(unlock_pin), fleet_platform = VALUES(fleet_platform)
+			`, refColumn, refColumn, refColumn)
+			args = []any{host.ID, cmd.CommandUUID, *unlockPIN, host.FleetPlatform()}
+		}
+		if _, err := tx.ExecContext(ctx, actionsStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert host_mdm_actions for android "+refColumn)
 		}
 		return nil
@@ -1888,6 +1921,82 @@ func (ds *Datastore) GetMDMAndroidReconcileCursor(_ context.Context) (string, er
 // SetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
 // the mysqlredis wrapper writes to Redis.
 func (ds *Datastore) SetMDMAndroidReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
+func (ds *Datastore) ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	stmt := `
+		SELECT p.profile_uuid, p.team_id, p.name, p.raw_json
+		FROM mdm_android_configuration_profiles p
+		WHERE JSON_CONTAINS_PATH(p.raw_json, 'one', '$.passwordPolicies', '$.passwordRequirements', '$.policyEnforcementRules')
+			AND NOT EXISTS (SELECT 1 FROM mdm_configuration_profile_labels l WHERE l.android_profile_uuid = p.profile_uuid)`
+	var args []any
+	if teamID != nil {
+		stmt += ` AND p.team_id = ?`
+		args = append(args, *teamID)
+	}
+	var profiles []*fleet.MDMAndroidConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing android fleet default policy profiles")
+	}
+	return profiles, nil
+}
+
+func (ds *Datastore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error) {
+	var rows []struct {
+		TeamID   uint   `db:"team_id"`
+		Checksum []byte `db:"checksum"`
+	}
+	const stmt = `SELECT team_id, checksum FROM android_fleet_default_policies`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting android fleet default policy checksums")
+	}
+	checksums := make(map[uint][]byte, len(rows))
+	for _, r := range rows {
+		checksums[r.TeamID] = r.Checksum
+	}
+	return checksums, nil
+}
+
+func (ds *Datastore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error {
+	var err error
+	if previous == nil {
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT IGNORE INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)`, teamID, checksum)
+	} else {
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE android_fleet_default_policies SET checksum = ? WHERE team_id = ? AND checksum = ?`, checksum, teamID, previous)
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting android fleet default policy checksum")
+	}
+	return nil
+}
+
+func (ds *Datastore) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	const stmt = `
+		SELECT dp.team_id FROM android_fleet_default_policies dp
+		WHERE dp.team_id <> 0 AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.id = dp.team_id)`
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing deleted fleets with android default policies")
+	}
+	return teamIDs, nil
+}
+
+func (ds *Datastore) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	// Random rather than a constant, so a second mark also fails a reconciler's save that read the first one.
+	// It never matches a real checksum, so the reconciler sends the policy again.
+	marker := make([]byte, 16)
+	if _, err := rand.Read(marker); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating android fleet default policy marker")
+	}
+	const stmt = `
+		INSERT INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE checksum = VALUES(checksum)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, marker); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking android fleet default policy unverified")
+	}
 	return nil
 }
 

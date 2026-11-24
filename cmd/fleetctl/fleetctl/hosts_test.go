@@ -29,9 +29,9 @@ func TestHostsTransferByHosts(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -92,9 +92,9 @@ func TestHostsTransferByLabel(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -160,15 +160,32 @@ func TestHostsTransferByLabel(t *testing.T) {
 	assert.Empty(t, runAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--label", "label1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+	// GitOps users get the transfer message, and no host moves: from the server with --label, from fleetctl with --hosts.
+	for _, user := range []*fleet.User{
+		{GlobalRole: new(fleet.RoleGitOps)},
+		{Teams: []fleet.UserTeam{{ID: 99, Role: fleet.RoleGitOps}}},
+	} {
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			user.ID = id
+			return user, nil
+		}
+		for _, flags := range [][]string{{"--label", "label1"}, {"--hosts", "host1"}} {
+			ds.AddHostsToTeamFuncInvoked = false
+			_, err := runAppNoChecks(append([]string{"hosts", "transfer", "--fleet", "team1"}, flags...))
+			require.ErrorContains(t, err, fleet.GitOpsTransferHostErrorMessage, flags)
+			assert.False(t, ds.AddHostsToTeamFuncInvoked)
+		}
+	}
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
@@ -227,9 +244,9 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	opts := &service.TestServerOpts{}
 	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.Equal(t, "host1", identifier)
-		return &fleet.Host{ID: 42}, nil
+		return 42, nil
 	}
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {

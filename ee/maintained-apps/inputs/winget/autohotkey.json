@@ -1,0 +1,26 @@
+{
+  "name": "AutoHotkey",
+  "slug": "autohotkey/windows",
+  "package_identifier": "AutoHotkey.AutoHotkey",
+  "unique_identifier": "AutoHotkey",
+  "open_process_names": [
+    "autohotkey.exe",
+    "autohotkey64.exe",
+    "autohotkey32.exe",
+    "autohotkey64_uia.exe",
+    "autohotkey32_uia.exe",
+    "autohotkeyux.exe",
+    "autohotkeyu64.exe",
+    "autohotkeyu32.exe",
+    "autohotkeya32.exe",
+    "autohotkeyu64_uia.exe",
+    "autohotkeyu32_uia.exe",
+    "autohotkeya32_uia.exe"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/autohotkey_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/autohotkey_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

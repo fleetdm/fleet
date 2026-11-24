@@ -99,8 +99,8 @@ module.exports.custom = {
   // Other integrations:
   // anthropicSecret: undefined,
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
-  // salesforceIntegrationUsername: undefined,
-  // salesforceIntegrationPasskey: undefined,
+  // salesforceIntegrationClientId: undefined,
+  // salesforceIntegrationClientSecret: undefined,
 
   // For cleaning up LinkedIn URLs before creating CRM records.
   RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
@@ -135,8 +135,8 @@ module.exports.custom = {
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
-    'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
+    'schema': 'noahtalerman',                               // Data tables (osquery/fleetd schema) documentation
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'noahtalerman', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
     'docs/solutions': 'ddribeiro',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
@@ -144,9 +144,15 @@ module.exports.custom = {
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': 'allenhouchins',
 
+    // 🤖 fleet-gitops and fleet-maintained-apps agent skills
+    '.claude/skills/fleet-gitops': 'allenhouchins',
+    '.claude/skills/fleet-maintained-apps': 'allenhouchins',
+    'cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops': 'allenhouchins', //« The one fleet-gitops skill copy (.claude/skills/fleet-gitops points here)
+    'cmd/fleetctl/fleetctl/templates/new/.claude/skills/fleet-gitops': 'allenhouchins',
+
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
-    'articles/fleet-usage-statistics.md': 'rachaelshaw', //« Usage stats guide (more specific than the 'articles' catch-all above)
+    'articles/fleet-usage-statistics.md': 'noahtalerman', //« Usage stats guide (more specific than the 'articles' catch-all above)
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -224,6 +230,8 @@ module.exports.custom = {
   ***************************************************************************/
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
     '.github/ISSUE_TEMPLATE/fasttrack.md': 'zayhanlon',
+    '.github/workflows/market-research-check.yml': 'lukeheath',// « rebuilds and checks the market research explorer, DMs the build on Slack
+    '.github/workflows/market-research-revenue.yml': 'lukeheath',// « weekly Fleet revenue pull from Salesforce for the market research
   },
 
 
@@ -252,17 +260,17 @@ module.exports.custom = {
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
     '/docs/get-started/faq': ['rynsatterlee', 'ddribeiro', 'zayhanlon'],
     'docs/solutions': ['ddribeiro', 'allenhouchins'],
-    'docs/API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (REST API reference)
+    'docs/API/rest-api.md': ['rachaelshaw', 'noahtalerman', 'lukeheath'],// (REST API reference)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
-    'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
-    'server/api_endpoints/api_endpoints.yml': 'rachaelshaw',// « API endpoint display names in the Fleet UI (API-only users)
+    'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw', 'noahtalerman'],
+    'server/api_endpoints/api_endpoints.yml': ['rachaelshaw', 'noahtalerman'],// « API endpoint display names in the Fleet UI (API-only users)
 
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': ['allenhouchins'],
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath', 'allenhouchins'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath', 'allenhouchins', 'noahtalerman'],
     'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'allenhouchins'],
 
     // Website (fleetdm.com)
@@ -550,6 +558,11 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
 
+  // Google conditional access proxy
+  // googleConditionalAccessOauthClientId: '…',
+  // googleConditionalAccessOauthClientSecret: '…',
+  // googleConditionalAccessPartnerId: '…',
+  // googleConditionalAccessAllowedOrigins: ['…','…'],
 
   // Android proxy
   // androidEnterpriseProjectId: '…',

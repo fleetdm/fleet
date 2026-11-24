@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.003.22075",
+      "version": "26.003.22110",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FF00-7760-BC15014EA700}' AND publisher = 'Adobe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FF00-7760-BC15014EA700}' AND publisher = 'Adobe' AND version_compare(version, '26.003.22075') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FF00-7760-BC15014EA700}' AND publisher = 'Adobe' AND version_compare(version, '26.003.22110') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'acrobat.exe');"
       },
-      "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600322075/AcroRdrDCx642600322075_MUI.exe",
+      "installer_url": "https://ardownload3.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2600322110/AcroRdrDCx642600322110_MUI.exe",
       "install_script_ref": "7dc0b065",
       "uninstall_script_ref": "d3c91b2b",
-      "sha256": "7bec66953457f6bc78bce9f0a1dcdde1c4cf2a8f8ac26f73fcecf5738f42f307",
+      "sha256": "345617baf5eadb2bedddf6ab485085385fef9e81f742957167b20f61e3a44f9f",
       "default_categories": [
         "Productivity"
       ]
