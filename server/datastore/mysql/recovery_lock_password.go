@@ -167,12 +167,14 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 // enrollment: verify_command_uuid is only set by a passing verify and is cleared on re-enrollment.
 // The pending_encrypted_password guard sends the last-known-password verify, which clears it, to the
 // stored password.
+//
+//nolint:gosec // sql query, not a credential
 const viewableRecoveryLockPasswordExpr = `
 	CASE
 		WHEN status <=> 'verifying' AND operation_type = 'install' AND pending_encrypted_password IS NOT NULL
 			THEN pending_encrypted_password
 		WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL THEN encrypted_password
-	END` //nolint:gosec // sql query, not a credential
+	END`
 
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
 	stmt := `
