@@ -39,7 +39,7 @@ Breaking changes are grouped by where you use Fleet. Read the sections that appl
 
 When you switch your scripts and integrations to the new endpoints, don't forget to update what's tied to the old ones, so your automation keeps running without interruption:
 
-- API-only user permissions: Give your [API-only users](https://fleetdm.com/guides/fleetctl#create-api-only-user) permission for the new endpoints in **Settings > Users**. Permissions for an old endpoint don't automatically cover the new endpoint.
+- API-only user permissions: Give your [API-only users](https://fleetdm.com/guides/fleetctl#create-api-only-user) permission for the new endpoints in **Settings > Users**. Permissions for an old endpoint don't automatically cover the new endpoint. The exceptions are [Delete report](#delete-report-by-name-removed), the [`hosts/identifier` endpoints](#other-endpoints-moved), and `GET /queries/run`. Fleet moves those permissions to the new endpoints when you upgrade.
 - Request size overrides: If you set [`server.endpoint_request_size_overrides`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-endpoint-request-size-overrides) for an old endpoint, add the same entry for its replacement.
 
 ### Farewell, teams
@@ -257,6 +257,7 @@ Fleet 4 supports the new `scripts/batch` and `configuration_profiles/resend` pat
    - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is used as a host ID if one exists, even if another host has that serial number. If no host has that ID, Fleet looks it up as a serial number, UUID, or hostname.
    - If more than one host matches an identifier, Fleet now returns the newest host instead of the oldest (the one with the lowest ID). This applies to `GET /hosts/:id`, the other `GET /hosts/:id/…` endpoints, `POST /hosts/:id/query`, and [Translate IDs](https://fleetdm.com/docs/rest-api/rest-api#translate-ids).
    - Every `GET /hosts/:id/…` endpoint accepts an identifier in `:id` too, except [Get host's device page URL](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-page-url).
+   - API-only users with permission for `GET /hosts/identifier/:identifier` or `POST /hosts/identifier/:identifier/query` get permission for `GET /hosts/:id` or `POST /hosts/:id/query` when you upgrade.
 3. After you upgrade, update conditional access setups that followed the Google or PingFederate guides to call `GET /hosts/:id`.
 
 GitHub issues: [#53080](https://github.com/fleetdm/fleet/issues/53080), [#58203](https://github.com/fleetdm/fleet/issues/58203)
@@ -647,10 +648,9 @@ GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 
 #### What to do
 
-In Fleet 4, `DELETE /reports/:name` deletes by name, so you can't switch to `DELETE /reports/:id` before you upgrade. Instead, after you upgrade:
+In Fleet 4, `DELETE /reports/:name` deletes by name, so you can't switch to `DELETE /reports/:id` before you upgrade. Instead, after you upgrade, search for `DELETE /reports/` and delete reports with `DELETE /reports/:id`. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports.
 
-1. Search for `DELETE /reports/` and delete reports with `DELETE /reports/:id`. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports.
-2. Give API-only users that delete reports the "Delete report by ID" permission in **Settings > Users**.
+API-only users with permission for "Delete report by name" or `DELETE /reports/id/:id` get the "Delete report by ID" permission when you upgrade.
 
 GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
