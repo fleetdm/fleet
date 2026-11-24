@@ -43,7 +43,7 @@ GitHub issue: [#57461](https://github.com/fleetdm/fleet/issues/57461)
   7. Repeat for each fleet that has a passcode profile.
 
   The old DPC extras keep working, so there's no deadline to update them. Hosts that are already enrolled aren't affected.
-- If you use [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration) on macOS, add `com.fleetdm.orbit` to the `AppAllowList` in your Platform SSO configuration profile, and make sure your Macs have fleetd 1.64.0 or later. After you upgrade, each Mac reports its Entra device ID again, and Fleet doesn't report its compliance to Intune until it does. Learn how in the [Entra conditional access guide](https://fleetdm.com/guides/entra-conditional-access-integration#deploy-platform-sso-configuration-profile).
+- If you use [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration) on macOS, add `com.fleetdm.orbit` to the `AppAllowList` in your Platform SSO configuration profile, and make sure your Macs have fleetd 1.64.0 or later. This change hardens the security of Entra conditional access. Fleet sometimes makes [breaking changes](https://fleetdm.com/docs/deploying/upgrading-fleet#compatibility) to fix security issues. After you upgrade, each Mac reports its Entra device ID again, and Fleet doesn't report its compliance to Intune until it does. Learn how in the [Entra conditional access guide](https://fleetdm.com/guides/entra-conditional-access-integration#deploy-platform-sso-configuration-profile).
 
 TODO
 
