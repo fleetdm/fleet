@@ -247,7 +247,8 @@ New-Item -ItemType Directory -Path $MdmDir -Force | Out-Null
 & dsregcmd.exe /status 2>&1 | Out-File -FilePath (Join-Path $MdmDir 'dsregcmd_status.txt') -Encoding utf8
 $Enrollments = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Enrollments' -ErrorAction SilentlyContinue |
   ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
-  Where-Object { $_.ProviderID -or $_.DiscoveryServiceFullURL }
+  # Built-in entries (Local/Cloud/Deploy Authority) have a ProviderID but no MDM server URL.
+  Where-Object { $_.DiscoveryServiceFullURL }
 if ($Enrollments) {
   foreach ($e in $Enrollments) {
     Info "MDM enrollment: ProviderID=$($e.ProviderID) URL=$($e.DiscoveryServiceFullURL) UPN=$($e.UPN)"
