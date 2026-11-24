@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Scorecard
         run: |
-          SCORECARD_VERSION=$(curl -s https://api.github.com/repos/ossf/scorecard/releases/latest | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+          SCORECARD_VERSION=$(curl -s https://api.github.com/repos/ossf/scorecard/releases/latest | jq -r '.tag_name')
           echo "Installing Scorecard $SCORECARD_VERSION"
           SCORECARD_URL="https://github.com/ossf/scorecard/releases/download/${SCORECARD_VERSION}/scorecard_${SCORECARD_VERSION#v}_linux_amd64.tar.gz"
           echo "Downloading from: $SCORECARD_URL"
