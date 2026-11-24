@@ -159,6 +159,22 @@ func (s *commonFileStore) Sign(ctx context.Context, fileID string, expiresIn tim
 	return signedURL, nil
 }
 
+// Delete removes a file from Azure Blob Storage. Deleting a missing file is
+// not an error.
+func (s *commonFileStore) Delete(ctx context.Context, fileID string) error {
+	return s.deleteKey(ctx, s.keyForFile(fileID))
+}
+
+func (s *commonFileStore) deleteKey(ctx context.Context, key string) error {
+	if _, err := s.client.DeleteBlob(ctx, s.container, key, nil); err != nil {
+		if bloberror.HasCode(err, bloberror.BlobNotFound) {
+			return nil
+		}
+		return ctxerr.Wrapf(ctx, newAPIError(err, s.container), "deleting %s in Azure Blob store", s.fileLabel)
+	}
+	return nil
+}
+
 // keyForFile builds an Azure blob name to identify the file.
 func (s *commonFileStore) keyForFile(fileID string) string {
 	return path.Join(s.pathPrefix, fileID)

@@ -2,10 +2,8 @@ package file
 
 import (
 	"archive/zip"
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"io"
 	"path"
 	"strings"
 
@@ -14,14 +12,20 @@ import (
 )
 
 // ExtractZIPMetadata extracts the metadata from a zip file for an Apple app
-func ExtractZIPMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
-	h := sha256.New()
-	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
+func ExtractZIPMetadata(tfr fleet.InstallerReader) (*InstallerMetadata, error) {
+	sum, err := installerSHA256(tfr)
+	if err != nil {
+		return nil, err
+	}
 	if err := tfr.Rewind(); err != nil {
 		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
+	size, err := tfr.Size()
+	if err != nil {
+		return nil, fmt.Errorf("get zip size: %w", err)
+	}
 
-	r, err := zip.OpenReader(tfr.Name())
+	r, err := zip.NewReader(tfr, size)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +81,7 @@ func ExtractZIPMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 
 	return &InstallerMetadata{
 		BundleIdentifier: plistData.BundleID,
-		SHASum:           h.Sum(nil),
+		SHASum:           sum,
 		PackageIDs:       []string{plistData.BundleID},
 		Name:             plistData.Name,
 		Version:          plistData.Version,

@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -22,8 +21,7 @@ import (
 // ExtractDebMetadata extracts the name and version metadata from a .deb file ,
 // a debian installer package which is in archive format.
 func ExtractDebMetadata(r io.Reader) (*InstallerMetadata, error) {
-	h := sha256.New()
-	r = io.TeeReader(r, h)
+	r, h := newSequentialHasher(r)
 	rr := ar.NewReader(r)
 
 	for {
@@ -45,26 +43,26 @@ func ExtractDebMetadata(r io.Reader) (*InstallerMetadata, error) {
 				return nil, err
 			}
 
-			// ensure the whole file is read to get the correct hash
-			if _, err := io.Copy(io.Discard, r); err != nil {
+			sum, err := h.finish()
+			if err != nil {
 				return nil, fmt.Errorf("failed to read all content: %w", err)
 			}
 			return &InstallerMetadata{
 				Name:       name,
 				Version:    version,
 				PackageIDs: []string{name},
-				SHASum:     h.Sum(nil),
+				SHASum:     sum,
 			}, nil
 		}
 	}
 
-	// ensure the whole file is read to get the correct hash
-	if _, err := io.Copy(io.Discard, r); err != nil {
+	sum, err := h.finish()
+	if err != nil {
 		return nil, fmt.Errorf("failed to read all content: %w", err)
 	}
 
 	// no control.tar file found, return empty information
-	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
+	return &InstallerMetadata{SHASum: sum}, nil
 }
 
 // parseControl adapted from

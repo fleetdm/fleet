@@ -2,6 +2,7 @@ package maintained_apps
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	mock "github.com/fleetdm/fleet/v4/server/mock/software"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/stretchr/testify/require"
 )
@@ -68,4 +71,39 @@ func TestDownloadInstallerUserAgent(t *testing.T) {
 	_, _, err := DownloadInstaller(context.Background(), srv.URL+"/installer.pkg", client)
 	require.NoError(t, err)
 	require.Equal(t, "fleet/"+version.Version().Version+" Go-http-client/1.1", installerUserAgent())
+}
+
+func TestDownloadInstallerToStore(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/app.pkg" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, _ = w.Write([]byte("pkg bytes"))
+	}))
+	defer srv.Close()
+	client := fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
+
+	store := mock.NewMemStreamingInstallerStore()
+	r, filename, err := DownloadInstallerToStore(t.Context(), srv.URL+"/app.pkg", client, store)
+	require.NoError(t, err)
+	require.Equal(t, "app.pkg", filename)
+	require.IsType(t, &fleet.RemoteInstallerReader{}, r)
+	got, err := io.ReadAll(r)
+	require.NoError(t, err)
+	require.Equal(t, "pkg bytes", string(got))
+	require.Equal(t, 1, store.StagingCount())
+	require.NoError(t, r.Close())
+	require.Zero(t, store.StagingCount())
+
+	r, _, err = DownloadInstallerToStore(t.Context(), srv.URL+"/missing.pkg", client, store)
+	require.Error(t, err)
+	require.Nil(t, r)
+	require.Zero(t, store.StagingCount())
+
+	// Without a store, it falls back to a temp file.
+	r, _, err = DownloadInstallerToStore(t.Context(), srv.URL+"/app.pkg", client, nil)
+	require.NoError(t, err)
+	require.IsType(t, &fleet.TempFileReader{}, r)
+	require.NoError(t, r.Close())
 }

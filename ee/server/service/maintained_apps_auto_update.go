@@ -32,7 +32,16 @@ const patchPolicySyncMaxRunTime = 10 * time.Minute
 // degrades to promote-only: it advances among versions already cached but
 // fetches nothing from upstream. A failure on one app is logged and skipped so a
 // single bad row can't stall the whole run.
-func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, logger *slog.Logger) error {
+func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, logger *slog.Logger, opts ...AutoUpdateOption) error {
+	var o autoUpdateOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+	var streamStore fleet.StreamingInstallerStore
+	if o.streamInstallerDownloads {
+		streamStore, _ = softwareInstallStore.(fleet.StreamingInstallerStore)
+	}
+
 	// Catches up patch policies whose query fell behind their active installer, such
 	// as one refreshed in place by a server that didn't regenerate the policy. First,
 	// so a run that spends its budget on downloads can't skip it. Policies it doesn't
@@ -72,7 +81,7 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 			return ctxerr.Wrap(ctx, err, "auto-updating fleet-maintained apps")
 		}
 
-		err = autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, client, logger, c, manifests)
+		err = autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, streamStore, client, logger, c, manifests)
 		if err != nil {
 			logger.ErrorContext(ctx, "auto-updating fleet-maintained app",
 				"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
@@ -83,10 +92,25 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 	return ctxerr.Wrap(ctx, ctx.Err(), "auto-updating fleet-maintained apps")
 }
 
+// AutoUpdateOption configures AutoUpdateFleetMaintainedApps.
+type AutoUpdateOption func(*autoUpdateOptions)
+
+type autoUpdateOptions struct {
+	streamInstallerDownloads bool
+}
+
+// WithStreamInstallerDownloads streams the downloaded installers straight to
+// the installer store when it supports it (S3, Azure), instead of buffering
+// them in a temp file.
+func WithStreamInstallerDownloads(enabled bool) AutoUpdateOption {
+	return func(o *autoUpdateOptions) { o.streamInstallerDownloads = enabled }
+}
+
 func autoUpdateOneFleetMaintainedApp(
 	ctx context.Context,
 	ds fleet.Datastore,
 	store fleet.SoftwareInstallerStore,
+	streamStore fleet.StreamingInstallerStore,
 	client *http.Client,
 	logger *slog.Logger,
 	c fleet.FMAAutoUpdateCandidate,
@@ -106,7 +130,7 @@ func autoUpdateOneFleetMaintainedApp(
 	// still try to promote among whatever is already cached.
 	var publishedVersion string
 	if store != nil && client != nil {
-		version, err := downloadNewVersionIfEligible(ctx, ds, store, logger, c, pin, client, manifests)
+		version, err := downloadNewVersionIfEligible(ctx, ds, store, streamStore, logger, c, pin, client, manifests)
 		if err != nil {
 			logger.ErrorContext(ctx, "downloading new fleet-maintained app version",
 				"title_id", c.TitleID, "fleet_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
@@ -181,10 +205,13 @@ type manifestEntry struct {
 // promote to it and it isn't already cached, downloads the installer and caches
 // it (inactive) for the team. Promotion happens separately, after this returns,
 // so the bytes are always stored before the active flag flips.
+// If streamStore is not nil, the installer is streamed to it instead of a temp
+// file.
 func downloadNewVersionIfEligible(
 	ctx context.Context,
 	ds fleet.Datastore,
 	store fleet.SoftwareInstallerStore,
+	streamStore fleet.StreamingInstallerStore,
 	logger *slog.Logger,
 	c fleet.FMAAutoUpdateCandidate,
 	pin string,
@@ -252,9 +279,9 @@ func downloadNewVersionIfEligible(
 	extension := ""
 	upgradeCode := app.UpgradeCode
 	var packageIDs []string
-	var tfr *fleet.TempFileReader
+	var tfr fleet.InstallerReadCloser
 	if needBytes {
-		tfr, filename, err = maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
+		tfr, filename, err = maintained_apps.DownloadInstallerToStore(ctx, app.InstallerURL, client, streamStore)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "downloading app installer")
 		}
@@ -395,7 +422,7 @@ func downloadNewVersionIfEligible(
 			return "", ctxerr.Wrap(ctx, err, "checking installer store")
 		}
 		if !exists {
-			if err := store.Put(ctx, storageID, tfr); err != nil {
+			if err := putInstallerToStore(ctx, store, storageID, tfr); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "storing installer")
 			}
 		}
