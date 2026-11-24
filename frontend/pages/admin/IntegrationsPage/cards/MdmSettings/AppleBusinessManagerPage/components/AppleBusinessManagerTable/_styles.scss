@@ -7,7 +7,13 @@
     td.ipados_team__cell,
     td.tvos_team__cell,
     td.byod_team__cell {
-      max-width: 120px;
+      max-width: 84px;
+    }
+
+    // shrink to the button so the spare width goes to the other columns
+    th.id__header,
+    td.id__cell {
+      width: 1px;
     }
 
     td.id__cell {
@@ -27,21 +33,21 @@
   // assignments: tvOS fleet, then iPadOS fleet, then BYOD fleet. This is
   // achieved by using the max-width media query with the breakpoint values
   // taken from when the table content starts to overflow.
-  @media (max-width: $break-xl) {
+  @media (max-width: 1360px) {
     .tvos_team__header,
     .tvos_team__cell {
       display: none;
     }
   }
 
-  @media (max-width: $break-lg) {
+  @media (max-width: 1230px) {
     .ipados_team__header,
     .ipados_team__cell {
       display: none;
     }
   }
 
-  @media (max-width: 1230px) {
+  @media (max-width: 1100px) {
     .byod_team__header,
     .byod_team__cell {
       display: none;

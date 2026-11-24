@@ -384,6 +384,43 @@ describe("HostTableConfig - Serial number column", () => {
   });
 });
 
+describe("HostTableConfig - Disk space available column", () => {
+  const renderDiskCell = (platform: string, gigsAvailable: number) => {
+    const diskColumn = generateAvailableTableHeaders({
+      isFreeTier: false,
+      isOnlyObserver: false,
+    }).find(
+      (h) => (h as Column<IHost>).id === "gigs_disk_space_available"
+    ) as IColumnWithCell;
+    const Cell = diskColumn.Cell as React.ElementType;
+    return render(
+      <Cell
+        cell={{ value: gigsAvailable }}
+        row={{
+          original: {
+            platform,
+            gigs_disk_space_available: gigsAvailable,
+            percent_disk_space_available: 0,
+          },
+        }}
+      />
+    );
+  };
+
+  it.each(["chrome", "tvos"])(
+    "shows 'Not supported' for a %s host",
+    (platform) => {
+      renderDiskCell(platform, 0);
+      expect(screen.getByText("Not supported")).toBeInTheDocument();
+    }
+  );
+
+  it("shows 'No data available' for an iPadOS host that hasn't reported yet", () => {
+    renderDiskCell("ipados", 0);
+    expect(screen.getByText("No data available")).toBeInTheDocument();
+  });
+});
+
 describe("HostTableConfig - Operating system column", () => {
   const renderOSCell = (osName: string, osVersion: string) => {
     const osColumn = generateAvailableTableHeaders({

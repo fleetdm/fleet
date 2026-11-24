@@ -27,6 +27,7 @@ import {
   isAndroid,
   isAppleDevice,
   isAppleMdmOnlyPlatform,
+  isAppleTV,
   isNonQueryablePlatform,
   isWindows,
 } from "interfaces/platform";
@@ -385,7 +386,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         gigs_total_disk_space,
         gigs_all_disk_space,
       } = cellProps.row.original;
-      if (platform === "chrome") {
+      if (platform === "chrome" || isAppleTV(platform)) {
         return NotSupported;
       }
       return (
