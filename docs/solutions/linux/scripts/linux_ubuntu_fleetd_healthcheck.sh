@@ -67,7 +67,12 @@ LOOKBACK_HOURS="${LOOKBACK_HOURS:-72}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 HOSTNAME_SAFE=$(hostname | tr '.' '_')
 ARCHIVE_NAME="fleetd_healthcheck_${HOSTNAME_SAFE}_${TIMESTAMP}"
-WORK_DIR=$(mktemp -d "/tmp/${ARCHIVE_NAME}.XXXXXX")
+# Without a work dir every path below would resolve under /, and this runs
+# as root, so stop here rather than collect best-effort.
+WORK_DIR=$(mktemp -d "/tmp/${ARCHIVE_NAME}.XXXXXX") && [[ -n "${WORK_DIR}" ]] || {
+  echo "Cannot create a work directory under /tmp (full or read-only?). Exiting." >&2
+  exit 1
+}
 SUMMARY="${WORK_DIR}/summary.txt"
 OVERALL_EXIT=0
 
