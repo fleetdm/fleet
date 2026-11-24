@@ -1,15 +1,18 @@
 package androidmgmt
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 )
 
@@ -49,6 +52,67 @@ func TestProxyClientEnterprisesCreateStatusError(t *testing.T) {
 				assert.Equal(t, tt.status, ae.Code)
 			}
 		})
+	}
+}
+
+func TestProxyClientAppCallsExplainRejectedSecret(t *testing.T) {
+	const rejectedSecretMsg = "fleetdm.com Android proxy rejected this Fleet server's secret"
+
+	calls := []struct {
+		name string
+		call func(ctx context.Context, client Client) error
+	}{
+		{
+			name: "EnterprisesApplications",
+			call: func(ctx context.Context, client Client) error {
+				_, err := client.EnterprisesApplications(ctx, "enterprises/LC1234", "com.example.app")
+				return err
+			},
+		},
+		{
+			name: "EnterprisesWebAppsCreate",
+			call: func(ctx context.Context, client Client) error {
+				_, err := client.EnterprisesWebAppsCreate(ctx, "enterprises/LC1234", &androidmanagement.WebApp{Title: "Example"})
+				return err
+			},
+		},
+	}
+	statuses := []struct {
+		name               string
+		status             int
+		wantRejectedSecret bool
+	}{
+		{name: "unauthorized", status: http.StatusUnauthorized, wantRejectedSecret: true},
+		{name: "server error", status: http.StatusInternalServerError},
+	}
+
+	for _, c := range calls {
+		for _, st := range statuses {
+			t.Run(c.name+" "+st.name, func(t *testing.T) {
+				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "Bearer stale-secret", r.Header.Get("Authorization"))
+					w.WriteHeader(st.status)
+				}))
+				defer srv.Close()
+
+				client := NewProxyClient(t.Context(), slog.New(slog.DiscardHandler), "license", func(name string) string {
+					if name == "FLEET_DEV_ANDROID_PROXY_ENDPOINT" {
+						return srv.URL + "/"
+					}
+					return ""
+				})
+				require.NotNil(t, client)
+				require.NoError(t, client.SetAuthenticationSecret("stale-secret"))
+
+				err := c.call(t.Context(), client)
+				require.Error(t, err)
+				assert.Equal(t, st.wantRejectedSecret, strings.Contains(err.Error(), rejectedSecretMsg), err.Error())
+				var ae *googleapi.Error
+				require.ErrorAs(t, err, &ae)
+				assert.Equal(t, st.status, ae.Code)
+				assert.Equal(t, st.wantRejectedSecret, IsAuthenticationError(err))
+			})
+		}
 	}
 }
 

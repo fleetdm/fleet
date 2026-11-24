@@ -88,6 +88,15 @@ func (p *ProxyClient) authorization() string {
 	return "Bearer " + p.fleetServerSecret
 }
 
+// explainUnauthorized names the cause of a 401 from the proxy, which otherwise reads as a bare
+// "googleapi: Error 401". The proxy returns 401 only when the server secret doesn't match.
+func explainUnauthorized(err error) error {
+	if isErrorCode(err, http.StatusUnauthorized) {
+		return fmt.Errorf("fleetdm.com Android proxy rejected this Fleet server's secret: %w", err)
+	}
+	return err
+}
+
 // SignupURLsCreate hits the unauthenticated endpoint of the proxy. If a record already exists for this serverURL,
 // then the proxy will return a conflict error.
 func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error) {
@@ -347,7 +356,7 @@ func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseNam
 			return nil, ctxerr.Wrap(ctx, appNotFoundError{})
 		}
 
-		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
+		return nil, fmt.Errorf("getting application %s: %w", packageName, explainUnauthorized(err))
 	}
 	return app, nil
 }
@@ -400,7 +409,7 @@ func (p *ProxyClient) EnterprisesWebAppsCreate(ctx context.Context, enterpriseNa
 	call.Header().Set("Authorization", p.authorization())
 	ret, err := call.Do()
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "create webapp")
+		return nil, ctxerr.Wrapf(ctx, explainUnauthorized(err), "create webapp")
 	}
 	return ret, nil
 }
