@@ -79,6 +79,7 @@ If a Fleet server crashes in the middle of a run, the conflict can stick around 
 | `cleanups_then_aggregation` | Expires hosts based on host expiry settings, renews SCEP and other MDM-managed certificates, updates policy and report stats, cleans up old activities, scripts, software installers, and MDM commands, and more. | 1 hour | Free |
 | `frequent_cleanups` | Cleans up expired live report data in Redis. | 15 minutes | Free. Only runs when `server.frequent_cleanups_enabled` is on (off by default). |
 | `query_results_cleanup` | Deletes report results that go over the per-report row limit and removes stale results. | 1 minute | Free |
+| `policy_membership_cleanup` | Removes outdated policy results after you change a policy's query, platforms, labels, or automations, or reset its results. Fleet also starts it right after each change. | 1 hour | Free. Fleet 5.1 and later. |
 | `usage_statistics` | Sends anonymous usage statistics, if enabled. | 1 hour | Free |
 | `vulnerabilities` | Matches host software against vulnerability data, sends vulnerability webhooks and tickets, updates OS versions, and recalculates software host counts. | Configurable ([`vulnerabilities.periodicity`](https://fleetdm.com/docs/configuration/fleet-server-configuration#periodicity), default 1 hour) | Free |
 | `automations` | Sends failing-policy and host status webhooks, and creates Jira and Zendesk tickets for failing policies. | Configurable ([`webhook_settings.interval`](https://fleetdm.com/docs/configuration/yaml-files#webhook-settings), default 24 hours) | Free |
