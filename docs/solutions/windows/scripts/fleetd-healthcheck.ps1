@@ -275,18 +275,22 @@ if (-not $FleetUrl -and $SvcEnv) {
 if ($FleetUrl) {
   # Orbit adds https:// when the URL has no scheme; PowerShell would use http://.
   if ($FleetUrl -notmatch '^https?://') { $FleetUrl = "https://$FleetUrl" }
-  # A package built with a custom CA (fleet.pem) is trusted by orbit but not by
-  # Windows, so a TLS failure there doesn't mean orbit can't connect.
-  $CustomCa = ($SvcCim.PathName -match '--fleet-certificate') -or
-    ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_CERTIFICATE=?*' })
+  # With a custom CA (fleet.pem) or insecure mode, orbit connects without the
+  # Windows trust store, so a TLS failure here doesn't mean orbit can't connect.
+  $TlsReason = $null
+  if (($SvcCim.PathName -match '--fleet-certificate') -or ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_CERTIFICATE=?*' })) {
+    $TlsReason = 'fleetd uses its own CA file (fleet.pem)'
+  } elseif (($SvcCim.PathName -match '--insecure') -or ($SvcEnv | Where-Object { $_ -eq 'ORBIT_INSECURE=true' })) {
+    $TlsReason = 'fleetd runs with ORBIT_INSECURE, so it does not verify the certificate'
+  }
   try {
     $Resp = Invoke-WebRequest -Uri "$($FleetUrl.TrimEnd('/'))/healthz" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
     Ok "Fleet server reachable: $FleetUrl (HTTP $($Resp.StatusCode) from /healthz)"
   } catch {
     if ($_.Exception.Response) {
       Ok "Fleet server reachable: $FleetUrl (HTTP $([int]$_.Exception.Response.StatusCode) from /healthz)"
-    } elseif ($CustomCa -and $_.Exception.Message -match 'SSL|TLS|trust|certificate') {
-      Warn "Could not verify Fleet server ${FleetUrl} with the Windows trust store; fleetd uses its own CA file (fleet.pem): $($_.Exception.Message)"
+    } elseif ($TlsReason -and $_.Exception.Message -match 'SSL|TLS|trust|certificate') {
+      Warn "Could not verify Fleet server ${FleetUrl} with the Windows trust store; ${TlsReason}: $($_.Exception.Message)"
     } else {
       Fail "Cannot reach Fleet server ${FleetUrl}: $($_.Exception.Message)"
       $OverallExit = 1
