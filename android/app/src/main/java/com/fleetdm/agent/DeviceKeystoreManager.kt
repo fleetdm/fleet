@@ -19,6 +19,23 @@ interface DeviceKeystoreManager {
      * @return True if removal was successful or keypair doesn't exist
      */
     fun removeKeyPair(alias: String): Boolean
+
+    /**
+     * Check if a CA certificate is installed.
+     */
+    fun hasCaCert(certBytes: ByteArray): Boolean
+
+    /**
+     * Install a CA certificate.
+     * @return True if installation was successful
+     */
+    fun installCaCert(certBytes: ByteArray): Boolean
+
+    /**
+     * Uninstall a CA certificate.
+     * @return True if uninstallation was successful
+     */
+    fun uninstallCaCert(certBytes: ByteArray): Boolean
 }
 
 /**
@@ -59,6 +76,38 @@ class AndroidDeviceKeystoreManager(private val context: Context) : DeviceKeystor
         false
     } catch (e: Exception) {
         FleetLog.e(TAG, "Error removing certificate '$alias': ${e.message}", e)
+        false
+    }
+
+    override fun hasCaCert(certBytes: ByteArray): Boolean = try {
+        dpm.hasCaCertInstalled(null, certBytes)
+    } catch (e: Exception) {
+        FleetLog.e(TAG, "Error checking if CA certificate is installed: ${e.message}", e)
+        false
+    }
+
+    override fun installCaCert(certBytes: ByteArray): Boolean = try {
+        val installed = dpm.installCaCert(null, certBytes)
+        if (installed) {
+            Log.i(TAG, "Successfully installed CA certificate")
+        } else {
+            FleetLog.e(TAG, "Failed to install CA certificate. Check MDM policy and delegation status.")
+        }
+        installed
+    } catch (e: SecurityException) {
+        FleetLog.e(TAG, "Security exception installing CA certificate: ${e.message}", e)
+        false
+    } catch (e: Exception) {
+        FleetLog.e(TAG, "Error installing CA certificate: ${e.message}", e)
+        false
+    }
+
+    override fun uninstallCaCert(certBytes: ByteArray): Boolean = try {
+        dpm.uninstallCaCert(null, certBytes)
+        Log.i(TAG, "Successfully uninstalled CA certificate")
+        true
+    } catch (e: Exception) {
+        FleetLog.e(TAG, "Error uninstalling CA certificate: ${e.message}", e)
         false
     }
 }

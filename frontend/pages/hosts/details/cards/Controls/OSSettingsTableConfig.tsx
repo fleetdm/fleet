@@ -6,6 +6,7 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
+  FLEET_ANDROID_CA_CERTIFICATE_PROFILE_ID,
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME,
@@ -102,6 +103,10 @@ export const getRowActionProps = (
   const isWindowsProfile = platform === "windows";
   const isAndroidCertificate =
     platform === "android" &&
+    (profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID ||
+      profileUUID === FLEET_ANDROID_CA_CERTIFICATE_PROFILE_ID);
+  const isAndroidCertificateTemplate =
+    platform === "android" &&
     profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
   // Android config profiles (unlike certificates) are delivered via AMAPI
   // policy sync rather than pushed by Fleet, so they can never be resent.
@@ -110,7 +115,9 @@ export const getRowActionProps = (
 
   const isResendableProfile =
     !SYNTHETIC_PROFILE_UUIDS.includes(profileUUID) &&
-    (isWindowsProfile || isAppleMobileConfigProfile || isAndroidCertificate);
+    (isWindowsProfile ||
+      isAppleMobileConfigProfile ||
+      isAndroidCertificateTemplate);
 
   return {
     canResendProfiles: canResendProfiles && isResendableProfile,

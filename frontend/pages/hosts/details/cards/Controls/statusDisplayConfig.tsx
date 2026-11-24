@@ -2,6 +2,7 @@ import React from "react";
 
 import { IconNames } from "components/icons";
 import {
+  FLEET_ANDROID_CA_CERTIFICATE_PROFILE_ID,
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   HostNameSettingStatus,
@@ -515,7 +516,8 @@ export const getControlDisplayOption = (
 
   if (
     platform === "android" &&
-    profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID
+    (profileUUID === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID ||
+      profileUUID === FLEET_ANDROID_CA_CERTIFICATE_PROFILE_ID)
   ) {
     return getAndroidCertificateDisplayOption(row, status, operationType);
   }

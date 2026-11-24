@@ -775,6 +775,18 @@ type Service interface {
 	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Android CA Certificates
+
+	CreateAndroidCACertificate(ctx context.Context, cert *AndroidCACertificate, certBytes []byte) (*AndroidCACertificate, error)
+	ListAndroidCACertificates(ctx context.Context, teamID uint, opts ListOptions) ([]*AndroidCACertificate, *PaginationMetadata, error)
+	GetAndroidCACertificate(ctx context.Context, id uint) (*AndroidCACertificate, error)
+	DeleteAndroidCACertificate(ctx context.Context, id uint) error
+	GetDeviceCACertificate(ctx context.Context, id uint) (*AndroidCACertificate, error)
+	GetDeviceCACertificateByFingerprint(ctx context.Context, sha256 string) (*AndroidCACertificate, error)
+	UpdateDeviceCACertificateStatus(ctx context.Context, caCertID uint, status MDMDeliveryStatus, detail *string) error
+	ListHostAndroidCACertificates(ctx context.Context, hostID uint) ([]*HostAndroidCACertificate, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
 
 	Translate(ctx context.Context, payloads []TranslatePayload) ([]TranslatePayload, error)

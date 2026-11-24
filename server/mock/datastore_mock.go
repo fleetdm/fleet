@@ -2544,6 +2544,32 @@ type SetAndroidCertificateTemplatesForRenewalFunc func(ctx context.Context, temp
 
 type GetOrCreateFleetChallengeForCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (string, error)
 
+type CreateAndroidCACertificateFunc func(ctx context.Context, cert *fleet.AndroidCACertificate) (*fleet.AndroidCACertificate, error)
+
+type GetAndroidCACertificateByIDFunc func(ctx context.Context, id uint) (*fleet.AndroidCACertificate, error)
+
+type GetAndroidCACertificateByNameFunc func(ctx context.Context, teamID uint, name string) (*fleet.AndroidCACertificate, error)
+
+type ListAndroidCACertificatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.AndroidCACertificate, *fleet.PaginationMetadata, error)
+
+type DeleteAndroidCACertificateFunc func(ctx context.Context, id uint) error
+
+type GetHostScopedAndroidCACertificatesFunc func(ctx context.Context, hostID uint) ([]*fleet.AndroidCACertificate, error)
+
+type GetHostScopedAndroidCACertificatesByUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.AndroidCACertificate, error)
+
+type CreatePendingAndroidCACertificatesForExistingHostsFunc func(ctx context.Context, caCertID uint, teamID uint) (int64, error)
+
+type CreatePendingAndroidCACertificatesForNewHostFunc func(ctx context.Context, host *fleet.Host) error
+
+type UpsertHostAndroidCACertificateStatusFunc func(ctx context.Context, hostID uint, hostUUID string, caCertID uint, status fleet.MDMDeliveryStatus, detail string) error
+
+type ListHostAndroidCACertificatesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidCACertificate, error)
+
+type ListHostAndroidCACertificatesByUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidCACertificate, error)
+
+type ListAndroidHostUUIDsWithPendingCACertificatesFunc func(ctx context.Context, afterHostUUID string, limit int) ([]string, error)
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type GetWindowsMDMCommandsForResendingFunc func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error)
@@ -6438,6 +6464,45 @@ type DataStore struct {
 
 	GetOrCreateFleetChallengeForCertificateTemplateFunc        GetOrCreateFleetChallengeForCertificateTemplateFunc
 	GetOrCreateFleetChallengeForCertificateTemplateFuncInvoked bool
+
+	CreateAndroidCACertificateFunc        CreateAndroidCACertificateFunc
+	CreateAndroidCACertificateFuncInvoked bool
+
+	GetAndroidCACertificateByIDFunc        GetAndroidCACertificateByIDFunc
+	GetAndroidCACertificateByIDFuncInvoked bool
+
+	GetAndroidCACertificateByNameFunc        GetAndroidCACertificateByNameFunc
+	GetAndroidCACertificateByNameFuncInvoked bool
+
+	ListAndroidCACertificatesFunc        ListAndroidCACertificatesFunc
+	ListAndroidCACertificatesFuncInvoked bool
+
+	DeleteAndroidCACertificateFunc        DeleteAndroidCACertificateFunc
+	DeleteAndroidCACertificateFuncInvoked bool
+
+	GetHostScopedAndroidCACertificatesFunc        GetHostScopedAndroidCACertificatesFunc
+	GetHostScopedAndroidCACertificatesFuncInvoked bool
+
+	GetHostScopedAndroidCACertificatesByUUIDFunc        GetHostScopedAndroidCACertificatesByUUIDFunc
+	GetHostScopedAndroidCACertificatesByUUIDFuncInvoked bool
+
+	CreatePendingAndroidCACertificatesForExistingHostsFunc        CreatePendingAndroidCACertificatesForExistingHostsFunc
+	CreatePendingAndroidCACertificatesForExistingHostsFuncInvoked bool
+
+	CreatePendingAndroidCACertificatesForNewHostFunc        CreatePendingAndroidCACertificatesForNewHostFunc
+	CreatePendingAndroidCACertificatesForNewHostFuncInvoked bool
+
+	UpsertHostAndroidCACertificateStatusFunc        UpsertHostAndroidCACertificateStatusFunc
+	UpsertHostAndroidCACertificateStatusFuncInvoked bool
+
+	ListHostAndroidCACertificatesFunc        ListHostAndroidCACertificatesFunc
+	ListHostAndroidCACertificatesFuncInvoked bool
+
+	ListHostAndroidCACertificatesByUUIDFunc        ListHostAndroidCACertificatesByUUIDFunc
+	ListHostAndroidCACertificatesByUUIDFuncInvoked bool
+
+	ListAndroidHostUUIDsWithPendingCACertificatesFunc        ListAndroidHostUUIDsWithPendingCACertificatesFunc
+	ListAndroidHostUUIDsWithPendingCACertificatesFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -15431,6 +15496,97 @@ func (s *DataStore) GetOrCreateFleetChallengeForCertificateTemplate(ctx context.
 	s.GetOrCreateFleetChallengeForCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetOrCreateFleetChallengeForCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID)
+}
+
+func (s *DataStore) CreateAndroidCACertificate(ctx context.Context, cert *fleet.AndroidCACertificate) (*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.CreateAndroidCACertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAndroidCACertificateFunc(ctx, cert)
+}
+
+func (s *DataStore) GetAndroidCACertificateByID(ctx context.Context, id uint) (*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.GetAndroidCACertificateByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidCACertificateByIDFunc(ctx, id)
+}
+
+func (s *DataStore) GetAndroidCACertificateByName(ctx context.Context, teamID uint, name string) (*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.GetAndroidCACertificateByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidCACertificateByNameFunc(ctx, teamID, name)
+}
+
+func (s *DataStore) ListAndroidCACertificates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.AndroidCACertificate, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListAndroidCACertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidCACertificatesFunc(ctx, teamID, opts)
+}
+
+func (s *DataStore) DeleteAndroidCACertificate(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteAndroidCACertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAndroidCACertificateFunc(ctx, id)
+}
+
+func (s *DataStore) GetHostScopedAndroidCACertificates(ctx context.Context, hostID uint) ([]*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.GetHostScopedAndroidCACertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostScopedAndroidCACertificatesFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostScopedAndroidCACertificatesByUUID(ctx context.Context, hostUUID string) ([]*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.GetHostScopedAndroidCACertificatesByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostScopedAndroidCACertificatesByUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) CreatePendingAndroidCACertificatesForExistingHosts(ctx context.Context, caCertID uint, teamID uint) (int64, error) {
+	s.mu.Lock()
+	s.CreatePendingAndroidCACertificatesForExistingHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreatePendingAndroidCACertificatesForExistingHostsFunc(ctx, caCertID, teamID)
+}
+
+func (s *DataStore) CreatePendingAndroidCACertificatesForNewHost(ctx context.Context, host *fleet.Host) error {
+	s.mu.Lock()
+	s.CreatePendingAndroidCACertificatesForNewHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreatePendingAndroidCACertificatesForNewHostFunc(ctx, host)
+}
+
+func (s *DataStore) UpsertHostAndroidCACertificateStatus(ctx context.Context, hostID uint, hostUUID string, caCertID uint, status fleet.MDMDeliveryStatus, detail string) error {
+	s.mu.Lock()
+	s.UpsertHostAndroidCACertificateStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostAndroidCACertificateStatusFunc(ctx, hostID, hostUUID, caCertID, status, detail)
+}
+
+func (s *DataStore) ListHostAndroidCACertificates(ctx context.Context, hostID uint) ([]*fleet.HostAndroidCACertificate, error) {
+	s.mu.Lock()
+	s.ListHostAndroidCACertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAndroidCACertificatesFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListHostAndroidCACertificatesByUUID(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidCACertificate, error) {
+	s.mu.Lock()
+	s.ListHostAndroidCACertificatesByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAndroidCACertificatesByUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListAndroidHostUUIDsWithPendingCACertificates(ctx context.Context, afterHostUUID string, limit int) ([]string, error) {
+	s.mu.Lock()
+	s.ListAndroidHostUUIDsWithPendingCACertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidHostUUIDsWithPendingCACertificatesFunc(ctx, afterHostUUID, limit)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {

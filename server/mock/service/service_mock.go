@@ -433,6 +433,22 @@ type UpdateCertificateStatusFunc func(ctx context.Context, update *fleet.Certifi
 
 type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
+type CreateAndroidCACertificateFunc func(ctx context.Context, cert *fleet.AndroidCACertificate, certBytes []byte) (*fleet.AndroidCACertificate, error)
+
+type ListAndroidCACertificatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.AndroidCACertificate, *fleet.PaginationMetadata, error)
+
+type GetAndroidCACertificateFunc func(ctx context.Context, id uint) (*fleet.AndroidCACertificate, error)
+
+type DeleteAndroidCACertificateFunc func(ctx context.Context, id uint) error
+
+type GetDeviceCACertificateFunc func(ctx context.Context, id uint) (*fleet.AndroidCACertificate, error)
+
+type GetDeviceCACertificateByFingerprintFunc func(ctx context.Context, sha256 string) (*fleet.AndroidCACertificate, error)
+
+type UpdateDeviceCACertificateStatusFunc func(ctx context.Context, caCertID uint, status fleet.MDMDeliveryStatus, detail *string) error
+
+type ListHostAndroidCACertificatesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidCACertificate, error)
+
 type TranslateFunc func(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error)
 
 type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error)
@@ -1619,6 +1635,30 @@ type Service struct {
 
 	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
 	ResendHostCertificateTemplateFuncInvoked bool
+
+	CreateAndroidCACertificateFunc        CreateAndroidCACertificateFunc
+	CreateAndroidCACertificateFuncInvoked bool
+
+	ListAndroidCACertificatesFunc        ListAndroidCACertificatesFunc
+	ListAndroidCACertificatesFuncInvoked bool
+
+	GetAndroidCACertificateFunc        GetAndroidCACertificateFunc
+	GetAndroidCACertificateFuncInvoked bool
+
+	DeleteAndroidCACertificateFunc        DeleteAndroidCACertificateFunc
+	DeleteAndroidCACertificateFuncInvoked bool
+
+	GetDeviceCACertificateFunc        GetDeviceCACertificateFunc
+	GetDeviceCACertificateFuncInvoked bool
+
+	GetDeviceCACertificateByFingerprintFunc        GetDeviceCACertificateByFingerprintFunc
+	GetDeviceCACertificateByFingerprintFuncInvoked bool
+
+	UpdateDeviceCACertificateStatusFunc        UpdateDeviceCACertificateStatusFunc
+	UpdateDeviceCACertificateStatusFuncInvoked bool
+
+	ListHostAndroidCACertificatesFunc        ListHostAndroidCACertificatesFunc
+	ListHostAndroidCACertificatesFuncInvoked bool
 
 	TranslateFunc        TranslateFunc
 	TranslateFuncInvoked bool
@@ -3915,6 +3955,62 @@ func (s *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint
 	s.ResendHostCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
+}
+
+func (s *Service) CreateAndroidCACertificate(ctx context.Context, cert *fleet.AndroidCACertificate, certBytes []byte) (*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.CreateAndroidCACertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateAndroidCACertificateFunc(ctx, cert, certBytes)
+}
+
+func (s *Service) ListAndroidCACertificates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.AndroidCACertificate, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListAndroidCACertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAndroidCACertificatesFunc(ctx, teamID, opts)
+}
+
+func (s *Service) GetAndroidCACertificate(ctx context.Context, id uint) (*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.GetAndroidCACertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidCACertificateFunc(ctx, id)
+}
+
+func (s *Service) DeleteAndroidCACertificate(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteAndroidCACertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAndroidCACertificateFunc(ctx, id)
+}
+
+func (s *Service) GetDeviceCACertificate(ctx context.Context, id uint) (*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.GetDeviceCACertificateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceCACertificateFunc(ctx, id)
+}
+
+func (s *Service) GetDeviceCACertificateByFingerprint(ctx context.Context, sha256 string) (*fleet.AndroidCACertificate, error) {
+	s.mu.Lock()
+	s.GetDeviceCACertificateByFingerprintFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceCACertificateByFingerprintFunc(ctx, sha256)
+}
+
+func (s *Service) UpdateDeviceCACertificateStatus(ctx context.Context, caCertID uint, status fleet.MDMDeliveryStatus, detail *string) error {
+	s.mu.Lock()
+	s.UpdateDeviceCACertificateStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateDeviceCACertificateStatusFunc(ctx, caCertID, status, detail)
+}
+
+func (s *Service) ListHostAndroidCACertificates(ctx context.Context, hostID uint) ([]*fleet.HostAndroidCACertificate, error) {
+	s.mu.Lock()
+	s.ListHostAndroidCACertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostAndroidCACertificatesFunc(ctx, hostID)
 }
 
 func (s *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {

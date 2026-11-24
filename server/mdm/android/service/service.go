@@ -1668,11 +1668,26 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 		certificateTemplateIDs = append(certificateTemplateIDs, template)
 	}
 
+	// Get scoped CA certificates for the host based on team and label scoping
+	caCerts, err := svc.fleetDS.GetHostScopedAndroidCACertificatesByUUID(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get scoped ca certificates for host %s", hostUUID)
+	}
+
+	var caCertManifest []android.AgentCACertificate
+	for _, ca := range caCerts {
+		caCertManifest = append(caCertManifest, android.AgentCACertificate{
+			ID:     ca.ID,
+			SHA256: ca.SHA256Fingerprint,
+		})
+	}
+
 	return &android.AgentManagedConfiguration{
 		ServerURL:              appConfig.ServerSettings.ServerURL,
 		HostUUID:               hostUUID,
 		EnrollSecret:           enrollSecret,
 		CertificateTemplateIDs: certificateTemplateIDs,
+		CACertificates:         caCertManifest,
 	}, nil
 }
 

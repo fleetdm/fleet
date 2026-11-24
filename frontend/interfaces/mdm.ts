@@ -376,6 +376,8 @@ export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
   "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
   "fleet-host-certificate-template";
+export const FLEET_ANDROID_CA_CERTIFICATE_PROFILE_ID =
+  "fleet-host-android-ca-certificate";
 
 export type RecoveryLockPasswordStatus =
   | "verified"

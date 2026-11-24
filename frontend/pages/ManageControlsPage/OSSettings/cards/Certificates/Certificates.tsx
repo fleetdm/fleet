@@ -21,6 +21,7 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 import certAPI, {
+  IAndroidCACertificate,
   ICertificate,
   IGetCertsResponse,
   IQueryKeyGetCerts,
@@ -46,6 +47,13 @@ export type ICertificatesProps = IOSSettingsCommonProps & {
   currentPage?: number;
 };
 
+type CertItem =
+  | (ICertificate & { isCA?: false })
+  | (IAndroidCACertificate & {
+      isCA: true;
+      certificate_authority_name?: string;
+    });
+
 const Certificates = ({
   currentTeamId,
   router,
@@ -54,7 +62,11 @@ const Certificates = ({
 }: ICertificatesProps) => {
   const [showAddCertModal, setShowAddCertModal] = useState(false);
   const [certToView, setCertToView] = useState<null | ICertificate>(null);
-  const [certToDelete, setCertToDelete] = useState<null | ICertificate>(null);
+  const [certToDelete, setCertToDelete] = useState<null | {
+    id: number;
+    name: string;
+    isCA?: boolean;
+  }>(null);
   const { config, isPremiumTier } = useContext(AppContext);
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
 
@@ -87,6 +99,20 @@ const Certificates = ({
   );
 
   const {
+    data: caCertsResp,
+    isLoading: isLoadingCACerts,
+    isError: isErrorCACerts,
+    refetch: refetchCACerts,
+  } = useQuery(
+    ["caCertificates", currentTeamId],
+    () => certAPI.getCACerts(currentTeamId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier && androidMdmEnabled,
+    }
+  );
+
+  const {
     data: certAuthorities,
     isLoading: isLoadingCAs,
     isError: isErrorCAs,
@@ -104,12 +130,24 @@ const Certificates = ({
     (ca) => ca.type === "custom_scep_proxy"
   );
 
-  const certs = certsResp?.certificates || [];
+  const scepCerts: CertItem[] = (certsResp?.certificates || []).map((c) => ({
+    ...c,
+    isCA: false as const,
+  }));
+  const caCerts: CertItem[] = (caCertsResp?.ca_certificates || []).map(
+    (ca) => ({
+      ...ca,
+      isCA: true as const,
+    })
+  );
+  const allCerts = [...scepCerts, ...caCerts];
+
   const { has_next_results: hasNext, has_previous_results: hasPrev } =
     certsResp?.meta || {};
 
   const onUpdateSuccess = () => {
     refetchCerts();
+    refetchCACerts();
     onMutation();
   };
 
@@ -125,13 +163,15 @@ const Certificates = ({
     router.push(path.concat(`${queryString}page=${currentPage + 1}`));
   }, [router, path, currentPage, queryString]);
 
-  const onSelectCertAction = (action: string, cert: ICertificate) => {
+  const onSelectCertAction = (action: string, cert: CertItem) => {
     switch (action) {
       case "view":
-        setCertToView(cert);
+        if (!cert.isCA) {
+          setCertToView(cert as ICertificate);
+        }
         break;
       case "delete":
-        setCertToDelete(cert);
+        setCertToDelete({ id: cert.id, name: cert.name, isCA: cert.isCA });
         break;
       default:
         break;
@@ -156,15 +196,15 @@ const Certificates = ({
         />
       );
     }
-    if (isLoadingCerts) {
+    if (isLoadingCerts || isLoadingCACerts) {
       return <Spinner />;
     }
 
-    if (isErrorCerts) {
+    if (isErrorCerts || isErrorCACerts) {
       return <DataError />;
     }
 
-    if (!certs.length) {
+    if (!allCerts.length) {
       if (isLoadingCAs) {
         return <Spinner />;
       }
@@ -182,23 +222,41 @@ const Certificates = ({
       <>
         <UploadList
           keyAttribute="id"
-          listItems={certs}
+          listItems={allCerts}
           ListItemComponent={({ listItem }) => {
-            const {
-              name,
-              certificate_authority_name: caName,
-              created_at,
-            } = listItem;
-
-            const details = (
-              <>
-                {caName} &bull; Updated{" "}
-                {timeAgo(new Date(created_at), { addSuffix: true })}
-              </>
-            );
+            const isCA = "isCA" in listItem && listItem.isCA;
+            let details: React.ReactNode;
+            if (isCA) {
+              const caItem = listItem as IAndroidCACertificate;
+              const expiry = caItem.not_valid_after
+                ? ` • Expires ${new Date(
+                    caItem.not_valid_after
+                  ).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}`
+                : "";
+              details = (
+                <>
+                  Root/intermediate CA &bull; Updated{" "}
+                  {timeAgo(new Date(caItem.updated_at || caItem.created_at), {
+                    addSuffix: true,
+                  })}
+                  {expiry}
+                </>
+              );
+            } else {
+              details = (
+                <>
+                  {listItem.certificate_authority_name} &bull; Updated{" "}
+                  {timeAgo(new Date(listItem.created_at), { addSuffix: true })}
+                </>
+              );
+            }
 
             const certActions: IDropdownOption[] = [
-              { label: "View certificate", value: "view" },
+              ...(!isCA ? [{ label: "View certificate", value: "view" }] : []),
               {
                 label: "Delete",
                 value: "delete",
@@ -213,7 +271,7 @@ const Certificates = ({
             return (
               <ListItem
                 graphic="file-certificate"
-                title={<TooltipTruncatedText value={name} />}
+                title={<TooltipTruncatedText value={listItem.name} />}
                 details={details}
                 actions={
                   <ActionsDropdown
@@ -241,7 +299,9 @@ const Certificates = ({
   };
 
   const showAddCertButton =
-    isPremiumTier && androidMdmEnabled && hasCustomScepCA;
+    isPremiumTier &&
+    androidMdmEnabled &&
+    (hasCustomScepCA || allCerts.length > 0);
 
   return (
     <div className={`${baseClass}`}>
