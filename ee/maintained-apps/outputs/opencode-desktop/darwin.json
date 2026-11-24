@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.3.2",
+      "version": "2.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop' AND version_compare(bundle_short_version, '2.3.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.opencode.desktop' AND version_compare(bundle_short_version, '2.4.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ai.opencode.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://opencode.ai/files/bin/2.3.2/opencode-desktop-mac-arm64.dmg",
+      "installer_url": "https://opencode.ai/files/bin/2.4.1/opencode-desktop-mac-arm64.dmg",
       "install_script_ref": "be58847d",
       "uninstall_script_ref": "43dc40f6",
-      "sha256": "2c46269132d2acbd8a73ed931bb61fa39fd17e80facd815193c536c3ae4e052c",
+      "sha256": "0d69386bec754af9a4d933148a47bc21beea85c1d414295a5b295f2e34640cea",
       "default_categories": [
         "Productivity"
       ]

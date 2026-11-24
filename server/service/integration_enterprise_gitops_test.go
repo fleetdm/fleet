@@ -303,14 +303,15 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		res := s.Do(method, path, body, http.StatusForbidden)
 		assert.Equal(t, message, extractServerErrorText(res.Body), "%s %s", method, path)
 	}
-	// GitOps users get a message for getting a host by identifier or id, deleting it, and transferring it to any fleet, also
-	// when the host doesn't exist, so hosts can't be probed. The host stays where it was.
+	// GitOps users get a message for getting a host by identifier or id, listing its software by identifier, deleting it, and
+	// transferring it to any fleet, also when the host doesn't exist, so hosts can't be probed. The host stays where it was.
 	noSuchHost := &fleet.Host{ID: 999999, Hostname: "no-such-host"}
 	requireGitOpsHostMessages := func(h *fleet.Host, toTeamIDs ...*uint) {
 		t.Helper()
 		filters := &map[string]any{"query": h.Hostname}
 		requireForbiddenMessage("GET", "/api/latest/fleet/hosts/"+h.Hostname, nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
 		requireForbiddenMessage("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
+		requireForbiddenMessage("GET", "/api/latest/fleet/hosts/"+h.Hostname+"/software", nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
 		requireForbiddenMessage("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, fleet.GitOpsDeleteHostErrorMessage)
 		requireForbiddenMessage("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{h.ID}},
 			fleet.GitOpsDeleteHostErrorMessage)

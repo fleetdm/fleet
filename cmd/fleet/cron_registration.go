@@ -88,8 +88,8 @@ func startCronSchedules(ctx context.Context, deps cronSchedulesDeps) {
 
 // registerCleanupAndMaintenanceCrons covers chart data collection, cron_stats
 // cleanup, software migrations, frequent cleanups, the cleanups-then-aggregation
-// schedule, query results cleanup, upcoming activities maintenance, usage
-// statistics, and batch activities.
+// schedule, policy membership cleanup, query results cleanup, upcoming activities
+// maintenance, usage statistics, and batch activities.
 func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesDeps) {
 	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
 		deps.register("failed to register chart_data_collection schedule", func() (fleet.CronSchedule, error) {
@@ -147,6 +147,10 @@ func registerCleanupAndMaintenanceCrons(ctx context.Context, deps cronSchedulesD
 		return newCleanupsAndAggregationSchedule(
 			ctx, deps.instanceID, deps.ds, deps.carveStore, deps.svc, deps.logger, deps.enrollHostLimiter, deps.cleanupStateStore, deps.config, deps.commander, deps.softwareInstallStore, deps.bootstrapPackageStore, deps.softwareTitleIconStore, deps.stagedUploadStore, deps.androidSvc, deps.activitySvc, deps.notificationsSvc, deps.acmeSvc, deps.chartSvc,
 		)
+	})
+
+	deps.register(fmt.Sprintf("failed to register %s schedule", fleet.CronPolicyMembershipCleanup), func() (fleet.CronSchedule, error) {
+		return newPolicyMembershipCleanupSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
 	deps.register("failed to register query_results_cleanup schedule", func() (fleet.CronSchedule, error) {
@@ -396,7 +400,9 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register maintained apps auto-update schedule", func() (fleet.CronSchedule, error) {
-		return newMaintainedAppsAutoUpdateSchedule(ctx, deps.instanceID, deps.ds, deps.softwareInstallStore, deps.logger)
+		return newMaintainedAppsAutoUpdateSchedule(
+			ctx, deps.instanceID, deps.ds, deps.softwareInstallStore, deps.svc.TriggerPolicyMembershipCleanup, deps.logger,
+		)
 	})
 
 	deps.register("failed to register refresh vpp app versions schedule", func() (fleet.CronSchedule, error) {

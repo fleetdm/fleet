@@ -848,6 +848,8 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 
 type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
 
+type CleanupPendingPolicyMembershipFunc func(ctx context.Context) error
+
 type IsPolicyFailingFunc func(ctx context.Context, policyID uint, hostID uint) (bool, error)
 
 type CountHostSoftwareInstallAttemptsFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) (int, error)
@@ -1165,6 +1167,8 @@ type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error
 
 type GetAppleSerialEnrolledUnderAnotherUUIDFunc func(ctx context.Context, serial string, uuid string) (string, error)
+
+type GetAppleAccountDrivenEnrollmentIDTakenFunc func(ctx context.Context, enrollmentID string) (bool, error)
 
 type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error)
 
@@ -2398,9 +2402,9 @@ type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.Scim
 
 type MaybeAssociateHostWithScimUserFunc func(ctx context.Context, hostID uint) error
 
-type NewChallengeFunc func(ctx context.Context) (string, error)
+type NewChallengeFunc func(ctx context.Context, scope fleet.ChallengeScope) (string, error)
 
-type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
+type ConsumeChallengeFunc func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error
 
 type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
 
@@ -3891,6 +3895,9 @@ type DataStore struct {
 	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
 	CleanupPolicyMembershipFuncInvoked bool
 
+	CleanupPendingPolicyMembershipFunc        CleanupPendingPolicyMembershipFunc
+	CleanupPendingPolicyMembershipFuncInvoked bool
+
 	IsPolicyFailingFunc        IsPolicyFailingFunc
 	IsPolicyFailingFuncInvoked bool
 
@@ -4367,6 +4374,9 @@ type DataStore struct {
 
 	GetAppleSerialEnrolledUnderAnotherUUIDFunc        GetAppleSerialEnrolledUnderAnotherUUIDFunc
 	GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked bool
+
+	GetAppleAccountDrivenEnrollmentIDTakenFunc        GetAppleAccountDrivenEnrollmentIDTakenFunc
+	GetAppleAccountDrivenEnrollmentIDTakenFuncInvoked bool
 
 	GetHostMDMAppleEnrollmentPermissionsFunc        GetHostMDMAppleEnrollmentPermissionsFunc
 	GetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
@@ -9487,6 +9497,13 @@ func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) 
 	return s.CleanupPolicyMembershipFunc(ctx, now)
 }
 
+func (s *DataStore) CleanupPendingPolicyMembership(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupPendingPolicyMembershipFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupPendingPolicyMembershipFunc(ctx)
+}
+
 func (s *DataStore) IsPolicyFailing(ctx context.Context, policyID uint, hostID uint) (bool, error) {
 	s.mu.Lock()
 	s.IsPolicyFailingFuncInvoked = true
@@ -10598,6 +10615,13 @@ func (s *DataStore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, 
 	s.GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleSerialEnrolledUnderAnotherUUIDFunc(ctx, serial, uuid)
+}
+
+func (s *DataStore) GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error) {
+	s.mu.Lock()
+	s.GetAppleAccountDrivenEnrollmentIDTakenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleAccountDrivenEnrollmentIDTakenFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
@@ -14912,18 +14936,18 @@ func (s *DataStore) MaybeAssociateHostWithScimUser(ctx context.Context, hostID u
 	return s.MaybeAssociateHostWithScimUserFunc(ctx, hostID)
 }
 
-func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {
+func (s *DataStore) NewChallenge(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 	s.mu.Lock()
 	s.NewChallengeFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewChallengeFunc(ctx)
+	return s.NewChallengeFunc(ctx, scope)
 }
 
-func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string) error {
+func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 	s.mu.Lock()
 	s.ConsumeChallengeFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConsumeChallengeFunc(ctx, challenge)
+	return s.ConsumeChallengeFunc(ctx, challenge, scope)
 }
 
 func (s *DataStore) CleanupExpiredChallenges(ctx context.Context) (int64, error) {

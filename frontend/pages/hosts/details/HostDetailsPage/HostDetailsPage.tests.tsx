@@ -776,6 +776,82 @@ describe("HostDetailsPage - reset", () => {
   });
 });
 
+describe("HostDetailsPage - activity card tab switch", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("refetches upcoming activity queries on Upcoming click and past activity queries on Past click so finished scripts and the Upcoming badge both refresh without a reload", async () => {
+    stubQueries(mockAppleHost());
+    const { user } = renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
+
+    await waitFor(() => {
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenCalled();
+      expect(activitiesAPI.getHostUpcomingActivities).toHaveBeenCalled();
+      expect(commandAPI.getCommands).toHaveBeenCalled();
+    });
+    const pastCallsBefore = (activitiesAPI.getHostPastActivities as jest.Mock)
+      .mock.calls.length;
+    const upcomingCallsBefore = (activitiesAPI.getHostUpcomingActivities as jest.Mock)
+      .mock.calls.length;
+
+    // Click Upcoming: upcoming queries refetch, past queries stay put.
+    await user.click(screen.getByRole("tab", { name: /upcoming/i }));
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostUpcomingActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(upcomingCallsBefore);
+    });
+    expect(
+      (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+    ).toBe(pastCallsBefore);
+
+    // Click Past: past queries refetch AND upcoming queries refetch for the
+    // always-visible badge (otherwise switching to Past would leave the
+    // Upcoming count stale).
+    const pastCallsBeforePast = (activitiesAPI.getHostPastActivities as jest.Mock)
+      .mock.calls.length;
+    const upcomingCallsBeforePast = (activitiesAPI.getHostUpcomingActivities as jest.Mock)
+      .mock.calls.length;
+    await user.click(screen.getByRole("tab", { name: /past/i }));
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(pastCallsBeforePast);
+      expect(
+        (activitiesAPI.getHostUpcomingActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(upcomingCallsBeforePast);
+    });
+  });
+
+  it("doesn't fire getCommands on a tab switch when the host can't take MDM commands (non-Apple), avoiding a 400 from the command_status filter", async () => {
+    stubQueries(mockWindowsHost());
+    const { user } = renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
+
+    await screen.findByText("Activity");
+    const commandsCallsBefore = (commandAPI.getCommands as jest.Mock).mock.calls
+      .length;
+
+    await user.click(await screen.findByRole("tab", { name: /upcoming/i }));
+    await user.click(await screen.findByRole("tab", { name: /past/i }));
+
+    // Wait for the past refetch to confirm the switch handler ran at least
+    // once, then assert no getCommands calls were fired by either switch.
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(1);
+    });
+    expect((commandAPI.getCommands as jest.Mock).mock.calls.length).toBe(
+      commandsCallsBefore
+    );
+  });
+});
+
 describe("HostDetailsPage - invalid host id", () => {
   afterEach(() => {
     jest.resetAllMocks();

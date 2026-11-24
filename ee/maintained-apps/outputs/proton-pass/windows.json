@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.44.0",
+      "version": "1.44.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Proton Pass' AND publisher = 'Proton AG' AND install_location LIKE '%\\WindowsApps\\ProtonPass_%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proton Pass' AND publisher = 'Proton AG' AND install_location LIKE '%\\WindowsApps\\ProtonPass_%' AND version_compare(version, '1.44.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proton Pass' AND publisher = 'Proton AG' AND install_location LIKE '%\\WindowsApps\\ProtonPass_%' AND version_compare(version, '1.44.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'protonpass.exe');"
       },
-      "installer_url": "https://proton.me/download/pass/windows/ProtonPass_1.44.0.msix",
+      "installer_url": "https://proton.me/download/pass/windows/ProtonPass_1.44.1.msix",
       "install_script_ref": "b4e27ad7",
       "uninstall_script_ref": "4fc89bcd",
-      "sha256": "91bcfba6348a8f46b2916d299d4b9a0b56af8721791727ac0a4312be3f3a6ba8",
+      "sha256": "186b5984e51cf3866561b61d4c87fc10aafd55c711e33e891b1a66ceb3a17c2d",
       "default_categories": [
         "Productivity"
       ]

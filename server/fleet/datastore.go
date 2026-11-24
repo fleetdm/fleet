@@ -1144,8 +1144,9 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
-	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
-	// and resets automation retry attempts, identical to a query-change side-effect.
+	// ResetPolicy clears pass/fail results: deletes policy_stats, resets automation retry attempts, and requests the
+	// removal of all policy_membership rows, which the policy_membership_cleanup schedule does. Identical to a
+	// query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
 	// ResetPolicyForHost clears a single host's pass/fail result for the policy and
 	// resets its automation retry attempts atomically, then refreshes the policy's counts
@@ -1284,7 +1285,10 @@ type Datastore interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
+	// CleanupPolicyMembership removes the results of hosts that policies updated in the last 24 hours no longer target.
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// CleanupPendingPolicyMembership runs the policy result cleanups that policy changes requested.
+	CleanupPendingPolicyMembership(ctx context.Context) error
 	// IsPolicyFailing checks if a policy is currently failing for a given host.
 	IsPolicyFailing(ctx context.Context, policyID, hostID uint) (bool, error)
 	// CountHostSoftwareInstallAttempts counts how many install attempts exist for a specific
@@ -1890,6 +1894,10 @@ type Datastore interface {
 	// GetAppleSerialEnrolledUnderAnotherUUID returns the UUID of the host that's enrolled with the serial under a UUID
 	// other than uuid, or "" if there's none or the device with uuid has a host of its own.
 	GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error)
+
+	// GetAppleAccountDrivenEnrollmentIDTaken reports whether a host other than the account-driven user enrollment's
+	// own would be matched by its enrollment ID.
+	GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error)
 
 	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
 	// Apple host. Returns a NotFound error when no row exists; callers that
@@ -4280,12 +4288,13 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
 
-	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
-	NewChallenge(ctx context.Context) (string, error)
-	// ConsumeChallenge checks if a valid challenge exists in the challenges table
-	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
-	// is not found or is expired.
-	ConsumeChallenge(ctx context.Context, challenge string) error
+	// NewChallenge generates a random, base64-encoded challenge for the given scope and inserts it into the challenges
+	// table.
+	NewChallenge(ctx context.Context, scope ChallengeScope) (string, error)
+	// ConsumeChallenge checks if a valid challenge exists in the challenges table for the given scope and deletes it if
+	// it does. The error will include sql.ErrNoRows if the challenge is not found, is expired, or was created for a
+	// different scope; in the last case the challenge is left in place.
+	ConsumeChallenge(ctx context.Context, challenge string, scope ChallengeScope) error
 	// CleanupExpiredChallenges removes expired challenges from the challenges table,
 	// intended to be run as a cron job.
 	CleanupExpiredChallenges(ctx context.Context) (int64, error)

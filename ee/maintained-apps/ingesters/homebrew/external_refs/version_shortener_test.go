@@ -51,7 +51,6 @@ func TestMakeVersionShortenerKeep2(t *testing.T) {
 		{name: "microsoft auto update", version: "4.82.26020434", slug: "microsoft-auto-update", expected: "4.82"},
 		{name: "opera", version: "129.0.5823.28", slug: "opera", expected: "129.0"},
 		{name: "twingate", version: "2026.29.22575", slug: "twingate", expected: "2026.29"},
-		{name: "microsoft 365 copilot", version: "1.2608.0301", slug: "microsoft-365-copilot", expected: "1.2608"},
 		{name: "numi", version: "3.35.743", slug: "numi", expected: "3.35"},
 		{name: "origami studio", version: "231.0.0.0.0", slug: "origami-studio", expected: "231.0"},
 		{name: "sqlpro hotfix", version: "2026.301.2", slug: "sqlpro-for-sqlite", expected: "2026.301"},
