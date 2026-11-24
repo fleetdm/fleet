@@ -1,12 +1,3 @@
-.input-with-icon {
-  &__input {
-    ::placeholder {
-      color: $ui-fleet-black-50;
-      opacity: 1;
-    }
-  }
-}
-
 #app {
   .Select.is-disabled > .Select-control {
     background: transparent;
