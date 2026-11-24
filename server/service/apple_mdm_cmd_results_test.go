@@ -54,8 +54,8 @@ func TestInstalledApplicationListHandler(t *testing.T) {
 		ds.GetUnverifiedInHouseAppInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
 			return nil, nil
 		}
-		ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, _ string) (bool, error) {
-			return false, nil
+		ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, _ string) (bool, bool, error) {
+			return false, false, nil
 		}
 		ds.UpdateSetupExperienceStatusResultFunc = func(_ context.Context, _ *fleet.SetupExperienceStatusResult) error {
 			return nil
@@ -115,6 +115,55 @@ func TestInstalledApplicationListHandler(t *testing.T) {
 		err := handler(ctx, result)
 		require.NoError(t, err)
 		assert.True(t, verifiedCalled, "verify should have been called")
+	})
+
+	t.Run("configuration re-send install verified is logged as an activity from automation", func(t *testing.T) {
+		ds := setupMockDS(t)
+
+		// remove the install's upcoming activity on verify, so the re-send reason can only be read before it
+		var verifiedCalled bool
+		ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, _ string) (bool, bool, error) {
+			return false, !verifiedCalled, nil
+		}
+		ds.SetVPPInstallAsVerifiedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			verifiedCalled = true
+			return nil
+		}
+		ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+			return []*fleet.HostVPPSoftwareInstall{
+				{
+					InstallCommandUUID:  cmdUUID,
+					InstallCommandAckAt: &ackTime,
+					HostID:              hostID,
+					BundleIdentifier:    bundleID,
+					ExpectedVersion:     "1.0.0",
+				},
+			}, nil
+		}
+		var emitted fleet.ActivityDetails
+		newActivityFn := func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+			emitted = activity
+			return nil
+		}
+
+		handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, verifyRequestDelay, newActivityFn)
+
+		result := &testInstalledAppListResult{
+			uuid:         cmdUUID,
+			hostUUID:     hostUUID,
+			hostPlatform: "darwin",
+			availableApps: []fleet.Software{
+				{BundleIdentifier: bundleID, Version: "1.0.0", Installed: true},
+			},
+		}
+
+		err := handler(ctx, result)
+		require.NoError(t, err)
+		require.True(t, verifiedCalled)
+		act, ok := emitted.(*fleet.ActivityInstalledAppStoreApp)
+		require.True(t, ok)
+		require.True(t, act.FromConfigurationResend)
+		require.True(t, act.WasFromAutomation())
 	})
 
 	t.Run("app installed with different version is verified (bug fix)", func(t *testing.T) {

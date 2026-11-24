@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.1.1998.0",
+      "version": "5.2.1210.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Remote Help' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Remote Help' AND publisher = 'Microsoft Corporation' AND version_compare(version, '5.1.1998.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Remote Help' AND publisher = 'Microsoft Corporation' AND version_compare(version, '5.2.1210.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'remotehelp.exe');"
       },
-      "installer_url": "https://catalog.s.download.windowsupdate.com/c/msdownload/update/software/updt/2025/03/remotehelpinstaller_bd142b4c833c024a512ed124a1f9058461e18cab.exe",
+      "installer_url": "https://catalog.s.download.windowsupdate.com/c/msdownload/update/software/updt/2026/10/remotehelpinstaller_d1d61ce929befd33f03dbaf20db540cfe66f9984.exe",
       "install_script_ref": "0907f7e7",
       "uninstall_script_ref": "ab7e89f8",
-      "sha256": "c05687063f22079ac09b7b6856e09e8f8e56221e4c1ae62a744e9d2e58dd54f5",
+      "sha256": "774d039c5e80ea76343935c898e0413a36a9aad1618e415e4745c52fc6668ffb",
       "default_categories": [
         "Communication"
       ]

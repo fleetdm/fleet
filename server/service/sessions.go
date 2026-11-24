@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"time"
 
@@ -411,7 +410,9 @@ func setSSOCookie(w http.ResponseWriter, sessionID string, cookieDurationSeconds
 		MaxAge:   cookieDurationSeconds,
 		Secure:   cookieSecure,
 		HttpOnly: true,
-		// SameSite: Strict or Lax do not work with SSO.
+		// Must ride the IdP's cross-site POST to the callback. Strict or Lax block it, and
+		// unset lets Chrome drop it once the IdP step takes over ~2 minutes.
+		SameSite: http.SameSiteNoneMode,
 	})
 }
 
@@ -423,6 +424,7 @@ func deleteSSOCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Secure:   cookieSecure,
 		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 }
 
@@ -469,6 +471,25 @@ func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
+// validateSSORelayURL accepts only a path on the Fleet origin. The relay URL is
+// stored and then sent to the browser after the IdP callback, so a scheme, a
+// host, or a protocol-relative prefix (`//` or `/\`) would redirect the
+// just-signed-in user off-site.
+func validateSSORelayURL(relayURL string) error {
+	if relayURL == "" {
+		return nil
+	}
+	u, err := url.Parse(relayURL)
+	if err != nil {
+		return badRequest("invalid sso redirect url")
+	}
+	if u.Scheme != "" || u.Host != "" || u.User != nil ||
+		!strings.HasPrefix(relayURL, "/") || strings.HasPrefix(relayURL, "//") || strings.HasPrefix(relayURL, `/\`) {
+		return badRequest("sso redirect url must be a relative path")
+	}
+	return nil
+}
+
 // InitiateSSO initiates a Single Sign-On flow for a request to visit the
 // protected URL identified by redirectURL. It returns the URL of the identity
 // provider to make a request to to proceed with the authentication via that
@@ -491,12 +512,8 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 		return "", 0, "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
 
-	parsedUrl, err := url.Parse(redirectURL)
-	if err != nil {
-		return "", 0, "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
-	}
-	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
-		return "", 0, "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
+	if err := validateSSORelayURL(redirectURL); err != nil {
+		return "", 0, "", ctxerr.Wrap(ctx, err)
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
@@ -672,6 +689,8 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			status := ssoOtherError
 			if errors.As(err, &ssoErr) {
 				status = ssoErr.code
+			} else if errors.Is(err, sso.ErrSessionNotFound) {
+				status = ssoSessionExpired
 			}
 			// redirect to login page on front end if there was some problem,
 			// errors should still be logged
@@ -681,11 +700,11 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			}
 			resp.Err = err
 		}
+		// Meta refresh rather than an inline script so the redirect isn't blocked when CSP is enabled.
 		relayStateLoadPage := ` <html>
-     <script type='text/javascript'>
-     var redirectURL = {{ .RedirectURL }};
-     window.location = redirectURL;
-     </script>
+     <head>
+     <meta http-equiv="refresh" content="0;url={{ .RedirectURL }}">
+     </head>
      <body>
      Redirecting to Fleet at {{ .RedirectURL }} ...
      </body>
@@ -786,6 +805,17 @@ func (svc *Service) InitSSOCallback(
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
 		return nil, "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
+	}
+
+	// Only after the signature checked out, so an attacker can't burn assertion
+	// IDs with forged responses. This is what stops a captured response from
+	// being replayed, in particular on the IdP-initiated path where there is no
+	// single-use session to reject it.
+	if err := svc.ssoSessionStore.ConsumeAssertion(auth.AssertionID(), auth.AssertionNotOnOrAfter()); err != nil {
+		if errors.Is(err, sso.ErrAssertionAlreadyUsed) {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
+		}
+		return nil, "", ctxerr.Wrap(ctx, err, "consume saml assertion")
 	}
 
 	return auth, redirectURL, nil
@@ -929,6 +959,10 @@ func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Ses
 		return nil, err
 	}
 
+	if err := svc.ds.MarkSessionAccessed(ctx, session); err != nil {
+		return nil, err
+	}
+
 	return session, nil
 }
 
@@ -939,7 +973,7 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 
 	sessionDuration := svc.config.Session.Duration
 	if session.APIOnly != nil && *session.APIOnly {
-		sessionDuration = 0 // make API-only tokens unlimited
+		sessionDuration = 0 // API-only tokens remain unlimited until manual rotation is implemented
 	}
 
 	// duration 0 = unlimited
@@ -951,5 +985,5 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 		return fleet.NewAuthRequiredError("expired session")
 	}
 
-	return svc.ds.MarkSessionAccessed(ctx, session)
+	return nil
 }

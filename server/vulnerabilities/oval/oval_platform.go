@@ -3,6 +3,7 @@ package oval
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -23,7 +24,6 @@ var SupportedSoftwareSources = []string{"deb_packages", "rpm_packages"}
 var SupportedGovalPlatforms = []string{
 	"amzn_01",
 	"amzn_02",
-	"amzn_2022",
 	"amzn_2023",
 	"rhel_07",
 	"rhel_08",
@@ -80,6 +80,22 @@ func format(platform string, major string, minor string) string {
 			return "ubuntu_2404"
 		}
 	}
+	if platform == "parrot" {
+		// Parrot OS is Debian-based; map to the underlying Debian OVAL feed.
+		// getMajorMinorVer zero-pads single-digit majors, so "6" arrives as "06".
+		// Unknown versions fall through to "parrot_<major>", which IsSupported()
+		// rejects so vuln scanning is skipped rather than served stale data.
+		switch major {
+		case "04":
+			return "debian_10"
+		case "05":
+			return "debian_11"
+		case "06":
+			return "debian_12"
+		case "07":
+			return "debian_13"
+		}
+	}
 	if platform == "ubuntu" {
 		return fmt.Sprintf("%s_%s%s", platform, major, minor)
 	}
@@ -87,8 +103,13 @@ func format(platform string, major string, minor string) string {
 	return fmt.Sprintf("%s_%s", platform, major)
 }
 
+// platformTokenRe keeps separators, dots and percent-encoding out of the file paths and download
+// URLs built from a Platform, since the inputs to NewPlatform are reported by hosts.
+var platformTokenRe = regexp.MustCompile(`^[a-z0-9_]+$`)
+
 // NewPlatform combines the host platform and os version into a string used to match OVAL
-// definitions.
+// definitions. It returns an empty Platform, which no feed supports, when the result is not a
+// plain token.
 // Examples:
 // ('ubuntu', 'Ubuntu 20.4.0') => 'ubuntu_2004'.
 // ('rhel', 'CentOS Linux 7.9.2009') => 'rhel_07'.
@@ -96,7 +117,11 @@ func NewPlatform(hostPlatform, hostOsVersion string) Platform {
 	nPlatform := strings.Trim(strings.ToLower(hostPlatform), " ")
 	hostOsVersion = oval_parsed.ReplaceFedoraOSVersion(hostOsVersion)
 	major, minor := getMajorMinorVer(strings.Trim(hostOsVersion, " "))
-	return Platform(format(nPlatform, major, minor))
+	p := format(nPlatform, major, minor)
+	if !platformTokenRe.MatchString(p) {
+		return ""
+	}
+	return Platform(p)
 }
 
 // ToFilename combines 'date' with the contents of 'platform' to produce a 'standard' filename.
@@ -137,32 +162,19 @@ func (op Platform) IsSupported() bool {
 		"rhel_08",
 		"rhel_09",
 	}
-	for _, p := range supported {
-		if strings.HasPrefix(string(op), p) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(supported, string(op))
 }
 
+// IsGovalDictionarySupported must match exactly: the platform is reported by hosts and is used to
+// build goval-dictionary download URLs and file paths.
 func (op Platform) IsGovalDictionarySupported() bool {
-	for _, p := range SupportedGovalPlatforms {
-		if strings.HasPrefix(string(op), p) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(SupportedGovalPlatforms, string(op))
 }
 
 // IsGovalDictionaryKernelOnly returns true if this platform uses goval-dictionary
 // only for kernel vulnerability scanning (non-kernel packages use regular OVAL).
 func (op Platform) IsGovalDictionaryKernelOnly() bool {
-	for _, p := range GovalKernelOnlyPlatforms {
-		if strings.HasPrefix(string(op), p) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(GovalKernelOnlyPlatforms, string(op))
 }
 
 // IsUbuntu checks whether the current Platform targets Ubuntu.

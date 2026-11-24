@@ -247,6 +247,72 @@ describe("Policies table", () => {
     });
   });
 
+  it("Renders a hidden badge and tooltip for a policy hidden from end users", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const hiddenPolicy = createMockPolicy({ fleet_id: 2, hidden: true });
+
+    const { user } = render(
+      <PoliciesTable
+        policiesList={[hiddenPolicy]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Workstations" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    await user.hover(screen.getByTestId("eye-slash-icon"));
+    // By role: the badge also carries the same text for screen readers.
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "Hidden from end users"
+    );
+  });
+
+  it("Does not render a hidden badge for a visible policy", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[createMockPolicy({ fleet_id: 2, hidden: false })]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Workstations" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.queryByTestId("eye-slash-icon")).not.toBeInTheDocument();
+  });
+
   it("Renders an inherited badge and tooltip for inherited policy on a team's policies page", async () => {
     const render = createCustomRenderer({
       context: {
@@ -257,7 +323,7 @@ describe("Policies table", () => {
       },
     });
 
-    const testInheritedPolicy = createMockPolicy({ team_id: null });
+    const testInheritedPolicy = createMockPolicy({ fleet_id: null });
 
     const { user } = render(
       <PoliciesTable
@@ -297,7 +363,7 @@ describe("Policies table", () => {
       },
     });
 
-    const testGlobalPolicy = createMockPolicy({ team_id: null });
+    const testGlobalPolicy = createMockPolicy({ fleet_id: null });
 
     render(
       <PoliciesTable
@@ -330,14 +396,14 @@ describe("Policies table", () => {
     });
 
     const testInheritedPolicies = [
-      createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
-      createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
-      createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
+      createMockPolicy({ fleet_id: null, name: "Inherited policy 1" }),
+      createMockPolicy({ id: 2, fleet_id: null, name: "Inherited policy 2" }),
+      createMockPolicy({ id: 3, fleet_id: null, name: "Inherited policy 3" }),
     ];
 
     const testTeamPolicies = [
-      createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
-      createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
+      createMockPolicy({ id: 4, fleet_id: 2, name: "Team policy 1" }),
+      createMockPolicy({ id: 5, fleet_id: 2, name: "Team policy 2" }),
     ];
 
     const policiesList = [...testInheritedPolicies, ...testTeamPolicies];
@@ -518,8 +584,9 @@ describe("Policies table", () => {
     expect(screen.getByText("All platforms")).toBeInTheDocument();
   });
 
-  it("Renders the Automations column with correct values", () => {
+  it("Renders the Automation column with correct values", () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: {
           isGlobalAdmin: true,
@@ -531,16 +598,15 @@ describe("Policies table", () => {
     const policyWithAutomations = createMockPolicy({
       id: 10,
       name: "Policy with automations",
+      automation_type: "software",
       install_software: { name: "Zoom", software_title_id: 1 },
-      calendar_events_enabled: true,
     });
 
     const policyWithoutAutomations = createMockPolicy({
       id: 11,
       name: "Policy without automations",
       install_software: undefined,
-      calendar_events_enabled: false,
-      conditional_access_enabled: false,
+      automation_type: null,
     });
 
     render(
@@ -560,8 +626,58 @@ describe("Policies table", () => {
       />
     );
 
-    expect(screen.getByText("Automations")).toBeInTheDocument();
-    expect(screen.getByText("2 automations")).toBeInTheDocument();
+    expect(screen.getByText("Automation")).toBeInTheDocument();
+    expect(screen.getAllByText("Zoom")[0]).toBeInTheDocument();
     expect(screen.getByText("---")).toBeInTheDocument();
+  });
+
+  it("Labels each webhook or ticket automation from the scope that owns the policy", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[
+          createMockPolicy({
+            id: 10,
+            name: "Fleet policy",
+            fleet_id: 2,
+            automation_type: "webhook_or_ticket",
+          }),
+          createMockPolicy({
+            id: 11,
+            name: "Inherited policy",
+            fleet_id: null,
+            automation_type: "webhook_or_ticket",
+          }),
+        ]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 2, name: "Fleet 2" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={2}
+        otherAutomationType="ticket"
+        inheritedOtherAutomationType="webhook"
+      />
+    );
+
+    const automationIn = (name: string) =>
+      (screen.getAllByText(name)[0].closest("tr") as HTMLElement).textContent;
+    expect(automationIn("Fleet policy")).toContain("Ticket");
+    expect(automationIn("Inherited policy")).toContain("Webhook");
+    expect(automationIn("Inherited policy")).not.toContain("Ticket");
   });
 });

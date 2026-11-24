@@ -675,32 +675,25 @@ kind: built-in
 spec:
   name: Operating system information (Windows)
   platform: windows
-  description: Retrieves information about a Windows device's operating system.
+  description: Retrieves information about a Windows device's operating system. Requires osquery 5.12.0 or later, which reports the update build revision (UBR) in `os_version.revision`.
   query: |
     WITH display_version_table AS (
         SELECT data as display_version
         FROM registry
         WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-      ),
-      ubr_table AS (
-      SELECT data AS ubr
-      FROM registry
-      WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
       )
       SELECT
         os.name,
         os.platform,
         os.arch,
         k.version as kernel_version,
-        COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+        CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
         COALESCE(d.display_version, '') AS display_version
       FROM
         os_version os,
         kernel_info k
       LEFT JOIN
         display_version_table d
-      LEFT JOIN
-        ubr_table u
   purpose: Informational
   tags: built-in
 ---
@@ -709,29 +702,22 @@ kind: built-in
 spec:
   name: Operating system version (Windows)
   platform: windows
-  description: Retrieves operating system version information from a Windows device.
+  description: Retrieves operating system version information from a Windows device. Requires osquery 5.12.0 or later, which reports the update build revision (UBR) in `os_version.revision`.
   query: |
     WITH display_version_table AS (
           SELECT data as display_version
           FROM registry
           WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-        ),
-        ubr_table AS (
-          SELECT data AS ubr
-          FROM registry
-          WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
         )
         SELECT
           os.name,
           COALESCE(d.display_version, '') AS display_version,
-          COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+          CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version
         FROM
           os_version os,
           kernel_info k
         LEFT JOIN
           display_version_table d
-        LEFT JOIN
-          ubr_table u
   powershell: >-
     $os = Get-CimInstance -ClassName Win32_OperatingSystem
 
@@ -869,7 +855,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS vendor,
       '' AS installed_path
@@ -893,7 +879,7 @@ spec:
       COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
       bundle_identifier AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'apps' AS source,
       '' AS vendor,
       last_opened_time AS last_opened_at,
@@ -905,7 +891,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -917,7 +903,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       identifier AS extension_id,
-      'firefox' AS browser,
+      'firefox' AS extension_for,
       'firefox_addons' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -929,7 +915,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'safari_extensions' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -941,7 +927,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'homebrew_packages' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -954,7 +940,7 @@ spec:
       version AS version,
       '' AS bundle_identifier,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'homebrew_packages' AS source,
       '' AS vendor,
       0 AS last_opened_at,
@@ -962,7 +948,7 @@ spec:
     FROM homebrew_packages
     WHERE type = 'cask'
     AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
-  bash: bash -c 'echo "name,version,extension_id,browser,source,release,vendor,arch,installed_path"; npm list -g --depth=0 --json 2>/dev/null | python3 -c "import sys, json; deps = json.load(sys.stdin).get(\"dependencies\", {}); [print(f\"{name},{info.get(\"version\",\"\")},,,npm_packages,,,\") for name, info in deps.items()]" ; pip3 freeze 2>/dev/null | awk -F== '\''{print $1\",\"$2\",,,,python_packages,,,\"}'\'''
+  bash: bash -c 'echo "name,version,extension_id,extension_for,source,release,vendor,arch,installed_path"; npm list -g --depth=0 --json 2>/dev/null | python3 -c "import sys, json; deps = json.load(sys.stdin).get(\"dependencies\", {}); [print(f\"{name},{info.get(\"version\",\"\")},,,npm_packages,,,\") for name, info in deps.items()]" ; pip3 freeze 2>/dev/null | awk -F== '\''{print $1\",\"$2\",,,,python_packages,,,\"}'\'''
   purpose: Informational
   tags: built-in
 ---
@@ -981,7 +967,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'deb_packages' AS source,
       '' AS release,
       '' AS vendor,
@@ -994,7 +980,7 @@ spec:
       package AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'portage_packages' AS source,
       '' AS release,
       '' AS vendor,
@@ -1006,7 +992,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'rpm_packages' AS source,
       release AS release,
       vendor AS vendor,
@@ -1018,7 +1004,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'npm_packages' AS source,
       '' AS release,
       '' AS vendor,
@@ -1030,7 +1016,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS release,
       '' AS vendor,
@@ -1042,7 +1028,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      'firefox' AS browser,
+      'firefox' AS extension_for,
       'firefox_addons' AS source,
       '' AS release,
       '' AS vendor,
@@ -1092,7 +1078,7 @@ spec:
             COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
             apps.bundle_identifier AS bundle_identifier,
             '' AS extension_id,
-            '' AS browser,
+            '' AS extension_for,
             'apps' AS source,
             '' AS vendor,
             apps.last_opened_time AS last_opened_at,
@@ -1115,7 +1101,7 @@ spec:
           name AS name,
           version AS version,
           '' AS extension_id,
-          '' AS browser,
+          '' AS extension_for,
           'python_packages' AS source,
           '' AS vendor,
           path AS installed_path
@@ -1139,7 +1125,7 @@ spec:
           name AS name,
           version AS version,
           '' AS extension_id,
-          '' AS browser,
+          '' AS extension_for,
           'python_packages' AS source,
           '' AS vendor,
           path AS installed_path
@@ -1164,7 +1150,7 @@ spec:
       version,
       '' AS bundle_identifier,
       uuid AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'vscode_extensions' AS source,
       publisher AS vendor,
       '' AS last_opened_at,
@@ -1270,7 +1256,7 @@ spec:
     # Write the comparable result to stdout
 
     $results | Format-Table -AutoSize
-  bash: bash -c "sqlite3 -header -csv /path/to/database.db \"WITH cached_users AS (WITH cached_groups AS (SELECT * FROM groups) SELECT uid, username, type, groupname, shell FROM users LEFT JOIN cached_groups USING(gid) WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%\$' AND username NOT LIKE '\\_%' ESCAPE '\\' AND NOT (username = 'sync' AND shell = '/bin/sync' AND directory <> '')) SELECT name, version, '' AS bundle_identifier, uuid AS extension_id, '' AS browser, 'vscode_extensions' AS source, publisher AS vendor, '' AS last_opened_at, path AS installed_path FROM cached_users CROSS JOIN vscode_extensions USING(uid)\""
+  bash: bash -c "sqlite3 -header -csv /path/to/database.db \"WITH cached_users AS (WITH cached_groups AS (SELECT * FROM groups) SELECT uid, username, type, groupname, shell FROM users LEFT JOIN cached_groups USING(gid) WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%\$' AND username NOT LIKE '\\_%' ESCAPE '\\' AND NOT (username = 'sync' AND shell = '/bin/sync' AND directory <> '')) SELECT name, version, '' AS bundle_identifier, uuid AS extension_id, '' AS extension_for, 'vscode_extensions' AS source, publisher AS vendor, '' AS last_opened_at, path AS installed_path FROM cached_users CROSS JOIN vscode_extensions USING(uid)\""
   discovery: vscode_extensions
   purpose: Informational
   tags: built-in
@@ -1290,7 +1276,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'programs' AS source,
       publisher AS vendor,
       install_location AS installed_path
@@ -1300,7 +1286,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'ie_extensions' AS source,
       '' AS vendor,
       path AS installed_path
@@ -1310,7 +1296,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      browser_type AS browser,
+      browser_type AS extension_for,
       'chrome_extensions' AS source,
       '' AS vendor,
       path AS installed_path
@@ -1320,7 +1306,7 @@ spec:
       name AS name,
       version AS version,
       identifier AS extension_id,
-      'firefox' AS browser,
+      'firefox' AS extension_for,
       'firefox_addons' AS source,
       '' AS vendor,
       path AS installed_path
@@ -1330,7 +1316,7 @@ spec:
       name AS name,
       version AS version,
       '' AS extension_id,
-      '' AS browser,
+      '' AS extension_for,
       'chocolatey_packages' AS source,
       '' AS vendor,
       path AS installed_path
@@ -2172,58 +2158,10 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for domain-joined accounts
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   bash: "printf \"uid,username,description,path,encrypted\\n\"; for u in $(last | awk '{print $1}' | grep -vE '^(wtmp|reboot)$' | sort -u); do [ -d \"/Users/$u/.ssh\" ] && for f in $(find \"/Users/$u/.ssh\" -type f -name \"authorized_keys*\" 2>/dev/null); do uid=$(id -u \"$u\"); desc=$(dscl . -read /Users/\"$u\" RealName 2>/dev/null | cut -d: -f2- | sed 's/^ //'); echo \"$uid,$u,$desc,$f,0\"; done; done"
-  powershell: >-
-    $lastOutput = & last
-
-    $lastUsernames = $lastOutput | ForEach-Object {
-        if ($_ -match '^\s*(\S+)') { $matches[1] }
-    } | Select-Object -Unique
-
-
-    $passwdFile = "/etc/passwd"
-
-    if (Test-Path $passwdFile) {
-        $lines = Get-Content $passwdFile
-        foreach ($line in $lines) {
-            # /etc/passwd format: username:password:UID:GID:GECOS:home_directory:shell
-            $fields = $line -split ":"
-            if ($fields.Length -ge 7) {
-                $username = $fields[0]
-                $uid = $fields[2]
-                $description = $fields[4]
-                $homeDir = $fields[5]
-
-                if ($lastUsernames -contains $username) {
-                    # Assume the user's SSH authorized_keys file is in .ssh/authorized_keys in their home directory
-                    $sshKeyPath = Join-Path $homeDir ".ssh/authorized_keys"
-                    if (Test-Path $sshKeyPath) {
-                        $keyLines = Get-Content $sshKeyPath
-                        foreach ($keyLine in $keyLines) {
-                            if ([string]::IsNullOrWhiteSpace($keyLine)) {
-                                continue
-                            }
-                            # Determine if the key is encrypted by looking for the keyword "ENCRYPTED"
-                            $encrypted = if ($keyLine -match "ENCRYPTED") { 1 } else { 0 }
-                            if ($encrypted -eq 0) {
-                                $result = [PSCustomObject]@{
-                                    uid         = $uid
-                                    username    = $username
-                                    description = $description
-                                    path        = $sshKeyPath
-                                    encrypted   = $encrypted
-                                }
-                                Write-Output $result
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
   purpose: Informational
   tags: inventory, compliance, ssh, active directory
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
@@ -2535,8 +2473,7 @@ spec:
   name: Get local administrator accounts on macOS
   platform: darwin
   description: The query allows you to check macOS systems for local administrator accounts.
-  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
-  printf "uid,username,type\n"; for u in $(dscl . -list /Users); do uid=$(dscl . -read /Users/"$u" UniqueID 2>/dev/null | awk '{print $2}'); pgid=$(dscl . -read /Users/"$u" PrimaryGroupID 2>/dev/null | awk '{print $2}'); grp=$(dscl . -list /Groups PrimaryGroupID | awk -v id="$pgid" '$2==id{print $1}'); [ -n "$uid" ] && [ -n "$pgid" ] && [ -n "$grp" ] && echo "$uid,$u,$grp"; done
+  query: SELECT u.uid, u.username FROM users u JOIN user_groups ug ON ug.uid = u.uid JOIN groups g ON g.gid = ug.gid WHERE g.groupname = 'admin';
   bash: dscl . -read /Groups/admin GroupMembership
   purpose: Informational
   tags: hunting, inventory
@@ -2731,7 +2668,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get servers with root login in the last 24 hours
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Returns servers with root login in the last 24 hours and the time the users were logged in.
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
@@ -3134,7 +3071,7 @@ spec:
     
     Supported applications: Cursor (macOS/Linux/Windows), Claude Desktop (macOS/Windows), Claude Code (macOS/Linux), VSCode (macOS/Linux/Windows), Windsurf (macOS), Gemini CLI (macOS/Linux/Windows), LMStudio (macOS/Linux/Windows)
   query: |
-        /* ----------------------------------------------------------
+    /* ----------------------------------------------------------
       1️⃣  Get MCP client configurations from your endpoints.
           (including the two new VS Code extensions: RooCode & Augment)
       ---------------------------------------------------------- */
@@ -3147,7 +3084,7 @@ spec:
         ('/Library/Application Support/Claude/claude_desktop_config.json'),
 
         -- Claude Desktop (Windows)
-        ('\\AppData\\Roaming\\Claude\\claude_desktop_config.json'),
+        ('/AppData/Roaming/Claude/claude_desktop_config.json'),
 
         -- Claude Code
         ('/.claude.json'),
@@ -3155,18 +3092,18 @@ spec:
         /* ───── VS Code (original paths) ────────────────────── */
         ('/Library/Application Support/Code/User/mcp.json'),              -- macOS
         ('/.config/Code/User/mcp.json'),                                   -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\mcp.json'),                       -- Windows
+        ('/AppData/Roaming/Code/User/mcp.json'),                            -- Windows
 
         /* ───── VS Code – RooCode & Augment (new paths) ────────── */
         -- RooCode
         ('/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),          -- macOS
         ('/.config/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                              -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\globalStorage\\rooveterinaryinc.roo-cline\\settings\\mcp_settings.json'),              -- Windows
+        ('/AppData/Roaming/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                      -- Windows
 
         -- Augment
         ('/Library/Application Support/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),    -- macOS
         ('/.config/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                        -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\globalStorage\\augment.vscode-augment\\augment-global-state\\mcpServers.json'),          -- Windows
+        ('/AppData/Roaming/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                -- Windows
 
         /* ───── Other apps ─────────────────────────────────── */
         ('/.gemini/settings.json'),   -- Gemini CLI (macOS/Linux/Windows)
@@ -3177,7 +3114,11 @@ spec:
       2️⃣  Build absolute file paths for every user + suffix
       ---------------------------------------------------------- */
     full_paths AS (
-      SELECT u.directory || p.path  AS full_path,
+      -- Suffixes use '/'; convert to '\' for Windows home directories
+      SELECT CASE WHEN instr(u.directory, '\') > 0
+                  THEN replace(u.directory || p.path, '/', '\')
+                  ELSE u.directory || p.path
+             END                   AS full_path,
             p.path                 AS suffix
       FROM users   u
       JOIN path_suffixes p ON 1=1     
@@ -3185,13 +3126,20 @@ spec:
 
     /* ----------------------------------------------------------
       3️⃣  Read only the files that actually exist and concat them
+          (file_lines errors on missing paths, so filter via file first)
       ---------------------------------------------------------- */
+    existing AS (
+      SELECT f.path
+      FROM full_paths fp
+      JOIN file f ON f.path = fp.full_path
+    ),
+
     config_files AS (
-      SELECT f.path,
-            group_concat(f.line, '') AS contents
-      FROM file_lines f
-      JOIN full_paths fp ON f.path = fp.full_path   
-      GROUP BY f.path
+      SELECT fl.path,
+            group_concat(fl.line, '') AS contents
+      FROM existing e
+      JOIN file_lines fl ON fl.path = e.path
+      GROUP BY fl.path
     )
 
     /* ----------------------------------------------------------
@@ -3213,7 +3161,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Mount Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check mount on the host - ATT&CK T1025,T1052
   query: SELECT device, device_alias, flags, path,type from mounts;
   purpose: Detection
@@ -3272,7 +3220,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - USB Device Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check USB device on the host - ATT&CK T1052
   query: SELECT * FROM usb_devices;
   purpose: Detection
@@ -3310,8 +3258,8 @@ spec:
   platform: linux, darwin, windows
   description: Lists all Opera extensions - ATT&CK T1176
   query: |-
-    SELECT u.username, ce.* FROM users u CROSS JOIN opera_extensions ce USING
-    (uid);
+    SELECT u.username, ce.* FROM users u CROSS JOIN chrome_extensions ce USING
+    (uid) WHERE ce.browser_type = 'opera';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: teoseller,tux234
@@ -4550,7 +4498,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Services Snapshot
-  platform: linux, darwin, windows
+  platform: windows
   description: Snapshot Services query
   query: SELECT * FROM services;
   purpose: Detection
@@ -4807,7 +4755,7 @@ kind: query
 spec:
   name: MITRE - Windows Directory Creation
   platform: windows
-  description: "Check suspicious directory creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious directory creation under c:\windows - ATT&CK T1034,T1074,T1044'
   query: |-
     select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
     'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
@@ -4823,7 +4771,7 @@ kind: query
 spec:
   name: MITRE - Windows Temp Directory Creation
   platform: windows
-  description: "Check suspicious directory creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious directory creation under c:\windows\temp - ATT&CK T1034,T1074,T1044'
   query: |-
     select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
     'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
@@ -4951,7 +4899,7 @@ kind: query
 spec:
   name: MITRE - Windows File Creation
   platform: windows
-  description: "Check suspicious file creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious file creation under c:\windows - ATT&CK T1034,T1074,T1044'
   query: |-
     SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
     as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
@@ -4966,7 +4914,7 @@ kind: query
 spec:
   name: MITRE - Windows Temp File Creation
   platform: windows
-  description: "Check suspicious file creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious file creation under c:\windows\temp - ATT&CK T1034,T1074,T1044'
   query: |-
     SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
     as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,

@@ -49,7 +49,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateSecretScope() {
 	teamObserver := mkUser("hnt-observer", fleet.RoleObserver)
 
 	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, iosHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, iosHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{iosHost.ID})))
 
 	asUser := func(u fleet.User) { s.token = s.getCachedUserToken(u.Email, test.GoodPassword) }
@@ -72,7 +72,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateSecretScope() {
 			require.NotContains(t, c.CommandUUID, fleet.DeviceNameCommandUUIDPrefix)
 		}
 		var hosts listHostsResponse
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "team_id", fmt.Sprint(team.ID))
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "fleet_id", fmt.Sprint(team.ID))
 		for _, h := range hosts.Hosts {
 			require.NotEqual(t, secretValue, h.DisplayName)
 		}

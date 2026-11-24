@@ -148,8 +148,9 @@ func (svc *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Hos
 /////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceHostRequest struct {
-	Token           string `url:"token"`
-	ExcludeSoftware bool   `query:"exclude_software,optional"`
+	Token                 string `url:"token"`
+	ExcludeSoftware       bool   `query:"exclude_software,optional"`
+	IncludeHiddenPolicies bool   `query:"include_hidden_policies,optional" premium:"true"`
 }
 
 func (r *getDeviceHostRequest) deviceAuthToken() string {
@@ -166,18 +167,17 @@ type deviceHostDetailResponse struct {
 }
 
 type getDeviceHostResponse struct {
-	Host *deviceHostDetailResponse `json:"host"`
-	// Deprecated: use OrgLogoURLDarkMode.
-	OrgLogoURL string `json:"org_logo_url"`
-	// Deprecated: use OrgLogoURLLightMode.
-	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
-	OrgLogoURLDarkMode        string                   `json:"org_logo_url_dark_mode"`
-	OrgLogoURLLightMode       string                   `json:"org_logo_url_light_mode"`
-	SelfService               bool                     `json:"self_service"`
-	OrgContactURL             string                   `json:"org_contact_url"`
-	Err                       error                    `json:"error,omitempty"`
-	License                   fleet.LicenseInfo        `json:"license"`
-	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
+	Host                *deviceHostDetailResponse `json:"host"`
+	OrgLogoURLDarkMode  string                    `json:"org_logo_url_dark_mode"`
+	OrgLogoURLLightMode string                    `json:"org_logo_url_light_mode"`
+	SelfService         bool                      `json:"self_service"`
+	OrgContactURL       string                    `json:"org_contact_url"`
+	Err                 error                     `json:"error,omitempty"`
+	License             fleet.LicenseInfo         `json:"license"`
+	GlobalConfig        fleet.DeviceGlobalConfig  `json:"global_config"`
+	// GoogleConditionalAccessSignInRequired tells the Self-service web clip to ask the
+	// Google status route for a sign-in URL.
+	GoogleConditionalAccessSignInRequired bool `json:"google_conditional_access_sign_in_required"`
 }
 
 func (r getDeviceHostResponse) Error() error { return r.Err }
@@ -192,9 +192,10 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	// must still load the full host details, as it returns more information
 	opts := fleet.HostDetailOptions{
-		IncludeCVEScores: false,
-		IncludePolicies:  false,
-		ExcludeSoftware:  req.ExcludeSoftware,
+		IncludeCVEScores:      false,
+		IncludePolicies:       false,
+		ExcludeSoftware:       req.ExcludeSoftware,
+		ExcludeHiddenPolicies: !req.IncludeHiddenPolicies,
 	}
 	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
 	if err != nil {
@@ -234,6 +235,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			resp.HardwareSerial = ""
 			resp.UUID = ""
 			resp.PrimaryMac = ""
+			resp.GoogleDeviceID = nil
 			resp.TeamName = nil
 			resp.MDM.Profiles = nil
 			resp.Labels = nil
@@ -290,6 +292,11 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 	}
 
+	googleSignInRequired, err := svc.GoogleConditionalAccessSignInRequired(ctx, host)
+	if err != nil {
+		return getDeviceHostResponse{Err: ctxerr.Wrap(ctx, err, "getting google conditional access sign-in state")}, nil
+	}
+
 	deviceGlobalConfig := fleet.DeviceGlobalConfig{
 		MDM: fleet.DeviceGlobalMDMConfig{
 			// TODO(mna): It currently only returns the Apple enabled and configured,
@@ -317,17 +324,17 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		resp.Policies = nil
 	}
 
-	return getDeviceHostResponse{
-		Host:                      deviceHost,
-		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
-		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
-		OrgLogoURLDarkMode:        ac.OrgInfo.OrgLogoURLDarkMode,
-		OrgLogoURLLightMode:       ac.OrgInfo.OrgLogoURLLightMode,
-		OrgContactURL:             ac.OrgInfo.ContactURL,
-		License:                   *license,
-		GlobalConfig:              deviceGlobalConfig,
-		SelfService:               hasSelfService,
-	}, nil
+	deviceResp := getDeviceHostResponse{
+		Host:                deviceHost,
+		OrgLogoURLDarkMode:  ac.OrgInfo.OrgLogoURLDarkMode,
+		OrgLogoURLLightMode: ac.OrgInfo.OrgLogoURLLightMode,
+		OrgContactURL:       ac.OrgInfo.ContactURL,
+		License:             *license,
+		GlobalConfig:        deviceGlobalConfig,
+		SelfService:         hasSelfService,
+	}
+	deviceResp.GoogleConditionalAccessSignInRequired = googleSignInRequired
+	return deviceResp, nil
 }
 
 func (svc *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error) {
@@ -483,7 +490,8 @@ func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, sv
 ////////////////////////////////////////////////////////////////////////////////
 
 type listDevicePoliciesRequest struct {
-	Token string `url:"token"`
+	Token                 string `url:"token"`
+	IncludeHiddenPolicies bool   `query:"include_hidden_policies,optional" premium:"true"`
 }
 
 func (r *listDevicePoliciesRequest) deviceAuthToken() string {
@@ -498,13 +506,14 @@ type listDevicePoliciesResponse struct {
 func (r listDevicePoliciesResponse) Error() error { return r.Err }
 
 func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*listDevicePoliciesRequest)
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		return listDevicePoliciesResponse{Err: err}, nil
 	}
 
-	data, err := svc.ListDevicePolicies(ctx, host)
+	data, err := svc.ListDevicePolicies(ctx, host, req.IncludeHiddenPolicies)
 	if err != nil {
 		return listDevicePoliciesResponse{Err: err}, nil
 	}
@@ -512,7 +521,7 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 	return listDevicePoliciesResponse{Policies: data}, nil
 }
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host, includeHidden bool) ([]*fleet.DevicePolicy, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -1153,4 +1162,56 @@ func deviceSendAPNSPing(ctx context.Context, request any, svc fleet.Service) (fl
 	}
 
 	return sendAPNSPingResponse{Err: nil}, nil
+}
+
+type deviceInstallSelfServiceConfigurationProfileRequest struct {
+	Token       string `url:"token"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+func (r *deviceInstallSelfServiceConfigurationProfileRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func deviceInstallSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return installSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	req := request.(*deviceInstallSelfServiceConfigurationProfileRequest)
+
+	err := svc.DeviceInstallSelfServiceConfigurationProfile(ctx, host, req.ProfileUUID)
+	if err != nil {
+		return installSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	return installSelfServiceConfigurationProfileResponse{Err: nil}, nil
+}
+
+type deviceUninstallSelfServiceConfigurationProfileRequest struct {
+	Token       string `url:"token"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+func (r *deviceUninstallSelfServiceConfigurationProfileRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func deviceUninstallSelfServiceConfigurationProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return uninstallSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	req := request.(*deviceUninstallSelfServiceConfigurationProfileRequest)
+
+	err := svc.DeviceUninstallSelfServiceConfigurationProfile(ctx, host, req.ProfileUUID)
+	if err != nil {
+		return uninstallSelfServiceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	return uninstallSelfServiceConfigurationProfileResponse{Err: nil}, nil
 }

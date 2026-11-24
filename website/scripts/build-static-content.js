@@ -9,11 +9,12 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
+    getRealTimestamps: {type: 'boolean', description: 'Whether or not to use git log to build real lastModifiedAt timestamps.', defaultsTo: true},
     githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
 
-  fn: async function ({ dry, githubAccessToken }) {
+  fn: async function ({ dry, githubAccessToken, getRealTimestamps }) {
     let path = require('path');
     let YAML = require('yaml');
     let util = require('util');
@@ -31,8 +32,14 @@ module.exports = {
     if(githubAccessToken) {// If a github token was provided, Add an authorization header for requests to GitHub.
       baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
     } else {
-      sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag. \n Note: This script can take up to 30s to run.');
+      sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag.');
     }//ﬁ
+
+    if(!getRealTimestamps) {
+      sails.log(`Skipping building real lastModifiedAt timestamps. To see when a file was last updated on your local server, run this script without the --getRealTimestamps flag.`);
+    } else {
+      sails.log(`Note: This script can take over 30s to run.`);
+    }
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse queries.yml library (Informational queries and host vital queries) from YAML and prepare to bake them into the Sails app's configuration.
@@ -196,7 +203,6 @@ module.exports = {
           let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
           query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
 
-
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
           query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/, '');
@@ -349,9 +355,9 @@ module.exports = {
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
 
-            // Only build markdown pages from the Get started, Configuration, Deploy, and REST API subfolders.
+            // Only build markdown pages from the Get started, Configuration, Deploy, and API subfolders.
             let subfolderName = pageRelSourcePath.split('/')[0];
-            if(sectionRepoPath === 'docs/' && !['Get started', 'Deploy', 'REST API', 'Configuration'].includes(subfolderName)){
+            if(sectionRepoPath === 'docs/' && !['Get started', 'Deploy', 'API', 'Configuration'].includes(subfolderName)){
               continue;
             }
             // Skip pages in folders starting with an underscore character.
@@ -414,8 +420,8 @@ module.exports = {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains an HTML comment directly after a list that will cause rendering issues when converted to HTML. To resolve this error, add a blank newline before the start of the HTML comment in this file.`);
               }
               // Look for anything outside of code blocks in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
-              if (mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)) {
-                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
+              if (mdString.replace(/(`+)[\s\S]*?\1/g, '').match(/{{([^}]+)}}/)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.replace(/(`+)[\s\S]*?\1/g, '').match(/{{([^}]+)}}/)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
 
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
@@ -500,6 +506,17 @@ module.exports = {
                 return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://www.youtube-nocookie.com/embed/$1');
               });//∞
 
+              // Replace embedded content with the <embedded-content> component, which only loads the iframe if the visitor consented to cookies or chooses to load it.
+              // > An <iframe> in the page's HTML would start loading before any client-side code could check for consent.
+              htmlString = htmlString.replace(/<div purpose="embedded-content">\s*<iframe\s([^>]*)>\s*<\/iframe>\s*<\/div>/g, (embeddedContentHtml, iframeAttributes) => {
+                let iframeSrc = iframeAttributes.match(/(?:^|\s)src="([^"]*)"/);
+                if (!iframeSrc) {
+                  return embeddedContentHtml;
+                }
+                let iframeTitle = iframeAttributes.match(/(?:^|\s)title="([^"]*)"/);
+                return `<embedded-content src="${iframeSrc[1]}"${iframeTitle ? ` title="${iframeTitle[1]}"` : ''}></embedded-content>`;
+              });//∞
+
               // Modify images in the /articles folder
               if (sectionRepoPath === 'articles/') {
                 // modifying relative links e.g. `../website/assets/images/articles/foo-200x300@2x.png`
@@ -580,12 +597,15 @@ module.exports = {
                 sails.log.silly(`Parsed ${Object.keys(embeddedMetadata).length} <meta> tags:`, embeddedMetadata);
               }//ﬁ
 
-              // Get last modified timestamp using git, and represent it as a JS timestamp.
-              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
-                dir: topLvlRepoPath,
-              })).stdout)).getTime();
+              let lastModifiedAt = 0;
+              if(getRealTimestamps) {
+                // Get last modified timestamp using git, and represent it as a JS timestamp.
+                // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+                lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+                  command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
+                  dir: topLvlRepoPath,
+                })).stdout)).getTime();
+              }
 
 
               // Determine display title (human-readable title) to use for this page.
@@ -762,22 +782,6 @@ module.exports = {
                     }
                   }
                 }
-                // If this is a webinar article, we'll check to make sure it has a webinarEmbeddedVideoUrl meta tag.
-                if(embeddedMetadata.category === 'webinar') {
-                  if(!embeddedMetadata.webinarEmbeddedVideoUrl){
-                    throw new Error(`Failed compiling markdown content: A webinar article is missing a 'webinarEmbeddedVideoUrl' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a webinarEmbeddedVideoUrl meta tag with a value that is the URL of the webinar this article is presenting, and try running this script again.`);
-                  } else {
-                    let parsedVideoUrl;
-                    try {
-                      parsedVideoUrl = new URL(embeddedMetadata.webinarEmbeddedVideoUrl);
-                    } catch(err) {
-                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings. Full error: ${util.inspect(err)}`);
-                    }
-                    if(parsedVideoUrl.search) {
-                      throw new Error(`Failed compiling markdown content: A webinar article has a "webinarEmbeddedVideoUrl" value that contains query strings (${parsedVideoUrl.search}) at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, remove the query strings from this value and try running this script again. `);
-                    }
-                  }
-                }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
                   if(!embeddedMetadata.articleSlugInCategory){
@@ -846,13 +850,16 @@ module.exports = {
         builtStaticContent.openPositions = [];// This will be passed into a component on the company handbook page to render a list of open positions.
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
 
-        // Get last modified timestamp using git, and represent it as a JS timestamp.
-        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
-          dir: topLvlRepoPath,
-        })).stdout)).getTime();
 
+        let lastModifiedAt = 0;
+        if(getRealTimestamps) {
+          // Get last modified timestamp using git, and represent it as a JS timestamp.
+          // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+          lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+            command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+            dir: topLvlRepoPath,
+          })).stdout)).getTime();
+        }
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
@@ -985,14 +992,21 @@ module.exports = {
               // If the table has `"evented": true`, we'll add an evented table label (in html)
               tableMdString += '   <a style="text-decoration: none" purpose="evented-table-label" href="https://fleetdm.com/guides/osquery-evented-tables-overview?utm_source=fleetdm.com&utm_content=table-'+_.escape(encodeURIComponent(table.name))+'"><span>EVENTED TABLE</span></a>\n';
             }
-            // Add the tables description to the markdown string and start building the table in the markdown string
-            tableMdString += '\n\n'+table.description+'\n\n|Column | Type | Description |\n|-|-|-|\n';
+            // Escape angle brackets in table descriptions if they are not wraped in backticks (`)
+            let descriptionForMarkdownPage = table.description.replace(/(`+)[\s\S]*?\1|[<>]/g, (match, backticks)=>{
+              return backticks ? match : _.escape(match);
+            });
 
+            // Add the tables description to the markdown string and start building the table in the markdown string
+            tableMdString += '\n\n'+descriptionForMarkdownPage+'\n\n|Column | Type | Description |\n|-|-|-|\n';
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
             for(let column of _.sortBy(table.columns, 'name')) {
               let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
               if(column.description) {
-                columnDescriptionForTable = column.description;
+                // Escape angle brackets inside column descriptions.
+                columnDescriptionForTable = column.description.replace(/(`+)[\s\S]*?\1|[<>]/g, (match, backticks)=>{
+                  return backticks ? match : _.escape(match);
+                });
               }
               // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
               columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
@@ -1552,6 +1566,120 @@ module.exports = {
         }
         builtStaticContent.scripts = scriptsLibrary;
         builtStaticContent.scriptsLibraryYmlRepoPath = RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO;
+      },
+      //  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+      //  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
+      //  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
+      async()=>{
+        let RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO = 'docs/integrations.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find integrations YAML file at "${RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let parsedYaml = YAML.parse(yaml, {prettyErrors: true});
+        if(!parsedYaml || !_.isArray(parsedYaml.categories) || !_.isArray(parsedYaml.integrations)) {
+          throw new Error(`Could not build integrations configuration from ${RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO}. The file must have a "categories" list and an "integrations" list.`);
+        }
+        let yamlLines = yaml.split('\n');
+        let categorySlugsSeen = [];
+        // Every category and integration URL, so no two entries collide.
+        let urlsSeen = [];
+        for(let category of parsedYaml.categories) {
+          if(!category.name || !category.slug) {
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) is missing a "name" or "slug" value. To resolve, add the missing value and try running this script again.`);
+          }
+          if(!_.isString(category.name)){
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) has an invalid "name" value (expected a string, but instead got: ${typeof category.name }). To resolve, change the name value to a string and try running this script again.`);
+          }
+          if(!_.isString(category.slug)){
+            throw new Error(`Could not build integrations configuration from YAML. A category (${util.inspect(category)}) has an invalid "slug" value (expected a string, but instead got: ${typeof category.slug }). To resolve, change the slug value to a string and try running this script again.`);
+          }
+          if(categorySlugsSeen.includes(category.slug)) {
+            throw new Error(`Could not build integrations configuration from YAML. More than one category has the slug "${category.slug}". To resolve, give each category a unique slug.`);
+          }
+          categorySlugsSeen.push(category.slug);
+          category.url = '/integrate/'+category.slug;
+          if(urlsSeen.includes(category.url)) {
+            throw new Error(`Could not build integrations configuration from YAML. The URL "${category.url}" is used more than once. To resolve, make sure each category and integration URL is unique.`);
+          }
+          urlsSeen.push(category.url);
+        }
+        for(let integration of parsedYaml.integrations) {
+          for(let requiredKey of ['name', 'url', 'category', 'description', 'summary', 'logo']) {
+            if(!integration[requiredKey]) {
+              throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this integration and try running this script again.`);
+            }
+          }
+          for(let expectedStringAttribute of ['name', 'url', 'category', 'description', 'summary', 'logo']) {
+            if(!_.isString(integration[expectedStringAttribute])) {
+              throw new Error(`Could not build integrations configuration from YAML. An integration (${integration.name || util.inspect(integration)}) has an invalid "${expectedStringAttribute}" value (expected a string, but got: ${typeof integration[expectedStringAttribute]}). To resolve, change the ${expectedStringAttribute} to be a string and try running this script again.`);
+            }
+          }
+          if(!integration.url.match(/^\/integrate\/[a-z0-9-]+\/[a-z0-9-]+$/)) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has an invalid url (${integration.url}). Integration URLs must look like /integrate/{category}/{integration}, using lowercase letters, numbers, and dashes.`);
+          }
+          if(integration.vendorUrl !== undefined && !_.isString(integration.vendorUrl)) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has an invalid "vendorUrl" value (expected a string, but got: ${typeof integration.vendorUrl}). To resolve, change the vendorUrl to be a string or remove it, and try running this script again.`);
+          }
+          integration.alsoListedIn = integration.alsoListedIn || [];
+          for(let categorySlug of [integration.category].concat(integration.alsoListedIn)) {
+            if(!categorySlugsSeen.includes(categorySlug)) {
+              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" uses a category (${categorySlug}) that is not in the categories list. To resolve, change it to one of: ${categorySlugsSeen.join(', ')}`);
+            }
+          }
+          if(urlsSeen.includes(integration.url)) {
+            throw new Error(`Could not build integrations configuration from YAML. The URL "${integration.url}" is used more than once. To resolve, make sure each category and integration URL is unique.`);
+          }
+          urlsSeen.push(integration.url);
+          let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', integration.logo));
+          if(!logoExists) {
+            throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a logo (${integration.logo}) that doesn't exist in the website/assets/images/ folder. To resolve, add the image or change the logo value.`);
+          }
+          integration.docs = integration.docs || [];
+          for(let doc of integration.docs) {
+            if(!doc.label || !doc.url) {
+              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a docs link that is missing a "label" or "url" value.`);
+            }
+            if(!_.isString(doc.label) || !_.isString(doc.url)) {
+              throw new Error(`Could not build integrations configuration from YAML. The integration "${integration.name}" has a docs link (${util.inspect(doc)}) with a "label" or "url" value that isn't a string. To resolve, change both values to strings and try running this script again.`);
+            }
+          }
+          integration.slug = integration.url.split('/').pop();
+          integration.categoryName = _.find(parsedYaml.categories, {slug: integration.category}).name;
+          // Used for the "Edit page" link on the integration details page.
+          integration.lineNumberInYaml = _.findIndex(yamlLines, (line)=>{ return line.includes('url: "'+integration.url+'"'); }) + 1;
+        }
+        // Building blocks are Fleet's own extension points (REST API, webhooks, etc.), shown together on one page and linking straight to their docs.
+        let buildingBlocks = parsedYaml.buildingBlocks || [];
+        if(!_.isArray(buildingBlocks)) {
+          throw new Error(`Could not build integrations configuration from ${RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO}. "buildingBlocks" must be a list.`);
+        }
+        if(urlsSeen.includes('/integrate/build-anything')) {
+          throw new Error(`Could not build integrations configuration from YAML. "/integrate/build-anything" is reserved for the building blocks page. To resolve, change the category or integration that uses it.`);
+        }
+        urlsSeen.push('/integrate/build-anything');
+        for(let buildingBlock of buildingBlocks) {
+          for(let requiredKey of ['name', 'description', 'url']) {
+            if(!buildingBlock[requiredKey]) {
+              throw new Error(`Could not build integrations configuration from YAML. A building block (${buildingBlock.name || util.inspect(buildingBlock)}) is missing a "${requiredKey}" value. To resolve, add a ${requiredKey} to this building block and try running this script again.`);
+            }
+          }
+          for(let expectedStringAttribute of ['name', 'description', 'url']) {
+            if(!_.isString(buildingBlock[expectedStringAttribute])) {
+              throw new Error(`Could not build integrations configuration from YAML. A building block (${util.inspect(buildingBlock)}) has an invalid "${expectedStringAttribute}" value (expected a string, but got: ${typeof buildingBlock[expectedStringAttribute]}). To resolve, change the ${expectedStringAttribute} to be a string and try running this script again.`);
+            }
+          }
+          if(buildingBlock.logo !== undefined && !_.isString(buildingBlock.logo)) {
+            throw new Error(`Could not build integrations configuration from YAML. The building block "${buildingBlock.name}" has an invalid "logo" value (expected a string, but got: ${typeof buildingBlock.logo}). To resolve, change the logo to be a string or remove it, and try running this script again.`);
+          }
+          if(buildingBlock.logo) {
+            let logoExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', buildingBlock.logo));
+            if(!logoExists) {
+              throw new Error(`Could not build integrations configuration from YAML. The building block "${buildingBlock.name}" has a logo (${buildingBlock.logo}) that doesn't exist in the website/assets/images/ folder. To resolve, add the image or change the logo value.`);
+            }
+          }
+        }
+        builtStaticContent.integrationBuildingBlocks = buildingBlocks;
+        builtStaticContent.integrationCategories = _.sortBy(parsedYaml.categories, (category)=>{ return category.name.toLowerCase(); });
+        builtStaticContent.integrations = _.sortBy(parsedYaml.integrations, (integration)=>{ return integration.name.toLowerCase(); });
+        builtStaticContent.integrationsYmlRepoPath = RELATIVE_PATH_TO_INTEGRATIONS_YML_IN_FLEET_REPO;
       },
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ █████╗ ███╗   ██╗██████╗ ███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
       //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝

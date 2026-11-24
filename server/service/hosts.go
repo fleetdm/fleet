@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/csv"
@@ -9,13 +10,18 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"net/http"
 	"reflect"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -35,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/reconcile"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -266,13 +273,10 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
-	if req.Opts.SoftwareVersionIDFilter != nil || req.Opts.SoftwareIDFilter != nil {
+	if req.Opts.SoftwareVersionIDFilter != nil {
 		var err error
 
 		id := req.Opts.SoftwareVersionIDFilter
-		if id == nil {
-			id = req.Opts.SoftwareIDFilter
-		}
 
 		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
 		switch {
@@ -439,15 +443,16 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 	opt.DEPAssignProfileResponseFilter = nil
 }
 
-// suppressAndroidBYODWipeStatus hides the transient wipe status for Android BYOD (personal) hosts. Unenrolling such a
-// host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which writes wipe_ref and would
-// otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
+// suppressAndroidBYODWipeStatus reports the transient wipe status for Android BYOD (personal) hosts as a pending
+// unenroll. Unenrolling such a host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which
+// writes wipe_ref and would otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe, but the UI still
+// needs to know something is pending so it can hide the actions that conflict with it.
 func suppressAndroidBYODWipeStatus(host *fleet.Host) {
 	if host.FleetPlatform() == "android" &&
-		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal &&
+		host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) &&
 		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
 		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
-		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
+		host.MDM.PendingAction = new(string(fleet.PendingActionUnenroll))
 	}
 }
 
@@ -482,7 +487,11 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 	// Create an iterator to return one host at a time, hydrated with extra details as needed.
 	hostIterator := func() iter.Seq2[*fleet.Host, error] {
 		return func(yield func(*fleet.Host, error) bool) {
-			for _, host := range hosts {
+			for _, pageHost := range hosts {
+				// Hydrate software on a copy instead of slice elements
+				// to allow memory to be freed at the end of each iteration ...
+				hostCopy := *pageHost
+				host := &hostCopy
 
 				if !opt.DisableIssues && !premiumLicense {
 					host.HostIssues.CriticalVulnerabilitiesCount = nil
@@ -495,6 +504,9 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 					if err = svc.ds.LoadHostSoftware(ctx, host, opt.PopulateSoftwareVulnerabilityDetails); err != nil {
 						yield(nil, ctxerr.Wrapf(ctx, err, "get software vulnerability details for host %d", host.ID))
 						return
+					}
+					if !premiumLicense {
+						omitHostSoftwareAITool(host.HostSoftware.Software)
 					}
 				}
 
@@ -606,7 +618,7 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[string]interface{}) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsListError(ctx, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 
 	opts, lid, err := hostListOptionsFromFilters(filter)
@@ -826,10 +838,13 @@ type searchHostsRequest struct {
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
-	QueryID *uint `json:"query_id" renameto:"report_id"`
+	QueryID *uint `json:"report_id" removedkey:"query_id"`
 	// ExcludedHostIDs is the list of IDs selected on the caller side
 	// (e.g. the UI) that will be excluded from the returned payload.
 	ExcludedHostIDs []uint `json:"excluded_host_ids"`
+	// ExcludeMobileHosts omits iOS, iPadOS, and Android hosts, which can't be
+	// targeted by live reports.
+	ExcludeMobileHosts bool `json:"exclude_mobile_hosts"`
 }
 
 type searchHostsResponse struct {
@@ -842,7 +857,7 @@ func (r searchHostsResponse) Error() error { return r.Err }
 func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*searchHostsRequest)
 
-	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
+	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs, req.ExcludeMobileHosts)
 	if err != nil {
 		return searchHostsResponse{Err: err}, nil
 	}
@@ -858,7 +873,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}, nil
 }
 
-func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint, excludeMobileHosts bool) ([]*fleet.Host, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -882,7 +897,7 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 
 	results := []*fleet.Host{}
 
-	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludedHostIDs...)
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludeMobileHosts, excludedHostIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -897,8 +912,8 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 /////////////////////////////////////////////////////////////////////////////////
 
 type getHostRequest struct {
-	ID              uint `url:"id"`
-	ExcludeSoftware bool `query:"exclude_software,optional"`
+	Identifier      string `url:"id"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 type getHostResponse struct {
@@ -915,7 +930,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		IncludePolicies:  true, // intentionally true to preserve existing behavior,
 		ExcludeSoftware:  req.ExcludeSoftware,
 	}
-	host, err := svc.GetHost(ctx, req.ID, opts)
+	host, err := svc.GetHostByIDOrIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -961,7 +976,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	if !alreadyAuthd {
 		// Authorize again with team loaded now that we have team_id
 		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-			return nil, err
+			return nil, authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 		}
 	}
 
@@ -982,8 +997,33 @@ func (svc *Service) checkDeleteForHostIDs(ctx context.Context, ids []uint) error
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
 		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
+			return authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsDeleteHostErrorMessage, err)
+		}
+		if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// Technician is a Premium-only role, but sessions and API tokens issued before a
+// downgrade to Free keep working.
+func checkTechnicianDeleteLicense(ctx context.Context, host *fleet.Host) error {
+	if license.IsPremium(ctx) {
+		return nil
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil
+	}
+	isTechnician := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleTechnician
+	if host.TeamID != nil {
+		isTechnician = isTechnician || vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+			return t.Role == fleet.RoleTechnician
+		})[*host.TeamID]
+	}
+	if isTechnician {
+		return fleet.ErrMissingLicense
 	}
 	return nil
 }
@@ -1013,7 +1053,7 @@ func (svc *Service) GetHostLite(ctx context.Context, id uint) (*fleet.Host, erro
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSummaryRequest struct {
-	TeamID       *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID       *uint   `query:"fleet_id,optional"`
 	Platform     *string `query:"platform,optional"`
 	LowDiskSpace *int    `query:"low_disk_space,optional"`
 }
@@ -1065,14 +1105,6 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 		return nil, err
 	}
 
-	linuxCount := uint(0)
-	for _, p := range hostSummary.Platforms {
-		if fleet.IsLinux(p.Platform) {
-			linuxCount += p.HostsCount
-		}
-	}
-	hostSummary.AllLinuxCount = linuxCount
-
 	labelsSummary, err := svc.ds.LabelsSummary(ctx, fleet.TeamFilter{})
 	if err != nil {
 		return nil, err
@@ -1095,78 +1127,65 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 // Get Host By Identifier
 ////////////////////////////////////////////////////////////////////////////////
 
-type hostByIdentifierRequest struct {
-	Identifier      string `url:"identifier"`
-	ExcludeSoftware bool   `query:"exclude_software,optional"`
-}
-
-type hostIDOnly struct {
-	ID uint `json:"id"`
-}
-
-type hostIDOnlyResponse struct {
-	Host hostIDOnly `json:"host"`
-	Err  error      `json:"error,omitempty"`
-}
-
-func (r hostIDOnlyResponse) Error() error { return r.Err }
-
-func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*hostByIdentifierRequest)
-	opts := fleet.HostDetailOptions{
-		IncludeCVEScores: false,
-		IncludePolicies:  true, // intentionally true to preserve existing behavior
-		ExcludeSoftware:  req.ExcludeSoftware,
+// GetHostByIDOrIdentifier returns the host that HostIDByIDOrIdentifier resolves. A host matched by id that the caller can't read is a
+// denial.
+func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, authz.GitOpsListError(ctx, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 	}
-	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
+	host, _, err := hostByIDOrIdentifier(ctx, svc, identifier, func(hostID uint) (*fleet.HostDetail, error) {
+		return svc.GetHost(ctx, hostID, opts)
+	})
+	return host, err
+}
+
+func (svc *Service) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. The caller checks team access.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return 0, authz.GitOpsListError(ctx, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
+	}
+	hostID, err := svc.ds.HostIDByIdentifier(ctx, identifier, fleet.HostIDByIdentifierOptions{MatchID: true})
 	if err != nil {
-		return getHostResponse{Err: err}, nil
+		return 0, ctxerr.Wrap(ctx, err, "get host id by id or identifier")
 	}
-
-	if host.IDOnly {
-		return hostIDOnlyResponse{Host: hostIDOnly{ID: host.ID}}, nil
-	}
-
-	resp, err := hostDetailResponseForHost(ctx, svc, host)
-	if err != nil {
-		return getHostResponse{Err: err}, nil
-	}
-
-	return getHostResponse{
-		Host: resp,
-	}, nil
+	return hostID, nil
 }
 
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	// Coarse gate before the host's team is known. selective_list admits GitOps,
-	// which the team-scoped check below then limits to the host's id.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
-		return nil, err
-	}
-
-	host, err := svc.ds.HostByIdentifier(ctx, identifier)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
-	}
-
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		// GitOps has no host read access, but it is granted selective_read here so
-		// the deprecated Puppet module can resolve a host identifier to a host id
-		// before pre-assigning profiles. Such a caller gets that id and nothing
-		// else: host details are read data it isn't entitled to.
-		if selectiveErr := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); selectiveErr != nil {
-			return nil, selectiveErr
+// hostByIDOrIdentifier calls get with the ID of the host that the :id path parameter of a host endpoint names, and returns its result and
+// that ID. A number is tried as the host ID first, without a lookup, so a request by host ID costs what it did before identifiers were
+// accepted. The identifier is looked up when it isn't a host ID, or when the call by ID is not found or forbidden and the identifier names
+// another host, like one with a numeric serial. get should load the host before anything else that can be not found.
+func hostByIDOrIdentifier[T any](ctx context.Context, svc fleet.Service, identifier string, get func(hostID uint) (T, error)) (T, uint, error) {
+	// A larger number can't be a host ID, since hosts.id is an unsigned INT.
+	id, parseErr := strconv.ParseUint(identifier, 10, 32)
+	if parseErr != nil {
+		hostID, err := svc.HostIDByIDOrIdentifier(ctx, identifier)
+		if err != nil {
+			var zero T
+			return zero, 0, err
 		}
-		return &fleet.HostDetail{Host: fleet.Host{ID: host.ID}, IDOnly: true}, nil
+		res, err := get(hostID)
+		return res, hostID, err
 	}
 
-	hostDetails, err := svc.getHostDetails(ctx, host, opts)
-	if err != nil {
-		return nil, err
+	res, err := get(uint(id))
+	var forbidden *authz.Forbidden
+	if !fleet.IsNotFound(err) && !errors.As(err, &forbidden) {
+		return res, uint(id), err
 	}
-
-	return hostDetails, nil
+	// An existing host can be not found for something it doesn't have, like a recovery lock password, or forbidden to a caller who can't
+	// see it. Some calls are also forbidden for a missing host, so they don't reveal which IDs exist. The lookup matches the host ID first,
+	// so for an existing host it returns the same ID and the error stands. A caller who can't list hosts gets the error, as before
+	// identifiers.
+	hostID, lookupErr := svc.HostIDByIDOrIdentifier(ctx, identifier)
+	switch {
+	case lookupErr == nil && hostID != uint(id):
+		res, err = get(hostID)
+		return res, hostID, err
+	case lookupErr != nil && !fleet.IsNotFound(lookupErr) && !errors.As(lookupErr, &forbidden):
+		return res, uint(id), lookupErr
+	}
+	return res, uint(id), err
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1194,7 +1213,7 @@ func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsListError(ctx, fleet.GitOpsDeleteHostErrorMessage, err)
 	}
 
 	host, err := svc.ds.HostLite(ctx, id)
@@ -1209,6 +1228,9 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
+		return authz.GitOpsFleetError(ctx, host.TeamID, fleet.GitOpsDeleteHostErrorMessage, err)
+	}
+	if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
 		return err
 	}
 
@@ -1311,7 +1333,7 @@ func (svc *Service) CleanupExpiredHostsBatch(ctx context.Context, batchSize int)
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamRequest struct {
-	TeamID  *uint  `json:"team_id" renameto:"fleet_id"`
+	TeamID  *uint  `json:"fleet_id"`
 	HostIDs []uint `json:"hosts"`
 }
 
@@ -1323,7 +1345,7 @@ func (r addHostsToTeamResponse) Error() error { return r.Err }
 
 func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addHostsToTeamRequest)
-	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs, false)
+	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
 	if err != nil {
 		return addHostsToTeamResponse{Err: err}, nil
 	}
@@ -1353,17 +1375,32 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 
 		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(h.ID), "get host for transfer")
 		if err := svc.authz.AuthorizeOrNotFound(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionTransferHost, notFoundErr); err != nil {
-			return err
+			return authz.GitOpsFleetError(ctx, h.TeamID, fleet.GitOpsTransferHostErrorMessage, err)
 		}
 	}
 	return nil
 }
 
-func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
-	// Authorize transfer access to the destination team.
+// authorizeHostTransferDestination checks that the caller can transfer hosts
+// into teamID (nil for "Unassigned"). Every role that can transfer hosts can
+// also list them, so the list check only stops GitOps users, before any host
+// is looked up.
+func (svc *Service) authorizeHostTransferDestination(ctx context.Context, teamID *uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsListError(ctx, fleet.GitOpsTransferHostErrorMessage, err)
+	}
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
+		return authz.GitOpsFleetError(ctx, teamID, fleet.GitOpsTransferHostErrorMessage, err)
+	}
+	return nil
+}
+
+func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	if err := svc.authorizeHostTransferDestination(ctx, teamID); err != nil {
 		return err
 	}
+
+	hostIDs = server.RemoveDuplicatesFromSlice(hostIDs)
 
 	// Authorize transfer access to the source teams of the hosts being transferred.
 	// Read from the primary so a host enrolled moments ago isn't reported as
@@ -1412,12 +1449,15 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
 		}
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
+		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")
+		}
 	}
 
-	if !skipBulkPending {
-		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-		}
+	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 	serials, err := svc.ds.ListMDMAppleDEPSerialsInHostIDs(ctx, hostIDs)
 	if err != nil {
@@ -1476,26 +1516,16 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 			return ctxerr.Wrap(ctx, err, "list hosts by ids")
 		}
 
-		// index the hosts by ids to get the names in the same order as hostIDs
-		hostsByID := make(map[uint]*fleet.Host, len(hosts))
-		for _, h := range hosts {
-			hostsByID[h.ID] = h
-		}
-
 		// Derive the activity's host IDs and names exclusively from the hosts
-		// that actually exist, preserving the requested order. IDs that don't
-		// resolve to a host (e.g. non-existent IDs in the request, or a host
+		// that actually exist. IDs that don't resolve to a host (e.g. a host
 		// deleted right after the transfer) are excluded so they can't be
 		// injected into the audit trail.
-		existingIDs := make([]uint, 0, len(hostIDs))
-		hostNames = make([]string, 0, len(hostIDs))
-		for _, hid := range hostIDs {
-			if h, ok := hostsByID[hid]; ok {
-				existingIDs = append(existingIDs, hid)
-				hostNames = append(hostNames, h.DisplayName())
-			}
+		hostIDs = make([]uint, 0, len(hosts))
+		hostNames = make([]string, 0, len(hosts))
+		for _, h := range hosts {
+			hostIDs = append(hostIDs, h.ID)
+			hostNames = append(hostNames, h.DisplayName())
 		}
-		hostIDs = existingIDs
 
 		// If none of the requested hosts exist, there's nothing to record.
 		if len(hostIDs) == 0 {
@@ -1523,7 +1553,7 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint                   `json:"team_id" renameto:"fleet_id"`
+	TeamID  *uint                   `json:"fleet_id"`
 	Filters *map[string]interface{} `json:"filters"`
 }
 
@@ -1544,8 +1574,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
-	// Authorize transfer access to the destination team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
+	if err := svc.authorizeHostTransferDestination(ctx, teamID); err != nil {
 		return err
 	}
 
@@ -1598,6 +1627,11 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		}
 		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, uuids, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "sync android_devices team_id on transfer")
+		}
+		// Flag the Fleet agent for resend, so the Android app reconciler will send it with the new fleet's enroll secret
+		err = svc.ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, slices.Collect(maps.Values(androidUUIDs)), nil, new(svc.config.MDM.AndroidAgent.Package))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "flag android agent for resend after transfer")
 		}
 	}
 
@@ -1839,10 +1873,21 @@ func (svc *Service) verifyMDMConfiguredAndConnected(ctx context.Context, host *f
 	return nil
 }
 
+// omitHostSoftwareAITool clears the ai_tool field, which is Fleet Premium, so it's omitted on Free.
+// That also hides software flagged before a downgrade, since the flag is never reset in the database.
+func omitHostSoftwareAITool(software []fleet.HostSoftwareEntry) {
+	for i := range software {
+		software[i].AITool = nil
+	}
+}
+
 func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	if !opts.ExcludeSoftware {
 		if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host software")
+		}
+		if !license.IsPremium(ctx) {
+			omitHostSoftwareAITool(host.HostSoftware.Software)
 		}
 	}
 
@@ -1853,7 +1898,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	// BYOD/personal enrollments never receive the device vitals fields (see
 	// byodDeviceInformationQueryKeys in server/mdm/apple/commander.go), so
 	// there's nothing to load.
-	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal
+	isPersonalEnrollment := host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)
 	if fleet.IsAppleMobilePlatform(host.Platform) && !isPersonalEnrollment {
 		if err := svc.ds.LoadHostMDMAppleDeviceVitals(ctx, host); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host mdm apple device vitals")
@@ -1887,11 +1932,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels for host")
-	}
-
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
 	bats, err := svc.ds.ListHostBatteries(ctx, host.ID)
@@ -1933,15 +1973,33 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	// Calculate the number of failing policies for the host based on the returned policies to
 	// avoid discrepancies due to read replica delay.
-	var failingPolicies uint64
+	var failingPolicies, failingUnhiddenPolicies, hiddenPolicies uint64
 	if policies != nil {
+		visible := make([]*fleet.HostPolicy, 0, len(*policies))
 		for _, p := range *policies {
-			if p != nil && p.Response == "fail" {
+			if p == nil {
+				continue
+			}
+			if p.Hidden {
+				hiddenPolicies++
+			}
+			if p.Response == "fail" {
 				failingPolicies++
+				if !p.Hidden {
+					failingUnhiddenPolicies++
+				}
+			}
+			if !opts.ExcludeHiddenPolicies || !p.Hidden {
+				visible = append(visible, p)
 			}
 		}
+		policies = &visible
 	}
 	host.HostIssues.FailingPoliciesCount = failingPolicies
+	if license.IsPremium(ctx) {
+		host.HostIssues.FailingUnhiddenPoliciesCount = &failingUnhiddenPolicies
+		host.HostIssues.HiddenPoliciesCount = &hiddenPolicies
+	}
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
 	// disk encryption status, and macOS setup details for non-linux hosts.
@@ -2108,9 +2166,21 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				for _, p := range profs {
 					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+						p.OperationType = host.MDM.ProfileOperationFromDiskEncryptionState(p.OperationType)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+				}
+
+				// Appended after the OS settings summary above so not-yet-installed opt-in profiles don't count as pending.
+				if host.Platform == "darwin" && license.IsPremium(ctx) {
+					available, err := svc.availableSelfServiceAppleProfiles(ctx, host, profs)
+					if err != nil {
+						return nil, err
+					}
+					for _, p := range available {
+						profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+					}
 				}
 
 				// Nano details were read above the outer MDM guard; reuse the
@@ -2180,12 +2250,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 	suppressAndroidBYODWipeStatus(host)
+	if host.FleetPlatform() == "android" {
+		host.MDM.UnlockPINAvailable = new(mdmActions.IsAndroidUnlockPINAvailable())
+	}
 
 	// Populate wipe/lock/clear_passcode allowed flags for manually-enrolled Apple hosts.
 	if fleet.IsApplePlatform(host.Platform) &&
 		host.MDM.EnrollmentStatus != nil &&
 		(*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual ||
-			*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal) {
+			fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus)) {
 		perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
@@ -2215,6 +2288,15 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
+	var googleDeviceID *string
+	if fleet.IsMobilePlatform(host.Platform) {
+		id, err := svc.ds.GetHostGoogleDeviceID(ctx, host.UUID, googleConditionalAccessCustomerID(ac.Integrations.GoogleConditionalAccess))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host google device id")
+		}
+		googleDeviceID = &id
+	}
+
 	customHostVitals, err := svc.ds.GetHostCustomHostVitals(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get custom host vitals for host")
@@ -2225,6 +2307,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get os update for host details")
 	}
 
+	var patchDeadlineAt *time.Time
+	if host.Platform == "darwin" {
+		patchDeadlineAt, err = svc.ds.GetHostPatchDeadlineAt(ctx, host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host patch deadline")
+		}
+	}
+
 	// LastMDMCheckedInAt lives on Host so it's also available to the list-hosts
 	// loader; the details service overwrites the (potentially nil) value from
 	// the list-load with the fresh nano_enrollments read done above.
@@ -2233,7 +2323,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
-		Packs:                         packs,
 		Batteries:                     &bats,
 		MaintenanceWindow:             nextMw,
 		CustomHostVitals:              customHostVitals,
@@ -2241,8 +2330,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		LastMDMEnrollmentType:         mdmEnrollmentType,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
 		ConditionalAccessBypassed:     conditionalAccessBypassed,
+		GoogleDeviceID:                googleDeviceID,
 		OSUpdateMinimumVersion:        osUpdateMinVersion,
 		OSUpdateDeadline:              osUpdateDeadline,
+		PatchDeadlineAt:               patchDeadlineAt,
 	}, nil
 }
 
@@ -2325,12 +2416,12 @@ func (svc *Service) populateManagedLocalAccountStatus(ctx context.Context, host 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostQueryReportRequest struct {
-	ID      uint `url:"id"`
-	QueryID uint `url:"report_id"`
+	Identifier string `url:"id"`
+	QueryID    uint   `url:"report_id"`
 }
 
 type getHostQueryReportResponse struct {
-	QueryID       uint                          `json:"query_id" renameto:"report_id"`
+	QueryID       uint                          `json:"report_id"`
 	HostID        uint                          `json:"host_id"`
 	HostName      string                        `json:"host_name"`
 	LastFetched   *time.Time                    `json:"last_fetched"`
@@ -2343,14 +2434,15 @@ func (r getHostQueryReportResponse) Error() error { return r.Err }
 
 func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostQueryReportRequest)
-
 	// Need to return hostname in response even if there are no report results
-	host, err := svc.GetHostLite(ctx, req.ID)
+	host, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.Host, error) {
+		return svc.GetHostLite(ctx, hostID)
+	})
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	reportResults, lastFetched, err := svc.GetHostQueryReportResults(ctx, req.ID, req.QueryID)
+	reportResults, lastFetched, err := svc.GetHostQueryReportResults(ctx, hostID, req.QueryID)
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
@@ -2412,7 +2504,7 @@ func (svc *Service) GetHostQueryReportResults(ctx context.Context, hostID uint, 
 ////////////////////////////////////////////////////////////////////////////////
 
 type listHostReportsRequest struct {
-	ID          uint              `url:"id"`
+	Identifier  string            `url:"id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// IncludeReportsDontStoreResults if true, include reports that don't store results
 	// (discard_data=1 AND logging_type != 'snapshot'). Defaults to false when omitted.
@@ -2441,7 +2533,14 @@ func listHostReportsEndpoint(ctx context.Context, request any, svc fleet.Service
 		IncludeReportsDontStoreResults: includeReportsDontStoreResults,
 	}
 
-	reports, count, meta, err := svc.ListHostReports(ctx, req.ID, opts)
+	var (
+		count int
+		meta  *fleet.PaginationMetadata
+	)
+	reports, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (reports []*fleet.HostReport, err error) {
+		reports, count, meta, err = svc.ListHostReports(ctx, hostID, opts)
+		return reports, err
+	})
 	if err != nil {
 		return listHostReportsResponse{Err: err}, nil
 	}
@@ -2707,12 +2806,39 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
+		// Check if the user is a valid SCIM user to manage the join table. Looked up before the
+		// update, which can resend profiles, so a lookup error doesn't leave them unlogged.
+		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
+		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
+		}
+		scimUserFound := err == nil && scimUser != nil
+
+		var resentCerts []fleet.ActivityTypeResentCertificate
+		// Each step commits its resends, so they're logged even when a later step fails. Linking a SCIM user resends a
+		// certificate that the new IdP username already resent.
+		defer func() {
+			seenCerts := make(map[[2]uint]struct{}, len(resentCerts))
+			for _, cert := range resentCerts {
+				key := [2]uint{cert.HostID, cert.CertificateTemplateID}
+				if _, dup := seenCerts[key]; dup {
+					continue
+				}
+				seenCerts[key] = struct{}{}
+				if err := svc.NewActivity(ctx, nil, cert); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to create resent_certificate activity", "err", err)
+				}
+			}
+		}()
+
 		if emailChanged {
 			// Store the IDP username for display (accept any value)
 			// This will appear in the host details API under the idp_username field
-			if err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email); err != nil {
+			certs, err := svc.ds.SetOrUpdateIDPHostDeviceMapping(ctx, hostID, email)
+			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "set IDP device mapping")
 			}
+			resentCerts = certs
 
 			if err := svc.NewActivity(
 				ctx,
@@ -2727,37 +2853,24 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 			}
 		}
 
-		// Check if the user is a valid SCIM user to manage the join table
-		scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, email, email)
-		if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, err, "find SCIM user by username or email")
-		}
-		if err == nil && scimUser != nil {
+		if scimUserFound {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-			resentCerts, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
+			certs, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
 			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			resentCerts, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
+			certs, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
 			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 			} else {
-				for _, cert := range resentCerts {
-					if err := svc.NewActivity(ctx, nil, cert); err != nil {
-						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
-					}
-				}
+				resentCerts = append(resentCerts, certs...)
 			}
 		}
 
@@ -2835,6 +2948,223 @@ func (svc *Service) DeleteHostIDP(ctx context.Context, id uint) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Put Host Google Device ID
+////////////////////////////////////////////////////////////////////////////////
+
+type putHostGoogleDeviceIDRequest struct {
+	ID             uint   `url:"id"`
+	GoogleDeviceID string `json:"google_device_id"`
+}
+
+type putHostGoogleDeviceIDResponse struct {
+	HostID         uint   `json:"host_id"`
+	GoogleDeviceID string `json:"google_device_id"`
+	Err            error  `json:"error,omitempty"`
+}
+
+func (r putHostGoogleDeviceIDResponse) Error() error { return r.Err }
+
+func putHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*putHostGoogleDeviceIDRequest)
+	if err := svc.SetHostGoogleDeviceID(ctx, req.ID, req.GoogleDeviceID); err != nil {
+		return putHostGoogleDeviceIDResponse{Err: err}, nil
+	}
+	return putHostGoogleDeviceIDResponse{HostID: req.ID, GoogleDeviceID: req.GoogleDeviceID}, nil
+}
+
+func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error {
+	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
+	if err != nil {
+		return err
+	}
+
+	if !fleet.IsMobilePlatform(host.Platform) {
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is only supported on iOS, iPadOS, and Android hosts.")
+	}
+	if host.UUID == "" {
+		// The ID is stored by host UUID, which every host that hasn't enrolled would share.
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID can't be set on a host that hasn't enrolled.")
+	}
+	if googleDeviceID == "" {
+		// Removing the ID lets another device register as this host, so it takes the explicit DELETE.
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is required. To remove it, use the DELETE method.")
+	}
+	if strings.TrimSpace(googleDeviceID) != googleDeviceID {
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID can't start or end with whitespace.")
+	}
+	if utf8.RuneCountInString(googleDeviceID) > 255 {
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID must be 255 characters or less.")
+	}
+
+	// Fleet marks the device in Google, so the rules are the sign-in's.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	notConnected := fleet.NewInvalidArgumentError("google_device_id",
+		"Google conditional access isn't connected. Connect it in Settings > Integrations > Conditional access.")
+	active, err := svc.activeGoogleConditionalAccess(ctx)
+	if err != nil {
+		return err
+	}
+	if active == nil {
+		return notConnected
+	}
+	customerID := active.settings.CustomerID
+	eligible, err := svc.googleConditionalAccessEligible(ctx, host)
+	if err != nil {
+		return err
+	}
+	if !eligible {
+		return fleet.NewInvalidArgumentError("google_device_id",
+			"Google device ID is only supported on company-owned hosts (MDM status: On (automatic)).")
+	}
+
+	// The datastore decides again under a lock; this spares Google a call for a repeat
+	// or a refused value.
+	stored, err := svc.ds.GetHostGoogleDeviceID(ctx, host.UUID, customerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host google device id")
+	}
+	if strings.EqualFold(stored, googleDeviceID) {
+		return nil
+	}
+	refuseDifferent := func(conflict *fleet.HostGoogleDeviceIDConflictError) error {
+		var userID uint
+		if user := authz.UserFromContext(ctx); user != nil {
+			userID = user.ID
+		}
+		svc.logger.WarnContext(ctx, "refused a different Google device ID for host",
+			"host_id", host.ID, "user_id", userID,
+			"stored_google_device_id", conflict.StoredID, "google_device_id", googleDeviceID)
+		return ctxerr.Wrap(ctx, conflict, "set host google device id")
+	}
+	if stored != "" {
+		// Refused here and not by the datastore, which would bind the new ID with no names
+		// if the stored one were deleted before it looked.
+		return refuseDifferent(&fleet.HostGoogleDeviceIDConflictError{StoredID: stored})
+	}
+
+	ci, err := svc.googleCloudIdentity(ctx, active)
+	if err != nil {
+		return err
+	}
+	if ci == nil {
+		return notConnected
+	}
+	if err := svc.checkHostGoogleDevice(ctx, ci, host, googleDeviceID); err != nil {
+		return err
+	}
+	names, err := listGoogleDeviceUserNames(ctx, ci, googleDeviceID)
+	if err != nil {
+		return err
+	}
+	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, host.UUID, customerID, googleDeviceID, names)
+	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
+		return refuseDifferent(conflict)
+	}
+	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
+		svc.logger.WarnContext(ctx, "refused a google device with a user registered to another host",
+			"host_id", host.ID, "device_user_name", conflict.Name)
+		return fleet.NewInvalidArgumentError("google_device_id", "This Google device is already registered to another host.").
+			WithStatus(http.StatusConflict)
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set host google device id")
+	}
+	if !changed {
+		return nil
+	}
+	return svc.finishGoogleDeviceRegistration(ctx, ci, host, names, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		GoogleDeviceID:  googleDeviceID,
+	})
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Delete Host Google Device ID
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteHostGoogleDeviceIDRequest struct {
+	ID uint `url:"id"`
+}
+
+type deleteHostGoogleDeviceIDResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteHostGoogleDeviceIDResponse) Error() error { return r.Err }
+func (r deleteHostGoogleDeviceIDResponse) Status() int  { return http.StatusNoContent }
+
+func deleteHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteHostGoogleDeviceIDRequest)
+	if err := svc.DeleteHostGoogleDeviceID(ctx, req.ID); err != nil {
+		return deleteHostGoogleDeviceIDResponse{Err: err}, nil
+	}
+	return deleteHostGoogleDeviceIDResponse{}, nil
+}
+
+func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error {
+	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
+	if err != nil {
+		return err
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	removed, err := svc.ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), host.UUID,
+		googleConditionalAccessCustomerID(appConfig.Integrations.GoogleConditionalAccess))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host google device id")
+	}
+	if removed == "" {
+		return nil
+	}
+	// Deleting only the value read above keeps the activity accurate if a concurrent request changes it.
+	deleted, err := svc.ds.DeleteHostGoogleDeviceID(ctx, host.UUID, removed)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host google device id")
+	}
+	if !deleted {
+		return nil
+	}
+	// Same as when setting it: a retry finds nothing to delete, so the error keeps the trail.
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedHostGoogleDeviceID{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		GoogleDeviceID:  removed,
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity for deleting host %d google device id %q", host.ID, removed)
+	}
+	return nil
+}
+
+func (svc *Service) authorizeHostGoogleDeviceID(ctx context.Context, hostID uint) (*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+	return host, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get host DEP assignment
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2899,10 +3229,10 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 		return nil, nil, "", ctxerr.Wrap(ctx, err, "get host dep assignment")
 	}
 
-	// Without an ABM token ID we can't resolve which org name to use for the
-	// Apple API call, so return what we have from Fleet's DB.
+	// Deleting an ABM token nulls abm_token_id but leaves the assignment, so
+	// there's nothing to ask Apple about: treat the host as not a DEP host.
 	if depAssignment.ABMTokenID == nil {
-		return depAssignment, nil, "", nil
+		return nil, nil, "", nil
 	}
 
 	abmToken, err := svc.ds.GetABMTokenByID(ctx, *depAssignment.ABMTokenID)
@@ -3027,8 +3357,9 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 	// self-service tab. Same URL as the Web Clip profile in
 	// docs/solutions/ios-ipados.
 	if host.Platform == "ios" || host.Platform == "ipados" {
+		// Hosts assigned in Apple Business but not yet enrolled have no UUID.
 		if host.UUID == "" {
-			return "", ctxerr.New(ctx, "host has no UUID to build a device URL from")
+			return "", &fleet.BadRequestError{Message: fleet.MyDeviceURLNotEnrolledMessage}
 		}
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
@@ -3133,7 +3464,7 @@ func (svc *Service) mintHostDeviceAuthToken(ctx context.Context, hostID uint) (s
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostMDMRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type getHostMDMResponse struct {
@@ -3145,7 +3476,9 @@ func (r getHostMDMResponse) Error() error { return r.Err }
 
 func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostMDMRequest)
-	mdm, err := svc.MDMData(ctx, req.ID)
+	mdm, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostMDM, error) {
+		return svc.MDMData(ctx, hostID)
+	})
 	if err != nil {
 		return getHostMDMResponse{Err: err}, nil
 	}
@@ -3158,7 +3491,7 @@ type getHostMDMSummaryResponse struct {
 }
 
 type getHostMDMSummaryRequest struct {
-	TeamID   *uint  `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID   *uint  `query:"fleet_id,optional"`
 	Platform string `query:"platform,optional"`
 }
 
@@ -3181,7 +3514,7 @@ func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Servi
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMacadminsDataRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type getMacadminsDataResponse struct {
@@ -3193,7 +3526,9 @@ func (r getMacadminsDataResponse) Error() error { return r.Err }
 
 func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMacadminsDataRequest)
-	data, err := svc.MacadminsData(ctx, req.ID)
+	data, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.MacadminsData, error) {
+		return svc.MacadminsData(ctx, hostID)
+	})
 	if err != nil {
 		return getMacadminsDataResponse{Err: err}, nil
 	}
@@ -3262,7 +3597,7 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 ////////////////////////////////////////////////////////////////////////////////
 
 type getAggregatedMacadminsDataRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getAggregatedMacadminsDataResponse struct {
@@ -3422,9 +3757,6 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 				sb.WriteString(dm.Email)
 			}
 			h.CSVDeviceMapping = sb.String()
-			// Add the aliased fields for team_id and team_name.
-			h.FleetID = h.TeamID
-			h.FleetName = h.TeamName
 		}
 	}
 
@@ -3601,14 +3933,6 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			if rawCol == "device_mapping" {
 				req.Opts.DeviceMapping = true
 			}
-			// If team_id / team_name are requested, also include their aliases.
-			// TODO: clean up in Fleet 5.
-			if rawCol == "team_id" {
-				cols = append(cols, "fleet_id")
-			}
-			if rawCol == "team_name" {
-				cols = append(cols, "fleet_name")
-			}
 		}
 	}
 	if len(cols) == 0 {
@@ -3648,7 +3972,7 @@ func (svc *Service) ListLabelsForHost(ctx context.Context, hostID uint) ([]*flee
 
 type osVersionsRequest struct {
 	fleet.ListOptions
-	TeamID             *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID             *uint   `query:"fleet_id,optional"`
 	Platform           *string `query:"platform,optional"`
 	Name               *string `query:"os_name,optional"`
 	Version            *string `query:"os_version,optional"`
@@ -3671,6 +3995,9 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false, req.MaxVulnerabilities)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
+	}
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].UseAPINames()
 	}
 
 	return &osVersionsResponse{
@@ -3704,10 +4031,14 @@ func (svc *Service) OSVersions(
 
 	if platform != nil {
 		switch *platform {
-		case "darwin", "windows", "linux", "chrome", "ios", "ipados", "android":
+		case "darwin", "windows", "chrome", "ios", "ipados", "android":
 			// valid platform
 		default:
-			return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", or "android".`)
+			// "linux" matches every Linux operating system, and a Linux distribution's platform (e.g.
+			// "ubuntu") only its own.
+			if !fleet.IsLinux(*platform) {
+				return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", "android", or a Linux distribution's platform (e.g. "ubuntu").`)
+			}
 		}
 	}
 
@@ -3719,7 +4050,12 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
-	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
+	if opts.OrderKey == "version" {
+		if entry, ok := removednames.Find(removednames.KindSortKey, "order_key=version", ""); ok {
+			return nil, count, nil, fleet.NewInvalidArgumentError("order_key", entry.Message())
+		}
+	}
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" && opts.OrderKey != "os_version" {
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
@@ -3739,7 +4075,7 @@ func (svc *Service) OSVersions(
 			if err != nil {
 				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 			} else if !exists {
-				return nil, count, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+				return nil, count, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 					WithStatus(http.StatusNotFound)
 			}
 		}
@@ -3764,12 +4100,59 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, err
 	}
 
-	// Sort by hosts_count (default: desc to match previous behavior)
-	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
-		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
-			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+	// Sort by version or hosts_count (default: hosts_count desc, to match previous behavior)
+	switch opts.OrderKey {
+	case "os_version":
+		// Comparing versions across different platforms isn't meaningful
+		// (e.g. macOS "26.6" vs. Windows "22H1" don't share a version
+		// scheme), so group by platform first — the platform with the most
+		// hosts leads — and only order by version within each platform
+		// group. The direction toggle only flips the within-group version
+		// order; platform group order is always most-hosts-first.
+		//
+		// compareOSVersions ties on versions it can't parse (e.g. two Arch
+		// Linux "rolling" rows) and on genuinely equal versions, and two
+		// platforms can tie on host total too, so OSVersionID (unique per
+		// NameOnly/Version combination) is the final tiebreaker to keep
+		// results deterministic across identical requests. sort.Slice is
+		// unstable, which would otherwise let pagination return duplicate or
+		// missing rows across requests within a tied group.
+		platformHostTotals := make(map[string]int)
+		for _, v := range osVersions.OSVersions {
+			platformHostTotals[v.Platform] += v.HostsCount
+		}
+		versionAscending := opts.OrderDirection == fleet.OrderAscending
+
+		sort.SliceStable(osVersions.OSVersions, func(i, j int) bool {
+			a, b := osVersions.OSVersions[i], osVersions.OSVersions[j]
+
+			if a.Platform != b.Platform {
+				if platformHostTotals[a.Platform] != platformHostTotals[b.Platform] {
+					return platformHostTotals[a.Platform] > platformHostTotals[b.Platform]
+				}
+				return a.Platform < b.Platform
+			}
+
+			if c := compareOSVersions(a.Version, b.Version); c != 0 {
+				if versionAscending {
+					return c < 0
+				}
+				return c > 0
+			}
+			return a.OSVersionID < b.OSVersionID
 		})
-	} else {
+	case "hosts_count":
+		if opts.OrderDirection == fleet.OrderAscending {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+			})
+		} else {
+			sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+				return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
+			})
+		}
+	default:
+		// No order key specified: default to hosts_count descending.
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
 		})
@@ -3826,6 +4209,99 @@ func (svc *Service) OSVersions(
 	}, count, meta, nil
 }
 
+var (
+	numericVersionPattern       = regexp.MustCompile(`^\d+(\.\d+)*$`)
+	windowsFeatureUpdatePattern = regexp.MustCompile(`^(\d{2})H([12])$`)
+	ubuntuLTSSuffixPattern      = regexp.MustCompile(`(?i)\s+LTS$`)
+)
+
+// versionSegments returns the segments used to order a version string, and
+// whether it could be parsed. Handles dot-separated numeric versions (e.g.
+// "26.5.2", "10.0.26200.8875"), Windows feature-update codenames (e.g.
+// "21H2", "23H1", ordered as [year, half]) — fleet.OSVersion's Version field
+// documents both as valid ("e.g., '21H2', '20.4.0', or '12.5'") — and Ubuntu
+// LTS releases (e.g. "22.04.9 LTS"), which osquery's os_version table
+// reports with a literal " LTS" suffix that fleet.OSVersion.Version doesn't
+// document but stores verbatim (Fleet's os_version detail query is `SELECT *
+// FROM os_version`, with no Linux-specific cleanup). Other formats (e.g.
+// Arch Linux's "rolling") aren't comparable this way. Segments are kept as
+// digit strings rather than parsed to int, so a segment larger than int can
+// hold still compares correctly instead of silently overflowing.
+func versionSegments(version string) ([]string, bool) {
+	version = ubuntuLTSSuffixPattern.ReplaceAllString(version, "")
+	if numericVersionPattern.MatchString(version) {
+		return strings.Split(version, "."), true
+	}
+	if m := windowsFeatureUpdatePattern.FindStringSubmatch(version); m != nil {
+		return []string{m[1], m[2]}, true
+	}
+	return nil, false
+}
+
+// compareDigitStrings compares two non-negative integer strings of
+// arbitrary length (e.g. a version segment too large for strconv.Atoi, like
+// "9223372036854775808"). Strips leading zeros to get each string's
+// significant digit count; more significant digits means a larger number,
+// and equal-length digit strings sort correctly with a plain string compare.
+func compareDigitStrings(a, b string) int {
+	aSig := strings.TrimLeft(a, "0")
+	bSig := strings.TrimLeft(b, "0")
+	if len(aSig) != len(bSig) {
+		return cmp.Compare(len(aSig), len(bSig))
+	}
+	return cmp.Compare(aSig, bSig)
+}
+
+// compareOSVersions compares version strings by numeric segment (e.g.
+// "26.10" > "26.6", "10.0.26200.8875" > "10.0.9200.100"), for Windows
+// feature-update codenames, by year and half (e.g. "22H1" > "21H2"), and for
+// Ubuntu LTS releases, numerically after stripping the " LTS" suffix (see
+// versionSegments) — so versions sort correctly instead of as plain strings.
+// Versions that don't match any of these formats (e.g. Arch Linux's
+// "rolling") aren't comparable this way, so they sort before comparable ones.
+//
+// This only ever sees fleet.OSVersion.Version values, which are usually one
+// of the shapes versionSegments handles (other non-comparable formats like
+// Arch Linux's "rolling" fall through to the !aOK/!bOK case above), so the
+// whole string must match rather than a prefix. The frontend's
+// compareOSVersionStrings (frontend/pages/DashboardPage/cards/OperatingSystems/OSTableConfig.tsx)
+// implements the same comparison for the dashboard OS card's client-side
+// sort — kept deliberately separate from the shared
+// frontend/utilities/helpers.tsx compareVersions helper (used for messier,
+// arbitrarily-suffixed software versions like "2.26.7_1"), since OS versions
+// need codename support and only ever have the one specific, known suffix
+// (Ubuntu's " LTS") rather than arbitrary ones. Keep the segment/codename/
+// suffix comparison logic in sync between the Go and frontend implementations.
+func compareOSVersions(a, b string) int {
+	aSegments, aOK := versionSegments(a)
+	bSegments, bOK := versionSegments(b)
+
+	switch {
+	case !aOK && !bOK:
+		return 0
+	case !aOK:
+		return -1
+	case !bOK:
+		return 1
+	}
+
+	maxLen := max(len(aSegments), len(bSegments))
+
+	for i := range maxLen {
+		aPart, bPart := "0", "0"
+		if i < len(aSegments) {
+			aPart = aSegments[i]
+		}
+		if i < len(bSegments) {
+			bPart = bSegments[i]
+		}
+		if c := compareDigitStrings(aPart, bPart); c != 0 {
+			return c
+		}
+	}
+	return 0
+}
+
 // filterOSVersions checks the MatchQuery and filters on the platform name.
 // MatchQuery can be a comma-separated list of platform names.
 func filterOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) []fleet.OSVersion {
@@ -3868,7 +4344,7 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 
 type getOSVersionRequest struct {
 	ID                 uint  `url:"id"`
-	TeamID             *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID             *uint `query:"fleet_id,optional"`
 	MaxVulnerabilities *int  `query:"max_vulnerabilities,optional"`
 }
 
@@ -3890,6 +4366,7 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if osVersion == nil {
 		osVersion = &fleet.OSVersion{}
 	}
+	osVersion.UseAPINames()
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
@@ -3914,7 +4391,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+			return nil, nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -3987,7 +4464,7 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostEncryptionKeyRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 	// AllowArchivedSerialLookup indicates whether to allow falling back to using the host's serial number
 	// when checking the archived disk encryption key.
 	AllowArchivedSerialLookup bool `query:"allow_serial_lookup,optional"`
@@ -4003,11 +4480,13 @@ func (r getHostEncryptionKeyResponse) Error() error { return r.Err }
 
 func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostEncryptionKeyRequest)
-	key, err := svc.HostEncryptionKey(ctx, req.ID, req.AllowArchivedSerialLookup)
+	key, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return svc.HostEncryptionKey(ctx, hostID, req.AllowArchivedSerialLookup)
+	})
 	if err != nil {
 		return getHostEncryptionKeyResponse{Err: err}, nil
 	}
-	return getHostEncryptionKeyResponse{EncryptionKey: key, HostID: req.ID}, nil
+	return getHostEncryptionKeyResponse{EncryptionKey: key, HostID: hostID}, nil
 }
 
 func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
@@ -4047,6 +4526,34 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, allowArchive
 	return key, nil
 }
 
+// windowsKeyReescrowPending reports whether the server is asking a Windows host for a new recovery key, so a failed read
+// can say one is coming. It follows the orbit config and the escrow endpoint: the stored key is not known to be
+// decryptable, Windows MDM is on, the host is enrolled in it, and its fleet enforces disk encryption.
+func (svc *Service) windowsKeyReescrowPending(ctx context.Context, host *fleet.Host, storedKeyUndecryptable bool) (bool, error) {
+	if !storedKeyUndecryptable {
+		return false, nil
+	}
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
+		return false, nil
+	}
+	diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get disk encryption config")
+	}
+	if !diskEncryption.WindowsEnabled {
+		return false, nil
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check whether host is connected to Fleet MDM")
+	}
+	return connected, nil
+}
+
 func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
 	// First, determine the decryption function based on the host platform and configuration.
 	var decryptFn func(b64 string) (string, error)
@@ -4059,15 +4566,26 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			return mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
 		}
 	case host.FleetPlatform() == "windows":
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			return nil, err
-		}
-		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		// The server private key is tried first: it reads every key escrowed by this release and is cheap to try. Keys
+		// escrowed by older releases are encrypted to the WSTEP certificate until the hourly job re-encrypts them, so
+		// the certificate is the fallback, loaded only then. Older releases needed no private key, so a deployment
+		// without one still reads its legacy keys. Windows MDM does not need to be on to read a key.
+		if svc.config.Server.PrivateKey == "" && !svc.config.MDM.IsMicrosoftWSTEPSet() {
+			return nil, errors.New("private key is unavailable")
 		}
 		decryptFn = func(b64 string) (string, error) {
-			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			plain, err := "", errors.New("private key is unavailable")
+			if svc.config.Server.PrivateKey != "" {
+				plain, err = mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+			}
+			if err == nil || !svc.config.MDM.IsMicrosoftWSTEPSet() {
+				return plain, err
+			}
+			cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+			}
+			b, err := mdm.DecryptBase64CMSWithKey(b64, cert.PrivateKey)
 			return string(b), err
 		}
 	default:
@@ -4091,6 +4609,18 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+	// Captured before the decrypt attempt below overwrites it.
+	storedKeyUndecryptable := key != nil && (key.Decryptable == nil || !*key.Decryptable)
+	// Same rule the rotate endpoint uses, so a marker it would replace isn't
+	// reported as pending.
+	var rotationPending bool
+	if key != nil && key.RotationCommandUUID != nil {
+		rotationPending, err = svc.ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, *key.RotationCommandUUID,
+			fleet.DiskEncryptionKeyRotationStaleAfter)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking pending disk encryption key rotation")
+		}
 	}
 	// The archived fallback exists for macOS, where re-enrollment clears the
 	// current row while the archived FileVault key is still valid. On Linux the
@@ -4131,6 +4661,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			svc.logger.InfoContext(ctx, "decrypted current host disk encryption key", "host_id", host.ID)
 			key.Decryptable = ptr.Bool(true)
 			key.DecryptedValue = decrypted
+			key.RotationPending = rotationPending
 
 			return key, nil // Return the decrypted key immediately if successful.
 		}
@@ -4156,6 +4687,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 				Decryptable:         ptr.Bool(true),
 				DecryptedValue:      decrypted,
 				UpdatedAt:           archivedKey.CreatedAt,
+				RotationPending:     rotationPending,
 			}
 		}
 	}
@@ -4167,9 +4699,22 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 
 	if key == nil || key.DecryptedValue == "" {
 		if len(decryptErrs) > 0 {
-			// Decryption failed, likely due to rotated MDM certificates
+			// On Apple hosts this happens after MDM was turned off and back on, which replaces the CA that the host
+			// encrypted to. On Windows the server did the encrypting, so the host is asked for a new key once the stored
+			// one is marked undecryptable.
+			msg := "Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."
+			if host.FleetPlatform() == "windows" {
+				msg = "Couldn't decrypt the disk encryption key."
+				reescrow, err := svc.windowsKeyReescrowPending(ctx, host, storedKeyUndecryptable)
+				if err != nil {
+					return nil, err
+				}
+				if reescrow {
+					msg += " The host will escrow a new one when it comes online."
+				}
+			}
 			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(
-				errors.New("Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."),
+				errors.New(msg),
 				http.StatusUnprocessableEntity,
 			), "host encryption key decryption failed")
 		}
@@ -4185,7 +4730,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostHealthRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type getHostHealthResponse struct {
@@ -4198,7 +4743,9 @@ func (r getHostHealthResponse) Error() error { return r.Err }
 
 func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostHealthRequest)
-	hh, err := svc.GetHostHealth(ctx, req.ID)
+	hh, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostHealth, error) {
+		return svc.GetHostHealth(ctx, hostID)
+	})
 	if err != nil {
 		return getHostHealthResponse{Err: err}, nil
 	}
@@ -4206,7 +4753,7 @@ func getHostHealthEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	// remove TeamID as it's needed for authorization internally but is not part of the external API
 	hh.TeamID = nil
 
-	return getHostHealthResponse{HostID: req.ID, HostHealth: hh}, nil
+	return getHostHealthResponse{HostID: hostID, HostHealth: hh}, nil
 }
 
 func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
@@ -4221,25 +4768,6 @@ func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 	}
 
 	return hh, nil
-}
-
-func (svc *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	host, err := svc.ds.HostLiteByIdentifier(ctx, identifier)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
-	}
-
-	if err := svc.authz.Authorize(ctx, fleet.Host{
-		TeamID: host.TeamID,
-	}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return host, nil
 }
 
 func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, error) {
@@ -4279,7 +4807,7 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			} else {
 				return nil, nil, badRequest("label_id must be a number")
 			}
-		case "fleet_id", "team_id":
+		case "fleet_id":
 			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
 				teamID := uint(teamID)
 				opt.TeamFilter = &teamID
@@ -4306,6 +4834,10 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			opt.MatchQuery = query
 
 		default:
+			// team_id is the only old name filters took.
+			if k == "team_id" {
+				return nil, nil, &endpointer.RemovedKeyError{Key: k}
+			}
 			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
 		}
 	}
@@ -4495,7 +5027,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 		})
 		return nil, &fleet.BadRequestError{
 			Message: fmt.Sprintf(
-				"Couldn't %s labels. Labels not found: %s. All labels must exist and be either global or on the same team as the host.",
+				"Couldn't %s labels. Labels not found: %s. All labels must exist and be either global or on the same fleet as the host.",
 				action,
 				strings.Join(labelsNotFound, ", "),
 			),
@@ -4543,7 +5075,7 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostSoftwareRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 	fleet.HostSoftwareTitleListOptions
 }
 
@@ -4558,7 +5090,7 @@ func (r getHostSoftwareResponse) Error() error { return r.Err }
 
 func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Request) (interface{}, error) {
 	type defaultDecodeRequest struct {
-		ID uint `url:"id"`
+		Identifier string `url:"id"`
 		fleet.HostSoftwareTitleListOptions
 	}
 
@@ -4574,7 +5106,7 @@ func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Req
 	result.HostSoftwareTitleListOptions.IncludeAvailableForInstallExplicitlySet = wasIncludeAvailableForInstallSet
 
 	finalResult := getHostSoftwareRequest{
-		ID:                           result.ID,
+		Identifier:                   result.Identifier,
 		HostSoftwareTitleListOptions: result.HostSoftwareTitleListOptions,
 	}
 
@@ -4583,7 +5115,11 @@ func (r getHostSoftwareRequest) DecodeRequest(ctx context.Context, req *http.Req
 
 func getHostSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostSoftwareRequest)
-	res, meta, err := svc.ListHostSoftware(ctx, req.ID, req.HostSoftwareTitleListOptions)
+	var meta *fleet.PaginationMetadata
+	res, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (res []*fleet.HostSoftwareWithInstaller, err error) {
+		res, meta, err = svc.ListHostSoftware(ctx, hostID, req.HostSoftwareTitleListOptions)
+		return res, err
+	})
 	if err != nil {
 		return getHostSoftwareResponse{Err: err}, nil
 	}
@@ -4625,15 +5161,21 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		host = h
 	}
 
-	// Vulnerability severity filters (CVSS score, known exploit) are a Fleet Premium feature.
+	// Vulnerability severity filters (CVSS score, known exploit) and the AI tools filter are Fleet Premium features.
 	// This applies to both the user-authenticated host software endpoint and the
 	// device-authenticated "My device" software endpoint. The vulnerable=true requirement for
-	// these filters is enforced in the datastore.
-	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit {
+	// the severity filters is enforced in the datastore.
+	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit || opts.AITool {
 		if !license.IsPremium(ctx) {
 			return nil, nil, fleet.ErrMissingLicense
 		}
 	}
+
+	typeFilter, err := fleet.ParseSoftwareTypeFilter(opts.Source, opts.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts.TypeFilter = typeFilter
 
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
@@ -4656,6 +5198,11 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+	}
+	if !license.IsPremium(ctx) {
+		for _, s := range software {
+			s.AITool = nil
+		}
 	}
 
 	if len(software) > 0 {
@@ -4689,7 +5236,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 ////////////////////////////////////////////////////////////////////////////////
 
 type listHostCertificatesRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 	fleet.ListOptions
 }
 
@@ -4716,7 +5263,11 @@ func (r listHostCertificatesResponse) Error() error { return r.Err }
 
 func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostCertificatesRequest)
-	res, meta, err := svc.ListHostCertificates(ctx, req.ID, req.ListOptions)
+	var meta *fleet.PaginationMetadata
+	res, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (res []*fleet.HostCertificatePayload, err error) {
+		res, meta, err = svc.ListHostCertificates(ctx, hostID, req.ListOptions)
+		return res, err
+	})
 	if err != nil {
 		return listHostCertificatesResponse{Err: err}, nil
 	}
@@ -4765,7 +5316,7 @@ func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getHostRecoveryLockPasswordRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type recoveryLockPasswordPayload struct {
@@ -4784,12 +5335,14 @@ func (r getHostRecoveryLockPasswordResponse) Error() error { return r.Err }
 
 func getHostRecoveryLockPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostRecoveryLockPasswordRequest)
-	password, err := svc.GetHostRecoveryLockPassword(ctx, req.ID)
+	password, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostRecoveryLockPassword, error) {
+		return svc.GetHostRecoveryLockPassword(ctx, hostID)
+	})
 	if err != nil {
 		return getHostRecoveryLockPasswordResponse{Err: err}, nil
 	}
 	return getHostRecoveryLockPasswordResponse{
-		HostID: req.ID,
+		HostID: hostID,
 		RecoveryLockPassword: &recoveryLockPasswordPayload{
 			Password:     password.Password,
 			UpdatedAt:    password.UpdatedAt,
@@ -4847,12 +5400,12 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeViewedHostRecoveryLockPassword{
+		fleet.ActivityTypeReadHostRecoveryLockPassword{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 		},
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host recovery lock password")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
 	}
 
 	// Schedule auto-rotation by marking the password as viewed.
@@ -4905,12 +5458,42 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	return fleet.ErrMissingLicense
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Rotate Host Disk Encryption Key
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateDiskEncryptionKeyRequest struct {
+	HostID uint `url:"id"`
+}
+
+type rotateDiskEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateDiskEncryptionKeyResponse) Error() error { return r.Err }
+
+func rotateDiskEncryptionKeyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateDiskEncryptionKeyRequest)
+	if err := svc.RotateDiskEncryptionKey(ctx, req.HostID); err != nil {
+		return rotateDiskEncryptionKeyResponse{Err: err}, nil
+	}
+	return rotateDiskEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
 // //////////////////////////////////////////////////////////////////////////////
 // Get Host Managed Account Password
 // //////////////////////////////////////////////////////////////////////////////
 
 type getHostManagedAccountPasswordRequest struct {
-	ID uint `url:"id"`
+	Identifier string `url:"id"`
 }
 
 type getHostManagedAccountPasswordResponse struct {
@@ -4923,11 +5506,13 @@ func (r getHostManagedAccountPasswordResponse) Error() error { return r.Err }
 
 func getHostManagedAccountPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostManagedAccountPasswordRequest)
-	pwd, err := svc.GetHostManagedAccountPassword(ctx, req.ID)
+	pwd, hostID, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+		return svc.GetHostManagedAccountPassword(ctx, hostID)
+	})
 	if err != nil {
 		return getHostManagedAccountPasswordResponse{Err: err}, nil
 	}
-	return getHostManagedAccountPasswordResponse{HostID: req.ID, ManagedLocalAccount: pwd}, nil
+	return getHostManagedAccountPasswordResponse{HostID: hostID, ManagedLocalAccount: pwd}, nil
 }
 
 func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
@@ -4964,4 +5549,62 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+// availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
+// with a nil status so they read as available to install.
+func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return nil, nil
+	}
+
+	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")
+	}
+
+	listed := make(map[string]struct{}, len(profs))
+	for _, p := range profs {
+		listed[p.ProfileUUID] = struct{}{}
+	}
+	var candidates []*fleet.AppleProfileForReconcile
+	var labelIDs []uint
+	for _, p := range teamProfiles {
+		if _, ok := listed[p.ProfileUUID]; ok || !p.SelfService {
+			continue
+		}
+		candidates = append(candidates, p)
+		for _, l := range slices.Concat(p.IncludeLabels, p.ExcludeLabels) {
+			if l.LabelID != nil {
+				labelIDs = append(labelIDs, *l.LabelID)
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	memberships, err := svc.ds.BulkGetHostLabelMemberships(ctx, []uint{host.ID}, labelIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label memberships")
+	}
+	var out []fleet.HostMDMAppleProfile
+	for _, p := range candidates {
+		if !reconcile.EntityAppliesToHost(p, host.EffectiveTeamID(), host.LabelUpdatedAt, memberships[host.ID], false) {
+			continue
+		}
+		out = append(out, fleet.HostMDMAppleProfile{
+			ProfileUUID: p.ProfileUUID,
+			Name:        p.ProfileName,
+			Identifier:  p.ProfileIdentifier,
+			Scope:       p.Scope,
+			SelfService: true,
+			Hidden:      p.Hidden,
+		})
+	}
+	return out, nil
 }

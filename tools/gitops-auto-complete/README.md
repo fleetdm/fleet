@@ -12,11 +12,24 @@ The tool is a separate Go module, so run it from its own directory:
 
 ```bash
 cd tools/gitops-auto-complete
+go mod tidy
 go run . generated-schema.json
 ```
 
 The argument is the output file, or omit it to print to stdout. Re-run it whenever
-the relevant Fleet structs change.
+the relevant Fleet structs change. The schema file is not committed.
+
+The tool is not built or tested in CI, so `go mod tidy` may be needed first, and
+`types.go` may need fixes if Fleet's GitOps types have changed.
+
+### Run the tests
+
+The tests read the generated schema, so build it first:
+
+```bash
+go run . generated-schema.json
+go test ./...
+```
 
 ### Set up with yaml-language-server
 
@@ -78,7 +91,7 @@ the repo without adding dependencies to the root `go.mod`.
 ## Known limitations
 
 - The schema is filename-agnostic, but Fleet applies some keys differently by file.
-  For example, `agent_options` and `reports` are rejected in `no-team.yml` and the
+  For example, `agent_options` and `reports` are rejected in the
   unassigned file. The schema still accepts them there, so that mistake shows up at
   `fleetctl` apply time, not in the editor.
 - `GitOpsSpec` and `ControlsWithTypes` are hand-written mirrors of `spec.GitOps` and

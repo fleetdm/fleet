@@ -13,6 +13,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   IEnrollSecret,
@@ -26,7 +27,6 @@ import teamsAPI, {
   ITeamFormData,
 } from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
-import formatErrorResponse from "utilities/format_error_response";
 import sortUtils from "utilities/sort";
 
 import AddHostsModal from "../../../../components/AddHostsModal";
@@ -35,6 +35,7 @@ import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecret
 import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import DeleteFleetModal from "../components/DeleteFleetModal";
 import RenameFleetModal from "../components/RenameFleetModal";
+import { getFleetNameError } from "../helpers";
 
 const baseClass = "team-details";
 
@@ -102,6 +103,11 @@ const TeamDetailsWrapper = ({
     config,
   } = useContext(AppContext);
 
+  const { gitOpsModeEnabled } = useGitOpsMode();
+  const { gitOpsModeEnabled: secretsGitOpsModeEnabled } = useGitOpsMode(
+    "secrets"
+  );
+
   const {
     currentTeamId,
     currentTeamName,
@@ -131,7 +137,6 @@ const TeamDetailsWrapper = ({
     setShowManageEnrollSecretsModal,
   ] = useState(false);
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
-  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
   const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
@@ -143,9 +148,9 @@ const TeamDetailsWrapper = ({
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
+    onSuccess: ({ user, available_fleets, settings }: IGetMeResponse) => {
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setUserSettings(settings);
     },
   });
@@ -160,7 +165,9 @@ const TeamDetailsWrapper = ({
     {
       enabled: isRouteOk,
       select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+        data.fleets.sort((a, b) =>
+          sortUtils.caseInsensitiveAsc(a.name, b.name)
+        ),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!responseTeams?.find((team) => team.id === teamIdForApi)) {
           handlePageError({ status: 404 });
@@ -203,12 +210,12 @@ const TeamDetailsWrapper = ({
     // open and closes delete modal
     setShowDeleteSecretModal(!showDeleteSecretModal);
     // open and closes main enroll secret modal
-    setShowEnrollSecretModal(!showEnrollSecretModal);
+    setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
   }, [
     setShowDeleteSecretModal,
     showDeleteSecretModal,
-    setShowEnrollSecretModal,
-    showEnrollSecretModal,
+    setShowManageEnrollSecretsModal,
+    showManageEnrollSecretsModal,
   ]);
 
   // this is called when we click add or edit
@@ -216,12 +223,12 @@ const TeamDetailsWrapper = ({
     // open and closes add/edit modal
     setShowSecretEditorModal(!showSecretEditorModal);
     // open and closes main enroll secret modall
-    setShowEnrollSecretModal(!showEnrollSecretModal);
+    setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
   }, [
     setShowSecretEditorModal,
     showSecretEditorModal,
-    setShowEnrollSecretModal,
-    showEnrollSecretModal,
+    setShowManageEnrollSecretsModal,
+    showManageEnrollSecretsModal,
   ]);
 
   const toggleDeleteFleetModal = useCallback(() => {
@@ -334,24 +341,14 @@ const TeamDetailsWrapper = ({
         refetchMe();
         toggleRenameFleetModal();
       } catch (response) {
-        console.error(response);
-        const errorObject = formatErrorResponse(response);
-        if (errorObject.base.includes("Duplicate")) {
-          setBackendValidators({
-            name: `A fleet with this name already exists`,
-          });
-        } else if (errorObject.base.includes("all teams")) {
-          setBackendValidators({
-            name: `"All fleets" is a reserved fleet name. Please try another name.`,
-          });
-        } else if (errorObject.base.includes("no team")) {
-          setBackendValidators({
-            name: `"Unassigned" is a reserved fleet name. Please try another name.`,
-          });
+        const nameError = getFleetNameError(response, updatedAttrs.name);
+        if (nameError) {
+          setBackendValidators({ name: nameError });
         } else {
-          notify.error("Could not create fleet. Please try again.", {
-            response,
-          });
+          notify.error(
+            `Could not rename ${currentTeamDetails.name}. Please try again.`,
+            { response }
+          );
         }
       } finally {
         setIsUpdatingTeams(false);
@@ -430,6 +427,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "secondary",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
+                disabled: secretsGitOpsModeEnabled,
               },
               {
                 type: "secondary",
@@ -437,6 +435,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "secondary",
                 onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
+                disabled: gitOpsModeEnabled,
               },
               {
                 type: "secondary",
@@ -445,6 +444,7 @@ const TeamDetailsWrapper = ({
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteFleetModal,
                 gitOpsModeCompatible: true,
+                disabled: gitOpsModeEnabled,
               },
             ]}
           />

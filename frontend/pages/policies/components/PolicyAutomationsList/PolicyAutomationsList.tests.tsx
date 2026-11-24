@@ -29,7 +29,7 @@ const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
   author_email: "admin@example.com",
   resolution: "",
   platform: "darwin",
-  team_id: 1,
+  fleet_id: 1,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,
@@ -42,12 +42,7 @@ const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
 describe("PolicyAutomationsList", () => {
   describe("automations list", () => {
     it("shows empty state when no automations are configured", () => {
-      render(
-        <PolicyAutomationsList
-          storedPolicy={createMockPolicy()}
-          currentAutomatedPolicies={[]}
-        />
-      );
+      render(<PolicyAutomationsList storedPolicy={createMockPolicy()} />);
 
       expect(screen.getByText("No automations")).toBeInTheDocument();
     });
@@ -56,9 +51,9 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
+            automation_type: "software",
             install_software: { name: "Zoom", software_title_id: 42 },
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -70,13 +65,13 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
+            automation_type: "software",
             install_software: {
               name: "Zoom.pkg",
               display_name: "Zoom Workplace",
               software_title_id: 42,
             },
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -88,12 +83,12 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
+            automation_type: "software",
             install_software: {
               name: "Microsoft.CompanyPortal",
               software_title_id: 42,
             },
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -108,13 +103,13 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
+            automation_type: "software",
             install_software: {
               name: "Zoom",
               software_title_id: 42,
               icon_url: iconUrl,
             },
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -128,9 +123,9 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
+            automation_type: "software",
             install_software: { name: "Zoom", software_title_id: 42 },
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -147,13 +142,13 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
+            automation_type: "software",
             install_software: {
               name: "Zoom",
               display_name: "Custom Renamed App",
               software_title_id: 42,
             },
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -169,9 +164,9 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
+            automation_type: "script",
             run_script: { id: 1, name: "fix.sh" },
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -181,8 +176,7 @@ describe("PolicyAutomationsList", () => {
     it("shows calendar automation row", () => {
       render(
         <PolicyAutomationsList
-          storedPolicy={createMockPolicy({ calendar_events_enabled: true })}
-          currentAutomatedPolicies={[]}
+          storedPolicy={createMockPolicy({ automation_type: "calendar" })}
         />
       );
 
@@ -193,9 +187,8 @@ describe("PolicyAutomationsList", () => {
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({
-            conditional_access_enabled: true,
+            automation_type: "conditional_access",
           })}
-          currentAutomatedPolicies={[]}
         />
       );
 
@@ -205,8 +198,9 @@ describe("PolicyAutomationsList", () => {
     it("shows 'Webhook' for other automation when otherAutomationType is webhook", () => {
       render(
         <PolicyAutomationsList
-          storedPolicy={createMockPolicy({ id: 1 })}
-          currentAutomatedPolicies={[1]}
+          storedPolicy={createMockPolicy({
+            automation_type: "webhook_or_ticket",
+          })}
           otherAutomationType="webhook"
         />
       );
@@ -218,8 +212,9 @@ describe("PolicyAutomationsList", () => {
     it("shows 'Ticket' for other automation when otherAutomationType is ticket", () => {
       render(
         <PolicyAutomationsList
-          storedPolicy={createMockPolicy({ id: 1 })}
-          currentAutomatedPolicies={[1]}
+          storedPolicy={createMockPolicy({
+            automation_type: "webhook_or_ticket",
+          })}
           otherAutomationType="ticket"
         />
       );
@@ -231,8 +226,9 @@ describe("PolicyAutomationsList", () => {
     it("shows 'Webhook or ticket' for other automation when otherAutomationType is not set", () => {
       render(
         <PolicyAutomationsList
-          storedPolicy={createMockPolicy({ id: 1 })}
-          currentAutomatedPolicies={[1]}
+          storedPolicy={createMockPolicy({
+            automation_type: "webhook_or_ticket",
+          })}
         />
       );
 

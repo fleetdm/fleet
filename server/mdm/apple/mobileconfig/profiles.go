@@ -36,15 +36,15 @@ var FleetdProfileTemplate = template.Must(template.New("").Funcs(funcMap).Option
         <key>EnrollSecret</key>
         <string>{{ .EnrollSecret | xml }}</string>
         <key>FleetURL</key>
-        <string>{{ .ServerURL }}</string>
+        <string>{{ .ServerURL | xml }}</string>
         <key>EnableScripts</key>
         <true />
         <key>PayloadDisplayName</key>
-        <string>{{ .PayloadName }}</string>
+        <string>{{ .PayloadName | xml }}</string>
         <key>PayloadIdentifier</key>
-        <string>{{ .PayloadType }}</string>
+        <string>{{ .PayloadType | xml }}</string>
         <key>PayloadType</key>
-        <string>{{ .PayloadType }}</string>
+        <string>{{ .PayloadType | xml }}</string>
         <key>PayloadUUID</key>
         <string>476F5334-D501-4768-9A31-1A18A4E1E807</string>
         <key>PayloadVersion</key>
@@ -52,9 +52,9 @@ var FleetdProfileTemplate = template.Must(template.New("").Funcs(funcMap).Option
       </dict>
     </array>
     <key>PayloadDisplayName</key>
-    <string>{{ .PayloadName }}</string>
+    <string>{{ .PayloadName | xml }}</string>
     <key>PayloadIdentifier</key>
-    <string>{{ .PayloadType }}</string>
+    <string>{{ .PayloadType | xml }}</string>
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>
@@ -75,7 +75,7 @@ type FleetCARootTemplateOptions struct {
 	Certificate       string
 }
 
-var FleetCARootTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
+var FleetCARootTemplate = template.Must(template.New("").Funcs(funcMap).Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
@@ -85,13 +85,13 @@ var FleetCARootTemplate = template.Must(template.New("").Option("missingkey=erro
         <key>PayloadCertificateFileName</key>
         <string>CertificateRoot</string>
         <key>PayloadContent</key>
-        <data>{{ .Certificate }}</data>
+        <data>{{ .Certificate | xml }}</data>
         <key>PayloadDescription</key>
-        <string>{{ .PayloadName }}</string>
+        <string>{{ .PayloadName | xml }}</string>
         <key>PayloadDisplayName</key>
-        <string>{{ .PayloadName }}</string>
+        <string>{{ .PayloadName | xml }}</string>
         <key>PayloadIdentifier</key>
-        <string>{{ .PayloadIdentifier }}.certpayload</string>
+        <string>{{ .PayloadIdentifier | xml }}.certpayload</string>
         <key>PayloadType</key>
         <string>com.apple.security.root</string>
         <key>PayloadUUID</key>
@@ -103,9 +103,9 @@ var FleetCARootTemplate = template.Must(template.New("").Option("missingkey=erro
       </dict>
     </array>
     <key>PayloadDisplayName</key>
-    <string>{{ .PayloadName }}</string>
+    <string>{{ .PayloadName | xml }}</string>
     <key>PayloadIdentifier</key>
-    <string>{{ .PayloadIdentifier }}</string>
+    <string>{{ .PayloadIdentifier | xml }}</string>
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>

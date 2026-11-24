@@ -176,7 +176,10 @@ func ExtractServerErrorNameReason(body io.Reader) (string, string) {
 	errName := ""
 	errReason := serverErr.Message
 	if len(serverErr.Errors) > 0 {
-		errReason += ": " + serverErr.Errors[0].Reason
+		// Generic server errors repeat the message as the reason.
+		if serverErr.Errors[0].Reason != serverErr.Message {
+			errReason += ": " + serverErr.Errors[0].Reason
+		}
 		errName = serverErr.Errors[0].Name
 	}
 

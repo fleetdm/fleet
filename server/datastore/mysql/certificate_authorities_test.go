@@ -3,11 +3,19 @@ package mysql
 import (
 	"cmp"
 	"context"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +32,8 @@ func TestCertificateAuthority(t *testing.T) {
 		{"CreateCertificateAuthority", testCreateCertificateAuthority},
 		{"Delete", testDeleteCertificateAuthority},
 		{"UpdateCertificateAuthorityByID", testUpdateCertificateAuthorityByID},
+		{"EditResendsProfiles", testEditResendsProfiles},
+		{"CANamesAreUnique", testCANamesAreUnique},
 	}
 
 	for _, c := range cases {
@@ -90,7 +100,41 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 		require.Nil(t, actual.ClientID)
 	}
 
+	// EJBCA specific non-secret fields
+	for _, field := range []struct{ expected, actual *string }{
+		{expected.MTLSCertPEM, actual.MTLSCertPEM},
+		{expected.TrustCABundlePEM, actual.TrustCABundlePEM},
+		{expected.EJBCACAName, actual.EJBCACAName},
+		{expected.EJBCACertificateProfileName, actual.EJBCACertificateProfileName},
+		{expected.EJBCAEndEntityProfileName, actual.EJBCAEndEntityProfileName},
+		{expected.EJBCAUsernameTemplate, actual.EJBCAUsernameTemplate},
+	} {
+		require.Equal(t, field.expected, field.actual)
+	}
+	if expected.MTLSCertExpiresAt != nil {
+		require.NotNil(t, actual.MTLSCertExpiresAt)
+		require.True(t, expected.MTLSCertExpiresAt.Equal(*actual.MTLSCertExpiresAt))
+	} else {
+		require.Nil(t, actual.MTLSCertExpiresAt)
+	}
+
+	// Google CAS specific non-secret fields
+	for _, field := range []struct{ expected, actual *string }{
+		{expected.GoogleCASProject, actual.GoogleCASProject},
+		{expected.GoogleCASLocation, actual.GoogleCASLocation},
+		{expected.GoogleCASCAPool, actual.GoogleCASCAPool},
+	} {
+		require.Equal(t, field.expected, field.actual)
+	}
+
 	if expectSecrets {
+		require.Equal(t, expected.GoogleCASAPIKeyJSON, actual.GoogleCASAPIKeyJSON)
+		if expected.MTLSKeyPEM != nil {
+			require.NotNil(t, actual.MTLSKeyPEM)
+			require.Equal(t, *expected.MTLSKeyPEM, *actual.MTLSKeyPEM)
+		} else {
+			require.Nil(t, actual.MTLSKeyPEM)
+		}
 		if expected.APIToken != nil {
 			require.NotNil(t, actual.APIToken)
 			require.Equal(t, *expected.APIToken, *actual.APIToken)
@@ -116,6 +160,18 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 			require.Nil(t, actual.ClientSecret)
 		}
 	} else {
+		if expected.GoogleCASAPIKeyJSON != nil {
+			require.NotNil(t, actual.GoogleCASAPIKeyJSON)
+			require.Equal(t, fleet.MaskedPassword, *actual.GoogleCASAPIKeyJSON)
+		} else {
+			require.Nil(t, actual.GoogleCASAPIKeyJSON)
+		}
+		if expected.MTLSKeyPEM != nil {
+			require.NotNil(t, actual.MTLSKeyPEM)
+			require.Equal(t, fleet.MaskedPassword, *actual.MTLSKeyPEM)
+		} else {
+			require.Nil(t, actual.MTLSKeyPEM)
+		}
 		if expected.APIToken != nil {
 			require.NotNil(t, actual.APIToken)
 			require.Equal(t, fleet.MaskedPassword, *actual.APIToken)
@@ -241,6 +297,57 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		Password:     ptr.String("smallstep-password2"),
 	}
 
+	// EJBCA CAs, one with all the optional fields
+	ejbcaNotAfter := time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second)
+	ejbcaCert := newMTLSCertPEM(t, ejbcaNotAfter)
+	ejbcaCA1 := &fleet.CertificateAuthority{
+		Name:                          new("EJBCA CA"),
+		URL:                           new("https://ejbca1.example.com:8443"),
+		Type:                          string(fleet.CATypeEJBCA),
+		MTLSCertPEM:                   &ejbcaCert,
+		MTLSKeyPEM:                    new("ejbca-mtls-key"),
+		TrustCABundlePEM:              new("ejbca-trust-bundle"),
+		EJBCACAName:                   new("ManagementCA"),
+		EJBCACertificateProfileName:   new("certificate-profile"),
+		EJBCAEndEntityProfileName:     new("end-entity-profile"),
+		EJBCAUsernameTemplate:         new("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+		CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_IDP_USERNAME"),
+		CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
+		MTLSCertExpiresAt:             &ejbcaNotAfter,
+	}
+	ejbcaCA2 := &fleet.CertificateAuthority{
+		Name:                        new("EJBCA CA 2"),
+		URL:                         new("https://ejbca2.example.com:8443"),
+		Type:                        string(fleet.CATypeEJBCA),
+		MTLSCertPEM:                 &ejbcaCert,
+		MTLSKeyPEM:                  new("ejbca-mtls-key2"),
+		EJBCACAName:                 new("ManagementCA"),
+		EJBCACertificateProfileName: new("certificate-profile2"),
+		EJBCAEndEntityProfileName:   new("end-entity-profile2"),
+		CertificateCommonName:       new("$FLEET_VAR_HOST_UUID"), // no username template, so it defaults to the common name
+		MTLSCertExpiresAt:           &ejbcaNotAfter,
+	}
+
+	// Google CAS CAs. The url column is NOT NULL, so the type stores it empty.
+	googleCASCA1 := &fleet.CertificateAuthority{
+		Name:                new("Google CAS CA"),
+		URL:                 new(""),
+		Type:                string(fleet.CATypeGoogleCAS),
+		GoogleCASProject:    new("my-project"),
+		GoogleCASLocation:   new("us-central1"),
+		GoogleCASCAPool:     new("my-ca-pool"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account","client_email":"sa@my-project.iam.gserviceaccount.com","private_key":"key"}`),
+	}
+	googleCASCA2 := &fleet.CertificateAuthority{
+		Name:                new("Google CAS CA 2"),
+		URL:                 new(""),
+		Type:                string(fleet.CATypeGoogleCAS),
+		GoogleCASProject:    new("my-project-2"),
+		GoogleCASLocation:   new("europe-west1"),
+		GoogleCASCAPool:     new("my-ca-pool-2"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account","client_email":"sa2@my-project.iam.gserviceaccount.com","private_key":"key2"}`),
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		digicertCA2,
@@ -253,6 +360,10 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		ndesCA,
 		smallstepCA1,
 		smallstepCA2,
+		ejbcaCA1,
+		ejbcaCA2,
+		googleCASCA1,
+		googleCASCA2,
 	}
 
 	for _, ca := range casToCreate {
@@ -263,7 +374,7 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 
 		// Try to create the same CA again, it should return an error
 		_, err = ds.NewCertificateAuthority(ctx, ca)
-		require.ErrorAs(t, err, &fleet.ConflictError{})
+		require.ErrorAs(t, err, new(fleet.AlreadyExistsError))
 
 		// Get the CA and ensure it matches with and without secrets
 		retrievedCA, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
@@ -302,6 +413,18 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		require.Equal(t, ca.ID, allCASummaries[i].ID)
 		require.Equal(t, *ca.Name, allCASummaries[i].Name)
 		require.Equal(t, ca.Type, allCASummaries[i].Type)
+		// Only EJBCA entries carry the client certificate expiry.
+		if ca.Type == string(fleet.CATypeEJBCA) {
+			require.NotNil(t, allCASummaries[i].MTLSCertExpiresAt)
+			require.True(t, ca.MTLSCertExpiresAt.Equal(*allCASummaries[i].MTLSCertExpiresAt))
+		} else {
+			require.Nil(t, allCASummaries[i].MTLSCertExpiresAt)
+		}
+		require.Nil(t, allCASummaries[i].MTLSCertPEM)
+
+		// Ensure the full CAs match with and without secrets
+		compareCA(t, ca, allCAsWithSecrets[i], true)
+		compareCA(t, ca, allCAsWithoutSecrets[i], false)
 	}
 }
 
@@ -463,6 +586,31 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		Password:     ptr.String("smallstep-password"),
 	}
 
+	// EJBCA CA
+	originalNotAfter := time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Second)
+	ejbcaCA1 := &fleet.CertificateAuthority{
+		Name:                        new("EJBCA CA"),
+		URL:                         new("https://ejbca.example.com:8443"),
+		Type:                        string(fleet.CATypeEJBCA),
+		MTLSCertPEM:                 new(newMTLSCertPEM(t, originalNotAfter)),
+		MTLSKeyPEM:                  new("ejbca-mtls-key"),
+		EJBCACAName:                 new("ManagementCA"),
+		EJBCACertificateProfileName: new("certificate-profile"),
+		EJBCAEndEntityProfileName:   new("end-entity-profile"),
+		EJBCAUsernameTemplate:       new("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+		CertificateCommonName:       new("$FLEET_VAR_HOST_END_USER_IDP_USERNAME"),
+	}
+
+	googleCASCA1 := &fleet.CertificateAuthority{
+		Name:                new("Google CAS CA"),
+		URL:                 new(""),
+		Type:                string(fleet.CATypeGoogleCAS),
+		GoogleCASProject:    new("my-project"),
+		GoogleCASLocation:   new("us-central1"),
+		GoogleCASCAPool:     new("my-ca-pool"),
+		GoogleCASAPIKeyJSON: new(`{"type":"service_account"}`),
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		hydrantCA1,
@@ -470,6 +618,8 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		customSCEPCA1,
 		ndesCA1,
 		smallstepCA1,
+		ejbcaCA1,
+		googleCASCA1,
 	}
 
 	caMap := map[fleet.CAType]*fleet.CertificateAuthority{}
@@ -595,6 +745,89 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Equal(t, "updated-challenge", *updatedCA.Challenge)
 	})
 
+	t.Run("successfully updates EJBCA CA", func(t *testing.T) {
+		ejbcaCA := caMap[fleet.CATypeEJBCA]
+
+		// Only the fields that are set change, and a replaced mTLS certificate and key are stored and read back.
+		newNotAfter := time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second)
+		newCert := newMTLSCertPEM(t, newNotAfter)
+		update := &fleet.CertificateAuthority{
+			Type:                  string(fleet.CATypeEJBCA),
+			Name:                  new("Updated EJBCA"),
+			MTLSCertPEM:           &newCert,
+			MTLSKeyPEM:            new("updated-mtls-key"),
+			TrustCABundlePEM:      new("updated-trust-bundle"),
+			EJBCAUsernameTemplate: new("updated-username"),
+			CertificateCommonName: new("updated-common-name"),
+		}
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID, update))
+
+		want := *ejbcaCA
+		want.Name = update.Name
+		want.MTLSCertPEM = update.MTLSCertPEM
+		want.MTLSKeyPEM = update.MTLSKeyPEM
+		want.TrustCABundlePEM = update.TrustCABundlePEM
+		want.EJBCAUsernameTemplate = update.EJBCAUsernameTemplate
+		want.CertificateCommonName = update.CertificateCommonName
+		want.MTLSCertExpiresAt = &newNotAfter
+		for _, includeSecrets := range []bool{true, false} {
+			updatedCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, includeSecrets)
+			require.NoError(t, err)
+			compareCA(t, &want, updatedCA, includeSecrets)
+		}
+
+		// An mTLS certificate that can't be parsed is reported without an expiry instead of failing the read.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), MTLSCertPEM: new("not a certificate")}))
+		invalidCertCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
+		require.NoError(t, err)
+		require.Nil(t, invalidCertCA.MTLSCertExpiresAt)
+
+		// The expiry is of the first certificate, even when the key comes first, like the TLS client reads it.
+		keyFirst := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("key")})) + newCert
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), MTLSCertPEM: &keyFirst}))
+		keyFirstCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
+		require.NoError(t, err)
+		require.NotNil(t, keyFirstCA.MTLSCertExpiresAt)
+		require.True(t, newNotAfter.Equal(*keyFirstCA.MTLSCertExpiresAt))
+
+		// Emptying an optional field stores NULL, as it is when the field isn't set on create, so a read leaves it out.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeEJBCA), TrustCABundlePEM: new(""), EJBCAUsernameTemplate: new(""), CertificateUserPrincipalNames: &[]string{},
+		}))
+		cleared, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
+		require.NoError(t, err)
+		require.Nil(t, cleared.TrustCABundlePEM)
+		require.Nil(t, cleared.EJBCAUsernameTemplate)
+		require.Nil(t, cleared.CertificateUserPrincipalNames)
+	})
+
+	t.Run("successfully updates Google CAS CA", func(t *testing.T) {
+		googleCASCA := caMap[fleet.CATypeGoogleCAS]
+
+		// A partial update keeps the fields it doesn't set.
+		update := &fleet.CertificateAuthority{
+			Type:                string(fleet.CATypeGoogleCAS),
+			Name:                new("Updated Google CAS"),
+			GoogleCASCAPool:     new("updated-ca-pool"),
+			GoogleCASAPIKeyJSON: new(`{"type":"service_account","client_email":"new"}`),
+		}
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, googleCASCA.ID, update))
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, googleCASCA.ID, true)
+		require.NoError(t, err)
+		require.Equal(t, "Updated Google CAS", *updatedCA.Name)
+		require.Equal(t, "my-project", *updatedCA.GoogleCASProject)
+		require.Equal(t, "us-central1", *updatedCA.GoogleCASLocation)
+		require.Equal(t, "updated-ca-pool", *updatedCA.GoogleCASCAPool)
+		require.Equal(t, *update.GoogleCASAPIKeyJSON, *updatedCA.GoogleCASAPIKeyJSON)
+
+		maskedCA, err := ds.GetCertificateAuthorityByID(ctx, googleCASCA.ID, false)
+		require.NoError(t, err)
+		require.Equal(t, fleet.MaskedPassword, *maskedCA.GoogleCASAPIKeyJSON)
+	})
+
 	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
 		smallstepCA := caMap[fleet.CATypeSmallstep]
 
@@ -616,6 +849,356 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Equal(t, "updated-username", *updatedCA.Username)
 		require.Equal(t, "updated-password", *updatedCA.Password)
 	})
+}
+
+func testEditResendsProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	teamHost := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+
+	ca := newDigiCertCA(t, ds, "ca", "cn", "seat", &[]string{"upn"})
+	otherCA := newDigiCertCA(t, ds, "ca_other", "cn", "seat", nil)
+	prof := newDigiCertProfile(t, ds, "prof", "ca", 0)
+	teamProf := newDigiCertProfile(t, ds, "team_prof", "ca", team.ID)
+	otherProf := newDigiCertProfile(t, ds, "other_prof", "ca_other", 0)
+	ejbcaCA := newEJBCACA(t, ds, "ejbca_ca", "cn", new("user"), &[]string{"upn"})
+	ejbcaProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_prof", "ejbca_ca", 0)
+	ejbcaTeamProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_team_prof", "ejbca_ca", team.ID)
+	// A profile names its CA with the exact spelling, so this one is for the CA once the case of its name changes.
+	ejbcaUpperCaseProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_upper_case_prof", "EJBCA_CA", 0)
+
+	apiEdit := func(update fleet.CertificateAuthority) func() error {
+		return func() error {
+			update.Type = ca.Type
+			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &update)
+		}
+	}
+	apiEditEJBCA := func(update fleet.CertificateAuthority) func() error {
+		return func() error {
+			update.Type = ejbcaCA.Type
+			return ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID, &update)
+		}
+	}
+	// gitOpsUpdate sends the full CA, as GitOps does, with mod applied to its current values.
+	gitOpsUpdate := func(id uint, mod func(*fleet.CertificateAuthority)) error {
+		current, err := ds.GetCertificateAuthorityByID(ctx, id, true)
+		require.NoError(t, err)
+		mod(current)
+		_, err = ds.BatchApplyCertificateAuthorities(ctx,
+			fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{current}})
+		return err
+	}
+	cases := []struct {
+		name string
+		edit func() error
+		// wantResend is whether the DigiCert profiles of ca are resent, wantEJBCAResend the same for the profiles of ejbcaCA.
+		wantResend, wantEJBCAResend bool
+		// wantUpperCaseResend is whether the profile that names the EJBCA CA in upper case is resent.
+		wantUpperCaseResend bool
+	}{
+		{name: "API edit of the URL", edit: apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")})},
+		{name: "API edit to the same seat ID", edit: apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")})},
+		{name: "API edit to the same profile ID", edit: apiEdit(fleet.CertificateAuthority{ProfileID: new("profile")})},
+		{name: "API edit of the profile ID", edit: apiEdit(fleet.CertificateAuthority{ProfileID: new("new-profile")}), wantResend: true},
+		{name: "API edit of the common name", edit: apiEdit(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}), wantResend: true},
+		{
+			name: "API edit of the UPN", edit: apiEdit(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}),
+			wantResend: true,
+		},
+		{name: "GitOps edit of the API token", edit: func() error {
+			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.APIToken = new("new-token") })
+		}},
+		// otherCA was stored without UPNs, and GitOps sends an empty list.
+		{name: "GitOps edit of another CA with an empty UPN list", edit: func() error {
+			return gitOpsUpdate(otherCA.ID, func(c *fleet.CertificateAuthority) {
+				c.APIToken = new("new-token")
+				c.CertificateUserPrincipalNames = &[]string{}
+			})
+		}},
+		{name: "GitOps edit of the seat ID", edit: func() error {
+			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.CertificateSeatID = new("new-seat") })
+		}, wantResend: true},
+		{
+			name: "EJBCA API edit of the connection settings",
+			edit: apiEditEJBCA(fleet.CertificateAuthority{
+				URL: new("https://new.example.com"), TrustCABundlePEM: new("bundle"), MTLSCertPEM: new("new-cert"), MTLSKeyPEM: new("new-key"),
+			}),
+		},
+		{name: "EJBCA API edit to the same username template", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCAUsernameTemplate: new("user")})},
+		{name: "EJBCA API edit to the same common name", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateCommonName: new("cn")})},
+		{
+			name: "EJBCA API edit of the common name", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name: "EJBCA API edit of the username template", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCAUsernameTemplate: new("new-user")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name: "EJBCA API edit of the EJBCA CA name", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCACAName: new("OtherCA")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name:            "EJBCA API edit of the certificate profile",
+			edit:            apiEditEJBCA(fleet.CertificateAuthority{EJBCACertificateProfileName: new("new-certificate-profile")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name:            "EJBCA API edit of the end entity profile",
+			edit:            apiEditEJBCA(fleet.CertificateAuthority{EJBCAEndEntityProfileName: new("new-end-entity-profile")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name: "EJBCA API edit of the UPN", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}),
+			wantEJBCAResend: true,
+		},
+		{name: "EJBCA GitOps edit of the mTLS key", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.MTLSKeyPEM = new("new-key") })
+		}},
+		{name: "EJBCA GitOps edit of the end entity profile", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.EJBCAEndEntityProfileName = new("gitops-end-entity-profile") })
+		}, wantEJBCAResend: true},
+		{name: "EJBCA GitOps removal of the username template", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.EJBCAUsernameTemplate = nil })
+		}, wantEJBCAResend: true},
+		{name: "EJBCA GitOps removal of the UPNs", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.CertificateUserPrincipalNames = nil })
+		}, wantEJBCAResend: true},
+		{name: "GitOps edit of a DigiCert CA and an EJBCA CA in one batch", edit: func() error {
+			digiCert, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
+			require.NoError(t, err)
+			ejbca, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, true)
+			require.NoError(t, err)
+			digiCert.CertificateSeatID = new("batch-seat")
+			ejbca.EJBCAUsernameTemplate = new("batch-user")
+			_, err = ds.BatchApplyCertificateAuthorities(ctx,
+				fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert, ejbca}})
+			return err
+		}, wantResend: true, wantEJBCAResend: true},
+		// The name column ignores case, so the CA is the same one, and the profiles that use the new spelling are resent for the changed field.
+		{name: "EJBCA GitOps edit that changes the case of the name and the common name", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) {
+				c.Name = new(strings.ToUpper(*c.Name))
+				c.CertificateCommonName = new("case-rename-cn")
+			})
+		}, wantUpperCaseResend: true},
+	}
+	pendingIf := func(resend bool) fleet.MDMDeliveryStatus {
+		if resend {
+			return fleet.MDMDeliveryPending
+		}
+		return fleet.MDMDeliveryVerified
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf, ejbcaProf, ejbcaUpperCaseProf} {
+				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			}
+			for _, p := range []*fleet.MDMAppleConfigProfile{teamProf, ejbcaTeamProf} {
+				forceSetAppleHostProfileStatus(t, ds, teamHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			}
+
+			require.NoError(t, c.edit())
+
+			assertHostProfileStatus(t, ds, host.UUID,
+				hostProfileStatus{prof.ProfileUUID, pendingIf(c.wantResend)},
+				hostProfileStatus{otherProf.ProfileUUID, fleet.MDMDeliveryVerified},
+				hostProfileStatus{ejbcaProf.ProfileUUID, pendingIf(c.wantEJBCAResend)},
+				hostProfileStatus{ejbcaUpperCaseProf.ProfileUUID, pendingIf(c.wantUpperCaseResend)})
+			assertHostProfileStatus(t, ds, teamHost.UUID,
+				hostProfileStatus{teamProf.ProfileUUID, pendingIf(c.wantResend)},
+				hostProfileStatus{ejbcaTeamProf.ProfileUUID, pendingIf(c.wantEJBCAResend)})
+		})
+	}
+}
+
+// testCANamesAreUnique checks that a CA can't share its name with another CA of any type, however the CAs are written, and that CAs that
+// shared a name from before names had to be unique can't be written until one of them is renamed.
+func testCANamesAreUnique(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	scepCA := func(name string) *fleet.CertificateAuthority {
+		return &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeCustomSCEPProxy), Name: &name, URL: new("https://scep.example.com"), Challenge: new("challenge"),
+		}
+	}
+	inUse := func(t *testing.T, err error, name string) {
+		require.ErrorAs(t, err, new(fleet.AlreadyExistsError))
+		require.ErrorContains(t, err, `CertificateAuthority "`+name+`" already exists`)
+	}
+	names := func() []string {
+		cas, err := ds.ListCertificateAuthorities(ctx)
+		require.NoError(t, err)
+		var res []string
+		for _, ca := range cas {
+			res = append(res, ca.Type+":"+ca.Name)
+		}
+		return res
+	}
+
+	newDigiCertCA(t, ds, "digicert", "cn", "seat", nil)
+	ejbca := newEJBCACA(t, ds, "ejbca", "cn", nil, nil)
+	scep, err := ds.NewCertificateAuthority(ctx, scepCA("scep"))
+	require.NoError(t, err)
+	unchanged := []string{"digicert:digicert", "ejbca:ejbca", "custom_scep_proxy:scep"}
+
+	t.Run("create", func(t *testing.T) {
+		// The names are compared without regard to case, like the column is.
+		_, err := ds.NewCertificateAuthority(ctx, scepCA("DIGICERT"))
+		inUse(t, err, "DIGICERT")
+		_, err = ds.NewCertificateAuthority(ctx, scepCA("Scep"))
+		inUse(t, err, "Scep")
+		require.ElementsMatch(t, unchanged, names())
+	})
+
+	t.Run("rename", func(t *testing.T) {
+		err := ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("SCEP")})
+		inUse(t, err, "SCEP")
+		require.ElementsMatch(t, unchanged, names())
+
+		// A name nobody has is fine.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, scep.ID, &fleet.CertificateAuthority{Type: scep.Type, Name: new("renamed")}))
+		unchanged = []string{"digicert:digicert", "ejbca:ejbca", "custom_scep_proxy:renamed"}
+		require.ElementsMatch(t, unchanged, names())
+	})
+
+	t.Run("batch apply", func(t *testing.T) {
+		ejbca, err := ds.GetCertificateAuthorityByID(ctx, ejbca.ID, true)
+		require.NoError(t, err)
+
+		// A new CA with a taken name is rejected, and the whole batch rolls back.
+		_, err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{scepCA("fresh"), scepCA("DigiCert")},
+		})
+		inUse(t, err, "DigiCert")
+		require.ElementsMatch(t, unchanged, names())
+
+		// A CA of another type can replace the CA of the same name in one batch, since the old one is deleted in it.
+		_, err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{scepCA(*ejbca.Name)}, Delete: []*fleet.CertificateAuthority{ejbca},
+		})
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"digicert:digicert", "custom_scep_proxy:renamed", "custom_scep_proxy:ejbca"}, names())
+	})
+
+	t.Run("replace a CA used by certificate templates", func(t *testing.T) {
+		used, err := ds.NewCertificateAuthority(ctx, scepCA("used"))
+		require.NoError(t, err)
+		other, err := ds.NewCertificateAuthority(ctx, scepCA("other"))
+		require.NoError(t, err)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "ca names team"})
+		require.NoError(t, err)
+		newTemplate := func(ca *fleet.CertificateAuthority) *fleet.CertificateTemplateResponse {
+			template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+				Name: *ca.Name, TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=" + *ca.Name,
+			})
+			require.NoError(t, err)
+			return template
+		}
+		usedTemplate, otherTemplate := newTemplate(used), newTemplate(other)
+		require.NoError(t, ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+			{HostUUID: "installed", CertificateTemplateID: usedTemplate.ID, Status: fleet.CertificateTemplateVerified,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "used"},
+			{HostUUID: "pending", CertificateTemplateID: usedTemplate.ID, Status: fleet.CertificateTemplatePending,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "used"},
+			{HostUUID: "installed", CertificateTemplateID: otherTemplate.ID, Status: fleet.CertificateTemplateVerified,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "other"},
+		}))
+		replacement := fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{{
+				Type: string(fleet.CATypeHydrant), Name: new("used"), URL: new("https://hydrant.example.com"), ClientID: new("id"),
+				ClientSecret: new("secret"),
+			}},
+			Delete: []*fleet.CertificateAuthority{used},
+		}
+
+		// The templates keep the CA from being deleted, unless they are deleted with it.
+		_, err = ds.BatchApplyCertificateAuthorities(ctx, replacement)
+		require.ErrorContains(t, err, fleet.DeleteCAReferencedByTemplatesErrMsg)
+		replacement.DeleteCertificateTemplates = true
+		templateFleetIDs, err := ds.BatchApplyCertificateAuthorities(ctx, replacement)
+		require.NoError(t, err)
+		require.Equal(t, []uint{team.ID}, templateFleetIDs)
+		require.Subset(t, names(), []string{"hydrant:used", "custom_scep_proxy:other"})
+		require.NotContains(t, names(), "custom_scep_proxy:used")
+
+		// Only the template of the deleted CA is gone, and hosts remove the certificate they got from it, like when a template is deleted.
+		templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, templates, 1)
+		require.Equal(t, otherTemplate.ID, templates[0].ID)
+		installed, err := ds.GetHostCertificateTemplateRecord(ctx, "installed", usedTemplate.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, installed.Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, installed.OperationType)
+		_, err = ds.GetHostCertificateTemplateRecord(ctx, "pending", usedTemplate.ID)
+		require.True(t, fleet.IsNotFound(err), "got %v", err)
+		otherInstalled, err := ds.GetHostCertificateTemplateRecord(ctx, "installed", otherTemplate.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateVerified, otherInstalled.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, otherInstalled.OperationType)
+	})
+
+	t.Run("legacy shared name", func(t *testing.T) {
+		// Names didn't have to be unique across types before, so a DB can have CAs that share one.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO certificate_authorities (type, name, url) VALUES (?, 'legacy', 'https://a.example.com'),
+				(?, 'LEGACY', 'https://b.example.com')`, fleet.CATypeCustomSCEPProxy, fleet.CATypeHydrant)
+			return err
+		})
+		var legacyIDs []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &legacyIDs, `SELECT id FROM certificate_authorities WHERE name = 'legacy' ORDER BY id`)
+		})
+		require.Len(t, legacyIDs, 2)
+		scepID, hydrantID := legacyIDs[0], legacyIDs[1]
+
+		// Editing either one fails, even without changing the name.
+		err := ds.UpdateCertificateAuthorityByID(ctx, scepID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeCustomSCEPProxy), URL: new("https://c.example.com")})
+		inUse(t, err, "legacy")
+		legacySCEP, err := ds.GetCertificateAuthorityByID(ctx, scepID, true)
+		require.NoError(t, err)
+		require.Equal(t, "https://a.example.com", *legacySCEP.URL)
+		legacySCEP.URL = new("https://c.example.com")
+		_, err = ds.BatchApplyCertificateAuthorities(ctx,
+			fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{legacySCEP}})
+		inUse(t, err, "legacy")
+
+		// Renaming one of them fixes it, and then the other can be edited.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, hydrantID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeHydrant), Name: new("legacy_hydrant")}))
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, scepID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeCustomSCEPProxy), URL: new("https://c.example.com")}))
+	})
+}
+
+// newEJBCACA creates an EJBCA CA with the given common name template, optional username template and UPNs.
+func newEJBCACA(t *testing.T, ds *Datastore, name, commonName string, usernameTemplate *string, upns *[]string,
+) *fleet.CertificateAuthority {
+	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeEJBCA), Name: &name, URL: new("https://ejbca.example.com:8443"),
+		MTLSCertPEM: new(newMTLSCertPEM(t, time.Now().Add(time.Hour))), MTLSKeyPEM: new("key"), EJBCACAName: new("ManagementCA"),
+		EJBCACertificateProfileName: new("certificate-profile"), EJBCAEndEntityProfileName: new("end-entity-profile"),
+		CertificateCommonName: &commonName, EJBCAUsernameTemplate: usernameTemplate, CertificateUserPrincipalNames: upns,
+	})
+	require.NoError(t, err)
+	return ca
+}
+
+// newMTLSCertPEM returns a self-signed certificate that expires at notAfter.
+func newMTLSCertPEM(t *testing.T, notAfter time.Time) string {
+	certPEM, _, err := GenerateTestCertBytes(&x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Fleet"},
+		NotBefore:    notAfter.Add(-time.Hour),
+		NotAfter:     notAfter,
+	})
+	require.NoError(t, err)
+	return string(certPEM)
 }
 
 // // TODO(hca): refactor old app config test to cover new implementations

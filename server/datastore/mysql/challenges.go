@@ -12,35 +12,40 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges
+// NewChallenge generates a random, base64-encoded challenge for the given scope and inserts it into the challenges
 // table. It returns the generated challenge or an error if the insertion fails.
-func (ds *Datastore) NewChallenge(ctx context.Context) (string, error) {
-	return newChallenge(ctx, ds.writer(ctx))
+func (ds *Datastore) NewChallenge(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
+	return newChallenge(ctx, ds.writer(ctx), scope)
 }
 
 // newChallenge is a helper that generates and inserts a challenge using the provided executor.
 // This allows challenge creation within transactions.
-func newChallenge(ctx context.Context, exec sqlx.ExecerContext) (string, error) {
+func newChallenge(ctx context.Context, exec sqlx.ExecerContext, scope fleet.ChallengeScope) (string, error) {
 	key := make([]byte, 24)
 	_, err := rand.Read(key)
 	if err != nil {
 		return "", err
 	}
 	challenge := base64.URLEncoding.EncodeToString(key)
-	_, err = exec.ExecContext(ctx, `INSERT INTO challenges (challenge) VALUES (?)`, challenge)
+	_, err = exec.ExecContext(ctx, `INSERT INTO challenges (challenge, host_uuid, profile_uuid, ca_name) VALUES (?, ?, ?, ?)`,
+		challenge, scope.HostUUID, scope.ProfileUUID, scope.CAName)
 	if err != nil {
 		return "", err
 	}
 	return challenge, nil
 }
 
-// ConsumeChallenge checks if a valid challenge exists in the challenges table
-// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
-// is not found or is expired.
-func (ds *Datastore) ConsumeChallenge(ctx context.Context, challenge string) error {
+// ConsumeChallenge checks if a valid challenge exists in the challenges table for the given scope and deletes it if it
+// does. The error will include sql.ErrNoRows if the challenge is not found, is expired, or was created for a different
+// scope. A challenge presented for a different scope is left in place, so only its own delivery can use it up.
+func (ds *Datastore) ConsumeChallenge(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 	if challenge == "" {
 		// no challenge provided, treat as invalid
 		return ctxerr.Wrap(ctx, sql.ErrNoRows, "consume challenge called with empty challenge")
+	}
+	if scope.HostUUID == "" || scope.ProfileUUID == "" {
+		// Also keeps rows written without a scope from ever matching.
+		return ctxerr.Wrap(ctx, sql.ErrNoRows, "consume challenge called without a host and profile")
 	}
 	// use transaction to ensure atomicity of the challenge check and deletion
 	var valid bool
@@ -50,7 +55,8 @@ func (ds *Datastore) ConsumeChallenge(ctx context.Context, challenge string) err
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// check if matching challenge exists and retrieve its creation time
 		var createdAt time.Time
-		if err := sqlx.GetContext(ctx, tx, &createdAt, `SELECT created_at FROM challenges WHERE challenge = ?`, challenge); err != nil {
+		const selectStmt = `SELECT created_at FROM challenges WHERE challenge = ? AND host_uuid = ? AND profile_uuid = ? AND ca_name = ?`
+		if err := sqlx.GetContext(ctx, tx, &createdAt, selectStmt, challenge, scope.HostUUID, scope.ProfileUUID, scope.CAName); err != nil {
 			if err == sql.ErrNoRows {
 				// invalid, challenge not found
 				msg = "challenge not found"

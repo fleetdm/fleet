@@ -60,12 +60,26 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return svc.activitySvc.NewActivity(ctx, apiUser, activity)
 }
 
+// NewActivities creates one activity per item of activities, with the cost of a few queries for the whole batch.
+func (svc *Service) NewActivities(ctx context.Context, user *fleet.User, activities []activity_api.ActivityDetails) error {
+	var apiUser *activity_api.User
+	if user != nil {
+		apiUser = &activity_api.User{
+			ID:      user.ID,
+			Name:    user.Name,
+			Email:   user.Email,
+			Deleted: user.Deleted,
+		}
+	}
+	return svc.activitySvc.NewActivities(ctx, apiUser, activities)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // List host upcoming activities
 ////////////////////////////////////////////////////////////////////////////////
 
 type listHostUpcomingActivitiesRequest struct {
-	HostID      uint              `url:"id"`
+	Identifier  string            `url:"id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -80,7 +94,11 @@ func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
 
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)
-	acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
+	var meta *fleet.PaginationMetadata
+	acts, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (acts []*fleet.UpcomingActivity, err error) {
+		acts, meta, err = svc.ListHostUpcomingActivities(ctx, hostID, req.ListOptions)
+		return acts, err
+	})
 	if err != nil {
 		return listHostUpcomingActivitiesResponse{Err: err}, nil
 	}
@@ -244,7 +262,11 @@ func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *
 		return nil
 	}
 
-	tokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	if info.VPPTokenID == nil {
+		svc.logger.DebugContext(ctx, "skipping vpp seat release, install has no recorded token", "host_id", host.ID, "adam_id", info.AdamID)
+		return nil
+	}
+	tokenDB, err := svc.ds.GetVPPToken(ctx, *info.VPPTokenID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil

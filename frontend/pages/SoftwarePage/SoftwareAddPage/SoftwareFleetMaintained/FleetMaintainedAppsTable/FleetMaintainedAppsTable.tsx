@@ -42,33 +42,54 @@ const EmptyFleetAppsTable = () => (
 );
 
 /** Converts the FleetMaintainedApp API response, which has separate macOS and
- * Windows entries, into a table-friendly format that combines an app's entries
- * for different platforms into one row. Apps are keyed by their slug token (the
- * prefix before "/"), not by name, so two distinct apps that share a display
- * name stay as separate rows. */
+ * Windows entries, into a table-friendly format that combines the entries that
+ * share a name, ignoring a platform suffix like " for macOS", into one row. */
+const PLATFORM_NAME_SUFFIX = / for (macOS|Mac|Windows)$/;
+
 export const combineAppsByPlatform = (
   fmaList: IFleetMaintainedApp[]
 ): ICombinedFMA[] => {
-  const combinedApps: { [appToken: string]: ICombinedFMA } = {};
+  const combinedApps: { [baseName: string]: ICombinedFMA } = {};
 
   fmaList.forEach((app: IFleetMaintainedApp) => {
     const { name, platform, ...rest } = app;
-    const appToken = app.slug.split("/")[0];
+    // Compare without case, the way the server groups names
+    const baseName = name.replace(PLATFORM_NAME_SUFFIX, "").toLowerCase();
 
-    if (!combinedApps[appToken]) {
-      combinedApps[appToken] = { name, macos: null, windows: null };
+    if (!combinedApps[baseName]) {
+      combinedApps[baseName] = {
+        name,
+        displayName: name,
+        macos: null,
+        windows: null,
+      };
     }
 
     if (platform === "darwin") {
-      combinedApps[appToken].macos = {
+      // The API orders entries by name in the requested direction, so take the
+      // name from the macOS entry to keep it stable across sort directions.
+      combinedApps[baseName].name = name;
+      combinedApps[baseName].displayName = name;
+      combinedApps[baseName].macos = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };
     } else if (platform === "windows") {
-      combinedApps[appToken].windows = {
+      combinedApps[baseName].windows = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
       };
+    }
+  });
+
+  // Show the name without the platform suffix only on rows that combine both platforms, a
+  // single-platform app's suffix is part of its name ("Google Credential Provider for Windows")
+  Object.values(combinedApps).forEach((combinedApp) => {
+    if (combinedApp.macos && combinedApp.windows) {
+      combinedApp.displayName = combinedApp.name.replace(
+        PLATFORM_NAME_SUFFIX,
+        ""
+      );
     }
   });
 

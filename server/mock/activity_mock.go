@@ -21,6 +21,8 @@ var NoopNewActivityFunc NewActivityFunc = func(_ context.Context, _ *activity_ap
 // for unit tests that use mock.Store instead of real MySQL connections.
 // When Delegate is set, it is called before the mock's NewActivityFunc,
 // allowing real behavior (e.g. webhooks) while still capturing calls.
+// NewActivityFunc calls are serialized, so a callback can record into shared
+// state without its own lock, but it must not call back into the mock.
 type MockActivityService struct {
 	NewActivityFunc        NewActivityFunc // defaults to NoopNewActivityFunc if nil
 	NewActivityFuncInvoked bool
@@ -44,11 +46,39 @@ func (m *MockActivityService) NewActivity(ctx context.Context, user *activity_ap
 			return err
 		}
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	fn := m.NewActivityFunc
 	if fn == nil {
 		fn = NoopNewActivityFunc
 	}
 	return fn(ctx, user, activity)
+}
+
+// NewActivities delegates to Delegate when set, then runs NewActivityFunc for each activity so tests intercept them one by one.
+func (m *MockActivityService) NewActivities(ctx context.Context, user *activity_api.User, activities []activity_api.ActivityDetails) error {
+	if len(activities) > 0 {
+		m.mu.Lock()
+		m.NewActivityFuncInvoked = true
+		m.mu.Unlock()
+	}
+	if m.Delegate != nil {
+		if err := m.Delegate.NewActivities(ctx, user, activities); err != nil {
+			return err
+		}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	fn := m.NewActivityFunc
+	if fn == nil {
+		fn = NoopNewActivityFunc
+	}
+	for _, activity := range activities {
+		if err := fn(ctx, user, activity); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *MockActivityService) CleanupHostActivities(ctx context.Context, hostIDs []uint) error {

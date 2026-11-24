@@ -224,7 +224,6 @@ const VppPage = ({ router }: IVppPageProps) => {
       {showEditTeamsModal && selectedToken.current && (
         <EditTeamsVppModal
           currentToken={selectedToken.current}
-          tokens={vppTokens || []}
           onCancel={onCancelEditTokenTeams}
           onSuccess={onEditedTeams}
         />

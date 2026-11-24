@@ -48,6 +48,7 @@ func TestSoftware(t *testing.T) {
 		{"NothingChanged", testSoftwareNothingChanged},
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
+		{"ListSharedCVEs", testSoftwareListSharedCVEs},
 		{"SyncHostsSoftware", testSoftwareSyncHostsSoftware},
 		{"LoadHostsPopulateSoftware", testLoadHostSoftwarePopulateSoftwareInstalledPath},
 		{"DeleteSoftwareVulnerabilities", testDeleteSoftwareVulnerabilities},
@@ -55,6 +56,8 @@ func TestSoftware(t *testing.T) {
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"GoBinaries", testSoftwareGoBinaries},
+		{"AITool", testSoftwareAITool},
+		{"UpdateHostSoftwarePreserveSources", testUpdateHostSoftwarePreserveSources},
 		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
@@ -72,6 +75,7 @@ func TestSoftware(t *testing.T) {
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"ListSoftwareForVulnDetectionByOSVersion", testListSoftwareForVulnDetectionByOSVersion},
+		{"UpdateHostSoftwareMetadata", testUpdateHostSoftwareMetadata},
 		{"ListSoftwareVulnerabilitiesBySoftwareIDs", testListSoftwareVulnerabilitiesBySoftwareIDs},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
@@ -95,6 +99,10 @@ func TestSoftware(t *testing.T) {
 		{"HostVPPInstallLatestPerApp", testHostVPPInstallLatestPerApp},
 		{"HostInHouseInstallLatestPerApp", testHostInHouseInstallLatestPerApp},
 		{"ListHostSoftwareMacOSApplicationsFilter", testListHostSoftwareMacOSApplicationsFilter},
+		{"ListSoftwareTypeFilter", testListSoftwareTypeFilter},
+		{"ListHostSoftwareTypeFilter", testListHostSoftwareTypeFilter},
+		{"ListSoftwareAIToolFilter", testListSoftwareAIToolFilter},
+		{"ListHostSoftwareAIToolFilter", testListHostSoftwareAIToolFilter},
 		{"ListHostSoftwareHomebrewExecutableHashes", testListHostSoftwareHomebrewExecutableHashes},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
@@ -127,6 +135,7 @@ func TestSoftware(t *testing.T) {
 			testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForAnotherPlatform,
 		},
 		{"TestListHostSoftwareLastOpenedAt", testListHostSoftwareLastOpenedAt},
+		{"TestListHostSoftwareInstalledVersionValues", testListHostSoftwareInstalledVersionValues},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
 		{"SoftwareCategoryCRUD", testSoftwareCategoryCRUD},
@@ -155,6 +164,7 @@ func TestSoftware(t *testing.T) {
 		{"BatchNewSoftwareCategoriesIdempotent", testBatchNewSoftwareCategoriesIdempotent},
 		{"CreateIntermediateInstallFailureRecordAfterDeletion", testCreateIntermediateInstallFailureRecordAfterDeletion},
 		{"ListHostSoftwareSortByDisplayName", testListHostSoftwareSortByDisplayName},
+		{"CleanupUnusedSoftwareBatches", testCleanupUnusedSoftwareBatches},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -170,14 +180,14 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
-		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier", AITool: new(false)},
+		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "", AITool: new(false)},
 	}
 
 	getHostSoftware := func(h *fleet.Host) []fleet.Software {
@@ -207,9 +217,9 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software1 = []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "towel", Version: "42.0.0", Source: "apps"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "towel", Version: "42.0.0", Source: "apps", AITool: new(false)},
 	}
 	software2 = []fleet.Software{}
 
@@ -227,8 +237,8 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software1 = []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "towel", Version: "42.0.0", Source: "apps"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "towel", Version: "42.0.0", Source: "apps", AITool: new(false)},
 	}
 
 	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
@@ -238,10 +248,10 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
 	software2 = []fleet.Software{
-		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier"},
-		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "com.zoo"}, // "empty" -> "non-empty"
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.identifier", AITool: new(false)},
+		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "com.zoo", AITool: new(false)}, // "empty" -> "non-empty"
 	}
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2)
 	require.NoError(t, err)
@@ -250,10 +260,10 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	test.ElementsMatchSkipIDAndHostCount(t, software2, host2Software)
 
 	software2 = []fleet.Software{
-		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.other"}, // "non-empty" -> "non-empty"
-		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: ""},               // non-empty -> empty
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "com.some.other", AITool: new(false)}, // "non-empty" -> "non-empty"
+		{Name: "zoo", Version: "0.0.5", Source: "deb_packages", BundleIdentifier: "", AITool: new(false)},               // non-empty -> empty
 	}
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2)
 	require.NoError(t, err)
@@ -406,6 +416,7 @@ func testListSoftwareCPEs(t *testing.T, ds *Datastore) {
 }
 
 func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
+	lastOpened := time.Now()
 	cases := []struct {
 		desc     string
 		current  []fleet.Software
@@ -470,6 +481,30 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 			true,
 		},
 		{
+			"last open 4 seconds later",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(4 * time.Second))}},
+			true,
+		},
+		{
+			"last open 5 seconds later",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(5 * time.Second))}},
+			false,
+		},
+		{
+			"same last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			true,
+		},
+		{
+			"earlier last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened)}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: new(lastOpened.Add(-time.Hour))}},
+			true,
+		},
+		{
 			"identical with duplicates incoming",
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "A", Version: "1.0", Source: "ASD"}},
@@ -488,7 +523,7 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			current, incoming, got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
+			current, incoming, got := nothingChanged(c.current, c.incoming)
 			if c.want {
 				assert.True(t, got)
 				assert.Equal(t, len(current), len(incoming))
@@ -619,6 +654,10 @@ func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 	notSelected := map[string]struct{}{
 		"last_opened_at": {},
 	}
+	// Returned by the list, but a flag is not a useful sort key.
+	notSortable := map[string]struct{}{
+		"ai_tool": {},
+	}
 
 	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
 	typ := reflect.TypeFor[fleet.Software]()
@@ -628,7 +667,9 @@ func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 			continue
 		}
 		_, allowed := sortable[column]
-		_, skipped := notSelected[column]
+		_, notSelectedColumn := notSelected[column]
+		_, notSortableColumn := notSortable[column]
+		skipped := notSelectedColumn || notSortableColumn
 
 		if field.Tag.Get("json") == "-" {
 			assert.False(t, allowed, "%s is not returned by the list, so sorting on it would expose it", column)
@@ -733,6 +774,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		Version:     "0.0.1",
 		Source:      "chrome_extensions",
 		GenerateCPE: "somecpe",
+		AITool:      new(false),
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:               "CVE-2022-0001",
@@ -756,14 +798,15 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"}
-	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
-	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
+	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)}
+	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns", AITool: new(false)}
+	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)}
 	baz001 := fleet.Software{
 		Name:        "baz",
 		Version:     "0.0.1",
 		Source:      "deb_packages",
 		GenerateCPE: "somecpe2",
+		AITool:      new(false),
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:               "CVE-2022-0003",
@@ -1078,24 +1121,33 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		assert.Equal(t, foo001.Version, software[0].Version)
 	})
 
-	t.Run("nil cve scores if IncludeCVEScores is false", func(t *testing.T) {
-		opts := fleet.SoftwareListOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "name,version",
-				OrderDirection: fleet.OrderDescending,
-			},
-			IncludeCVEScores: false,
-		}
-
-		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
-		for _, s := range software {
-			for _, vuln := range s.Vulnerabilities {
-				assert.Nil(t, vuln.CVSSScore)
-				assert.Nil(t, vuln.EPSSProbability)
-				assert.Nil(t, vuln.CISAKnownExploit)
+	// Both the covering-index path (default order) and the goqu path must omit details.
+	for _, orderKey := range []string{"", "name,version"} {
+		t.Run("nil cve details if IncludeCVEScores is false order="+orderKey, func(t *testing.T) {
+			opts := fleet.SoftwareListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:       orderKey,
+					OrderDirection: fleet.OrderDescending,
+				},
+				IncludeCVEScores: false,
 			}
-		}
-	})
+
+			software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+			var vulnCount int
+			for _, s := range software {
+				for _, vuln := range s.Vulnerabilities {
+					vulnCount++
+					require.Nil(t, vuln.CVSSScore)
+					require.Nil(t, vuln.EPSSProbability)
+					require.Nil(t, vuln.CISAKnownExploit)
+					require.Nil(t, vuln.CVEPublished)
+					require.Nil(t, vuln.Description)
+					require.Nil(t, vuln.ResolvedInVersion)
+				}
+			}
+			require.Equal(t, 3, vulnCount)
+		})
+	}
 
 	t.Run("SQL injection prevention in OrderKey", func(t *testing.T) {
 		maliciousPayloads := []string{
@@ -1327,17 +1379,17 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	_ = listSoftwareCheckCount(t, ds, 0, 0, globalOpts, false)
 
 	software0 := []fleet.Software{
-		{Name: "abc", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.abc"},
-		{Name: "def", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.def"},
+		{Name: "abc", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.abc", AITool: new(false)},
+		{Name: "def", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.def", AITool: new(false)},
 	}
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)},
 	}
 	softwareTemp := make([]fleet.Software, 0, 10)
 	for i := 0; i < 10; i++ {
@@ -1377,8 +1429,8 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	// update host2, remove "bar" software
 	software2 = []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
@@ -1422,11 +1474,11 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 	// use some software for host3 and host4
 	software3 := []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software4 := []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)},
 	}
 
 	_, err = ds.UpdateHostSoftware(ctx, host3.ID, software3)
@@ -1492,7 +1544,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	// update host4 (team2), remove "bar" software
 	software4 = []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
@@ -2270,6 +2322,17 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", now}) // baz hasn't been updated to nowish, too small diff
 
+	// a 6 second change on baz is above the minimum diff, so it's saved
+	sixSecondsLater := now.Add(6 * time.Second)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &sixSecondsLater},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{name: "qux"}, tup{"bar", lastYear}, tup{"baz", sixSecondsLater})
+
 	// more changes: bar receives a date further in the past, baz and qux to future
 	lastLastYear := lastYear.Add(-365 * 24 * time.Hour)
 	future := now.Add(3 * 24 * time.Hour)
@@ -2766,13 +2829,13 @@ func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", AITool: new(false)},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages", AITool: new(false)},
 	}
 
 	_, err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
@@ -5593,33 +5656,33 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	vatm1, err := ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, &tm.ID)
+		}, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	va2, err := ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}}, Name: "vpp2",
 			BundleIdentifier: "com.app.vpp2",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	// create vpp3 app that allows self-service
 	va3, err := ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3",
 			BundleIdentifier: "com.app.vpp3",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	vpp2, vpp3 := va2.AdamID, va3.AdamID
 
@@ -6419,44 +6482,44 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	_, err = ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, &tm.ID)
+		}, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	va2, err := ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.IOSPlatform}}, Name: "vpp2",
 			BundleIdentifier: "com.app.vpp2",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	va3, err := ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.IOSPlatform}}, Name: "vpp3",
 			BundleIdentifier: "com.app.vpp3",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	va4, err := ds.InsertVPPAppWithTeam(ctx,
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_4", Platform: fleet.IOSPlatform}}, Name: "vpp4",
 			BundleIdentifier: "com.app.vpp4",
-		}, nil)
+		}, nil, nil)
 	require.NoError(t, err)
 	vpp2, vpp3, vpp4 := va2.AdamID, va3.AdamID, va4.AdamID
 
@@ -6467,6 +6530,8 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	// make vpp1 install a success, while vpp2 has its initial request as failed
 	// and a subsequent request as pending.
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	err = ds.SetVPPInstallAsVerified(ctx, host.ID, vpp1CmdUUID, uuid.NewString())
+	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, host, vpp2CmdUUID, fleet.MDMAppleStatusError)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
 	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
@@ -6576,7 +6641,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.app.vpp1",
 		LatestVersion:    "1.0.0",
 	}
-	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 
@@ -6728,11 +6793,16 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	// Enable auto-updates for the VPP title and confirm hydration surfaces the
 	// window on the host-software list. This is the plumbing that lets the
 	// FE host software / device software tables render the auto-update icon.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, va1.TitleID, tm.ID, fleet.SoftwareAutoUpdateConfig{
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		AdamID:              "adam_vpp_1",
+		Platform:            fleet.MacOSPlatform,
 		AutoUpdateEnabled:   new(true),
 		AutoUpdateStartTime: new("02:00"),
 		AutoUpdateEndTime:   new("04:00"),
-	})
+		Name:                "vpp1",
+		BundleIdentifier:    "com.app.vpp1",
+		LatestVersion:       "1.0.0",
+	}, &tm.ID, nil)
 	require.NoError(t, err)
 
 	sw, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
@@ -6785,7 +6855,7 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.app.vpp1",
 		LatestVersion:    "1.0.0",
 	}
-	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 
@@ -6804,7 +6874,7 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.app.vpp2",
 		LatestVersion:    "1.0.1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp2, &tm.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp2, &tm.ID, nil)
 	require.NoError(t, err)
 	res, err := ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
@@ -6902,14 +6972,14 @@ func testListHostSoftwareVPPSelfServiceTeamFilter(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.app.vppfilter",
 		LatestVersion:    "1.0.0",
 	}
-	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 	require.NoError(t, err)
 
 	// Also add the same app globally with self_service=false
 	// This simulates the bug scenario where multiple vpp_apps_teams entries exist
 	_, err = ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, self_service)
-		VALUES (?, ?, 0, 0)
+		INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, self_service, name)
+		VALUES (?, ?, 0, 0, 'Default version')
 		ON DUPLICATE KEY UPDATE self_service = 0
 	`, vppApp.AdamID, vppApp.Platform)
 	require.NoError(t, err)
@@ -7296,7 +7366,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, &team1.ID)
+		}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// fail to install it on the host
@@ -7428,7 +7498,7 @@ func testListHostSoftwareFailInstallThenTransferTeam(t *testing.T, ds *Datastore
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1",
-		}, &team1.ID)
+		}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// install it on the host
@@ -7696,7 +7766,7 @@ func testListHostSoftwareFailVPPInstallThenLabelExclude(t *testing.T, ds *Datast
 	require.NoError(t, err)
 
 	vppApp := &fleet.VPPApp{Name: "vpp_app_fail_test", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "999", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "com.test.vppfail"}
-	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
 	require.NoError(t, err)
 	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
 
@@ -7870,12 +7940,14 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 		&fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}}, Name: "vpp1",
 			BundleIdentifier: "com.app.vpp1", LatestVersion: "1.0",
-		}, &team1.ID)
+		}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// install it on the host
 	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user)
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	err = ds.SetVPPInstallAsVerified(ctx, host.ID, vpp1CmdUUID, uuid.NewString())
+	require.NoError(t, err)
 
 	// add the successful VPP app to the reported installed software
 	software = []fleet.Software{
@@ -7904,7 +7976,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	// delete both installers
 	err = ds.DeleteSoftwareInstaller(ctx, installerTm1)
 	require.NoError(t, err)
-	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vppTm1.VPPAppID)
+	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vppTm1.VPPAppID, nil)
 	require.NoError(t, err)
 
 	// listing the host's software (including available for install) should now
@@ -8480,7 +8552,7 @@ func testListHostSoftwareHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore) 
 		Name:             "hv-vpp-app",
 		BundleIdentifier: "hv-vpp-app",
 		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
 
@@ -8565,10 +8637,10 @@ func testListHostSoftwareHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore) 
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, dynInstallerID, nonMember.ID)
 	require.NoError(t, err)
 	require.False(t, scoped)
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppAppTeamID, nonMember.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppAppTeamID, nonMember.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppAppTeamID, member.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppAppTeamID, member.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 	scoped, err = ds.IsInHouseAppLabelScoped(ctx, inHouseAppID, iosNonMember.ID)
@@ -9369,7 +9441,7 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
 	}
-	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user)
@@ -9503,7 +9575,7 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 		Name:             "vpp2",
 		BundleIdentifier: "com.app.vpp2",
 	}
-	va2, err := ds.InsertVPPAppWithTeam(ctx, pendingVPPApp, &tm.ID)
+	va2, err := ds.InsertVPPAppWithTeam(ctx, pendingVPPApp, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp2 := va2.AdamID
 	createVPPAppInstallRequest(t, ds, tmHost, vpp2, user)
@@ -9532,7 +9604,7 @@ func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
 		Name:             "vpp3",
 		BundleIdentifier: "com.app.vpp3",
 	}
-	hvpp, err := ds.InsertVPPAppWithTeam(ctx, hostInstalledVpps, &tm.ID)
+	hvpp, err := ds.InsertVPPAppWithTeam(ctx, hostInstalledVpps, &tm.ID, nil)
 	require.NoError(t, err)
 	res, err = ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
@@ -9804,7 +9876,7 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 		Name:             "microsoft teams",
 		BundleIdentifier: "com.app.teams",
 	}
-	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
@@ -9855,7 +9927,7 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 		Name:             "slack",
 		BundleIdentifier: "com.app.slack",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vPPAppSlack, &tm.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPAppSlack, &tm.ID, nil)
 	require.NoError(t, err)
 
 	vPPApp1Password := &fleet.VPPApp{
@@ -9863,7 +9935,7 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 		Name:             "1password",
 		BundleIdentifier: "com.app.1password",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp1Password, &tm.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp1Password, &tm.ID, nil)
 	require.NoError(t, err)
 
 	opts := fleet.HostSoftwareTitleListOptions{
@@ -9888,6 +9960,56 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, sw, 1)
 	require.Equal(t, vPPApp1Password.Name, sw[0].Name)
+
+	// A host with no inventory can install chrome, whose only version (on the first host) is
+	// vulnerable. The install record keeps the title listed for it.
+	noInventoryHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithTeamID(tm.ID))
+	installerID, chromeTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "chrome",
+		Source:           "apps",
+		BundleIdentifier: "com.example.chrome",
+		InstallScript:    "echo",
+		Filename:         "chrome.pkg",
+		Extension:        "pkg",
+		Platform:         "darwin",
+		Version:          "2.0",
+		StorageID:        "chrome-storage",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, noInventoryHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	opts = fleet.HostSoftwareTitleListOptions{
+		IncludeAvailableForInstall: true,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", MatchQuery: "chrome"},
+	}
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, chromeTitleID, sw[0].ID)
+	require.Len(t, sw[0].InstalledVersions, 1)
+
+	// It finds the title by name, without the other host's version.
+	sw, _, err = ds.ListHostSoftware(ctx, noInventoryHost, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, chromeTitleID, sw[0].ID)
+	require.Empty(t, sw[0].InstalledVersions)
+
+	// The other host's CVE and vulnerable version do not match it.
+	opts.ListOptions.MatchQuery = "CVE-2024-0001"
+	sw, _, err = ds.ListHostSoftware(ctx, noInventoryHost, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+
+	opts.ListOptions.MatchQuery = ""
+	opts.VulnerableOnly = true
+	sw, _, err = ds.ListHostSoftware(ctx, noInventoryHost, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
 }
 
 func testListHostSoftwareSearchByBundleAndDisplayName(t *testing.T, ds *Datastore) {
@@ -9981,7 +10103,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
 
 	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
 	require.NoError(t, err)
 	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
 
@@ -10028,6 +10150,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
+			VersionID:   vppAppTeamID,
 			SelfService: new(true),
 			Platform:    "darwin",
 		},
@@ -10069,7 +10192,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.True(t, scoped)
 
 	// vppApp should be in scope since it has no labels
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10162,7 +10285,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, fourthHost.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, fourthHost.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10277,7 +10400,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, vppApp.Name)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10291,7 +10414,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10312,7 +10435,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software, vppApp.Name)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10326,7 +10449,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10342,7 +10465,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	// The host need not update its LabelUpdatedAt because the label is manually scoped and not applied,
 	// so it is immediately resolvable (and the host doesn't have the excluded label applied to it)
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
@@ -10365,7 +10488,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host has neither required label — out of scope
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10380,7 +10503,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 
@@ -10395,13 +10518,117 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software)
+}
+
+func testListHostSoftwareInstalledVersionValues(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	unfiltered := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"},
+	}
+	search := func(q string) fleet.HostSoftwareTitleListOptions {
+		opts := unfiltered
+		opts.ListOptions.MatchQuery = q
+		return opts
+	}
+	// listedIDs lists the host's software, checks that each installed version of title has its
+	// stored version, and returns their software IDs.
+	listedIDs := func(t *testing.T, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions, title string) []uint {
+		t.Helper()
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		stored := make(map[uint]string, len(host.Software))
+		for _, s := range host.Software {
+			stored[s.ID] = s.Version
+		}
+		sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err)
+		var gotIDs []uint
+		for _, s := range sw {
+			if s.Name != title {
+				continue
+			}
+			for _, v := range s.InstalledVersions {
+				require.Equal(t, stored[v.SoftwareID], v.Version, "software %d", v.SoftwareID)
+				gotIDs = append(gotIDs, v.SoftwareID)
+			}
+		}
+		return gotIDs
+	}
+	idsOf := func(t *testing.T, host *fleet.Host, name string) []uint {
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		var ids []uint
+		for _, s := range host.Software {
+			if s.Name == name {
+				ids = append(ids, s.ID)
+			}
+		}
+		return ids
+	}
+
+	t.Run("versions past group_concat_max_len", func(t *testing.T) {
+		host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("ubuntu"))
+		// Each version is 255 four-byte characters, so the title's versions joined together pass
+		// MySQL's 4 MiB group_concat_max_len.
+		const versionCount = 4200
+		pad := strings.Repeat("😀", fleet.SoftwareVersionMaxLength-6)
+		software := make([]fleet.Software, 0, versionCount)
+		for i := range versionCount {
+			software = append(software, fleet.Software{Name: "planted", Version: fmt.Sprintf("%06d", i) + pad, Source: "deb_packages"})
+		}
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		require.NoError(t, err)
+
+		ids := idsOf(t, host, "planted")
+		require.Len(t, ids, versionCount)
+		require.ElementsMatch(t, ids, listedIDs(t, host, unfiltered, "planted"))
+		require.ElementsMatch(t, ids, listedIDs(t, host, search("planted"), "planted"))
+	})
+
+	t.Run("commas in versions", func(t *testing.T) {
+		host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("ubuntu"))
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+			{Name: "commas", Version: "1.0,rc1", Source: "deb_packages"},
+			{Name: "commas", Version: "2.0", Source: "deb_packages"},
+		})
+		require.NoError(t, err)
+
+		ids := idsOf(t, host, "commas")
+		require.Len(t, ids, 2)
+		require.ElementsMatch(t, ids, listedIDs(t, host, unfiltered, "commas"))
+		require.ElementsMatch(t, ids, listedIDs(t, host, search("commas"), "commas"))
+	})
+
+	t.Run("vulnerable filter", func(t *testing.T) {
+		host := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("ubuntu"))
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+			{Name: "mixed", Version: "1.0", Source: "deb_packages"},
+			{Name: "mixed", Version: "2.0", Source: "deb_packages"},
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		var vulnerableID uint
+		for _, s := range host.Software {
+			if s.Version == "1.0" {
+				vulnerableID = s.ID
+			}
+		}
+		require.NotZero(t, vulnerableID)
+		_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: vulnerableID, CVE: "CVE-2026-0167"}, fleet.NVDSource)
+		require.NoError(t, err)
+
+		opts := unfiltered
+		opts.VulnerableOnly = true
+		// The title's first inventory row is always listed as installed, so the clean version can
+		// appear as well.
+		require.Contains(t, listedIDs(t, host, opts, "mixed"), vulnerableID)
+		require.ElementsMatch(t, idsOf(t, host, "mixed"), listedIDs(t, host, unfiltered, "mixed"))
+	})
 }
 
 func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
@@ -10467,6 +10694,7 @@ func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 				require.Len(t, sw, 1)
 				require.Len(t, sw[0].InstalledVersions, 2)
+				require.Less(t, sw[0].InstalledVersions[0].SoftwareID, sw[0].InstalledVersions[1].SoftwareID)
 
 				for _, installedVersion := range sw[0].InstalledVersions {
 					version := installedVersion.Version
@@ -10593,7 +10821,7 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 		BundleIdentifier: "com.app.vpp1",
 		LatestVersion:    "1.0.0",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID, nil)
 	require.NoError(t, err)
 
 	// Install software on host
@@ -10645,7 +10873,7 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 	require.NoError(t, err)
 	require.Contains(t, hostsInScope, host.ID)
 	// vppApp should be in scope since it has no labels
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.True(t, scoped)
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vPPApp.VPPAppTeam.AppTeamID)
@@ -10683,7 +10911,7 @@ func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, 
 	require.Empty(t, hostsInScope)
 
 	// vppApp should not be in scope since it has exclude any label
-	scoped, err = ds.IsVPPAppLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID)
+	scoped, err = ds.isSoftwareLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 	require.NoError(t, err)
 	require.False(t, scoped)
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vPPApp.VPPAppTeam.AppTeamID)
@@ -10744,7 +10972,7 @@ func testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForA
 			BundleIdentifier: "net.whatsapp.WhatsApp" + c.name,
 			LatestVersion:    "2.0.0",
 		}
-		_, err = ds.InsertVPPAppWithTeam(ctx, macOSApp, c.teamID)
+		_, err = ds.InsertVPPAppWithTeam(ctx, macOSApp, c.teamID, nil)
 		require.NoError(t, err, c.name)
 
 		iOSApp := &fleet.VPPApp{
@@ -10755,7 +10983,7 @@ func testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForA
 			BundleIdentifier: "net.whatsapp.WhatsApp" + c.name,
 			LatestVersion:    "2.0.0",
 		}
-		_, err = ds.InsertVPPAppWithTeam(ctx, iOSApp, c.teamID)
+		_, err = ds.InsertVPPAppWithTeam(ctx, iOSApp, c.teamID, nil)
 		require.NoError(t, err, c.name)
 
 		targetLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "Target label " + c.name})
@@ -10770,7 +10998,7 @@ func testListHostSoftwareSelfServiceVPPAppOutOfScopeWhileSameAdamIDIsInScopeForA
 		}, softwareTypeVPP)
 		require.NoError(t, err, c.name)
 
-		scoped, err := ds.IsVPPAppLabelScoped(ctx, macOSApp.VPPAppTeam.AppTeamID, host.ID)
+		scoped, err := ds.isSoftwareLabelScoped(ctx, macOSApp.VPPAppTeam.AppTeamID, host.ID, softwareTypeVPP)
 		require.NoError(t, err, c.name)
 		require.False(t, scoped, c.name)
 
@@ -10882,11 +11110,12 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	require.Equal(t, "category2", cat2.Name)
 
 	// get the IDs
-	ids, err := ds.GetSoftwareCategoryIDs(ctx, 0, []string{cat1.Name, cat2.Name})
+	idsByName, err := ds.GetSoftwareCategoryNameToIDMap(ctx, 0, []string{cat1.Name, cat2.Name})
 	require.NoError(t, err)
-	require.Len(t, ids, 2)
-	require.Contains(t, ids, cat1.ID)
-	require.Contains(t, ids, cat2.ID)
+	require.Len(t, idsByName, 2)
+	require.Equal(t, cat1.ID, idsByName[cat1.Name])
+	require.Equal(t, cat2.ID, idsByName[cat2.Name])
+	ids := []uint{cat1.ID, cat2.ID}
 
 	// create a software installer for no team
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
@@ -10932,7 +11161,7 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}, CategoryIDs: ids}, BundleIdentifier: "b1"}
-	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
 	require.NoError(t, err)
 	vppAppTitleID := vppApp.TitleID
 
@@ -11384,7 +11613,7 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
 	}
-	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID, nil)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
 
@@ -11445,9 +11674,9 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 
-	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "")
+	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
-	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{*existingSw})
@@ -11487,7 +11716,7 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 		}, nil)
 		require.NoError(t, err)
 
-		_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+		_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 		require.NoError(t, err)
 
 		var removed int
@@ -11524,7 +11753,7 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 			}, nil)
 			require.NoError(t, err)
 
-			_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw})
+			_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 			require.NoError(t, err)
 		}
 
@@ -11712,17 +11941,17 @@ func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
 }
 
 // testUpdateHostBrowserExtensions explicitly tests browser extension handling.
-// Browser extensions have extension IDs and browser fields, but no bundle identifiers.
+// Browser extensions have extension IDs but no bundle identifiers.
 func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "ext-test-host", "", "extkey", "extuuid", time.Now())
 
 	// Test Case 1: Add multiple browser extensions
 	extensions := []fleet.Software{
-		{Name: "1Password", Version: "1.45.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},
-		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"},
-		{Name: "Grammarly", Version: "14.1.0", Source: "browser_plugins", ExtensionID: "kbfnbcaeplbcioakkpcpgfkobkghlhen", Browser: "chrome"},
-		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"}, // Same ext ID, different browser
+		{Name: "1Password", Version: "1.45.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb"},
+		{Name: "Grammarly", Version: "14.1.0", Source: "browser_plugins", ExtensionID: "kbfnbcaeplbcioakkpcpgfkobkghlhen"},
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, extensions)
@@ -11750,11 +11979,11 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 
 	// Test Case 2: Update extension version (same extension ID, new version)
 	updatedExtensions := []fleet.Software{
-		{Name: "1Password", Version: "1.46.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},             // Version update
-		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"}, // No change
+		{Name: "1Password", Version: "1.46.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},             // Version update
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb"}, // No change
 		// Grammarly removed
-		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"},
-		{Name: "Bitwarden", Version: "2023.10.1", Source: "browser_plugins", ExtensionID: "nngceckbapebfimnlniiiahkandclblb", Browser: "chrome"}, // New extension
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
+		{Name: "Bitwarden", Version: "2023.10.1", Source: "browser_plugins", ExtensionID: "nngceckbapebfimnlniiiahkandclblb"}, // New extension
 	}
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, updatedExtensions)
@@ -11778,9 +12007,9 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 	// Test Case 3: Extensions with same name but different browsers/extension IDs
 	// This simulates cross-browser extensions
 	crossBrowserExtensions := []fleet.Software{
-		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "gighmmpiobklfepjocnamgkkbiglidom", Browser: "chrome"},
-		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "jid1-NIfFY2CA8fy1tg", Browser: "firefox"},
-		{Name: "Adblock", Version: "4.9", Source: "browser_plugins", ExtensionID: "pdffkfellgipmhklpdmokmckkkfcopbh", Browser: "edge"},
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "gighmmpiobklfepjocnamgkkbiglidom"},
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "jid1-NIfFY2CA8fy1tg"},
+		{Name: "Adblock", Version: "4.9", Source: "browser_plugins", ExtensionID: "pdffkfellgipmhklpdmokmckkkfcopbh"},
 	}
 
 	host2 := test.NewHost(t, ds, "ext-test-host2", "", "extkey2", "extuuid2", time.Now())
@@ -12368,7 +12597,7 @@ func testListHostSoftwareAndroidVPPAppMatching(t *testing.T, ds *Datastore) {
 		IconURL:          "https://example.com/amazon-icon.png",
 	}
 
-	vppApp, err := ds.InsertVPPAppWithTeam(ctx, androidApp, &tm.ID)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, androidApp, &tm.ID, nil)
 	require.NoError(t, err)
 	require.NotZero(t, vppApp.TitleID)
 
@@ -14052,6 +14281,174 @@ func testListSoftwareForVulnDetectionByOSVersion(t *testing.T, ds *Datastore) {
 	require.ErrorContains(t, err, "empty software source")
 }
 
+func testUpdateHostSoftwareMetadata(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	rocky := fleet.OSVersion{Platform: "rhel", Name: "Rocky Linux 9.3.0"}
+
+	newRHELHost := func(name string) *fleet.Host {
+		h := test.NewHost(t, ds, name, "", name+"key", name+"uuid", time.Now())
+		h.Platform = rocky.Platform
+		h.OSVersion = rocky.Name
+		require.NoError(t, ds.UpdateHost(ctx, h))
+		return h
+	}
+	rpm := func(name, version, release string, epoch *uint32) fleet.Software {
+		return fleet.Software{
+			Name: name, Version: version, Release: release, Arch: "x86_64", Vendor: "Rocky", Source: "rpm_packages",
+			Epoch: epoch,
+		}
+	}
+	storedEpochs := func() map[uint]uint32 {
+		var rows []struct {
+			SoftwareID uint   `db:"software_id"`
+			Epoch      uint32 `db:"epoch"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `SELECT software_id, epoch FROM software_metadata`)
+		})
+		m := make(map[uint]uint32, len(rows))
+		for _, r := range rows {
+			m[r.SoftwareID] = r.Epoch
+		}
+		return m
+	}
+	hostSoftwareIDs := func(hostID uint) map[string]uint {
+		sw, err := ds.ListSoftwareByHostIDShort(ctx, hostID)
+		require.NoError(t, err)
+		m := make(map[string]uint, len(sw))
+		for _, s := range sw {
+			m[s.Name] = s.ID
+		}
+		return m
+	}
+	softwareUpdatedAt := func(hostID uint) time.Time {
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &ts, `SELECT software_updated_at FROM host_updates WHERE host_id = ?`, hostID)
+		})
+		return ts
+	}
+	vulnDetectionEpochs := func() map[uint]*uint32 {
+		sw, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, rocky, []string{"rpm_packages"})
+		require.NoError(t, err)
+		m := make(map[uint]*uint32, len(sw))
+		for _, s := range sw {
+			m[s.ID] = s.Epoch
+		}
+		return m
+	}
+
+	modSSL := rpm("mod_ssl", "2.4.62", "13.el9_8.6", new(uint32(1)))
+	httpd := rpm("httpd", "2.4.62", "13.el9_8.6", nil)
+	tomcatWithoutEpoch := rpm("tomcat", "9.0.120", "2.el9_8", nil)
+	tomcat := rpm("tomcat", "9.0.120", "2.el9_8", new(uint32(1)))
+
+	// New software stores its epoch; software without one gets no metadata row.
+	h1 := newRHELHost("h1")
+	_, err := ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSL, httpd, tomcatWithoutEpoch})
+	require.NoError(t, err)
+	h1IDs := hostSoftwareIDs(h1.ID)
+	require.Len(t, h1IDs, 3)
+	require.Equal(t, map[uint]uint32{h1IDs["mod_ssl"]: 1}, storedEpochs())
+
+	// Reporting the same software again, epochs included, changes nothing.
+	pastUpdate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_updates SET software_updated_at = ? WHERE host_id = ?`, pastUpdate, h1.ID)
+		return err
+	})
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSL, httpd, tomcatWithoutEpoch})
+	require.NoError(t, err)
+	require.Equal(t, h1IDs, hostSoftwareIDs(h1.ID))
+	require.True(t, pastUpdate.Equal(softwareUpdatedAt(h1.ID)))
+
+	// Another host reporting a different epoch for the same package gets its own software row and
+	// leaves h1's row, and what vulnerability detection reads for it, untouched.
+	h2 := newRHELHost("h2")
+	tomcatEpoch99 := rpm("tomcat", "9.0.120", "2.el9_8", new(uint32(99)))
+	_, err = ds.UpdateHostSoftware(ctx, h2.ID, []fleet.Software{tomcatEpoch99, httpd})
+	require.NoError(t, err)
+	h2IDs := hostSoftwareIDs(h2.ID)
+	require.NotEqual(t, h1IDs["tomcat"], h2IDs["tomcat"])
+	require.Equal(t, h1IDs["httpd"], h2IDs["httpd"])
+	require.Equal(t, map[uint]uint32{h1IDs["mod_ssl"]: 1, h2IDs["tomcat"]: 99}, storedEpochs())
+	require.Equal(t, map[uint]*uint32{
+		h1IDs["mod_ssl"]: new(uint32(1)),
+		h1IDs["httpd"]:   nil,
+		h1IDs["tomcat"]:  nil,
+		h2IDs["tomcat"]:  new(uint32(99)),
+	}, vulnDetectionEpochs())
+
+	// The same holds when the host with the unusual epoch reported first: a later host without an
+	// epoch doesn't link to its row.
+	h3 := newRHELHost("h3")
+	bindLibsEpoch7 := rpm("bind-libs", "9.16.23", "34.el9_8", new(uint32(7)))
+	_, err = ds.UpdateHostSoftware(ctx, h3.ID, []fleet.Software{bindLibsEpoch7})
+	require.NoError(t, err)
+	h4 := newRHELHost("h4")
+	_, err = ds.UpdateHostSoftware(ctx, h4.ID, []fleet.Software{rpm("bind-libs", "9.16.23", "34.el9_8", nil)})
+	require.NoError(t, err)
+	h3IDs, h4IDs := hostSoftwareIDs(h3.ID), hostSoftwareIDs(h4.ID)
+	require.NotEqual(t, h3IDs["bind-libs"], h4IDs["bind-libs"])
+	require.Equal(t, uint32(7), storedEpochs()[h3IDs["bind-libs"]])
+	require.Nil(t, vulnDetectionEpochs()[h4IDs["bind-libs"]])
+
+	// A host whose reported epoch changes moves to the row for the new epoch; the stored epoch of
+	// the row it leaves is never rewritten.
+	modSSLEpoch2 := rpm("mod_ssl", "2.4.62", "13.el9_8.6", new(uint32(2)))
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSLEpoch2, httpd, tomcat})
+	require.NoError(t, err)
+	h1NewIDs := hostSoftwareIDs(h1.ID)
+	require.NotEqual(t, h1IDs["mod_ssl"], h1NewIDs["mod_ssl"])
+	require.NotEqual(t, h1IDs["tomcat"], h1NewIDs["tomcat"])
+	require.NotEqual(t, h2IDs["tomcat"], h1NewIDs["tomcat"])
+	require.Equal(t, h1IDs["httpd"], h1NewIDs["httpd"])
+	stored := storedEpochs()
+	require.Equal(t, uint32(1), stored[h1IDs["mod_ssl"]])
+	require.Equal(t, uint32(2), stored[h1NewIDs["mod_ssl"]])
+	require.Equal(t, uint32(1), stored[h1NewIDs["tomcat"]])
+	require.Equal(t, uint32(99), stored[h2IDs["tomcat"]])
+
+	// Cleaning up software no host has anymore removes its metadata.
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, map[uint]uint32{
+		h1NewIDs["mod_ssl"]: 2,
+		h1NewIDs["tomcat"]:  1,
+		h2IDs["tomcat"]:     99,
+		h3IDs["bind-libs"]:  7,
+	}, storedEpochs())
+
+	// A stored epoch that isn't the one in its row's checksum, which only a server from before the
+	// epoch was part of the checksum can write, is corrected by the next report that links to the
+	// row. The host's software then stops changing.
+	setStoredEpoch := func(softwareID uint, epoch uint32) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO software_metadata (software_id, epoch) VALUES (?, ?) ON DUPLICATE KEY UPDATE epoch = VALUES(epoch)`,
+				softwareID, epoch)
+			return err
+		})
+	}
+	setStoredEpoch(h1NewIDs["httpd"], 99)
+	setStoredEpoch(h1NewIDs["mod_ssl"], 99)
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSLEpoch2, httpd, tomcat})
+	require.NoError(t, err)
+	require.Equal(t, h1NewIDs, hostSoftwareIDs(h1.ID))
+	stored = storedEpochs()
+	require.NotContains(t, stored, h1NewIDs["httpd"])
+	require.Equal(t, uint32(2), stored[h1NewIDs["mod_ssl"]])
+	// h2 has the same httpd row, so what vulnerability detection reads for it is corrected too.
+	require.Nil(t, vulnDetectionEpochs()[h2IDs["httpd"]])
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_updates SET software_updated_at = ? WHERE host_id = ?`, pastUpdate, h1.ID)
+		return err
+	})
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSLEpoch2, httpd, tomcat})
+	require.NoError(t, err)
+	require.True(t, pastUpdate.Equal(softwareUpdatedAt(h1.ID)))
+}
+
 func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -14422,6 +14819,59 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "zzz-installer", hostSw[0].Name, "AAA Script (zzz-installer) should sort first")
 	assert.Equal(t, "bravo", hostSw[1].Name, "bravo (no display name) should sort second")
 	assert.Equal(t, "alpha", hostSw[2].Name, "Zulu (alpha) should sort last")
+
+	// Details are looked up per page: alpha, alone on the second page, keeps its CVE, icon, display
+	// name and install policy.
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	installerID, installerTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "alpha",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "alpha.pkg",
+		Extension:       "pkg",
+		Platform:        "darwin",
+		Version:         "2.0",
+		StorageID:       "alpha-storage",
+		TeamID:          &team.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.Equal(t, alphaID, installerTitleID)
+	_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name: "install alpha", Query: "SELECT 1", SoftwareInstallerID: &installerID,
+	})
+	require.NoError(t, err)
+	_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+		TeamID: team.ID, TitleID: alphaID, StorageID: "icon-storage", Filename: "alpha.png",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	for _, hs := range host.Software {
+		if hs.Name == "alpha" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+	}
+
+	lastPage, meta, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		IncludeAvailableForInstall: true,
+		ListOptions: fleet.ListOptions{
+			Page: 1, PerPage: 2, IncludeMetadata: true, OrderKey: "name", OrderDirection: fleet.OrderAscending,
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.Len(t, lastPage, 1)
+	require.Equal(t, "alpha", lastPage[0].Name)
+	require.Equal(t, "Zulu", lastPage[0].DisplayName)
+	require.NotNil(t, lastPage[0].IconUrl)
+	require.Len(t, lastPage[0].InstalledVersions, 1)
+	require.Equal(t, []string{"CVE-2024-0001"}, lastPage[0].InstalledVersions[0].Vulnerabilities)
+	require.NotNil(t, lastPage[0].SoftwarePackage)
+	require.Len(t, lastPage[0].SoftwarePackage.AutomaticInstallPolicies, 1)
+	require.Equal(t, "install alpha", lastPage[0].SoftwarePackage.AutomaticInstallPolicies[0].Name)
 }
 
 func testBatchNewSoftwareCategoriesIdempotent(t *testing.T, ds *Datastore) {
@@ -14527,7 +14977,7 @@ func testHostVPPInstallNoDropout(t *testing.T, ds *Datastore) {
 	app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vppdrop", BundleIdentifier: "com.app.vppdrop",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_drop", Platform: fleet.MacOSPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	appID := app.VPPAppID
 	host := test.NewHost(t, ds, "vppdrop-host", "1", "vppdropkey", "vppdropuuid", time.Now())
@@ -14732,7 +15182,7 @@ func testHostVPPInstallLatestPerApp(t *testing.T, ds *Datastore) {
 		app, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name: "vpplatest" + n, BundleIdentifier: "com.app.vpplatest" + n,
 			AdamID: "adam_vpp_latest_" + n, Platform: fleet.MacOSPlatform,
-		}, nil)
+		}, nil, nil)
 		require.NoError(t, err)
 		return app.VPPAppID
 	}
@@ -15513,4 +15963,984 @@ func testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned(t *testing.T,
 	}
 	require.NotContains(t, listed, prunedTitleID, "out-of-scope title whose first-added installer failed should be pruned")
 	require.Contains(t, listed, keptTitleID, "out-of-scope title whose first-added installer succeeded must remain (prune is status-selective)")
+}
+
+func testListSoftwareTypeFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host1.ID})))
+
+	sw1 := []fleet.Software{
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "brave ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "brave"},
+		{Name: "edge ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "edge"},
+		{Name: "cursor ext", Version: "1.0", Source: "vscode_extensions", ExtensionFor: "cursor"},
+		{Name: "curl", Version: "1.0", Source: "deb_packages"},
+	}
+	sw2 := []fleet.Software{
+		{Name: "Slack", Version: "2.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "brave ext", Version: "2.0", Source: "chrome_extensions", ExtensionFor: "brave"},
+		{Name: "vscode ext", Version: "1.0", Source: "vscode_extensions", ExtensionFor: "vscode"},
+	}
+	res1, err := ds.UpdateHostSoftware(ctx, host1.ID, sw1)
+	require.NoError(t, err)
+	res2, err := ds.UpdateHostSoftware(ctx, host2.ID, sw2)
+	require.NoError(t, err)
+	// Both Slack versions score 9.0, brave ext 2.0 scores 5.0 and brave ext 1.0 scores 2.0.
+	cveByVersion := map[string]string{
+		"Slack 1.0": "CVE-2024-0001", "Slack 2.0": "CVE-2024-0001",
+		"brave ext 2.0": "CVE-2024-0002", "brave ext 1.0": "CVE-2024-0003",
+	}
+	for _, s := range append(res1.Inserted, res2.Inserted...) {
+		if cve, ok := cveByVersion[s.Name+" "+s.Version]; ok {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: s.ID, CVE: cve}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+	}
+	require.NoError(t, ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{CVE: "CVE-2024-0001", CVSSScore: new(9.0)},
+		{CVE: "CVE-2024-0002", CVSSScore: new(5.0)},
+		{CVE: "CVE-2024-0003", CVSSScore: new(2.0)},
+	}))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// listAll lists every page with a small page size and asserts CountSoftware and
+	// has_next_results match the filtered list.
+	listAll := func(t *testing.T, opts fleet.SoftwareListOptions) []string {
+		t.Helper()
+		opts.WithHostCounts = true
+		opts.ListOptions.IncludeMetadata = true
+		opts.ListOptions.PerPage = 2
+
+		var got []string
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			software, meta, err := ds.ListSoftware(ctx, opts)
+			require.NoError(t, err)
+			for _, s := range software {
+				got = append(got, s.Name+" "+s.Version)
+			}
+			require.NotNil(t, meta)
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, software, 2)
+		}
+		count, err := ds.CountSoftware(ctx, opts)
+		require.NoError(t, err)
+		require.Equal(t, len(got), count)
+		return got
+	}
+
+	cases := []struct {
+		name         string
+		source       string
+		extensionFor string
+		vulnerable   bool
+		minCVSS      float64
+		query        string
+		// expected versions for all fleets, the fleet (host1) and no fleet (host2)
+		all, team, noTeam []string
+	}{
+		{
+			name:   "no filter",
+			all:    []string{"Slack 1.0", "Slack 2.0", "brave ext 1.0", "brave ext 2.0", "edge ext 1.0", "cursor ext 1.0", "vscode ext 1.0", "curl 1.0"},
+			team:   []string{"Slack 1.0", "brave ext 1.0", "edge ext 1.0", "cursor ext 1.0", "curl 1.0"},
+			noTeam: []string{"Slack 2.0", "brave ext 2.0", "vscode ext 1.0"},
+		},
+		{
+			name:   "single source",
+			source: "vscode_extensions",
+			all:    []string{"cursor ext 1.0", "vscode ext 1.0"},
+			team:   []string{"cursor ext 1.0"},
+			noTeam: []string{"vscode ext 1.0"},
+		},
+		{
+			name:         "narrowing two sources",
+			source:       "chrome_extensions,vscode_extensions,deb_packages",
+			extensionFor: "edge,vscode",
+			all:          []string{"edge ext 1.0", "vscode ext 1.0", "curl 1.0"},
+			team:         []string{"edge ext 1.0", "curl 1.0"},
+			noTeam:       []string{"vscode ext 1.0"},
+		},
+		{
+			name:   "installer-only source",
+			source: "sh_packages",
+		},
+		{
+			// Both Slack versions are vulnerable too, but outside the filter.
+			name:       "with vulnerable",
+			source:     "chrome_extensions",
+			vulnerable: true,
+			all:        []string{"brave ext 1.0", "brave ext 2.0"},
+			team:       []string{"brave ext 1.0"},
+			noTeam:     []string{"brave ext 2.0"},
+		},
+		{
+			// Slack is excluded by the filter and brave ext 1.0 by the score.
+			name:       "with minimum CVSS",
+			source:     "chrome_extensions",
+			vulnerable: true,
+			minCVSS:    4,
+			all:        []string{"brave ext 2.0"},
+			noTeam:     []string{"brave ext 2.0"},
+		},
+		{
+			name:         "with search",
+			source:       "chrome_extensions,vscode_extensions",
+			extensionFor: "brave,edge,cursor",
+			query:        "e ext",
+			all:          []string{"brave ext 1.0", "brave ext 2.0", "edge ext 1.0"},
+			team:         []string{"brave ext 1.0", "edge ext 1.0"},
+			noTeam:       []string{"brave ext 2.0"},
+		},
+	}
+	for _, c := range cases {
+		filter, err := fleet.ParseSoftwareTypeFilter(c.source, c.extensionFor)
+		require.NoError(t, err)
+		for _, view := range []struct {
+			name   string
+			teamID *uint
+			want   []string
+		}{
+			{"all fleets", nil, c.all},
+			{"fleet", &tm.ID, c.team},
+			{"no fleet", new(uint(0)), c.noTeam},
+		} {
+			for _, orderKey := range []string{"hosts_count", "name"} {
+				t.Run(fmt.Sprintf("%s %s order=%s", c.name, view.name, orderKey), func(t *testing.T) {
+					opts := fleet.SoftwareListOptions{
+						ListOptions:    fleet.ListOptions{OrderKey: orderKey, MatchQuery: c.query},
+						TeamID:         view.teamID,
+						VulnerableOnly: c.vulnerable,
+						MinimumCVSS:    c.minCVSS,
+						// The fallback query only applies CVSS bounds when it joins CVE scores, as the
+						// service does on Premium.
+						IncludeCVEScores: c.minCVSS > 0,
+						TypeFilter:       filter,
+						WithHostCounts:   true,
+					}
+					require.Equal(t, orderKey == "hosts_count", canUseOptimizedListQuery(opts))
+					require.ElementsMatch(t, view.want, listAll(t, opts))
+				})
+			}
+		}
+	}
+}
+
+func testListHostSoftwareTypeFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "macos-host", "", "macoshostkey", "macoshostuuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID})))
+	host.TeamID = &tm.ID
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	// An installed VPP app, so the title is listed through the VPP branch.
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "VPPApp", BundleIdentifier: "com.example.vppapp",
+		AdamID: "adam_vpp_mac", Platform: fleet.MacOSPlatform,
+	}, &tm.ID, nil)
+	require.NoError(t, err)
+	cmdUUID := createVPPAppInstallRequest(t, ds, host, vppApp.AdamID, user)
+	createVPPAppInstallResult(t, ds, host, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// Two script packages: one only available for install, one with a pending install on the host.
+	var pendingInstallerID uint
+	for _, title := range []string{"setup script", "pending script"} {
+		installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:           title,
+			Source:          "sh_packages",
+			InstallScript:   "echo",
+			Filename:        strings.ReplaceAll(title, " ", "-") + ".sh",
+			Extension:       "sh",
+			Platform:        "linux",
+			TeamID:          &tm.ID,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		pendingInstallerID = installerID
+	}
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, pendingInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	software := []fleet.Software{
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack.helper"},
+		{Name: "VPPApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.vppapp"},
+		{Name: "brave ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "brave"},
+		{Name: "chrome ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "curl", Version: "1.0", Source: "homebrew_packages"},
+	}
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	pathByName := map[string]string{
+		"Slack":  "/Applications/Slack.app",
+		"Helper": "/Applications/Slack.app/Contents/Helpers/Helper.app",
+		"VPPApp": "/Applications/VPPApp.app",
+	}
+	swPaths := map[string]fleet.ExecutableHashes{}
+	for _, hs := range host.Software {
+		if hs.Name == "Slack" || hs.Name == "brave ext" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+		path, ok := pathByName[hs.Name]
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hs.ToUniqueStr())
+		swPaths[key] = nil
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// listAll lists every page with a small page size and asserts the total and
+	// has_next_results match the filtered list.
+	listAll := func(t *testing.T, opts fleet.HostSoftwareTitleListOptions) map[string]*fleet.HostSoftwareWithInstaller {
+		t.Helper()
+		opts.IsMDMEnrolled = true
+		opts.ListOptions = fleet.ListOptions{PerPage: 2, IncludeMetadata: true, OrderKey: "name", MatchQuery: opts.ListOptions.MatchQuery}
+
+		got := make(map[string]*fleet.HostSoftwareWithInstaller)
+		var total uint
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+			require.NoError(t, err)
+			require.NotNil(t, meta)
+			for _, s := range sw {
+				require.NotContains(t, got, s.Name)
+				got[s.Name] = s
+			}
+			total = meta.TotalResults
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, sw, 2)
+		}
+		require.EqualValues(t, len(got), total)
+		return got
+	}
+
+	inventory := []string{"Slack", "Helper", "VPPApp", "brave ext", "chrome ext", "curl"}
+	cases := []struct {
+		name                string
+		source              string
+		extensionFor        string
+		macOSApplications   bool
+		availableForInstall bool
+		onlyAvailable       bool
+		vulnerable          bool
+		query               string
+		want                []string
+	}{
+		{name: "no filter", want: inventory},
+		{name: "apps", source: "apps", want: []string{"Slack", "Helper", "VPPApp"}},
+		{name: "programs excludes macOS VPP app", source: "programs", want: nil},
+		{name: "apps with macos applications", source: "apps", macOSApplications: true, want: []string{"Slack", "VPPApp"}},
+		{
+			name: "apps and chrome extensions with macos applications keeps top-level apps only", source: "apps,chrome_extensions",
+			macOSApplications: true, want: []string{"Slack", "VPPApp"},
+		},
+		{
+			name: "apps and chrome extensions", source: "apps,chrome_extensions",
+			want: []string{"Slack", "Helper", "VPPApp", "brave ext", "chrome ext"},
+		},
+		{name: "extension_for narrows browser", source: "chrome_extensions", extensionFor: "brave", want: []string{"brave ext"}},
+		{name: "installer-only source in inventory", source: "sh_packages", want: nil},
+		{name: "installer-only source with available for install", source: "sh_packages", availableForInstall: true, want: []string{"setup script", "pending script"}},
+		{name: "inventory source with available for install", source: "homebrew_packages", availableForInstall: true, want: []string{"curl"}},
+		{name: "with vulnerable", source: "apps,chrome_extensions", vulnerable: true, want: []string{"Slack", "brave ext"}},
+		{
+			// "ext" also matches chrome ext, which extension_for excludes, and the filter alone would add the apps.
+			name: "with search", source: "apps,chrome_extensions", extensionFor: "brave", query: "ext", want: []string{"brave ext"},
+		},
+		{name: "library: installer-only source", source: "sh_packages", onlyAvailable: true, want: []string{"setup script", "pending script"}},
+		{name: "library: VPP app", source: "apps", onlyAvailable: true, want: []string{"VPPApp"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			filter, err := fleet.ParseSoftwareTypeFilter(c.source, c.extensionFor)
+			require.NoError(t, err)
+			got := listAll(t, fleet.HostSoftwareTitleListOptions{
+				ListOptions:                fleet.ListOptions{MatchQuery: c.query},
+				TypeFilter:                 filter,
+				MacOSApplicationsOnly:      c.macOSApplications,
+				IncludeAvailableForInstall: c.availableForInstall || c.onlyAvailable,
+				OnlyAvailableForInstall:    c.onlyAvailable,
+				VulnerableOnly:             c.vulnerable,
+			})
+			require.ElementsMatch(t, c.want, std_slices.Collect(maps.Keys(got)))
+			if vpp, ok := got["VPPApp"]; ok {
+				require.NotNil(t, vpp.AppStoreApp)
+			}
+			if pending, ok := got["pending script"]; ok {
+				require.NotNil(t, pending.Status)
+				require.Equal(t, fleet.SoftwareInstallPending, *pending.Status)
+			}
+		})
+	}
+}
+
+func testSoftwareAITool(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	fleetdHost := test.NewHost(t, ds, "aitool1", "", "aitool1key", "aitool1uuid", time.Now(), test.WithPlatform("darwin"))
+	osqueryHost := test.NewHost(t, ds, "aitool2", "", "aitool2key", "aitool2uuid", time.Now(), test.WithPlatform("darwin"))
+
+	aiToolByName := func(t *testing.T) map[string]bool {
+		var rows []struct {
+			Name   string `db:"name"`
+			AITool bool   `db:"ai_tool"`
+		}
+		require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows, `SELECT name, ai_tool FROM software WHERE name IN ('Claude', 'Safari', 'github', 'Codex')`))
+		out := make(map[string]bool, len(rows))
+		for _, r := range rows {
+			out[r.Name] = r.AITool
+		}
+		return out
+	}
+
+	claude := fleet.Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
+	safari := fleet.Software{Name: "Safari", Version: "18.0", Source: "apps", BundleIdentifier: "com.apple.Safari"}
+	codex := fleet.Software{Name: "Codex", Version: "0.46.0", Source: "npm_packages"}
+	github := fleet.Software{Name: "github", Source: "mcp_servers", AITool: new(true)}
+	flaggedClaude := claude
+	flaggedClaude.AITool = new(true)
+
+	// New rows are inserted with the flag.
+	_, err := ds.UpdateHostSoftware(ctx, fleetdHost.ID, []fleet.Software{flaggedClaude, safari, github})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true}, aiToolByName(t))
+
+	// The host's current software carries the flag, so ingestion can skip rows already flagged.
+	result, err := ds.UpdateHostSoftware(ctx, fleetdHost.ID, []fleet.Software{flaggedClaude, safari, github})
+	require.NoError(t, err)
+	currentAITool := make(map[string]bool, len(result.WasCurrInstalled))
+	for _, sw := range result.WasCurrInstalled {
+		currentAITool[sw.Name] = ptr.ValOrZero(sw.AITool)
+	}
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true}, currentAITool)
+
+	// The same software reported by a host without the table leaves the flag alone.
+	_, err = ds.UpdateHostSoftware(ctx, osqueryHost.ID, []fleet.Software{claude, safari})
+	require.NoError(t, err)
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, nil))
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true}, aiToolByName(t))
+
+	// A row that already exists unflagged is flagged even when the host's software set is
+	// unchanged, which writes nothing in UpdateHostSoftware.
+	_, err = ds.UpdateHostSoftware(ctx, osqueryHost.ID, []fleet.Software{claude, safari, codex})
+	require.NoError(t, err)
+	require.False(t, aiToolByName(t)["Codex"])
+	flaggedCodex := codex
+	flaggedCodex.AITool = new(true)
+	result, err = ds.UpdateHostSoftware(ctx, osqueryHost.ID, []fleet.Software{claude, safari, flaggedCodex})
+	require.NoError(t, err)
+	require.Empty(t, result.Inserted)
+	require.Empty(t, result.Deleted)
+	require.False(t, aiToolByName(t)["Codex"])
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{flaggedCodex}))
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true, "Codex": true}, aiToolByName(t))
+
+	// Rows already flagged are not written again: the hourly ingest stays off the writer.
+	_, err = ds.writer(ctx).ExecContext(ctx, `CREATE TABLE test_software_updates (id INT AUTO_INCREMENT PRIMARY KEY)`)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `CREATE TRIGGER test_count_software_updates AFTER UPDATE ON software FOR EACH ROW INSERT INTO test_software_updates () VALUES ()`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = ds.writer(ctx).ExecContext(ctx, `DROP TRIGGER IF EXISTS test_count_software_updates`)
+		_, _ = ds.writer(ctx).ExecContext(ctx, `DROP TABLE IF EXISTS test_software_updates`)
+	})
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{flaggedCodex, flaggedClaude}))
+	var updates int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &updates, `SELECT COUNT(*) FROM test_software_updates`))
+	require.Zero(t, updates)
+
+	// Unknown software is ignored.
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{{Name: "never-seen", Source: "ai_clis", AITool: new(true)}}))
+
+	// The versions list reads the flag on the optimized path and the fallback path.
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	listOpts := func(orderKey string) fleet.SoftwareListOptions {
+		return fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: orderKey}, WithHostCounts: true}
+	}
+	require.True(t, canUseOptimizedListQuery(listOpts("hosts_count")))
+	require.False(t, canUseOptimizedListQuery(listOpts("name")))
+	for _, orderKey := range []string{"hosts_count", "name"} {
+		listed, _, err := ds.ListSoftware(ctx, listOpts(orderKey))
+		require.NoError(t, err)
+		got := make(map[string]bool, len(listed))
+		for _, sw := range listed {
+			require.NotNil(t, sw.AITool, sw.Name)
+			got[sw.Name] = *sw.AITool
+		}
+		require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true, "Codex": true}, got, orderKey)
+	}
+}
+
+func testUpdateHostSoftwarePreserveSources(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "preserve1", "", "preserve1key", "preserve1uuid", time.Now(), test.WithPlatform("darwin"))
+
+	safari := fleet.Software{Name: "Safari", Version: "18.0", Source: "apps", BundleIdentifier: "com.apple.Safari"}
+	notes := fleet.Software{Name: "Notes", Version: "1.0", Source: "apps", BundleIdentifier: "com.apple.Notes"}
+	codex := fleet.Software{Name: "codex", Version: "0.46.0", Source: "ai_clis", AITool: new(true)}
+	github := fleet.Software{Name: "github", Source: "mcp_servers", AITool: new(true)}
+	skill := fleet.Software{Name: "CLAUDE.md", Source: "ai_skills", AITool: new(true)}
+	preserveAISources := fleet.PreserveSoftwareSources("ai_clis", "mcp_servers", "ai_skills")
+
+	pathKey := func(sw fleet.Software, path string) string {
+		return fleet.HostSoftwareInstalledPathKey{InstalledPath: path, SoftwareUniqueStr: sw.ToUniqueStr()}.String()
+	}
+	names := func(software []fleet.Software) []string {
+		out := make([]string, 0, len(software))
+		for _, sw := range software {
+			out = append(out, sw.Name)
+		}
+		sort.Strings(out)
+		return out
+	}
+	installedNames := func() []string {
+		current, err := ds.ListSoftwareByHostIDShort(ctx, host.ID)
+		require.NoError(t, err)
+		return names(current)
+	}
+	storedPaths := func() []string {
+		stored, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+		require.NoError(t, err)
+		out := make([]string, 0, len(stored))
+		for _, p := range stored {
+			out = append(out, p.InstalledPath)
+		}
+		sort.Strings(out)
+		return out
+	}
+	softwareUpdatedAt := func() time.Time {
+		var updatedAt time.Time
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &updatedAt, `SELECT software_updated_at FROM host_updates WHERE host_id = ?`, host.ID))
+		return updatedAt
+	}
+
+	// A source the host has no rows of is a no-op.
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, notes}, preserveAISources)
+	require.NoError(t, err)
+	require.Len(t, result.Inserted, 2)
+	require.Empty(t, result.Preserved)
+
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, notes, codex, github, skill})
+	require.NoError(t, err)
+	require.Len(t, result.Inserted, 3)
+	require.Empty(t, result.Preserved)
+	safariPaths := map[string]fleet.ExecutableHashes{pathKey(safari, "/Applications/Safari.app"): nil}
+	allPaths := map[string]fleet.ExecutableHashes{
+		pathKey(safari, "/Applications/Safari.app"):  nil,
+		pathKey(codex, "/usr/local/bin/codex"):       nil,
+		pathKey(github, "/Users/a/.cursor/mcp.json"): nil,
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, allPaths, result))
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/usr/local/bin/codex"}, storedPaths())
+
+	// The ai_tools query did not run: its rows and their paths survive, while a removed app
+	// is still deleted.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari}, preserveAISources)
+	require.NoError(t, err)
+	require.Equal(t, []string{"Notes"}, names(result.Deleted))
+	require.Empty(t, result.Inserted)
+	require.Equal(t, []string{"CLAUDE.md", "codex", "github"}, names(result.Preserved))
+	require.Equal(t, []string{"CLAUDE.md", "Safari", "codex", "github"}, names(result.CurrInstalled()))
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, safariPaths, result))
+	require.Equal(t, []string{"CLAUDE.md", "Safari", "codex", "github"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/usr/local/bin/codex"}, storedPaths())
+
+	// The same report again changes nothing and never reaches the writer.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_updates SET software_updated_at = '2000-01-01 00:00:00' WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	before := softwareUpdatedAt()
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari}, preserveAISources)
+	require.NoError(t, err)
+	require.Empty(t, result.Deleted)
+	require.Empty(t, result.Inserted)
+	require.Equal(t, []string{"CLAUDE.md", "codex", "github"}, names(result.Preserved))
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, safariPaths, result))
+	require.Equal(t, before, softwareUpdatedAt())
+	require.Equal(t, []string{"CLAUDE.md", "Safari", "codex", "github"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/usr/local/bin/codex"}, storedPaths())
+
+	// A preserved source the report does contain is reconciled as usual: only the absent rows
+	// are preserved, and the reported row's paths are replaced rather than duplicated.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, codex}, preserveAISources)
+	require.NoError(t, err)
+	require.Empty(t, result.Deleted)
+	require.Empty(t, result.Inserted)
+	require.Equal(t, []string{"CLAUDE.md", "github"}, names(result.Preserved))
+	movedCodexPaths := map[string]fleet.ExecutableHashes{
+		pathKey(safari, "/Applications/Safari.app"): nil,
+		pathKey(codex, "/opt/homebrew/bin/codex"):   nil,
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, movedCodexPaths, result))
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/opt/homebrew/bin/codex"}, storedPaths())
+
+	// The query ran and reported fewer rows: the usual full replace.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, codex})
+	require.NoError(t, err)
+	require.Equal(t, []string{"CLAUDE.md", "github"}, names(result.Deleted))
+	require.Empty(t, result.Preserved)
+	codexPaths := map[string]fleet.ExecutableHashes{
+		pathKey(safari, "/Applications/Safari.app"): nil,
+		pathKey(codex, "/usr/local/bin/codex"):      nil,
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, codexPaths, result))
+	require.Equal(t, []string{"Safari", "codex"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app", "/usr/local/bin/codex"}, storedPaths())
+
+	// Without the option, the ai_tools rows are deleted like any other source.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari})
+	require.NoError(t, err)
+	require.Equal(t, []string{"codex"}, names(result.Deleted))
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, safariPaths, result))
+	require.Equal(t, []string{"Safari"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app"}, storedPaths())
+}
+
+func testListSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host1.ID})))
+
+	res1, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: new(true)},
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	// Versions read their own row: Claude 2.0 isn't flagged even though Claude 1.0 is.
+	res2, err := ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: "Claude", Version: "2.0", Source: "apps", BundleIdentifier: "com.anthropic.claude"},
+		{Name: "Slack", Version: "2.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "github", Version: "0.1", Source: "mcp_servers", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	softwareIDs := make(map[string]uint)
+	for _, s := range append(res1.Inserted, res2.Inserted...) {
+		softwareIDs[s.Name+" "+s.Version] = s.ID
+	}
+	for _, name := range []string{"Claude 1.0", "Slack 1.0"} {
+		_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: softwareIDs[name], CVE: "CVE-2024-0001"}, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// listAll lists every page with a small page size, asserts CountSoftware matches the list and
+	// returns each version's ai_tool.
+	listAll := func(t *testing.T, opts fleet.SoftwareListOptions) map[string]bool {
+		t.Helper()
+		opts.WithHostCounts = true
+		opts.ListOptions.IncludeMetadata = true
+		opts.ListOptions.PerPage = 2
+
+		got := make(map[string]bool)
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			software, meta, err := ds.ListSoftware(ctx, opts)
+			require.NoError(t, err)
+			for _, s := range software {
+				require.NotNil(t, s.AITool, s.Name)
+				got[s.Name+" "+s.Version] = *s.AITool
+			}
+			require.NotNil(t, meta)
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, software, 2)
+		}
+		count, err := ds.CountSoftware(ctx, opts)
+		require.NoError(t, err)
+		require.Equal(t, len(got), count)
+		return got
+	}
+
+	for _, orderKey := range []string{"hosts_count", "name"} {
+		t.Run("ai_tool field order="+orderKey, func(t *testing.T) {
+			require.Equal(t, map[string]bool{
+				"Claude 1.0": true, "Claude 2.0": false, "Slack 1.0": false, "Slack 2.0": false, "codex 1.0": true, "github 0.1": true,
+			}, listAll(t, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: orderKey}}))
+		})
+	}
+
+	cases := []struct {
+		name              string
+		source            string
+		vulnerable        bool
+		query             string
+		all, team, noTeam []string
+	}{
+		{name: "ai_tool", all: []string{"Claude 1.0", "codex 1.0", "github 0.1"}, team: []string{"Claude 1.0", "codex 1.0"}, noTeam: []string{"github 0.1"}},
+		{name: "with source", source: "apps", all: []string{"Claude 1.0"}, team: []string{"Claude 1.0"}},
+		{name: "with vulnerable", vulnerable: true, all: []string{"Claude 1.0"}, team: []string{"Claude 1.0"}},
+		{name: "with search", query: "c", all: []string{"Claude 1.0", "codex 1.0"}, team: []string{"Claude 1.0", "codex 1.0"}},
+	}
+	for _, c := range cases {
+		filter, err := fleet.ParseSoftwareTypeFilter(c.source, "")
+		require.NoError(t, err)
+		for _, view := range []struct {
+			name   string
+			teamID *uint
+			want   []string
+		}{
+			{"all fleets", nil, c.all},
+			{"fleet", &tm.ID, c.team},
+			{"no fleet", new(uint(0)), c.noTeam},
+		} {
+			for _, orderKey := range []string{"hosts_count", "name"} {
+				t.Run(fmt.Sprintf("%s %s order=%s", c.name, view.name, orderKey), func(t *testing.T) {
+					opts := fleet.SoftwareListOptions{
+						ListOptions:    fleet.ListOptions{OrderKey: orderKey, MatchQuery: c.query},
+						TeamID:         view.teamID,
+						VulnerableOnly: c.vulnerable,
+						TypeFilter:     filter,
+						AITool:         true,
+						WithHostCounts: true,
+					}
+					require.Equal(t, orderKey == "hosts_count", canUseOptimizedListQuery(opts))
+					got := listAll(t, opts)
+					require.ElementsMatch(t, view.want, std_slices.Collect(maps.Keys(got)))
+					for name, aiTool := range got {
+						require.True(t, aiTool, name)
+					}
+				})
+			}
+		}
+	}
+
+	t.Run("by id", func(t *testing.T) {
+		for name, want := range map[string]bool{"Claude 1.0": true, "Claude 2.0": false} {
+			sw, err := ds.SoftwareByID(ctx, softwareIDs[name], nil, false, nil)
+			require.NoError(t, err)
+			require.NotNil(t, sw.AITool, name)
+			require.Equal(t, want, *sw.AITool, name)
+		}
+	})
+}
+
+func testListHostSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "macos-host", "", "macoshostkey", "macoshostuuid", time.Now(), test.WithPlatform("darwin"))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID})))
+	host.TeamID = &tm.ID
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "setup script",
+		Source:          "sh_packages",
+		InstallScript:   "echo",
+		Filename:        "setup.sh",
+		Extension:       "sh",
+		Platform:        "darwin",
+		TeamID:          &tm.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Claude", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude", AITool: new(true)},
+		{Name: "Claude Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.anthropic.claude.helper", AITool: new(true)},
+		{Name: "Slack", Version: "1.0", Source: "apps", BundleIdentifier: "com.slack"},
+		{Name: "codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	pathByName := map[string]string{
+		"Claude":        "/Applications/Claude.app",
+		"Claude Helper": "/Applications/Claude.app/Contents/Helpers/Claude Helper.app",
+		"Slack":         "/Applications/Slack.app",
+	}
+	swPaths := map[string]fleet.ExecutableHashes{}
+	hostDetailsAITool := make(map[string]bool)
+	for _, hs := range host.Software {
+		require.NotNil(t, hs.AITool, hs.Name)
+		hostDetailsAITool[hs.Name] = *hs.AITool
+		if hs.Name == "Claude" || hs.Name == "Slack" {
+			_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: hs.ID, CVE: "CVE-2024-0001"}, fleet.NVDSource)
+			require.NoError(t, err)
+		}
+		path, ok := pathByName[hs.Name]
+		if !ok {
+			continue
+		}
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hs.ToUniqueStr())
+		swPaths[key] = nil
+	}
+	require.Equal(t, map[string]bool{"Claude": true, "Claude Helper": true, "Slack": false, "codex": true}, hostDetailsAITool)
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// listAll lists every page with a small page size, asserts the total matches the list and
+	// returns each title's ai_tool.
+	listAll := func(t *testing.T, opts fleet.HostSoftwareTitleListOptions) map[string]bool {
+		t.Helper()
+		opts.IsMDMEnrolled = true
+		opts.ListOptions = fleet.ListOptions{PerPage: 2, IncludeMetadata: true, OrderKey: "name", MatchQuery: opts.ListOptions.MatchQuery}
+
+		got := make(map[string]bool)
+		var total uint
+		for page := uint(0); ; page++ {
+			opts.ListOptions.Page = page
+			sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+			require.NoError(t, err)
+			require.NotNil(t, meta)
+			for _, s := range sw {
+				require.NotContains(t, got, s.Name)
+				require.NotNil(t, s.AITool, s.Name)
+				got[s.Name] = *s.AITool
+			}
+			total = meta.TotalResults
+			if !meta.HasNextResults {
+				break
+			}
+			require.Len(t, sw, 2)
+		}
+		require.EqualValues(t, len(got), total)
+		return got
+	}
+
+	t.Run("ai_tool field", func(t *testing.T) {
+		require.Equal(t, map[string]bool{
+			"Claude": true, "Claude Helper": true, "Slack": false, "codex": true, "setup script": false,
+		}, listAll(t, fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true}))
+	})
+
+	cases := []struct {
+		name                string
+		source              string
+		macOSApplications   bool
+		availableForInstall bool
+		onlyAvailable       bool
+		vulnerable          bool
+		query               string
+		want                []string
+	}{
+		{name: "ai_tool", want: []string{"Claude", "Claude Helper", "codex"}},
+		{name: "with available for install", availableForInstall: true, want: []string{"Claude", "Claude Helper", "codex"}},
+		{name: "with only available for install", availableForInstall: true, onlyAvailable: true, want: nil},
+		{name: "with macos applications", macOSApplications: true, want: []string{"Claude"}},
+		{name: "with source", source: "ai_clis", want: []string{"codex"}},
+		{name: "with source and macos applications", source: "apps", macOSApplications: true, want: []string{"Claude"}},
+		{name: "with vulnerable", vulnerable: true, want: []string{"Claude"}},
+		{name: "with search", query: "helper", want: []string{"Claude Helper"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			filter, err := fleet.ParseSoftwareTypeFilter(c.source, "")
+			require.NoError(t, err)
+			got := listAll(t, fleet.HostSoftwareTitleListOptions{
+				ListOptions:                fleet.ListOptions{MatchQuery: c.query},
+				TypeFilter:                 filter,
+				AITool:                     true,
+				MacOSApplicationsOnly:      c.macOSApplications,
+				IncludeAvailableForInstall: c.availableForInstall,
+				OnlyAvailableForInstall:    c.onlyAvailable,
+				VulnerableOnly:             c.vulnerable,
+			})
+			require.ElementsMatch(t, c.want, std_slices.Collect(maps.Keys(got)))
+			for name, aiTool := range got {
+				require.True(t, aiTool, name)
+			}
+		})
+	}
+}
+
+func testCleanupUnusedSoftwareBatches(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	defer func(size, iterations int) {
+		cleanupBatchSize, cleanupMaxIterations = size, iterations
+	}(cleanupBatchSize, cleanupMaxIterations)
+	cleanupBatchSize, cleanupMaxIterations = 2, 10
+
+	host := test.NewHost(t, ds, "cleanup-host", "", "cleanup-hostkey", "cleanup-hostuuid", time.Now())
+	// Add one package at a time so software IDs ascend with the names.
+	software := make([]fleet.Software, 0, 6)
+	for i := range 6 {
+		software = append(software, fleet.Software{Name: fmt.Sprintf("sw%d", i), Version: "1.0", Source: "deb_packages"})
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		require.NoError(t, err)
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software[2], software[5]})
+	require.NoError(t, err)
+
+	// Batches are (sw0, sw1) then (sw3, sw4). Orphaning sw2 after the second batch puts it behind the
+	// cursor, so it must survive until the next run instead of being found by a rescan.
+	var batches int
+	cleanupUnusedSoftwareAfterBatchHook = func() {
+		batches++
+		if batches == 2 {
+			_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software[5]})
+			require.NoError(t, err)
+		}
+	}
+	t.Cleanup(func() { cleanupUnusedSoftwareAfterBatchHook = nil })
+
+	softwareNames := func() []string {
+		var names []string
+		require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &names, `SELECT name FROM software ORDER BY name`))
+		return names
+	}
+
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, []string{"sw2", "sw5"}, softwareNames())
+
+	cleanupUnusedSoftwareAfterBatchHook = nil
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+	require.Equal(t, []string{"sw5"}, softwareNames())
+}
+
+// testSoftwareListSharedCVEs covers CVE details on a list where several software
+// versions share a CVE: the per-CVE metadata is the same for each of them, while
+// resolved_in_version stays per software version, and a CVE without metadata still
+// shows up with null details on Premium.
+func testSoftwareListSharedCVEs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "sharedcves", "", "sharedcveskey", "sharedcvesuuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "alpha", Version: "1.0", Source: "apps"},
+		{Name: "alpha", Version: "2.0", Source: "apps"},
+		{Name: "beta", Version: "1.0", Source: "apps"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	byVersion := make(map[string]uint, len(host.Software))
+	for _, s := range host.Software {
+		byVersion[s.Name+" "+s.Version] = s.ID
+	}
+	alpha1, alpha2 := byVersion["alpha 1.0"], byVersion["alpha 2.0"]
+
+	for _, v := range []fleet.SoftwareVulnerability{
+		{SoftwareID: alpha1, CVE: "CVE-2026-0001", ResolvedInVersion: new("1.5")},
+		{SoftwareID: alpha2, CVE: "CVE-2026-0001", ResolvedInVersion: new("2.5")},
+		{SoftwareID: alpha1, CVE: "CVE-2026-0002"},
+	} {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+	published := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
+	// CVE-2026-0002 deliberately has no cve_meta row.
+	require.NoError(t, ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{
+		CVE:              "CVE-2026-0001",
+		CVSSScore:        new(7.5),
+		EPSSProbability:  new(0.42),
+		CISAKnownExploit: new(true),
+		Published:        &published,
+		Description:      "shared description",
+	}}))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+
+	bySoftware := func(list []fleet.Software) map[string]fleet.Software {
+		m := make(map[string]fleet.Software, len(list))
+		for _, s := range list {
+			m[s.Name+" "+s.Version] = s
+		}
+		return m
+	}
+
+	t.Run("premium details", func(t *testing.T) {
+		list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{
+			IncludeCVEScores: true,
+			WithHostCounts:   true,
+		})
+		require.NoError(t, err)
+		got := bySoftware(list)
+		require.Len(t, got, 3)
+
+		a1 := got["alpha 1.0"].Vulnerabilities
+		require.Len(t, a1, 2)
+		require.Equal(t, "CVE-2026-0001", a1[0].CVE)
+		require.Equal(t, "CVE-2026-0002", a1[1].CVE)
+		require.Equal(t, "shared description", **a1[0].Description)
+		require.Equal(t, "1.5", **a1[0].ResolvedInVersion)
+		require.False(t, a1[0].CreatedAt.IsZero())
+		// No metadata: details are present but null, not omitted.
+		require.NotNil(t, a1[1].CVSSScore)
+		require.Nil(t, *a1[1].CVSSScore)
+		require.NotNil(t, a1[1].Description)
+		require.Nil(t, *a1[1].Description)
+		require.NotNil(t, a1[1].ResolvedInVersion)
+		require.Nil(t, *a1[1].ResolvedInVersion)
+
+		a2 := got["alpha 2.0"].Vulnerabilities
+		require.Len(t, a2, 1)
+		require.Equal(t, "CVE-2026-0001", a2[0].CVE)
+		require.Equal(t, "shared description", **a2[0].Description)
+		require.Equal(t, "2.5", **a2[0].ResolvedInVersion)
+
+		require.Empty(t, got["beta 1.0"].Vulnerabilities)
+	})
+
+	t.Run("host software with details", func(t *testing.T) {
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, true))
+		got := make(map[string]fleet.HostSoftwareEntry, len(host.Software))
+		for _, s := range host.Software {
+			got[s.Name+" "+s.Version] = s
+		}
+		require.Len(t, got, 3)
+		a1 := got["alpha 1.0"].Vulnerabilities
+		require.Len(t, a1, 2)
+		require.Equal(t, "CVE-2026-0001", a1[0].CVE)
+		require.Equal(t, "shared description", **a1[0].Description)
+		require.Equal(t, "1.5", **a1[0].ResolvedInVersion)
+		require.NotNil(t, a1[1].CVSSScore)
+		require.Nil(t, *a1[1].CVSSScore)
+		require.Equal(t, "2.5", **got["alpha 2.0"].Vulnerabilities[0].ResolvedInVersion)
+		require.Empty(t, got["beta 1.0"].Vulnerabilities)
+	})
+
+	t.Run("CVEs shared across batches", func(t *testing.T) {
+		orig := listSoftwareCVEsBatchSize
+		t.Cleanup(func() { listSoftwareCVEsBatchSize = orig })
+		listSoftwareCVEsBatchSize = 1
+
+		list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
+		require.NoError(t, err)
+		got := bySoftware(list)
+		require.Len(t, got["alpha 1.0"].Vulnerabilities, 2)
+		require.Len(t, got["alpha 2.0"].Vulnerabilities, 1)
+		require.Equal(t, "shared description", **got["alpha 2.0"].Vulnerabilities[0].Description)
+		require.Equal(t, "2.5", **got["alpha 2.0"].Vulnerabilities[0].ResolvedInVersion)
+	})
+
+	t.Run("vulnerable only with cvss filter", func(t *testing.T) {
+		list, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{
+			VulnerableOnly:   true,
+			IncludeCVEScores: true,
+			MinimumCVSS:      7,
+			WithHostCounts:   true,
+		})
+		require.NoError(t, err)
+		got := bySoftware(list)
+		require.Len(t, got, 2)
+		// The CVSS filter selects software, not the CVEs listed on it.
+		require.Len(t, got["alpha 1.0"].Vulnerabilities, 2)
+	})
 }

@@ -6,7 +6,6 @@ import {
   IHostAppStoreApp,
   IHostSoftware,
   IHostSoftwarePackage,
-  ISoftwareInstallVersion,
 } from "interfaces/software";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { HOST_SUMMARY_DATA } from "utilities/constants";
@@ -21,6 +20,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   detail: "This is verified",
   scope: "device",
   managed_local_account: "",
+  hidden: false,
+  self_service: false,
 };
 
 export const createMockHostMdmProfile = (
@@ -53,7 +54,8 @@ const DEFAULT_HOST_MOCK: IHost = {
   osquery_version: "4.9.0",
   orbit_version: "1.22.0",
   fleet_desktop_version: "1.22.1",
-  os_version: "Ubuntu 18.4.0",
+  os_name: "Ubuntu",
+  os_version: "18.4.0",
   build: "",
   platform_like: "debian",
   code_name: "",
@@ -100,9 +102,9 @@ const DEFAULT_HOST_MOCK: IHost = {
   distributed_interval: 10,
   config_tls_refresh: 10,
   logger_tls_period: 10,
-  team_id: null,
+  fleet_id: null,
   pack_stats: null,
-  team_name: null,
+  fleet_name: null,
   gigs_disk_space_available: 100.0,
   percent_disk_space_available: 50,
   issues: {
@@ -113,7 +115,6 @@ const DEFAULT_HOST_MOCK: IHost = {
   status: "offline",
   scripts_enabled: false,
   labels: [],
-  packs: [],
   software: [],
   users: [],
   policies: [],
@@ -158,10 +159,11 @@ export const createMockIosHostResponse = {
   host: createMockHost({
     hostname: "Test device (iPhone)",
     display_name: "Test device (iPhone)",
-    team_id: 2,
-    team_name: "Mobile",
+    fleet_id: 2,
+    fleet_name: "Mobile",
     platform: "ios",
-    os_version: "iOS 14.7.1",
+    os_name: "iOS",
+    os_version: "14.7.1",
     hardware_serial: "C8QH6T96DPNA",
     created_at: "2024-01-01T12:00:00Z",
     updated_at: "2024-05-02T12:00:00Z",
@@ -222,44 +224,15 @@ export const DEFAULT_INSTALLED_VERSION = {
       installed_path: "/Applications/mock.app",
       team_identifier: "12345TEAMIDENT",
       hash_sha256: "mockhashhere",
-      executable_sha256: null,
-      executable_path: null,
     },
   ],
 };
-
-export const HOMEBREW_KEG_PATH = "/opt/homebrew/Cellar/git";
-
-/** A Homebrew formula's keg: one installed path, one signature entry per Mach-O
- * executable under it, and no cdhash. The hashes differ in their first seven
- * characters so truncated renderings stay distinguishable. */
-export const createMockHomebrewInstalledVersion = (
-  overrides?: Partial<ISoftwareInstallVersion>
-): ISoftwareInstallVersion => ({
-  version: "2.46.0",
-  vulnerabilities: null,
-  installed_paths: [HOMEBREW_KEG_PATH],
-  bundle_identifier: "",
-  signature_information: [
-    ["git", "aaaaaaa"],
-    ["git-cvsserver", "bbbbbbb"],
-    ["git-upload-pack", "ccccccc"],
-  ].map(([name, prefix]) => ({
-    installed_path: HOMEBREW_KEG_PATH,
-    team_identifier: "",
-    hash_sha256: null,
-    executable_sha256: prefix.padEnd(64, "0"),
-    executable_path: `${HOMEBREW_KEG_PATH}/2.46.0/bin/${name}`,
-  })),
-  ...overrides,
-});
-
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
   display_name: "Mock Software",
   icon_url: null,
-  software_package: createMockHostSoftwarePackage(),
+  package: createMockHostSoftwarePackage(),
   app_store_app: null,
   source: "apps",
   bundle_identifier: "com.test.mock",

@@ -201,7 +201,7 @@ func ReconcileHostDeviceNames(
 			}
 			logger.InfoContext(ctx, "host name template resolves past the device name limit, not sending command",
 				"host_uuid", host.HostUUID, "resolved_bytes", len(resolved))
-		case resolved == host.ComputerName:
+		case resolved == host.ComputerName && host.NameReportedSinceEnrollment:
 			// The device already carries the resolved name; no command needed.
 			// On a write error, log and move on rather than aborting the batch.
 			if err := ds.SetHostDeviceNameStatus(ctx, host.HostUUID, fleet.MDMDeliveryVerified, nil, resolved, ""); err != nil {
@@ -306,6 +306,7 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 	noGroupsErr := fmt.Sprintf("There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
 	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
 	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
+	noExternalIDErr := fmt.Sprintf("There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPExternalID)
 
 	if user == nil {
 		switch fleetVar {
@@ -315,6 +316,8 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 			return "", nil, false, noDepartmentErr
 		case string(fleet.FleetVarHostEndUserIDPFullname):
 			return "", nil, false, noFullnameErr
+		case string(fleet.FleetVarHostEndUserIDPExternalID):
+			return "", nil, false, noExternalIDErr
 		default:
 			return "", nil, false, fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
 		}
@@ -341,7 +344,31 @@ func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value st
 			return "", nil, false, noFullnameErr
 		}
 		return fullName, fleet.FleetVarHostEndUserIDPFullnameRegexp, true, ""
+	case string(fleet.FleetVarHostEndUserIDPExternalID):
+		if user.IdpID == "" {
+			return "", nil, false, noExternalIDErr
+		}
+		return user.IdpID, fleet.FleetVarHostEndUserIDPExternalIDRegexp, true, ""
 	default:
 		return "", nil, false, fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+	}
+}
+
+func (svc *Service) reconcileHostDeviceNameReport(ctx context.Context, hostUUID, reportedName string) {
+	outcome, err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, hostUUID, reportedName)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "update host device name status from report", "host_uuid", hostUUID, "err", err)
+		return
+	}
+	logDeviceNameRetry(ctx, svc.logger, outcome, "renamed on device", "host_uuid", hostUUID, "reported_name", reportedName)
+}
+
+func logDeviceNameRetry(ctx context.Context, logger *slog.Logger, outcome fleet.DeviceNameRetryOutcome, reason string, attrs ...any) {
+	attrs = append(attrs, "reason", reason)
+	switch outcome {
+	case fleet.DeviceNameRetried:
+		logger.DebugContext(ctx, "re-enforcing host name template", attrs...)
+	case fleet.DeviceNameRetriesExhausted:
+		logger.DebugContext(ctx, "host name template retries exhausted, marked failed", attrs...)
 	}
 }

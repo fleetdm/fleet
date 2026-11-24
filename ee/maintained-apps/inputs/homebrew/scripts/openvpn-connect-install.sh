@@ -8,13 +8,73 @@ APPDIR="/Applications"
 BUNDLE_ID="org.openvpn.client.app"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
+app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids kill_cmd=(kill)
+  [[ $EUID -ne 0 ]] || kill_cmd=(sudo -u "$console_user" kill)
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    if ! app_process_running "$bundle_id" &&
+      [[ "$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)" == "false" ]]; then
+      echo "Application '$bundle_id' is no longer running."
+      return 0
+    fi
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  "${kill_cmd[@]}" -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    "${kill_cmd[@]}" -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+
 quit_and_track_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
@@ -33,30 +93,45 @@ quit_and_track_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  local quit_success=false
+  local quit_success=false quit_sent=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
         echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
       fi
+      quit_success=true
+      break
     fi
+    quit_sent=true
     sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
   fi
 }
 
 relaunch_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local app_path="${2:-}"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
-  eval "was_running=\$$var_name"
+  # Check if the app was running before installation. Default the variable so a
+  # script running under 'set -u' doesn't abort when the quit helper never ran.
+  eval "was_running=\${$var_name:-0}"
   if [[ "$was_running" != "1" ]]; then
     return
   fi
@@ -70,20 +145,44 @@ relaunch_application() {
 
   echo "Relaunching application '$bundle_id'..."
 
-  local open_status=0
-  if [[ $EUID -eq 0 ]]; then
-    local console_uid
-    console_uid=$(id -u "$console_user")
-    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  else
-    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
-  fi
+  # Launch the app in the logged-in user's GUI session. Apps launched by root
+  # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_args=(-b "$bundle_id")
+  [[ -z "$app_path" ]] || open_args=("$app_path")
+  local timeout_duration=30
+  local attempt=0 delay=2 open_status open_output
+  SECONDS=0
+  while true; do
+    attempt=$((attempt + 1))
+    open_status=0
+    if [[ $EUID -eq 0 ]]; then
+      local console_uid
+      console_uid=$(id -u "$console_user")
+      open_output=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" open "${open_args[@]}" 2>&1) || open_status=$?
+    else
+      open_output=$(open "${open_args[@]}" 2>&1) || open_status=$?
+    fi
 
-  if [[ $open_status -eq 0 ]]; then
-    echo "Application '$bundle_id' relaunched successfully."
-  else
-    echo "Failed to relaunch application '$bundle_id'."
-  fi
+    if [[ $open_status -eq 0 ]]; then
+      echo "Application '$bundle_id' relaunched successfully."
+      return
+    fi
+    echo "Attempt $attempt to relaunch application '$bundle_id' failed (exit $open_status): $open_output"
+    # Back off 2, 4, 8, then 10 seconds. The budget bounds when the last
+    # attempt may start, not how long one takes: a slow 'open' is usually
+    # Gatekeeper checking the newly copied bundle, which is worth waiting out.
+    (( SECONDS + delay <= timeout_duration )) || break
+    sleep "$delay"
+    # sleep only guarantees at least $delay, so a late wake-up — the Mac
+    # suspending mid-sleep, say — can land past the budget. Check again rather
+    # than trusting the estimate above; landing exactly on it still retries.
+    (( SECONDS <= timeout_duration )) || break
+    delay=$(( delay * 2 > 10 ? 10 : delay * 2 ))
+  done
+  echo "Failed to relaunch application '$bundle_id'."
 }
 
 if [ -z "${INSTALLER_PATH:-}" ] || [ ! -f "$INSTALLER_PATH" ]; then
@@ -91,47 +190,12 @@ if [ -z "${INSTALLER_PATH:-}" ] || [ ! -f "$INSTALLER_PATH" ]; then
   exit 1
 fi
 
-MOUNT_POINT=$(mktemp -d /tmp/openvpn_connect_dmg.XXXXXX)
-cleanup() {
-  hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
-  rmdir "$MOUNT_POINT" >/dev/null 2>&1 || true
-}
-trap cleanup EXIT
+quit_and_track_application "$BUNDLE_ID" || exit 1
 
-if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" >/dev/null; then
-  echo "Failed to mount DMG at $INSTALLER_PATH"
+if ! sudo installer -pkg "$INSTALLER_PATH" -target /; then
+  echo "installer -pkg failed for $INSTALLER_PATH"
   exit 1
 fi
-
-# Locate the arm64 installer pkg. We only support Apple Silicon for this FMA,
-# so deliberately skip the x86_64 pkg shipped in the same DMG. Use a glob so
-# parentheses and version/build numbers in the file name don't have to be
-# hard-coded here.
-PKG=""
-for candidate in "$MOUNT_POINT"/*_arm64_Installer_signed.pkg; do
-  if [ -e "$candidate" ]; then
-    PKG="$candidate"
-    break
-  fi
-done
-
-if [ -z "$PKG" ] || [ ! -e "$PKG" ]; then
-  echo "Could not find an arm64 OpenVPN Connect installer pkg in the DMG. Contents:"
-  ls -la "$MOUNT_POINT"
-  exit 1
-fi
-
-echo "Installing $PKG..."
-
-quit_and_track_application "$BUNDLE_ID"
-
-if ! sudo installer -pkg "$PKG" -target /; then
-  echo "installer -pkg failed for $PKG"
-  exit 1
-fi
-
-cleanup
-trap - EXIT
 
 # OpenVPN Connect 3.8+ places the .app inside a wrapper directory rather than
 # directly under /Applications/. osquery's apps table doesn't recurse into

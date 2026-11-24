@@ -10,7 +10,7 @@
         },
         "Notifications": false,
         "RapidSecurityResponse": {
-            "Enabled": true
+            "Enable": true
         }
     }
 }

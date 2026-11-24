@@ -99,12 +99,10 @@
   }
 
   [purpose='section-button'] {
-    .cta-button();
+    .primary-button();
     width: fit-content;
     display: flex;
-    height: 36px;
     min-width: 140px;
-    padding: 8px 16px;
     justify-content: center;
     align-items: center;
     gap: 4px;
@@ -113,10 +111,8 @@
 
 
     font-family: Inter;
-    font-size: 14px;
     font-style: normal;
     font-weight: 700;
-    line-height: 21px;
   }
 
   [purpose='quote-and-logos'] {
@@ -287,10 +283,10 @@
             height: 28px;
           }
         }
-        &.easygo {
-          padding: 0 33px 0 35px;
+        &.nvidia {
+          padding: 0 24px;
           img {
-            height: 20px;
+            height: 24px;
           }
         }
         &.conductor-one {
@@ -528,10 +524,9 @@
       white-space: nowrap;
     }
     [purpose='cta-button'] {
-      .cta-button();
+      .primary-button();
+      display: flex;
       margin-right: 24px;
-      padding: 16px;
-      height: 36px;
     }
   }
 
@@ -872,8 +867,11 @@
                 height: 15px;
               }
             }
-            &.easygo {
+            &.nvidia {
               padding: unset;
+              img {
+                height: 24px;
+              }
             }
             &.fastly {
               padding: unset;

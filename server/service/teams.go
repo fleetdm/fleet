@@ -8,8 +8,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -25,7 +27,7 @@ type listTeamsRequest struct {
 }
 
 type listTeamsResponse struct {
-	Teams []fleet.Team `json:"teams" renameto:"fleets"`
+	Teams []fleet.Team `json:"fleets"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -62,14 +64,14 @@ type getTeamRequest struct {
 }
 
 type getTeamResponse struct {
-	Team *fleet.Team `json:"team" renameto:"fleet"`
+	Team *fleet.Team `json:"fleet"`
 	Err  error       `json:"error,omitempty"`
 }
 
 func (r getTeamResponse) Error() error { return r.Err }
 
 type defaultTeamResponse struct {
-	Team *fleet.DefaultTeam `json:"team" renameto:"fleet"`
+	Team *fleet.DefaultTeam `json:"fleet"`
 	Err  error              `json:"error,omitempty"`
 }
 
@@ -122,7 +124,7 @@ type createTeamRequest struct {
 }
 
 type teamResponse struct {
-	Team *fleet.Team `json:"team,omitempty" renameto:"fleet"`
+	Team *fleet.Team `json:"fleet,omitempty"`
 	Err  error       `json:"error,omitempty"`
 }
 
@@ -282,7 +284,7 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 
 type applyTeamSpecsResponse struct {
 	Err           error           `json:"error,omitempty"`
-	TeamIDsByName map[string]uint `json:"team_ids_by_name,omitempty" renameto:"fleet_ids_by_name"`
+	TeamIDsByName map[string]uint `json:"fleet_ids_by_name,omitempty"`
 }
 
 func (r applyTeamSpecsResponse) Error() error { return r.Err }
@@ -492,4 +494,15 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+// removedFleetName returns the error reason when name is "No team", or "All teams" for a caller that accepts "All fleets".
+func removedFleetName(name string, acceptsAllFleets bool) (string, bool) {
+	switch {
+	case strings.EqualFold(name, fleet.ReservedNameNoTeam):
+		return removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameNoTeam), fmt.Sprintf("%q", fleet.DisplayNameNoTeam)), true
+	case acceptsAllFleets && strings.EqualFold(name, fleet.ReservedNameAllTeams):
+		return removednames.Message(fmt.Sprintf("%q", fleet.ReservedNameAllTeams), fmt.Sprintf("%q", fleet.DisplayNameAllTeams)), true
+	}
+	return "", false
 }

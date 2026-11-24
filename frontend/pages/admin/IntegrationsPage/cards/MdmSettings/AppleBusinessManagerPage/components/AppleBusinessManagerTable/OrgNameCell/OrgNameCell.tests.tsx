@@ -10,20 +10,20 @@ describe("OrgNameCell", () => {
     );
 
     expect(screen.getByText("Acme Inc.")).toBeInTheDocument();
-    expect(screen.queryByText("Default token")).not.toBeInTheDocument();
+    expect(screen.queryByText("Default sign-in")).not.toBeInTheDocument();
   });
 
   it("renders the default tag for the default token", () => {
     render(<OrgNameCell orgName="Acme Inc." termsExpired={false} isDefault />);
 
     expect(screen.getByText("Acme Inc.")).toBeInTheDocument();
-    expect(screen.getByText("Default token")).toBeInTheDocument();
+    expect(screen.getByText("Default sign-in")).toBeInTheDocument();
   });
 
   it("renders the default tag alongside the expired terms warning", () => {
     render(<OrgNameCell orgName="Acme Inc." termsExpired isDefault />);
 
     expect(screen.getByText("Acme Inc.")).toBeInTheDocument();
-    expect(screen.getByText("Default token")).toBeInTheDocument();
+    expect(screen.getByText("Default sign-in")).toBeInTheDocument();
   });
 });

@@ -137,6 +137,8 @@ func (s *mockStore) expire(sessionID string) error {
 	return nil
 }
 
+func (s *mockStore) ConsumeAssertion(string, time.Time) error { return nil }
+
 func (s *mockStore) Fullfill(sessionID string) (*Session, error) {
 	return s.session, nil
 }

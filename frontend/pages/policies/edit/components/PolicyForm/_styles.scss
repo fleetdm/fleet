@@ -12,6 +12,12 @@
     }
   }
 
+  &__automation {
+    display: flex;
+    flex-direction: column;
+    gap: $gap-form-component;
+  }
+
   &__page-header {
     display: flex;
     flex-direction: column;
@@ -28,6 +34,10 @@
     font-size: $x-small;
     color: $ui-fleet-black-75;
     margin: 0;
+  }
+
+  &__fleet-name {
+    overflow-wrap: anywhere;
   }
 
   &__title-bar {
@@ -169,14 +179,14 @@
     }
   }
 
-  &__critical-checkbox-wrapper {
+  &__critical-checkbox-wrapper,
+  &__hidden-checkbox-wrapper {
     // override form child width: 100%
     width: auto;
     .form-field--checkbox {
       margin-bottom: 0;
     }
   }
-
 }
 
 // Responsive tweaks that only apply when the schema sidebar is open on the

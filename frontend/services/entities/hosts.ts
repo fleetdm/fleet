@@ -1,7 +1,8 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
+import { IHostAISession, IHostAISessionEvent } from "interfaces/ai_sessions";
 import { IHostCertificate } from "interfaces/certificates";
-import { IHost, HostStatus } from "interfaces/host";
+import { IHost, HostStatus, IHostEncrpytionKeyResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
@@ -76,9 +77,10 @@ export interface IDepAssignmentHostResponse {
     assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
     response_updated_at: string;
+    throttled_retry_after: string | null;
     added_at: string;
     deleted_at: string | null;
-    abm_token_id: number;
+    ab_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
   } | null;
@@ -88,6 +90,8 @@ export type IUnlockHostResponse =
   | {
       host_id: number;
       unlock_pin: string;
+      locked_at?: string;
+      device_status?: string;
     }
   | Record<string, never>;
 
@@ -98,9 +102,21 @@ export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
   SOFTWARE_STATUS: "software_status",
+  APP_STORE_APP_VERSION_ID: "app_store_app_version_id",
   SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
   SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
+
+// Host filters that only apply within one fleet or "No fleet": without a fleet
+// the API narrows them to "No fleet" (or rejects software_status), so they're
+// cleared on any switch to All fleets.
+export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  "apple_settings",
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
+  "macos_bootstrap_package",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
+];
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
@@ -118,10 +134,10 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -155,10 +171,10 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -191,7 +207,6 @@ export interface IActionByFilter {
   currentTeam?: number | null;
   policyId?: number | null;
   policyResponse?: PolicyResponse;
-  softwareId?: number | null;
   softwareTitleId?: number | null;
   softwareVersionId?: number | null;
   softwareStatus?: SoftwareAggregateStatus;
@@ -248,6 +263,9 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   max_cvss_score?: number;
   exploit?: boolean;
   macos_applications?: boolean;
+  source?: string;
+  extension_for?: string;
+  ai_tool?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -258,6 +276,35 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
 
 export interface IGetHostCertsApiParams extends IListOptions {
   host_id: number;
+}
+
+export interface IGetHostAISessionsApiParams extends IListOptions {
+  host_id: number;
+}
+
+export interface IGetHostAISessionsResponse {
+  ai_sessions: IHostAISession[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+  count: number;
+}
+
+export interface IGetHostAISessionEventsApiParams {
+  host_id: number;
+  ai_session_id: number;
+  page: number;
+  per_page: number;
+}
+
+export interface IGetHostAISessionEventsResponse {
+  events: IHostAISessionEvent[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+  count: number;
 }
 
 export interface IGetHostDeviceURLResponse {
@@ -335,7 +382,6 @@ export default {
     labelId,
     policyId,
     policyResponse,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
@@ -361,7 +407,6 @@ export default {
         fleet_id: teamId,
         policy_id: policyId,
         policy_response: policyResponse,
-        software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
         [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
@@ -387,10 +432,10 @@ export default {
     const teamId = options?.teamId;
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
-    const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
+    const appStoreAppVersionId = options?.appStoreAppVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
@@ -434,10 +479,10 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         osName,
         osVersionId,
         osVersion,
@@ -474,10 +519,10 @@ export default {
     policyId,
     policyResponse = "passing",
     macSettingsStatus,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
+    appStoreAppVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -525,10 +570,10 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         lowDiskSpaceHosts,
         osVersionId,
         osName,
@@ -603,7 +648,6 @@ export default {
     currentTeam,
     policyId,
     policyResponse,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
@@ -632,7 +676,6 @@ export default {
         fleet_id: currentTeam,
         policy_id: policyId,
         policy_response: policyResponse,
-        software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
         [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
@@ -649,7 +692,7 @@ export default {
         os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
         dep_profile_error: depProfileError,
-        dep_assing_profile_response: depAssignProfileResponse,
+        dep_assign_profile_response: depAssignProfileResponse,
       },
     });
   },
@@ -671,9 +714,14 @@ export default {
     return sendRequest("GET", fullPath);
   },
 
-  getEncryptionKey: (id: number) => {
+  getEncryptionKey: (id: number): Promise<IHostEncrpytionKeyResponse> => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  rotateDiskEncryptionKey: (id: number): Promise<void> => {
+    const { HOST_ENCRYPTION_KEY_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_ENCRYPTION_KEY_ROTATE(id));
   },
 
   getRecoveryLockPassword: (id: number) => {
@@ -716,6 +764,11 @@ export default {
     return sendRequest("POST", HOST_WIPE(id));
   },
 
+  resetHost: (id: number) => {
+    const { HOST_RESET } = endpoints;
+    return sendRequest("POST", HOST_RESET(id));
+  },
+
   clearPasscode: (id: number) => {
     const { HOST_CLEAR_PASSCODE } = endpoints;
     return sendRequest("POST", HOST_CLEAR_PASSCODE(id));
@@ -725,6 +778,16 @@ export default {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
+  },
+
+  installProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_INSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_INSTALL_PROFILE(hostId, profileUUID));
+  },
+
+  uninstallProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_UNINSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_UNINSTALL_PROFILE(hostId, profileUUID));
   },
 
   resendCertificate: (
@@ -786,6 +849,37 @@ export default {
       order_key,
       order_direction,
     })}`;
+
+    return sendRequest("GET", path);
+  },
+  getHostAISessions: ({
+    host_id,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IGetHostAISessionsApiParams): Promise<IGetHostAISessionsResponse> => {
+    const { HOST_AI_SESSIONS } = endpoints;
+    const path = `${HOST_AI_SESSIONS(host_id)}?${buildQueryStringFromParams({
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    })}`;
+
+    return sendRequest("GET", path);
+  },
+  getHostAISessionEvents: ({
+    host_id,
+    ai_session_id,
+    page,
+    per_page,
+  }: IGetHostAISessionEventsApiParams): Promise<IGetHostAISessionEventsResponse> => {
+    const { HOST_AI_SESSION_EVENTS } = endpoints;
+    const path = `${HOST_AI_SESSION_EVENTS(
+      host_id,
+      ai_session_id
+    )}?${buildQueryStringFromParams({ page, per_page })}`;
 
     return sendRequest("GET", path);
   },

@@ -1,6 +1,6 @@
 {
   "name": "Worksheet Crafter",
-  "unique_identifier": "com.SchoolCraft.WillBeReplacedByQMake",
+  "unique_identifier": "com.schoolcraft.Worksheet Crafter",
   "token": "worksheetcrafter",
   "installer_format": "pkg",
   "slug": "worksheet-crafter/darwin",

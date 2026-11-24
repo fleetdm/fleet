@@ -61,6 +61,8 @@ module.exports = {
     fleetDesktopSSOEnabled: {required: true, type: 'boolean'},
     numHostsFleetMDMEnrolledMacOS: {required: true, type: 'number'},
     numHostsFleetMDMEnrolledWindows: {required: true, type: 'number'},
+    numHostsFleetMDMEnrolledIOS: {required: true, type: 'number'},
+    numHostsFleetMDMEnrolledIpadOS: {required: true, type: 'number'},
     resultLogDestination: {required: true, type: 'string'},
     statusLogDestination: {required: true, type: 'string'},
     auditLogDestination: {required: true, type: 'string'},
@@ -75,6 +77,10 @@ module.exports = {
     idpSCIMConfigured: {required: true, type: 'boolean'},
     idpGoogleWorkspaceConfigured: {required: true, type: 'boolean'},
     certificateAuthorityConfigured: {required: true, type: 'boolean'},
+    numPoliciesAutomationEnabledSoftware: {required: true, type: 'number'},
+    numAppleAiGeneratedProfiles: {required: true, type: 'number'},
+    numWindowsAiGeneratedProfiles: {required: true, type: 'number'},
+    numAndroidAiGeneratedProfiles: {required: true, type: 'number'},
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

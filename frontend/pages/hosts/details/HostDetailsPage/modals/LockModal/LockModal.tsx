@@ -7,13 +7,14 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
+import { MdmEnrollmentStatus, isAndroidBYO } from "interfaces/mdm";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import IpadLockPreview from "../../../../../../../assets/images/ipad-lock-preview.png";
-import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
+import IpadLockPreview from "../../../../../../assets/images/ipad-lock-preview.png";
+import IphoneLockPreview from "../../../../../../assets/images/iphone-lock-preview.png";
 
 const baseClass = "lock-modal";
 
@@ -49,6 +50,7 @@ interface ILockModalProps {
   id: number;
   platform: string;
   hostName: string;
+  hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -57,6 +59,7 @@ const LockModal = ({
   id,
   platform,
   hostName,
+  hostMdmEnrollmentStatus = null,
   onSuccess,
   onClose,
 }: ILockModalProps) => {
@@ -89,19 +92,36 @@ const LockModal = ({
   };
 
   const renderDescription = () => {
+    const offboardingText = (
+      <p>
+        During offboarding, lock a host when it needs to be returned to your
+        organization.
+      </p>
+    );
+
+    if (isAndroidHost) {
+      const pinText = (
+        <p>
+          Fleet will generate an unlock PIN. To view it, select{" "}
+          <b>Actions &gt; View unlock PIN</b>.
+        </p>
+      );
+      return (
+        <>
+          {isAndroidBYO(hostMdmEnrollmentStatus) ? (
+            <p>Lock the end user out of the work profile.</p>
+          ) : (
+            offboardingText
+          )}
+          {pinText}
+        </>
+      );
+    }
+
     if (isIPadOrIPhone(platform)) {
       return (
         <>
-          <p>
-            This enables what Apple calls{" "}
-            <CustomLink
-              url="https://fleetdm.com/learn-more-about/managed-lost-mode"
-              newTab
-              text="Lost Mode"
-            />
-            .
-          </p>
-          <p> It can only be unlocked through Fleet.</p>
+          {offboardingText}
           <p>
             If the host is turned off or restarted while locked, it will
             disconnect from Wi-Fi, and you won&apos;t be able to unlock it
@@ -116,18 +136,9 @@ const LockModal = ({
       );
     }
 
-    if (isAndroid(platform)) {
-      return (
-        <p>
-          Locking will enforce the host lock screen and require the user to
-          enter their password/PIN to regain access.
-        </p>
-      );
-    }
-
     return (
       <>
-        <p>Lock a host when it needs to be returned to your organization.</p>
+        {offboardingText}
         {platform === "darwin" && (
           <p>Fleet will generate a six-digit unlock PIN.</p>
         )}

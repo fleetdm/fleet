@@ -38,3 +38,23 @@ func For(home string) Roots {
 	}
 	return r
 }
+
+// NodeModulesDirs returns the global node_modules directories that may hold
+// npm-installed tools for this home: per-user npm and bun prefixes, every
+// nvm-managed Node version, and the system-wide prefixes. Directories are not
+// checked for existence.
+func NodeModulesDirs(home string) []string {
+	dirs := []string{
+		filepath.Join(home, ".npm-global", "lib", "node_modules"),
+		filepath.Join(home, ".bun", "install", "global", "node_modules"),
+	}
+	if runtime.GOOS == "windows" {
+		dirs = append(dirs, filepath.Join(home, "AppData", "Roaming", "npm", "node_modules"))
+	} else {
+		dirs = append(dirs, "/usr/local/lib/node_modules", "/opt/homebrew/lib/node_modules")
+	}
+	if matches, _ := filepath.Glob(filepath.Join(home, ".nvm", "versions", "node", "*", "lib", "node_modules")); matches != nil {
+		dirs = append(dirs, matches...)
+	}
+	return dirs
+}

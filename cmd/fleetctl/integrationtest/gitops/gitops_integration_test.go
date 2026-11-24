@@ -231,8 +231,8 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsDDMFleetVarsRequiresPremium(
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 org_settings:
   server_settings:
@@ -372,4 +372,43 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsCustomHostVitals() {
 	globalFileAbsent := s.customHostVitalsGlobalYAML("")
 	fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileAbsent})
 	require.Empty(t, listVitals())
+}
+
+func (s *integrationGitopsTestSuite) TestFleetGitopsPatchDeadlineSettingsFree() {
+	t := s.T()
+	ctx := t.Context()
+	fleetctlConfig := s.createFleetctlConfig()
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	dir := t.TempDir()
+	globalFile := path.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`), 0o644))
+	unassignedFile := path.Join(dir, "unassigned.yml")
+	require.NoError(t, os.WriteFile(unassignedFile, []byte(`name: Unassigned
+controls:
+policies:
+software:
+  patch_deadline_settings:
+    days: [monday]
+    time: "09:30"
+`), 0o644))
+
+	out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", unassignedFile})
+	require.NoError(t, err)
+	require.Contains(t, out.String(), "skipping fleet config")
+	require.NotContains(t, out.String(), "patch deadline settings")
+	got, err := s.DS.GetPatchDeadlineSettings(ctx, 0)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DefaultPatchDeadlineSettings(0), got)
 }

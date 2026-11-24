@@ -21,6 +21,9 @@ const (
 	// permitted for technicians, who otherwise have no write access to hosts.
 	ActionDeleteHost    = "delete_host"
 	ActionClearPasscode = "clear_passcode"
+	// ActionRotateDiskEncryptionKey refers to rotating a host's disk encryption key. It is narrower than writing MDM
+	// commands, which gitops is also granted.
+	ActionRotateDiskEncryptionKey = "rotate_disk_encryption_key"
 	// ActionResend refers to resending an entity on a single host (currently used for configuration profiles).
 	ActionResend = "resend"
 	// ActionReadSecrets refers to reading secrets/credentials of an entity (e.g. CA private keys, API tokens).
@@ -59,8 +62,6 @@ const (
 	// them.
 	//
 
-	// ActionSelectiveRead allows targeted read access of an entity.
-	ActionSelectiveRead = "selective_read"
 	// ActionSelectiveList allows targeted list access of an entity.
 	ActionSelectiveList = "selective_list"
 )

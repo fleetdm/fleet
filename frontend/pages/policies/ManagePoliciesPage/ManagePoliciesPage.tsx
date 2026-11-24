@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { SingleValue } from "react-select-5";
 
@@ -35,7 +35,6 @@ import { isQueryablePlatform } from "interfaces/platform";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
-  ILoadTeamPoliciesResponse,
   IPoliciesCountResponse,
   OtherAutomationType,
 } from "interfaces/policy";
@@ -43,20 +42,15 @@ import {
   API_ALL_TEAMS_ID,
   API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
 } from "interfaces/team";
-import { getTicketOrWebhookInfo } from "pages/policies/helpers";
+import { getTicketOrWebhookState } from "pages/policies/helpers";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import globalPoliciesAPI, {
-  GlobalPoliciesAutomationType,
+import policiesAPI, {
   IPoliciesCountQueryKey,
   IPoliciesQueryKey,
-} from "services/entities/global_policies";
-import teamPoliciesAPI, {
-  ITeamPoliciesCountQueryKey,
-  ITeamPoliciesQueryKey,
-  AutomationType,
-} from "services/entities/team_policies";
+} from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -66,6 +60,7 @@ import AutomationsModal from "./components/AutomationsModal";
 import DeletePoliciesModal from "./components/DeletePoliciesModal";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import PoliciesTable from "./components/PoliciesTable";
+import { getPoliciesFilterParams, PoliciesAutomationFilter } from "./helpers";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -80,7 +75,7 @@ interface IManagePoliciesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       page?: string;
-      automation_type?: AutomationType;
+      automation_type?: PoliciesAutomationFilter;
       platform?: string;
       manage_automations?: string;
     };
@@ -92,21 +87,23 @@ export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 20;
 export const DEFAULT_SORT_COLUMN = "name";
 
-const AUTOMATION_TYPES: AutomationType[] = [
+const AUTOMATION_TYPES: PoliciesAutomationFilter[] = [
   "software",
   "patch",
-  "scripts",
-  "profiles",
+  "script",
+  "configuration_profile",
   "calendar",
   "conditional_access",
-  "other",
+  "webhook_or_ticket",
 ];
 
-const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
+const GLOBAL_AUTOMATION_TYPES: PoliciesAutomationFilter[] = [
+  "webhook_or_ticket",
+];
 
 const getValidAutomationTypesForTeam = (
   teamIdForApi: number | undefined
-): (AutomationType | GlobalPoliciesAutomationType)[] => {
+): PoliciesAutomationFilter[] => {
   if (teamIdForApi === undefined) {
     // All fleets → global policies only support webhook/ticket automations.
     return GLOBAL_AUTOMATION_TYPES;
@@ -146,6 +143,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
     setLastEditedQueryPlatform,
     setLastEditedQueryBody,
     setLastEditedQueryId,
@@ -208,7 +206,7 @@ const ManagePolicyPage = ({
 
     const validValues = getValidAutomationTypesForTeam(teamIdForApi);
 
-    return (validValues as string[]).includes(automationQueryParam)
+    return validValues.includes(automationQueryParam)
       ? automationQueryParam
       : null;
   })();
@@ -225,9 +223,11 @@ const ManagePolicyPage = ({
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(initialSortDirection);
-  const [automationFilter, setAutomationFilter] = useState<
-    AutomationType | GlobalPoliciesAutomationType | null
-  >(initialAutomationFilter);
+  const [
+    automationFilter,
+    setAutomationFilter,
+  ] = useState<PoliciesAutomationFilter | null>(initialAutomationFilter);
+  const filterParams = getPoliciesFilterParams(automationFilter);
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -280,19 +280,17 @@ const ManagePolicyPage = ({
   >(
     [
       {
-        scope: "globalPolicies",
+        scope: "policies",
         page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
-        automationType: automationFilter as GlobalPoliciesAutomationType,
+        ...filterParams,
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => {
-      return globalPoliciesAPI.loadAllNew(queryKey[0]);
-    },
+    ({ queryKey }) => policiesAPI.loadAll(queryKey[0]),
     {
       enabled: isRouteOk && isAllTeamsSelected,
       select: (data) => data.policies || [],
@@ -311,11 +309,11 @@ const ManagePolicyPage = ({
       {
         scope: "policiesCount",
         query: !isAllTeamsSelected ? "" : searchQuery,
-        automationType: automationFilter as GlobalPoliciesAutomationType,
+        ...filterParams,
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
+    ({ queryKey }) => policiesAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && isAllTeamsSelected,
       keepPreviousData: true,
@@ -331,68 +329,92 @@ const ManagePolicyPage = ({
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
   } = useQuery<
-    ILoadTeamPoliciesResponse,
+    ILoadAllPoliciesResponse,
     Error,
     IPolicyStats[],
-    ITeamPoliciesQueryKey[]
+    IPoliciesQueryKey[]
   >(
     [
       {
-        scope: "teamPolicies",
+        scope: "policies",
         page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
         // teamIdForApi will never actually be undefined here
-        teamId: teamIdForApi || 0,
+        fleetId: teamIdForApi || 0,
         // no teams does inherit
         mergeInherited: true,
-        automationType: automationFilter as AutomationType,
+        ...filterParams,
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => {
-      return teamPoliciesAPI.loadAllNew(queryKey[0]);
-    },
+    ({ queryKey }) => policiesAPI.loadAll(queryKey[0]),
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
-      select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
+      select: (data: ILoadAllPoliciesResponse) => data.policies || [],
       refetchOnWindowFocus: false,
     }
   );
 
   const {
-    data: teamPoliciesCountResponse,
+    data: teamPoliciesCountMergeInherited,
     isFetching: isFetchingTeamCountMergeInherited,
-    isError: isErrorTeamPoliciesCount,
     refetch: refetchTeamPoliciesCountMergeInherited,
-  } = useQuery<
-    IPoliciesCountResponse,
-    Error,
-    IPoliciesCountResponse,
-    ITeamPoliciesCountQueryKey[]
-  >(
+  } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
       {
-        scope: "teamPoliciesCountMergeInherited",
+        scope: "policiesCount",
         query: searchQuery,
-        teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
+        fleetId: teamIdForApi || 0, // TODO: Fix number/undefined type
         mergeInherited: true,
-        automationType: automationFilter as AutomationType,
+        ...filterParams,
         platform: targetedPlatformParam,
       },
     ],
-    ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
+    ({ queryKey }) => policiesAPI.getCount(queryKey[0]),
     {
       enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
       keepPreviousData: true,
       refetchOnWindowFocus: false,
       retry: 1,
+      select: (data) => data.count,
     }
   );
 
-  const teamPoliciesCountMergeInherited = teamPoliciesCountResponse?.count;
+  // The fleet's own policies, without the inherited ones, which decide
+  // whether there's anything to automate or delete here.
+  const {
+    data: teamOwnPoliciesCountData,
+    isError: isErrorTeamOwnPoliciesCount,
+    isPreviousData: isPreviousTeamOwnPoliciesCount,
+    refetch: refetchTeamOwnPoliciesCount,
+  } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
+    [
+      {
+        scope: "policiesCount",
+        query: searchQuery,
+        fleetId: teamIdForApi || 0,
+        ...filterParams,
+        platform: targetedPlatformParam,
+      },
+    ],
+    ({ queryKey }) => policiesAPI.getCount(queryKey[0]),
+    {
+      enabled: isRouteOk && isPremiumTier && !isAllTeamsSelected,
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      retry: 1,
+      select: (data) => data.count,
+    }
+  );
+
+  // keepPreviousData can still hold another fleet's count; don't use it as
+  // this fleet's.
+  const teamOwnPoliciesCount = isPreviousTeamOwnPoliciesCount
+    ? undefined
+    : teamOwnPoliciesCountData;
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
@@ -426,7 +448,7 @@ const ManagePolicyPage = ({
     staleTime: 5000,
     refetchOnWindowFocus: false,
   });
-  const teamConfig = teamData?.team;
+  const teamConfig = teamData?.fleet;
 
   const automationsConfig = isAllTeamsSelected ? globalConfig : teamConfig;
 
@@ -434,11 +456,32 @@ const ManagePolicyPage = ({
     if (teamId !== undefined) {
       refetchTeamPolicies();
       refetchTeamPoliciesCountMergeInherited();
+      refetchTeamOwnPoliciesCount();
     } else {
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
       refetchGlobalPoliciesCount();
     }
   };
+
+  const queryClient = useQueryClient();
+
+  // Fleet and Unassigned lists include inherited policies, so any scope's
+  // cached list or count can hold a deleted policy. Cached scopes not on
+  // screen are dropped, since a stale cache would still show the row while it
+  // refetches.
+  const invalidateAllPolicies = useCallback(() => {
+    ["policies", "policiesCount"].forEach((scope) => {
+      queryClient.removeQueries([{ scope }], { inactive: true });
+      queryClient.invalidateQueries([{ scope }]);
+    });
+  }, [queryClient]);
+
+  // Browser Back changes the fleet without onTeamChange; a delete
+  // confirmation must not carry another fleet's selection.
+  useEffect(() => {
+    setShowDeletePoliciesModal(false);
+    setSelectedPolicyIds([]);
+  }, [teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -526,6 +569,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryDescription("");
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
+    setLastEditedQueryHidden(false);
     setPolicyTeamId(
       currentTeamId === API_ALL_TEAMS_ID
         ? APP_CONTEXT_ALL_TEAMS_ID
@@ -548,66 +592,28 @@ const ManagePolicyPage = ({
   const onDeletePolicySubmit = useCallback(async () => {
     setIsUpdatingPolicies(true);
     try {
-      const responses: Promise<any>[] = [];
-      if (isPrimoMode) {
-        // filter selected policies by All team and no team
-        const selectedSet = new Set(selectedPolicyIds); // more efficient for below reduce
-        const [
-          globalPolicyIdsToDelete,
-          teamPolicyIdsToDelete, // will be No team, since this is Primo mode
-        ] = (teamPolicies ?? []).reduce(
-          (acc, policy) => {
-            if (selectedSet.has(policy.id)) {
-              // need to compare policy team id
-              if (policy.team_id === null) {
-                // note `null` not `undefined` here
-                acc[0].push(policy.id);
-              } else {
-                acc[1].push(policy.id);
-              }
-            }
-            return acc;
-          },
-          [[], []] as [number[], number[]]
-        );
-        // delete all team policies via global endpoint, No team via team endpoint
-        if (globalPolicyIdsToDelete.length) {
-          responses.push(globalPoliciesAPI.destroy(globalPolicyIdsToDelete));
-        }
-        if (teamPolicyIdsToDelete.length) {
-          responses.push(
-            teamPoliciesAPI.destroy(teamIdForApi, teamPolicyIdsToDelete)
-          );
-        }
-      } else {
-        // normal Fleet operation
-        responses.push(
-          !isAllTeamsSelected
-            ? teamPoliciesAPI.destroy(teamIdForApi, selectedPolicyIds)
-            : globalPoliciesAPI.destroy(selectedPolicyIds)
-        );
-      }
-
-      await Promise.all(responses);
+      // One request deletes policies from any scope, including the inherited
+      // policies Primo mode lists in a fleet view.
+      await policiesAPI.destroy(selectedPolicyIds);
       notify.success("Successfully deleted policies.");
-      setResetSelectedRows(true);
-      refetchPolicies(teamIdForApi);
     } catch (e) {
-      notify.error("Unable to delete policies. Please try again.", {
-        response: e,
-      });
+      // Deletes across scopes aren't atomic, so some may be gone; refresh
+      // rather than retry the same IDs.
+      notify.error(
+        "Unable to delete policies. Some may have been deleted. Please try again.",
+        { response: e }
+      );
     } finally {
+      setResetSelectedRows(true);
+      setSelectedPolicyIds([]);
+      invalidateAllPolicies();
       toggleDeletePoliciesModal();
       setIsUpdatingPolicies(false);
     }
   }, [
-    isAllTeamsSelected,
-    isPrimoMode,
-    refetchPolicies,
+    invalidateAllPolicies,
     selectedPolicyIds,
     setResetSelectedRows,
-    teamIdForApi,
-    teamPolicies,
     toggleDeletePoliciesModal,
   ]);
 
@@ -637,10 +643,12 @@ const ManagePolicyPage = ({
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
 
+  // A listed row of this fleet's own also counts, so a failed count request
+  // doesn't hide the fleet's policies from automations and delete.
   const hasPoliciesToAutomate = isAllTeamsSelected
     ? (globalPoliciesCount ?? 0) > 0
-    : (teamPoliciesCountMergeInherited ?? 0) >
-      (teamPoliciesCountResponse?.inherited_policy_count ?? 0);
+    : (teamOwnPoliciesCount ?? 0) > 0 ||
+      !!teamPolicies?.some((policy) => policy.fleet_id === teamIdForApi);
   const hasPoliciesToDelete =
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
 
@@ -656,12 +664,13 @@ const ManagePolicyPage = ({
     if (location.query.manage_automations !== "1") return;
     const countSettled = isAllTeamsSelected
       ? globalPoliciesCount !== undefined || isErrorGlobalPoliciesCount
-      : teamPoliciesCountResponse !== undefined || isErrorTeamPoliciesCount;
+      : teamOwnPoliciesCount !== undefined || isErrorTeamOwnPoliciesCount;
     if (!countSettled) return;
     if (canEditAutomationsSettings && hasPoliciesToAutomate) {
       setShowAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = location.query;
+    const rest = { ...location.query };
+    delete rest.manage_automations;
     router.replace({ pathname: location.pathname, query: rest });
   }, [
     location.query,
@@ -671,31 +680,20 @@ const ManagePolicyPage = ({
     hasPoliciesToAutomate,
     isAllTeamsSelected,
     globalPoliciesCount,
-    teamPoliciesCountResponse,
+    teamOwnPoliciesCount,
     isErrorGlobalPoliciesCount,
-    isErrorTeamPoliciesCount,
+    isErrorTeamOwnPoliciesCount,
   ]);
 
-  const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
-  // Inherited (global) policies are listed in team views, but their webhook
-  // membership lives on the *global* config — not the team's. Union both
-  // so an inherited policy with a global-config webhook/ticket still shows
-  // the correct data.
-  const inheritedAutomationInfo = !isAllTeamsSelected
-    ? getTicketOrWebhookInfo(globalConfig)
-    : { state: "disabled" as const, policyIds: [] };
-  const currentAutomatedPolicies: number[] = Array.from(
-    new Set([
-      ...fleetAutomationInfo.policyIds,
-      ...inheritedAutomationInfo.policyIds,
-    ])
-  );
-  const ticketOrWebhookState =
-    fleetAutomationInfo.state !== "disabled"
-      ? fleetAutomationInfo.state
-      : inheritedAutomationInfo.state;
-  const otherAutomationType: OtherAutomationType | undefined =
-    ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
+  const toOtherAutomationType = (
+    config: IConfig | ITeamConfig | undefined
+  ): OtherAutomationType | undefined => {
+    const state = getTicketOrWebhookState(config);
+    return state === "disabled" ? undefined : state;
+  };
+  const otherAutomationType = toOtherAutomationType(automationsConfig);
+  // Inherited policies use the "All fleets" webhook or ticket destination.
+  const inheritedOtherAutomationType = toOtherAutomationType(globalConfig);
 
   const renderPoliciesCountAndLastUpdated = (
     count?: number,
@@ -756,12 +754,12 @@ const ManagePolicyPage = ({
     },
     {
       label: "Scripts",
-      value: "scripts",
+      value: "script",
       helpText: "Policies with script automation enabled.",
     },
     {
       label: "Profiles",
-      value: "profiles",
+      value: "configuration_profile",
       helpText: "Policies with configuration profile automation enabled.",
     },
     {
@@ -776,7 +774,7 @@ const ManagePolicyPage = ({
     },
     {
       label: "Webhooks or tickets",
-      value: "other",
+      value: "webhook_or_ticket",
       helpText: "Policies with webhook or ticket automation enabled.",
     },
   ];
@@ -851,7 +849,6 @@ const ManagePolicyPage = ({
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           isPremiumTier={isPremiumTier}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
@@ -871,6 +868,7 @@ const ManagePolicyPage = ({
           queryParams={queryParams}
           platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
@@ -898,7 +896,6 @@ const ManagePolicyPage = ({
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           renderPoliciesCount={() =>
             renderPoliciesCountAndLastUpdated(
               teamPoliciesCountMergeInherited,
@@ -918,6 +915,7 @@ const ManagePolicyPage = ({
           queryParams={queryParams}
           platform={targetedPlatformParam}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={
             canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
@@ -1038,11 +1036,11 @@ const ManagePolicyPage = ({
         )}
         {selectedPolicyForAutomations &&
           (() => {
-            // An inherited policy (team_id === null) is global even when viewed
+            // An inherited policy (fleet_id === null) is global even when viewed
             // from within a fleet's list — its automations live on the global
             // config, so route the modal there.
             const isInheritedGlobal =
-              selectedPolicyForAutomations.team_id === null;
+              selectedPolicyForAutomations.fleet_id === null;
             const modalAutomationsConfig = isInheritedGlobal
               ? globalConfig
               : automationsConfig;

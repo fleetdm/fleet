@@ -26,6 +26,7 @@ func TestValidateHostNameTemplate(t *testing.T) {
 		{name: "idp groups braced", tmpl: "${FLEET_VAR_HOST_END_USER_IDP_GROUPS}", wantNorm: "${FLEET_VAR_HOST_END_USER_IDP_GROUPS}"},
 		{name: "idp full name", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME"},
 		{name: "idp department", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"},
+		{name: "idp external id", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID"},
 		{name: "idp username local part", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART"},
 		{
 			name:     "mixed",

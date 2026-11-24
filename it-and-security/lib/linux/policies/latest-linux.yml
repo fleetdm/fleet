@@ -12,16 +12,16 @@
         )
         -- Debian's os-release stops at the major; base-files carries the point release (13.8+deb13u7 is Debian 13.7).
         WHEN platform = 'debian' THEN EXISTS (
-          SELECT 1 FROM deb_packages d WHERE d.name = 'base-files' AND version_compare(d.version, '13.8+deb13u7', 'DPKG') >= 0
+          SELECT 1 FROM deb_packages d WHERE d.name = 'base-files' AND version_compare(d.version, '13.8+deb13u8', 'DPKG') >= 0
         )
         -- AMD's Debian-based platform stays at VERSION_ID 1 and ships platform updates through its own base-files (debs.ryai.dev).
         WHEN platform = 'amd-ryzen-ai-developer-platform' THEN (major >= 1 AND EXISTS (
           SELECT 1 FROM deb_packages d WHERE d.name = 'base-files' AND version_compare(d.version, '2026.06bvdebian13.1', 'DPKG') >= 0
         ))
         -- Fedora reports platform 'rhel' because /etc/redhat-release exists, so match on name.
-        WHEN name = 'Fedora Linux' THEN major >= 44
+        WHEN name = 'Fedora Linux' THEN major >= 45
         WHEN name IN ('Red Hat Enterprise Linux', 'Rocky Linux', 'AlmaLinux') THEN (
-          major > 10 OR (major = 10 AND minor >= 2) OR (major = 9 AND minor >= 8)
+          major > 10 OR (major = 10 AND minor >= 3) OR (major = 9 AND minor >= 9)
         )
         WHEN platform = 'nixos' THEN (major > 26 OR (major = 26 AND minor >= 5))
         WHEN platform = 'opensuse-leap' THEN (major > 16 OR (major = 16 AND minor >= 0))

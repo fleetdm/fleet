@@ -27,6 +27,7 @@ import {
   formatNotifyTimeLabel,
   isNotifyFailure,
   retryUnless404,
+  toSoftwareTitle,
 } from "./helpers";
 
 const baseClass = "notify-before-patching-details-modal";
@@ -42,11 +43,16 @@ const NotifyBeforePatchingDetailsModal = ({
 }: INotifyBeforePatchingDetailsModalProps) => {
   const {
     host_display_name: hostName,
-    software_titles: titles = [],
+    software_titles: legacyTitles = [],
+    software,
     status,
     time_before: timeBefore,
     script_execution_id: scriptExecutionId,
   } = details;
+
+  // Prefer the richer `software` field on new activities; fall back to the
+  // legacy flat `software_titles` for pre-override activity rows.
+  const titles = software ?? legacyTitles;
 
   const timeLabel = formatNotifyTimeLabel(timeBefore);
   const failed = isNotifyFailure(status);
@@ -103,7 +109,7 @@ const NotifyBeforePatchingDetailsModal = ({
       <div className={`${baseClass}__content`}>
         <IconStatusMessage
           className={`${baseClass}__status-message`}
-          iconName={failed ? "error-outline" : "success-outline"}
+          iconName={failed ? "error" : "success"}
           message={
             <span>
               Fleet {verb} end user {timeLabel} before patching
@@ -131,7 +137,11 @@ const NotifyBeforePatchingDetailsModal = ({
         {hasOverflowApps && (
           <DataSet
             title="Apps"
-            value={titles.map((t) => getDisplayedSoftwareName(t)).join(", ")}
+            value={titles
+              .map(toSoftwareTitle)
+              .map((t) => getDisplayedSoftwareName(t.title, t.display_name))
+              .join(", ")}
+            multiline
           />
         )}
         {hasDetailsContent && (

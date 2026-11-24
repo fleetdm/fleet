@@ -1,0 +1,10 @@
+{
+  "name": "UnnaturalScrollWheels",
+  "unique_identifier": "com.theron.UnnaturalScrollWheels",
+  "token": "unnaturalscrollwheels",
+  "installer_format": "dmg",
+  "slug": "unnaturalscrollwheels/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

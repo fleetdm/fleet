@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -21,6 +22,8 @@ func TestEndUserNotifications(t *testing.T) {
 		{"NewAndGet", testNewAndGetEndUserNotification},
 		{"AwaitingDisplay", testGetNotificationAwaitingDisplay},
 		{"AwaitingDisplayScope", testGetNotificationAwaitingDisplayScope},
+		{"ExpiryClamp", testNewEndUserNotificationExpiryClamp},
+		{"RescheduleAwaitingDispatch", testRescheduleEndUserNotificationsAwaitingDispatch},
 		{"ListToDispatch", testListEndUserNotificationsToDispatch},
 		{"SetDispatched", testSetEndUserNotificationsDispatched},
 		{"DeferForHosts", testDeferEndUserNotificationsForHosts},
@@ -31,6 +34,7 @@ func TestEndUserNotifications(t *testing.T) {
 		{"Delay", testDelayEndUserNotification},
 		{"ActOn", testActOnEndUserNotification},
 		{"SetStatus", testSetEndUserNotificationStatus},
+		{"SetPayload", testSetEndUserNotificationPayload},
 		{"FailForHost", testFailEndUserNotificationsForHost},
 		{"Outcome", testSetEndUserNotificationOutcome},
 	}
@@ -213,6 +217,118 @@ func testGetNotificationAwaitingDisplayScope(t *testing.T, env *testEnv) {
 	require.NoError(t, err)
 	require.NotNil(t, awaiting, "the app should be added to the host's notification")
 	assert.Equal(t, ownNotificationUUID, awaiting.UUID)
+}
+
+// A notification first attempted days from now has its lifetime counted from that attempt, or it
+// would expire before it was ever sent.
+func testNewEndUserNotificationExpiryClamp(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "expiry-clamp", true)
+	now := time.Now().UTC()
+
+	create := func(nextAttemptAt, expiresAt time.Time) *api.EndUserNotification {
+		t.Helper()
+		created, err := env.ds.NewEndUserNotification(ctx, &api.EndUserNotification{
+			HostID: hostID, Kind: "k", Payload: []byte(`{}`), NextAttemptAt: &nextAttemptAt, ExpiresAt: &expiresAt,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, created.ExpiresAt)
+		return created
+	}
+
+	weekOut := now.Add(7 * 24 * time.Hour)
+	created := create(weekOut, now.Add(30*24*time.Hour))
+	assert.WithinDuration(t, weekOut.Add(api.EndUserNotificationMaxLifetime), *created.ExpiresAt, time.Second)
+
+	// a shorter lifetime than the cap is kept
+	created = create(weekOut, weekOut.Add(time.Hour))
+	assert.WithinDuration(t, weekOut.Add(time.Hour), *created.ExpiresAt, time.Second)
+
+	// a first attempt already past counts from now
+	created = create(now.Add(-time.Hour), now.Add(30*24*time.Hour))
+	assert.WithinDuration(t, now.Add(api.EndUserNotificationMaxLifetime), *created.ExpiresAt, time.Minute)
+
+	// a notification with no first attempt counts from now
+	tooLate := now.Add(30 * 24 * time.Hour)
+	noAttempt, err := env.ds.NewEndUserNotification(ctx, &api.EndUserNotification{
+		HostID: hostID, Kind: "k", Payload: []byte(`{}`), ExpiresAt: &tooLate,
+	})
+	require.NoError(t, err)
+	assert.WithinDuration(t, now.Add(api.EndUserNotificationMaxLifetime), *noAttempt.ExpiresAt, time.Minute)
+}
+
+func testRescheduleEndUserNotificationsAwaitingDispatch(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	hostID := newDarwinHost(t, env, "reschedule", true)
+	otherHostID := newDarwinHost(t, env, "reschedule-other-host", true)
+	now := time.Now().UTC()
+	future := now.Add(48 * time.Hour)
+
+	// set puts a notification in the state a case needs, whatever the helper's defaults are
+	set := func(notificationUUID, assignments string, args ...any) {
+		t.Helper()
+		_, err := env.db.ExecContext(ctx, `UPDATE notifications_end_user SET `+assignments+` WHERE uuid = ?`,
+			append(args, notificationUUID)...)
+		require.NoError(t, err)
+	}
+	insert := func(hostID uint, kind string) string {
+		t.Helper()
+		return env.InsertNotification(t, hostID, kind, &future, new(future.Add(24*time.Hour)))
+	}
+
+	// two, so an UPDATE that moves only one row fails
+	movable := insert(hostID, "k")
+	alsoMovable := insert(hostID, "k")
+	otherKind := insert(hostID, "other")
+	otherHost := insert(otherHostID, "k")
+	attempted := insert(hostID, "k")
+	set(attempted, "attempt_count = 1")
+	due := insert(hostID, "k")
+	set(due, "next_attempt_at = ?", now.Add(-time.Minute))
+	noNextAttempt := insert(hostID, "k")
+	set(noNextAttempt, "next_attempt_at = NULL")
+	expired := insert(hostID, "k")
+	set(expired, "expires_at = ?", now.Add(-time.Minute))
+	dispatched := insert(hostID, "k")
+	set(dispatched, "status = ?", api.EndUserNotificationDispatched)
+
+	snapshot := func() map[string]*api.EndUserNotification {
+		t.Helper()
+		out := make(map[string]*api.EndUserNotification)
+		for _, notificationUUID := range []string{movable, alsoMovable, otherKind, otherHost, attempted, due, noNextAttempt, expired, dispatched} {
+			n, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+			require.NoError(t, err)
+			out[notificationUUID] = n
+		}
+		return out
+	}
+	before := snapshot()
+
+	nextAttemptAt := now.Add(72 * time.Hour)
+	expiresAt := nextAttemptAt.Add(api.EndUserNotificationMaxLifetime)
+	require.NoError(t, env.ds.RescheduleEndUserNotificationsAwaitingDispatch(ctx, hostID, "k", nextAttemptAt, expiresAt))
+	after := snapshot()
+
+	for _, notificationUUID := range []string{movable, alsoMovable} {
+		moved := after[notificationUUID]
+		require.NotNil(t, moved)
+		require.NotNil(t, moved.NextAttemptAt)
+		require.NotNil(t, moved.ExpiresAt)
+		assert.WithinDuration(t, nextAttemptAt, *moved.NextAttemptAt, time.Second)
+		assert.WithinDuration(t, expiresAt, *moved.ExpiresAt, time.Second)
+	}
+
+	for name, notificationUUID := range map[string]string{
+		"another kind":                         otherKind,
+		"another host":                         otherHost,
+		"a notification already tried":         attempted,
+		"a notification already due":           due,
+		"a notification with no first attempt": noNextAttempt,
+		"an expired notification":              expired,
+		"a dispatched notification":            dispatched,
+	} {
+		assert.Equal(t, before[notificationUUID], after[notificationUUID], name+" is left alone")
+	}
 }
 
 func testNewAndGetEndUserNotification(t *testing.T, env *testEnv) {
@@ -713,6 +829,49 @@ func testSetEndUserNotificationStatus(t *testing.T, env *testEnv) {
 	})
 }
 
+func testSetEndUserNotificationPayload(t *testing.T, env *testEnv) {
+	ctx := t.Context()
+	firstNotice := json.RawMessage(`{"reminder":false}`)
+
+	t.Run("a dispatched notification the host has not displayed gets the new payload", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-payload", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, false)
+
+		require.NoError(t, env.ds.SetEndUserNotificationPayload(ctx, notificationUUID, firstNotice))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(firstNotice), string(got.Payload))
+	})
+
+	// the payload is written after the script result sets displayed_at, so displayed_at cannot block it
+	t.Run("a dispatched notification the host has displayed gets the new payload", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-payload-displayed", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationDispatched, 1, true)
+
+		require.NoError(t, env.ds.SetEndUserNotificationPayload(ctx, notificationUUID, firstNotice))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(firstNotice), string(got.Payload))
+	})
+
+	// a script result that arrives after the notification went back to pending must not write the payload
+	t.Run("a notification that is not dispatched keeps its payload", func(t *testing.T) {
+		hostID := newDarwinHost(t, env, "set-payload-pending", true)
+		notificationUUID := newHostNotification(t, env, hostID, "test_kind",
+			api.EndUserNotificationPending, 1, false)
+
+		require.NoError(t, env.ds.SetEndUserNotificationPayload(ctx, notificationUUID, firstNotice))
+
+		got, err := env.ds.GetEndUserNotificationByUUID(ctx, notificationUUID)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{}`, string(got.Payload))
+	})
+}
+
 func testFailEndUserNotificationsForHost(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 
@@ -823,7 +982,7 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		assert.JSONEq(t, `{"title": "5 minutes left"}`, string(got.Payload))
 	})
 
-	t.Run("a re-dispatched notification still blocks the host", func(t *testing.T) {
+	t.Run("a notification dispatched again after a delay still blocks the host", func(t *testing.T) {
 		hostID := newDarwinHost(t, env, "delay-inflight", true)
 		first := env.InsertNotification(t, hostID, "k", nil, nil)
 		second := env.InsertNotification(t, hostID, "k", nil, nil)
@@ -832,13 +991,13 @@ func testDelayEndUserNotification(t *testing.T, env *testEnv) {
 		require.NoError(t, env.ds.VerifyEndUserNotification(ctx, first, time.Now()))
 		require.NoError(t, env.ds.DelayEndUserNotification(ctx, first, time.Now().Add(-time.Minute), nil))
 
-		redispatch := first + "-exec2"
+		secondExecutionID := first + "-exec2"
 		require.NoError(t, env.ds.SetEndUserNotificationsDispatched(ctx,
-			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &redispatch}}))
+			[]*api.EndUserNotification{{UUID: first, HostID: hostID, ExecutionID: &secondExecutionID}}))
 
 		due, err := env.ds.ListEndUserNotificationsToDispatch(ctx, 500)
 		require.NoError(t, err)
-		assert.Empty(t, due, "%s went out while the re-dispatched one was still in flight", second)
+		assert.Empty(t, due, "%s went out while the delayed notification was dispatched again and not yet displayed", second)
 	})
 
 	t.Run("does not resurrect an already-expired notification", func(t *testing.T) {

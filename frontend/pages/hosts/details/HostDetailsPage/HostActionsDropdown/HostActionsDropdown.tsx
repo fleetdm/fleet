@@ -28,7 +28,7 @@ interface IHostActionsDropdownProps {
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
   isRecoveryLockPasswordEnabled?: boolean;
-  diskEncryptionProfileStatus?: string;
+  diskEncryptionProfileStatus?: string | null;
   recoveryLockPasswordAvailable?: boolean;
   recoveryLockPasswordStatus?: RecoveryLockPasswordStatus;
   isManagedLocalAccountEnabled?: boolean;
@@ -43,6 +43,7 @@ interface IHostActionsDropdownProps {
   wipeAllowed?: boolean;
   lockAllowed?: boolean;
   clearPasscodeAllowed?: boolean;
+  unlockPinAvailable?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -69,6 +70,7 @@ const HostActionsDropdown = ({
   wipeAllowed,
   lockAllowed,
   clearPasscodeAllowed,
+  unlockPinAvailable,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -114,15 +116,13 @@ const HostActionsDropdown = ({
     isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
     isAppleBusinessEnabledAndConfigured:
-      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
+      globalConfig?.mdm?.apple_business_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
     isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
     isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
-    scriptsGloballyDisabled:
-      globalConfig?.server_settings?.scripts_disabled ?? false,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
     isRecoveryLockPasswordEnabled,
@@ -136,6 +136,7 @@ const HostActionsDropdown = ({
     wipeAllowed,
     lockAllowed,
     clearPasscodeAllowed,
+    unlockPinAvailable,
   });
 
   // No options to render. Exit early

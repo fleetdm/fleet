@@ -1,6 +1,7 @@
 package condaccess
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,9 +50,10 @@ func TestSCEPRateLimit(t *testing.T) {
 		assert.Equal(t, "urn:device:apple:uuid:"+host.UUID, cert1.URIs[0].String())
 
 		// Second certificate request immediately after - should fail due to rate limit
-		httpResp, pkiMsgResp, cert2 := requestSCEPCertificateWithChallenge(t, s, host.UUID, testEnrollmentSecret)
-		require.Equal(t, http.StatusTooManyRequests, httpResp.StatusCode, "Should return HTTP 429 for rate limit")
-		require.Nil(t, pkiMsgResp, "PKI message not parsed for rate limit errors")
+		cert2, err := requestSCEPCertificateWithChallenge(t, s, host.UUID, testEnrollmentSecret)
+		statusErr, ok := errors.AsType[scepserver.ResponseStatusError](err)
+		require.True(t, ok, "Should return HTTP 429 for rate limit, got %v", err)
+		require.Equal(t, http.StatusTooManyRequests, statusErr.Code, "Should return HTTP 429 for rate limit")
 		require.Nil(t, cert2, "Second certificate request should fail due to rate limit")
 
 		// Different host should be able to get certificate

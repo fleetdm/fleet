@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,6 +36,7 @@ func TestStatistics(t *testing.T) {
 		{"FleetMDMEnrolled", testStatisticsFleetMDMEnrolled},
 		{"MDMProfileCounts", testStatisticsMDMProfileCounts},
 		{"ThirdPartyIntegrations", testStatisticsThirdPartyIntegrations},
+		{"AIGeneratedProfileCounts", testStatisticsAIGeneratedProfileCounts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -117,6 +119,9 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumMDMWindowsProfiles)
 	assert.Equal(t, 0, stats.NumMDMAppleDeclarations)
 	assert.Equal(t, 0, stats.NumMDMAndroidProfiles)
+	assert.Equal(t, 0, stats.NumAppleAiGeneratedProfiles)
+	assert.Equal(t, 0, stats.NumWindowsAiGeneratedProfiles)
+	assert.Equal(t, 0, stats.NumAndroidAiGeneratedProfiles)
 	assert.Empty(t, stats.ResultLogDestination)
 	assert.Empty(t, stats.StatusLogDestination)
 	assert.Empty(t, stats.AuditLogDestination)
@@ -209,8 +214,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// Create new app cfg for test
 	cfg, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
-			OrgName:    "Test",
-			OrgLogoURL: "localhost:8080/logo.png",
+			OrgName:            "Test",
+			OrgLogoURLDarkMode: "localhost:8080/logo.png",
 		},
 	})
 	require.NoError(t, err)
@@ -624,6 +629,26 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Google conditional access is configured only with a connected row on Premium.
+	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.False(t, stats.GoogleConditionalAccessConfigured)
+	markStatisticsStale(t, ctx, ds)
+
+	require.NoError(t, ds.SaveGoogleConditionalAccessIntegration(ctx, &fleet.ConditionalAccessGoogleIntegration{
+		ProxyServerSecret: "secret", State: fleet.ConditionalAccessGoogleStateConnected,
+	}))
+	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, stats.GoogleConditionalAccessConfigured)
+	markStatisticsStale(t, ctx, ds)
+
+	stats, _, err = ds.ShouldSendStatistics(license.NewContext(ctx, freeLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.False(t, stats.GoogleConditionalAccessConfigured)
 }
 
 func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
@@ -947,7 +972,7 @@ func testPoliciesAutomationEnabledSoftware(t *testing.T, ds *Datastore) {
 		if _, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name) VALUES ('12345', 'darwin', 'Numbers')`); err != nil {
 			return err
 		}
-		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES ('12345', 'darwin', 0)`)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES ('12345', 'darwin', 0, 'Default version')`)
 		if err != nil {
 			return err
 		}
@@ -1038,7 +1063,7 @@ func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
 
 	// Create a new app config so ApplyDefaults runs (new-install defaults: only "secrets" exception).
 	_, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
-		OrgInfo: fleet.OrgInfo{OrgName: "Test", OrgLogoURL: "localhost:8080/logo.png"},
+		OrgInfo: fleet.OrgInfo{OrgName: "Test", OrgLogoURLDarkMode: "localhost:8080/logo.png"},
 	})
 	require.NoError(t, err)
 
@@ -1104,12 +1129,14 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// With no hosts, both counts are zero (not null/missing).
-	macOS, windows, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
+	macOS, windows, ios, ipados, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	assert.Zero(t, macOS)
 	assert.Zero(t, windows)
+	assert.Zero(t, ios)
+	assert.Zero(t, ipados)
 
-	// Each host exercises one branch of the query; only enrolled, non-server, Fleet-MDM darwin/windows hosts are counted.
+	// Each host exercises one branch of the query; only enrolled, non-server, Fleet-MDM darwin, windows, ios, and ipados hosts are counted.
 	cases := []struct {
 		name             string
 		platform         string
@@ -1120,18 +1147,19 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	}{
 		{"macOS Fleet MDM", "darwin", false, true, false, fleet.WellKnownMDMFleet},        // counted (macOS)
 		{"windows Fleet MDM", "windows", false, true, false, fleet.WellKnownMDMFleet},     // counted (Windows)
+		{"iOS Fleet MDM", "ios", false, true, false, fleet.WellKnownMDMFleet},             // counted (iOS)
+		{"iPadOS Fleet MDM", "ipados", false, true, false, fleet.WellKnownMDMFleet},       // counted (iPadOS)
 		{"macOS third-party MDM", "darwin", false, true, false, fleet.WellKnownMDMIntune}, // excluded: not Fleet
 		// ABM pending: DEP-assigned (installed_from_dep=1) but not yet enrolled (enrolled=0).
 		{"macOS ABM pending", "darwin", false, false, true, fleet.WellKnownMDMFleet},   // excluded: not enrolled
 		{"windows server host", "windows", true, true, false, fleet.WellKnownMDMFleet}, // excluded: is_server
-		{"iOS Fleet MDM", "ios", false, true, false, fleet.WellKnownMDMFleet},          // excluded: not macOS/Windows
 		{"macOS no MDM", "darwin", false, false, false, ""},                            // excluded: no MDM data
 	}
 	for i, c := range cases {
 		key := fmt.Sprintf("mdm-stats-%d", i)
 		h := test.NewHost(t, ds, key, "", key, key, time.Now(), test.WithPlatform(c.platform))
 		if c.mdmName != "" {
-			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", c.installedFromDep, c.mdmName, "", false), c.name)
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", c.installedFromDep, c.mdmName, "", fleet.PersonalEnrollmentTypeNone), c.name)
 		}
 	}
 
@@ -1146,6 +1174,8 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledMacOS)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledWindows)
+	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledIOS)
+	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledIpadOS)
 }
 
 func testStatisticsMDMProfileCounts(t *testing.T, ds *Datastore) {
@@ -1383,4 +1413,45 @@ func testStatisticsThirdPartyIntegrations(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.True(t, stats.AnyFailingPoliciesWebhookEnabled)
 	assert.True(t, stats.AnyHostActivitiesWebhookEnabled)
+}
+
+func testStatisticsAIGeneratedProfileCounts(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) { return nil, nil }
+	ctx := ctxerr.NewContext(t.Context(), eh)
+
+	// Generations run concurrently, so every increment has to land.
+	const perPlatform = 20
+	var wg sync.WaitGroup
+	errs := make(chan error, 2*perPlatform)
+	for range perPlatform {
+		for _, platform := range []string{fleet.AutofillConfigProfilePlatformApple, fleet.AutofillConfigProfilePlatformWindows} {
+			wg.Go(func() {
+				errs <- ds.IncrementAIGeneratedProfileCount(ctx, platform)
+			})
+		}
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	require.NoError(t, ds.IncrementAIGeneratedProfileCount(ctx, fleet.AutofillConfigProfilePlatformApple))
+
+	require.Error(t, ds.IncrementAIGeneratedProfileCount(ctx, "android"))
+
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, time.Millisecond, config.TestConfig())
+	require.NoError(t, err)
+	require.True(t, shouldSend)
+	assert.Equal(t, perPlatform+1, stats.NumAppleAiGeneratedProfiles)
+	assert.Equal(t, perPlatform, stats.NumWindowsAiGeneratedProfiles)
+	assert.Equal(t, 0, stats.NumAndroidAiGeneratedProfiles)
+
+	// Cumulative: sending statistics and the weekly cleanup leave the counts alone.
+	require.NoError(t, ds.RecordStatisticsSent(ctx))
+	require.NoError(t, ds.CleanupStatistics(ctx))
+	time.Sleep(2 * time.Millisecond)
+	stats, _, err = ds.ShouldSendStatistics(ctx, time.Millisecond, config.TestConfig())
+	require.NoError(t, err)
+	assert.Equal(t, perPlatform+1, stats.NumAppleAiGeneratedProfiles)
 }

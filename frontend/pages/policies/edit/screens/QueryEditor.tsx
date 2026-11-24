@@ -11,8 +11,7 @@ import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PolicyForm from "pages/policies/edit/components/PolicyForm";
 import PATHS from "router/paths";
 import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { getPathWithQueryParams } from "utilities/url";
@@ -62,6 +61,7 @@ const QueryEditor = ({
     lastEditedQueryBody,
     lastEditedQueryResolution,
     lastEditedQueryCritical,
+    lastEditedQueryHidden,
     lastEditedQueryPlatform,
     policyTeamId,
     setLastEditedQueryDescription,
@@ -141,67 +141,59 @@ const QueryEditor = ({
     }
   };
 
-  const onCreatePolicy = debounce(
-    async (
-      formData: IPolicyFormData,
-      saveAutomations?: (newPolicy: IPolicy) => Promise<void>
-    ) => {
-      if (policyTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-        formData.team_id = policyTeamId;
-      }
-      setIsUpdatingPolicy(true);
-      const payload: IPolicyFormData = {
-        name: formData.name,
-        description: formData.description,
-        query: formData.query,
-        resolution: formData.resolution,
-        platform: formData.platform,
-        labels_include_any: formData.labels_include_any,
-        labels_include_all: formData.labels_include_all,
-        labels_exclude_any: formData.labels_exclude_any,
-        labels_exclude_all: formData.labels_exclude_all,
-      };
-      if (isPremiumTier) {
-        payload.critical = formData.critical;
-        payload.team_id = formData.team_id;
-      }
-
-      try {
-        const policy: IPolicy = await createPolicy(payload).then(
-          (data) => data.policy
-        );
-        if (saveAutomations) {
-          try {
-            await saveAutomations(policy);
-          } catch (automationsErr) {
-            notify.error(
-              "Policy was created, but its automations couldn't be saved.",
-              { response: automationsErr }
-            );
-          }
-        }
-        notify.success("Policy created.");
-        router.push(
-          getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
-            fleet_id: policy.team_id,
-          })
-        );
-      } catch (createError) {
-        if (getErrorReason(createError).includes("already exists")) {
-          setBackendValidators({
-            name: "A policy with this name already exists",
-          });
-        } else {
-          notify.error(
-            "Something went wrong creating your policy. Please try again.",
-            { response: createError }
-          );
-        }
-      } finally {
-        setIsUpdatingPolicy(false);
-      }
+  const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
+    if (policyTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
+      formData.fleet_id = policyTeamId;
     }
-  );
+    setIsUpdatingPolicy(true);
+    const payload: IPolicyFormData = {
+      name: formData.name,
+      description: formData.description,
+      query: formData.query,
+      resolution: formData.resolution,
+      platform: formData.platform,
+      labels_include_any: formData.labels_include_any,
+      labels_include_all: formData.labels_include_all,
+      labels_exclude_any: formData.labels_exclude_any,
+      labels_exclude_all: formData.labels_exclude_all,
+      automation_type: formData.automation_type,
+      software_title_id: formData.software_title_id,
+      software_package_id: formData.software_package_id,
+      script_id: formData.script_id,
+      profile_uuid: formData.profile_uuid,
+      continuous_automations_enabled: formData.continuous_automations_enabled,
+    };
+    if (isPremiumTier) {
+      payload.critical = formData.critical;
+      payload.hidden = formData.hidden;
+      payload.fleet_id = formData.fleet_id;
+    }
+
+    try {
+      const policy: IPolicy = await createPolicy(payload).then(
+        (data) => data.policy
+      );
+      notify.success("Policy created.");
+      router.push(
+        getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
+          fleet_id: policy.fleet_id,
+        })
+      );
+    } catch (createError) {
+      if (getErrorReason(createError).includes("already exists")) {
+        setBackendValidators({
+          name: "A policy with this name already exists",
+        });
+      } else {
+        notify.error(
+          "Something went wrong creating your policy. Please try again.",
+          { response: createError }
+        );
+      }
+    } finally {
+      setIsUpdatingPolicy(false);
+    }
+  });
 
   const onUpdatePolicy = async (formData: IPolicyFormData) => {
     if (!policyIdForEdit) {
@@ -216,6 +208,7 @@ const QueryEditor = ({
       lastEditedQueryBody,
       lastEditedQueryResolution,
       lastEditedQueryCritical,
+      lastEditedQueryHidden,
       lastEditedQueryPlatform,
     });
 
@@ -225,20 +218,8 @@ const QueryEditor = ({
       delete updatedPolicy.platform;
     }
 
-    const updateAPIRequest = () => {
-      // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
-      const team_id = storedPolicy?.team_id ?? undefined;
-
-      return team_id !== undefined
-        ? teamPoliciesAPI.update(policyIdForEdit, {
-            ...updatedPolicy,
-            team_id,
-          })
-        : globalPoliciesAPI.update(policyIdForEdit, updatedPolicy);
-    };
-
     try {
-      await updateAPIRequest();
+      await policiesAPI.update(policyIdForEdit, updatedPolicy);
       notify.success("Policy updated.");
     } catch (updateError) {
       console.error(updateError);

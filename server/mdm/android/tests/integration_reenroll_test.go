@@ -124,16 +124,16 @@ func (s *reenrollTestSuite) TestClearsStateOnReenrollment() {
 		CommandUUID:   uuid.NewString(),
 		HostUUID:      hostUUID,
 		OperationName: "operations/lock-" + enterpriseSpecificID,
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
-	require.NoError(t, s.DS.Datastore.LockHostViaAndroidMDM(ctx, host.Host, lockCmd))
+	require.NoError(t, s.DS.Datastore.LockHostViaAndroidMDM(ctx, host.Host, lockCmd, "258147"))
 
 	// A pending software install.
 	vppApp, err := s.DS.Datastore.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp1", Platform: fleet.AndroidPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	installCmdUUID := uuid.NewString()
 	require.NoError(t, s.DS.Datastore.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
@@ -213,4 +213,30 @@ func (s *reenrollTestSuite) TestClearsStateOnReenrollment() {
 	hostMDM, err := s.DS.Datastore.GetHostMDM(ctx, hostID)
 	require.NoError(t, err)
 	require.True(t, hostMDM.Enrolled)
+
+	// An acknowledged lock's PIN doesn't survive a re-enroll either.
+	ackedLockCmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
+		HostUUID:      hostUUID,
+		OperationName: "operations/acked-lock-" + enterpriseSpecificID,
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}
+	require.NoError(t, s.DS.Datastore.LockHostViaAndroidMDM(ctx, host.Host, ackedLockCmd, "369258"))
+	require.NoError(t, s.DS.Datastore.UpdateMDMAndroidCommandStatus(ctx, ackedLockCmd.CommandUUID,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
+	// GetHostLockWipeStatus branches on the platform, which AndroidHostLite doesn't load.
+	fullHost, err := s.DS.Datastore.HostLite(ctx, hostID)
+	require.NoError(t, err)
+	require.Equal(t, "android", fullHost.Platform)
+	lockWipe, err = s.DS.Datastore.GetHostLockWipeStatus(ctx, fullHost)
+	require.NoError(t, err)
+	require.True(t, lockWipe.IsAndroidUnlockPINAvailable())
+
+	enroll()
+
+	lockWipe, err = s.DS.Datastore.GetHostLockWipeStatus(ctx, fullHost)
+	require.NoError(t, err)
+	require.False(t, lockWipe.IsAndroidUnlockPINAvailable())
+	require.Empty(t, lockWipe.UnlockPIN)
 }

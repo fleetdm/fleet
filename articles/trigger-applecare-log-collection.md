@@ -8,7 +8,7 @@ When you open an AppleCare case, Apple often needs diagnostic logs from the affe
 
 Check these before you start:
 
-- Fleet MDM turned on, with the target iPhone or iPad enrolled and supervised. Enhanced log collection doesn't work on unsupervised devices.
+- MDM turned on in Fleet, with the target iPhone or iPad enrolled and supervised. Enhanced log collection doesn't work on unsupervised devices.
 - iOS 27 or iPadOS 27 or later on the target device.
 - An AppleCare token for the case. AppleCare issues this as part of the ticket, either an interactive or a non-interactive token (see the note below).
 - `fleetctl` installed and logged in, or a [Fleet API token](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token).

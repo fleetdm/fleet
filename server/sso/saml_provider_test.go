@@ -34,6 +34,8 @@ func (f *fakeSessionStore) expire(sessionID string) error {
 	return nil
 }
 
+func (f *fakeSessionStore) ConsumeAssertion(string, time.Time) error { return nil }
+
 func (f *fakeSessionStore) Fullfill(sessionID string) (*Session, error) {
 	sess, err := f.get(sessionID)
 	if err != nil {

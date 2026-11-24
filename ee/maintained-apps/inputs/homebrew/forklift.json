@@ -1,8 +1,9 @@
 {
   "name": "ForkLift",
-  "unique_identifier": "com.binarynights.ForkLift-4",
+  "unique_identifier": "com.binarynights.ForkLift",
   "token": "forklift",
   "installer_format": "zip",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/forklift-uninstall.sh",
   "slug": "forklift/darwin",
   "default_categories": [
     "Productivity"

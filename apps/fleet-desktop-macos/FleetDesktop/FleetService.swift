@@ -1,9 +1,10 @@
 import Foundation
 import AppKit
 
-/// Core service that reads the Fleet URL from MDM managed preferences and
-/// the device token from orbit, then opens the self-service portal in a
-/// browser window. Only MDM-managed machines are supported.
+/// Core service that reads the Fleet URL from fleetd's configuration (the MDM
+/// managed preferences profile, or the orbit launchd plist on Macs without
+/// one) and the device token from orbit, then opens the self-service portal
+/// in a browser window.
 ///
 /// The WebView is kept alive when the window is closed, so reopening is instant.
 /// The token is checked every 60 seconds and on navigation errors, to handle
@@ -77,11 +78,11 @@ final class FleetService {
     /// Used to present once when the user foregrounds the app. Main thread only.
     private var deferredPresentationFromHeadlessLaunch = false
 
-    /// Most recent `failing_policies_count` from the desktop API.
+    /// Most recent badge count from the desktop API (see `updateBadge`).
     /// Access only from stateQueue.
     private var _lastBadgeCount: Int?
 
-    /// The `failing_policies_count` reflected by the currently loaded web page.
+    /// The badge count reflected by the currently loaded web page.
     /// Compared to `_lastBadgeCount` when the window is shown to detect a stale
     /// Policies tab (e.g. badge dropped to 0 while the window was closed).
     /// Access only from stateQueue.
@@ -90,8 +91,14 @@ final class FleetService {
     /// Characters to trim from file contents (leading/trailing only).
     private static let trimCharacters = CharacterSet(charactersIn: "\n\r ")
 
-    /// Path to the managed preferences plist (MDM-managed machines).
+    /// Path to the managed preferences plist delivered by the fleetd
+    /// configuration profile (MDM-enrolled Macs).
     private static let managedPrefsPlistPath = "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
+
+    /// Path to the orbit launchd plist. Packages built with `fleetctl package
+    /// --fleet-url` carry the URL here as ORBIT_FLEET_URL, which is how Macs
+    /// that aren't MDM-enrolled are configured.
+    private static let orbitLaunchdPlistPath = "/Library/LaunchDaemons/com.fleetdm.orbit.plist"
 
     init() {
         let root = ProcessInfo.processInfo.environment["ORBIT_ROOT_DIR"] ?? "/opt/orbit"
@@ -500,10 +507,12 @@ final class FleetService {
 
     /// Reads the Fleet URL and device token. Returns true if successful.
     private func resolveConfig() -> Bool {
-        guard let fleetURL = readFleetURL() else {
-            showError("This app is currently only supported on MDM-enabled Macs. Please contact your administrator for assistance.")
+        guard let config = readFleetURL() else {
+            showError("Fleet server URL not found. Ensure fleetd is installed and enrolled on this Mac, then contact your administrator if the problem persists.")
             return false
         }
+        NSLog("Fleet Desktop: Using Fleet URL from \(config.source)")
+        let fleetURL = config.url
 
         // Require HTTPS — the device token is sent to this URL, and a
         // misconfigured http:// value would put it on the wire in cleartext.
@@ -513,7 +522,7 @@ final class FleetService {
         guard let parsed = URL(string: fleetURL),
               parsed.scheme?.lowercased() == "https",
               let host = parsed.host, !host.isEmpty else {
-            showError("The configured Fleet URL must be a valid HTTPS URL.\nCheck the FleetURL managed preference.")
+            showError("The configured Fleet URL must be a valid HTTPS URL.\nCheck \(config.source).")
             return false
         }
 
@@ -644,11 +653,14 @@ final class FleetService {
     private func updateBadge(from data: Data) {
         struct DesktopResponse: Decodable {
             let failing_policies_count: Int
+            let failing_unhidden_policies_count: Int?
         }
 
         do {
             let response = try JSONDecoder().decode(DesktopResponse.self, from: data)
-            let count = response.failing_policies_count
+            // Servers older than the hidden-policies feature don't send the
+            // unhidden count; fall back to the total to keep the old behavior.
+            let count = response.failing_unhidden_policies_count ?? response.failing_policies_count
             let label: String? = count > 0 ? "\(count)" : nil
             stateQueue.sync {
                 _lastBadgeCount = count
@@ -685,15 +697,35 @@ final class FleetService {
 
     // MARK: - File Reading
 
-    /// Reads the Fleet URL from managed preferences (MDM).
-    /// Only MDM-managed machines are supported.
-    private func readFleetURL() -> String? {
-        guard let plist = NSDictionary(contentsOfFile: Self.managedPrefsPlistPath),
-              let url = plist["FleetURL"] as? String else {
-            return nil
+    /// A Fleet URL plus a description of where it came from, for error messages.
+    private struct FleetURLConfig {
+        let url: String
+        let source: String
+    }
+
+    /// Reads the Fleet URL from the managed preferences profile, falling back
+    /// to the orbit launchd plist on Macs that aren't MDM-enrolled. These are
+    /// the same sources orbit itself starts from.
+    private func readFleetURL() -> FleetURLConfig? {
+        if let plist = NSDictionary(contentsOfFile: Self.managedPrefsPlistPath),
+           let url = Self.normalizedFleetURL(plist["FleetURL"]) {
+            return FleetURLConfig(url: url, source: "the FleetURL managed preference")
         }
-        let trimmed = url.trimmingCharacters(in: Self.trimCharacters)
-        return trimmed.isEmpty ? nil : trimmed
+        if let plist = NSDictionary(contentsOfFile: Self.orbitLaunchdPlistPath),
+           let env = plist["EnvironmentVariables"] as? [String: Any],
+           let url = Self.normalizedFleetURL(env["ORBIT_FLEET_URL"]) {
+            return FleetURLConfig(url: url, source: "ORBIT_FLEET_URL in \(Self.orbitLaunchdPlistPath)")
+        }
+        return nil
+    }
+
+    /// Trims the value and, like orbit, treats a scheme-less value such as
+    /// `fleet.example.com:8080` as HTTPS.
+    private static func normalizedFleetURL(_ value: Any?) -> String? {
+        guard let raw = value as? String else { return nil }
+        let trimmed = raw.trimmingCharacters(in: trimCharacters)
+        if trimmed.isEmpty { return nil }
+        return trimmed.hasPrefix("http") ? trimmed : "https://" + trimmed
     }
 
     /// Characters allowed in a device token (ASCII alphanumerics plus - and _).

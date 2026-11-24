@@ -89,6 +89,16 @@ func Preamble(vars map[string]string, dialect Dialect) string {
 	return b.String()
 }
 
+// CheckPreamble reports whether InsertPreamble would refuse to place a preamble
+// in contents for dialect, so callers can find out before paying for a value.
+func CheckPreamble(contents string, dialect Dialect) error {
+	if dialect != DialectPowerShell {
+		return nil
+	}
+	_, err := powerShellPreamblePos(contents)
+	return err
+}
+
 // InsertPreamble places preamble ahead of the body, keeping any shebang on line
 // 1 so the interpreter is still chosen the same way.
 func InsertPreamble(contents, preamble string, dialect Dialect) (string, error) {

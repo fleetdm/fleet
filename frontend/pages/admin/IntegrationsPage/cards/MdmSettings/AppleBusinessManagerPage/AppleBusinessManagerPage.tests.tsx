@@ -61,11 +61,20 @@ describe("AppleBusinessManagerPage", () => {
     );
 
     await screen.findByText("Beta LLC");
-    expect(screen.getByText("Default token")).toBeInTheDocument();
+    expect(screen.getByText("Default sign-in")).toBeInTheDocument();
 
     // Beta LLC sorts after Acme Inc., so its row has the second dropdown.
     await user.click(screen.getAllByText("Actions")[1]);
-    await user.click(screen.getByText("Set as default token"));
+    await user.click(screen.getByText("Set as default for sign-in"));
+
+    expect(updateDefaultSpy).not.toHaveBeenCalled();
+
+    // Opens modal
+    await waitFor(() =>
+      expect(screen.getByText("Set as default for sign-in")).toBeInTheDocument()
+    );
+
+    await user.click(screen.getByRole("button", { name: "Set as default" }));
 
     await waitFor(() => {
       expect(updateDefaultSpy).toHaveBeenCalledWith(2, true);
@@ -95,7 +104,16 @@ describe("AppleBusinessManagerPage", () => {
 
     await screen.findByText("Acme Inc.");
     await user.click(screen.getAllByText("Actions")[0]);
-    await user.click(screen.getByText("Unset default token"));
+    await user.click(screen.getByText("Remove default for sign-in"));
+
+    expect(updateDefaultSpy).not.toHaveBeenCalled();
+
+    // Opens modal
+    await waitFor(() =>
+      expect(screen.getByText("Remove default for sign-in")).toBeInTheDocument()
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
 
     await waitFor(() => {
       expect(updateDefaultSpy).toHaveBeenCalledWith(1, false);

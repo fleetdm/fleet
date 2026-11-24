@@ -10,7 +10,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 import Slider from "components/forms/fields/Slider";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
 import {
   IGlobalIntegrations,
@@ -56,7 +56,7 @@ const getDestinationUrlError = (url: string): string | undefined => {
   if (!url) {
     return "Please add a destination URL";
   }
-  if (!validUrl({ url })) {
+  if (!isValidURL({ url })) {
     return "Destination URL is not a valid URL";
   }
   return undefined;
@@ -137,11 +137,11 @@ const OtherWorkflowsModal = forwardRef<
             z.group_id === selectedIntegration?.group_id,
         })) || null;
 
-      // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
+      // Each policy's automation_type decides whether it sends webhooks or
+      // tickets; these settings only hold the destination.
       const newWebhook = {
         failing_policies_webhook: {
           destination_url: destinationUrl,
-          policy_ids: webhook.policy_ids || [],
           enable_failing_policies_webhook:
             isPolicyAutomationsEnabled && isWebhookEnabled,
         },

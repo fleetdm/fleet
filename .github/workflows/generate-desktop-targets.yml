@@ -28,10 +28,10 @@ jobs:
           echo "FLEET_DESKTOP_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
   
   desktop-macos:
-    # Set macOS version to '14' (previously was macos-12/13 until they were deprecated) for
-    # building the binary. This ensures compatibility with macOS version 14 and
-    # later, avoiding runtime errors on systems using macOS 14 or newer.
-    runs-on: macos-14
+    # Set macOS version to '15' (previously was macos-12/13/14) for
+    # building the binary. This ensures compatibility with macOS version 15 and
+    # later, avoiding runtime errors on systems using macOS 15 or newer.
+    runs-on: macos-15
     needs: set-version
     permissions:
       contents: read
@@ -39,7 +39,7 @@ jobs:
       attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -162,7 +162,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -217,7 +217,7 @@ jobs:
       attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -259,7 +259,7 @@ jobs:
       attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

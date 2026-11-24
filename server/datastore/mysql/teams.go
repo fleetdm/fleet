@@ -109,7 +109,7 @@ func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.T
 		}
 		noTeam := &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}
 		lites = append(lites, noTeam.ToTeamLite())
@@ -135,7 +135,7 @@ func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.T
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
 	if tid == 0 {
 		if withExtras {
-			return nil, ctxerr.Errorf(ctx, "withExtras argument not supported for team ID 0")
+			return nil, ctxerr.Errorf(ctx, "withExtras argument not supported for fleet ID 0")
 		}
 		config, err := defaultTeamConfigDB(ctx, q)
 		if err != nil {
@@ -143,7 +143,7 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras boo
 		}
 		return &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}, nil
 	}
@@ -200,8 +200,8 @@ var teamRefs = []string{
 	"software_title_icons",
 	"software_title_display_names",
 	"software_title_team_pins",
-	"vpp_app_configurations",
 	"software_categories",
+	"patch_deadline_settings",
 }
 
 // teamLabelsRefs are the tables that could be referenced by team labels that
@@ -224,12 +224,22 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 		return ctxerr.Wrapf(ctx, err, "preparing windows profiles for deletion for fleet %d", tid)
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var activateAffectedHostIDs []uint
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		activateAffectedHostIDs = nil // reset on retry
+
 		// Delete team policies first, because policies can have associated installers and scripts
 		// which may be deleted on cascade before deleting the policies (which are also deleted on cascade).
 		_, err := tx.ExecContext(ctx, `DELETE FROM policies WHERE team_id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting policies for team %d", tid)
+		}
+
+		// The profiles' host rows outlive them; Windows is handled above.
+		for _, t := range []profileNameTables{appleProfileNameTables, declarationNameTables, androidProfileNameTables} {
+			if err := snapshotProfileNamesForDeletionDB(ctx, tx, t, "p.team_id = ?", tid); err != nil {
+				return err
+			}
 		}
 
 		// Delete related records from teamRefs tables before deleting the team itself
@@ -301,18 +311,34 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			}
 		}
 
+		// The installers cascade with the team, and their queued installs would block that. FOR UPDATE reads
+		// installers added since the snapshot and keeps new ones out until the cascade.
+		var installerIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &installerIDs, `SELECT id FROM software_installers WHERE team_id = ? FOR UPDATE`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "loading software installers for team %d", tid)
+		}
+		for _, id := range installerIDs {
+			hostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true, false)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "canceling installs for installer %d on team %d", id, tid)
+			}
+			activateAffectedHostIDs = append(activateAffectedHostIDs, hostIDs...)
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetTeam, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
-		}
-
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// The team is gone, so don't fail the delete over a host that won't activate. Those are logged, and the
+	// unblock cron retries them.
+	_, _ = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
+	return nil
 }
 
 func (ds *Datastore) HostIDsByTeamID(ctx context.Context, teamID uint) ([]uint, error) {
@@ -342,7 +368,7 @@ func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, 
 		if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, profileUUIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
-		if err := snapshotWindowsProfileNamesForDeletionDB(ctx, tx, profileUUIDs); err != nil {
+		if err := snapshotProfileNamesForDeletionDB(ctx, tx, windowsProfileNameTables, "p.profile_uuid IN (?)", profileUUIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "snapshotting windows profile names for team %d", tid)
 		}
 
@@ -400,16 +426,24 @@ func (ds *Datastore) loadExtrasForTeam(ctx context.Context, team *fleet.Team) (*
 func (ds *Datastore) TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
 	// Normalize to match the NFC normalization applied on write (see NewTeam).
 	nameUnicode := norm.NFC.String(name)
-	stmt := `SELECT id, name FROM teams WHERE name = ? AND id != ? LIMIT 1`
-	team := &fleet.Team{}
-	switch err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode, excludeID); {
-	case err == nil:
-		return team, nil
-	case errors.Is(err, sql.ErrNoRows):
-		return nil, nil
-	default:
+	// The name key can't be computed in SQL, so every other fleet is compared
+	// in Go. The teams table is small.
+	stmt := `SELECT id, name, name = ? AS collation_equal FROM teams WHERE id != ? ORDER BY id`
+	var others []struct {
+		ID             uint   `db:"id"`
+		Name           string `db:"name"`
+		CollationEqual bool   `db:"collation_equal"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &others, stmt, nameUnicode, excludeID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check team name conflict")
 	}
+	key := fleet.TeamNameKey(nameUnicode)
+	for _, other := range others {
+		if other.CollationEqual || fleet.TeamNameKey(other.Name) == key {
+			return &fleet.Team{ID: other.ID, Name: other.Name}, nil
+		}
+	}
+	return nil, nil
 }
 
 func (ds *Datastore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {
@@ -526,10 +560,57 @@ WHERE
 	return team, nil
 }
 
+func (ds *Datastore) UpdateTeamUsers(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error) {
+	ids := make([]uint, 0, len(set)+len(removeIDs))
+	for _, user := range set {
+		ids = append(ids, user.ID)
+	}
+	ids = append(ids, removeIDs...)
+
+	var previous map[uint]fleet.User
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		previous, err = lockUserRolesDB(ctx, tx, ids)
+		if err != nil {
+			return err
+		}
+
+		if len(set) > 0 {
+			const valueStr = "(?,?,?),"
+			args := make([]any, 0, len(set)*3)
+			for _, user := range set {
+				args = append(args, user.ID, teamID, user.Role)
+			}
+			stmt := "INSERT INTO user_teams (user_id, team_id, role) VALUES " +
+				strings.TrimSuffix(strings.Repeat(valueStr, len(set)), ",") +
+				" ON DUPLICATE KEY UPDATE role = VALUES(role)"
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "set team users")
+			}
+		}
+
+		if len(removeIDs) > 0 {
+			stmt, args, err := sqlx.In(`DELETE FROM user_teams WHERE team_id = ? AND user_id IN (?)`, teamID, removeIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build remove team users query")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "remove team users")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return previous, nil
+}
+
 // ListTeams lists all teams with limit, sort and offset passed in with
 // fleet.ListOptions
 func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-	query := fmt.Sprintf(`
+	query := fmt.Sprintf(
+		`
 			SELECT `+teamColumns+`,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
 				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
@@ -584,7 +665,8 @@ func (ds *Datastore) TeamExists(ctx context.Context, teamID uint) (bool, error) 
 }
 
 func (ds *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
-	sql := fmt.Sprintf(`
+	sql := fmt.Sprintf(
+		`
 			SELECT %s,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
 				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
@@ -662,9 +744,12 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 }
 
 func (ds *Datastore) TeamMDMConfig(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
-	sql := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
+	stmt := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
 	var raw *json.RawMessage
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &raw, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &raw, stmt, tid); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithID(tid))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "select team MDM config")
 	}
 	var mdmConfig *fleet.TeamMDM
@@ -735,7 +820,7 @@ func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) (
 			teams
 		WHERE
 			config IS NOT NULL AND
-			config->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+			config->'$.mdm.setup_experience.enable_end_user_authentication' = TRUE
 
 		UNION
 
@@ -744,7 +829,7 @@ func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) (
 		FROM
 			app_config_json
 		WHERE
-			json_value->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+			json_value->'$.mdm.setup_experience.enable_end_user_authentication' = TRUE
 `
 	var teamIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
@@ -787,7 +872,8 @@ func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.Te
 		return ctxerr.Wrap(ctx, err, "marshaling config")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?)
 		 ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 		configBytes,

@@ -1,7 +1,9 @@
 .query-side-panel {
   @include vertical-modal-layout;
 
-  > .custom-link {
+  > .custom-link,
+  > .evented-table-tag,
+  &__mdm-required {
     align-self: flex-start;
   }
 
@@ -26,7 +28,7 @@
 
       svg {
         path {
-          stroke: $core-vibrant-blue;
+          fill: $core-vibrant-blue;
         }
       }
     }
@@ -34,7 +36,7 @@
     &:hover {
       svg {
         path {
-          stroke: $core-vibrant-blue-over;
+          fill: $core-vibrant-blue-over;
         }
       }
     }

@@ -18,7 +18,7 @@ func (ds *Datastore) GetChallengesByAuthorizationID(ctx context.Context, authori
 		return nil, types.MalformedError("invalid authorization ID")
 	}
 
-	const query = `SELECT id, acme_authorization_id, challenge_type, status, token, updated_at FROM acme_challenges WHERE acme_authorization_id = ?`
+	const query = `SELECT id, acme_authorization_id, challenge_type, status, token, attested_public_key, updated_at FROM acme_challenges WHERE acme_authorization_id = ?`
 
 	var challenges []*types.Challenge
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &challenges, query, authorizationID)
@@ -38,7 +38,7 @@ func (ds *Datastore) GetChallengeByID(ctx context.Context, accountID, challengeI
 		return nil, types.MalformedError("invalid challenge ID")
 	}
 
-	const query = `SELECT ac.id, ac.acme_authorization_id, ac.challenge_type, ac.status, ac.token, ac.updated_at FROM acme_challenges ac
+	const query = `SELECT ac.id, ac.acme_authorization_id, ac.challenge_type, ac.status, ac.token, ac.attested_public_key, ac.updated_at FROM acme_challenges ac
 	INNER JOIN acme_authorizations a ON ac.acme_authorization_id = a.id
 	INNER JOIN acme_orders o ON a.acme_order_id = o.id
 	WHERE ac.id = ? AND o.acme_account_id = ?`
@@ -60,8 +60,8 @@ func (ds *Datastore) UpdateChallenge(ctx context.Context, challenge *types.Chall
 	}
 
 	err := platform_mysql.WithRetryTxx(ctx, ds.writer(ctx), func(tx sqlx.ExtContext) error {
-		const updateChallengeStmt = `UPDATE acme_challenges SET status = ? WHERE id = ?`
-		_, err := tx.ExecContext(ctx, updateChallengeStmt, challenge.Status, challenge.ID)
+		const updateChallengeStmt = `UPDATE acme_challenges SET status = ?, attested_public_key = ? WHERE id = ?`
+		_, err := tx.ExecContext(ctx, updateChallengeStmt, challenge.Status, challenge.AttestedPublicKey, challenge.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating challenge")
 		}
@@ -92,7 +92,7 @@ func (ds *Datastore) UpdateChallenge(ctx context.Context, challenge *types.Chall
 			return ctxerr.Wrap(ctx, err, "updating order status based on challenge status")
 		}
 
-		const selectQuery = `SELECT id, acme_authorization_id, challenge_type, status, token, updated_at FROM acme_challenges WHERE id = ?`
+		const selectQuery = `SELECT id, acme_authorization_id, challenge_type, status, token, attested_public_key, updated_at FROM acme_challenges WHERE id = ?`
 		err = sqlx.GetContext(ctx, tx, challenge, selectQuery, challenge.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting updated challenge")

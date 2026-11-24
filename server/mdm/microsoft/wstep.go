@@ -43,16 +43,10 @@ type CertManager interface {
 	// IdentityCert returns the identity certificate of the depot.
 	IdentityCert() x509.Certificate
 
-	// NewSTSAuthToken returns an STS auth token for the given UPN claim.
-	NewSTSAuthToken(upn string) (string, error)
-
 	// NewEUAToken returns a Fleet-signed JWT for the given UPN and Windows MDM
 	// device ID. Used to pass end-user authentication context to the orbit
 	// installer so the user is not prompted twice.
 	NewEUAToken(upn string, deviceID string) (string, error)
-
-	// GetSTSAuthTokenUPNClaim validates the given token and returns the UPN claim
-	GetSTSAuthTokenUPNClaim(token string) (string, error)
 
 	// GetEUATokenClaims validates the given EUA token and returns the parsed claims.
 	GetEUATokenClaims(token string) (*EUATokenClaims, error)
@@ -71,11 +65,6 @@ type CertStore interface {
 	WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error
 	WSTEPNewSerial(ctx context.Context) (*big.Int, error)
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
-}
-
-type STSClaims struct {
-	UPN string `json:"upn"`
-	jwt.RegisteredClaims
 }
 
 // euaJWTClaims is the internal JWT struct for signing/parsing EUA tokens.
@@ -97,6 +86,8 @@ type AzureData struct {
 	TenantID   string
 	UniqueName string
 	SCP        string
+	// DeviceID is the Entra device ID from the `deviceid` claim, empty when the token has none.
+	DeviceID string
 }
 
 type manager struct {
@@ -199,41 +190,6 @@ func (m *manager) SignClientCSR(ctx context.Context, subject string, clientCSR *
 	return rawSignedDER, CertFingerprintHexStr(signedCert), nil
 }
 
-// NewSTSAuthToken returns an STS auth token for the given UPN claim.
-func (m *manager) NewSTSAuthToken(upn string) (string, error) {
-	if m == nil {
-		return "", errors.New("windows mdm identity keypair was not configured")
-	}
-
-	if m.identityCert == nil || m.identityPrivateKey == nil {
-		return "", errors.New("invalid identity certificate or private key")
-	}
-
-	if len(upn) == 0 {
-		return "", errors.New("invalid upn field")
-	}
-
-	// Create claims with upn field populated
-	claims := STSClaims{
-		UPN: upn,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Subject:   "STSAuthToken",
-		},
-	}
-
-	// Create a new token with the claims and sign it with the private key
-	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS256"), claims)
-	signedToken, err := token.SignedString(m.identityPrivateKey)
-	if err != nil {
-		return "", fmt.Errorf("failed to sign STS token: %w", err)
-	}
-
-	return signedToken, nil
-}
-
 // NewEUAToken returns a Fleet-signed JWT for the given UPN and Windows MDM device ID.
 func (m *manager) NewEUAToken(upn string, deviceID string) (string, error) {
 	if m == nil {
@@ -306,42 +262,6 @@ func (m *manager) GetEUATokenClaims(tokenStr string) (*EUATokenClaims, error) {
 	}
 
 	return nil, errors.New("issue with EUA token validation")
-}
-
-// GetSTSAuthToken validates the given token and returns the UPN claim
-func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
-	if m == nil {
-		return "", errors.New("windows mdm identity keypair was not configured")
-	}
-
-	if m.identityCert == nil || m.identityPrivateKey == nil {
-		return "", errors.New("invalid identity certificate or private key")
-	}
-
-	if len(tokenStr) == 0 {
-		return "", errors.New("invalid STS token")
-	}
-
-	// Since we used the private key to sign the tokens, we use the public counterpart to verify the signature
-	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return m.identityCert.PublicKey, nil
-	})
-	if err != nil {
-		return "", fmt.Errorf("there was an error parsing the STS token claims: %w", err)
-	}
-
-	if claims, ok := token.Claims.(*STSClaims); ok && token.Valid {
-		if len(claims.UPN) == 0 {
-			return "", errors.New("issue with UPN token claim")
-		}
-
-		return claims.UPN, nil
-	}
-
-	return "", errors.New("issue with STS token validation")
 }
 
 // GetAzureAuthTokenClaims validates the given Azure AD token and returns
@@ -490,12 +410,24 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 		return AzureData{}, ctxerr.New(ctx, "invalid SCP claim")
 	}
 
+	// v1 access tokens carry `deviceid` by default. v2 tokens carry it only when the app registration lists it as an optional
+	// access token claim.
+	deviceIDClaim, _ := claims["deviceid"].(string)
+	if deviceIDClaim != "" {
+		deviceID, err := uuid.Parse(deviceIDClaim)
+		if err != nil {
+			return AzureData{}, ctxerr.Wrap(ctx, err, "invalid deviceid claim format")
+		}
+		deviceIDClaim = deviceID.String()
+	}
+
 	return AzureData{
 		UPN:        upnClaim,
 		TenantID:   tenantIDClaim,
 		UniqueName: uniqueNameClaim,
 		SCP:        azureSCPClaim,
 		Audience:   audience,
+		DeviceID:   deviceIDClaim,
 	}, nil
 }
 

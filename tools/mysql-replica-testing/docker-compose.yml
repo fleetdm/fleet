@@ -3,7 +3,7 @@ version: "2"
 services:
   mysql_main:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     volumes:
       - mysql-persistent-volume-replica-main:/tmp
     command:
@@ -28,7 +28,7 @@ services:
 
   mysql_read_replica:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     volumes:
       - mysql-persistent-volume-replica-read:/tmp
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.

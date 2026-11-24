@@ -27,8 +27,10 @@ parasails.registerPage('app-library', {
   methods: {
 
     clickSelectPlatform: function(platform) {
-      if(this.selectedPlatform !== platform && window.scrollY > 370){
-        window.scrollTo(0, 350, {smooth: true});
+      // Scroll back up to the top of the list of apps (the feature cards above the platform filters push it down the page).
+      let appListTop = document.querySelector('div[purpose="count-and-cta"]').getBoundingClientRect().top + window.scrollY - 200;
+      if(this.selectedPlatform !== platform && window.scrollY > appListTop + 20){
+        window.scrollTo(0, appListTop);
       }
       this.selectedPlatform = platform;
     },

@@ -2,7 +2,10 @@ import AcrobatReader from "./AcrobatReader";
 import AdobePlugin from "./AdobePlugin";
 import Extension from "./Extension";
 import GoBinary from "./GoBinary";
+import Package from "./Package";
 import AdobeCreativeCloud from "./png/AdobeCreativeCloud.png";
+import CodexApp from "./png/CodexApp.png";
+import Zoom from "./Zoom";
 
 import { getMatchedSoftwareIcon } from "./index";
 
@@ -47,7 +50,26 @@ describe("getMatchedSoftwareIcon", () => {
     });
   });
 
+  describe("MCP servers and AI skills", () => {
+    it.each([
+      { name: "slack", source: "mcp_servers" },
+      { name: "zoom", source: "mcp_servers" },
+      { name: "git", source: "ai_skills" },
+    ])(
+      "uses the package icon for $source named after an application ($name)",
+      ({ name, source }) => {
+        expect(getMatchedSoftwareIcon({ name, source })).toBe(Package);
+      }
+    );
+  });
+
   describe("other sources keep matching on name first", () => {
+    it("matches an AI CLI tool to its vendor's application", () => {
+      expect(getMatchedSoftwareIcon({ name: "codex", source: "ai_clis" })).toBe(
+        CodexApp
+      );
+    });
+
     it("matches an Adobe application by exact name", () => {
       expect(
         getMatchedSoftwareIcon({
@@ -64,6 +86,12 @@ describe("getMatchedSoftwareIcon", () => {
           source: "apps",
         })
       ).toBe(AcrobatReader);
+    });
+
+    it("matches the ARM64 Zoom Fleet-maintained app to Zoom", () => {
+      expect(
+        getMatchedSoftwareIcon({ name: "Zoom (ARM64)", source: "programs" })
+      ).toBe(Zoom);
     });
 
     it("falls back to the source icon when the name matches nothing", () => {

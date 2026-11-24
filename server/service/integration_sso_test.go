@@ -11,16 +11,13 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/crewjam/saml"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -296,7 +293,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 	}
 
 	t.Run("global premium roles", func(t *testing.T) {
-		for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+		for _, role := range []string{fleet.RoleTechnician, fleet.RoleObserverPlus} {
 			// Create user.
 			u := &fleet.User{
 				Name:       "SSO User 2",
@@ -359,7 +356,6 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	newRawPwd := "new_password2!"
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       nonSSOUser.ID,
 	}, http.StatusOK, &perfPwdResetResp)
 	require.False(t, perfPwdResetResp.User.AdminForcedPasswordReset)
 
@@ -380,7 +376,6 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	newRawPwd = "new_password2!"
 	s.DoJSON("POST", "/api/latest/fleet/perform_required_password_reset", performRequiredPasswordResetRequest{
 		Password: newRawPwd,
-		ID:       nonSSOUser.ID,
 	}, http.StatusForbidden, &perfPwdResetResp)
 }
 
@@ -527,56 +522,22 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	}
 	_, _ = s.ds.NewUser(context.Background(), u)
 
-	var (
-		idpUsername = "sso_user2"
-		idpPassword = "user123#"
-	)
+	idpUsername := "sso_user2"
+	client := s.newSSOTestClient()
 	var resIni initiateSSOResponse
-	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
-	jar, err := cookiejar.New(nil)
-	require.NoError(t, err)
-	client := fleethttp.NewClient(
-		fleethttp.WithFollowRedir(false),
-		fleethttp.WithCookieJar(jar),
-	)
-	resp, err := client.Get(resIni.URL)
-	require.NoError(t, err)
-	// From the redirect Location header we can get the AuthState and the URL to
-	// which we submit the credentials
-	parsed, err := url.Parse(resp.Header.Get("Location"))
-	require.NoError(t, err)
-	data := url.Values{
-		"username":  {idpUsername},
-		"password":  {idpPassword},
-		"AuthState": {parsed.Query().Get("AuthState")},
-	}
-	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
-	require.NoError(t, err)
-	// The response is an HTML form, we can extract the base64-encoded response
-	// to submit to the Fleet server from here
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
-	matches := re.FindSubmatch(body)
-	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
-	samlResponse := string(matches[1])
+	res := s.doWithClient(client, "POST", "/api/v1/fleet/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+	samlResponse := s.completeSAMLLogin(client, resIni.URL, idpUsername, "user123#")
 	samlResponseDecoded, err := base64.RawStdEncoding.DecodeString(samlResponse)
 	require.NoError(t, err)
 
 	tamperedSAMLResponseDecoded := strings.ReplaceAll(string(samlResponseDecoded), idpUsername, "sso_us3r2")
-	tampteredSAMLResponseEncoded := base64.RawStdEncoding.EncodeToString([]byte(tamperedSAMLResponseDecoded))
+	tamperedSAMLResponseEncoded := base64.RawStdEncoding.EncodeToString([]byte(tamperedSAMLResponseDecoded))
 
-	ssoURL := fmt.Sprintf(
-		"/api/v1/fleet/sso/callback?SAMLResponse=%s",
-		url.QueryEscape(tampteredSAMLResponseEncoded),
-	)
-	resp = s.DoRawNoAuth("POST", ssoURL, nil, http.StatusOK)
-
-	t.Cleanup(func() {
-		resp.Body.Close()
-	})
-	body, err = io.ReadAll(resp.Body)
+	res = s.doWithClient(client, "POST", "/api/v1/fleet/sso/callback", nil, http.StatusOK, nil, "SAMLResponse", tamperedSAMLResponseEncoded)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(body), "/login?status=error")
 }
@@ -584,6 +545,56 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 // Enabling IdP-initiated login must not relax the InResponseTo check for
 // SP-initiated logins, which do have a Fleet-issued request ID to compare
 // against.
+func (s *integrationSSOTestSuite) TestSSOLoginSessionExpired() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"enable_sso_idp_login": false,
+			"entity_id": "sso.test.com",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "%s"
+		}
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	u := &fleet.User{
+		Name:       "SSO User 2",
+		Email:      "sso_user2@example.com",
+		GlobalRole: new(fleet.RoleObserver),
+		SSOEnabled: true,
+		Password:   []byte{},
+	}
+	_, _ = s.ds.NewUser(context.Background(), u)
+
+	client := s.newSSOTestClient()
+	var resIni initiateSSOResponse
+	res := s.doWithClient(client, "POST", "/api/v1/fleet/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+	var sessionCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == cookieNameSSOSession {
+			sessionCookie = c
+		}
+	}
+	require.NotNil(t, sessionCookie)
+	require.Equal(t, http.SameSiteNoneMode, sessionCookie.SameSite)
+	samlResponse := s.completeSAMLLogin(client, resIni.URL, "sso_user2", "user123#")
+
+	// The browser dropped the handshake cookie, or it outlived its session.
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+url.QueryEscape(samlResponse), nil, http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=session_expired")
+}
+
 func (s *integrationSSOTestSuite) TestSSOLoginIdPInitiatedEnabledKeepsRequestIDCheck() {
 	t := s.T()
 
@@ -635,6 +646,79 @@ func (s *integrationSSOTestSuite) TestSSOLoginIdPInitiatedEnabledKeepsRequestIDC
 	rawBody, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Contains(t, string(rawBody), "/login?status=error")
+}
+
+func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseReplay() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"enable_sso_idp_login": true,
+			"entity_id": "sso.test.com",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "%s"
+		}
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	u := &fleet.User{
+		Name:       "SSO User 2",
+		Email:      "sso_user2@example.com",
+		GlobalRole: new(fleet.RoleObserver),
+		SSOEnabled: true,
+		Password:   []byte{},
+	}
+	_, _ = s.ds.NewUser(context.Background(), u)
+
+	postCallback := func(samlResponse string) string {
+		res := s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+url.QueryEscape(samlResponse), nil, http.StatusOK)
+		defer res.Body.Close()
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		return string(body)
+	}
+
+	// IdP-initiated: the same signed response logs in once, and only once.
+	client := s.newSSOTestClient()
+	idpInitiatedResponse := s.completeSAMLLogin(client,
+		fmt.Sprintf("%s?spentityid=%s", testSAMLIDPSSOURL, "sso.test.com"), "sso_user2", "user123#")
+	idpBody := postCallback(idpInitiatedResponse)
+	require.Contains(t, idpBody, "Redirecting to Fleet at / ...")
+	// CSP blocks inline scripts, so the redirect must not rely on one.
+	require.Contains(t, idpBody, `<meta http-equiv="refresh" content="0;url=/">`)
+	require.NotContains(t, idpBody, "<script")
+	require.Contains(t, postCallback(idpInitiatedResponse), "/login?status=error")
+
+	// SP-initiated: after the user logs in with the response, posting it again
+	// without the session cookie must not be accepted as an IdP-initiated login.
+	client = s.newSSOTestClient()
+	var resIni initiateSSOResponse
+	res := s.doWithClient(client, "POST", "/api/v1/fleet/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+	spInitiatedResponse := s.completeSAMLLogin(client, resIni.URL, "sso_user2", "user123#")
+	res = s.doWithClient(client, "POST", "/api/v1/fleet/sso/callback", nil, http.StatusOK, nil, "SAMLResponse", spInitiatedResponse)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "Redirecting to Fleet at  ...")
+	require.Contains(t, postCallback(spInitiatedResponse), "/login?status=error")
+
+	// A captured SP-initiated response that was never used to log in (e.g. the
+	// user abandoned the flow) is rejected too when the setting is off.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"sso_settings": {"enable_sso_idp_login": false}}`), http.StatusOK, &acResp)
+	client = s.newSSOTestClient()
+	res = s.doWithClient(client, "POST", "/api/v1/fleet/sso", []byte(`{}`), http.StatusOK, nil)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&resIni))
+	require.NoError(t, resIni.Error())
+	unusedResponse := s.completeSAMLLogin(client, resIni.URL, "sso_user2", "user123#")
+	require.Contains(t, postCallback(unusedResponse), "/login?status=session_expired")
 }
 
 func (s *integrationSSOTestSuite) TestSSOServerURL() {

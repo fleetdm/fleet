@@ -13,8 +13,10 @@ Usage:
 
 Commands:
     issues      List open issues from outside contributors.
-    prs [-v]    List open prs from outside contributors.
-                -v also lists the linked issue's labels, the assignee and the pr link.
+    prs [-v|-s] List open prs from outside contributors.
+                Unassigned prs are listed first, then assigned prs.
+                -v also lists whether the pr was manually tested, the linked issue's labels and the pr link.
+                -s prints one Slack mrkdwn line per pr, with links and short dates.
 EOF
 }
 
@@ -59,8 +61,11 @@ prs() {
 	ensure_gh_auth
 
 	verbose=""
+	slack=""
 	if [ "${1:-}" = "-v" ] || [ "${1:-}" = "--verbose" ]; then
 		verbose="yes"
+	elif [ "${1:-}" = "-s" ] || [ "${1:-}" = "--slack" ]; then
+		slack="yes"
 	elif [ -n "${1:-}" ]; then
 		echo "Invalid argument for prs: $1"
 		usage
@@ -82,6 +87,7 @@ prs() {
 			then "tested"
 			else ""
 			end;
+		def assignee_names: [.assignees[].login] | join(", ");
 		def open_prs:
 			map(select((.author.login as $login | ($members | index($login)) == null) and .isDraft == false))
 			| sort_by(.createdAt)
@@ -89,6 +95,41 @@ prs() {
 
 	# defaults to listing open prs
 	prs_json="$(gh pr list --limit 1000 --repo fleetdm/fleet --json id,title,author,url,createdAt,isDraft,body,assignees)"
+
+	if [ -n "$slack" ]; then
+		# titles are untrusted. escaping &, < and > stops them from injecting mentions
+		# or links, and replacing backticks stops them from opening a code block.
+		jq -r --argjson members "$members" "$defs"'
+			def slack_escape: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;") | gsub("`"; "'"'"'");
+			def short_date:
+				(now | gmtime | .[0]) as $year
+				| .createdAt | fromdateiso8601 | gmtime
+				| (["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][.[1]] + " " + (.[2] | tostring))
+				+ (if .[0] == $year then "" else ", " + (.[0] | tostring) end);
+			def user_link: if startswith("app/") then "<https://github.com/apps/\(ltrimstr("app/"))|@\(.)>" else "<https://github.com/\(.)|@\(.)>" end;
+			def line:
+				linked_issue as $issue
+				| [
+					"<\(.url)|#\(.url | split("/") | last)>",
+					short_date,
+					(if $issue == "" then "no issue" else "<https://github.com/fleetdm/fleet/issues/\($issue)|#\($issue)>" end),
+					(.author.login | user_link),
+					(.title | gsub("[\\r\\n\\t]"; " ") | slack_escape)
+				]
+				+ (if (.assignees | length) > 0 then ["assigned to " + ([.assignees[].login | user_link] | join(", "))] else [] end)
+				| join(" · ");
+			open_prs
+			| map(select(.assignees | length == 0)) as $unassigned
+			| map(select(.assignees | length > 0)) as $assigned
+			| [
+				(if ($unassigned | length) > 0 then ["*Unassigned (\($unassigned | length))*"] + ($unassigned | map(line)) else empty end),
+				(if ($assigned | length) > 0 then ["*Assigned (\($assigned | length))*"] + ($assigned | map(line)) else empty end)
+			]
+			| map(join("\n"))
+			| join("\n\n")
+			| select(. != "")' <<<"$prs_json"
+		return
+	fi
 
 	# labels are not part of the pr, so verbose mode looks up each linked issue
 	issue_labels="{}"
@@ -100,17 +141,21 @@ prs() {
 	fi
 
 	jq -r --argjson members "$members" --argjson issue_labels "$issue_labels" --arg verbose "$verbose" "$defs"'
-		[open_prs
-		| .[]
-		| [(.url | split("/") | last), .createdAt, linked_issue, manually_tested, .author.login]
-		+ (if $verbose == "" then [] else [([.assignees[].login] | join(", ")), .url] end)
-		+ [(.title | gsub("[\\r\\n\\t]"; " "))]
-		+ (if $verbose == "" then [] else [($issue_labels[linked_issue] // "")] end)]
-		| (transpose | map(map(length) | max)) as $widths
-		| .[]
-		| [range(0; length) as $i | (.[$i] | pad($widths[$i]))]
-		| join("  ")
-		| sub(" +$"; "")' <<<"$prs_json"
+		def row:
+			[(.url | split("/") | last), .createdAt, linked_issue]
+			+ (if $verbose == "" then [] else [manually_tested] end)
+			+ [.author.login, assignee_names]
+			+ (if $verbose == "" then [] else [.url] end)
+			+ [(.title | gsub("[\\r\\n\\t]"; " "))]
+			+ (if $verbose == "" then [] else [($issue_labels[linked_issue] // "")] end);
+		open_prs
+		| map(select(.assignees | length == 0) | row) as $unassigned
+		| map(select(.assignees | length > 0) | row) as $assigned
+		# widths span both sections so their columns line up
+		| ($unassigned + $assigned | transpose | map(map(length) | max)) as $widths
+		| def fmt: [range(0; length) as $i | (.[$i] | pad($widths[$i]))] | join("  ") | sub(" +$"; "");
+		"Unassigned (\($unassigned | length)):", ($unassigned[] | fmt),
+		"", "Assigned (\($assigned | length)):", ($assigned[] | fmt)' <<<"$prs_json"
 }
 
 # check for at least one argument

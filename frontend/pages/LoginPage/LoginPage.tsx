@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import LoginForm from "components/forms/LoginForm";
+import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
@@ -21,7 +22,7 @@ interface ILoginPageProps {
   router: InjectedRouter; // v3
   location: {
     pathname: string;
-    query: { vulnerable?: boolean };
+    query: { vulnerable?: boolean; session_expired?: string };
     search: string;
   };
 }
@@ -30,6 +31,7 @@ interface IStatusMessages {
   account_disabled: string;
   account_invalid: string;
   org_disabled: string;
+  session_expired: string;
   error: string;
 }
 
@@ -38,6 +40,8 @@ const statusMessages: IStatusMessages = {
     "Single sign-on is not enabled on your account. Please contact your Fleet administrator.",
   account_invalid: "You do not have a Fleet account.",
   org_disabled: "Single sign-on is not enabled for your organization.",
+  session_expired:
+    "Your session may have timed out. Please try again. Contact your Fleet administrator if the error persists.",
   error:
     "There was an error with single sign-on. Please contact your Fleet administrator.",
 };
@@ -55,6 +59,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     setCurrentTeam,
   } = useContext(AppContext);
   const { redirectLocation } = useContext(RoutingContext);
+  const queryClient = useQueryClient();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingEmail, setPendingEmail] = useState(false);
@@ -64,7 +69,9 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     Error,
     ISSOSettings
   >(["ssoSettings"], () => sessionsAPI.ssoSettings(), {
-    enabled: !currentUser,
+    // currentUser outlives an SPA logout or expired session, so it alone
+    // would hide the SSO button.
+    enabled: !currentUser || !authToken.get(),
     onError: (err) => {
       console.error(err);
     },
@@ -119,18 +126,21 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
       try {
         const response = await sessionsAPI.login(formData);
-        const { user, available_teams, token, token_expires_at } = response;
+        const { user, available_fleets, token, token_expires_at } = response;
 
         const expiresAt = token_expires_at
           ? new Date(token_expires_at)
           : undefined;
         authToken.save(token, expiresAt);
+        // Logging in after a logout or expired session doesn't reload the
+        // page, so the previous user's cached responses would still be served.
+        queryClient.clear();
 
         setCurrentUser(user);
-        setAvailableTeams(user, available_teams);
+        setAvailableTeams(user, available_fleets);
         setCurrentTeam(undefined);
 
-        if (!user.global_role && user.teams.length === 0) {
+        if (!user.global_role && user.fleets.length === 0) {
           return router.push(NO_ACCESS);
         }
         // Redirect to password reset page if user is forced to reset password.
@@ -151,6 +161,18 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
           setPendingEmail(true);
         }
 
+        // The API's rate limit message ("limit exceeded, retry after: 2s") is
+        // meant for API clients, so it's replaced here.
+        if ((response as { status: number }).status === 429) {
+          notify.error(
+            "Too many login attempts. Wait 10 seconds and try again.",
+            {
+              response,
+            }
+          );
+          return false;
+        }
+
         const { base } = formatErrorResponse(response);
         if (base) {
           notify.error(base, { response });
@@ -162,6 +184,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     },
     [
       config,
+      queryClient,
       redirectLocation,
       router,
       setAvailableTeams,
@@ -192,6 +215,9 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
   return (
     <AuthenticationFormWrapper header="Welcome to Fleet">
+      {location.query.session_expired && (
+        <InfoBanner>Your session expired. Log in to continue.</InfoBanner>
+      )}
       <LoginForm
         handleSubmit={onSubmit}
         ssoSettings={ssoSettings}

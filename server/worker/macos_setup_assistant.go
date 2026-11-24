@@ -372,7 +372,7 @@ func QueueMacosSetupAssistantJob(
 		"hosts_count", len(serialNumbers),
 	}
 	if teamID != nil {
-		attrs = append(attrs, "team_id", *teamID)
+		attrs = append(attrs, "fleet_id", *teamID)
 	}
 	logger.InfoContext(ctx, "queueing macOS setup assistant job", attrs...)
 
@@ -389,6 +389,16 @@ func QueueMacosSetupAssistantJob(
 	return job.ID, nil
 }
 
+// NewMacosSetupAssistantJob builds a macos_setup_assistant job without queuing
+// it, for callers that must queue it in the same transaction as their change.
+func NewMacosSetupAssistantJob(task MacosSetupAssistantTask, teamID *uint, serialNumbers ...string) (*fleet.Job, error) {
+	return newJob(macosSetupAssistantJobName, &macosSetupAssistantArgs{
+		Task:              task,
+		TeamID:            teamID,
+		HostSerialNumbers: serialNumbers,
+	}, 0)
+}
+
 func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	serialsByTeamID, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
 	if err != nil {
@@ -402,10 +412,10 @@ func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger *slog.L
 	// queue job for each team so that macOS setup assistant worker can pick it up and process it
 	for teamID, serials := range serialsByTeamID {
 		if len(serials) == 0 {
-			logger.InfoContext(ctx, "no cooldowns", "team_id", teamID)
+			logger.InfoContext(ctx, "no cooldowns", "fleet_id", teamID)
 			continue
 		}
-		logger.InfoContext(ctx, "processing cooldowns", "team_id", teamID, "serials", serials)
+		logger.InfoContext(ctx, "processing cooldowns", "fleet_id", teamID, "serials", serials)
 
 		var tid *uint
 		if teamID != 0 {

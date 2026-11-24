@@ -60,21 +60,26 @@ func statusIsAwaitingQA(status string) bool {
 
 // buildProjectViews resolves each configured primary project and loads its items.
 // It returns the views (one per configured entry, in order), the set of issue
-// numbers surfaced (to exclude from the leverage buckets), and status/project
-// maps for the overlay.
-func buildProjectViews(login, owner string, primary []string, role string) (views []ProjectView, shown, projects map[int]int, statuses map[int]string) {
-	shown = map[int]int{}
-	projects = map[int]int{}
-	statuses = map[int]string{}
+// keys surfaced (to exclude from the leverage buckets), and status/project
+// maps — all keyed by ghapi.IssueRefKey, since boards mix repos. fallbackRepo
+// qualifies issues whose URL can't be parsed; tick (may be nil) reports
+// per-project loading progress.
+func buildProjectViews(login, owner, fallbackRepo string, primary []string, role string, tick func(done, total int)) (views []ProjectView, shown map[string]int, projects map[string]int, statuses map[string]string) {
+	shown = map[string]int{}
+	projects = map[string]int{}
+	statuses = map[string]string{}
 	if len(primary) == 0 {
 		return nil, shown, projects, statuses
 	}
 	orgProjects, _ := ghapi.ListOrgProjects(owner)
-	for _, entry := range primary {
-		pv := loadProject(entry, owner, orgProjects, login, statuses, projects, role)
+	for i, entry := range primary {
+		pv := loadProject(entry, owner, fallbackRepo, orgProjects, login, statuses, projects, role)
 		views = append(views, pv)
 		for _, it := range pv.Issues {
-			shown[it.Number] = pv.Number
+			shown[ghapi.IssueRefKey(repoOr(it.URL, fallbackRepo), it.Number)] = pv.Number
+		}
+		if tick != nil {
+			tick(i+1, len(primary))
 		}
 	}
 	return views, shown, projects, statuses
@@ -84,18 +89,18 @@ func buildProjectViews(login, owner string, primary []string, role string) (view
 // assigned to you, and the Ready-unassigned count) plus the status/project maps
 // for those issues. It's the per-project counterpart to buildProjectViews, backing
 // a targeted refresh so newly-assigned issues appear without a full pull.
-func RefreshProjectView(num int, owner, login, role string) (ProjectView, map[int]string, map[int]int) {
-	statuses := map[int]string{}
-	projects := map[int]int{}
+func RefreshProjectView(num int, owner, fallbackRepo, login, role string) (ProjectView, map[string]string, map[string]int) {
+	statuses := map[string]string{}
+	projects := map[string]int{}
 	orgProjects, _ := ghapi.ListOrgProjects(owner)
-	pv := loadProject(strconv.Itoa(num), owner, orgProjects, login, statuses, projects, role)
+	pv := loadProject(strconv.Itoa(num), owner, fallbackRepo, orgProjects, login, statuses, projects, role)
 	return pv, statuses, projects
 }
 
 // loadProject resolves one configured entry to a project and loads its items.
 // Always returns a view (unresolved entries yield an empty, non-Resolved view so
 // the row is still shown).
-func loadProject(entry, owner string, orgProjects []ghapi.OrgProject, login string, statuses map[int]string, projects map[int]int, role string) ProjectView {
+func loadProject(entry, owner, fallbackRepo string, orgProjects []ghapi.OrgProject, login string, statuses map[string]string, projects map[string]int, role string) ProjectView {
 	num, title, url := resolveProject(entry, owner, orgProjects)
 	if num == 0 {
 		return ProjectView{Title: entry, Resolved: false}
@@ -125,8 +130,10 @@ func loadProject(entry, owner string, orgProjects []ghapi.OrgProject, login stri
 				Number: n, Title: it.Content.Title, URL: it.Content.URL,
 				Reason: reason,
 			})
-			statuses[n] = it.Status
-			projects[n] = num
+			// Same key derivation as the model's lookups (Item.URL is Content.URL).
+			k := ghapi.IssueRefKey(repoOr(it.Content.URL, fallbackRepo), n)
+			statuses[k] = it.Status
+			projects[k] = num
 		}
 		if (isIssue || isDraft) && len(it.Assignees) == 0 && statusIsReady(it.Status) {
 			pv.ReadyUnassigned++

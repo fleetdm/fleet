@@ -1,48 +1,9 @@
 package fleet
 
-/////////////////////////////////////////////////////////////////////////////////
-// Global Policy - Add
-/////////////////////////////////////////////////////////////////////////////////
-
-type GlobalPolicyRequest struct {
-	QueryID          *uint    `json:"query_id" renameto:"report_id"`
-	Query            string   `json:"query"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	Resolution       string   `json:"resolution"`
-	Platform         string   `json:"platform"`
-	Critical         bool     `json:"critical" premium:"true"`
-	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
-	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
-	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
-}
-
-type GlobalPolicyResponse struct {
-	Policy *Policy `json:"policy,omitempty"`
-	Err    error   `json:"error,omitempty"`
-}
-
-func (r GlobalPolicyResponse) Error() error { return r.Err }
+import "encoding/json"
 
 /////////////////////////////////////////////////////////////////////////////////
-// Global Policy - List
-/////////////////////////////////////////////////////////////////////////////////
-
-type ListGlobalPoliciesRequest struct {
-	Opts     ListOptions `url:"list_options"`
-	Platform string      `query:"platform,optional"`
-}
-
-type ListGlobalPoliciesResponse struct {
-	Policies []*Policy `json:"policies,omitempty"`
-	Err      error     `json:"error,omitempty"`
-}
-
-func (r ListGlobalPoliciesResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Global Policy - Get by id
+// Policy - Get by id
 /////////////////////////////////////////////////////////////////////////////////
 
 type GetPolicyByIDRequest struct {
@@ -56,52 +17,37 @@ type GetPolicyByIDResponse struct {
 
 func (r GetPolicyByIDResponse) Error() error { return r.Err }
 
-/////////////////////////////////////////////////////////////////////////////////
-// Global Policy - Count
-/////////////////////////////////////////////////////////////////////////////////
-
-type CountGlobalPoliciesRequest struct {
-	ListOptions ListOptions `url:"list_options"`
-	Platform    string      `query:"platform,optional"`
+func (r GetPolicyByIDResponse) MarshalJSON() ([]byte, error) {
+	type response GetPolicyByIDResponse
+	return json.Marshal(struct {
+		response
+		Policy *apiPolicy `json:"policy"`
+	}{response(r), newAPIPolicy(r.Policy)})
 }
 
-type CountGlobalPoliciesResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
-}
-
-func (r CountGlobalPoliciesResponse) Error() error { return r.Err }
-
 /////////////////////////////////////////////////////////////////////////////////
-// Global Policy - Delete
+// Policy - Modify (any scope)
 /////////////////////////////////////////////////////////////////////////////////
 
-type DeleteGlobalPoliciesRequest struct {
-	IDs []uint `json:"ids"`
-}
-
-type DeleteGlobalPoliciesResponse struct {
-	Deleted []uint `json:"deleted,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r DeleteGlobalPoliciesResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Global Policy - Modify
-/////////////////////////////////////////////////////////////////////////////////
-
-type ModifyGlobalPolicyRequest struct {
+type ModifyPolicyRequest struct {
 	PolicyID uint `url:"policy_id"`
 	ModifyPolicyPayload
 }
 
-type ModifyGlobalPolicyResponse struct {
+type ModifyPolicyResponse struct {
 	Policy *Policy `json:"policy,omitempty"`
 	Err    error   `json:"error,omitempty"`
 }
 
-func (r ModifyGlobalPolicyResponse) Error() error { return r.Err }
+func (r ModifyPolicyResponse) Error() error { return r.Err }
+
+func (r ModifyPolicyResponse) MarshalJSON() ([]byte, error) {
+	type response ModifyPolicyResponse
+	return json.Marshal(struct {
+		response
+		Policy *apiPolicy `json:"policy,omitempty"`
+	}{response(r), newAPIPolicy(r.Policy)})
+}
 
 /////////////////////////////////////////////////////////////////////////////////
 // Reset policy
@@ -123,7 +69,7 @@ func (r ResetPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	TeamIDs   []uint `json:"fleet_ids" premium:"true"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 
@@ -162,140 +108,6 @@ type AutofillPoliciesResponse struct {
 }
 
 func (r AutofillPoliciesResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Team Policy - Add
-/////////////////////////////////////////////////////////////////////////////////
-
-type TeamPolicyRequest struct {
-	TeamID                uint   `url:"fleet_id"`
-	QueryID               *uint  `json:"query_id" renameto:"report_id"`
-	Query                 string `json:"query"`
-	Name                  string `json:"name"`
-	Description           string `json:"description"`
-	Resolution            string `json:"resolution"`
-	Platform              string `json:"platform"`
-	Critical              bool   `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint  `json:"software_title_id"`
-	// SoftwareInstallerID optionally selects which package of the title to install on failure.
-	// When omitted, the policy defaults to the title's first-added package. The wire
-	// key is `software_package_id`; the endpointer's renameto layer accepts the
-	// legacy `software_installer_id` alias and logs a deprecation warning.
-	SoftwareInstallerID          *uint    `json:"software_installer_id" renameto:"software_package_id"`
-	ScriptID                     *uint    `json:"script_id"`
-	ProfileUUID                  *string  `json:"profile_uuid" premium:"true"`
-	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
-	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
-	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
-	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
-	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
-	Type                         *string  `json:"type"`
-	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
-	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
-	NotifyBeforePatching         bool     `json:"notify_before_patching" premium:"true"`
-}
-
-type TeamPolicyResponse struct {
-	Policy *Policy `json:"policy,omitempty"`
-	Err    error   `json:"error,omitempty"`
-}
-
-func (r TeamPolicyResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Team Policy - List
-/////////////////////////////////////////////////////////////////////////////////
-
-type ListTeamPoliciesRequest struct {
-	TeamID                  uint                 `url:"fleet_id"`
-	Opts                    ListOptions          `url:"list_options"`
-	InheritedPage           uint                 `query:"inherited_page,optional"`
-	InheritedPerPage        uint                 `query:"inherited_per_page,optional"`
-	InheritedOrderDirection OrderDirection       `query:"inherited_order_direction,optional"`
-	InheritedOrderKey       string               `query:"inherited_order_key,optional"`
-	MergeInherited          bool                 `query:"merge_inherited,optional"`
-	AutomationType          PolicyAutomationType `query:"automation_type,optional"`
-	Platform                string               `query:"platform,optional"`
-}
-
-type ListTeamPoliciesResponse struct {
-	Policies          []*Policy `json:"policies,omitempty"`
-	InheritedPolicies []*Policy `json:"inherited_policies,omitempty"`
-	Err               error     `json:"error,omitempty"`
-}
-
-func (r ListTeamPoliciesResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Team Policy - Count
-/////////////////////////////////////////////////////////////////////////////////
-
-type CountTeamPoliciesRequest struct {
-	ListOptions    ListOptions          `url:"list_options"`
-	TeamID         uint                 `url:"fleet_id"`
-	MergeInherited bool                 `query:"merge_inherited,optional"`
-	AutomationType PolicyAutomationType `query:"automation_type,optional"`
-	Platform       string               `query:"platform,optional"`
-}
-
-type CountTeamPoliciesResponse struct {
-	Count                int   `json:"count"`
-	InheritedPolicyCount int   `json:"inherited_policy_count"`
-	Err                  error `json:"error,omitempty"`
-}
-
-func (r CountTeamPoliciesResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Team Policy - Get by id
-/////////////////////////////////////////////////////////////////////////////////
-
-type GetTeamPolicyByIDRequest struct {
-	TeamID   uint `url:"fleet_id"`
-	PolicyID uint `url:"policy_id"`
-}
-
-type GetTeamPolicyByIDResponse struct {
-	Policy *Policy `json:"policy"`
-	Err    error   `json:"error,omitempty"`
-}
-
-func (r GetTeamPolicyByIDResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Team Policy - Delete
-/////////////////////////////////////////////////////////////////////////////////
-
-type DeleteTeamPoliciesRequest struct {
-	TeamID uint   `url:"fleet_id"`
-	IDs    []uint `json:"ids"`
-}
-
-type DeleteTeamPoliciesResponse struct {
-	Deleted []uint `json:"deleted,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r DeleteTeamPoliciesResponse) Error() error { return r.Err }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Team Policy - Modify
-/////////////////////////////////////////////////////////////////////////////////
-
-type ModifyTeamPolicyRequest struct {
-	TeamID   uint `url:"fleet_id"`
-	PolicyID uint `url:"policy_id"`
-	ModifyPolicyPayload
-}
-
-type ModifyTeamPolicyResponse struct {
-	Policy *Policy `json:"policy,omitempty"`
-	Err    error   `json:"error,omitempty"`
-}
-
-func (r ModifyTeamPolicyResponse) Error() error { return r.Err }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Policy Automation Activities - List
@@ -342,3 +154,113 @@ type ListPolicyAutomationActivitiesResponse struct {
 }
 
 func (r ListPolicyAutomationActivitiesResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Policies in any scope
+/////////////////////////////////////////////////////////////////////////////////
+
+// ListPoliciesRequest lists the policies of a scope: no fleet_id is "All fleets", 0 is "Unassigned".
+type ListPoliciesRequest struct {
+	Opts           ListOptions      `url:"list_options"`
+	TeamID         *uint            `query:"fleet_id,optional"`
+	MergeInherited bool             `query:"merge_inherited,optional"`
+	AutomationType PolicyAutomation `query:"automation_type,optional"`
+	Type           string           `query:"type,optional"`
+	Platform       string           `query:"platform,optional"`
+}
+
+type ListPoliciesResponse struct {
+	Policies []*Policy `json:"policies"`
+	Err      error     `json:"error,omitempty"`
+}
+
+func (r ListPoliciesResponse) Error() error { return r.Err }
+
+func (r ListPoliciesResponse) MarshalJSON() ([]byte, error) {
+	type response ListPoliciesResponse
+	policies := make([]*apiPolicy, 0, len(r.Policies))
+	for _, p := range r.Policies {
+		policies = append(policies, newAPIPolicy(p))
+	}
+	if r.Policies == nil {
+		policies = nil
+	}
+	return json.Marshal(struct {
+		response
+		Policies []*apiPolicy `json:"policies"`
+	}{response(r), policies})
+}
+
+type CountPoliciesRequest struct {
+	ListOptions    ListOptions      `url:"list_options"`
+	TeamID         *uint            `query:"fleet_id,optional"`
+	MergeInherited bool             `query:"merge_inherited,optional"`
+	AutomationType PolicyAutomation `query:"automation_type,optional"`
+	Type           string           `query:"type,optional"`
+	Platform       string           `query:"platform,optional"`
+}
+
+type CountPoliciesResponse struct {
+	Count int   `json:"count"`
+	Err   error `json:"error,omitempty"`
+}
+
+func (r CountPoliciesResponse) Error() error { return r.Err }
+
+// CreatePolicyRequest creates a policy in any scope: no fleet_id is "All fleets", 0 is "Unassigned".
+type CreatePolicyRequest struct {
+	TeamID *uint `json:"fleet_id"`
+	// automation_type replaced the automation booleans, and software_title_id names a patch policy's app.
+	_               struct{} `json:"-" removedkey:"query_id,calendar_events_enabled,conditional_access_enabled,patch_software_title_id"`
+	Query           string   `json:"query"`
+	Name            string   `json:"name"`
+	Description     string   `json:"description"`
+	Resolution      string   `json:"resolution"`
+	Platform        string   `json:"platform"`
+	Critical        bool     `json:"critical" premium:"true"`
+	SoftwareTitleID *uint    `json:"software_title_id"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted, the policy defaults to the title's first-added package. The wire
+	// key is `software_package_id`; the endpointer's renameto layer accepts the
+	// legacy `software_installer_id` alias and logs a deprecation warning.
+	SoftwareInstallerID          *uint             `json:"software_installer_id" renameto:"software_package_id"`
+	ScriptID                     *uint             `json:"script_id"`
+	ProfileUUID                  *string           `json:"profile_uuid" premium:"true"`
+	LabelsIncludeAny             []string          `json:"labels_include_any" premium:"true"`
+	LabelsIncludeAll             []string          `json:"labels_include_all" premium:"true"`
+	LabelsExcludeAny             []string          `json:"labels_exclude_any" premium:"true"`
+	LabelsExcludeAll             []string          `json:"labels_exclude_all" premium:"true"`
+	Hidden                       bool              `json:"hidden" premium:"true"`
+	ContinuousAutomationsEnabled bool              `json:"continuous_automations_enabled" premium:"true"`
+	Type                         *string           `json:"type"`
+	PatchWhenClosed              bool              `json:"patch_when_closed" premium:"true"`
+	NotifyBeforePatching         bool              `json:"notify_before_patching" premium:"true"`
+	PatchDeadline                bool              `json:"patch_deadline" premium:"true"`
+	AutomationType               *PolicyAutomation `json:"automation_type"`
+}
+
+type CreatePolicyResponse struct {
+	Policy *Policy `json:"policy,omitempty"`
+	Err    error   `json:"error,omitempty"`
+}
+
+func (r CreatePolicyResponse) Error() error { return r.Err }
+
+func (r CreatePolicyResponse) MarshalJSON() ([]byte, error) {
+	type response CreatePolicyResponse
+	return json.Marshal(struct {
+		response
+		Policy *apiPolicy `json:"policy,omitempty"`
+	}{response(r), newAPIPolicy(r.Policy)})
+}
+
+type DeletePoliciesRequest struct {
+	IDs []uint `json:"ids"`
+}
+
+type DeletePoliciesResponse struct {
+	Deleted []uint `json:"deleted,omitempty"`
+	Err     error  `json:"error,omitempty"`
+}
+
+func (r DeletePoliciesResponse) Error() error { return r.Err }

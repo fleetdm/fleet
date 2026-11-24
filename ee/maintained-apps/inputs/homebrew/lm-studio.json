@@ -1,0 +1,8 @@
+{
+  "name": "LM Studio",
+  "slug": "lm-studio/darwin",
+  "unique_identifier": "ai.elementlabs.lmstudio",
+  "token": "lm-studio",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

@@ -33,6 +33,7 @@ export interface IGetDeviceSoftwareResponse {
 interface IGetDeviceDetailsApiParams {
   token: string;
   exclude_software?: boolean;
+  include_hidden_policies?: boolean;
 }
 
 export interface IGetDeviceCertificatesResponse {
@@ -67,16 +68,25 @@ export interface IInitiateDeviceSSOResponse {
   url: string;
 }
 
+export interface IGetDeviceGoogleConditionalAccessResponse {
+  /** fleetdm.com's sign-in page, present only when the host should sign in. */
+  sign_in_url?: string;
+}
+
 export default {
   loadHostDetails: ({
     token,
     exclude_software,
+    include_hidden_policies,
   }: IGetDeviceDetailsApiParams): Promise<IDUPDetails> => {
     const { DEVICE_USER_DETAILS } = endpoints;
-    let path = `${DEVICE_USER_DETAILS}/${token}`;
-    if (exclude_software) {
-      path += "?exclude_software=true";
-    }
+    const queryString = buildQueryStringFromParams({
+      exclude_software: exclude_software || undefined,
+      include_hidden_policies: include_hidden_policies || undefined,
+    });
+    const path = `${DEVICE_USER_DETAILS}/${token}${
+      queryString ? `?${queryString}` : ""
+    }`;
     return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (
@@ -111,6 +121,16 @@ export default {
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/sso`;
 
     return sendRequest("POST", path);
+  },
+
+  getGoogleConditionalAccessStatus: (
+    deviceAuthToken: string
+  ): Promise<IGetDeviceGoogleConditionalAccessResponse> => {
+    const { DEVICE_GOOGLE_CONDITIONAL_ACCESS } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_GOOGLE_CONDITIONAL_ACCESS(deviceAuthToken)
+    );
   },
 
   getDeviceSoftware: (
@@ -228,6 +248,22 @@ export default {
     const { DEVICE_RESEND_PROFILE } = endpoints;
     const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
     return sendRequest("POST", path);
+  },
+
+  installProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_INSTALL_PROFILE } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_INSTALL_PROFILE(deviceToken, profileUUID)
+    );
+  },
+
+  uninstallProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_UNINSTALL_PROFILE } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_UNINSTALL_PROFILE(deviceToken, profileUUID)
+    );
   },
 
   getMdmManualEnrollUrl: (token: string) => {

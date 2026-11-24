@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -25,10 +26,13 @@ const defaultProxyEndpoint = "https://fleetdm.com/api/android/"
 
 // ProxyClient connects to Google's Android Management API via a proxy, which is hosted at fleetdm.com by default.
 type ProxyClient struct {
-	logger            *slog.Logger
-	mgmt              *androidmanagement.Service
-	licenseKey        string
-	proxyEndpoint     string
+	logger        *slog.Logger
+	mgmt          *androidmanagement.Service
+	licenseKey    string
+	proxyEndpoint string
+
+	// secretMu guards fleetServerSecret, which is updated while requests are in flight.
+	secretMu          sync.RWMutex
 	fleetServerSecret string
 }
 
@@ -72,8 +76,16 @@ func NewProxyClient(ctx context.Context, logger *slog.Logger, licenseKey string,
 }
 
 func (p *ProxyClient) SetAuthenticationSecret(secret string) error {
+	p.secretMu.Lock()
+	defer p.secretMu.Unlock()
 	p.fleetServerSecret = secret
 	return nil
+}
+
+func (p *ProxyClient) authorization() string {
+	p.secretMu.RLock()
+	defer p.secretMu.RUnlock()
+	return "Bearer " + p.fleetServerSecret
 }
 
 // SignupURLsCreate hits the unauthenticated endpoint of the proxy. If a record already exists for this serverURL,
@@ -140,7 +152,11 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	case resp.StatusCode == http.StatusNotModified:
 		return EnterprisesCreateResponse{}, fmt.Errorf("android enterprise %s was already created", req.SignupURLName)
 	case resp.StatusCode != http.StatusOK:
-		return EnterprisesCreateResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		// Returned as a googleapi.Error so callers can classify it (e.g. retry on quota exceeded).
+		return EnterprisesCreateResponse{}, fmt.Errorf("creating enterprise: %w", &googleapi.Error{
+			Code:    resp.StatusCode,
+			Message: fmt.Sprintf("unexpected status code: %d", resp.StatusCode),
+		})
 	}
 
 	type proxyEnterpriseResponse struct {
@@ -174,7 +190,7 @@ func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName s
 		call = call.UpdateMask("applications")
 	}
 
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
@@ -188,7 +204,7 @@ func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName s
 
 func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 	call := p.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
@@ -202,7 +218,7 @@ func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName st
 
 func (p *ProxyClient) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
 	call := p.mgmt.Enterprises.Devices.Get(deviceName).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	ret, err := call.Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting device %s: %w", deviceName, err)
@@ -212,7 +228,7 @@ func (p *ProxyClient) EnterprisesDevicesGet(ctx context.Context, deviceName stri
 
 func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
 	call := p.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	_, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
@@ -226,7 +242,7 @@ func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName s
 
 func (p *ProxyClient) EnterprisesDevicesIssueCommand(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error) {
 	call := p.mgmt.Enterprises.Devices.IssueCommand(deviceName, command).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	op, err := call.Do()
 	if err != nil {
 		return nil, fmt.Errorf("issuing command to device %s: %w", deviceName, err)
@@ -236,7 +252,7 @@ func (p *ProxyClient) EnterprisesDevicesIssueCommand(ctx context.Context, device
 
 func (p *ProxyClient) EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
 	call := p.mgmt.Enterprises.Devices.Operations.Get(operationName).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	op, err := call.Do()
 	if err != nil {
 		// Wrapped with %w so callers can classify the googleapi.Error (not found, quota exceeded).
@@ -247,7 +263,7 @@ func (p *ProxyClient) EnterprisesDevicesOperationsGet(ctx context.Context, opera
 
 func (p *ProxyClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
 	call := p.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name")
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	resp, err := call.Do()
 	if err != nil {
 		return nil, fmt.Errorf("listing devices: %w", err)
@@ -259,7 +275,7 @@ func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, ent
 	token *androidmanagement.EnrollmentToken,
 ) (*androidmanagement.EnrollmentToken, error) {
 	call := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	token, err := call.Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating enrollment token: %w", err)
@@ -269,7 +285,7 @@ func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, ent
 
 func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName string) error {
 	call := p.mgmt.Enterprises.Delete(enterpriseName).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	_, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
@@ -284,7 +300,7 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 
 func (p *ProxyClient) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
 	call := p.mgmt.Enterprises.List().Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	call.Header().Set("Origin", serverURL)
 	// NOTE: we don't call .Pages(...) here because the Fleet proxy takes care of
 	// listing enterprises on all pages and filtering those that belong to this Fleet instance:
@@ -322,7 +338,7 @@ func isErrorCode(err error, code int) bool {
 func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
 	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
 	call := p.mgmt.Enterprises.Applications.Get(path).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 
 	app, err := call.Do()
 	if err != nil {
@@ -349,7 +365,7 @@ func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Co
 	}
 
 	call := p.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
@@ -367,7 +383,7 @@ func (p *ProxyClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Co
 	}
 
 	call := p.mgmt.Enterprises.Policies.RemovePolicyApplications(policyName, &req).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
@@ -381,7 +397,7 @@ func (p *ProxyClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Co
 
 func (p *ProxyClient) EnterprisesWebAppsCreate(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
 	call := p.mgmt.Enterprises.WebApps.Create(enterpriseName, webApp).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Authorization", p.authorization())
 	ret, err := call.Do()
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "create webapp")

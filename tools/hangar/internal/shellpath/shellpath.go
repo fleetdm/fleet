@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 var (
@@ -197,7 +198,13 @@ func probeLoginShell() string {
 	if shell == "" {
 		shell = "/bin/zsh"
 	}
-	out, err := exec.Command(shell, "-ilc", `printf %s "$PATH"`).Output()
+	cmd := exec.Command(shell, "-ilc", `printf %s "$PATH"`)
+	// Its own session, so the shell has no controlling terminal. Started from
+	// a terminal (`task dev`), an interactive shell otherwise makes the app's
+	// process group the terminal's foreground group and leaves it that way,
+	// so Ctrl+C reaches only the app and never the dev wrapper.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
