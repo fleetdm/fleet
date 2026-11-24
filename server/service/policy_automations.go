@@ -2,13 +2,16 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -281,6 +284,15 @@ func normalizePatchPolicyCreate(tp *fleet.NewTeamPolicyPayload) error {
 	if tp.Type == nil || *tp.Type != fleet.PolicyTypePatch {
 		return nil
 	}
+
+	// Set automation_type to "software" because force_patch installs the patch through the software automation.
+	if tp.ForcePatch {
+		if tp.AutomationType != nil && *tp.AutomationType != fleet.PolicyAutomationSoftware {
+			return fleet.NewUserMessageError(errors.New(errForcePatchRequiresSoftwareAutomation), http.StatusUnprocessableEntity)
+		}
+		tp.AutomationType = new(fleet.PolicyAutomationSoftware)
+	}
+
 	patching := tp.AutomationType != nil && *tp.AutomationType == fleet.PolicyAutomationSoftware
 	titleSet := tp.SoftwareTitleID != nil && *tp.SoftwareTitleID != 0
 	switch {
@@ -309,6 +321,15 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 	if titleSet && p.SoftwareTitleID.Value != *policy.PatchSoftwareTitleID {
 		return &fleet.BadRequestError{Message: "a patch policy's software_title_id can't be changed"}
 	}
+
+	// Set automation_type to "software" because force_patch installs the patch through the software automation.
+	if ptr.ValOrZero(p.ForcePatch) {
+		if p.AutomationType.Set && p.AutomationType.Value != fleet.PolicyAutomationSoftware {
+			return fleet.NewUserMessageError(errors.New(errForcePatchRequiresSoftwareAutomation), http.StatusUnprocessableEntity)
+		}
+		p.AutomationType = optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware}
+	}
+
 	patching := p.AutomationType.Valid && p.AutomationType.Value == fleet.PolicyAutomationSoftware
 	switch {
 	case patching && !titleSet:

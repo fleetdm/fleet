@@ -304,6 +304,7 @@ func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest
 		svc.authz.SkipAuthorization(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "check automation fields")
 	}
+
 	if req.TeamID != nil {
 		if !license.IsPremium(ctx) {
 			svc.authz.SkipAuthorization(ctx)
@@ -377,8 +378,7 @@ func checkAllFleetsPolicyRequest(req fleet.CreatePolicyRequest) error {
 		{req.ProfileUUID != nil && *req.ProfileUUID != "", errPolicyAllFleetsForProfiles},
 		{req.SoftwareInstallerID != nil && *req.SoftwareInstallerID != 0, errPolicyAllFleetsForSoftwarePackage},
 		{req.ContinuousAutomationsEnabled, errPolicyAllFleetsForContinuousAutomations},
-		{req.PatchWhenClosed || req.NotifyBeforePatching || req.PatchDeadline || (req.ForcePatch != nil && *req.ForcePatch),
-			errPolicyAllFleetsForPatchOptions},
+		{req.PatchWhenClosed || req.NotifyBeforePatching || req.PatchDeadline || req.ForcePatch, errPolicyAllFleetsForPatchOptions},
 		{req.Type != nil && *req.Type == fleet.PolicyTypePatch,
 			`"All fleets" policy cannot be a patch policy`},
 	} {
