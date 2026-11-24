@@ -1,6 +1,13 @@
-.add-certificate-modal {
+.add-certificate-modal,
+.add-ct-modal {
   form {
     padding-bottom: 0;
+  }
+
+  &__cert-type-radios {
+    display: flex;
+    gap: $pad-large;
+    margin-bottom: $pad-large;
   }
 
   .form-field {

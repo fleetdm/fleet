@@ -68,6 +68,26 @@ export interface IGetCertsResponse {
   certificates: ICertificate[];
 }
 
+export interface IAndroidCACertificate {
+  id: number;
+  team_id: number;
+  name: string;
+  sha256: string;
+  subject: string;
+  issuer: string;
+  not_valid_before?: string;
+  not_valid_after?: string;
+  labels_include_all?: string[];
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IGetCACertsResponse {
+  ca_certificates: IAndroidCACertificate[];
+}
+
 export interface IAddCert {
   name: string;
   certAuthorityId: number;
@@ -150,5 +170,53 @@ export default {
   },
   deleteCert: (id: number) => {
     return sendRequest("DELETE", endpoints.CERTIFICATES.concat(`/${id}`));
+  },
+  getCACerts: (fleet_id?: number): Promise<IGetCACertsResponse> => {
+    const { CERTIFICATES_CA } = endpoints;
+    const queryString = buildQueryStringFromParams({ fleet_id });
+    return sendRequest(
+      "GET",
+      queryString ? CERTIFICATES_CA.concat(`?${queryString}`) : CERTIFICATES_CA
+    );
+  },
+  uploadCACert: ({
+    file,
+    name,
+    teamId,
+    labelsIncludeAll,
+    labelsIncludeAny,
+    labelsExcludeAny,
+  }: {
+    file: File;
+    name?: string;
+    teamId?: number;
+    labelsIncludeAll?: string[];
+    labelsIncludeAny?: string[];
+    labelsExcludeAny?: string[];
+  }): Promise<IAndroidCACertificate> => {
+    const { CERTIFICATES_CA } = endpoints;
+    const formData = new FormData();
+    formData.append("certificate", file);
+    if (name) {
+      formData.append("name", name);
+    }
+    const effectiveTeamId =
+      teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId;
+    if (effectiveTeamId !== undefined) {
+      formData.append("fleet_id", effectiveTeamId.toString());
+    }
+    if (labelsIncludeAll?.length) {
+      formData.append("labels_include_all", JSON.stringify(labelsIncludeAll));
+    }
+    if (labelsIncludeAny?.length) {
+      formData.append("labels_include_any", JSON.stringify(labelsIncludeAny));
+    }
+    if (labelsExcludeAny?.length) {
+      formData.append("labels_exclude_any", JSON.stringify(labelsExcludeAny));
+    }
+    return sendRequest("POST", CERTIFICATES_CA, formData);
+  },
+  deleteCACert: (id: number): Promise<void> => {
+    return sendRequest("DELETE", endpoints.CERTIFICATES_CA.concat(`/${id}`));
   },
 };

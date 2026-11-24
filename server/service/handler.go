@@ -411,6 +411,17 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/spec/certificates", applyCertificateTemplateSpecsEndpoint, applyCertificateTemplateSpecsRequest{})
 	ue.DELETE("/api/_version_/fleet/spec/certificates", deleteCertificateTemplateSpecsEndpoint, deleteCertificateTemplateSpecsRequest{})
 
+	// Android CA Certificates
+	ue.POST("/api/_version_/fleet/ca_certificates", createAndroidCACertificateEndpoint, createAndroidCACertificateRequest{})
+	ue.GET("/api/_version_/fleet/ca_certificates", listAndroidCACertificatesEndpoint, listAndroidCACertificatesRequest{})
+	ue.GET("/api/_version_/fleet/ca_certificates/{id:[0-9]+}", getAndroidCACertificateEndpoint, getAndroidCACertificateRequest{})
+	ue.DELETE("/api/_version_/fleet/ca_certificates/{id:[0-9]+}", deleteAndroidCACertificateEndpoint, deleteAndroidCACertificateRequest{})
+
+	ue.POST("/api/_version_/fleet/certificates/ca", createAndroidCACertificateEndpoint, createAndroidCACertificateRequest{})
+	ue.GET("/api/_version_/fleet/certificates/ca", listAndroidCACertificatesEndpoint, listAndroidCACertificatesRequest{})
+	ue.GET("/api/_version_/fleet/certificates/ca/{id:[0-9]+}", getAndroidCACertificateEndpoint, getAndroidCACertificateRequest{})
+	ue.DELETE("/api/_version_/fleet/certificates/ca/{id:[0-9]+}", deleteAndroidCACertificateEndpoint, deleteAndroidCACertificateRequest{})
+
 	ue.GET("/api/_version_/fleet/reports/{id:[0-9]+}", getQueryEndpoint, fleet.GetQueryRequest{})
 	ue.GET("/api/_version_/fleet/reports", listQueriesEndpoint, fleet.ListQueriesRequest{})
 	ue.GET("/api/_version_/fleet/reports/{id:[0-9]+}/report", getQueryReportEndpoint, fleet.GetQueryReportRequest{})
@@ -531,6 +542,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, fleet.RemoveLabelsFromHostRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates", listHostCertificatesEndpoint, listHostCertificatesRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/ca_certificates", listHostAndroidCACertificatesEndpoint, listHostAndroidCACertificatesRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates/{template_id:[0-9]+}/resend", resendHostCertificateTemplateEndpoint, resendHostCertificateTemplateRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password", getHostRecoveryLockPasswordEndpoint, getHostRecoveryLockPasswordRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_url", getHostDeviceURLEndpoint, getHostDeviceURLRequest{})
@@ -1130,6 +1142,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	androidEndpoints := androidAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	androidEndpoints.GET("/api/fleetd/certificates/{id:[0-9]+}", getDeviceCertificateTemplateEndpoint, getDeviceCertificateTemplateRequest{})
 	androidEndpoints.PUT("/api/fleetd/certificates/{id:[0-9]+}/status", updateCertificateStatusEndpoint, updateCertificateStatusRequest{})
+	androidEndpoints.GET("/api/fleetd/ca_certificates/{id:[0-9]+}", getDeviceCACertificateEndpoint, getDeviceCACertificateRequest{})
+	androidEndpoints.GET("/api/fleetd/ca_certificates/sha256/{sha256:[a-fA-F0-9]{64}}", getDeviceCACertificateByFingerprintEndpoint, getDeviceCACertificateByFingerprintRequest{})
+	androidEndpoints.PUT("/api/fleetd/ca_certificates/{id:[0-9]+}/status", updateDeviceCACertificateStatusEndpoint, updateDeviceCACertificateStatusRequest{})
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)

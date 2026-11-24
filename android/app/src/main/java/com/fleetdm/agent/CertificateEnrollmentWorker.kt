@@ -62,6 +62,9 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                 }
             }
 
+            // Sync CA certificates from managed configuration
+            orchestrator.syncCACertificates(applicationContext)
+
             val hostCertificates = orchestrator.getHostCertificates(applicationContext) ?: emptyList()
 
             // STEP 1: Cleanup certificates marked for removal and orphaned certificates

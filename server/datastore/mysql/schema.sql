@@ -174,6 +174,44 @@ CREATE TABLE `android_app_configurations` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `android_ca_certificate_labels` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `ca_certificate_id` int unsigned NOT NULL,
+  `label_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label_id` int unsigned DEFAULT NULL,
+  `exclude` tinyint(1) NOT NULL DEFAULT '0',
+  `require_all` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_android_ca_cert_labels_cert_label` (`ca_certificate_id`,`label_name`),
+  KEY `idx_android_ca_cert_labels_label_id` (`label_id`),
+  CONSTRAINT `fk_android_ca_cert_labels_cert_id` FOREIGN KEY (`ca_certificate_id`) REFERENCES `android_ca_certificates` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_android_ca_cert_labels_label_id` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `android_ca_certificates` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `team_id` int unsigned NOT NULL DEFAULT '0',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `certificate_pem` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sha256_fingerprint` char(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `subject` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `issuer` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `not_valid_before` timestamp NULL DEFAULT NULL,
+  `not_valid_after` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_android_ca_certificates_team_name` (`team_id`,`name`),
+  KEY `idx_android_ca_certificates_team_id` (`team_id`),
+  KEY `idx_android_ca_certificates_sha256` (`sha256_fingerprint`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `android_devices` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int unsigned NOT NULL,
@@ -601,6 +639,25 @@ CREATE TABLE `host_additional` (
   `additional` json DEFAULT NULL,
   PRIMARY KEY (`host_id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_android_ca_certificates` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int unsigned NOT NULL,
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ca_certificate_id` int unsigned NOT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `detail` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_android_ca_certs_host_cert` (`host_id`,`ca_certificate_id`),
+  KEY `idx_host_android_ca_certs_host_uuid` (`host_uuid`),
+  KEY `idx_host_android_ca_certs_ca_cert_id` (`ca_certificate_id`),
+  CONSTRAINT `fk_host_android_ca_certs_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_host_android_ca_certs_ca_cert_id` FOREIGN KEY (`ca_certificate_id`) REFERENCES `android_ca_certificates` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

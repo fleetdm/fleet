@@ -18,6 +18,12 @@ const emptyCertsHandler = http.get(baseUrl("/certificates"), () =>
   })
 );
 
+const emptyCACertsHandler = http.get(baseUrl("/certificates/ca"), () =>
+  HttpResponse.json({
+    ca_certificates: [],
+  })
+);
+
 const scepCAHandler = http.get(baseUrl("/certificate_authorities"), () =>
   HttpResponse.json({
     certificate_authorities: [
@@ -42,7 +48,7 @@ const baseProps = {
 
 describe("Certificates tab-header", () => {
   it("always renders the description", async () => {
-    mockServer.use(emptyCertsHandler, emptyCAHandler);
+    mockServer.use(emptyCertsHandler, emptyCACertsHandler, emptyCAHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -59,7 +65,7 @@ describe("Certificates tab-header", () => {
   });
 
   it("hides Add certificate on Fleet Free", async () => {
-    mockServer.use(emptyCertsHandler, emptyCAHandler);
+    mockServer.use(emptyCertsHandler, emptyCACertsHandler, emptyCAHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -79,7 +85,7 @@ describe("Certificates tab-header", () => {
   });
 
   it("hides Add certificate when no custom SCEP CA is configured", async () => {
-    mockServer.use(emptyCertsHandler, emptyCAHandler);
+    mockServer.use(emptyCertsHandler, emptyCACertsHandler, emptyCAHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -100,7 +106,7 @@ describe("Certificates tab-header", () => {
   });
 
   it("shows Add certificate when premium + Android MDM + custom SCEP CA", async () => {
-    mockServer.use(emptyCertsHandler, scepCAHandler);
+    mockServer.use(emptyCertsHandler, emptyCACertsHandler, scepCAHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -114,5 +120,38 @@ describe("Certificates tab-header", () => {
     expect(
       await screen.findByRole("button", { name: /Add certificate$/i })
     ).toBeInTheDocument();
+  });
+
+  it("displays uploaded static CA certificate and allows deleting it", async () => {
+    const staticCAHandler = http.get(baseUrl("/certificates/ca"), () =>
+      HttpResponse.json({
+        ca_certificates: [
+          {
+            id: 99,
+            team_id: 0,
+            name: "Corporate Root CA",
+            sha256: "abc123hash",
+            subject: "CN=Corporate Root CA",
+            issuer: "CN=Corporate Root CA",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ],
+      })
+    );
+
+    mockServer.use(emptyCertsHandler, staticCAHandler, emptyCAHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: { isPremiumTier: true, config: androidMdmConfig },
+      },
+    });
+
+    render(<Certificates {...baseProps} />);
+
+    expect(await screen.findByText("Corporate Root CA")).toBeInTheDocument();
+    expect(screen.getByText(/Root\/intermediate CA/i)).toBeInTheDocument();
   });
 });

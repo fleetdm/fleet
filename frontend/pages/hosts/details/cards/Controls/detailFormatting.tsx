@@ -2,6 +2,7 @@ import React from "react";
 
 import CustomLink from "components/CustomLink";
 import {
+  FLEET_ANDROID_CA_CERTIFICATE_PROFILE_ID,
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   IHostMdmProfile,
 } from "interfaces/mdm";
@@ -48,10 +49,12 @@ export const formatAndroidCertificateError = (
   return match ? match[1] : null;
 };
 
-/** Whether this row is an Android certificate template rather than a configuration profile. */
+/** Whether this row is an Android certificate template or CA certificate rather than a configuration profile. */
 export const isAndroidCertificateProfile = (
   profile: IHostMdmProfileWithAddedStatus
-) => profile.profile_uuid === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
+) =>
+  profile.profile_uuid === FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID ||
+  profile.profile_uuid === FLEET_ANDROID_CA_CERTIFICATE_PROFILE_ID;
 
 /**
  * When an Android certificate install fails, Fleet resets the certificate and delivers it again,

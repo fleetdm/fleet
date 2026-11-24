@@ -62,6 +62,12 @@ interface CertificateApiClient {
         notBefore: Date? = null,
         serialNumber: BigInteger? = null,
     ): Result<Unit>
+    suspend fun getCaCertificate(caId: Int): Result<DeviceCACertificateResponse>
+    suspend fun updateCaCertificateStatus(
+        caId: Int,
+        status: UpdateCertificateStatusStatus,
+        detail: String? = null,
+    ): Result<Unit>
 }
 
 object ApiClient : CertificateApiClient {
@@ -389,6 +395,59 @@ object ApiClient : CertificateApiClient {
         )
     }
 
+    override suspend fun getCaCertificate(caId: Int): Result<DeviceCACertificateResponse> = withReenrollOnUnauthorized {
+        makeRequest<Unit, DeviceCACertificateResponse>(
+            endpoint = "/api/fleetd/ca_certificates/$caId",
+            method = "GET",
+            responseSerializer = DeviceCACertificateResponse.serializer(),
+        ).fold(
+            onSuccess = { response ->
+                Log.i(TAG, "successfully retrieved CA certificate ${response.id}: ${response.name}")
+                Result.success(response)
+            },
+            onFailure = { throwable ->
+                FleetLog.e(TAG, "failed to get CA certificate $caId: ${throwable.message}")
+                Result.failure(throwable)
+            },
+        )
+    }
+
+    override suspend fun updateCaCertificateStatus(
+        caId: Int,
+        status: UpdateCertificateStatusStatus,
+        detail: String?,
+    ): Result<Unit> = withReenrollOnUnauthorized {
+        makeRequest(
+            endpoint = "/api/fleetd/ca_certificates/$caId/status",
+            method = "PUT",
+            body = UpdateDeviceCACertificateStatusRequest(
+                status = status,
+                detail = detail?.redactSecrets(),
+            ),
+            bodySerializer = UpdateDeviceCACertificateStatusRequest.serializer(),
+            responseSerializer = UpdateDeviceCACertificateStatusResponse.serializer(),
+        ).fold(
+            onSuccess = { response ->
+                if (response.error != null) {
+                    FleetLog.e(TAG, "failed to update CA certificate status $caId: ${response.error}")
+                    Result.failure(Exception(response.error))
+                } else {
+                    Log.i(TAG, "successfully updated CA certificate status for $caId to $status")
+                    Result.success(Unit)
+                }
+            },
+            onFailure = { throwable ->
+                if (throwable is NotFoundException) {
+                    Log.i(TAG, "CA certificate $caId no longer exists on server, nothing to report")
+                    Result.success(Unit)
+                } else {
+                    FleetLog.e(TAG, "failed to update CA certificate status $caId: ${throwable.message}")
+                    Result.failure(throwable)
+                }
+            },
+        )
+    }
+
     private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
         val prefs = dataStore.data.first()
         val enrollSecret = prefs[ENROLL_SECRET]
@@ -648,3 +707,30 @@ data class GetCertificateTemplateResponse(
  */
 fun GetCertificateTemplateResponse.buildScepUrl(serverUrl: String, hostUUID: String): String =
     "$serverUrl$SCEP_PROXY_PATH$hostUUID,g$id,$certificateAuthorityType,${fleetChallenge ?: ""}"
+
+@Serializable
+data class DeviceCACertificateResponse(
+    @SerialName("id")
+    val id: Int,
+    @SerialName("name")
+    val name: String,
+    @SerialName("certificate_pem")
+    val certificatePem: String,
+    @SerialName("sha256")
+    val sha256: String,
+)
+
+@Serializable
+data class UpdateDeviceCACertificateStatusRequest(
+    @SerialName("status")
+    val status: UpdateCertificateStatusStatus,
+    @SerialName("detail")
+    val detail: String? = null,
+)
+
+@Serializable
+private data class UpdateDeviceCACertificateStatusResponse(
+    @SerialName("error")
+    val error: String? = null,
+)
+

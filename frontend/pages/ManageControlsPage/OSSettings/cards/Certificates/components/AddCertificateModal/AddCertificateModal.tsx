@@ -1,23 +1,35 @@
-import React, { useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { SingleValue } from "react-select-5";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
+import FileUploader from "components/FileUploader";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
+import Radio from "components/forms/fields/Radio";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
+import {
+  TargetLabelSelector,
+  LabelTargetMode,
+  TargetType,
+} from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import { getErrorReason } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
 import paths from "router/paths";
 import certificatesAPI from "services/entities/certificates";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
+
+import { generateCustomTargetLabelKey } from "../../../ConfigurationProfiles/components/ProfileUploader/helpers";
 
 import {
   validateFormData,
@@ -40,11 +52,15 @@ interface IAddCertModalProps {
   currentTeamId?: number;
 }
 
+type CertModalType = "scep" | "ca";
+
 const AddCertModal = ({
   onExit,
   onSuccess,
   currentTeamId,
 }: IAddCertModalProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+  const [certType, setCertType] = useState<CertModalType>("scep");
   const [isUpdating, setIsUpdating] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [formData, setFormData] = useState<IAddCertFormData>({
@@ -53,6 +69,67 @@ const AddCertModal = ({
     subjectName: "",
     subjectAlternativeName: "",
   });
+
+  // CA certificate state
+  const [caFile, setCaFile] = useState<File | null>(null);
+  const [caName, setCaName] = useState("");
+  const [selectedTargetType, setSelectedTargetType] = useState<TargetType>(
+    "All hosts"
+  );
+  const [selectedIncludeLabels, setSelectedIncludeLabels] = useState<
+    Record<string, boolean>
+  >({});
+  const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
+    Record<string, boolean>
+  >({});
+  const [
+    selectedLabelIncludeMode,
+    setSelectedLabelIncludeMode,
+  ] = useState<LabelTargetMode>("any");
+
+  const onSelectIncludeLabel = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedIncludeLabels((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const onSelectExcludeLabel = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedExcludeLabels((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const { data: labels, isLoading: isLoadingLabels } = useQuery<
+    ILabelSummary[],
+    Error
+  >(
+    ["custom_labels", currentTeamId],
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
+    {
+      enabled: isPremiumTier && certType === "ca",
+      refetchOnWindowFocus: false,
+      retry: false,
+      staleTime: 10000,
+    }
+  );
+
   // Server-side validation errors keyed by form field; cleared when the user
   // edits the corresponding input.
   const [serverErrors, setServerErrors] = useState<{
@@ -163,7 +240,99 @@ const AddCertModal = ({
     }
   };
 
-  const renderForm = () => {
+  const onSubmitCAForm = async (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    if (!caFile) {
+      notify.error("Please choose a certificate file to upload.");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const labelKey = generateCustomTargetLabelKey({
+        targetType: selectedTargetType,
+        includeMode: selectedLabelIncludeMode,
+        includeLabels: selectedIncludeLabels,
+        excludeLabels: selectedExcludeLabels,
+      });
+
+      await certificatesAPI.uploadCACert({
+        file: caFile,
+        name: caName.trim() || undefined,
+        teamId: currentTeamId,
+        labelsIncludeAll: labelKey.labelsIncludeAll,
+        labelsIncludeAny: labelKey.labelsIncludeAny,
+        labelsExcludeAny: labelKey.labelsExcludeAny,
+      });
+
+      notify.success("Successfully added your CA certificate.");
+      onSuccess();
+      onExit();
+    } catch (e) {
+      notify.error("Couldn't add certificate. Please try again.", {
+        response: e,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const renderCAForm = () => {
+    return (
+      <form className={baseClass} onSubmit={onSubmitCAForm}>
+        <FileUploader
+          graphicName="file-pem"
+          accept=".pem,.crt"
+          message="Upload a .pem or .crt certificate file."
+          buttonMessage="Choose file"
+          onFileUpload={(files) => setCaFile(files ? files[0] : null)}
+          onDeleteFile={() => setCaFile(null)}
+          fileDetails={caFile ? { name: caFile.name } : undefined}
+        />
+        <InputField
+          name="caName"
+          label="Name (optional)"
+          value={caName}
+          onChange={({ value }) => setCaName(value)}
+          placeholder="Corporate Root CA"
+          helpText="Optional. If omitted, the certificate's common name will be used."
+          parseTarget
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+        />
+        <TargetLabelSelector
+          labels={labels ?? []}
+          isLoading={isLoadingLabels}
+          selectedTargetType={selectedTargetType}
+          onSelectTargetType={setSelectedTargetType}
+          includeConfig={{
+            selectedLabels: selectedIncludeLabels,
+            onSelectLabel: onSelectIncludeLabel,
+            showModeToggle: true,
+            mode: selectedLabelIncludeMode,
+            onSelectMode: setSelectedLabelIncludeMode,
+          }}
+          excludeConfig={{
+            selectedLabels: selectedExcludeLabels,
+            onSelectLabel: onSelectExcludeLabel,
+          }}
+        />
+        <div className="modal-cta-wrap">
+          <Button
+            isLoading={isUpdating}
+            disabled={isUpdating || !caFile}
+            type="submit"
+          >
+            Upload
+          </Button>
+          <Button variant="secondary" onClick={onExit}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    );
+  };
+
+  const renderSCEPForm = () => {
     if (isLoadingCAs) {
       return <Spinner />;
     }
@@ -250,7 +419,25 @@ const AddCertModal = ({
       onExit={onExit}
       isContentDisabled={isUpdating}
     >
-      {renderForm()}
+      <div className={`${baseClass}__cert-type-radios`}>
+        <Radio
+          label="Client certificate (SCEP)"
+          id="cert-type-scep"
+          checked={certType === "scep"}
+          value="scep"
+          name="certType"
+          onChange={() => setCertType("scep")}
+        />
+        <Radio
+          label="Root or intermediate CA (.pem, .crt)"
+          id="cert-type-ca"
+          checked={certType === "ca"}
+          value="ca"
+          name="certType"
+          onChange={() => setCertType("ca")}
+        />
+      </div>
+      {certType === "scep" ? renderSCEPForm() : renderCAForm()}
     </Modal>
   );
 };

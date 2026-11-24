@@ -68,6 +68,12 @@ type AgentManagedConfiguration struct {
 	HostUUID               string                     `json:"host_uuid"`
 	EnrollSecret           string                     `json:"enroll_secret"`
 	CertificateTemplateIDs []AgentCertificateTemplate `json:"certificate_templates,omitempty"`
+	CACertificates         []AgentCACertificate       `json:"ca_certificates,omitempty"`
+}
+
+type AgentCACertificate struct {
+	ID     uint   `json:"id"`
+	SHA256 string `json:"sha256"`
 }
 
 type AgentCertificateTemplate struct {

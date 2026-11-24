@@ -46,4 +46,27 @@
                 android:restrictionType="string" />
         </restriction>
     </restriction>
+
+    <restriction
+        android:key="ca_certificates"
+        android:title="@string/ca_certificates_title"
+        android:description="@string/ca_certificates_description"
+        android:restrictionType="bundle_array" >
+        <restriction
+            android:key="ca_certificate"
+            android:title="@string/ca_certificate_title"
+            android:description="@string/ca_certificate_description"
+            android:restrictionType="bundle">
+            <restriction
+                android:key="id"
+                android:title="@string/ca_certificate_id_title"
+                android:description="@string/ca_certificate_id_description"
+                android:restrictionType="integer" />
+            <restriction
+                android:key="sha256"
+                android:title="@string/ca_certificate_sha256_title"
+                android:description="@string/ca_certificate_sha256_description"
+                android:restrictionType="string" />
+        </restriction>
+    </restriction>
 </restrictions>
