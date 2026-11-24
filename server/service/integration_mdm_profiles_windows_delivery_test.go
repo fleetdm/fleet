@@ -305,6 +305,31 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		checkRetryCounts(t)
 		requireDetailOnceFailed(t, "N1")
 	})
+
+	// N1 is failed with its retries used up by the subtest above.
+	t.Run("resend after failure restores the retries", func(t *testing.T) {
+		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		var n1UUID string
+		for _, p := range storedProfs {
+			if p.Name == "N1" {
+				n1UUID = p.ProfileUUID
+			}
+		}
+		require.NotEmpty(t, n1UUID)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", h.ID, n1UUID), nil, http.StatusAccepted)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
+		checkProfilesStatus(t)
+		expectedRetryCounts["N1"] = 0
+		checkRetryCounts(t)
+
+		// Failing again now uses one of the restored retries instead of failing the profile for good.
+		verifyCommands(1, syncml.CmdStatusAtomicFailed)
+		checkProfilesStatus(t)
+		expectedRetryCounts["N1"] = 1
+		checkRetryCounts(t)
+	})
 }
 
 // TestWindowsProfileResend verifies that a Windows profile is resent when its contents have been modified.
