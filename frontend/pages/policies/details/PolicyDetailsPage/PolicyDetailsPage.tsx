@@ -427,8 +427,10 @@ const PolicyDetailsPage = ({
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."
+                      position="top"
                       showArrow
                       underline={false}
+                      fixedPositionStrategy
                     >
                       <Icon
                         className="critical-policy-icon"
