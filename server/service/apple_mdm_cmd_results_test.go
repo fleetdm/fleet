@@ -12,6 +12,7 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -363,6 +364,125 @@ func TestInstalledApplicationListHandler(t *testing.T) {
 		assert.Equal(t, hostUUID, removedHostUUID)
 		assert.Equal(t, fleet.VerifySoftwareInstallVPPPrefix, removedCmdType)
 		assert.False(t, ds.NewJobFuncInvoked, "nothing left to verify, so no polling job")
+	})
+
+	t.Run("verify polling backs off from the install's acknowledgment", func(t *testing.T) {
+		now := time.Now()
+		ackedAgo := func(d time.Duration) *time.Time { return new(now.Add(-d)) }
+
+		cases := []struct {
+			name          string
+			vppAckAt      *time.Time
+			inHouseAckAt  *time.Time
+			minDelay      time.Duration
+			wantNotBefore time.Time
+			wantFailed    bool
+		}{
+			{
+				name:          "acked 2m ago waits for the 3m check",
+				vppAckAt:      ackedAgo(2 * time.Minute),
+				minDelay:      verifyRequestDelay,
+				wantNotBefore: now.Add(time.Minute),
+			},
+			{
+				name:          "acked 5s ago waits for the 30s check",
+				vppAckAt:      ackedAgo(5 * time.Second),
+				minDelay:      verifyRequestDelay,
+				wantNotBefore: now.Add(25 * time.Second),
+			},
+			{
+				name:          "earliest-due install on the host wins",
+				vppAckAt:      ackedAgo(2 * time.Minute),
+				inHouseAckAt:  ackedAgo(10 * time.Second),
+				minDelay:      verifyRequestDelay,
+				wantNotBefore: now.Add(20 * time.Second),
+			},
+			{
+				name:          "earliest-due install wins when it is checked first",
+				vppAckAt:      ackedAgo(10 * time.Second),
+				inHouseAckAt:  ackedAgo(2 * time.Minute),
+				minDelay:      verifyRequestDelay,
+				wantNotBefore: now.Add(20 * time.Second),
+			},
+			{
+				name:          "acked 4m ago waits for the timeout",
+				vppAckAt:      ackedAgo(4 * time.Minute),
+				minDelay:      verifyRequestDelay,
+				wantNotBefore: now.Add(6 * time.Minute),
+			},
+			{
+				name:          "minimum delay is a floor",
+				vppAckAt:      ackedAgo(25 * time.Second),
+				minDelay:      time.Minute,
+				wantNotBefore: now.Add(time.Minute),
+			},
+			{
+				name:          "install with no ack time uses the minimum delay",
+				minDelay:      verifyRequestDelay,
+				wantNotBefore: now.Add(verifyRequestDelay),
+			},
+			{
+				name:       "acked past the timeout fails without polling",
+				vppAckAt:   ackedAgo(11 * time.Minute),
+				minDelay:   verifyRequestDelay,
+				wantFailed: true,
+			},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				ds := setupMockDS(t)
+				ds.SetVPPInstallAsVerifiedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+					t.Fatal("verify should not be called")
+					return nil
+				}
+				var failed bool
+				ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+					failed = true
+					return nil
+				}
+				ds.GetUnverifiedVPPInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+					return []*fleet.HostVPPSoftwareInstall{{
+						InstallCommandUUID:  uuid.NewString(),
+						InstallCommandAckAt: c.vppAckAt,
+						HostID:              hostID,
+						BundleIdentifier:    bundleID,
+					}}, nil
+				}
+				if c.inHouseAckAt != nil {
+					ds.GetUnverifiedInHouseAppInstallsForHostFunc = func(_ context.Context, _ string) ([]*fleet.HostVPPSoftwareInstall, error) {
+						return []*fleet.HostVPPSoftwareInstall{{
+							InstallCommandUUID:  uuid.NewString(),
+							InstallCommandAckAt: c.inHouseAckAt,
+							HostID:              hostID,
+							BundleIdentifier:    "com.example.inhouse",
+						}}, nil
+					}
+				}
+				var queued []*fleet.Job
+				ds.NewJobFunc = func(_ context.Context, job *fleet.Job) (*fleet.Job, error) {
+					queued = append(queued, job)
+					return job, nil
+				}
+
+				handler := NewInstalledApplicationListResultsHandler(ds, nil, logger, verifyTimeout, c.minDelay, newNoopActivityFn)
+				err := handler(ctx, &testInstalledAppListResult{
+					uuid:          fleet.VerifySoftwareInstallCommandUUID(),
+					hostUUID:      hostUUID,
+					hostPlatform:  "ios",
+					availableApps: []fleet.Software{{BundleIdentifier: "com.other.app", Installed: true}},
+				})
+				require.NoError(t, err)
+
+				if c.wantFailed {
+					assert.True(t, failed)
+					assert.Empty(t, queued)
+					return
+				}
+				assert.False(t, failed)
+				require.Len(t, queued, 1)
+				assert.WithinDuration(t, c.wantNotBefore, queued[0].NotBefore, 2*time.Second)
+			})
+		}
 	})
 }
 
