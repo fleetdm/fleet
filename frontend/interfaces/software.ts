@@ -159,8 +159,10 @@ export interface ISoftwarePackage {
    * ("^149") = major-version pin. */
   pinned_version?: string | null;
   hash_sha256?: string | null;
-  /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
+  /** XML plist string for an in-house .ipa managed app configuration. */
   configuration?: string;
+  /** The platform the package installs on. An .ipa is "ios", "ipados" or "tvos". */
+  platform?: string;
 }
 
 export interface IAppStoreApp {

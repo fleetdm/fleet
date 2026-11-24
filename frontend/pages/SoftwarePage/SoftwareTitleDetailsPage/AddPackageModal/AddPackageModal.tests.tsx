@@ -77,7 +77,7 @@ describe("AddPackageModal", () => {
       // PackageForm's default message lists every supported platform as
       // tooltip triggers (extensions live in the tooltips, not the label text).
       expect(screen.getByText("macOS")).toBeInTheDocument();
-      expect(screen.getByText("iOS/iPadOS")).toBeInTheDocument();
+      expect(screen.getByText("iOS/iPadOS/tvOS")).toBeInTheDocument();
       expect(screen.getByText("Windows")).toBeInTheDocument();
       expect(screen.getByText("Linux")).toBeInTheDocument();
     });

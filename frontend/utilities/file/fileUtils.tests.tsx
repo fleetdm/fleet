@@ -86,7 +86,7 @@ describe("fileUtils", () => {
       { extension: "deb", platform: "Linux" },
       { extension: "tar.gz", platform: "Linux" },
       { extension: "py", platform: "macOS & Linux" },
-      { extension: "ipa", platform: "iOS/iPadOS" },
+      { extension: "ipa", platform: "iOS/iPadOS/tvOS" },
       { extension: undefined, platform: undefined }, // no extension
       { extension: "unknown_ext", platform: undefined }, // unmapped extension
     ];

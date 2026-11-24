@@ -205,6 +205,23 @@ describe("getButtonActionState helper function", () => {
     expect(result.installTooltip).toBeUndefined();
     expect(result.uninstallTooltip).toBeUndefined();
   });
+  it.each(["ios", "ipados", "tvos"] as const)(
+    "doesn't need host scripts to install an in-house app on %s",
+    (platform) => {
+      const result = getActionButtonState({
+        hostScriptsEnabled: false,
+        softwareId: 1,
+        status: null,
+        softwarePackage: createMockHostSoftwarePackage({ platform }),
+        appStoreApp: null,
+        hostMDMEnrolled: true,
+        installedVersionsDetected: false,
+      });
+      expect(result.installDisabled).toBe(false);
+      expect(result.installTooltip).toBeUndefined();
+      expect(result.uninstallDisabled).toBe(true);
+    }
+  );
 });
 
 describe("HostInstallerActionCell component", () => {

@@ -6,7 +6,7 @@ type IPlatformDisplayName =
   | "macOS"
   | "Windows"
   | "Linux"
-  | "iOS/iPadOS"
+  | "iOS/iPadOS/tvOS"
   | "macOS & Linux";
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
@@ -25,7 +25,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   sh: "macOS & Linux",
   ps1: "Windows",
   py: "macOS & Linux",
-  ipa: "iOS/iPadOS",
+  ipa: "iOS/iPadOS/tvOS",
 };
 
 /** Currently only using tar.gz, but keeping the others for future use

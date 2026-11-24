@@ -86,7 +86,7 @@ const getGraphicName = (ext: string) => {
 };
 
 export const IPA_DUAL_PLATFORM_BANNER_COPY =
-  "Fleet adds this app for both iOS and iPadOS. Edit each platform separately. Changes to one don't apply to the other.";
+  "Fleet adds an iOS app for both iOS and iPadOS. Edit each platform separately. Changes to one don't apply to the other. A tvOS app is added for tvOS only.";
 
 const renderIpaDualPlatformBanner = () => (
   <InfoBanner
@@ -122,7 +122,11 @@ const renderFileTypeMessage = () => {
       <TooltipWrapper tipContent="Supports .pkg, .sh, and .py">
         macOS
       </TooltipWrapper>
-      , <TooltipWrapper tipContent="Supports .ipa">iOS/iPadOS</TooltipWrapper>,{" "}
+      ,{" "}
+      <TooltipWrapper tipContent="Supports .ipa">
+        iOS/iPadOS/tvOS
+      </TooltipWrapper>
+      ,{" "}
       <TooltipWrapper tipContent="Supports .msi, .exe, .ps1">
         Windows
       </TooltipWrapper>
@@ -487,6 +491,10 @@ const PackageForm = ({
   const isTarballPackage = ext === "tar.gz";
   const isScriptPackage = isScriptOnlyPackageType(ext);
   const isIpaPackage = ext === "ipa";
+  // The platform of an .ipa is only known once Fleet has read the archive.
+  const isTvosPackage =
+    isEditingSoftware &&
+    (defaultSoftware as ISoftwarePackage | undefined)?.platform === "tvos";
   // We currently don't support replacing a tarball package, and FMAs use the
   // page-level Versions modal to switch versions rather than a file replace.
   const canEditFile =
@@ -543,8 +551,11 @@ const PackageForm = ({
   // shows whenever a package is being staged — on Edit, in the
   // multi-package Add modal, and on the single-package Add page once a file
   // is chosen — because every package on a title needs its own label scope.
+  // Apple TVs have no self-service, and the options are self-service only.
   const showSoftwareOptionsSelector =
-    !gitOpsModeEnabled && (isEditingSoftware || !!formData.software);
+    !gitOpsModeEnabled &&
+    !isTvosPackage &&
+    (isEditingSoftware || !!formData.software);
   const showTargetLabelSelector =
     !gitOpsModeEnabled &&
     (isEditingSoftware || multiPackageContext || !!formData.software);
@@ -629,9 +640,10 @@ const PackageForm = ({
         {multiPackageContext && gitOpsModeEnabled && (
           <GitOpsCustomPackageBanner />
         )}
-        {/* One .ipa upload creates separate iOS and iPadOS titles that must be
-            edited independently. Warn on Add; hide in GitOps mode (read-only)
-            and on Edit (the user is already inside a single-platform title). */}
+        {/* An iOS .ipa upload creates separate iOS and iPadOS titles that must
+            be edited independently. Warn on Add; hide in GitOps mode
+            (read-only) and on Edit (the user is already inside a
+            single-platform title). */}
         {isIpaPackage &&
           !isEditingSoftware &&
           !gitOpsModeEnabled &&

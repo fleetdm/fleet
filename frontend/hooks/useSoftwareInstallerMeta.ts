@@ -70,7 +70,8 @@ export const useSoftwareInstaller = (
       : "app-store";
 
     const isAndroidPlayStoreApp =
-      "platform" in softwareInstaller && isAndroid(softwareInstaller.platform);
+      "platform" in softwareInstaller &&
+      isAndroid(softwareInstaller.platform ?? "");
 
     const isAndroidPlayStoreWebApp =
       isAndroidPlayStoreApp && "app_store_id" in softwareInstaller
