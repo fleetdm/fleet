@@ -679,6 +679,8 @@ type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSession
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
 
+type TriggerPolicyMembershipCleanupFunc func(ctx context.Context)
+
 type ResetAutomationFunc func(ctx context.Context, teamIDs []uint, policyIDs []uint) error
 
 type ProcessMDMMicrosoftDiscoveryFunc func(ctx context.Context, req *fleet.SoapRequest) (*fleet.SoapResponse, error)
@@ -1986,6 +1988,9 @@ type Service struct {
 
 	TriggerCronScheduleFunc        TriggerCronScheduleFunc
 	TriggerCronScheduleFuncInvoked bool
+
+	TriggerPolicyMembershipCleanupFunc        TriggerPolicyMembershipCleanupFunc
+	TriggerPolicyMembershipCleanupFuncInvoked bool
 
 	ResetAutomationFunc        ResetAutomationFunc
 	ResetAutomationFuncInvoked bool
@@ -4771,6 +4776,13 @@ func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {
 	s.TriggerCronScheduleFuncInvoked = true
 	s.mu.Unlock()
 	return s.TriggerCronScheduleFunc(ctx, name)
+}
+
+func (s *Service) TriggerPolicyMembershipCleanup(ctx context.Context) {
+	s.mu.Lock()
+	s.TriggerPolicyMembershipCleanupFuncInvoked = true
+	s.mu.Unlock()
+	s.TriggerPolicyMembershipCleanupFunc(ctx)
 }
 
 func (s *Service) ResetAutomation(ctx context.Context, teamIDs []uint, policyIDs []uint) error {

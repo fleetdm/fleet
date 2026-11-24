@@ -848,6 +848,8 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 
 type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
 
+type CleanupPendingPolicyMembershipFunc func(ctx context.Context) error
+
 type IsPolicyFailingFunc func(ctx context.Context, policyID uint, hostID uint) (bool, error)
 
 type CountHostSoftwareInstallAttemptsFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) (int, error)
@@ -3892,6 +3894,9 @@ type DataStore struct {
 
 	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
 	CleanupPolicyMembershipFuncInvoked bool
+
+	CleanupPendingPolicyMembershipFunc        CleanupPendingPolicyMembershipFunc
+	CleanupPendingPolicyMembershipFuncInvoked bool
 
 	IsPolicyFailingFunc        IsPolicyFailingFunc
 	IsPolicyFailingFuncInvoked bool
@@ -9490,6 +9495,13 @@ func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) 
 	s.CleanupPolicyMembershipFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupPolicyMembershipFunc(ctx, now)
+}
+
+func (s *DataStore) CleanupPendingPolicyMembership(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupPendingPolicyMembershipFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupPendingPolicyMembershipFunc(ctx)
 }
 
 func (s *DataStore) IsPolicyFailing(ctx context.Context, policyID uint, hostID uint) (bool, error) {

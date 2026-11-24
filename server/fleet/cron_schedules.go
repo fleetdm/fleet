@@ -67,6 +67,9 @@ const (
 	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
 	// Runs every 1 minute.
 	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
+	// CronPolicyMembershipCleanup removes policy results that a policy change invalidated. Triggered after the
+	// change, and runs every 1h for requests a trigger missed.
+	CronPolicyMembershipCleanup CronScheduleName = "policy_membership_cleanup"
 	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
 	// Runs every 5 minutes.
 	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
