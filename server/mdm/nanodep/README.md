@@ -1,6 +1,7 @@
 # NanoDEP
 
 > The contents of this directory were copied (on February 2024) from https://github.com/fleetdm/nanomdm (the `apple-mdm` branch) which was forked from https://github.com/micromdm/nanodep. Check [UPSTREAM_COMMIT](./UPSTREAM_COMMIT) for the commit hash of the original repository the current code in this repository is on.
+> Some code has been removed. This README and others may contain stale references, which are kept to help locate the original code upstream.
 
 [![Go](https://github.com/micromdm/nanodep/workflows/Go/badge.svg)](https://github.com/micromdm/nanodep/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/micromdm/nanodep.svg)](https://pkg.go.dev/github.com/micromdm/nanodep)
 

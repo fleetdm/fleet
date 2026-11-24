@@ -4,7 +4,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isAndroidBYO, MdmEnrollmentStatus } from "interfaces/mdm";
 import { isAndroid } from "interfaces/platform";
 import hostAPI from "services/entities/hosts";
 
@@ -31,8 +31,8 @@ const ClearPasscodeModal = ({
   const [confirmChecked, setConfirmChecked] = React.useState(false);
 
   const isAndroidHost = isAndroid(hostPlatform);
-  const isAndroidBYO =
-    isAndroidHost && hostMdmEnrollmentStatus === "On (manual - personal)";
+  const isAndroidBYOHost =
+    isAndroidHost && isAndroidBYO(hostMdmEnrollmentStatus ?? null);
 
   const onClearPasscode = async () => {
     setIsClearingPasscode(true);
@@ -54,7 +54,7 @@ const ClearPasscodeModal = ({
   };
 
   const renderBody = () => {
-    if (isAndroidBYO) {
+    if (isAndroidBYOHost) {
       return <p>This only clears the work profile passcode.</p>;
     }
     if (isAndroidHost) {

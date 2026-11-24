@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -157,18 +158,29 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
+	platform := outApp.Platform()
+	platformNameSuffix := regexp.MustCompile(` for (macOS|Mac|Windows)$`)
 	var found bool
+	var existingSlugWithSameName string
 	for _, a := range outputAppsFile.Apps {
 		if a.Slug == outApp.Slug {
 			found = true
-			break
+			continue
+		}
+
+		// The Fleet-maintained apps list combines apps by name, so names must be unique per platform.
+		// The table compares names with utf8mb4_unicode_ci, but EqualFold is close enough for this check.
+		if a.Platform == platform && strings.EqualFold(platformNameSuffix.ReplaceAllString(a.Name, ""), platformNameSuffix.ReplaceAllString(outApp.Name, "")) {
+			existingSlugWithSameName = a.Slug
 		}
 	}
 
 	if !found {
-		platform := outApp.Platform()
 		if platform == "" {
 			return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
+		}
+		if existingSlugWithSameName != "" {
+			return ctxerr.New(ctx, fmt.Sprintf("%s uses the name %q, which %s already uses on the same platform", outApp.Slug, outApp.Name, existingSlugWithSameName))
 		}
 
 		outputAppsFile.Apps = append(outputAppsFile.Apps, maintained_apps.FMAListFileApp{

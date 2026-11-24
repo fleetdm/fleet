@@ -1,8 +1,10 @@
 package fleet
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,6 +80,8 @@ func TestFirstFuplicatePolicySpecName(t *testing.T) {
 		{"no specs", "", []*PolicySpec{}},
 		{"no duplicate names", "", []*PolicySpec{{Name: "foo"}}},
 		{"duplicate names", "foo", []*PolicySpec{{Name: "foo"}, {Name: "bar"}, {Name: "foo"}}},
+		{"same name in different fleets", "", []*PolicySpec{{Name: "foo", Team: "a"}, {Name: "foo", Team: "b"}}},
+		{"names differing only in normalization", "café", []*PolicySpec{{Name: "café"}, {Name: "café"}}},
 	}
 
 	for _, tc := range testCases {
@@ -122,6 +126,25 @@ func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 		{
 			name:    "patch policy with both patch options is rejected",
 			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", PatchWhenClosed: true, NotifyBeforePatching: true},
+			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
+		},
+		{
+			name: "patch policy with patch_deadline is allowed",
+			spec: PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", PatchDeadline: true},
+		},
+		{
+			name:    "dynamic policy with patch_deadline is rejected",
+			spec:    PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic, PatchDeadline: true},
+			wantErr: errPolicyPatchDeadlineRequiresPatch,
+		},
+		{
+			name:    "patch_deadline with patch_when_closed is rejected",
+			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", PatchWhenClosed: true, PatchDeadline: true},
+			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
+		},
+		{
+			name:    "patch_deadline with notify_before_patching is rejected",
+			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", NotifyBeforePatching: true, PatchDeadline: true},
 			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
 		},
 	}
@@ -249,4 +272,114 @@ func TestPolicyVerifyResendProfile(t *testing.T) {
 		spec.Platform = "windows"
 		require.NoError(t, spec.Verify())
 	})
+}
+
+func TestPatchOptionsConflict(t *testing.T) {
+	require.False(t, PatchOptionsConflict())
+	require.False(t, PatchOptionsConflict(false, false, false))
+	require.False(t, PatchOptionsConflict(true, false, false))
+	require.False(t, PatchOptionsConflict(false, false, true))
+	require.True(t, PatchOptionsConflict(true, true, false))
+	require.True(t, PatchOptionsConflict(true, false, true))
+	require.True(t, PatchOptionsConflict(false, true, true))
+	require.True(t, PatchOptionsConflict(true, true, true))
+}
+
+func TestPatchDeadlineVerify(t *testing.T) {
+	patchType := PolicyTypePatch
+	titleID := uint(1)
+	patchPayload := func(mod func(*PolicyPayload)) PolicyPayload {
+		p := PolicyPayload{Type: patchType, PatchSoftwareTitleID: &titleID}
+		mod(&p)
+		return p
+	}
+
+	t.Run("PolicyPayload", func(t *testing.T) {
+		require.NoError(t, patchPayload(func(p *PolicyPayload) { p.PatchDeadline = true }).Verify())
+		require.ErrorIs(t, PolicyPayload{Name: "p", Query: "SELECT 1;", PatchDeadline: true}.Verify(), errPolicyPatchDeadlineRequiresPatch)
+		require.ErrorIs(t, patchPayload(func(p *PolicyPayload) { p.PatchDeadline, p.PatchWhenClosed = true, true }).Verify(), ErrPolicyPatchOptionsMutuallyExclusive)
+		require.ErrorIs(t, patchPayload(func(p *PolicyPayload) { p.PatchDeadline, p.NotifyBeforePatching = true, true }).Verify(), ErrPolicyPatchOptionsMutuallyExclusive)
+	})
+
+	t.Run("ModifyPolicyPayload", func(t *testing.T) {
+		require.NoError(t, ModifyPolicyPayload{Type: PolicyTypePatch, PatchDeadline: new(true)}.Verify())
+		require.NoError(t, ModifyPolicyPayload{Type: PolicyTypeDynamic, PatchDeadline: new(false)}.Verify())
+		require.ErrorIs(t, ModifyPolicyPayload{Type: PolicyTypeDynamic, PatchDeadline: new(true)}.Verify(), errPolicyPatchDeadlineRequiresPatch)
+	})
+}
+
+func TestPolicyAutomationType(t *testing.T) {
+	automationType := func(p Policy) any {
+		b, err := json.Marshal(p)
+		require.NoError(t, err)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		v, ok := out["automation_type"]
+		require.True(t, ok, "automation_type is always in the response")
+		return v
+	}
+
+	require.Nil(t, automationType(Policy{}))
+	for _, c := range []struct {
+		data PolicyData
+		want PolicyAutomation
+	}{
+		{PolicyData{ConditionalAccessEnabled: true}, PolicyAutomationConditionalAccess},
+		{PolicyData{SoftwareInstallerID: new(uint(1))}, PolicyAutomationSoftware},
+		{PolicyData{VPPAppsTeamsID: new(uint(1))}, PolicyAutomationSoftware},
+		{PolicyData{ScriptID: new(uint(1))}, PolicyAutomationScript},
+		{PolicyData{ResendAppleProfileUUID: new("a")}, PolicyAutomationConfigurationProfile},
+		{PolicyData{ResendWindowsProfileUUID: new("w")}, PolicyAutomationConfigurationProfile},
+		{PolicyData{CalendarEventsEnabled: true}, PolicyAutomationCalendar},
+		{PolicyData{WebhooksAndTicketsEnabled: true}, PolicyAutomationWebhookOrTicket},
+		// More than one (saved before the rule): the first in the order is shown.
+		{PolicyData{ScriptID: new(uint(1)), CalendarEventsEnabled: true, WebhooksAndTicketsEnabled: true}, PolicyAutomationScript},
+		{PolicyData{ConditionalAccessEnabled: true, SoftwareInstallerID: new(uint(1))}, PolicyAutomationConditionalAccess},
+	} {
+		require.Equal(t, string(c.want), automationType(Policy{PolicyData: c.data}), "%+v", c.data)
+	}
+
+	// A stale value is replaced, and the field round-trips for API clients.
+	b, err := json.Marshal(Policy{ID: 3, Name: "p", AutomationType: new(PolicyAutomationScript)})
+	require.NoError(t, err)
+	var decoded Policy
+	require.NoError(t, json.Unmarshal(b, &decoded))
+	require.Nil(t, decoded.AutomationType)
+	require.Equal(t, "p", decoded.Name)
+	b, err = json.Marshal(&Policy{ScriptID: new(uint(1))})
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(b, &decoded))
+	require.Equal(t, PolicyAutomationScript, *decoded.AutomationType)
+}
+
+func TestPolicyAutomations(t *testing.T) {
+	require.Empty(t, PolicyPayload{ProfileUUID: new("")}.Automations())
+	require.Equal(t, []PolicyAutomation{PolicyAutomationSoftware, PolicyAutomationWebhookOrTicket},
+		PolicyPayload{VPPAppsTeamsID: new(uint(1)), WebhooksAndTicketsEnabled: true}.Automations())
+
+	// Spec IDs of 0 and empty profile UUIDs mean none.
+	require.Empty(t, PolicySpec{SoftwareTitleID: new(uint(0)), ScriptID: new(uint(0)), ProfileUUID: new("")}.Automations())
+	require.Equal(t, []PolicyAutomation{PolicyAutomationConditionalAccess, PolicyAutomationScript, PolicyAutomationCalendar},
+		PolicySpec{ConditionalAccessEnabled: true, ScriptID: new(uint(2)), CalendarEventsEnabled: true}.Automations())
+
+	for _, a := range []PolicyAutomation{"script", "software", "configuration_profile", "calendar", "conditional_access", "webhook_or_ticket"} {
+		require.True(t, a.IsValid(), a)
+	}
+	for _, a := range []PolicyAutomation{"", "scripts", "profiles", "other", "patch", "Script"} {
+		require.False(t, a.IsValid(), a)
+	}
+}
+
+func TestModifyPolicyPayloadAutomationTypeJSON(t *testing.T) {
+	// Go clients send the whole payload, so an unset automation_type must not reach the server as null (remove).
+	b, err := json.Marshal(ModifyPolicyPayload{})
+	require.NoError(t, err)
+	require.NotContains(t, string(b), "automation_type")
+
+	b, err = json.Marshal(ModifyPolicyPayload{AutomationType: optjson.Any[PolicyAutomation]{Set: true}})
+	require.NoError(t, err)
+	var decoded ModifyPolicyPayload
+	require.NoError(t, json.Unmarshal(b, &decoded))
+	require.True(t, decoded.AutomationType.Set)
+	require.False(t, decoded.AutomationType.Valid)
 }

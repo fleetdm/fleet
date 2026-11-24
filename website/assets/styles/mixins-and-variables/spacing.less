@@ -18,6 +18,38 @@
 @section-gap-sm: 24px;
 @section-gap-lg: 120px;
 
+// Section spacing scale (Figma: Spacing / Section), named by desktop value.
+// LESS variables can't change at a breakpoint, so each size has a variant per
+// Bootstrap tier: none = xl (base styles), -lg = lg (max-width: 1199px),
+// -md = md (max-width: 991px), -sm = sm (max-width: 767px),
+// -xs = xs (max-width: 575px). Each tier is one step down the foundation
+// spacing scale; 64px and below stop shrinking at a minimum.
+@section-200: 200px;
+@section-200-lg: 180px;
+@section-200-md: 160px;
+@section-200-sm: 140px;
+@section-200-xs: 120px;
+@section-160: 160px;
+@section-160-lg: 140px;
+@section-160-md: 120px;
+@section-160-sm: 100px;
+@section-160-xs: 80px;
+@section-120: 120px;
+@section-120-lg: 100px;
+@section-120-md: 80px;
+@section-120-sm: 64px;
+@section-120-xs: 56px;
+@section-64: 64px;
+@section-64-lg: 56px;
+@section-64-md: 48px;
+@section-64-sm: 40px;
+@section-64-xs: 40px;
+@section-48: 48px;
+@section-48-lg: 40px;
+@section-48-md: 32px;
+@section-48-sm: 32px;
+@section-48-xs: 32px;
+
 // Inner — padding inside containers, cards, inputs, buttons
 @inner-padding: 16px;
 @inner-padding-sm: 12px;

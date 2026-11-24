@@ -51,8 +51,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     [`${baseClass}__dot--active`]: value,
   });
 
-  const handleClick = (evt: React.MouseEvent) => {
-    evt.preventDefault();
+  const handleClick = () => {
     if (disabled) return;
 
     onChange();
@@ -76,6 +75,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     <FormField {...formFieldProps} type="slider">
       <div className={wrapperClassNames}>
         <button
+          type="button"
           role="switch"
           aria-checked={value}
           aria-label={ariaLabel}

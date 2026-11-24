@@ -228,8 +228,6 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 
 	// organization information
 	sum.Config.OrgInfo.OrgName = appCfg.OrgInfo.OrgName
-	sum.Config.OrgInfo.OrgLogoURL = appCfg.OrgInfo.OrgLogoURL
-	sum.Config.OrgInfo.OrgLogoURLLightBackground = appCfg.OrgInfo.OrgLogoURLLightBackground
 	sum.Config.OrgInfo.OrgLogoURLDarkMode = appCfg.OrgInfo.OrgLogoURLDarkMode
 	sum.Config.OrgInfo.OrgLogoURLLightMode = appCfg.OrgInfo.OrgLogoURLLightMode
 	sum.Config.OrgInfo.ContactURL = appCfg.OrgInfo.ContactURL
@@ -329,7 +327,11 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 		return err
 	}
 
-	if orbitInfo == nil || !fleet.IsAtLeastVersion(orbitInfo.Version, fleet.MinOrbitLUKSVersion) {
+	minOrbitVersion := fleet.MinOrbitLUKSVersion
+	if host.Platform == "omarchy" {
+		minOrbitVersion = fleet.MinOrbitOmarchyLUKSVersion
+	}
+	if orbitInfo == nil || !fleet.IsAtLeastVersion(orbitInfo.Version, minOrbitVersion) {
 		return &fleet.BadRequestError{Message: "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again."}
 	}
 
@@ -392,7 +394,7 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 	}
 
 	// Add activities for canceled installs + setup experience run
-	err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, hostUUID, host.DisplayName(), results)
+	err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, hostUUID, host.DisplayName(), host.TeamID, results)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}

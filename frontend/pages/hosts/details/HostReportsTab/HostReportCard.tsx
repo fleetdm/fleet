@@ -9,10 +9,15 @@ import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
 import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
-import { humanLastSeen } from "utilities/helpers";
+import {
+  humanLastSeen,
+  internallyTruncateText,
+  internationalTimeFormat,
+} from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
@@ -83,12 +88,20 @@ const HostReportCard = ({
   }, [hasResults]);
 
   const renderLastUpdated = () => {
-    if (isAwaitingResults) return null;
+    const lastFetched = report.last_fetched;
+    if (!lastFetched) return null;
 
-    const prefix = doesNotStoreResults ? "Last ran" : "Last updated";
+    const prefix = doesNotStoreResults ? "Last ran" : "Last fetched";
     return (
       <span className={`${baseClass}__last-updated`}>
-        {prefix} {humanLastSeen(report.last_fetched || "")}
+        <TooltipWrapper
+          tipContent={internationalTimeFormat(new Date(lastFetched))}
+          position="top"
+          underline={false}
+          showArrow
+        >
+          {prefix} {humanLastSeen(lastFetched)}
+        </TooltipWrapper>
       </span>
     );
   };
@@ -103,7 +116,14 @@ const HostReportCard = ({
           <DataSet
             key={key}
             title={key}
-            value={<TooltipTruncatedText value={value} />}
+            value={
+              <TooltipTruncatedText
+                value={value}
+                tooltip={
+                  value.length > 300 ? internallyTruncateText(value) : undefined
+                }
+              />
+            }
             textOnly
           />
         ))}
@@ -115,7 +135,7 @@ const HostReportCard = ({
     if (doesNotStoreResults) {
       return (
         <ReportBanner
-          iconName="info-outline"
+          iconName="info"
           message="Results from this report are not stored in Fleet."
         />
       );
@@ -124,7 +144,7 @@ const HostReportCard = ({
     if (isAwaitingResults) {
       return (
         <ReportBanner
-          iconName="pending-outline"
+          iconName="pending"
           message={`Fleet is awaiting results from ${hostName}.`}
         />
       );
@@ -143,7 +163,7 @@ const HostReportCard = ({
       const additionalCount = report.n_host_results - 1;
       return (
         <ReportBanner
-          iconName="info-outline"
+          iconName="info"
           message={`${additionalCount} additional ${pluralize(
             additionalCount,
             "result"
@@ -169,32 +189,32 @@ const HostReportCard = ({
   return (
     <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__header-left`}>
+        <div className={`${baseClass}__header-top`}>
           <div className={`${baseClass}__title-row`}>
             <h3 className={`${baseClass}__name`}>
               <TooltipTruncatedText value={report.name} fixedPositionStrategy />
             </h3>
             {renderLastUpdated()}
           </div>
-          {report.description && (
-            <p className={`${baseClass}__description`}>{report.description}</p>
-          )}
+          <div className={`${baseClass}__header-right`}>
+            {report.report_clipped && (
+              <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
+                <Icon name="warning" color={ICON_COLOR} />
+                Report clipped
+              </Tag>
+            )}
+            <ActionsDropdown
+              options={actionOptions}
+              placeholder="Actions"
+              onChange={onActionChange}
+              variant="secondary"
+              menuAlign="right"
+            />
+          </div>
         </div>
-        <div className={`${baseClass}__header-right`}>
-          {report.report_clipped && (
-            <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
-              <Icon size="small" name="warning" color={ICON_COLOR} />
-              Report clipped
-            </Tag>
-          )}
-          <ActionsDropdown
-            options={actionOptions}
-            placeholder="Actions"
-            onChange={onActionChange}
-            variant="secondary"
-            menuAlign="right"
-          />
-        </div>
+        {report.description && (
+          <p className={`${baseClass}__description`}>{report.description}</p>
+        )}
       </div>
 
       {renderDataCells()}

@@ -9,10 +9,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 )
@@ -25,11 +28,12 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	return svc.Service.GetHost(ctx, id, opts)
 }
 
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	// reuse HostByIdentifier, but include premium options
+func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	// reuse GetHostByIDOrIdentifier, but include premium details
 	opts.IncludeCVEScores = true
 	opts.IncludePolicies = true
-	return svc.Service.HostByIdentifier(ctx, identifier, opts)
+	opts.IncludeCriticalVulnerabilitiesCount = true
+	return svc.Service.GetHostByIDOrIdentifier(ctx, identifier, opts)
 }
 
 func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, _ bool,
@@ -48,7 +52,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return "", err
+		return "", authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -62,13 +66,13 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "lock host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return "", err
+		return "", authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
+		if host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockPersonalHostsMessage,
 			}
@@ -145,8 +149,8 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	}
 
 	// if there's a lock, unlock or wipe action pending, do not accept the lock
-	// request.
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	// request. Read from the primary so an action committed by an earlier request isn't missed.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
@@ -165,13 +169,24 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			),
 		)
 	case lockWipe.IsPendingWipe():
+		noun, participle := wipeOrResetWords(lockWipe)
 		return "", ctxerr.Wrap(
 			ctx,
-			fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process lock requests once host is wiped."),
+			fleet.NewInvalidArgumentError("host_id",
+				"Host has pending "+noun+" request. Cannot process lock requests once host is "+participle+"."),
+		)
+	case lockWipe.HostFleetPlatform == "android" && lockWipe.IsPendingClearPasscode():
+		// On Android both are RESET_PASSWORD, so a clear landing after the lock would leave a stale PIN marked available.
+		return "", ctxerr.Wrap(
+			ctx, fleet.NewInvalidArgumentError(
+				"host_id", "Host has pending clear passcode request. Host cannot be locked until clear passcode is complete.",
+			),
 		)
 	case lockWipe.IsWiped():
+		_, participle := wipeOrResetWords(lockWipe)
 		return "", ctxerr.Wrap(
-			ctx, fleet.NewInvalidArgumentError("host_id", "Host is wiped. Cannot process lock requests once host is wiped."),
+			ctx, fleet.NewInvalidArgumentError("host_id",
+				"Host is "+participle+". Cannot process lock requests once host is "+participle+"."),
 		)
 	case lockWipe.IsLocked():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already locked.").WithStatus(http.StatusConflict))
@@ -181,15 +196,15 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	return svc.enqueueLockHostRequest(ctx, host, lockWipe, viewPIN)
 }
 
-func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
+func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return "", err
+		return nil, authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get host lite")
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
 	}
 
 	// Authorize again with team loaded now that we have the host's team_id.
@@ -199,7 +214,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	// be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "unlock host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return "", err
+		return nil, authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// locking validations are based on the platform of the host
@@ -216,7 +231,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 				if errors.Is(err, fleet.ErrMDMNotConfigured) {
 					err = fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 				}
-				return "", ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+				return nil, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 			}
 		}
 		hostOrbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
@@ -224,27 +239,37 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		case err != nil:
 			// If not found, then do nothing. We do not know if this host has scripts enabled or not
 			if !fleet.IsNotFound(err) {
-				return "", ctxerr.Wrap(ctx, err, "get host orbit info")
+				return nil, ctxerr.Wrap(ctx, err, "get host orbit info")
 			}
 		case hostOrbitInfo.ScriptsEnabled != nil && !*hostOrbitInfo.ScriptsEnabled:
-			return "", ctxerr.Wrap(
+			return nil, ctxerr.Wrap(
 				ctx, fleet.NewInvalidArgumentError(
 					"host_id", "Couldn't unlock host. To unlock, deploy the fleetd agent with --enable-scripts and refetch host vitals.",
 				),
 			)
 		}
 
+	case "android":
+		// Unlock only reads the stored PIN, so it doesn't require the host to still be connected to Fleet MDM (as with
+		// macOS). A company-owned host that lost MDM still has a usable PIN, which matters for legal hold.
+		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+				err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			}
+			return nil, ctxerr.Wrap(ctx, err, "check android MDM enabled")
+		}
+
 	default:
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
 	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
 	switch {
 	case lockWipe.IsPendingLock():
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be unlocked until lock is complete."))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be unlocked until lock is complete."))
 	case lockWipe.IsPendingUnlock():
 		// MacOS machines are unlocked by typing the PIN into the machine. "Unlock" in this case
 		// should just return the PIN as many times as needed.
@@ -252,24 +277,31 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		if host.FleetPlatform() == "darwin" {
 			break
 		}
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
 	case lockWipe.IsPendingWipe():
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process unlock requests once host is wiped."))
+		noun, participle := wipeOrResetWords(lockWipe)
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host has pending "+noun+" request. Cannot process unlock requests once host is "+participle+"."))
 	case lockWipe.IsWiped():
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is wiped. Cannot process unlock requests once host is wiped."))
-	case lockWipe.IsUnlocked():
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
+		_, participle := wipeOrResetWords(lockWipe)
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host is "+participle+". Cannot process unlock requests once host is "+participle+"."))
+	case lockWipe.HostFleetPlatform == "android" && !lockWipe.IsAndroidUnlockPINAvailable():
+		// Android always reports unlocked (see HostLockWipeStatus.IsLocked), so whether there's a PIN to show decides it.
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
+	case lockWipe.HostFleetPlatform != "android" && lockWipe.IsUnlocked():
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
 	}
 
 	// all good, go ahead with queuing the unlock request.
 	return svc.enqueueUnlockHostRequest(ctx, host, lockWipe)
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error {
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -283,7 +315,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	// host IDs outside their visibility can't be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "wipe host")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// wipe validations are based on the platform of the host, Windows and macOS
@@ -292,7 +324,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
+		if host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
 			return &fleet.BadRequestError{
 				Message: fleet.CantWipePersonalHostsMessage,
 			}
@@ -357,21 +389,104 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
-	switch {
-	case lockWipe.IsPendingLock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete."))
-	case lockWipe.IsPendingUnlock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete."))
-	case lockWipe.IsPendingWipe():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online."))
-	case lockWipe.IsLocked():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked."))
-	case lockWipe.IsWiped():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict))
+	// A wipe takes over a reset the host hasn't picked up yet, or waits behind one it acknowledged, for when the reset is
+	// interrupted (see WipeHostViaWindowsMDM).
+	if !lockWipe.IsReset() || lockWipe.WipeQueuedAfterReset {
+		if err := checkHostCanBeWiped(ctx, lockWipe, "wiped"); err != nil {
+			return err
+		}
 	}
 
 	// all good, go ahead with queuing the wipe request.
-	return svc.enqueueWipeHostRequest(ctx, host, lockWipe, metadata)
+	return svc.enqueueWipeHostRequest(ctx, host, lockWipe)
+}
+
+// checkHostCanBeWiped rejects a wipe or a reset (participle "wiped" or "reset") while another lock, unlock, wipe or reset
+// is pending, or once the host is locked, wiped or reset.
+func checkHostCanBeWiped(ctx context.Context, lockWipe *fleet.HostLockWipeStatus, participle string) error {
+	wipeNoun, wipeParticiple := wipeOrResetWords(lockWipe)
+	switch {
+	case lockWipe.IsPendingLock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be "+participle+" until lock is complete."))
+	case lockWipe.IsPendingUnlock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be "+participle+" until unlock is complete."))
+	case lockWipe.WipeQueuedAfterReset:
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host has pending wipe request. The host will be wiped if the reset doesn't complete."))
+	case lockWipe.IsPendingWipe():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id",
+			"Host has pending "+wipeNoun+" request. The host will be "+wipeParticiple+" when it comes online."))
+	case lockWipe.IsLocked():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be "+participle+" until it is unlocked."))
+	case lockWipe.IsWiped():
+		return ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError("host_id", "Host is already "+wipeParticiple+".").WithStatus(http.StatusConflict))
+	}
+	return nil
+}
+
+// wipeOrResetWords names the host's wipe command in error messages: a Windows reset is tracked as a wipe.
+func wipeOrResetWords(lockWipe *fleet.HostLockWipeStatus) (noun, participle string) {
+	if lockWipe.IsReset() {
+		return "reset", "reset"
+	}
+	return "wipe", "wiped"
+}
+
+func (svc *Service) ResetHost(ctx context.Context, hostID uint) error {
+	// Same authorization as WipeHost: list hosts first, then execute MDM commands on the host's fleet, masked as not
+	// found when the caller can't see the host.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return authz.GitOpsHostListError(ctx, err)
+	}
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "reset host")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
+	}
+
+	if host.FleetPlatform() != "windows" {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Reset is only available for Windows hosts."))
+	}
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		if errors.Is(err, fleet.ErrMDMNotConfigured) {
+			err = fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		}
+		return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't reset the host because it doesn't have MDM turned on."))
+	}
+
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+	if err := checkHostCanBeWiped(ctx, lockWipe, "reset"); err != nil {
+		return err
+	}
+
+	// Tracked through host_mdm_actions.wipe_ref like a wipe: the Windows MDM result handler and the re-enrollment check
+	// for a host whose hardware ID is already enrolled both rely on it, and MDM re-enrollment clears it.
+	cmd := microsoft_mdm.RemoteWipeCmd(fleet.WindowsRemoteWipePersistProvisionedData)
+	if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing reset request for windows")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResetHost{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for reset host request")
+	}
+	return nil
 }
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus, viewPIN bool) (
@@ -432,10 +547,10 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 			return "", err
 		}
 	case "android":
-		if err := svc.androidModule.LockAndroidHost(ctx, host.ID); err != nil {
+		if unlockPIN, err = svc.androidModule.LockAndroidHost(ctx, host.ID); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "enqueuing lock request for android")
 		}
-		activity.ViewPIN = false
+		activity.ViewPIN = viewPIN
 	}
 
 	if err := svc.NewActivity(
@@ -449,27 +564,45 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 	return unlockPIN, nil
 }
 
-func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (unlockPIN string, err error) {
+func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (*fleet.HostUnlockResult, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return "", fleet.ErrNoContext
+		return nil, fleet.ErrNoContext
 	}
 
+	// Every platform except Android sends (or records) an unlock, so the host is locked with an unlock pending.
+	res := &fleet.HostUnlockResult{DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
+
 	switch lockStatus.HostFleetPlatform {
+	case "android":
+		// Nothing is sent to the device: the end user unlocks with the PIN set on lock. The activity is logged before
+		// the PIN is returned so that every view that succeeds is audited.
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeViewedHostUnlockPIN{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+			HostPlatform:    host.Platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for viewed host unlock PIN")
+		}
+		return &fleet.HostUnlockResult{
+			UnlockPIN:    lockStatus.UnlockPIN,
+			LockedAt:     new(lockStatus.AndroidLockedAt()),
+			DeviceStatus: fleet.DeviceStatusUnlocked,
+		}, nil
 	case "darwin":
 		// Record the unlock request time if it was not already recorded.
 		// It should be always recorded, since the UnlockRequestedAt time is created after the lock command is acknowledged.
 		// This code is left here to catch potential issues.
 		if lockStatus.UnlockRequestedAt.IsZero() {
 			if err := svc.ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC()); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
-		unlockPIN = lockStatus.UnlockPIN
+		res.UnlockPIN = lockStatus.UnlockPIN
 	case "ios", "ipados":
 		err := svc.mdmAppleCommander.DisableLostMode(ctx, host, uuid.NewString())
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "disabling lost mode for iOS/iPadOS")
+			return nil, ctxerr.Wrap(ctx, err, "disabling lost mode for iOS/iPadOS")
 		}
 	case "windows":
 		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
@@ -483,7 +616,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 			UserID:         &vc.User.ID,
 			SyncRequest:    false,
 		}, host.FleetPlatform()); err != nil {
-			return "", err
+			return nil, err
 		}
 	case "linux":
 		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
@@ -497,10 +630,10 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 			UserID:         &vc.User.ID,
 			SyncRequest:    false,
 		}, host.FleetPlatform()); err != nil {
-			return "", err
+			return nil, err
 		}
 	default:
-		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
 	if err := svc.NewActivity(
@@ -512,17 +645,16 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 			HostPlatform:    host.Platform,
 		},
 	); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "create activity for unlock host request")
+		return nil, ctxerr.Wrap(ctx, err, "create activity for unlock host request")
 	}
 
-	return unlockPIN, nil
+	return res, nil
 }
 
 func (svc *Service) enqueueWipeHostRequest(
 	ctx context.Context,
 	host *fleet.Host,
 	wipeStatus *fleet.HostLockWipeStatus,
-	metadata *fleet.MDMWipeMetadata,
 ) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
@@ -537,19 +669,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		}
 
 	case "windows":
-		// default wipe type
-		wipeType := fleet.MDMWindowsWipeTypeDoWipeProtected
-		if metadata != nil && metadata.Windows != nil {
-			wipeType = metadata.Windows.WipeType
-			svc.logger.DebugContext(ctx, "Windows host wipe request", "wipe_type", wipeType.String())
-		}
-		wipeCmdUUID := uuid.NewString()
-		wipeCmd := &fleet.MDMWindowsCommand{
-			CommandUUID:  wipeCmdUUID,
-			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID, wipeType.String())),
-			TargetLocURI: fmt.Sprintf("./Device/Vendor/MSFT/RemoteWipe/%s", wipeType.String()),
-		}
-		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {
+		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, microsoft_mdm.RemoteWipeCmd(fleet.WindowsRemoteWipeProtected)); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for windows")
 		}
 
@@ -590,7 +710,7 @@ func (svc *Service) enqueueWipeHostRequest(
 
 func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
@@ -604,7 +724,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	// be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate recovery lock password")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 
 	// Validate: must be Apple Silicon Mac (macOS with ARM CPU)
@@ -644,7 +764,7 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 
 	if !recoveryLockEnabled {
 		return &fleet.BadRequestError{
-			Message: "Recovery lock password is not enabled for this host's team.",
+			Message: "Recovery lock password is not enabled for this host's fleet.",
 		}
 	}
 
@@ -729,6 +849,130 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	return nil
 }
 
+func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Masked as not-found when the caller can't read the host's MDM commands, so
+	// host IDs outside their visibility can't be probed.
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate disk encryption key")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionRotateDiskEncryptionKey, notFoundErr); err != nil {
+		return err
+	}
+
+	if host.FleetPlatform() != "darwin" {
+		return &fleet.BadRequestError{Message: "Disk encryption key rotation is only supported on macOS hosts."}
+	}
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return err
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return &fleet.BadRequestError{Message: "Host must be enrolled in Fleet MDM to rotate the disk encryption key."}
+	}
+	// A personal enrollment profile doesn't grant the access right the command needs.
+	if host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
+		return &fleet.BadRequestError{Message: "Couldn't rotate disk encryption key. This command isn't available for personal hosts."}
+	}
+
+	// Escrow is the only required setting: FileVault may be turned on outside
+	// Fleet, and the escrow payload is what makes the rotated key reach Fleet.
+	diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get disk encryption config")
+	}
+	if !diskEncryption.MacOSEscrowEnabled {
+		return fleet.NewUserMessageError(errors.New("Disk encryption key escrow is not turned on for this host's fleet."), http.StatusUnprocessableEntity)
+	}
+
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
+	switch {
+	case fleet.IsNotFound(err):
+		return fleet.NewUserMessageError(errors.New("Host does not have a disk encryption key to rotate."), http.StatusUnprocessableEntity)
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get host disk encryption key")
+	}
+	if key.Base64Encrypted == "" {
+		return fleet.NewUserMessageError(errors.New("Host does not have a disk encryption key to rotate."), http.StatusUnprocessableEntity)
+	}
+
+	alreadyInProgressErr := &fleet.ConflictError{Message: "Disk encryption key rotation is already in progress for this host."}
+	if key.RotationCommandUUID != nil {
+		inProgress, err := svc.ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, *key.RotationCommandUUID,
+			fleet.DiskEncryptionKeyRotationStaleAfter)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check pending disk encryption key rotation")
+		}
+		if inProgress {
+			return alreadyInProgressErr
+		}
+		// The command is gone or finished without its result clearing the marker.
+		// The clear applies only to this same stale marker, so if a concurrent
+		// request replaced it first, this one conflicts.
+		cleared, err := svc.ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, *key.RotationCommandUUID,
+			fleet.DiskEncryptionKeyRotationStaleAfter)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear stale disk encryption key rotation")
+		}
+		if !cleared {
+			return alreadyInProgressErr
+		}
+	}
+
+	// The current key is the command's unlock credential. If it no longer
+	// decrypts despite the flag (the CA key changed), delivery fails and marks it
+	// not decryptable, which prompts the end user to escrow a new one.
+	if key.Decryptable == nil || !*key.Decryptable {
+		return fleet.NewUserMessageError(errors.New("Couldn't rotate disk encryption key. The current key is not decryptable."), http.StatusUnprocessableEntity)
+	}
+	caCert, err := assets.X509Cert(ctx, svc.ds, fleet.MDMAssetCACert)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load CA certificate for rotation reply")
+	}
+
+	cmdUUID := uuid.NewString()
+	recorded, err := svc.ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "record pending disk encryption key rotation")
+	}
+	if !recorded {
+		return alreadyInProgressErr
+	}
+
+	if err := svc.mdmAppleCommander.RotateFileVaultKey(ctx, host.UUID, cmdUUID, caCert.Raw); err != nil {
+		// A push failure leaves the command enqueued for the next check-in, so the
+		// rotation is still pending.
+		if _, pushFailed := errors.AsType[*apple_mdm.NotificationFailedError](err); !pushFailed {
+			if clearErr := svc.ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID); clearErr != nil {
+				svc.logger.ErrorContext(ctx, "clear disk encryption key rotation after enqueue failure", "host_id", host.ID, "err", clearErr)
+			}
+			return ctxerr.Wrap(ctx, err, "enqueue RotateFileVaultKey command")
+		}
+
+		// if we queued it correctly, log the activity the device will eventually pick it up
+		svc.logger.ErrorContext(ctx, "failed to notify device of disk encryption key rotation", "host_id", host.ID, "err", err)
+	}
+
+	if vc, ok := viewer.FromContext(ctx); ok {
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeRotatedDiskEncryptionKey{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for rotate disk encryption key")
+		}
+	}
+
+	return nil
+}
+
 var (
 	//go:embed embedded_scripts/windows_lock.ps1
 	windowsLockScript []byte
@@ -740,21 +984,6 @@ var (
 	linuxUnlockScript []byte
 	//go:embed embedded_scripts/linux_wipe.sh
 	linuxWipeScript []byte
-
-	windowsWipeCommand = `
-		<Exec>
-			<CmdID>%s</CmdID>
-			<Item>
-				<Target>
-					<LocURI>./Device/Vendor/MSFT/RemoteWipe/%s</LocURI>
-				</Target>
-				<Meta>
-					<Format xmlns="syncml:metinf">chr</Format>
-					<Type>text/plain</Type>
-				</Meta>
-				<Data></Data>
-			</Item>
-		</Exec>`
 )
 
 func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
@@ -843,7 +1072,7 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 // flight is rejected with 400 BadRequest.
 func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
+		return authz.GitOpsHostListError(ctx, err)
 	}
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
@@ -856,7 +1085,7 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	// be probed.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(hostID), "rotate managed local account password")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite, notFoundErr); err != nil {
-		return err
+		return authz.GitOpsMDMCommandError(ctx, host.TeamID, err)
 	}
 	isWindows := fleet.IsWindowsPlatform(host.Platform)
 	if !fleet.IsMacOSPlatform(host.Platform) && !isWindows {

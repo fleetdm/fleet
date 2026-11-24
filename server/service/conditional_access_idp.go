@@ -9,12 +9,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -52,9 +52,9 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 			<key>PayloadContent</key>
 			<dict>
 				<key>URL</key>
-				<string>{{ xml .SCEPURL }}</string>
+				<string>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</string>
 				<key>Challenge</key>
-				<string>{{ xml .Challenge }}</string>
+				<string>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</string>
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>Key Type</key>
@@ -228,8 +228,6 @@ func generateDeterministicUUID(serverURL, component string) string {
 
 type appleProfileTemplateData struct {
 	CACertBase64     string
-	SCEPURL          string
-	Challenge        string
 	CertificateCN    string
 	MTLSURL          string
 	CACertUUID       string
@@ -330,10 +328,20 @@ func conditionalAccessGetIdPAppleProfileEndpoint(ctx context.Context, _ interfac
 	}, nil
 }
 
-func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
-	// Check user is authorized to read conditional access Apple profile
-	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPAssets{}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
+// conditionalAccessProfileInputs are the values every conditional access profile is rendered from. The SCEP URL and
+// challenge are Fleet variables filled in at delivery.
+type conditionalAccessProfileInputs struct {
+	caCert    *x509.Certificate
+	serverURL string
+	mtlsURL   string
+}
+
+// loadConditionalAccessProfileInputs checks the preconditions shared by the Apple and Windows profiles and loads their
+// inputs, so the platforms can't drift on either.
+func (svc *Service) loadConditionalAccessProfileInputs(ctx context.Context) (*conditionalAccessProfileInputs, error) {
+	// The CA outlives a downgrade, but the SCEP server and IdP are only served on Premium.
+	if !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	// Check that server private key is configured
@@ -361,13 +369,10 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	}
 
 	// Parse DER certificate
-	_, err = x509.ParseCertificate(block.Bytes)
+	caCert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse CA certificate")
 	}
-
-	// Base64 encode the DER certificate for the profile
-	caCertBase64 := base64.StdEncoding.EncodeToString(block.Bytes)
 
 	// Get app config for server URL
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -378,33 +383,32 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		return nil, &fleet.BadRequestError{Message: "server URL is not configured"}
 	}
 
-	// Construct SCEP URL using net/url package
-	parsedServerURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to parse server URL")
-	}
-	scepURL := parsedServerURL.JoinPath("/api/fleet/conditional_access/scep").String()
-
-	// Get global enroll secrets
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to get enroll secrets")
-	}
-	if len(secrets) == 0 {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "global enroll secret is not configured"})
-	}
-
-	// Use the first global enroll secret as the challenge
-	challenge := secrets[0].Secret
-
-	// Get mTLS URL using ConditionalAccessIdPSSOURL
+	// Get mTLS URL using ConditionalAccessIdPSSOURL, which also checks the server URL parses.
 	mtlsURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to get mTLS URL")
 	}
 
+	return &conditionalAccessProfileInputs{
+		caCert:    caCert,
+		serverURL: appConfig.ServerSettings.ServerURL,
+		mtlsURL:   mtlsURL,
+	}, nil
+}
+
+func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	// Check user is authorized to read conditional access Apple profile
+	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPAssets{}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
+	}
+
+	in, err := svc.loadConditionalAccessProfileInputs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Generate deterministic UUIDs based on server URL
-	serverURL := appConfig.ServerSettings.ServerURL
+	serverURL := in.serverURL
 	caCertUUID := generateDeterministicUUID(serverURL, "conditional-access-ca-cert")
 	scepPayloadUUID := generateDeterministicUUID(serverURL, "conditional-access-scep")
 	identityPrefUUID := generateDeterministicUUID(serverURL, "conditional-access-identity-pref")
@@ -414,11 +418,10 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	// Execute template
 	var buf bytes.Buffer
 	if err := conditionalAccessAppleProfileTemplateParsed.Execute(&buf, appleProfileTemplateData{
-		CACertBase64:     caCertBase64,
-		SCEPURL:          scepURL,
-		Challenge:        challenge,
+		// Base64 encode the DER certificate for the profile
+		CACertBase64:     base64.StdEncoding.EncodeToString(in.caCert.Raw),
 		CertificateCN:    fleet.ConditionalAccessOktaCertificateCN,
-		MTLSURL:          mtlsURL,
+		MTLSURL:          in.mtlsURL,
 		CACertUUID:       caCertUUID,
 		SCEPPayloadUUID:  scepPayloadUUID,
 		IdentityPrefUUID: identityPrefUUID,

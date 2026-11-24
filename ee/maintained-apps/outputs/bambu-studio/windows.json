@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "02.09.01.70",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Bambu Studio' AND publisher = 'Bambulab';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Bambu Studio' AND publisher = 'Bambulab' AND version_compare(version, '02.09.01.70') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bambu-studio.exe');"
+      },
+      "installer_url": "https://github.com/bambulab/BambuStudio/releases/download/v02.09.01.70/Bambu_Studio_win-v02.09.01.70-20261103183404.exe",
+      "install_script_ref": "88dda0b9",
+      "uninstall_script_ref": "cb82eb15",
+      "sha256": "63f0362a1a8af079f6bb07fd61a2f1d11911de40f68be4f71644aefb99327a80",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "88dda0b9": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# A silent install closes Bambu Studio if it's running. The installer also runs\n# its bundled WebView2 Runtime and Visual C++ 2019 installers, which can leave\n# updater processes behind, so this script waits on the installer itself rather\n# than on everything it starts.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n$timeoutMinutes = 30\n\ntry {\n    $process = Start-Process -FilePath \"$exeFilePath\" -ArgumentList \"/S\" -PassThru\n    # Without a cached handle, ExitCode is empty once the process has exited.\n    $null = $process.Handle\n\n    if (-not $process.WaitForExit($timeoutMinutes * 60 * 1000)) {\n        Write-Host \"The installer didn't finish within $timeoutMinutes minutes.\"\n        & taskkill.exe /PID $process.Id /T /F | Out-Null\n        Exit 1\n    }\n\n    $exitCode = $process.ExitCode\n    if ($null -eq $exitCode) {\n        Write-Host \"The installer exited without reporting an exit code.\"\n        Exit 1\n    }\n    Write-Host \"Install exit code: $exitCode\"\n\n    # 3010 = success, restart required; 1641 = success, restart initiated.\n    if ($exitCode -in @(0, 3010, 1641)) {\n        Exit 0\n    }\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "cb82eb15": "# Uninstalling closes Bambu Studio if it's running. Each user's settings and\n# projects are left in place.\n\n$displayName = \"Bambu Studio\"\n$publisher = \"Bambulab\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -eq $displayName -and $_.Publisher -eq $publisher\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n} else {\n    $uninstall.UninstallString\n}\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# /S must be uppercase.\nif ($existingArgs -cnotmatch '(^|\\s)/S(\\s|$)') {\n    $existingArgs = (\"$existingArgs /S\").Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    # 3010 = success, restart required; 1641 = success, restart initiated.\n    if ($exitCode -in @(0, 3010, 1641)) {\n        Exit 0\n    }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

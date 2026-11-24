@@ -1,11 +1,10 @@
 {
   "name": "Disk Drill",
-  "unique_identifier": "com.cleverfiles.DiskDrill-setapp",
+  "unique_identifier": "com.cleverfiles.DiskDrill",
   "token": "disk-drill",
   "installer_format": "dmg",
   "slug": "disk-drill/darwin",
   "default_categories": [
     "Productivity"
-  ],
-  "frozen": true
+  ]
 }

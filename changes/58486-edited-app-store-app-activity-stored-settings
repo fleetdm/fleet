@@ -1,0 +1,1 @@
+- Fixed a bug where editing an App Store app version through the API with only some fields logged an activity without the version's labels or configuration.

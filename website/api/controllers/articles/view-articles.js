@@ -34,9 +34,11 @@ module.exports = {
     let articles = [];
     let category = this.req.path.split('/')[1];
     if (category === 'articles') {
-      // If the category is `/articles` we'll show everything but guides, webinars and whitepaper articles.
+      // If the category is `/articles` (the "All" link), we'll show every article category except
+      // Industry news, which stays out of the "All" view but is still reachable directly and is
+      // still included in the sitemap.
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides') && !_.startsWith(page.url, '/whitepapers') && !_.startsWith(page.url,  '/webinars')) {
+        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/industry-news')) {
           return page;
         }
       });

@@ -1,8 +1,8 @@
 <h1><a href="https://fleetdm.com"><img width="200" alt="Fleet logo, landscape, dark text, transparent background" src="https://github.com/user-attachments/assets/5b52c536-f33e-4159-b2a3-d48f31868cd2"></a></h1>
 
-#### [News](https://fleetdm.com/announcements) &nbsp; · &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new) &nbsp; · &nbsp; [Docs](https://fleetdm.com/docs) &nbsp; · &nbsp; [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source) &nbsp; · &nbsp; [Art](https://fleetdm.com/logos)
+#### [Releases](https://fleetdm.com/releases) &nbsp; · &nbsp; [Report a bug](https://github.com/fleetdm/fleet/issues/new) &nbsp; · &nbsp; [Docs](https://fleetdm.com/docs) &nbsp; · &nbsp; [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source) &nbsp; · &nbsp; [Art](https://fleetdm.com/logos)
 
-Open-source platform for IT and security teams with thousands of computers. Designed for APIs, GitOps, webhooks, YAML, and humans.
+Open-source platform for IT and security teams with thousands of computers and other devices. Designed for APIs, GitOps, webhooks, YAML, and humans.
 
 <a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f835ec29-1cb9-49ba-a0f3-395ffd9d5c9f" alt="A glass city in the clouds"/></a>
 
@@ -23,20 +23,23 @@ Fleet is used in production by IT and security teams managing thousands of devic
 - Linux (all distros)
 - macOS
 - Windows
-- Chromebooks
-- iOS and Android (BYOD or corporate-owned)
-- Amazon Web Services (AWS)
-- Google Cloud (GCP)
-- Azure (Microsoft cloud)
-- Data centers
-- Containers (kube, etc)
+- VDIs / claws
+- ChromeOS
+- BYOD smartphones (iOS and Android)
+- Work phones and tablets
+- Long-lived servers (incl. HPC)
+- Ephemeral servers
+- Self-service machines (tvOS, iPads, Android tablets, other kiosks, etc)
 - Linux-based IoT devices
+- Frontline mobile devices (iOS/iPadOS/Android)
+  1. Full, official support for rugged handheld and tablet support (e.g. scanners) is coming soon
+  2. Are you experienced with Zebra or Brady/Honeywell device management?  Contributions welcome!  Also, the company behind Fleet [is hiring](https://fleetdm.com/handbook/company#open-positions).
 
 #### Infrastructure as code
-Manage your fleet with [GitOps](https://fleetdm.com/docs/configuration/yaml-files), or use the GUI, REST API, webhook events, and the [fleetctl command-line tool](https://fleetdm.com/download).
+Manage your fleet with [an AI harness](https://fleetdm.com/workshops) and [GitOps](https://fleetdm.com/docs/configuration/yaml-files), or use the GUI, [REST API](https://fleetdm.com/docs/api/rest-api), webhook events, and the [fleetctl command-line tool](https://fleetdm.com/download).
 
 #### Linux support
-First-class support for all major distros. Linux gets the same attention and visibility as macOS and Windows.
+First-class support for [all major distros](https://fleetdm.com/linux). Linux gets the same attention and visibility as [macOS](https://fleetdm.com/apple) and [Windows](https://fleetdm.com/windows).
 
 #### Visibility and compliance
 Fleet can report on hundreds of attributes across your devices and ships with [CIS benchmarks for macOS and Windows](https://fleetdm.com/docs/using-fleet/cis-benchmarks) and comprehensive operating system, hardware, and software data. Check out the [table reference documentation](https://fleetdm.com/tables) to see what's available.
@@ -45,10 +48,12 @@ Fleet can report on hundreds of attributes across your devices and ships with [C
 Fleet is open source and transparent about what it can and can't see. End users can verify exactly how the agent works and what data their company collects. Fleet collects only the data needed to manage and secure devices, not private activity like keystrokes, emails, or webcams.
 
 #### Good neighbors
-Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more. Fleet also works with tools such as Munki, Chef, Puppet, Ansible, CrowdStrike, and SentinelOne.
+Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Apple, Microsoft 365, Okta _(including [conditional access on every platform](https://fleetdm.com/releases/fleet-4-95-0#okta-conditional-access-for-windows))_, Entra _(including [conditional access on macOS and Windows](https://fleetdm.com/guides/entra-conditional-access-integration))_, Cisco Duo, Google Identity (Beyondcorp), Google Workspace, PingID, Windows Autopilot ([optional](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot)), Dell, Lenovo, HP, Snowflake, Elastic, Datadog, Splunk, Vanta, Secureframe, Drata, Jira, ServiceNow, Oomnitza, Zendesk, Smallstep, SecureW2, Digicert, Microsoft NDES, Hydrant, open PKI protocols (SCEP, EST, ACME), and more. 
+
+Fleet also works great with tools such as Munki, Santa, Chef, Puppet, Ansible, SentinelOne, Crowdstrike, Sophos, Cortex, Tines, Workato, Zapier, Claude, Copilot, Codex, Cursor, Grok Build, OpenCode, Gemini/Antigravity, Slack, Teams, GitHub, GitLab, and more.
 
 #### Lighter than air
-Fleet is lightweight and modular. You can use it for MDM without using it for security, and vice versa. You can turn off features you are not using.
+Fleet is lightweight and modular. You can use it for MDM without using it for security telemetry, and vice versa. You can turn off features you are not using.
 
 #### Free as in free
 The free version of Fleet will [always be free](https://fleetdm.com/pricing). Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).
@@ -61,7 +66,7 @@ Fleet Device Management's [company handbook](https://fleetdm.com/handbook/compan
 ## Chat
 The Fleet community is full of [kind and helpful people](https://fleetdm.com/handbook/company#empathy). Whether or not you are a paying customer, if you need help, just [reach out](https://fleetdm.com/support).
 
-## Contributing &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; 
+## Contributing &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; 
 
 Contributions are welcome, whether you answer questions on [Slack](https://fleetdm.com/slack) / [GitHub](https://github.com/fleetdm/fleet/issues) / [LinkedIn](https://linkedin.com/company/fleetdm), improve the documentation or [website](./website), write a tutorial, give a talk at a conference or local meetup, give an [interview on a podcast](https://fleetdm.com/podcasts), troubleshoot reported issues, or [submit a patch](https://fleetdm.com/docs/contributing/contributing). The Fleet code of conduct is [on GitHub](https://github.com/fleetdm/fleet/blob/main/CODE_OF_CONDUCT.md).
 

@@ -1,8 +1,10 @@
 package fleet
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -337,7 +339,6 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 			BundleIdentifier: "com.test.software",
 			ExtensionID:      "test-extension-id",
 			ExtensionFor:     "chrome",
-			Browser:          "",
 			Release:          "1",
 			Vendor:           "Test Vendor",
 			Arch:             "x86_64",
@@ -362,7 +363,7 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 	data, err := entry.MarshalJSON()
 	require.NoError(t, err)
 
-	// Expected JSON with all fields including browser and extension_for
+	// Expected JSON with all fields
 	expectedJSON := `{
 		"id": 1,
 		"name": "Test Software",
@@ -372,7 +373,6 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		"extension_id": "test-extension-id",
 		"extension_for": "chrome",
 		"display_name": "",
-		"browser": "chrome",
 		"release": "1",
 		"vendor": "Test Vendor",
 		"arch": "x86_64",
@@ -1259,4 +1259,255 @@ func TestValidateSoftwareSources(t *testing.T) {
 			require.ErrorContains(t, err, tc.wantErr)
 		})
 	}
+}
+
+func TestParseSoftwareTypeFilter(t *testing.T) {
+	const requiresSource = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	for _, tc := range []struct {
+		name         string
+		source       string
+		extensionFor string
+		want         SoftwareTypeFilter
+		wantArg      string
+		wantReason   string
+	}{
+		{
+			name: "both absent",
+		},
+		{
+			name:   "single source",
+			source: "apps",
+			want:   SoftwareTypeFilter{"apps": nil},
+		},
+		{
+			name:   "dedupes sources",
+			source: "apps,programs,apps",
+			want:   SoftwareTypeFilter{"apps": nil, "programs": nil},
+		},
+		{
+			name:   "nix packages",
+			source: "nix_packages",
+			want:   SoftwareTypeFilter{"nix_packages": nil},
+		},
+		{
+			name:         "trims spaces",
+			source:       "apps, chrome_extensions ",
+			extensionFor: " brave",
+			want:         SoftwareTypeFilter{"apps": nil, "chrome_extensions": {"brave"}},
+		},
+		{
+			name:         "groups extension_for by source",
+			source:       "apps,chrome_extensions,vscode_extensions,jetbrains_plugins",
+			extensionFor: "brave,cursor,edge,brave,intellij_idea",
+			want: SoftwareTypeFilter{
+				"apps":              nil,
+				"chrome_extensions": {"brave", "edge"},
+				"vscode_extensions": {"cursor"},
+				"jetbrains_plugins": {"intellij_idea"},
+			},
+		},
+		{
+			name:   "AI tool sources",
+			source: "ai_clis,mcp_servers,ai_skills",
+			want:   SoftwareTypeFilter{"ai_clis": nil, "mcp_servers": nil, "ai_skills": nil},
+		},
+		{
+			name:       "the ai_tools pseudo-source is never stored",
+			source:     "ai_tools",
+			wantArg:    "source",
+			wantReason: `Invalid source: "ai_tools" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:       "unknown source",
+			source:     "apps,app",
+			wantArg:    "source",
+			wantReason: `Invalid source: "app" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:       "source is case sensitive",
+			source:     "Apps",
+			wantArg:    "source",
+			wantReason: `Invalid source: "Apps" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:   "empty values in source are ignored",
+			source: ",apps,,",
+			want:   SoftwareTypeFilter{"apps": nil},
+		},
+		{
+			name:   "only separators and spaces",
+			source: " , ,",
+		},
+		{
+			name:         "unknown extension_for",
+			source:       "chrome_extensions",
+			extensionFor: "brav",
+			wantArg:      "extension_for",
+			wantReason:   `Invalid extension_for: "brav" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			// osquery's jetbrains_plugins.product_type is snake_case (kProductTypeToString), not the
+			// CamelCase its table doc string claims.
+			name:         "extension_for is case sensitive",
+			source:       "jetbrains_plugins",
+			extensionFor: "IntelliJIdea",
+			wantArg:      "extension_for",
+			wantReason:   `Invalid extension_for: "IntelliJIdea" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:         "empty values in extension_for are ignored",
+			source:       "chrome_extensions",
+			extensionFor: "brave,",
+			want:         SoftwareTypeFilter{"chrome_extensions": {"brave"}},
+		},
+		{
+			name:         "extension_for without source",
+			extensionFor: "brave",
+			wantArg:      "extension_for",
+			wantReason:   requiresSource,
+		},
+		{
+			name:         "extension_for with only separators in source",
+			source:       ",",
+			extensionFor: "brave",
+			wantArg:      "extension_for",
+			wantReason:   requiresSource,
+		},
+		{
+			name:         "only separators in extension_for without source",
+			extensionFor: ",",
+		},
+		{
+			name:         "extension_for whose source is not selected",
+			source:       "apps,chrome_extensions",
+			extensionFor: "cursor",
+			wantArg:      "extension_for",
+			wantReason:   `"cursor" is a "vscode_extensions" value, but source doesn't include "vscode_extensions".`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ParseSoftwareTypeFilter(tc.source, tc.extensionFor)
+			if tc.wantReason == "" {
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+				return
+			}
+			require.Nil(t, got)
+			var argErr *InvalidArgumentError
+			require.ErrorAs(t, err, &argErr)
+			require.Equal(t, []map[string]string{{"name": tc.wantArg, "reason": tc.wantReason}}, argErr.Invalid())
+		})
+	}
+}
+
+func TestSoftwareFromOsqueryRowEpoch(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+		epoch  string
+		want   *uint32
+	}{
+		{"rpm with epoch", "rpm_packages", "1", new(uint32(1))},
+		{"rpm with large epoch", "rpm_packages", "32", new(uint32(32))},
+		{"rpm without epoch", "rpm_packages", "", nil},
+		{"rpm with zero epoch", "rpm_packages", "0", nil},
+		{"rpm with invalid epoch", "rpm_packages", "abc", nil},
+		{"rpm with negative epoch", "rpm_packages", "-1", nil},
+		{"non-rpm source ignores epoch", "deb_packages", "1", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sw, err := SoftwareFromOsqueryRow("tomcat", "9.0.117", tc.source, "", "", "2.el9_8", "noarch", "", "", "", "", "", tc.epoch)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, sw.Epoch)
+		})
+	}
+}
+
+// TestSoftwareFromOsqueryRowRejectsNUL keeps a host from reporting one field that reads as two.
+// The software identity joins its fields with a NUL, so a field that contains one could take the
+// identity of different software.
+func TestSoftwareFromOsqueryRowRejectsNUL(t *testing.T) {
+	fromRow := func(row map[string]string) (*Software, error) {
+		return SoftwareFromOsqueryRow(row["name"], row["version"], row["source"], row["vendor"], "", row["release"],
+			row["arch"], row["bundle_identifier"], row["extension_id"], row["extension_for"], "", row["upgrade_code"], row["epoch"])
+	}
+	valid := map[string]string{
+		"name": "tomcat", "version": "9.0.117", "source": "rpm_packages", "vendor": "Rocky", "release": "2.el9_8",
+		"arch": "noarch", "epoch": "1",
+	}
+	_, err := fromRow(valid)
+	require.NoError(t, err)
+
+	for _, field := range []string{
+		"name", "version", "source", "vendor", "release", "arch", "bundle_identifier", "extension_id", "extension_for", "upgrade_code",
+	} {
+		t.Run(field, func(t *testing.T) {
+			row := maps.Clone(valid)
+			row[field] += "\x00x"
+			_, err := fromRow(row)
+			require.ErrorContains(t, err, "NUL character")
+		})
+	}
+}
+
+// TestSoftwareEpochPartOfIdentity pins the epoch inside the software identity, so hosts that
+// report different epochs for the same package never share a software row.
+func TestSoftwareEpochPartOfIdentity(t *testing.T) {
+	withoutEpoch := Software{Name: "tomcat", Version: "9.0.117", Release: "2.el9_8", Arch: "noarch", Vendor: "Rocky Enterprise Software Foundation", Source: "rpm_packages"}
+	epoch1 := withoutEpoch
+	epoch1.Epoch = new(uint32(1))
+	epoch2 := withoutEpoch
+	epoch2.Epoch = new(uint32(2))
+
+	uniqueStrs := map[string]struct{}{}
+	checksums := map[string]struct{}{}
+	for _, sw := range []Software{withoutEpoch, epoch1, epoch2} {
+		uniqueStrs[sw.ToUniqueStr()] = struct{}{}
+		sum, err := sw.ComputeRawChecksum()
+		require.NoError(t, err)
+		checksums[string(sum)] = struct{}{}
+	}
+	require.Len(t, uniqueStrs, 3)
+	require.Len(t, checksums, 3)
+
+	// Software without an epoch can't have the checksum of software with one, whatever its fields
+	// contain. A name ending in a NUL and the epoch could be stored before reported fields were
+	// checked for NUL.
+	forged := withoutEpoch
+	forged.Name += "\x00epoch:1"
+	forgedSum, err := forged.ComputeRawChecksum()
+	require.NoError(t, err)
+	epoch1Sum, err := epoch1.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.NotEqual(t, epoch1Sum, forgedSum)
+
+	// Software without an epoch keeps the checksum it had before the epoch was collected, so
+	// existing rows are not replaced.
+	sum, err := withoutEpoch.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, "d4fb0090ed1f068afb08ef67d8e9efab", hex.EncodeToString(sum))
+
+	// Epoch 0 is the same as no epoch.
+	epoch0 := withoutEpoch
+	epoch0.Epoch = new(uint32(0))
+	require.Equal(t, withoutEpoch.ToUniqueStr(), epoch0.ToUniqueStr())
+	sum0, err := epoch0.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, sum, sum0)
+}
+
+// TestSoftwareAIToolNotPartOfIdentity pins the flag outside the software identity, so an
+// existing row can be flagged in place instead of becoming a second row.
+func TestSoftwareAIToolNotPartOfIdentity(t *testing.T) {
+	sw := Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
+	flagged := sw
+	flagged.AITool = new(true)
+
+	require.Equal(t, sw.ToUniqueStr(), flagged.ToUniqueStr())
+	want, err := sw.ComputeRawChecksum()
+	require.NoError(t, err)
+	got, err := flagged.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

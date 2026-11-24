@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"uuid"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -43,6 +44,11 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 
 	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
 		return "", fleet.ErrMissingLicense
+	}
+
+	// The tenant ID is later sent to the proxy in query strings, so only accept the canonical GUID format Entra uses.
+	if _, err := uuid.Parse(tenantID); len(tenantID) != 36 || err != nil {
+		return "", fleet.NewInvalidArgumentError("microsoft_tenant_id", "must be a valid Microsoft Entra tenant ID (GUID)")
 	}
 
 	// Load current integration, if any.

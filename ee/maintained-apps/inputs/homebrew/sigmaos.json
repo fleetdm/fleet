@@ -6,5 +6,6 @@
   "slug": "sigmaos/darwin",
   "default_categories": [
     "Browsers"
-  ]
+  ],
+  "frozen": true
 }

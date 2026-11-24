@@ -49,16 +49,19 @@ const STATUS_FILTER_OPTIONS: CustomOptionType[] = [
 
 interface IPolicyAutomationsActivitiesTableProps {
   policy: IPolicy;
-  currentAutomatedPolicies: number[];
   otherAutomationType?: OtherAutomationType;
   canResetPolicy: boolean;
+  /** Prefills the host search, e.g. when linked from a host's policy. */
+  initialSearchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
 const PolicyAutomationsActivitiesTable = ({
   policy,
-  currentAutomatedPolicies,
   otherAutomationType,
   canResetPolicy,
+  initialSearchQuery = "",
+  onSearchQueryChange,
 }: IPolicyAutomationsActivitiesTableProps): JSX.Element => {
   const { id: policyId } = policy;
   const queryClient = useQueryClient();
@@ -70,7 +73,7 @@ const PolicyAutomationsActivitiesTable = ({
   } = config?.activity_expiry_settings ?? {};
 
   const [page, setPage] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [
     sortHeader,
@@ -148,10 +151,14 @@ const PolicyAutomationsActivitiesTable = ({
     setPage(newPage);
   }, []);
 
-  const onSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setPage(0);
-  }, []);
+  const onSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      setPage(0);
+      onSearchQueryChange?.(value);
+    },
+    [onSearchQueryChange]
+  );
 
   const onStatusFilterChange = useCallback(
     (option: CustomOptionType | null) => {
@@ -233,7 +240,7 @@ const PolicyAutomationsActivitiesTable = ({
               <Button
                 variant="subdued"
                 onClick={onClickResetPolicy}
-                icon="refresh"
+                icon="retry"
                 iconPosition="right"
               >
                 Reset policy
@@ -242,6 +249,7 @@ const PolicyAutomationsActivitiesTable = ({
             {showControls && (
               <>
                 <DropdownWrapper
+                  ariaLabel="Filter by automation status"
                   name="automation-status-filter"
                   className={`${baseClass}__status-filter`}
                   options={STATUS_FILTER_OPTIONS}
@@ -302,7 +310,6 @@ const PolicyAutomationsActivitiesTable = ({
         <PolicyResetModal
           policy={policy}
           host={resetHost}
-          currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           isResetting={isResetting}
           onSubmit={resetPolicy}

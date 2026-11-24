@@ -60,12 +60,12 @@ if ! which tart >/dev/null; then
 fi
 
 echo "Deleting old fleet package"
-[ -f fleet-osquery.pkg ] && rm fleet-osquery.pkg
+[ -f fleet-macos.pkg ] && rm fleet-macos.pkg
 
 echo "Creating fleet package..."
-./build/fleetctl package --type=pkg --enable-scripts --fleet-desktop --disable-open-folder --fleet-url="$FLEET_URL" --enroll-secret="$FLEET_ENROLL_SECRET"
+./build/fleetctl package --type=pkg --enable-scripts --fleet-desktop --disable-open-folder --fleet-url="$FLEET_URL" --enroll-secret="$FLEET_ENROLL_SECRET" --outfile=fleet-macos.pkg
 
-if [ ! -f fleet-osquery.pkg ]; then
+if [ ! -f fleet-macos.pkg ]; then
     echo "package not generated"
     exit 1
 fi
@@ -89,10 +89,10 @@ echo "Running uname"
 ssh_cmd "uname -a"
 
 echo "Copying package to VM"
-scp_cmd fleet-osquery.pkg admin@$(tart ip $vm_name):
+scp_cmd fleet-macos.pkg admin@$(tart ip $vm_name):
 
 echo "Installing fleet in VM"
-ssh_cmd "echo admin | sudo -S installer -pkg fleet-osquery.pkg -target /"
+ssh_cmd "echo admin | sudo -S installer -pkg fleet-macos.pkg -target /"
 
 echo "Waiting for identifier to appear"
 ssh_cmd "while true; do echo 'checking for identifier'; [ -f /opt/orbit/identifier ] && echo 'identifier found' && exit; sleep 5; done"

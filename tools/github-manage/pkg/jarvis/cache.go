@@ -18,9 +18,11 @@ type cacheFile struct {
 	Result    FetchResult `json:"result"`
 }
 
-// DefaultCachePath returns ~/.config/gm/jarvis/cache.json.
+// DefaultCachePath returns ~/.config/gm/jarvis/cache-v2.json. The v2 bump
+// invalidates pre-repo-qualified caches whose status maps were keyed by bare
+// issue numbers.
 func DefaultCachePath() string {
-	return configPath("cache.json")
+	return configPath("cache-v2.json")
 }
 
 // LoadCache reads the cached fetch and when it was taken. ok is false if the

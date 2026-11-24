@@ -1,0 +1,130 @@
+#integration-details {
+
+  h2 {
+    padding-top: 32px;
+    color: @core-fleet-black;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 120%;
+    margin-bottom: 16px;
+  }
+  p {
+    color: #515774;
+    font-size: 16px;
+    line-height: 150%;
+  }
+
+  [purpose='page-container'] {
+    padding: @page-padding-sm;
+  }
+  [purpose='page-content'] {
+    .page-content();
+  }
+
+  [purpose='breadcrumbs'] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 14px;
+    margin-bottom: 48px;
+  }
+  [purpose='breadcrumbs-category'] {
+    color: #8B8FA2;
+    text-decoration: none;
+    &:hover {
+      color: @core-fleet-black;
+      text-decoration: none;
+    }
+  }
+  [purpose='breadcrumbs-separator'] {
+    color: #8B8FA2;
+  }
+
+  [purpose='integration-details'] {
+    // A comfortable reading width now that there's no sidebar beside the content.
+    max-width: 800px;
+  }
+  [purpose='logo-and-name'] {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  [purpose='integration-logo'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    border: 1px solid #E2E4EA;
+    img {
+      max-width: 64px;
+      max-height: 40px;
+    }
+  }
+  [purpose='integration-name'] {
+    color: @core-fleet-black;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 150%;
+    margin-bottom: 0px;
+  }
+  [purpose='integration-category'] {
+    color: #8B8FA2;
+    margin-bottom: 0px;
+  }
+  [purpose='integration-description'] {
+    padding: 24px 0px 0px 0px;
+  }
+  [purpose='integration-setup'] {
+    ul {
+      padding-left: 20px;
+      margin-bottom: 0px;
+    }
+    li {
+      margin-bottom: 8px;
+      color: #515774;
+    }
+  }
+
+  // Same as the "Suggest an edit" link in the integrations directory sidebar.
+  [purpose='edit-link'] {
+    display: inline-flex;
+    align-items: center;
+    margin: 48px 0px 0px -8px;// « Negative margin lines the icon up with the content edge while keeping the hover padding.
+    padding: 4px 8px;
+    color: #515774;
+    font-size: 14px;
+    line-height: 150%;
+    text-decoration: none;
+    img {
+      width: 16px;
+      height: 16px;
+      margin-right: 12px;
+    }
+    &:hover {
+      color: @core-fleet-black;
+      text-decoration: none;
+      border-radius: 4px;
+      background: #f6f7f8;
+    }
+  }
+
+  @media (max-width: 991px) {
+    [purpose='page-container'] {
+      padding: @page-padding-tablet;
+    }
+  }
+
+  @media (max-width: 575px) {
+    [purpose='page-container'] {
+      padding: @page-padding-tablet-mobile;
+    }
+    [purpose='integration-name'] {
+      font-size: 24px;
+    }
+  }
+
+}

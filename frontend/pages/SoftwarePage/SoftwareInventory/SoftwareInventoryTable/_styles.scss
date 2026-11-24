@@ -1,18 +1,8 @@
 .software-inventory-table {
-  &__filters {
-    .component__tooltip-wrapper__element {
-      display: flex;
-      align-items: center;
-    }
-
-    .children-wrapper {
-      gap: $pad-small;
-    }
-  }
-
   .table-container {
+    // The Show versions slider sits inline beside the filters button and search.
     .form-field--slider {
-      width: auto;
+      width: auto; // Override .form-field 100%
       align-self: center;
       white-space: nowrap;
     }

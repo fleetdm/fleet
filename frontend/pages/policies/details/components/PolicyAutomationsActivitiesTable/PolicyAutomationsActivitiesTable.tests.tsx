@@ -5,7 +5,10 @@ import {
   PRE_INSTALL_QUERY_FAIL_OUTPUT,
   SKIPPED_INSTALL_DETAILS,
 } from "components/ActivityDetails/InstallDetails/constants";
-import { SKIPPED_INSTALL_NOTIFY_EXPLANATION } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
+import {
+  SKIPPED_INSTALL_DEADLINE_EXPLANATION,
+  SKIPPED_INSTALL_NOTIFY_EXPLANATION,
+} from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
 import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
 import policiesAPI from "services/entities/policies";
@@ -30,7 +33,7 @@ const mockPolicy: IPolicy = {
   author_email: "test@example.com",
   resolution: "",
   platform: "",
-  team_id: null,
+  fleet_id: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,
@@ -236,13 +239,13 @@ describe("getAutomationStatusIcon", () => {
           },
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(getAutomationStatusIcon(mockActivity({ status: "error" }))).toEqual({
-      name: "error-outline",
+      name: "error",
     });
     expect(
       getAutomationStatusIcon(mockActivity({ status: "success" }))
-    ).toEqual({ name: "success-outline" });
+    ).toEqual({ name: "success" });
   });
 
   it("uses the grey error glyph for a successful 'end user notified' row and red for the failure row", () => {
@@ -253,7 +256,7 @@ describe("getAutomationStatusIcon", () => {
           status: "success",
         })
       )
-    ).toEqual({ name: "error-outline", color: "ui-fleet-black-50" });
+    ).toEqual({ name: "error", color: "ui-fleet-black-50" });
     expect(
       getAutomationStatusIcon(
         mockActivity({
@@ -261,7 +264,7 @@ describe("getAutomationStatusIcon", () => {
           status: "error",
         })
       )
-    ).toEqual({ name: "error-outline" });
+    ).toEqual({ name: "error" });
   });
 });
 
@@ -299,7 +302,41 @@ describe("getDetailOutputText for notify rows", () => {
     expect(text).toMatch(/patches it after 1 hour/);
   });
 
-  it("falls through to activity.output for a notify failure row", () => {
+  it("renders the exit-code reason for a screen-locked notify failure (#53769)", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 41,
+          },
+        })
+      )
+    ).toMatch(/screen was locked/i);
+  });
+
+  it("renders the deferred sentence for a notify failure with no script execution id", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+          },
+        })
+      )
+    ).toMatch(/Another notification was displayed/);
+  });
+
+  it("returns the unexpected-failure sentence for a notify failure with an unmapped exit code", () => {
     expect(
       getDetailOutputText(
         mockActivity({
@@ -310,10 +347,50 @@ describe("getDetailOutputText for notify rows", () => {
             policy_id: 123,
             software_title: "1Password",
             time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 99,
           },
         })
       )
-    ).toBe("screen was locked");
+    ).toMatch(/notification failed unexpectedly/i);
+  });
+
+  it("returns the 'end user wasn't logged in' sentence for a notify failure with exit code 40", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          output: "No user is logged in at the GUI.",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: 40,
+          },
+        })
+      )
+    ).toMatch(/end user wasn't logged in/i);
+  });
+
+  it("returns the 'scripts are disabled' sentence for a notify failure with exit code -2", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          type: ActivityType.NotifiedEndUserBeforePatching,
+          status: "error",
+          output: "Scripts are disabled",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            time_before: 3600,
+            script_execution_id: "exec-1",
+            exit_code: -2,
+          },
+        })
+      )
+    ).toMatch(/scripts are disabled on the host/i);
   });
 });
 
@@ -336,6 +413,46 @@ describe("getDetailOutputText", () => {
   });
 
   it("explains a notify-before-patching skip with the notification sentence", () => {
+    // pre_install_output is empty on this endpoint — the booleans discriminate.
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            notify_before_patching: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_NOTIFY_EXPLANATION);
+  });
+
+  it("explains a deadline skip with the deadline sentence", () => {
+    expect(
+      getDetailOutputText(
+        mockActivity({
+          status: "error",
+          pre_install_output: "",
+          details: {
+            policy_id: 123,
+            software_title: "1Password",
+            skipped_install: true,
+            patch_when_closed: false,
+            patch_deadline: true,
+          },
+        })
+      )
+    ).toBe(SKIPPED_INSTALL_DEADLINE_EXPLANATION);
+  });
+
+  // Legacy fallback: on activity rows written before the booleans landed,
+  // patch_when_closed === false still implies notify (deadline didn't exist
+  // yet in that window).
+  it("falls back to notify copy when only patch_when_closed:false is present", () => {
     expect(
       getDetailOutputText(
         mockActivity({
@@ -433,7 +550,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -442,6 +558,48 @@ describe("PolicyAutomationsActivitiesTable", () => {
     expect(await screen.findByText("Anna's MacBook Pro")).toBeInTheDocument();
     expect(screen.getByText("1 run")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search hosts")).toBeInTheDocument();
+  });
+
+  it("prefills the host search and fetches that host's runs", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+
+    render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+        initialSearchQuery="Anna's MacBook Pro"
+      />
+    );
+
+    expect(await screen.findByPlaceholderText("Search hosts")).toHaveValue(
+      "Anna's MacBook Pro"
+    );
+    expect(policiesAPI.getAutomationActivities).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "Anna's MacBook Pro" })
+    );
+  });
+
+  it("reports search changes", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+    const onSearchQueryChange = jest.fn();
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+        onSearchQueryChange={onSearchQueryChange}
+      />
+    );
+
+    await user.type(await screen.findByPlaceholderText("Search hosts"), "Anna");
+
+    await waitFor(() =>
+      expect(onSearchQueryChange).toHaveBeenLastCalledWith("Anna")
+    );
   });
 
   it("renders one row per host for a batch activity sharing an activity id", async () => {
@@ -467,7 +625,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -486,7 +643,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     const { rerender } = render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -496,11 +652,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     ).not.toBeInTheDocument();
 
     rerender(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
     expect(
       screen.getByRole("button", { name: /reset policy/i })
@@ -515,7 +667,6 @@ describe("PolicyAutomationsActivitiesTable", () => {
     render(
       <PolicyAutomationsActivitiesTable
         policy={mockPolicy}
-        currentAutomatedPolicies={[]}
         canResetPolicy={false}
       />
     );
@@ -530,11 +681,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
 
     const { user } = render(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
 
     await user.click(screen.getByRole("button", { name: "Reset policy" }));
@@ -552,11 +699,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
 
     const { user } = render(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
 
     await user.click(await screen.findByText("Software installed (1Password)"));
@@ -582,11 +725,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
     (policiesAPI.reset as jest.Mock).mockResolvedValue(undefined);
 
     const { user } = render(
-      <PolicyAutomationsActivitiesTable
-        policy={mockPolicy}
-        currentAutomatedPolicies={[]}
-        canResetPolicy
-      />
+      <PolicyAutomationsActivitiesTable policy={mockPolicy} canResetPolicy />
     );
 
     await user.click(await screen.findByText("Software installed (1Password)"));

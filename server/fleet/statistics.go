@@ -77,6 +77,8 @@ type StatisticsPayload struct {
 	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
 	// EntraConditionalAccessConfigured indicates if the Entra conditional access integration is configured.
 	EntraConditionalAccessConfigured bool `json:"entraConditionalAccessConfigured"`
+	// GoogleConditionalAccessConfigured indicates if the Google conditional access integration is configured.
+	GoogleConditionalAccessConfigured bool `json:"googleConditionalAccessConfigured"`
 
 	// GitOpsModeEnabled indicates whether GitOps mode is enabled in the app config.
 	GitOpsModeEnabled bool `json:"gitOpsModeEnabled"`
@@ -91,6 +93,10 @@ type StatisticsPayload struct {
 	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
 	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
 	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
+	// NumHostsFleetEnrolledIOS is the number of iOS hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledIOS int `json:"numHostsFleetMDMEnrolledIOS"`
+	// NumHostsFleetEnrolledIpadOS is the number of iPadOS hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledIpadOS int `json:"numHostsFleetMDMEnrolledIpadOS"`
 	// NumMDMAppleProfiles is the number of Apple (macOS/iOS) configuration profiles defined across all teams
 	NumMDMAppleProfiles int `json:"numMDMAppleProfiles"`
 	// NumMDMWindowsProfiles is the number of Windows configuration profiles defined across all teams
@@ -99,6 +105,12 @@ type StatisticsPayload struct {
 	NumMDMAppleDeclarations int `json:"numMDMAppleDeclarations"`
 	// NumMDMAndroidProfiles is the number of Android configuration profiles defined across all teams
 	NumMDMAndroidProfiles int `json:"numMDMAndroidProfiles"`
+
+	// Num*AiGeneratedProfiles are cumulative counts of configuration profiles generated with AI on this
+	// server. Android profiles can't be generated yet, so NumAndroidAiGeneratedProfiles is always 0.
+	NumAppleAiGeneratedProfiles   int `json:"numAppleAiGeneratedProfiles"`
+	NumWindowsAiGeneratedProfiles int `json:"numWindowsAiGeneratedProfiles"`
+	NumAndroidAiGeneratedProfiles int `json:"numAndroidAiGeneratedProfiles"`
 
 	// The *LogDestination fields are the configured server-side log plugins
 	// (osquery.result_log_plugin, osquery.status_log_plugin, activity.audit_log_plugin),

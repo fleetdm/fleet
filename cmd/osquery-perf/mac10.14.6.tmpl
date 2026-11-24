@@ -164,6 +164,14 @@
 ]
 {{- end }}
 
+{{ define "fleet_detail_query_timezone_unix" -}}
+[
+  {
+    "symlink_target_path":"/var/db/timezone/zoneinfo/America/New_York"
+  }
+]
+{{- end }}
+
 {{ define "fleet_detail_query_disk_encryption_key_darwin" -}}
 {{- if .DiskEncryptionEnabled }}
 [

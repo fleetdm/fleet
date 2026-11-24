@@ -53,6 +53,12 @@ var (
 	timeBetweenRequests = 6 * time.Second
 	// maxRetryAttempts is the maximum number of request to retry in case of API failure.
 	maxRetryAttempts = 10
+	// nvdRequestTimeout bounds a single NVD API request, including reading the
+	// body: the client has no overall timeout, so a stalled response would
+	// otherwise block the sync indefinitely. A full page normally completes in
+	// well under a minute; staying short leaves room for retries within an
+	// incremental run's deadline.
+	nvdRequestTimeout = 2 * time.Minute
 	// waitTimeForRetry is the time to wait between retries.
 	waitTimeForRetry = 30 * time.Second
 	// vulnCheckStartDate is the earliest date to start processing the vulncheck data.
@@ -415,11 +421,13 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 
 	for startIndex := int(startIdx); startIndex < totalResults; {
 		startRequestTime := time.Now()
-		cveResponse, err := nvdapi.GetCVEs(s.getHTTPClient(ctx, s.debug), nvdapi.GetCVEsParams{
+		reqCtx, cancel := context.WithTimeout(ctx, nvdRequestTimeout)
+		cveResponse, err := nvdapi.GetCVEs(s.getHTTPClient(reqCtx, s.debug), nvdapi.GetCVEsParams{
 			StartIndex:       ptr.Int(startIndex),
 			LastModStartDate: lastModStartDate,
 			LastModEndDate:   lastModEndDate,
 		})
+		cancel()
 		if err != nil {
 			if retryAttempts > maxRetryAttempts {
 				return "", err
@@ -438,6 +446,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 		totalResults = cveResponse.TotalResults
 		startIndex += cveResponse.ResultsPerPage
 		newLastModStartDate = cveResponse.Timestamp
+		s.logger.InfoContext(ctx, "fetched NVD CVE page", "fetched", min(startIndex, totalResults), "total", totalResults, "duration", requestDuration.String())
 
 		// Environment variable NETWORK_TEST_NVD_CVE_END_IDX is set only in tests
 		// (to reduce test duration time).

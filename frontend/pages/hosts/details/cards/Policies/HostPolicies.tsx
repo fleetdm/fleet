@@ -42,6 +42,7 @@ interface IMyDevicePoliciesProps extends IPoliciesBaseProps {
   deviceUser: true;
   /** Hidden policies are excluded from `policies` until toggled on. */
   showHiddenPolicies: boolean;
+  hasHiddenPolicies: boolean;
   onToggleShowHiddenPolicies: () => void;
 }
 
@@ -100,7 +101,8 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
   );
 
   const renderBanner = () => {
-    if (!failingResponses?.length) {
+    // Admins see each policy's status in the table; the banner guides end users.
+    if (!deviceUser || !failingResponses?.length) {
       return null;
     }
     if (conditionalAccessBypassed) {
@@ -132,7 +134,7 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
   };
 
   const renderShowHiddenToggle = () => {
-    if (!props.deviceUser) {
+    if (!props.deviceUser || !props.hasHiddenPolicies) {
       return null;
     }
     return (

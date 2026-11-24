@@ -68,10 +68,10 @@ const hasEditPermission = (currentUser: IUser, label: ILabel): boolean => {
       (isAnyTeamMaintainerOrTeamAdmin(currentUser) ||
         isAnyTeamTechnician(currentUser))) ||
     // team permission
-    (label.team_id != null &&
-      (isTeamAdmin(currentUser, label.team_id) ||
-        isTeamMaintainer(currentUser, label.team_id) ||
-        isTeamTechnician(currentUser, label.team_id)))
+    (label.fleet_id != null &&
+      (isTeamAdmin(currentUser, label.fleet_id) ||
+        isTeamMaintainer(currentUser, label.fleet_id) ||
+        isTeamTechnician(currentUser, label.fleet_id)))
   );
 };
 

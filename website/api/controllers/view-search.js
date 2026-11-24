@@ -37,6 +37,17 @@ module.exports = {
 
   fn: async function ({q, page}) {
 
+    // How this works:
+    // - Results come from Vertex AI Search (Google's index of fleetdm.com) and are rendered in pages/search.ejs.
+    // - Google Cloud console > "fleetdm-website" project > AI Applications:
+    //   - Data store "fleetdm-website-basic": website content for fleetdm.com/*, with advanced website indexing off.
+    //     (Basic website search needs no domain verification, and has no query-specific snippets, so we show each page's meta description.)
+    //   - To try queries without the website, use the Preview tab of the "fleetdm-website-search" app.
+    // - The website authenticates as website-search@fleetdm-website.iam.gserviceaccount.com (role: Discovery Engine Viewer).
+    //   To rotate its key: IAM & Admin > Service accounts > Keys > Add key > JSON, then set the parsed JSON as
+    //   sails.config.custom.googleSearchGcpServiceAccountKey (in production: the sails_custom__googleSearchGcpServiceAccountKey
+    //   config var in Heroku, locally: config/local.js).
+    // - To debug: a 403 means the key or the service account's role is wrong, and a 404 means the data store ID below is wrong.
     let {google} = require('googleapis');
 
     if(!sails.config.custom.googleSearchGcpServiceAccountKey) {
@@ -55,7 +66,7 @@ module.exports = {
           scopes: ['https://www.googleapis.com/auth/cloud-platform'],
         })
       }).projects.locations.collections.dataStores.servingConfigs.search({
-        servingConfig: 'projects/fleetdm-website/locations/global/collections/default_collection/dataStores/DATA_STORE_ID/servingConfigs/default_search',
+        servingConfig: 'projects/fleetdm-website/locations/global/collections/default_collection/dataStores/fleetdm-website-basic/servingConfigs/default_search',
         requestBody: {query: searchQuery, pageSize: 10, offset: (page - 1) * 10},
       });
       totalResults = data.totalSize || 0;

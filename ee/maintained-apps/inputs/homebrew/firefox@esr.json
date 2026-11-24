@@ -4,5 +4,6 @@
   "token": "firefox@esr",
   "installer_format": "dmg",
   "slug": "firefox@esr/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/firefox-install.sh",
   "default_categories": ["Browsers"]
 }

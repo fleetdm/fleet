@@ -10,7 +10,15 @@ interface ITooltipTruncatedTextCellProps {
    * not, the value will be displayed as the tooltip content. Default: undefined */
   tooltip?: React.ReactNode;
   className?: string;
-  tooltipPosition?: "top" | "bottom" | "left" | "right";
+  tooltipPosition?:
+    | "top"
+    | "top-start"
+    | "bottom"
+    | "bottom-start"
+    | "left"
+    | "right";
+  /** @default true */
+  showArrow?: boolean;
   isMobileView?: boolean;
   /** Pass-through to TooltipWrapper. Set to `true` when the truncated text
    * lives inside an `overflow: hidden` ancestor — the default `absolute`
@@ -32,6 +40,7 @@ const TooltipTruncatedText = ({
   tooltip,
   className,
   tooltipPosition = "top",
+  showArrow = true,
   isMobileView = false,
   fixedPositionStrategy = false,
   disableTooltip = false,
@@ -61,7 +70,7 @@ const TooltipTruncatedText = ({
       // negative margin gets clipped by truncating (`overflow: hidden`) parents.
       underline={false}
       position={tooltipPosition}
-      showArrow
+      showArrow={showArrow}
       tipContent={tooltip ?? value}
       isMobileView={isMobileView}
       fixedPositionStrategy={fixedPositionStrategy}

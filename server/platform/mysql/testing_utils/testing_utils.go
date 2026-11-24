@@ -8,8 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
@@ -62,17 +65,55 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger *slog.Logger, nonEmptyTabl
 
 		if len(tables) == 0 {
 			skipSeeded = true
+			var err error
+			_, err = tx.ExecContext(ctx, `SET SESSION information_schema_stats_expiry=0`)
+			if err != nil {
+				return err
+			}
+
+			var allTables []struct {
+				Name          string     `db:"table_name"`
+				AutoIncrement *uint64    `db:"auto_increment"`
+				UpdateTime    *time.Time `db:"update_time"`
+			}
 			sql := `
       SELECT
-        table_name
+        table_name AS table_name,
+        auto_increment AS auto_increment,
+        update_time AS update_time
       FROM
         information_schema.tables
       WHERE
         table_schema = database() AND
         table_type = 'BASE TABLE'
     `
-			if err := sqlx.SelectContext(ctx, tx, &tables, sql); err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &allTables, sql); err != nil {
 				return err
+			}
+
+			var rowChecks []string
+			for _, table := range allTables {
+				// Skip tables that schema.sql inserts rows into
+				if nonEmptyTables[table.Name] {
+					continue
+				}
+				// Truncate tables with a used ID counter so IDs start at 1 again, even if they have no rows.
+				// Also truncate tables written since their last truncate to reset their update time.
+				if (table.AutoIncrement != nil && *table.AutoIncrement > 1) || table.UpdateTime != nil {
+					tables = append(tables, table.Name)
+					continue
+				}
+				// Select the table name as text, so the result lists the names of tables that have rows
+				rowChecks = append(rowChecks, fmt.Sprintf("(SELECT '%s' FROM %s LIMIT 1)", table.Name, table.Name))
+			}
+
+			if len(rowChecks) > 0 {
+				var tablesWithRows []string
+				err = sqlx.SelectContext(ctx, tx, &tablesWithRows, strings.Join(rowChecks, "\nUNION ALL\n"))
+				if err != nil {
+					return err
+				}
+				tables = append(tables, tablesWithRows...)
 			}
 		}
 
@@ -118,11 +159,49 @@ type DatastoreTestOptions struct {
 	UniqueTestName string
 }
 
+// MigrationVersions returns the versions of the Go migrations in dir, derived
+// from their filenames the same way goose.NumericComponent does (goose isn't a
+// platform package, so it can't be imported here).
+func MigrationVersions(dir string) ([]int64, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read migrations dir: %w", err)
+	}
+	var versions []int64
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || filepath.Ext(name) != ".go" || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		// Non-migration files (migration.go, fleet4_migrations.go, ...) have no numeric prefix.
+		prefix, _, found := strings.Cut(name, "_")
+		if v, err := strconv.ParseInt(prefix, 10, 64); found && err == nil && v > 0 {
+			versions = append(versions, v)
+		}
+	}
+	slices.Sort(versions)
+	return versions, nil
+}
+
 // LoadDefaultSchema loads the default database schema for testing.
 func LoadDefaultSchema(t testing.TB, testName string, opts *DatastoreTestOptions) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	schemaPath := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql/schema.sql")
-	LoadSchema(t, testName, opts, schemaPath)
+	dir := filepath.Join(filepath.Dir(thisFile), "../../../datastore/mysql")
+	schema, err := os.ReadFile(filepath.Join(dir, "schema.sql"))
+	require.NoError(t, err)
+
+	// schema.sql has no migration_status_tables rows, so that PRs adding
+	// migrations don't conflict on it. Derive them from the migration files.
+	versions, err := MigrationVersions(filepath.Join(dir, "migrations", "tables"))
+	require.NoError(t, err)
+	var sb strings.Builder
+	sb.Write(schema)
+	sb.WriteString("\nINSERT INTO `migration_status_tables` (`version_id`, `is_applied`) VALUES (0, 1)")
+	for _, v := range versions {
+		fmt.Fprintf(&sb, ", (%d, 1)", v)
+	}
+	sb.WriteString(";\n")
+	loadSchemaSQL(t, testName, opts, sb.String())
 }
 
 // LoadSchema loads a database schema from the specified path for testing.
@@ -132,7 +211,10 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 		t.Error(err)
 		t.FailNow()
 	}
+	loadSchemaSQL(t, testName, opts, string(schema))
+}
 
+func loadSchemaSQL(t testing.TB, testName string, opts *DatastoreTestOptions, schema string) {
 	// execute the schema for the test db, and once more for the replica db if
 	// that option is set.
 	dbs := []string{testName}

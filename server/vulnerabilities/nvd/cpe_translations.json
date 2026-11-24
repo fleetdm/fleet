@@ -1,6 +1,24 @@
 [
   {
     "software": {
+      "bundle_identifier": ["com.linear"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["codex"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["us.zoom.xos"],
       "source": ["apps"]
     },
@@ -134,6 +152,16 @@
   },
   {
     "software": {
+      "name": ["Brotli", "brotli"],
+      "source": ["python_packages", "homebrew_packages"]
+    },
+    "filter": {
+      "product": ["brotli"],
+      "vendor": ["google"]
+    }
+  },
+  {
+    "software": {
       "name": ["jira"],
       "source": ["python_packages"]
     },
@@ -144,6 +172,15 @@
   {
     "software": {
       "name": ["docker"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["bash", "python3-bash"],
       "source": ["python_packages"]
     },
     "filter": {
@@ -626,6 +663,15 @@
   },
   {
     "software": {
+      "name": ["Photos"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["Steam.app"],
       "source": ["apps"]
     },
@@ -716,6 +762,28 @@
       "product": ["firefox"],
       "vendor": ["mozilla"],
       "sw_edition": ["esr"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.adobe\\.LightroomClassicCC\\d*$/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["classic"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.adobe.lightroomCC", "com.adobe.mas.lightroomCC"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["desktop"]
     }
   },
   {

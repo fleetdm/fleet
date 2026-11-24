@@ -31,7 +31,7 @@ For unreleased bugs in an active release, a new bug is created with the `~unrele
 
 ## Create a release candidate
 
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the first Monday of the next release cycle at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the first Monday of the next release cycle at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-vX.Y.0` (or `rc-major-fleet-vX.0.0` for a major release) and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 1. [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 
@@ -119,15 +119,14 @@ If a new OS version is missing, [file a bug](https://github.com/fleetdm/fleet/is
 Once a product group completes its QA process during the release candidate period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their GitHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
 
 
-## Submit test coverage requests to QA Wolf
+## Request Playwright test coverage
 
-Fleet QA owns the test planning process and identifies what needs to be automated. After each release, we review merged PRs, release notes, and demo recordings to find new automation candidates.
-We track these in a shared [Google Doc](https://docs.google.com/document/d/1jr8wxZZNTvcAB2IMOrsqY4NTW4eceX-3CABiYKpb_pY/edit?usp=sharing) and categorize them as:
+Fleet QA owns the test planning process and identifies what needs to be automated. After each release, we review merged PRs, release notes, and demo recordings to find new automation candidates for Fleet's Playwright end-to-end suite.
+We list them in the issue that the ["Request Playwright test coverage" ritual](https://fleetdm.com/handbook/engineering#rituals) creates, as:
 - New test requests (feature + what to test)
 - Existing tests to update
 
-Once coverage is agreed on, Fleet QA submits the request via [QA Wolf's Coverage Request form](https://app.qawolf.com/fleet/coverage-requests). The most recent releases are prioritized first.
-This workflow lets QA Wolf focus on test implementation while Fleet QA stays accountable for identifying clear, high-value test needs.
+The most recent releases are prioritized first.
 
 
 ## Prepare Fleet release

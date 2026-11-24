@@ -64,7 +64,7 @@ If you want to change the name of a report, you must first create a new report w
 
 ## Labels
 
-The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
+The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained. A label's `name` and `description` must be 255 characters or fewer.
 
 ```yaml
 apiVersion: v1
@@ -514,7 +514,7 @@ spec:
 
 ### Settings
 
-For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../REST%20API/rest-api.md#modify-configuration).
+For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../../../API/rest-api.md#modify-configuration).
 
 Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` characters) as required by the YAML format.
 

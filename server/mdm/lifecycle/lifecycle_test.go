@@ -135,7 +135,7 @@ func TestReconcileHostNameEnforcementOnEnrollment(t *testing.T) {
 
 	t.Run("reset reconciles with the upserted host id", func(t *testing.T) {
 		ds := new(mock.Store)
-		ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
+		ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
 			mdmHost.ID = hostID
 			return nil
 		}
@@ -153,6 +153,50 @@ func TestReconcileHostNameEnforcementOnEnrollment(t *testing.T) {
 		}))
 		require.True(t, ds.ReconcileHostDeviceNamesForHostsFuncInvoked)
 		require.Equal(t, []uint{hostID}, gotIDs)
+	})
+
+	t.Run("reset classifies the personal enrollment type", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			opts HostOptions
+			want fleet.PersonalEnrollmentType
+		}{
+			{
+				name: "account-driven user enrollment",
+				opts: HostOptions{Platform: "ios", HardwareModel: "iPhone14,2", UserEnrollmentID: "enrollment-id"},
+				want: fleet.PersonalEnrollmentTypeAccountDriven,
+			},
+			{
+				name: "manual BYOD",
+				opts: HostOptions{
+					Platform: "ios", UUID: "host-uuid", HardwareSerial: "serial", HardwareModel: "iPhone14,2",
+					PersonalEnrollmentType: fleet.PersonalEnrollmentTypeManualProfile,
+				},
+				want: fleet.PersonalEnrollmentTypeManualProfile,
+			},
+			{
+				name: "company-owned",
+				opts: HostOptions{Platform: "darwin", UUID: "host-uuid", HardwareSerial: "serial", HardwareModel: "MacBookPro"},
+				want: fleet.PersonalEnrollmentTypeNone,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				var got fleet.PersonalEnrollmentType
+				ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
+					got = personalType
+					mdmHost.ID = hostID
+					return nil
+				}
+				ds.MDMResetEnrollmentFunc = func(ctx context.Context, uuid string, scepRenewalInProgress bool) error { return nil }
+				ds.ReconcileHostDeviceNamesForHostsFunc = func(ctx context.Context, hostIDs []uint) error { return nil }
+
+				tc.opts.Action = HostActionReset
+				lc := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
+				require.NoError(t, lc.Do(ctx, tc.opts))
+				require.Equal(t, tc.want, got)
+			})
+		}
 	})
 
 	t.Run("reset skips reconcile during SCEP renewal", func(t *testing.T) {

@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import WebKit
 import os
 
@@ -146,6 +147,8 @@ final class ToastWindow: NSObject {
 
     /// The page signalled `ready`, or `didFinish` fired and the grace period lapsed.
     private var hasPainted = false
+
+    private var breakglass: BreakglassHotKey?
 
     init(url: URL, logger: Logger) {
         self.url = url
@@ -298,6 +301,10 @@ final class ToastWindow: NSObject {
             panel.animator().alphaValue = 1
         }
 
+        breakglass = BreakglassHotKey(logger: logger) { [weak self] in
+            self?.fadeOutAndFinish(.dismissed(reason: "breakglass"))
+        }
+
         logger.log("toast displayed")
         onDisplayed?()
 
@@ -370,6 +377,7 @@ final class ToastWindow: NSObject {
 
     /// Breaks the webview's references to this object.
     private func teardown() {
+        breakglass = nil
         webView.stopLoading()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
@@ -608,6 +616,62 @@ extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
         readyGrace?.cancel()
         readyGrace = nil
         show()
+    }
+}
+
+// MARK: - Breakglass
+
+/// Cmd+Shift+X closes the toast, for when the page's own dismiss is broken.
+///
+/// A system-wide hotkey because the panel is non-activating and never key, so a
+/// window-level key handler would only fire after the user clicked the card. Carbon's
+/// RegisterEventHotKey needs no Accessibility permission, unlike an NSEvent global
+/// monitor. Registered only while the toast is up, since it takes the shortcut from
+/// every other app for that time.
+private final class BreakglassHotKey {
+    private var hotKey: EventHotKeyRef?
+    private var handler: EventHandlerRef?
+    private let action: () -> Void
+
+    init(logger: Logger, action: @escaping () -> Void) {
+        self.action = action
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
+        // Unretained: deinit removes the handler before self goes away.
+        let installStatus = InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, _, userData in
+                guard let userData = userData else { return noErr }
+                Unmanaged<BreakglassHotKey>.fromOpaque(userData).takeUnretainedValue().action()
+                return noErr
+            },
+            1, &eventType,
+            Unmanaged.passUnretained(self).toOpaque(),
+            &handler
+        )
+
+        // Fails if another app already holds the shortcut; the toast still works, it
+        // just loses the breakglass.
+        let hotKeyID = EventHotKeyID(signature: OSType(0x464C_4454), id: 1) // 'FLDT'
+        let registerStatus = RegisterEventHotKey(
+            UInt32(kVK_ANSI_X),
+            UInt32(cmdKey | shiftKey),
+            hotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &hotKey
+        )
+        if installStatus != noErr || registerStatus != noErr {
+            logger.warning("breakglass hotkey unavailable (install \(installStatus), register \(registerStatus))")
+        }
+    }
+
+    deinit {
+        if let hotKey = hotKey { UnregisterEventHotKey(hotKey) }
+        if let handler = handler { RemoveEventHandler(handler) }
     }
 }
 

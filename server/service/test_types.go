@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -82,25 +83,28 @@ type TestServerOpts struct {
 	StartCronSchedules              []TestNewScheduleFunc
 	UseMailService                  bool
 	APNSTopic                       string
-	ProfileMatcher                  fleet.ProfileMatcher
 	EnableCachedDS                  bool
 	NoCacheDatastore                bool
 	SoftwareInstallStore            fleet.SoftwareInstallerStore
 	BootstrapPackageStore           fleet.MDMBootstrapPackageStore
 	SoftwareTitleIconStore          fleet.SoftwareTitleIconStore
+	StagedUploadStore               fleet.StagedUploadStore
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool
 	FeatureRoutes                   []endpointer.HandlerRoutesFunc
 	SCEPConfigService               fleet.SCEPConfigService
 	DigiCertService                 fleet.DigiCertService
+	GoogleCASService                fleet.GoogleCASService
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
-	HostIdentity                    *HostIdentity
-	AndroidMockClient               *android_mock.Client
-	AndroidModule                   android.Service
-	ConditionalAccess               *ConditionalAccess
-	DBConns                         *common_mysql.DBConnections
+	// ConditionalAccessGoogleClient replaces fleetdm.com and Google.
+	ConditionalAccessGoogleClient *GoogleConditionalAccessClient
+	HostIdentity                  *HostIdentity
+	AndroidMockClient             *android_mock.Client
+	AndroidModule                 android.Service
+	ConditionalAccess             *ConditionalAccess
+	DBConns                       *common_mysql.DBConnections
 
 	// ActivityMock is populated automatically when a test service is built.
 	// After setup, tests can use it to intercept or assert on activity creation.
@@ -279,3 +283,49 @@ func (m *memSoftwareInstallAttemptCounter) ResetInstallerAttempts(ctx context.Co
 	}
 	return nil
 }
+
+// immediatePolicyMembershipCleanup stands in for the policy_membership_cleanup schedule in tests: a trigger runs the
+// cleanup before returning, so a test sees the results of a policy change right after it.
+type immediatePolicyMembershipCleanup struct {
+	ds fleet.Datastore
+}
+
+// RegisterImmediatePolicyMembershipCleanup makes triggers of the policy_membership_cleanup schedule run the cleanup
+// immediately. A mocked datastore is skipped, since it only implements what a test sets, including one wrapped in the
+// cached datastore, as fleetctl tests do.
+func RegisterImmediatePolicyMembershipCleanup(schedules *fleet.CronSchedules, ds fleet.Datastore) {
+	switch unwrapDatastore(ds).(type) {
+	case *fleet_mock.Store, *fleet_mock.DataStore:
+		return
+	}
+	schedules.Schedules[string(fleet.CronPolicyMembershipCleanup)] = immediatePolicyMembershipCleanup{ds: ds}
+}
+
+// unwrapDatastore returns the datastore that ds wraps through an embedded fleet.Datastore, as the cached datastore does.
+func unwrapDatastore(ds fleet.Datastore) fleet.Datastore {
+	for {
+		v := reflect.ValueOf(ds)
+		if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
+			return ds
+		}
+		field, ok := v.Elem().Type().FieldByName("Datastore")
+		if !ok || !field.Anonymous {
+			return ds
+		}
+		inner, ok := reflect.TypeAssert[fleet.Datastore](v.Elem().FieldByIndex(field.Index))
+		if !ok || inner == nil {
+			return ds
+		}
+		ds = inner
+	}
+}
+
+func (c immediatePolicyMembershipCleanup) Trigger(ctx context.Context) (*fleet.CronStats, bool, error) {
+	return nil, true, c.ds.CleanupPendingPolicyMembership(ctx)
+}
+
+func (c immediatePolicyMembershipCleanup) Name() string {
+	return string(fleet.CronPolicyMembershipCleanup)
+}
+
+func (c immediatePolicyMembershipCleanup) Start() {}

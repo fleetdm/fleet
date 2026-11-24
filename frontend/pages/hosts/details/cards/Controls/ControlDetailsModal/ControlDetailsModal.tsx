@@ -2,12 +2,15 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
+import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
+import { WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { getDetailGuidance, getDetailText } from "../detailFormatting";
-import OSSettingsResendCell from "../OSSettingsResendCell";
+import OSSettingsActionsCell from "../OSSettingsActionsCell";
 import {
   getRowActionProps,
   IHostMdmProfileWithAddedStatus,
@@ -70,11 +73,20 @@ const ControlDetailsModal = ({
   // protector, the TPM is not ready, a restart is staged) and sends the actual
   // reason in the detail. Preferring the detail keeps the reason in one place,
   // server-side, instead of asserting a PIN that may not be required at all.
+  //
+  // Windows disk encryption on "Enforcing" works the same way: the server only
+  // sends a detail when it is asking the host for a new recovery key because
+  // the stored one cannot be read, and the generic copy about receiving an MDM
+  // command would describe the wrong thing. Matched on the synthetic row's
+  // UUID, since a real profile may carry the same name.
+  const isWindowsDiskEncryption =
+    control.profile_uuid === WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID;
   const detailReplacesMessage =
     !!detailText &&
     (displayOption?.statusText === "Verified" ||
       (displayOption?.statusText === "Action required" &&
-        isDiskEncryptionProfile(control.name)));
+        isDiskEncryptionProfile(control.name)) ||
+      (displayOption?.statusText === "Enforcing" && isWindowsDiskEncryption));
 
   const renderMessage = () => {
     if (detailReplacesMessage) {
@@ -112,13 +124,22 @@ const ControlDetailsModal = ({
   const showDetailBlock =
     !!detailText && !detailReplacesMessage && !guidance?.supersedesDetail;
 
+  // Windows failures report bare SyncML codes, like "<LocURI>: status 405".
+  const showWindowsStatusCodesLink =
+    showDetailBlock &&
+    control.status === "failed" &&
+    control.platform === "windows" &&
+    /: status \d+/.test(detailText);
+
   return (
     <Modal title="Details" onExit={onExit} className={baseClass}>
       <>
         <div className={`${baseClass}__modal-content`}>
           {message && (
             <div className={`${baseClass}__status`}>
-              {displayOption && <Icon name={displayOption.iconName} />}
+              {displayOption?.iconName && (
+                <Icon name={displayOption.iconName} />
+              )}
               <span className={`${baseClass}__status-message`}>{message}</span>
             </div>
           )}
@@ -143,11 +164,21 @@ const ControlDetailsModal = ({
               {detailText}
             </Textarea>
           )}
+          {showWindowsStatusCodesLink && (
+            <p className={`${baseClass}__details-help`}>
+              Windows returns a status code for each setting.{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/windows-profile-status-codes`}
+                text="Learn more"
+                newTab
+              />
+            </p>
+          )}
         </div>
         {/* .modal-cta-wrap is row-reverse, so the primary action comes first. */}
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Close</Button>
-          <OSSettingsResendCell
+          <OSSettingsActionsCell
             canResendProfiles={rowActions.canResendProfiles}
             canResendWhileVerifying={rowActions.canResendWhileVerifying}
             canRotateRecoveryLockPassword={
@@ -157,12 +188,14 @@ const ControlDetailsModal = ({
             showDisabledResendForAndroidProfile={
               rowActions.showDisabledResendForAndroidProfile
             }
+            lacksResendPermission={rowActions.lacksResendPermission}
             profile={control}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}
             rotateRecoveryLockPassword={rotateRecoveryLockPassword}
             resendHostNameTemplate={resendHostNameTemplate}
             onProfileResent={onProfileResent}
+            isInModal
           />
         </div>
       </>

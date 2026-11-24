@@ -1,0 +1,25 @@
+.software-types-picker {
+  @include flex-column-16px-gap;
+
+  &__title {
+    font-size: $x-small;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-xsmall;
+  }
+
+  &__list {
+    @include scrollable-checkbox-list(216px);
+  }
+
+  &__row {
+    @include scrollable-checkbox-list-row;
+  }
+
+  &__status {
+    @include scrollable-checkbox-list-status;
+  }
+}

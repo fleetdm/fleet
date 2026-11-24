@@ -1,0 +1,29 @@
+.profile-form {
+  @include vertical-form-layout;
+  // Fills the page column so the bottom bar sits at the bottom.
+  flex: 1;
+
+  // Its own column, since in GitOps mode the tooltip wrapper's span sits
+  // between these fields and the form's gap.
+  &__fields {
+    @include vertical-form-layout;
+  }
+
+  &__upload {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+
+    input[type="file"] {
+      display: none;
+    }
+  }
+
+  // The profile type above the editor is a quiet caption, not a field label.
+  // An error keeps the standard error label.
+  .editor__label:not(.editor__label--error) {
+    font-size: $xx-small;
+    font-weight: $regular;
+    color: $ui-fleet-black-75;
+  }
+}

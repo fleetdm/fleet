@@ -1,0 +1,12 @@
+Software Update Tool
+
+Finding available software
+Software Update found the following new or updated software:
+* Label: Safari27.0TahoeAuto-27.0
+	Title: Safari, Version: 27.0, Size: 249465KiB, Recommended: YES, 
+* Label: SFSymbolsAuto-27.0
+	Title: SF Symbols, Version: 27.0, Size: 430826KiB, Recommended: YES, 
+* Label: macOS Tahoe 26.7-25G229
+	Title: macOS Tahoe 26.7, Version: 26.7, Size: 2960352KiB, Recommended: YES, Action: restart, 
+* Label: macOS 27-26A428
+	Title: macOS 27, Version: 27, Size: 11727573KiB, Recommended: YES, Action: restart, 

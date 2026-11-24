@@ -139,8 +139,6 @@ module.exports = {
       };
     }
 
-    require('assert')(sails.config.custom.salesforceIntegrationUsername);
-    require('assert')(sails.config.custom.salesforceIntegrationPasskey);
     require('assert')(sails.config.custom.iqSecret);
     require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
 
@@ -154,11 +152,7 @@ module.exports = {
     //  ║  ║ ║║ ╦║║║║   ║ ║ ║  ╚═╗╠═╣║  ║╣ ╚═╗╠╣ ║ ║╠╦╝║  ║╣
     //  ╩═╝╚═╝╚═╝╩╝╚╝   ╩ ╚═╝  ╚═╝╩ ╩╩═╝╚═╝╚═╝╚  ╚═╝╩╚═╚═╝╚═╝
     // Log in to Salesforce.
-    let jsforce = require('jsforce');
-    let salesforceConnection = new jsforce.Connection({
-      loginUrl : 'https://fleetdm.my.salesforce.com'
-    });
-    await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+    let salesforceConnection = await sails.helpers.salesforce.getConnection();
 
     let salesforceContactId;
     let salesforceAccountId;
@@ -274,6 +268,11 @@ module.exports = {
         // If the medium is set to an "Event" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attributionDetails.campaign = marketingAttributionCookie.campaign;
         attributionDetails.sourceChannel = 'Event';
+      } else if(marketingAttributionCookie.gclid) {
+        // If no recognized medium was provided, but the user arrived with a Google click ID (gclid), they came from a Google Ads click (auto-tagged ads don't include utm parameters).
+        attributionDetails.sourceChannel = 'Digital';
+        attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName['ps'];
+        attributionDetails.campaign = marketingAttributionCookie.campaign ? marketingAttributionCookie.campaign : `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
       } else {
         // If no medium was provided via utm parameter, set the source channel to "Organic".
         attributionDetails.sourceChannel = 'Organic';

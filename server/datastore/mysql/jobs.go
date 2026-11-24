@@ -15,6 +15,10 @@ import (
 )
 
 func (ds *Datastore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+	return insertJobDB(ctx, ds.writer(ctx), job)
+}
+
+func insertJobDB(ctx context.Context, q sqlx.ExecerContext, job *fleet.Job) (*fleet.Job, error) {
 	query := `
 INSERT INTO jobs (
     name,
@@ -30,7 +34,7 @@ VALUES (?, ?, ?, ?, ?, COALESCE(?, NOW()))
 	if !job.NotBefore.IsZero() {
 		notBefore = &job.NotBefore
 	}
-	result, err := ds.writer(ctx).ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error, notBefore)
+	result, err := q.ExecContext(ctx, query, job.Name, job.Args, job.State, job.Retries, job.Error, notBefore)
 	if err != nil {
 		return nil, err
 	}

@@ -55,7 +55,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -142,7 +142,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -165,7 +165,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -611,17 +611,20 @@ describe("View all vitals button", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not render the button for a personal (BYOD) iOS host even when toggleVitalsModal is provided", () => {
-    renderVitalsCard({
-      platform: "ios",
-      withToggle: true,
-      enrollmentStatus: "On (manual - personal)",
-    });
+  it.each(["On (personal)", "On (manual - personal)"] as const)(
+    "does not render the button for a personal (BYOD) iOS host (%s) even when toggleVitalsModal is provided",
+    (enrollmentStatus) => {
+      renderVitalsCard({
+        platform: "ios",
+        withToggle: true,
+        enrollmentStatus,
+      });
 
-    expect(
-      screen.queryByRole("button", { name: "View all" })
-    ).not.toBeInTheDocument();
-  });
+      expect(
+        screen.queryByRole("button", { name: "View all" })
+      ).not.toBeInTheDocument();
+    }
+  );
 });
 
 describe("Card vitals cap", () => {
@@ -748,17 +751,20 @@ describe("Card vitals cap", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not cap a personal (BYOD) iOS host, since there's nothing extra behind 'View all'", () => {
-    const { container } = renderCard("ios", {
-      customHostVitals: makeCustomVitals(10),
-      enrollmentStatus: "On (manual - personal)",
-    });
+  it.each(["On (personal)", "On (manual - personal)"] as const)(
+    "does not cap a personal (BYOD) iOS host (%s), since there's nothing extra behind 'View all'",
+    (enrollmentStatus) => {
+      const { container } = renderCard("ios", {
+        customHostVitals: makeCustomVitals(10),
+        enrollmentStatus,
+      });
 
-    expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
-    expect(
-      screen.queryByRole("button", { name: "View all" })
-    ).not.toBeInTheDocument();
-  });
+      expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
+      expect(
+        screen.queryByRole("button", { name: "View all" })
+      ).not.toBeInTheDocument();
+    }
+  );
 
   it("leaves other platforms uncapped, rendering vitals outside the iOS subset", () => {
     const { container } = renderCard("darwin", {
@@ -781,7 +787,7 @@ describe("Card vitals cap", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -884,6 +890,52 @@ describe("Disk encryption data", () => {
     expect(screen.getByText("Always on")).toBeInTheDocument();
   });
 
+  it.each<{
+    platform: HostPlatform;
+    enabled: boolean;
+    status: string;
+    message: string;
+  }>([
+    {
+      platform: "darwin",
+      enabled: true,
+      status: "On",
+      message:
+        "The disk is encrypted. The user must enter their password when they start their computer.",
+    },
+    {
+      platform: "darwin",
+      enabled: false,
+      status: "Off",
+      message:
+        "The disk might be encrypted, but FileVault is off. The disk can be accessed without entering a password.",
+    },
+    {
+      platform: "windows",
+      enabled: true,
+      status: "On",
+      message:
+        "The disk is encrypted. If recently turned on, encryption could take a while.",
+    },
+  ])(
+    "renders the $platform '$status' tooltip without forced line breaks",
+    async ({ platform, enabled, status, message }) => {
+      const customRender = createCustomRenderer({});
+      const mockHost = createMockHost({
+        platform,
+        disk_encryption_enabled: enabled,
+      });
+
+      const { user } = customRender(<Vitals vitalsData={mockHost} />);
+
+      await user.hover(screen.getByText(status));
+
+      const tooltip = await screen.findByRole("tooltip");
+      expect(tooltip).toHaveTextContent(message);
+      expect(tooltip.querySelector("br")).toBeNull();
+    }
+  );
+
   it("does not render disk encryption for unsupported platforms", () => {
     const mockHost = createMockHost({
       platform: "android",
@@ -980,7 +1032,7 @@ describe("Agent data", () => {
 });
 
 describe("Last restarted vital", () => {
-  it.each(["darwin", "windows", "ubuntu"])(
+  it.each(["darwin", "windows", "ubuntu", "chrome"])(
     "renders Last restarted for supported platform: %s",
     (platform) => {
       const mockHost = createMockHost({
@@ -994,7 +1046,7 @@ describe("Last restarted vital", () => {
     }
   );
 
-  it.each(["chrome", "ios", "ipados", "android"])(
+  it.each(["ios", "ipados", "android"])(
     "does not render Last restarted for unsupported platform: %s",
     (platform) => {
       const mockHost = createMockHost({
@@ -1085,9 +1137,11 @@ describe("Custom host vitals", () => {
 
     expect(screen.getByText("Asset tag")).toBeInTheDocument();
     expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
-    expect(screen.getByText("Purchase date")).toBeInTheDocument();
+    const purchaseDateLabel = screen.getByText("Purchase date");
     // The vital with no value falls back to the default empty cell value.
-    expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
+    expect(purchaseDateLabel.nextElementSibling).toHaveTextContent(
+      DEFAULT_EMPTY_CELL_VALUE
+    );
   });
 
   it("renders values as plain text (no edit affordance) when no edit handler is provided", () => {
@@ -1132,7 +1186,8 @@ describe("Custom host vitals", () => {
     it("shows the required version and deadline", async () => {
       const mockHost = createMockHost({
         platform: "darwin",
-        os_version: "macOS 26.5",
+        os_name: "macOS",
+        os_version: "26.5",
       });
 
       const { user } = renderWithRequirement(
@@ -1160,7 +1215,8 @@ describe("Custom host vitals", () => {
     it("shows Pending while the target is still being resolved", async () => {
       const mockHost = createMockHost({
         platform: "darwin",
-        os_version: "macOS 26.5",
+        os_name: "macOS",
+        os_version: "26.5",
       });
 
       const { user } = renderWithRequirement(
@@ -1184,7 +1240,8 @@ describe("Custom host vitals", () => {
     it("renders no tooltip when there's no requirement", () => {
       const mockHost = createMockHost({
         platform: "darwin",
-        os_version: "macOS 26.5",
+        os_name: "macOS",
+        os_version: "26.5",
       });
 
       renderWithRequirement(<Vitals vitalsData={mockHost} />);
@@ -1193,20 +1250,47 @@ describe("Custom host vitals", () => {
       expect(screen.queryByText(/Minimum version required/i)).toBeNull();
     });
   });
+
+  describe("Operating system", () => {
+    it.each([
+      [
+        "a Windows host",
+        "Windows 11 Pro 24H2",
+        "10.0.26100.1742",
+        "Windows 11 Pro 24H2 10.0.26100.1742",
+      ],
+      ["the empty value before the host reports it", "", "", "---"],
+    ])("shows %s", (_label, osName, osVersion, expected) => {
+      const mockHost = createMockHost({
+        platform: "windows",
+        os_name: osName,
+        os_version: osVersion,
+      });
+
+      render(
+        <Vitals
+          vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        />
+      );
+
+      const osDataSet = screen.getByText("Operating system").parentElement;
+      expect(osDataSet).toHaveTextContent(`Operating system${expected}`);
+    });
+  });
 });
 
 describe("Android vitals", () => {
   const ANDROID_VITAL_TITLES = [
     "Bootloader version",
     "Encryption status",
-    "Play Protect enabled",
+    "Play Protect",
     "Kernel version",
     "Manufacturer",
     "Passcode set",
     "Security posture",
     "Security update version",
     "Software update status",
-    "USB debugging enabled",
+    "USB debugging",
   ];
 
   /** Shown only for company-owned hosts. */
@@ -1224,7 +1308,8 @@ describe("Android vitals", () => {
     createMockHost({
       platform: "android",
       mdm: companyOwnedMdm(),
-      os_version: "Android 16 (2026-05-01)",
+      os_name: "Android",
+      os_version: "16 (2026-05-01)",
       adb_enabled: true,
       passcode_protected: true,
       play_protect_enabled: true,
@@ -1285,9 +1370,9 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Security update version")).toBe(
       "May 1, 2026"
     );
-    expect(getVitalValue(container, "USB debugging enabled")).toBe("True");
+    expect(getVitalValue(container, "USB debugging")).toBe("Enabled");
     expect(getVitalValue(container, "Passcode set")).toBe("True");
-    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("Enabled");
   });
 
   it("maps the AMAPI enum values to human-readable labels", () => {
@@ -1330,7 +1415,7 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Security posture")).toBe("constructor");
   });
 
-  it("renders booleans as True/False, including a reported false", () => {
+  it("renders booleans, including a reported false", () => {
     const { container } = renderAndroidCard(
       createMockAndroidHost({
         adb_enabled: false,
@@ -1341,9 +1426,9 @@ describe("Android vitals", () => {
 
     // `false` must survive the trip through normalizeEmptyValues rather than
     // collapsing into the empty-cell value.
-    expect(getVitalValue(container, "USB debugging enabled")).toBe("False");
+    expect(getVitalValue(container, "USB debugging")).toBe("Disabled");
     expect(getVitalValue(container, "Passcode set")).toBe("False");
-    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("Enabled");
   });
 
   it("formats the security update version as a readable date", () => {
@@ -1434,7 +1519,7 @@ describe("Android vitals", () => {
       createMockAndroidHost({
         meid: "A00000292788E1",
         mdm: createMockHostMdmData({
-          enrollment_status: "On (manual - personal)",
+          enrollment_status: "On (personal)",
         }),
       })
     );
@@ -1624,7 +1709,7 @@ describe("Android vitals", () => {
     // The server folds it into os_version, and it has its own vital now, so
     // showing it here would just repeat it.
     const { container } = renderAndroidCard(
-      createMockAndroidHost({ os_version: "Android 16 (2026-01-01)" })
+      createMockAndroidHost({ os_version: "16 (2026-01-01)" })
     );
 
     expect(getVitalValue(container, "Operating system")).toBe("Android 16");
@@ -1632,7 +1717,7 @@ describe("Android vitals", () => {
 
   it("leaves an Android version that reports no patch level alone", () => {
     const { container } = renderAndroidCard(
-      createMockAndroidHost({ os_version: "Android 16" })
+      createMockAndroidHost({ os_version: "16" })
     );
 
     expect(getVitalValue(container, "Operating system")).toBe("Android 16");
@@ -1641,7 +1726,8 @@ describe("Android vitals", () => {
   it("does not strip a parenthetical from a non-Android OS version", () => {
     const mockHost = createMockHost({
       platform: "darwin",
-      os_version: "macOS 26.5 (25F74)",
+      os_name: "macOS",
+      os_version: "26.5 (25F74)",
     });
 
     const { container } = renderAndroidCard(mockHost);
@@ -1677,5 +1763,133 @@ describe("Android vitals", () => {
         )
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("Timezone vital", () => {
+  it.each<[string, HostPlatform]>([
+    ["macOS", "darwin"],
+    ["Windows", "windows"],
+    ["Ubuntu", "ubuntu"],
+    ["RHEL", "rhel"],
+  ])(
+    "renders the Timezone vital with the IANA value for %s",
+    (_label, platform) => {
+      const mockHost = createMockHost({
+        platform,
+        timezone: "Europe/Sarajevo",
+      });
+
+      render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+      expect(screen.getByText("Timezone")).toBeInTheDocument();
+      expect(screen.getByText("Europe/Sarajevo")).toBeInTheDocument();
+    }
+  );
+
+  it("renders the IANA value when the browser doesn't support the host's timezone", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      timezone: "Not/AZone",
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.getByText("Not/AZone")).toBeInTheDocument();
+  });
+
+  it.each<[string, HostPlatform]>([
+    ["macOS", "darwin"],
+    ["Windows", "windows"],
+    ["Ubuntu", "ubuntu"],
+  ])("renders '---' when timezone is missing on %s", (_label, platform) => {
+    const mockHost = createMockHost({ platform, timezone: null });
+
+    const { container } = render(
+      <Vitals vitalsData={normalizeEmptyValues(mockHost)} mdm={mockHost.mdm} />
+    );
+
+    const timezoneLabel = screen.getByText("Timezone");
+    const timezoneValue = timezoneLabel.nextElementSibling;
+    expect(timezoneValue).toHaveTextContent(DEFAULT_EMPTY_CELL_VALUE);
+    expect(container).toBeInTheDocument(); // suppress unused warning
+  });
+
+  it("hides the Timezone vital on Android", () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      timezone: "Europe/Sarajevo",
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.queryByText("Timezone")).not.toBeInTheDocument();
+  });
+
+  it("hides the Timezone vital on Chrome", () => {
+    const mockHost = createMockHost({
+      platform: "chrome",
+      timezone: "Europe/Sarajevo",
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.queryByText("Timezone")).not.toBeInTheDocument();
+  });
+
+  it("hides the Timezone vital on iOS when the device hasn't reported one", () => {
+    const mockHost = createMockHost({ platform: "ios", timezone: null });
+
+    render(
+      <Vitals vitalsData={normalizeEmptyValues(mockHost)} mdm={mockHost.mdm} />
+    );
+
+    expect(screen.queryByText("Timezone")).not.toBeInTheDocument();
+  });
+});
+
+describe("Google device ID vital", () => {
+  // Built the way HostDetailsPage builds it, so a field missing from
+  // HOST_VITALS_DATA or an empty value normalized to "---" is caught.
+  const renderWithHost = (mockHost: IHost) =>
+    render(
+      <Vitals
+        vitalsData={normalizeEmptyValues(pick(mockHost, HOST_VITALS_DATA))}
+        mdm={mockHost.mdm}
+      />
+    );
+
+  it.each(["ios", "ipados", "android"])(
+    "renders the Google device ID for %s hosts once it is set",
+    (platform) => {
+      renderWithHost(
+        createMockHost({
+          platform: platform as HostPlatform,
+          google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+        })
+      );
+
+      expect(screen.getByText("Google device ID")).toBeInTheDocument();
+      expect(
+        screen.getByText("c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12")
+      ).toBeInTheDocument();
+    }
+  );
+
+  it("hides the Google device ID until it is set", () => {
+    renderWithHost(createMockHost({ platform: "ios", google_device_id: "" }));
+
+    expect(screen.queryByText("Google device ID")).not.toBeInTheDocument();
+  });
+
+  it("hides the Google device ID on other platforms", () => {
+    renderWithHost(
+      createMockHost({
+        platform: "darwin",
+        google_device_id: "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+      })
+    );
+
+    expect(screen.queryByText("Google device ID")).not.toBeInTheDocument();
   });
 });

@@ -13,6 +13,15 @@
     display: flex;
     align-items: center;
   }
+  // When the links and search don't fit on one row, the links scroll sideways instead of pushing the page wider.
+  [purpose='nav-link-container'] {
+    min-width: 0px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
   a {
     height: 29px;
     &[purpose='docs-top-nav-menu-link'] {
@@ -46,6 +55,50 @@
 
   [purpose='nav-bar-search'] {
     margin-left: 24px;
+    // Note: We're using classes here to override the default Docsearch styles;
+     button {
+       width: 100%;
+       cursor: text;
+       margin: 0;
+     }
+     .DocSearch-Button {
+       border-top-left-radius: 6px;
+       border-bottom-left-radius: 6px;
+       border-top-right-radius: 6px;
+       border-bottom-right-radius: 6px;
+       border: 1px solid @core-fleet-black-25;
+       background-color: #FFF;
+       padding: 8px 15px;
+       height: 44px;
+       margin: 0;
+       width: 200px;
+     }
+     .DocSearch-Button:hover {
+       box-shadow: none;
+       border: 1px solid @core-fleet-black-25;
+       color: @core-fleet-black-50;
+     }
+     .DocSearch-Search-Icon {
+       margin-left: 0px;
+       margin-right: 8px;
+       height: 16px;
+       width: 16px;
+       color: @core-fleet-black-50;
+       stroke-width: 3px;
+     }
+     .DocSearch-Button-Keys {
+       display: none;
+     }
+     .input-group:focus-within {
+       border: 1px solid @core-fleet-black;
+     }
+     .DocSearch-Button-Placeholder {
+       font-size: 16px;
+       line-height: 16px;
+       font-weight: 400;
+       padding-left: 0px;
+       padding-right: 0px;
+     }
     [purpose='searchbar'] {
       input {
         width: 100%;
@@ -75,14 +128,14 @@
         align-items: center;
       }
       .input-group:focus-within {
-        border: 1px solid @core-vibrant-green;
+        border: 1px solid @core-fleet-black;
       }
       .form-control {
         border-radius: 6px;
         height: 36px;
         margin: 0;
         padding: 0px;
-        width: 171px;
+        width: 125px;
         font-size: 16px;
         &:focus {
           border: none;
@@ -104,7 +157,12 @@
       overflow-x: scroll;
       scrollbar-width: none;
     }
+
     [purpose='nav-bar-search'] {
+      margin-left: 24px;
+      .DocSearch-Button {
+        width: 200px;
+      }
       [purpose='searchbar'] {
         .form-control {
           width: 100px;
@@ -112,6 +170,65 @@
       }
     }
 
+  }
+  @media (max-width: 768px) {
+    [purpose='nav-bar-search'] {
+      margin-left: 24px;
+      // Note: We're using classes here to override the default Docsearch styles;
+      button {
+        width: 100%;
+        cursor: pointer;
+        margin: 0;
+      }
+      .DocSearch-Button {
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
+        border: none;
+        background-color: transparent;
+        padding: 0px;
+        height: 36px;
+        margin: 0;
+        width: 16px;
+      }
+      .DocSearch-Button:hover {
+        box-shadow: none;
+        border: none;
+        color: @core-fleet-black-50;
+      }
+      .DocSearch-Search-Icon {
+        margin-left: 0px;
+        margin-right: 8px;
+        // padding: 8px 15px;
+        height: 16px;
+        width: 16px;
+        color: @core-fleet-black-75;
+        stroke-width: 3px;
+      }
+      .DocSearch-Button-Keys {
+        display: none;
+      }
+      .input-group:focus-within {
+        border: 1px solid @core-fleet-black;
+      }
+      .DocSearch-Button-Placeholder {
+        font-size: 16px;
+        line-height: 16px;
+        font-weight: 400;
+        padding-left: 0px;
+        display: none;
+      }
+      img {
+        height: 16px;
+        margin-right: 8px;
+      }
+      [purpose='searchbar'] {
+        .form-control {
+          width: 100px;
+        }
+      }
+    }
   }
 
 }

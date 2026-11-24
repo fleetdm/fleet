@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -19,8 +20,12 @@ type LiveQueryStore interface {
 	QueriesForHost(hostID uint) (map[string]string, error)
 	// QueryCompletedByHost marks the query with the given name as completed by the
 	// given host. After calling QueryCompleted, that query will no longer be
-	// sent to the host.
-	QueryCompletedByHost(name string, hostID uint) error
+	// sent to the host. It reports whether the query was active and still
+	// targeting the host at that moment.
+	QueryCompletedByHost(name string, hostID uint) (bool, error)
+	// RestoreQueryTargetForHost undoes QueryCompletedByHost for a host whose
+	// result could not be delivered, so the query is sent to it again.
+	RestoreQueryTargetForHost(name string, hostID uint) error
 	// CleanupInactiveQueries removes any inactive queries. This is used via a
 	// cron job to regularly cleanup any queries that may have failed to be
 	// stopped properly in Redis.
@@ -67,4 +72,25 @@ type LiveQueryStore interface {
 	// report admits a host it didn't cover yet, when its results are discarded, and when the query
 	// is deleted.
 	ClearQueryReportsClipped(queryIDs []uint) error
+
+	// RecordQueryResultsLastFetched records that the query_results rows with the given IDs were
+	// fetched again at fetchedAt with unchanged data, for the query_results_cleanup cron to update
+	// their last_fetched. It returns ErrQueryResultsLastFetchedFull if too many are pending.
+	RecordQueryResultsLastFetched(rowIDs []uint, fetchedAt time.Time) error
+	// LoadQueryResultsLastFetched moves the recorded rows to a processing set, merging them with
+	// rows left there by a run that failed, and returns the latest fetch time of each row ID.
+	LoadQueryResultsLastFetched() (map[uint]time.Time, error)
+	// ClearProcessedQueryResultsLastFetched deletes the processing set once its rows are updated.
+	ClearProcessedQueryResultsLastFetched() error
+
+	// AcquireQueryReportWriteSlot takes one of limit write slots shared by all Fleet servers for
+	// token, reporting whether one was free. The slot is released by ReleaseQueryReportWriteSlot,
+	// or once lease expires if its holder never releases it (e.g. the server crashed).
+	AcquireQueryReportWriteSlot(token string, limit int, lease time.Duration) (bool, error)
+	// ReleaseQueryReportWriteSlot releases the write slot held by token.
+	ReleaseQueryReportWriteSlot(token string) error
 }
+
+// ErrQueryResultsLastFetchedFull is returned by RecordQueryResultsLastFetched when the pending
+// set is full, which means the cron is behind.
+var ErrQueryResultsLastFetchedFull = errors.New("too many pending query results last fetched updates")

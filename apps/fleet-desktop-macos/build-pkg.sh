@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/build"
 APP_DIR="$BUILD_DIR/Fleet Desktop.app"
 PKG_DIR="$BUILD_DIR/pkg"
+PAYLOAD_DIR="$BUILD_DIR/payload"
 DIST_DIR="$BUILD_DIR/dist"
 
 # Package + app bundle identifier. Override for a dev-team build so the pkg and
@@ -26,24 +27,18 @@ else
 fi
 
 echo "Preparing package structure..."
-rm -rf "$PKG_DIR" "$DIST_DIR"
-mkdir -p "$PKG_DIR/Applications"
+rm -rf "$PKG_DIR" "$PAYLOAD_DIR" "$DIST_DIR"
+# pkgbuild bundles everything in $PKG_DIR as installer scripts, so the app
+# payload is staged outside it to keep a second copy of the app out of the pkg.
+mkdir -p "$PKG_DIR" "$PAYLOAD_DIR"
 # Use ditto to preserve extended attributes and signatures
-ditto "$APP_DIR" "$PKG_DIR/Applications/Fleet Desktop.app"
+ditto "$APP_DIR" "$PAYLOAD_DIR/Fleet Desktop.app"
 
-# Create preinstall script to check MDM and quit the app if running
+# Create preinstall script to quit the app if running
 cat > "$PKG_DIR/preinstall" << 'PREINSTALL_EOF'
 #!/bin/bash
-# Preinstall script: verify MDM enrollment, gracefully quit Fleet Desktop
-# if it is running, and track its state so postinstall can relaunch it.
-
-MDM_PLIST="/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
-if [ ! -f "$MDM_PLIST" ]; then
-    echo "ERROR: Fleet Desktop requires an MDM-enabled Mac." >&2
-    echo "The managed preferences file was not found at: $MDM_PLIST" >&2
-    echo "Please enroll this device via MDM before installing Fleet Desktop." >&2
-    exit 1
-fi
+# Preinstall script: gracefully quit Fleet Desktop if it is running, and
+# track its state so postinstall can relaunch it.
 
 BUNDLE_ID="com.fleetdm.fleet-desktop"
 # Root-owned, not world-writable, so it isn't open to the symlink/TOCTOU races
@@ -125,8 +120,7 @@ POSTINSTALL_EOF
 chmod +x "$PKG_DIR/postinstall"
 
 # The scripts above are written from quoted heredocs (no expansion), so patch the
-# app bundle ID they quit/relaunch in place. Targets only the BUNDLE_ID line, so
-# the fleetd managed-preferences path (com.fleetdm.fleetd.config.plist) is untouched.
+# app bundle ID they quit/relaunch in place. Targets only the BUNDLE_ID line.
 sed -i '' "s|^BUNDLE_ID=\"com.fleetdm.fleet-desktop\"$|BUNDLE_ID=\"$APP_BUNDLE_ID\"|" \
     "$PKG_DIR/preinstall" "$PKG_DIR/postinstall"
 
@@ -138,7 +132,7 @@ echo "Building component package..."
 mkdir -p "$DIST_DIR"
 COMPONENT_PKG="$BUILD_DIR/fleet-desktop-component.pkg"
 pkgbuild \
-    --root "$PKG_DIR/Applications" \
+    --root "$PAYLOAD_DIR" \
     --scripts "$PKG_DIR" \
     --identifier "$APP_BUNDLE_ID" \
     --version "${VERSION}" \
@@ -152,18 +146,6 @@ cat > "$DIST_XML" << DIST_EOF
 <installer-gui-script minSpecVersion="2">
     <title>Fleet Desktop v${VERSION}</title>
     <options customize="never" require-scripts="false" hostArchitectures="x86_64,arm64"/>
-    <installation-check script="mdm_check()"/>
-    <script>
-function mdm_check() {
-    if (system.files.fileExistsAtPath('/Library/Managed Preferences/com.fleetdm.fleetd.config.plist')) {
-        return true;
-    }
-    my.result.title = 'Installation Failed';
-    my.result.message = 'Fleet Desktop requires an MDM-enabled Mac. Please enroll this device via MDM before installing Fleet Desktop.';
-    my.result.type = 'Fatal';
-    return false;
-}
-    </script>
     <choices-outline>
         <line choice="default"/>
     </choices-outline>

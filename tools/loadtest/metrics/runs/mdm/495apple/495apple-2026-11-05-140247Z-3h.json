@@ -1,0 +1,1025 @@
+{
+  "metadata": {
+    "workspace": "495apple",
+    "collected_at": "2026-11-05T14:02:47Z",
+    "region": "us-east-2",
+    "interval": "3h",
+    "time_window": {
+      "start": "2026-11-05T11:02:47Z",
+      "end": "2026-11-05T14:02:47Z"
+    },
+    "note": "4.95 RC (75e81b8), 50k macOS MDM, steady state after exploratory testing (no load-changing work)"
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 17.41,
+      "Minimum": 16.78,
+      "Maximum": 18.32,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 23.06,
+      "Minimum": 22.96,
+      "Maximum": 23.23,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 20,
+      "desiredCount": 20
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 3.6,
+      "Minimum": 3.48,
+      "Maximum": 3.7,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 24.51,
+      "Minimum": 24.47,
+      "Maximum": 24.53,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "task_counts": {
+      "runningCount": 25,
+      "desiredCount": 25
+    }
+  },
+  "apns_mock": {
+    "service": "fleet-495apple-apple-apns-mock",
+    "cpu_utilization": {
+      "Average": 1.8,
+      "Minimum": 1.67,
+      "Maximum": 1.91,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "memory_utilization": {
+      "Average": 12.19,
+      "Minimum": 12.18,
+      "Maximum": 12.23,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "per_task": {
+      "cpu": {
+        "avg_pct": 1.8,
+        "max_pct": 4.52,
+        "spread_pct": 2.72
+      },
+      "memory": {
+        "avg_pct": 12.19,
+        "max_pct": 21.97,
+        "spread_pct": 9.78
+      }
+    },
+    "network": {
+      "network_rx_bytes": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 106390.1375,
+        "Sum": 76600899,
+        "Unit": "Bytes/Second",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "network_tx_bytes": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 121023.1667,
+        "Sum": 87136680,
+        "Unit": "Bytes/Second",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    },
+    "task_counts": {
+      "runningCount": 4,
+      "desiredCount": 4
+    },
+    "container_health": {
+      "abnormal_stops": 0,
+      "running_tasks": 4,
+      "start_spread_min": 48.72,
+      "start_spread_alert": true,
+      "tasks": [
+        {
+          "task_id": "d3bf8bdbc3254664909db75ae1a5de66",
+          "started_at": "2026-11-04T20:15:16.449000-06:00",
+          "uptime_min": 1067.52
+        },
+        {
+          "task_id": "5e071d9b74c3439fb29eceb5f70b1b0d",
+          "started_at": "2026-11-04T20:31:23.047000-06:00",
+          "uptime_min": 1051.4
+        },
+        {
+          "task_id": "e326467813cf4f8e90e4890792bb2ea7",
+          "started_at": "2026-11-04T21:03:58.986000-06:00",
+          "uptime_min": 1018.82
+        },
+        {
+          "task_id": "1e52098a9fdf4178bd0217f6a9026bb7",
+          "started_at": "2026-11-04T21:03:59.190000-06:00",
+          "uptime_min": 1018.8
+        }
+      ]
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 21.7819,
+      "Minimum": 16.3611,
+      "Maximum": 42.525,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "database_connections": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 78.8444,
+      "Minimum": 66,
+      "Maximum": 87,
+      "Unit": "Count",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "read_iops": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 3.2177,
+      "Maximum": 101.5717,
+      "Unit": "Count/Second",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "write_iops": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 1442.6012,
+      "Maximum": 2138.54,
+      "Unit": "Count/Second",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "deadlocks": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 0,
+      "Sum": 0,
+      "Maximum": 0,
+      "Unit": "Count/Second",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    }
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 48.2839,
+        "Minimum": 31.685,
+        "Maximum": 68.2656,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "database_connections": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 92.6389,
+        "Minimum": 48,
+        "Maximum": 174,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "read_iops": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 3.0937,
+        "Maximum": 82.3547,
+        "Unit": "Count/Second",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "write_iops": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 0,
+        "Maximum": 0,
+        "Unit": "Count/Second",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    },
+    {
+      "instance": "reader-2",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 43.3883,
+        "Minimum": 31.6095,
+        "Maximum": 76.6904,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "database_connections": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 92.6556,
+        "Minimum": 49,
+        "Maximum": 183,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "read_iops": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 2.1321,
+        "Maximum": 61.5479,
+        "Unit": "Count/Second",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "write_iops": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 0,
+        "Maximum": 0,
+        "Unit": "Count/Second",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "rds_performance_insights": {
+    "writer": [
+      {
+        "rank": 1,
+        "sql": "COMMIT",
+        "load_avg": 0.32
+      },
+      {
+        "rank": 2,
+        "sql": "INSERT INTO `host_seen_times` ( `host_id` , `seen_time` ) VALUES (...) /* , ... */ , ( ?, ... ",
+        "load_avg": 0.12
+      },
+      {
+        "rank": 3,
+        "sql": "DELETE FROM `host_software_installed_paths` WHERE `id` IN (...) ",
+        "load_avg": 0.03
+      },
+      {
+        "rank": 4,
+        "sql": "INSERT INTO `host_seen_times` ( `host_id` , `seen_time` ) VALUES (...) /* , ... */ , ( ? ",
+        "load_avg": 0.02
+      },
+      {
+        "rank": 5,
+        "sql": "DELETE FROM `host_software` WHERE `host_id` = ? AND `software_id` IN (...) ",
+        "load_avg": 0.01
+      }
+    ],
+    "readers": [
+      {
+        "instance": "reader-1",
+        "top_sql": [
+          {
+            "rank": 1,
+            "sql": "SELECT `hm` . `host_id` , `hm` . `enrolled` , `hm` . `server_url` , `hm` . `installed_from_dep` , `hm` . `mdm_id` , `hm` . `is_personal_enrollment` , `hm` . `personal_enrollment_type` , `hm` . `managed_apple_id` , COALESCE ( `hm` . `is_server` , FALSE ) AS `is_server` , COALESCE ( `mdms` . NAME , ? ) AS NAME , `hdep` . `assign_profile_response` AS `dep_profile_assign_status` , CASE WHEN `hm` . `enrolled` = ? AND `h` . `platform` = ? THEN EXISTS ( SELECT ? FROM `mdm_windows_enrollments` `mwe` WHE",
+            "load_avg": 0.24
+          },
+          {
+            "rank": 2,
+            "sql": "SELECT `q` . NAME , `q` . QUERY , `q` . `team_id` , `q` . `schedule_interval` , `q` . `platform` , `q` . `min_osquery_version` , `q` . `automations_enabled` , `q` . `logging_type` , `q` . `discard_data` FROM `queries` `q` WHERE `q` . `saved` = TRUE AND ( `q` . `schedule_interval` > ? AND `team_id` IS NULL AND ( `q` . `automations_enabled` OR ( NOT `q` . `discard_data` AND NOT ? AND `q` . `logging_type` = ? ) ) ) AND ( NOT EXISTS ( SELECT ? FROM `query_labels` `ql` WHERE `ql` . `query_id` = `q` .",
+            "load_avg": 0.23
+          },
+          {
+            "rank": 3,
+            "sql": "SELECT DISTINCTROW `packs` . * FROM ( ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` JOIN `label_membership` `lm` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . `target_id` = `lm` . `label_id` AND `pt` . TYPE = ? ) WHERE `lm` . `host_id` = ? AND NOT `p` . `disabled` AND `p` . `pack_type` IS NULL ) UNION ALL ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . TYPE = ? AND `pt` . `target_id` = ? ) WHERE NOT `p` . `disabled` AND `p` . ",
+            "load_avg": 0.2
+          },
+          {
+            "rank": 4,
+            "sql": "SELECT `id` , `host_id` , `execution_id` , `script_id` , `created_at` FROM ( SELECT `ua` . `id` , `ua` . `host_id` , `ua` . `execution_id` , `sua` . `script_id` , `ua` . `priority` , `ua` . `created_at` , IF ( `ua` . `activated_at` IS NULL , ?, ... ) AS `topmost` FROM `upcoming_activities` `ua` LEFT JOIN `script_upcoming_activities` `sua` ON `ua` . `id` = `sua` . `upcoming_activity_id` WHERE `ua` . `host_id` = ? AND `ua` . `activity_type` IN (...) AND `ua` . `activated_at` IS NOT NULL ORDER BY `",
+            "load_avg": 0.15
+          },
+          {
+            "rank": 5,
+            "sql": "SELECT `host_uuid` , `declaration_uuid` , `declaration_identifier` , `declaration_name` , STATUS , `operation_type` , COALESCE ( `detail` , ? ) AS `detail` , `token` , `secrets_updated_at` , `variables_updated_at` , `assets_updated_at` , `activation_updated_at` , `scope` FROM `host_mdm_apple_declarations` WHERE `host_uuid` IN ( ?, ... ",
+            "load_avg": 0.14
+          }
+        ]
+      },
+      {
+        "instance": "reader-2",
+        "top_sql": [
+          {
+            "rank": 1,
+            "sql": "SELECT `q` . NAME , `q` . QUERY , `q` . `team_id` , `q` . `schedule_interval` , `q` . `platform` , `q` . `min_osquery_version` , `q` . `automations_enabled` , `q` . `logging_type` , `q` . `discard_data` FROM `queries` `q` WHERE `q` . `saved` = TRUE AND ( `q` . `schedule_interval` > ? AND `team_id` IS NULL AND ( `q` . `automations_enabled` OR ( NOT `q` . `discard_data` AND NOT ? AND `q` . `logging_type` = ? ) ) ) AND ( NOT EXISTS ( SELECT ? FROM `query_labels` `ql` WHERE `ql` . `query_id` = `q` .",
+            "load_avg": 0.21
+          },
+          {
+            "rank": 2,
+            "sql": "SELECT `hm` . `host_id` , `hm` . `enrolled` , `hm` . `server_url` , `hm` . `installed_from_dep` , `hm` . `mdm_id` , `hm` . `is_personal_enrollment` , `hm` . `personal_enrollment_type` , `hm` . `managed_apple_id` , COALESCE ( `hm` . `is_server` , FALSE ) AS `is_server` , COALESCE ( `mdms` . NAME , ? ) AS NAME , `hdep` . `assign_profile_response` AS `dep_profile_assign_status` , CASE WHEN `hm` . `enrolled` = ? AND `h` . `platform` = ? THEN EXISTS ( SELECT ? FROM `mdm_windows_enrollments` `mwe` WHE",
+            "load_avg": 0.21
+          },
+          {
+            "rank": 3,
+            "sql": "SELECT DISTINCTROW `packs` . * FROM ( ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` JOIN `label_membership` `lm` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . `target_id` = `lm` . `label_id` AND `pt` . TYPE = ? ) WHERE `lm` . `host_id` = ? AND NOT `p` . `disabled` AND `p` . `pack_type` IS NULL ) UNION ALL ( SELECT `p` . * FROM `packs` `p` JOIN `pack_targets` `pt` ON ( `p` . `id` = `pt` . `pack_id` AND `pt` . TYPE = ? AND `pt` . `target_id` = ? ) WHERE NOT `p` . `disabled` AND `p` . ",
+            "load_avg": 0.18
+          },
+          {
+            "rank": 4,
+            "sql": "SELECT `q` . NAME , `q` . QUERY , `q` . `team_id` , `q` . `schedule_interval` , `q` . `platform` , `q` . `min_osquery_version` , `q` . `automations_enabled` , `q` . `logging_type` , `q` . `discard_data` FROM `queries` `q` WHERE `q` . `saved` = TRUE AND ( `q` . `schedule_interval` > ? AND `team_id` = ? AND ( `q` . `automations_enabled` OR ( NOT `q` . `discard_data` AND NOT ? AND `q` . `logging_type` = ? ) ) ) AND ( NOT EXISTS ( SELECT ? FROM `query_labels` `ql` WHERE `ql` . `query_id` = `q` . `id",
+            "load_avg": 0.13
+          },
+          {
+            "rank": 5,
+            "sql": "SELECT `id` , `host_id` , `execution_id` , `script_id` , `created_at` FROM ( SELECT `ua` . `id` , `ua` . `host_id` , `ua` . `execution_id` , `sua` . `script_id` , `ua` . `priority` , `ua` . `created_at` , IF ( `ua` . `activated_at` IS NULL , ?, ... ) AS `topmost` FROM `upcoming_activities` `ua` LEFT JOIN `script_upcoming_activities` `sua` ON `ua` . `id` = `sua` . `upcoming_activity_id` WHERE `ua` . `host_id` = ? AND `ua` . `activity_type` IN (...) AND `ua` . `activated_at` IS NOT NULL ORDER BY `",
+            "load_avg": 0.12
+          }
+        ]
+      }
+    ]
+  },
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 27.6375,
+        "Minimum": 26.6544,
+        "Maximum": 30.3384,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 2.3583,
+        "Minimum": 2.3495,
+        "Maximum": 2.3661,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 4.358,
+        "Minimum": 4.216,
+        "Maximum": 4.5174,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 2.3425,
+        "Minimum": 2.3335,
+        "Maximum": 2.3492,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-3",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 4.5159,
+        "Minimum": 4.3652,
+        "Maximum": 4.7508,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 2.3432,
+        "Minimum": 2.3351,
+        "Maximum": 2.3503,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "apns_mock_redis": [
+    {
+      "node": "apns-redis-1",
+      "cpu_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 0.2847,
+        "Minimum": 0.2504,
+        "Maximum": 0.5337,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "memory_utilization": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 0.8853,
+        "Minimum": 0.8844,
+        "Maximum": 0.8903,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "curr_connections": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 12.95,
+        "Maximum": 13,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "curr_items": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 5,
+        "Maximum": 5,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "string_based_cmds": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 1714.6667,
+        "Sum": 308640,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "pubsub_based_cmds": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 0.0667,
+        "Sum": 12,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "network_bytes_out": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 692081.0389,
+        "Sum": 124574587,
+        "Unit": "Bytes",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    }
+  ],
+  "alb": {
+    "target_response_time": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 0.0025,
+      "Minimum": 0.0001,
+      "Maximum": 3.3302,
+      "Unit": "Seconds",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "target_response_time_percentiles": {
+      "p99": 0.0126,
+      "p95": 0.0097
+    },
+    "http_5xx_count": {
+      "Sum": 0,
+      "Unit": "Count",
+      "no_datapoints": true
+    },
+    "http_elb_5xx_count": {
+      "Sum": 0,
+      "Unit": "Count",
+      "no_datapoints": true
+    },
+    "request_count": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Sum": 150010064,
+      "Unit": "Count",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "processed_bytes": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Sum": 123007655187,
+      "Unit": "Bytes",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    }
+  },
+  "fleet_server_errors": {
+    "error_count": 60.0,
+    "sample_messages": [
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.2.241:37486->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.1.75:41748->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.2.109:44406->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.3.227:37086->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.3.236:55598->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.2.124:54150->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.2.165:46234->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.3.155:44726->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.3.238:43470->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}",
+      "{\"ts\":\"2026-11-05T13:04:40Z\",\"level\":\"error\",\"msg\":\"agent notifications subscription failed; resubscribing\",\"component\":\"agent-notifier\",\"err\":\"receive agent notification: read tcp 10.12.2.15:52686->10.12.31.120:6379: i/o timeout\",\"backoff\":\"1s\"}"
+    ]
+  },
+  "apns_mock_errors": {
+    "error_count": 12.0,
+    "sample_messages": [
+      "time=2026-11-05T13:20:36.623Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.3.158:45442->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T13:20:34.289Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.2.175:54014->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T13:20:33.993Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.1.13:47928->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T13:20:33.932Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.1.204:42414->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T12:20:35.549Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.3.158:60294->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T12:20:32.892Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.1.13:41922->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T12:20:32.772Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.1.204:57484->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T12:20:32.688Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.2.175:57604->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T11:20:34.603Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.3.158:37154->10.12.31.225:6379: i/o timeout\"",
+      "time=2026-11-05T11:20:32.184Z level=ERROR msg=\"push subscription dropped, reconnecting\" error=\"read tcp 10.12.1.13:47914->10.12.31.225:6379: i/o timeout\""
+    ]
+  },
+  "rds_writer_extended": {
+    "freeable_memory": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 15215745888.7111,
+      "Minimum": 15049277440,
+      "Unit": "Bytes",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "buffer_cache_hit_ratio": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 99.9988,
+      "Minimum": 99.9765,
+      "Unit": "Percent",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "volume_bytes_used": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 85074464919.7037,
+      "Maximum": 85109080064,
+      "Unit": "Bytes",
+      "data_points": 27,
+      "max_points": 36,
+      "data_coverage": 0.75
+    },
+    "select_latency": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 0.395,
+      "Maximum": 2.7529,
+      "Unit": "Milliseconds",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "insert_latency": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 2.4392,
+      "Maximum": 3.3344,
+      "Unit": "Milliseconds",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "dml_latency": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 1.331,
+      "Maximum": 3.78,
+      "Unit": "Milliseconds",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "threads_running": {
+      "average": 0.68,
+      "maximum": 1.18,
+      "vcpus": 8
+    },
+    "iops_utilization": {
+      "instance_class": "db.r6g.2xlarge",
+      "max_iops": 20000,
+      "read_iops_avg": 3.2177,
+      "write_iops_avg": 1442.6012,
+      "total_iops_avg": 1445.82,
+      "utilization_pct": 7.23
+    }
+  },
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "aurora_replica_lag": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 8.05,
+        "Maximum": 26,
+        "Unit": "Milliseconds",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "freeable_memory": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 15978532226.8444,
+        "Minimum": 15885402112,
+        "Unit": "Bytes",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "buffer_cache_hit_ratio": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 99.9992,
+        "Minimum": 99.9615,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "select_latency": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 0.4388,
+        "Maximum": 1.3776,
+        "Unit": "Milliseconds",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "iops_utilization": {
+        "instance_class": "db.r6g.2xlarge",
+        "max_iops": 20000,
+        "read_iops_avg": 3.0937,
+        "write_iops_avg": 0,
+        "total_iops_avg": 3.09,
+        "utilization_pct": 0.02
+      },
+      "threads_running": {
+        "average": 1.87,
+        "maximum": 3.19,
+        "vcpus": 8
+      }
+    },
+    {
+      "instance": "reader-2",
+      "aurora_replica_lag": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 7.7389,
+        "Maximum": 23,
+        "Unit": "Milliseconds",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "freeable_memory": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 16026344584.5333,
+        "Minimum": 15899328512,
+        "Unit": "Bytes",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "buffer_cache_hit_ratio": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 99.9994,
+        "Minimum": 99.9847,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "select_latency": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 0.9317,
+        "Maximum": 1.8257,
+        "Unit": "Milliseconds",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "iops_utilization": {
+        "instance_class": "db.r6g.2xlarge",
+        "max_iops": 20000,
+        "read_iops_avg": 2.1321,
+        "write_iops_avg": 0,
+        "total_iops_avg": 2.13,
+        "utilization_pct": 0.01
+      },
+      "threads_running": {
+        "average": 1.66,
+        "maximum": 3.18,
+        "vcpus": 8
+      }
+    }
+  ],
+  "redis_extended": [
+    {
+      "node": "redis-1",
+      "curr_connections": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 109.8889,
+        "Maximum": 293,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 82.5496,
+        "Minimum": 82.1582,
+        "Unit": "Percent",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      }
+    },
+    {
+      "node": "redis-2",
+      "curr_connections": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 5.0056,
+        "Maximum": 6,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    },
+    {
+      "node": "redis-3",
+      "curr_connections": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Average": 5.6444,
+        "Maximum": 7,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "evictions": {
+        "Timestamp": "2026-11-05T05:02:00-06:00",
+        "Sum": 0,
+        "Maximum": 0,
+        "Unit": "Count",
+        "data_points": 36,
+        "max_points": 36,
+        "data_coverage": 1
+      },
+      "cache_hit_rate": null
+    }
+  ],
+  "network": {
+    "network_rx_bytes": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 1197758.3389,
+      "Sum": 4311930020,
+      "Unit": "Bytes/Second",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    },
+    "network_tx_bytes": {
+      "Timestamp": "2026-11-05T05:02:00-06:00",
+      "Average": 573260.3436,
+      "Sum": 2063737237,
+      "Unit": "Bytes/Second",
+      "data_points": 36,
+      "max_points": 36,
+      "data_coverage": 1
+    }
+  },
+  "container_health": {
+    "abnormal_stops": 0,
+    "fleet_abnormal_stops": 0,
+    "running_tasks": 25,
+    "failed_health_checks": 0,
+    "unable_to_place": 0,
+    "service_events": [],
+    "tasks": [
+      {
+        "task_id": "a18673f6724f45fe8b57af6c5a81b21a",
+        "started_at": "2026-11-04T13:08:27.955000-06:00",
+        "started_epoch": 1793819307,
+        "uptime_min": 1134.33
+      },
+      {
+        "task_id": "fd8f5d6d691345318699f4c0e0bc6313",
+        "started_at": "2026-11-04T13:08:27.552000-06:00",
+        "started_epoch": 1793819307,
+        "uptime_min": 1134.33
+      },
+      {
+        "task_id": "93b920b2ae6e404fab41c22ef40e2f54",
+        "started_at": "2026-11-04T13:08:28.933000-06:00",
+        "started_epoch": 1793819308,
+        "uptime_min": 1134.32
+      },
+      {
+        "task_id": "872becc899d14f109d5858f9b7353e39",
+        "started_at": "2026-11-04T13:08:31.372000-06:00",
+        "started_epoch": 1793819311,
+        "uptime_min": 1134.27
+      },
+      {
+        "task_id": "20c4dcb414f44f139ff03850a14e4a4c",
+        "started_at": "2026-11-04T13:13:38.750000-06:00",
+        "started_epoch": 1793819618,
+        "uptime_min": 1129.15
+      },
+      {
+        "task_id": "7ed37efbff664b2dbfdc782d11f10d33",
+        "started_at": "2026-11-04T13:13:39.583000-06:00",
+        "started_epoch": 1793819619,
+        "uptime_min": 1129.13
+      },
+      {
+        "task_id": "362fd38448c643b0a7b85cda354dd005",
+        "started_at": "2026-11-04T13:13:40.711000-06:00",
+        "started_epoch": 1793819620,
+        "uptime_min": 1129.12
+      },
+      {
+        "task_id": "d333cb45f6c445d8912f017d90449bcb",
+        "started_at": "2026-11-04T13:13:41.056000-06:00",
+        "started_epoch": 1793819621,
+        "uptime_min": 1129.1
+      },
+      {
+        "task_id": "2bc5cd60c1704375af0a1ad285b0602d",
+        "started_at": "2026-11-04T13:18:47.556000-06:00",
+        "started_epoch": 1793819927,
+        "uptime_min": 1124
+      },
+      {
+        "task_id": "2feddc60d77e4b4093fb42a1dc2f6146",
+        "started_at": "2026-11-04T13:18:48.496000-06:00",
+        "started_epoch": 1793819928,
+        "uptime_min": 1123.98
+      },
+      {
+        "task_id": "102f3a12a89b48b2b68f861481043fc4",
+        "started_at": "2026-11-04T13:18:49.153000-06:00",
+        "started_epoch": 1793819929,
+        "uptime_min": 1123.97
+      },
+      {
+        "task_id": "cb711e0900b0416baabc5683bf2b3e59",
+        "started_at": "2026-11-04T13:18:49.510000-06:00",
+        "started_epoch": 1793819929,
+        "uptime_min": 1123.97
+      },
+      {
+        "task_id": "526794f446dc4d1bb5de3b88df30886d",
+        "started_at": "2026-11-04T13:24:01.921000-06:00",
+        "started_epoch": 1793820241,
+        "uptime_min": 1118.77
+      },
+      {
+        "task_id": "74104092ed6545ca8fffe1fea6042a4f",
+        "started_at": "2026-11-04T13:24:01.553000-06:00",
+        "started_epoch": 1793820241,
+        "uptime_min": 1118.77
+      },
+      {
+        "task_id": "9fadbeb97a66499f9cd2a7593b2351c9",
+        "started_at": "2026-11-04T13:24:01.827000-06:00",
+        "started_epoch": 1793820241,
+        "uptime_min": 1118.77
+      },
+      {
+        "task_id": "9c1229e7f41244289a190587115ea48d",
+        "started_at": "2026-11-04T13:24:02.668000-06:00",
+        "started_epoch": 1793820242,
+        "uptime_min": 1118.75
+      },
+      {
+        "task_id": "45dea65f46e2413fb9542d8dd6829913",
+        "started_at": "2026-11-04T13:29:09.556000-06:00",
+        "started_epoch": 1793820549,
+        "uptime_min": 1113.63
+      },
+      {
+        "task_id": "6cb7e2788f934c7991f60f7cf0d78295",
+        "started_at": "2026-11-04T13:29:09.867000-06:00",
+        "started_epoch": 1793820549,
+        "uptime_min": 1113.63
+      },
+      {
+        "task_id": "0c5161946ab74967a2d665d43da322e4",
+        "started_at": "2026-11-04T13:29:10.523000-06:00",
+        "started_epoch": 1793820550,
+        "uptime_min": 1113.62
+      },
+      {
+        "task_id": "a3619db5663d44bb8f5fcd6229664086",
+        "started_at": "2026-11-04T13:29:10.665000-06:00",
+        "started_epoch": 1793820550,
+        "uptime_min": 1113.62
+      },
+      {
+        "task_id": "7bd45d1544f84cc2af5ea2068596a2e8",
+        "started_at": "2026-11-04T13:34:26.644000-06:00",
+        "started_epoch": 1793820866,
+        "uptime_min": 1108.35
+      },
+      {
+        "task_id": "3784bc347de84db9a92de5acb1a0a427",
+        "started_at": "2026-11-04T13:34:27.014000-06:00",
+        "started_epoch": 1793820867,
+        "uptime_min": 1108.33
+      },
+      {
+        "task_id": "3aa2d7e1536a428abc115596c6e66027",
+        "started_at": "2026-11-04T13:34:27.210000-06:00",
+        "started_epoch": 1793820867,
+        "uptime_min": 1108.33
+      },
+      {
+        "task_id": "462d03f9cce74849a34c2cdb03c60f7e",
+        "started_at": "2026-11-04T13:34:27.910000-06:00",
+        "started_epoch": 1793820867,
+        "uptime_min": 1108.33
+      },
+      {
+        "task_id": "324d69712a3c49c197060966b99c66b9",
+        "started_at": "2026-11-04T13:39:23.824000-06:00",
+        "started_epoch": 1793821163,
+        "uptime_min": 1103.4
+      }
+    ]
+  }
+}

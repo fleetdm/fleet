@@ -278,8 +278,11 @@ const DiskEncryption = ({
     />
   );
 
+  const ESCROW_HELP_TEXT =
+    "The recovery key lets you unlock the host if the end user forgets their password.";
+
   const renderEnforceCheckbox = (
-    platform: DiskEncryptionSettingsPlatform,
+    platform: "macos" | "windows",
     key: "macOSEnabled" | "windowsEnabled",
     value: boolean
   ) => (
@@ -288,18 +291,11 @@ const DiskEncryption = ({
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
-      helpText={
-        <>
-          If turned on, Fleet enforces disk encryption.{" "}
-          <CustomLink
-            text="Learn more"
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
-            newTab
-          />
-        </>
-      }
+      helpText={platform === "windows" ? ESCROW_HELP_TEXT : undefined}
     >
-      Enable disk encryption
+      {platform === "windows"
+        ? "Enable disk encryption (BitLocker) and escrow recovery key"
+        : "Enable disk encryption (FileVault)"}
     </Checkbox>
   );
 
@@ -314,10 +310,24 @@ const DiskEncryption = ({
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
+      labelTooltipContent={
+        platform === "macos" ? (
+          <>
+            Most users enable both. Check only this if another tool (like
+            XCreds) turns on FileVault and you only want Fleet to store the key.{" "}
+            <CustomLink
+              text="Learn more"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
+              variant="tooltip-link"
+              newTab
+            />
+          </>
+        ) : undefined
+      }
+      labelTooltipClickable={platform === "macos"}
       helpText={
         <>
-          Store the recovery key so your fleet can recover the device if the end
-          user forgets their password.
+          {ESCROW_HELP_TEXT}
           {learnMoreLink && (
             <>
               {" "}
@@ -327,7 +337,7 @@ const DiskEncryption = ({
         </>
       }
     >
-      Escrow recovery key with Fleet
+      Escrow recovery key
     </Checkbox>
   );
 
@@ -404,7 +414,8 @@ const DiskEncryption = ({
                 {renderEscrowCheckbox(
                   "macos",
                   "macOSEscrowEnabled",
-                  formSettings.macOSEscrowEnabled
+                  formSettings.macOSEscrowEnabled,
+                  `${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`
                 )}
               </>
             )}

@@ -35,7 +35,7 @@ func enrollWindowsHostInMDMForTest(t *testing.T, ds fleet.Datastore, host *fleet
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
-		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 
 	dev, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, dev.MDMDeviceID)
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	require.True(t, matched, "desired-state listing did not surface our host+profile pair; got %d entries", len(toInstall))
 
 	// Step 2: drive the cron.
-	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger, false))
 
 	// Step 3: the install row should now exist.
 	rowsAfter, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
@@ -153,6 +153,10 @@ func TestReconcileWindowsProfilesForEnrollingHost(t *testing.T) {
 	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, dev.ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1, "the install command must be queued for the host's enrollment")
+
+	summary, err := ds.GetMDMWindowsProfilesSummary(ctx, &team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), summary.Pending, "the profile status summary must include the host right after the per-host reconcile")
 
 	// Idempotent: a second run queues nothing new, neither rows nor commands.
 	require.NoError(t, ReconcileWindowsProfilesForEnrollingHost(ctx, ds, logger, host.UUID))

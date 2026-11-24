@@ -1524,7 +1524,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
-	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP), func(t *testing.T) {
+	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostHardwareSerial), func(t *testing.T) {
 		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -1532,17 +1532,18 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 			require.Len(t, payload, 8)
 		}
 		enqueueFailForOp = ""
-		newContents := "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP
+		newContents := "$FLEET_VAR_" + fleet.FleetVarHostHardwareSerial
 		originalContents1 := contents1
 		contents1 = []byte(newContents)
 		t.Cleanup(func() {
 			contents1 = originalContents1
+			ds.ListHostsLiteByUUIDsFunc = nil
 		})
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return nil, errors.New("GetHostEmailsFuncError")
+		ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			return nil, errors.New("ListHostsLiteByUUIDsFuncError")
 		}
 		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, nil, baseProfilesToInstall, nil)
-		require.ErrorContains(t, err, "GetHostEmailsFuncError")
+		require.ErrorContains(t, err, "ListHostsLiteByUUIDsFuncError")
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
@@ -2233,6 +2234,9 @@ func runReconcileBatchCapturing(t *testing.T, beingSetUp []string, toInstall, to
 		res.upserted = append(res.upserted, payload...)
 		return nil
 	}
+	ds.ListMDMManagedCertificatesForHostProfilesFunc = func(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+		return nil, nil
+	}
 
 	var mu sync.Mutex
 	mdmStorage.BulkDeleteHostUserCommandsWithoutResultsFunc = func(ctx context.Context, commandToIDs map[string][]string) error {
@@ -2335,6 +2339,53 @@ func TestMDMAppleExecuteReconcileBatchCancelOnlyRemoval(t *testing.T) {
 	})
 }
 
+func TestMDMAppleExecuteReconcileBatchRemovesUnsentInstall(t *testing.T) {
+	const hostUUID = "uuid-A"
+
+	row := func(status *fleet.MDMDeliveryStatus, cmdUUID string) *fleet.MDMAppleProfilePayload {
+		return &fleet.MDMAppleProfilePayload{
+			ProfileUUID: "aDeletedProfileUUID", ProfileIdentifier: "com.example.wifi", ProfileName: "Wi-Fi",
+			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
+			OperationType: fleet.MDMOperationTypeInstall, Status: status, CommandUUID: cmdUUID,
+		}
+	}
+
+	t.Run("install not sent (e.g. resend): RemoveProfile sent, error tolerated", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(nil, "")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Empty(t, res.deletedCmds)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+
+	t.Run("install failed without verification: RemoveProfile sent, row kept", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(&fleet.MDMDeliveryFailed, "install-cmd")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Empty(t, res.cleanedUp)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+
+	t.Run("install pending: queued command deleted and RemoveProfile sent", func(t *testing.T) {
+		res := runReconcileBatchCapturing(t, nil, nil, []*fleet.MDMAppleProfilePayload{row(&fleet.MDMDeliveryPending, "install-cmd")})
+		require.NoError(t, res.err)
+
+		require.Equal(t, []string{hostUUID}, res.deletedCmds["install-cmd"])
+		require.Empty(t, res.cleanedUp, "the row must be converted in place to keep has_acme_payload")
+		require.Equal(t, []string{"RemoveProfile"}, res.enqueued)
+		require.Len(t, res.upserted, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, res.upserted[0].OperationType)
+		require.True(t, res.upserted[0].IgnoreError)
+	})
+}
+
 // A profile re-added with a different PayloadScope lands on the other channel, so
 // the queued removal on the original channel still has to be delivered: the two are
 // separate installs with separate enrollment IDs.
@@ -2383,6 +2434,7 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 	const hostUUID = "uuid-A"
 	const identifier = "com.example.shared"
 	const queuedCmd = "queued-install-cmd"
+	varsUpdatedAt := time.Now().Add(-time.Hour)
 
 	newInstall := func(checksum string) *fleet.MDMAppleProfilePayload {
 		return &fleet.MDMAppleProfilePayload{
@@ -2395,6 +2447,7 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 			ProfileUUID: "aFleetAProfileUUID", ProfileIdentifier: identifier, ProfileName: "Shared",
 			HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem, Checksum: []byte("aaaa"),
 			OperationType: fleet.MDMOperationTypeInstall, Status: &status, CommandUUID: queuedCmd,
+			VariablesUpdatedAt: &varsUpdatedAt,
 		}
 	}
 
@@ -2409,11 +2462,13 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 
 		require.Len(t, res.cleanedUp, 1)
 		require.Equal(t, "aFleetAProfileUUID", res.cleanedUp[0].ProfileUUID)
+		require.Equal(t, "aFleetBProfileUUID", res.cleanedUp[0].AdoptedByProfileUUID, "managed certificates move to the adopter")
 
 		require.Len(t, res.upserted, 1)
 		require.Equal(t, "aFleetBProfileUUID", res.upserted[0].ProfileUUID)
 		require.Equal(t, queuedCmd, res.upserted[0].CommandUUID)
 		require.Equal(t, fleet.MDMDeliveryPending, *res.upserted[0].Status)
+		require.Equal(t, &varsUpdatedAt, res.upserted[0].VariablesUpdatedAt)
 	})
 
 	t.Run("pending install with different content: queued command replaced", func(t *testing.T) {
@@ -2424,6 +2479,9 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 
 		require.Equal(t, []string{hostUUID}, res.deletedCmds[queuedCmd])
 		require.Equal(t, []string{"InstallProfile"}, res.enqueued)
+
+		require.Len(t, res.cleanedUp, 1)
+		require.Empty(t, res.cleanedUp[0].AdoptedByProfileUUID, "a reinstall tracks its own certificate")
 
 		require.Len(t, res.upserted, 1)
 		require.Equal(t, "aFleetBProfileUUID", res.upserted[0].ProfileUUID)
@@ -2476,6 +2534,92 @@ func TestMDMAppleExecuteReconcileBatchIdenticalProfileTransfer(t *testing.T) {
 		require.Nil(t, reverted.Status)
 		require.Empty(t, reverted.CommandUUID)
 	})
+
+	// The device holds the old profile as rendered for its UUID: a pending install would request its certificate from the
+	// old proxy URL, and a certificate not recorded with dates yet carries a renewal ID that never matches the new profile.
+	t.Run("profile rendered with its own UUID", func(t *testing.T) {
+		const renewalID = "<string>CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>"
+		const proxyURL = "<string>$FLEET_VAR_NDES_SCEP_PROXY_URL</string><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>"
+		recorded := &fleet.MDMManagedCertificate{HostUUID: hostUUID, ProfileUUID: "aFleetAProfileUUID", CAName: "ca1",
+			NotValidAfter: new(time.Now().Add(30 * 24 * time.Hour))}
+		notRecorded := &fleet.MDMManagedCertificate{HostUUID: hostUUID, ProfileUUID: "aFleetAProfileUUID", CAName: "ca2"}
+
+		for _, tc := range []struct {
+			name      string
+			contents  string
+			status    fleet.MDMDeliveryStatus
+			certs     []*fleet.MDMManagedCertificate
+			reinstall bool
+		}{
+			{"renewal ID, verified with its certificate recorded: taken over", renewalID, fleet.MDMDeliveryVerified, []*fleet.MDMManagedCertificate{recorded}, false},
+			{"renewal ID, verified, certificate not recorded yet: reinstalled", renewalID, fleet.MDMDeliveryVerified, []*fleet.MDMManagedCertificate{notRecorded}, true},
+			{"renewal ID, verified, one of its certificates not recorded: reinstalled", renewalID, fleet.MDMDeliveryVerified, []*fleet.MDMManagedCertificate{recorded, notRecorded}, true},
+			{"renewal ID, verified without a certificate row: reinstalled", renewalID, fleet.MDMDeliveryVerified, nil, true},
+			{"renewal ID, pending: reinstalled", renewalID, fleet.MDMDeliveryPending, []*fleet.MDMManagedCertificate{recorded}, true},
+			// without a renewal ID its certificate rows never get dates, so they are not checked
+			{"proxy URL, verified: taken over", proxyURL, fleet.MDMDeliveryVerified, nil, false},
+			{"proxy URL, pending: reinstalled", proxyURL, fleet.MDMDeliveryPending, nil, true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				res := runReconcileBatchCapturing(t, nil,
+					[]*fleet.MDMAppleProfilePayload{newInstall("aaaa")},
+					[]*fleet.MDMAppleProfilePayload{oldRow(tc.status)},
+					func(ds *mock.Store) {
+						ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
+							out := make(map[string]mobileconfig.Mobileconfig, len(uuids))
+							for _, u := range uuids {
+								out[u] = []byte(tc.contents)
+							}
+							return out, nil
+						}
+					},
+					func(ds *mock.Store) {
+						ds.ListMDMManagedCertificatesForHostProfilesFunc = func(ctx context.Context, hostProfiles []fleet.HostProfileUUID) ([]*fleet.MDMManagedCertificate, error) {
+							require.Equal(t, []fleet.HostProfileUUID{{HostUUID: hostUUID, ProfileUUID: "aFleetAProfileUUID"}}, hostProfiles)
+							return tc.certs, nil
+						}
+					})
+				require.NoError(t, res.err)
+				require.Len(t, res.cleanedUp, 1)
+				require.NotEmpty(t, res.upserted)
+				install := res.upserted[len(res.upserted)-1]
+				require.Equal(t, "aFleetBProfileUUID", install.ProfileUUID)
+				if tc.reinstall {
+					// the proxy URL row is not enqueued: no NDES CA is configured, so preprocessing fails it
+					if tc.contents == renewalID {
+						require.Equal(t, []string{"InstallProfile"}, res.enqueued)
+					}
+					require.NotEqual(t, queuedCmd, install.CommandUUID)
+					require.Equal(t, []string{hostUUID}, res.deletedCmds[queuedCmd])
+					require.Empty(t, res.cleanedUp[0].AdoptedByProfileUUID, "a reinstall tracks its own certificate")
+				} else {
+					require.Empty(t, res.enqueued)
+					require.Equal(t, queuedCmd, install.CommandUUID)
+					require.Equal(t, "aFleetBProfileUUID", res.cleanedUp[0].AdoptedByProfileUUID)
+				}
+			})
+		}
+	})
+}
+
+func TestProfileUUIDBoundVariables(t *testing.T) {
+	for _, tc := range []struct {
+		fleetVars           []string
+		proxyURL, renewalID bool
+	}{
+		{nil, false, false},
+		{[]string{string(fleet.FleetVarHostEndUserIDPUsername)}, false, false},
+		{[]string{string(fleet.FleetVarDigiCertDataPrefix) + "CA"}, false, false},
+		{[]string{string(fleet.FleetVarCertificateRenewalID)}, false, true},
+		{[]string{string(fleet.FleetVarSCEPRenewalID)}, false, true},
+		{[]string{string(fleet.FleetVarNDESSCEPChallenge), string(fleet.FleetVarNDESSCEPProxyURL)}, true, false},
+		{[]string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "CA", string(fleet.FleetVarCustomSCEPProxyURLPrefix) + "CA"}, true, false},
+		{[]string{string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + "CA", string(fleet.FleetVarCertificateRenewalID)}, true, true},
+	} {
+		proxyURL, renewalID := profileUUIDBoundVariables(tc.fleetVars)
+		assert.Equal(t, tc.proxyURL, proxyURL, "proxy URL for %v", tc.fleetVars)
+		assert.Equal(t, tc.renewalID, renewalID, "renewal ID for %v", tc.fleetVars)
+	}
 }
 
 // Self-service (opt-in) profiles are desired on a host only while it has an opt-in row, or when it already carries an identical

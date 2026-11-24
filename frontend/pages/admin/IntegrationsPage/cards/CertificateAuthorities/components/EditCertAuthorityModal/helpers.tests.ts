@@ -1,9 +1,17 @@
-import { createMockNDESCertAuthority } from "__mocks__/certificatesMock";
+import {
+  createMockGoogleCASCertAuthority,
+  createMockNDESCertAuthority,
+} from "__mocks__/certificatesMock";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 
-import { generateEditCertAuthorityData, updateFormData } from "./helpers";
+import {
+  generateDefaultFormData,
+  generateEditCertAuthorityData,
+  updateFormData,
+} from "./helpers";
 
 const ndesCertAuthority = createMockNDESCertAuthority();
 
@@ -71,5 +79,50 @@ describe("EditCertAuthorityModal helpers", () => {
         ndes_scep_proxy: { password: "entered-password" },
       });
     });
+  });
+});
+
+describe("EditCertAuthorityModal helpers for Google CAS", () => {
+  const googleCASCertAuthority = createMockGoogleCASCertAuthority();
+  const googleCASFormData = generateDefaultFormData(
+    googleCASCertAuthority
+  ) as IGoogleCASFormData;
+
+  it("fills the form from the saved CA, keeping the key masked", () => {
+    expect(googleCASFormData).toEqual({
+      name: "GOOGLE_WIFI",
+      projectId: "my-project",
+      caPool: "my-ca-pool",
+      location: "us-central1",
+      apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
+    });
+  });
+
+  it("keeps the masked key when the pool changes, since the server verifies with the saved key", () => {
+    const newFormData = updateFormData(
+      googleCASCertAuthority,
+      googleCASFormData,
+      { name: "caPool", value: "other-pool" }
+    ) as IGoogleCASFormData;
+
+    expect(newFormData).toEqual({ ...googleCASFormData, caPool: "other-pool" });
+  });
+
+  it("sends only the changed fields, leaving out an unchanged key", () => {
+    expect(
+      generateEditCertAuthorityData(googleCASCertAuthority, {
+        ...googleCASFormData,
+        caPool: "other-pool",
+      })
+    ).toEqual({ google_cas: { ca_pool: "other-pool" } });
+  });
+
+  it("sends a replaced key", () => {
+    expect(
+      generateEditCertAuthorityData(googleCASCertAuthority, {
+        ...googleCASFormData,
+        apiKeyJson: '{"type":"service_account"}',
+      })
+    ).toEqual({ google_cas: { api_key_json: '{"type":"service_account"}' } });
   });
 });

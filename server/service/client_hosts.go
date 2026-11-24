@@ -24,13 +24,19 @@ func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {
 	return responseBody.Host, err
 }
 
-// HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or
-// node_key.
+// HostByIdentifier retrieves a host as GET /hosts/:id resolves it: by host ID first, then by hardware_serial, uuid, or hostname, the newest
+// one when several match.
 func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/hosts/identifier/"+identifier
+	verb, path := "GET", "/api/latest/fleet/hosts/"+identifier
 	var responseBody getHostResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	return responseBody.Host, err
+	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	// An identifier that is also a literal route name, like "count", reaches that route instead, and its response has no host.
+	if responseBody.Host == nil {
+		return nil, &notFoundErr{Msg: fmt.Sprintf("host %q not found", identifier)}
+	}
+	return responseBody.Host, nil
 }
 
 func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team string) ([]uint, uint, uint, error) {
@@ -55,7 +61,7 @@ func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team 
 	}
 
 	if team != "" {
-		translatedPayload, err := encodeTranslatedPayload(fleet.TranslatorTypeTeam, team)
+		translatedPayload, err := encodeTranslatedPayload(fleet.TranslatorTypeFleet, team)
 		if err != nil {
 			return nil, 0, 0, err
 		}
@@ -80,7 +86,7 @@ func (c *Client) translateTransferHostsToIDs(hosts []string, label string, team 
 		switch payload.Type {
 		case fleet.TranslatorTypeLabel:
 			labelID = payload.Payload.ID
-		case fleet.TranslatorTypeTeam:
+		case fleet.TranslatorTypeFleet:
 			teamID = payload.Payload.ID
 		case fleet.TranslatorTypeHost:
 			hostIDs = append(hostIDs, payload.Payload.ID)
@@ -97,10 +103,26 @@ func encodeTranslatedPayload(translatorType string, identifier string) (fleet.Tr
 	return translatedPayload, nil
 }
 
-func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery string, team string) error {
-	hostIDs, labelID, teamID, err := c.translateTransferHostsToIDs(hosts, label, team)
+func (c *Client) TransferHosts(hosts []string, label, labelFleet string, status, searchQuery string, team string) error {
+	labelToTranslate := label
+	if labelFleet != "" {
+		// The translate endpoint looks a label up by name alone, which fails when several fleets use the name.
+		labelToTranslate = ""
+	}
+	hostIDs, labelID, teamID, err := c.translateTransferHostsToIDs(hosts, labelToTranslate, team)
 	if err != nil {
 		return err
+	}
+	if labelFleet != "" {
+		_, _, labelFleetID, err := c.translateTransferHostsToIDs(nil, "", labelFleet)
+		if err != nil {
+			return err
+		}
+		spec, err := c.GetLabel(label, &labelFleetID)
+		if err != nil {
+			return err
+		}
+		labelID = spec.ID
 	}
 
 	var teamIDPtr *uint

@@ -19,7 +19,7 @@ describe("SoftwareUninstallDetailsModal - StatusMessage component", () => {
       />
     );
 
-    expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("pending-icon")).toBeInTheDocument();
     expect(
       screen.getByText(/is uninstalling or will uninstall/)
     ).toBeInTheDocument();

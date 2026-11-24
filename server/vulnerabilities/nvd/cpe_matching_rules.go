@@ -219,6 +219,18 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW != "windows"
 			},
 		},
+		// CVE-2026-26227 and CVE-2026-26228 affect only VLC for Android (Remote Access Server,
+		// fixed in 3.7.0). NVD deferred them, and the VulnCheck CPE data uses target_sw=*,
+		// so desktop VLC below 3.7.0 (the desktop line is 3.0.x) matches as a false positive.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2026-26227": {},
+				"CVE-2026-26228": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "android"
+			},
+		},
 		// These vulnerabilities in the MongoDB client incorrectly match
 		// the VS Code extension.
 		CPEMatchingRule{
@@ -360,6 +372,26 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.TargetSW != "windows"
+			},
+		},
+		// CVE-2017-2744 (published January 2018) lists HP Support Assistant "before 12.7.26.1" as affected.
+		// HP Support Assistant releases are versioned 8.x and 9.x, and the 9.x line is years newer than
+		// this advisory, so a plain version comparison flags every current install. Ignore the CVE for
+		// versions 9.x through 11.x.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2017-2744": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				if cpeMeta.Vendor != "hp" || cpeMeta.Product != "support_assistant" {
+					return false
+				}
+				parts := strings.Split(wfn.StripSlashes(cpeMeta.Version), ".")
+				majorVer, err := strconv.Atoi(parts[0])
+				if err != nil {
+					return false
+				}
+				return majorVer >= 9 && majorVer < 12
 			},
 		},
 		// CVE-2023-28205 WebKit vulnerability

@@ -85,23 +85,30 @@ Do not add the `:help-solutions-consulting` label to FMA-related issues. That la
 
 #### Handle a security report
 
-Security reports come in through the private [fleetdm/security](https://github.com/fleetdm/security) repo. Whatever the source — GitHub security advisory, pen test finding, bug bounty, disclosure email, or scan result — file it with the [security report issue form](https://github.com/fleetdm/security/issues/new?template=security-report.yml), which standardizes the format for the engineers reviewing it and cross-links the original report. Issues labeled `security` are added to the [🔓 :help-security project](https://github.com/orgs/fleetdm/projects/113) automatically.
+Security reports arrive through Fleet's [vulnerability disclosure program on Bugbop](https://bugbop.com/programs/b5f2f20e-fe4d-466b-a474-6db65b4d2bb3), [GitHub security advisories](https://github.com/fleetdm/fleet/security/advisories) on fleetdm/fleet, and the security inbox named in the [repository security policy](https://github.com/fleetdm/fleet/security/policy). The security triage DRI (see [rituals](https://fleetdm.com/handbook/engineering#rituals)) checks all three every business day, confirms each report, talks to the reporter, and files valid findings in the private [fleetdm/security](https://github.com/fleetdm/security) repo. 
 
-If a report names or otherwise identifies a Fleet customer, keep that context in [fleetdm/confidential](https://github.com/fleetdm/confidential) and link to it — never copy customer-identifying details or `customer-*` labels into fleetdm/security.
+**Triage with Claude Code.** Open the fleetdm/fleet repo in Claude Code and run `/security-triage`. The skill walks you through the daily intake pass and each report after that: acknowledging the reporter, checking for duplicates, verifying the claim against `main`, rating severity, filing the fleetdm/security issue with the right labels and assignee, and keeping the reporter updated until the fix ships. Run it once a day for the intake pass, and again whenever a new report or reporter reply comes in. To do this work, the DRI needs maintainer access to fleetdm/security and [fleetdm/confidential](https://github.com/fleetdm/confidential), staff access to the Bugbop program, and access to the security inbox.
 
-**Initial review:** An engineer or Engineering Manager reviews every new security report within **one business day** to confirm the report, assign a severity, and decide on a remediation path.
+**When triage is done.** A report is either accepted or rejected. If rejected, the reporter is told why. If accepted, it's filed as an issue in our security repo and assigned to an Engineering Manager, who is responsible for following up with a fix.
+
+
+**Keep customers and vulnerability details private.** If a report names or otherwise identifies a Fleet customer, keep that context in fleetdm/confidential and link to it. Never copy customer-identifying details or `customer-*` labels into fleetdm/security. Never describe the vulnerability in a public pull request, commit, or changes file.
 
 **Severity timelines:**
 
-- **Critical** — Cut a patch release as soon as the fix is ready. Do not wait for the next scheduled release.
-- **High** — Merge the fix into `main` within the next **2-3 weeks**. Schedule the fix for the next patch release.
-- **Medium** — Address in the next minor release.
+- **Critical:** Cut a patch release as soon as the fix is ready. Do not wait for the next scheduled release.
+- **High:** Merge the fix into `main` within the next **2-3 weeks**. Schedule the fix for the next patch release.
+- **Medium:** Address in the next minor release.
+
+The remediation deadlines Fleet commits to are in the [vulnerability management policy](https://fleetdm.com/handbook/it/security#vulnerability-management). When a fix will miss one, the CTO documents an exception on the issue following that policy before the deadline passes, not after.
 
 **New High reports during an in-flight patch:**
 
 When a patch release branch has already been cut to ship previously fixed High issues, newly reported High issues should be scheduled for the patch release *after* the in-flight one. This keeps the in-flight patch focused and avoids destabilizing it with last-minute additions.
 
-**Exception — high-impact reports:** If we believe a newly reported High issue would affect a large number of customers, we pull it into the in-flight patch instead of deferring it. The EM and on-call engineer make this call.
+**Exception for high-impact reports:** If we believe a newly reported High issue would affect a large number of customers, we pull it into the in-flight patch instead of deferring it. The EM and on-call engineer make this call.
+
+**Close the issue when the fix merges.** Closing the fleetdm/security issue is what stops the compliance clock, so it happens at merge, not at release. The `/security-triage` skill closes the issue, keeps the fix in release QA, and records the advisory follow-ups when you tell it a fix has merged.
 
 
 #### Stage a fix for a security report
@@ -151,9 +158,9 @@ Because of this shift, the review effort for any change is the same regardless o
 
 The goal is to not go more than one business day without responding to the contributor and routing the PR to the right team. This applies to PRs from Fleeties, open source contributors, members of the Customer Success team, etc.
 
-1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who routes the PR to the appropriate product group's EM. Internal Fleeties who already know the owning team can go directly to the EM.
+1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who assigns the PR to the owning product group's Engineering Manager (EM). Fleeties who already know the owning team can assign the EM directly.
 
-2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else.
+2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else. If it's a product change, the EM assigns the PR to the Product Designer (PD). Otherwise, the EM keeps it.
 
 3. **Decision gate**: Based on the type, the right person decides whether this is something we want to pursue:
    - Product changes (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or significant documentation changes that alter the product definition or meaning): the Product Designer (PD) decides.
@@ -447,15 +454,16 @@ Steps to renew the certificate:
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
 
-1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
-2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role. Check for any existing non-competes that could impact a candidate’s ability to join Fleet.
-3. **Deliver technical assessment**: Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
-4. **Test technical assessment**: Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
-5. **Start the interview process**: Follow the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member) to create a "Why hire" document that will be used to consolidate interview feedback.
+The Head of People (HOP) is responsible for outreach to the candidate, for scheduling the candidate for each interview stage, and for moving the candidate through the process, including handing the candidate off to the next stage after each interview. The CTO is responsible for reviewing candidate profiles and allocating them to a product team.
+
+1. **Reach out** (Head of People): Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
+2. **Schedule HOP interview**: This is the first interview stage. Send the candidate a calendly link for 30m talk with the Head of People @ireedy. Check for any existing non-competes that could impact a candidate’s ability to join Fleet. For the first interview, follow the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member) to create a "Why hire" document that will be used to consolidate interview feedback.
+3. **Conduct screening call** (engineering manager): Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
+4. **Deliver technical assessment** (engineering manager): Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
+5. **Test technical assessment** (engineering manager): Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
 6. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a Software Engineer on your team where the goal is to understand the technical capabilities of the candidate. An additional Software Engineer can optionally join if available. Share the candidate's project with the Software Engineers and ask them to review in advance so they are prepared with questions about the candidate's code.
-7. **Schedule HOP interview**: Send the candidate a calendly link for 30m talk with the Head of People @ireedy.
-8. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
-9. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
+7. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
+8. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
 If the candidate passes all of these steps, then continue with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
@@ -472,7 +480,7 @@ Processes for maintaining and releasing changes to fleetdm.com (local testing, d
 
 ## Runbooks
 
-Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](./runbooks) subdirectory and link them here.
+Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](https://github.com/fleetdm/fleet/tree/main/handbook/engineering/runbooks) subdirectory and link them here.
 
 - [AI coding tool outage](./runbooks/ai-coding-tool-outage.md): fall back to GitHub Copilot when Claude Code is unavailable.
 
@@ -533,9 +541,9 @@ Please see [Confirm latest versions of dependencies](https://fleetdm.com/handboo
 
 Please see [Indicate your product group is release-ready](https://fleetdm.com/handbook/engineering/releases#indicate-your-product-group-is-release-ready).
 
-##### Submit test coverage requests to QA Wolf
+##### Request Playwright test coverage
 
-Please see [Submit test coverage requests to QA Wolf](https://fleetdm.com/handbook/engineering/releases#submit-test-coverage-requests-to-qa-wolf).
+Please see [Request Playwright test coverage](https://fleetdm.com/handbook/engineering/releases#request-playwright-test-coverage).
 
 ##### Prepare Fleet release
 

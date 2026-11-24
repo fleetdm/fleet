@@ -1,9 +1,30 @@
 import { getErrorReason } from "interfaces/errors";
 import { IHost } from "interfaces/host";
-import { isAndroid, isChrome, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isAndroid,
+  isChrome,
+  isIPadOrIPhone,
+  isLinuxLike,
+  isMacOS,
+  isWindows,
+} from "interfaces/platform";
+import { IUser } from "interfaces/user";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
+import permissions from "utilities/permissions";
 
-import { getHostDeviceStatusUIState } from "../helpers";
+import {
+  getHostDeviceStatusUIState,
+  HostMdmDeviceStatusUIState,
+} from "../helpers";
+
+// The end user's data is being, or has been, erased.
+const ERASE_STATES: HostMdmDeviceStatusUIState[] = [
+  "wiped",
+  "wiping",
+  "reset",
+  "resetting",
+  "reset_wipe_pending",
+];
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
@@ -28,8 +49,11 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 export const canShowMyDeviceButton = (
   // platform is a plain string rather than HostPlatform: legacy ChromeOS hosts
   // report "CrOS", which predates the HostPlatform union.
-  host: Pick<IHost, "fleet_desktop_version" | "mdm"> & { platform: string },
-  fleetDesktopSSOEnabled: boolean
+  host: Pick<IHost, "fleet_desktop_version" | "mdm" | "uuid"> & {
+    platform: string;
+  },
+  fleetDesktopSSOEnabled: boolean,
+  isPremiumTier: boolean
 ) => {
   // Android and ChromeOS have no My device page, so the link would only lead to
   // an error. GET /hosts/:id/device_url rejects them for the same reason.
@@ -43,15 +67,26 @@ export const canShowMyDeviceButton = (
   if (!isIPadOrIPhone(host.platform) && !host.fleet_desktop_version) {
     return false;
   }
-  if (isIPadOrIPhone(host.platform) && fleetDesktopSSOEnabled) {
-    // Remove the button for iOS/iPadOS hosts when Fleet Desktop SSO is enabled.
-    return false;
+  if (isIPadOrIPhone(host.platform)) {
+    if (fleetDesktopSSOEnabled) {
+      return false;
+    }
+    // The iOS/iPadOS page is only the self-service list, a Premium feature.
+    if (!isPremiumTier) {
+      return false;
+    }
+    // The URL is built from the UUID, which a host assigned in Apple Business
+    // may not have yet; an unenrolled host can't use self-service.
+    const status = host.mdm.enrollment_status;
+    if (!host.uuid || !status || status === "Pending" || status === "Off") {
+      return false;
+    }
   }
   const uiState = getHostDeviceStatusUIState(
     host.mdm.device_status,
     host.mdm.pending_action
   );
-  return uiState !== "wiped" && uiState !== "wiping";
+  return !ERASE_STATES.includes(uiState);
 };
 
 // Hosts created in a pending state (Apple Business Manager, Windows Autopilot) are inserted with
@@ -60,3 +95,37 @@ export const canShowMyDeviceButton = (
 // then, which is what separates them from hosts that can return vitals.
 export const hasEverEnrolled = (host: Pick<IHost, "last_enrolled_at">) =>
   !!host.last_enrolled_at && host.last_enrolled_at >= INITIAL_FLEET_DATE;
+
+// A host that has never reported vitals is still coming up (e.g. orbit is enrolled and running setup experience but osquery
+// has not checked in yet).
+export const hasReportedVitals = (host: Pick<IHost, "detail_updated_at">) =>
+  !!host.detail_updated_at && host.detail_updated_at >= INITIAL_FLEET_DATE;
+
+// Kept out of HostDetailsPage: each &&/|| there adds to rules-of-hooks' path
+// count, which that component is already at the limit of.
+export const getCanManageSelfServiceProfiles = (
+  isPremiumTier: boolean | undefined,
+  isMacOSHost: boolean,
+  canResendProfiles: boolean
+) => !!isPremiumTier && isMacOSHost && canResendProfiles;
+
+// Matches the server's host_ai_session policy: AI sessions can hold secrets in
+// commands and their arguments.
+export const canViewHostAISessions = ({
+  isPremiumTier,
+  currentUser,
+  host,
+}: {
+  isPremiumTier: boolean | undefined;
+  currentUser: IUser | null;
+  host: Pick<IHost, "platform" | "fleet_id"> | undefined;
+}) =>
+  !!isPremiumTier &&
+  !!host &&
+  (isMacOS(host.platform) ||
+    isWindows(host.platform) ||
+    isLinuxLike(host.platform)) &&
+  (permissions.isGlobalAdmin(currentUser) ||
+    permissions.isGlobalMaintainer(currentUser) ||
+    permissions.isTeamAdmin(currentUser, host.fleet_id) ||
+    permissions.isTeamMaintainer(currentUser, host.fleet_id));

@@ -10,6 +10,8 @@ export interface IDerivedContext {
   isAbmConfigured: boolean;
   /** GitOps mode active — disables Create-fleet etc. */
   isGitOpsMode: boolean;
+  /** GitOps mode active for software, unless the software exception is on. */
+  isSoftwareGitOpsMode: boolean;
   /** currentTeam is the "No team" / Unassigned sentinel (id 0). */
   isUnassigned: boolean;
   /** A specific team OR unassigned is selected (not "All fleets"). */
@@ -39,12 +41,18 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
     isPremiumTier,
   } = ctx;
 
-  const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
+  const isAbmConfigured =
+    config?.mdm?.apple_business_enabled_and_configured ?? false;
 
   // GitOps mode disables write actions in the UI; mirrors the predicate
   // ManageFleetsPage uses to disable its Add fleet button.
   const isGitOpsMode = !!(
     config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url
+  );
+
+  // Mirrors useGitOpsMode("software"), which SelfServiceCategoriesPage reads.
+  const isSoftwareGitOpsMode = !!(
+    config?.gitops?.gitops_mode_enabled && !config?.gitops?.exceptions?.software
   );
 
   const isUnassigned = currentTeam?.id === 0;
@@ -81,6 +89,7 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
   return {
     isAbmConfigured,
     isGitOpsMode,
+    isSoftwareGitOpsMode,
     isUnassigned,
     hasTeamOrUnassigned,
     switchesFromUnassigned,

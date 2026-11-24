@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.18.0.14",
+      "version": "7.19.0.13",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'RealVNC Server %' AND publisher = 'RealVNC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RealVNC Server %' AND publisher = 'RealVNC' AND version_compare(version, '7.18.0.14') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RealVNC Server %' AND publisher = 'RealVNC' AND version_compare(version, '7.19.0.13') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'vnc server.exe');"
       },
-      "installer_url": "https://downloads.realvnc.com/download/file/vnc.files/VNC-Server-7.18.0-Windows-msi.zip",
+      "installer_url": "https://downloads.realvnc.com/download/file/vnc.files/VNC-Server-7.19.0-Windows-msi.zip",
       "install_script_ref": "8e43d9e2",
       "uninstall_script_ref": "b97751c6",
-      "sha256": "06b4e564663742da410e76a7b1a5cb0ae7c5764465e38a0f424ad200ca09be61",
+      "sha256": "4a911973f528e73c61642613f400d40de97eddc2d1261180316f68c9bfe16610",
       "default_categories": [
         "Productivity"
       ]

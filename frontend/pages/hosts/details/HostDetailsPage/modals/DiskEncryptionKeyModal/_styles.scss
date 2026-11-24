@@ -2,4 +2,20 @@
   .input-field {
     font-family: "SourceCodePro", $monospace;
   }
+
+  &__rotating .icon {
+    animation: spin 2s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+      transform-origin: center center;
+    }
+
+    100% {
+      transform: rotate(360deg);
+      transform-origin: center center;
+    }
+  }
 }

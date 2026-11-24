@@ -1,6 +1,14 @@
 const Anthropic = require("@anthropic-ai/sdk");
 const SYSTEM_PROMPT = require("./system-prompt");
 
+const SKILL_PREAMBLE = `# The fleet-gitops skill
+
+Fleet's fleet-gitops skill follows. It's the same guidance Fleet ships to customers' AI agents with \`fleetctl new\`, so follow it for every configuration change. Where it conflicts with the instructions above, the instructions above win:
+- You can't run commands, so skip the validator, contour, and fleetctl steps under "Validate before you report". The pull request's CI dry run is the gate. Say so in \`pr_body\`.
+- Its "references/<name>.md" files are available through the \`read_skill_reference\` tool.
+- Put its "Report" in \`pr_body\`, and keep the JSON response format above.
+- This repo's layout is the one described in "Repository Structure" above.`;
+
 // Default per-response cap on client-side tool invocations. Each call to
 // runAgentLoop (i.e. each user message) starts with a fresh budget. This
 // is a safety net against pathological tool loops, not a normal-path
@@ -9,11 +17,44 @@ const SYSTEM_PROMPT = require("./system-prompt");
 // var or the `maxToolCalls` constructor option.
 const DEFAULT_MAX_TOOL_CALLS = 100;
 
+// Config-change responses carry complete file contents, so large changes need
+// far more room than a typical answer.
+const MAX_OUTPUT_TOKENS = 64000;
+
+const TRUNCATED_RESPONSE_MESSAGE =
+  "The response was too long to finish, so nothing was changed. Try splitting the request into smaller changes.";
+
+// Opus 5.5's default, set explicitly so it doesn't change with the model.
+const EFFORT = "medium";
+
+// When a model declines mid-stream, the server keeps its partial output ahead of the
+// last `fallback` block. Of that partial, only text and completed server-tool pairs
+// may be acted on or sent back; its thinking and tool_use blocks must be dropped.
+function contentAfterFallback(content) {
+  const boundary = content.findLastIndex((b) => b.type === "fallback");
+  if (boundary === -1) {
+    return content;
+  }
+  const declined = content.slice(0, boundary);
+  const serverToolUseIds = new Set(declined.filter((b) => b.type === "server_tool_use").map((b) => b.id));
+  const pairedIds = new Set(
+    declined.filter((b) => b.tool_use_id && serverToolUseIds.has(b.tool_use_id)).map((b) => b.tool_use_id)
+  );
+  const kept = declined.filter(
+    (b) =>
+      b.type === "text" ||
+      (b.type === "server_tool_use" && pairedIds.has(b.id)) ||
+      (b.tool_use_id && pairedIds.has(b.tool_use_id))
+  );
+  return [...kept, ...content.slice(boundary)];
+}
+
 class ClaudeClient {
-  constructor({ apiKey, model, mcpClient, maxToolCalls }) {
+  constructor({ apiKey, model, mcpClient, maxToolCalls, skillLoader }) {
     this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 });
     this.model = model;
     this.mcpClient = mcpClient;
+    this.skillLoader = skillLoader;
     this.maxToolCalls =
       Number.isFinite(maxToolCalls) && maxToolCalls > 0
         ? maxToolCalls
@@ -33,10 +74,11 @@ class ClaudeClient {
   async runAgentLoop(userMessage, { onToolCall, onText } = {}) {
     const tools = this.mcpClient ? this.mcpClient.getAnthropicTools() : [];
     const messages = [{ role: "user", content: userMessage }];
+    const system = await this._buildSystem();
     let toolCallsExecuted = 0;
 
     while (true) {
-      const response = await this._streamMessage(messages, tools, onText);
+      const response = await this._streamMessage(messages, tools, onText, { system });
 
       // Collect client-side tool_use blocks (MCP tools)
       const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
@@ -48,6 +90,7 @@ class ClaudeClient {
       }
 
       // Check stop reason: "end_turn" = done, "pause_turn" = server tool limit hit, "tool_use" = client tools needed
+      this._assertNotTruncated(response);
       if (response.stop_reason === "end_turn") {
         const text = response.content
           .filter((b) => b.type === "text")
@@ -135,8 +178,10 @@ class ClaudeClient {
       content: `Provide your best answer now based on the information you already have. If any part of the answer is incomplete or unverified, flag it clearly so the user knows what has been confirmed and what hasn't.`,
     });
     const finalResponse = await this._streamMessage(messages, tools, onText, {
+      system,
       toolChoice: { type: "none" },
     });
+    this._assertNotTruncated(finalResponse);
     return finalResponse.content
       .filter((b) => b.type === "text")
       .map((b) => b.text)
@@ -152,18 +197,38 @@ class ClaudeClient {
    *   value (e.g. { type: "none" }) to constrain or disable tool use for
    *   this single call.
    */
+  /**
+   * The bot's own prompt, followed by the fleet-gitops skill when it loads.
+   * The last block is cached so the skill doesn't cost full price on every
+   * call in a tool loop.
+   */
+  async _buildSystem() {
+    const skill = this.skillLoader ? await this.skillLoader.getSkill() : null;
+    const blocks = [{ type: "text", text: SYSTEM_PROMPT }];
+    if (skill) {
+      blocks.push({ type: "text", text: `${SKILL_PREAMBLE}\n\n${skill}` });
+    }
+    blocks[blocks.length - 1].cache_control = { type: "ephemeral" };
+    return blocks;
+  }
+
   async _streamMessage(messages, tools, onText, options = {}) {
     const params = {
       model: this.model,
-      max_tokens: 16000,
-      system: SYSTEM_PROMPT,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      system: options.system || SYSTEM_PROMPT,
       messages,
+      output_config: { effort: EFFORT },
+      // Safety classifiers can decline benign security questions; this re-runs a
+      // declined request on the model Anthropic recommends for that refusal category.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
     };
 
     // Add MCP tools + Anthropic server-side tools (web search)
     const allTools = [
       ...tools,
-      { type: "web_search_20250305", name: "web_search", max_uses: 3 },
+      { type: "web_search_20260209", name: "web_search", max_uses: 3 },
     ];
     if (allTools.length > 0) {
       params.tools = allTools;
@@ -174,7 +239,7 @@ class ClaudeClient {
     }
 
     // Use streaming to get partial text for live Slack updates
-    const stream = this.client.messages.stream(params);
+    const stream = this.client.beta.messages.stream(params);
 
     if (onText) {
       stream.on("text", (text) => {
@@ -185,10 +250,23 @@ class ClaudeClient {
     const response = await stream.finalMessage();
 
     console.log(
-      `[claude] Response: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out tokens, stop: ${response.stop_reason}`
+      `[claude] Response: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out tokens, stop: ${response.stop_reason}, model: ${response.model}`
     );
 
-    return response;
+    // A refusal here means every model in the fallback chain declined.
+    if (response.stop_reason === "refusal") {
+      throw new Error(`Claude returned a refusal (category: ${response.stop_details?.category ?? "none"})`);
+    }
+
+    return { ...response, content: contentAfterFallback(response.content) };
+  }
+
+  // A truncated response is never safe to use: a cut-off config change would
+  // otherwise be posted to Slack as raw JSON.
+  _assertNotTruncated(response) {
+    if (response.stop_reason === "max_tokens") {
+      throw new Error(TRUNCATED_RESPONSE_MESSAGE);
+    }
   }
 
   // ──────────────────────────────────────────────────
@@ -265,6 +343,9 @@ class ClaudeClient {
     try {
       data = this._tryParseJson(text);
     } catch {
+      if (this._looksLikeConfigChange(text)) {
+        throw new Error("Claude returned a config change that could not be parsed");
+      }
       // Not JSON — treat as informational response
       return { type: "info", text };
     }
@@ -292,6 +373,12 @@ class ClaudeClient {
         isNewFile: c.is_new_file || false,
       })),
     };
+  }
+
+  // A config change is a JSON object (optionally fenced) whose first key is one
+  // of the schema's fields. Prose that merely quotes a field name is an answer.
+  _looksLikeConfigChange(text) {
+    return /^(?:```(?:json)?\s*)?\{\s*"(summary|pr_title|pr_body|changes)"\s*:/.test(text);
   }
 
   _tryParseJson(text) {
@@ -324,4 +411,5 @@ class ClaudeClient {
 }
 
 ClaudeClient.DEFAULT_MAX_TOOL_CALLS = DEFAULT_MAX_TOOL_CALLS;
+ClaudeClient.TRUNCATED_RESPONSE_MESSAGE = TRUNCATED_RESPONSE_MESSAGE;
 module.exports = ClaudeClient;

@@ -26,6 +26,25 @@ describe("ConfigProfileStatusModal", () => {
       },
     })(ui);
 
+  it("shows the PayloadDisplayName and UUID", () => {
+    mockServer.use(defaultConfigProfileStatusHandler);
+    render(
+      <ConfigProfileStatusModal
+        name="Test profile"
+        uuid="123-abc"
+        payloadDisplayName="Original display name"
+        teamId={0}
+        platform="darwin"
+        onClickResend={noop}
+        onExit={noop}
+      />
+    );
+
+    expect(screen.getByText(/PayloadDisplayName:/)).toBeInTheDocument();
+    expect(screen.getByText("Original display name")).toBeInTheDocument();
+    expect(screen.getByText("123-abc")).toBeInTheDocument();
+  });
+
   it("renders the correct number of hosts for each status", async () => {
     mockServer.use(defaultConfigProfileStatusHandler);
     render(

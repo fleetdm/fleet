@@ -2,9 +2,12 @@
   "name": "Webex",
   "slug": "webex/windows",
   "package_identifier": "Cisco.Webex",
-  "unique_identifier": "Cisco Webex",
+  "unique_identifier": "Webex",
   "installer_arch": "x64",
   "installer_type": "msi",
   "installer_scope": "machine",
-  "default_categories": ["Communication"]
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/webex_install.ps1",
+  "default_categories": [
+    "Communication"
+  ]
 }

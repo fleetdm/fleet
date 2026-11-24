@@ -20,7 +20,7 @@ const createMockHostPolicy = (
   author_email: "test@test.com",
   resolution: "Fix it",
   platform: "darwin",
-  team_id: null,
+  fleet_id: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
   critical: false,
@@ -85,6 +85,7 @@ describe("HostPolicies", () => {
         {...baseProps}
         deviceUser
         showHiddenPolicies={false}
+        hasHiddenPolicies
         onToggleShowHiddenPolicies={onToggleShowHiddenPolicies}
       />
     );
@@ -94,6 +95,19 @@ describe("HostPolicies", () => {
     expect(toggle).not.toBeChecked();
     await user.click(toggle);
     expect(onToggleShowHiddenPolicies).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the show hidden policies toggle when the device has no hidden policies", () => {
+    renderWithContext({
+      policies: [createMockHostPolicy()],
+      deviceUser: true,
+      showHiddenPolicies: false,
+      hasHiddenPolicies: false,
+      onToggleShowHiddenPolicies: noop,
+    });
+
+    expect(screen.getAllByText("Test Policy").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
   });
 
   it("does not render the show hidden policies toggle on the admin host page", () => {
@@ -107,6 +121,7 @@ describe("HostPolicies", () => {
     renderWithContext({
       deviceUser: true,
       showHiddenPolicies: false,
+      hasHiddenPolicies: false,
       onToggleShowHiddenPolicies: noop,
     });
 

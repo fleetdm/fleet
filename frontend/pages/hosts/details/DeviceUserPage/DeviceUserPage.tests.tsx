@@ -1,4 +1,5 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
@@ -22,12 +23,15 @@ import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
+  defaultMacAdminsHandler,
   deviceSetupExperienceHandler,
   emptySetupExperienceHandler,
+  googleConditionalAccessHandler,
   ssoRequiredDeviceCertificatesHandler,
   ssoRequiredDeviceHandler,
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
+import { emptyDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -38,6 +42,12 @@ import {
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
 import DeviceUserPage from "./DeviceUserPage";
+import { replaceLocation } from "./helpers";
+
+jest.mock("./helpers", () => ({
+  ...jest.requireActual("./helpers"),
+  replaceLocation: jest.fn(),
+}));
 
 jest.mock("components/ToastNotification", () => ({
   notify: {
@@ -62,6 +72,14 @@ const mockLocation = {
   },
   search: undefined,
 };
+
+// The page loads both of these alongside the device details.
+beforeEach(() => {
+  mockServer.use(
+    defaultMacAdminsHandler,
+    emptyDeviceSelfServiceCategoriesHandler
+  );
+});
 
 describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
@@ -279,7 +297,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is not true", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is not true", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -317,7 +335,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the regular setup experience page if some software failed and require_all_software_macos is true but the device is not on macos", async () => {
+    it("renders the regular setup experience page if some software failed and macos_require_all_software is true but the device is not on macos", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -332,7 +350,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -369,7 +387,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("renders the setup experience failure page if some software failed and require_all_software_macos is true and the host is a mac", async () => {
+    it("renders the setup experience failure page if some software failed and macos_require_all_software is true and the host is a mac", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "darwin";
 
@@ -384,7 +402,7 @@ describe("Device User Page", () => {
             },
             mdm: {
               enabled_and_configured: true,
-              require_all_software_macos: true,
+              macos_require_all_software: true,
               only_allow_apple_business_enrollment: false,
             },
           },
@@ -482,16 +500,24 @@ describe("Device User Page", () => {
         devicePolicy(2, "Hidden policy A"),
         devicePolicy(3, "Hidden policy B"),
       ];
+      let releaseHiddenResponse!: () => void;
+      const hiddenResponseGate = new Promise<void>((resolve) => {
+        releaseHiddenResponse = resolve;
+      });
       mockServer.use(
-        http.get(baseUrl("/device/:token"), ({ request }) => {
+        http.get(baseUrl("/device/:token"), async ({ request }) => {
           requestedUrls.push(request.url);
           const includeHidden = request.url.includes(
             "include_hidden_policies=true"
           );
+          if (includeHidden) {
+            await hiddenResponseGate;
+          }
           return HttpResponse.json({
             ...response,
             host: {
               ...response.host,
+              issues: { ...response.host.issues, hidden_policies_count: 2 },
               policies: includeHidden ? withHidden : visible,
             },
           });
@@ -531,10 +557,62 @@ describe("Device User Page", () => {
           )
         ).toBe(true);
       });
+      expect(screen.getAllByText("Visible policy").length).toBeGreaterThan(0);
+      expect(policiesTab).toHaveTextContent(/Policies\s*1$/);
+
+      releaseHiddenResponse();
       await waitFor(() => {
         expect(policiesTab).toHaveTextContent(/Policies\s*3$/);
       });
       expect(screen.getAllByText("Hidden policy A").length).toBeGreaterThan(0);
+    });
+
+    it("does not render the toggle when the device has no hidden policies", async () => {
+      const response = createDefaultDeviceResponse();
+      response.global_config.features.enable_software_inventory = true;
+      const policy = ({
+        id: 1,
+        name: "Visible policy",
+        description: "",
+        resolution: "",
+        platform: "darwin",
+        critical: false,
+        conditional_access_enabled: false,
+        response: "pass",
+      } as unknown) as IHostPolicy;
+      mockServer.use(
+        http.get(baseUrl("/device/:token"), () =>
+          HttpResponse.json({
+            ...response,
+            host: {
+              ...response.host,
+              issues: { ...response.host.issues, hidden_policies_count: 0 },
+              policies: [policy],
+            },
+          })
+        )
+      );
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={{
+            ...mockLocation,
+            pathname: PATHS.DEVICE_USER_DETAILS_POLICIES("testToken"),
+          }}
+        />
+      );
+
+      expect(
+        (await screen.findAllByText("Visible policy")).length
+      ).toBeGreaterThan(0);
+      expect(
+        screen.queryByRole("switch", { name: "Show hidden policies" })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -573,7 +651,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -598,7 +676,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -623,7 +701,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: false,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -649,7 +727,7 @@ describe("Device User Page", () => {
         global_config: {
           mdm: {
             enabled_and_configured: true,
-            require_all_software_macos: false,
+            macos_require_all_software: false,
             only_allow_apple_business_enrollment: false,
           },
           features: {
@@ -678,7 +756,7 @@ describe("Device User Page", () => {
       author_email: "test@example.com",
       resolution: "Fix the issue",
       platform: "darwin",
-      team_id: null,
+      fleet_id: null,
       created_at: "2022-01-01T12:00:00Z",
       updated_at: "2022-01-02T12:00:00Z",
       critical: false,
@@ -754,60 +832,142 @@ describe("Device User Page", () => {
     });
   });
 
-  describe("Vitals refetch timeout", () => {
+  describe("Vitals refetch toasts", () => {
+    const OFFLINE_MESSAGE =
+      "This host is offline. Please try refetching host vitals later.";
+    const TIMEOUT_MESSAGE =
+      "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.";
+    const REPORTED = "2025-12-31T00:00:00Z";
+    const NEVER_REPORTED = "2000-01-01T00:00:00Z";
     const REAL_NOW = new Date("2026-01-01T00:00:00Z").getTime();
     let mockNow = REAL_NOW;
     let dateNowSpy: jest.SpyInstance;
+    let refetchSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      // Fake from before the render, since the refetch poll is scheduled on
+      // first load. Date stays real: these tests move the clock through the spy.
+      jest.useFakeTimers({ doNotFake: ["Date"] });
       mockNow = REAL_NOW;
       dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockNow);
+      refetchSpy = jest.spyOn(deviceUserAPI, "refetch").mockResolvedValue({});
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
     });
 
     afterEach(() => {
+      jest.useRealTimers();
       dateNowSpy.mockRestore();
+      refetchSpy.mockRestore();
     });
 
-    it("shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded", async () => {
-      const host = createMockHost({
-        refetch_requested: true,
-        status: "online",
-        platform: "ubuntu",
-      }) as IHostDevice;
+    const mockHost = (overrides: Partial<IHostDevice>) =>
+      createMockHost({ platform: "windows", ...overrides }) as IHostDevice;
 
+    const renderWithHost = (host: IHostDevice) => {
       mockServer.use(customDeviceHandler({ host }));
-      mockServer.use(defaultDeviceCertificatesHandler);
-      mockServer.use(emptySetupExperienceHandler);
-
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
-
-      render(
+      return createCustomRenderer({ withBackendMock: true })(
         <DeviceUserPage
           router={mockRouter}
           params={{ device_auth_token: "testToken" }}
           location={mockLocation}
         />
       );
+    };
 
-      // Wait for the first successful load, which starts the refetch
-      // timer and schedules the next poll via a real setTimeout.
+    it.each([
+      {
+        name: "doesn't report a host that has reported vitals as offline",
+        detailUpdatedAt: REPORTED,
+        expectedErrors: [],
+      },
+      {
+        name: "doesn't report a host that has never reported vitals as offline",
+        detailUpdatedAt: NEVER_REPORTED,
+        expectedErrors: [],
+      },
+    ])("$name", async ({ detailUpdatedAt, expectedErrors }) => {
+      renderWithHost(
+        mockHost({
+          refetch_requested: true,
+          status: "offline",
+          detail_updated_at: detailUpdatedAt,
+        })
+      );
       await screen.findByText(/Details/);
+      expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+    });
 
-      // Jump the clock past the 3-minute give-up window before that
-      // scheduled poll fires and re-evaluates elapsed time.
+    it.each([
+      {
+        name: "shows no timeout message for a host that has reported vitals",
+        detailUpdatedAt: REPORTED,
+        expectedErrors: [],
+      },
+      {
+        name:
+          "shows no timeout message for a host that has never reported vitals",
+        detailUpdatedAt: NEVER_REPORTED,
+        expectedErrors: [],
+      },
+    ])("$name", async ({ detailUpdatedAt, expectedErrors }) => {
+      renderWithHost(
+        mockHost({
+          refetch_requested: true,
+          status: "online",
+          detail_updated_at: detailUpdatedAt,
+        })
+      );
+      // The first load starts the refetch timer and schedules the next poll.
+      await screen.findByText(/refetching\.\.\./i);
+      // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
       mockNow += 200000;
-
       await waitFor(
-        () => {
-          expect(notify.error).toHaveBeenCalledWith(
-            "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
-          );
-        },
+        () =>
+          expect(
+            screen.queryByText(/refetching\.\.\./i)
+          ).not.toBeInTheDocument(),
         { timeout: 4000 }
       );
-    }, 10000);
+      expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+    });
+
+    it.each([
+      { status: "offline" as const, elapsed: 0, message: OFFLINE_MESSAGE },
+      { status: "online" as const, elapsed: 200000, message: TIMEOUT_MESSAGE },
+    ])(
+      "shows '$message' for a refetch the user asked for",
+      async ({ status, elapsed, message }) => {
+        renderWithHost(
+          mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
+        );
+        const user = userEvent.setup({
+          advanceTimers: jest.advanceTimersByTime,
+        });
+
+        await user.click(
+          await screen.findByRole("button", { name: /refetch/i })
+        );
+        await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
+        mockServer.use(
+          customDeviceHandler({
+            host: mockHost({
+              refetch_requested: true,
+              status,
+              detail_updated_at: NEVER_REPORTED,
+            }),
+          })
+        );
+        // The refetch start is stamped once the refetch call resolves, so move the clock only after that.
+        await refetchSpy.mock.results[0].value;
+        mockNow += elapsed;
+
+        await waitFor(
+          () => expect(notify.error).toHaveBeenCalledWith(message),
+          { timeout: 5000 }
+        );
+      }
+    );
   });
 });
 
@@ -1214,5 +1374,266 @@ describe("BitLocker PIN deep link", () => {
     expect(screen.queryByLabelText("BitLocker PIN")).toBeNull();
     expect(screen.queryByText(INSTRUCTIONS)).toBeNull();
     await expectParamDropped(router);
+  });
+});
+
+describe("Mobile UI gating", () => {
+  const originalMatchMedia = window.matchMedia;
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("does not render the mobile UI on a non-iOS host when the viewport is narrow", async () => {
+    // Simulate a shrunk desktop browser: matchMedia reports the mobile breakpoint matches.
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+
+    await screen.findByText(/Details/);
+    expect(container.querySelector(".device-user-mobile")).toBeNull();
+  });
+
+  it("renders the unsupported-screen overlay on a narrow desktop viewport over a device path", async () => {
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+        }}
+      />
+    );
+
+    expect(
+      await screen.findByText(/This screen size is not supported yet/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders the mobile UI when ?mobile=1 is present (dev override)", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+  });
+
+  it("keeps the mobile UI when a SelfService navigation drops ?mobile=1 from the URL", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container, rerender } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+
+    rerender(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, query: "chrome" },
+        }}
+      />
+    );
+
+    expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+  });
+});
+
+describe("Device User Page - Google conditional access sign-in", () => {
+  const SIGN_IN_URL =
+    "https://fleetdm.com/api/v1/google-conditional-access/sign-in?token=abc";
+  const SIGN_IN_STATUS = { sign_in_url: SIGN_IN_URL };
+
+  const renderPage = (platform: HostPlatform, isSignInRequired = true) => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = platform;
+    mockServer.use(
+      customDeviceHandler({
+        host,
+        self_service: true,
+        google_conditional_access_sign_in_required: isSignInRequired,
+      })
+    );
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    return render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+        }}
+      />
+    );
+  };
+
+  const expectSelfService = async (container: HTMLElement) =>
+    waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it.each<HostPlatform>(["ios", "ipados"])(
+    "redirects an %s host that should sign in and never renders Self-service",
+    async (platform) => {
+      mockServer.use(googleConditionalAccessHandler(SIGN_IN_STATUS));
+
+      const { container } = renderPage(platform);
+
+      await waitFor(() =>
+        expect(replaceLocation).toHaveBeenCalledWith(SIGN_IN_URL)
+      );
+      expect(await screen.findByTestId("spinner")).toBeInTheDocument();
+      expect(screen.queryByText(/Redirecting to Google sign-in/)).toBeNull();
+      expect(container.querySelector(".device-user-mobile")).toBeNull();
+    }
+  );
+
+  it("renders Self-service for an iOS host that gets no sign-in URL", async () => {
+    // Registered in the meantime, or too many sign-ins started.
+    mockServer.use(googleConditionalAccessHandler());
+
+    const { container } = renderPage("ios");
+
+    await expectSelfService(container);
+    expect(replaceLocation).not.toHaveBeenCalled();
+  });
+
+  it("renders Self-service when the page is shown again after the redirect", async () => {
+    const signInStarted = jest.fn();
+    mockServer.use(
+      http.post(baseUrl("/device/:token/conditional_access/google"), () => {
+        signInStarted();
+        return HttpResponse.json(SIGN_IN_STATUS);
+      })
+    );
+
+    const { container } = renderPage("ios");
+
+    await waitFor(() =>
+      expect(replaceLocation).toHaveBeenCalledWith(SIGN_IN_URL)
+    );
+    act(() => {
+      window.dispatchEvent(
+        Object.assign(new Event("pageshow"), { persisted: true })
+      );
+    });
+
+    await expectSelfService(container);
+    expect(replaceLocation).toHaveBeenCalledTimes(1);
+    // Each start mints a token and counts an attempt.
+    expect(signInStarted).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders Self-service when the status request fails", async () => {
+    mockServer.use(
+      http.post(baseUrl("/device/:token/conditional_access/google"), () =>
+        HttpResponse.json({ message: "nope" }, { status: 500 })
+      )
+    );
+
+    const { container } = renderPage("ios");
+
+    await expectSelfService(container);
+    expect(replaceLocation).not.toHaveBeenCalled();
+  });
+
+  it("never calls the status route when the device details don't ask for a sign-in", async () => {
+    const statusCalled = jest.fn();
+    mockServer.use(
+      http.post(baseUrl("/device/:token/conditional_access/google"), () => {
+        statusCalled();
+        return HttpResponse.json(SIGN_IN_STATUS);
+      })
+    );
+
+    const { container } = renderPage("ios", false);
+
+    await expectSelfService(container);
+    expect(statusCalled).not.toHaveBeenCalled();
+    expect(replaceLocation).not.toHaveBeenCalled();
   });
 });

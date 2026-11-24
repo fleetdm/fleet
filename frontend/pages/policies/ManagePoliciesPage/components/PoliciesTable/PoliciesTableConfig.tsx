@@ -147,15 +147,23 @@ const EditableAutomationsCell = ({
 interface IAutomationsCellProps {
   policy: IPolicyStats;
   otherAutomationType?: OtherAutomationType;
+  inheritedOtherAutomationType?: OtherAutomationType;
   onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
 const AutomationsCell = ({
   policy,
   otherAutomationType,
+  inheritedOtherAutomationType,
   onOpenManageAutomationsModal,
 }: IAutomationsCellProps): JSX.Element => {
-  const automations = getAutomationsForPolicy(policy, otherAutomationType);
+  // Each policy's webhook or ticket comes from the scope that owns it.
+  const automations = getAutomationsForPolicy(
+    policy,
+    policy.fleet_id === null
+      ? inheritedOtherAutomationType
+      : otherAutomationType
+  );
   // Without an edit callback the user's role can't open the automations modal,
   // so the cell is read-only: no pencil icon, no pointer cursor, not focusable.
   const canEdit = !!onOpenManageAutomationsModal;
@@ -263,6 +271,7 @@ const generateTableHeaders = (
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
     otherAutomationType?: OtherAutomationType;
+    inheritedOtherAutomationType?: OtherAutomationType;
     onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
   },
   isPremiumTier?: boolean,
@@ -272,6 +281,7 @@ const generateTableHeaders = (
     selectedTeamId,
     hasPermissionAndPoliciesToDelete,
     otherAutomationType,
+    inheritedOtherAutomationType,
     onOpenManageAutomationsModal,
   } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
@@ -287,7 +297,7 @@ const generateTableHeaders = (
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { critical, hidden, id, team_id, type } = cellProps.row.original;
+        const { critical, hidden, id, fleet_id, type } = cellProps.row.original;
         return (
           <LinkCell
             className="w250"
@@ -302,7 +312,7 @@ const generateTableHeaders = (
                     Patch
                   </Tag>
                 )}
-                {viewingTeamPolicies && team_id === null && (
+                {viewingTeamPolicies && fleet_id === null && (
                   <Tag tooltip="This policy runs on all hosts." size="small">
                     Inherited
                   </Tag>
@@ -310,11 +320,11 @@ const generateTableHeaders = (
               </>
             }
             path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
-              // Inherited policies show team_id === null; preserve the
+              // Inherited policies show fleet_id === null; preserve the
               // current team context so back nav returns to the same list
               // instead of "All teams".
               fleet_id:
-                team_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
+                fleet_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
             })}
           />
         );
@@ -335,14 +345,15 @@ const generateTableHeaders = (
       },
     },
     {
-      title: "Automations",
-      Header: "Automations",
+      title: "Automation",
+      Header: "Automation",
       accessor: "automations",
       disableSortBy: true,
       Cell: (cellProps: ICellProps): JSX.Element => (
         <AutomationsCell
           policy={cellProps.row.original}
           otherAutomationType={otherAutomationType}
+          inheritedOtherAutomationType={inheritedOtherAutomationType}
           onOpenManageAutomationsModal={onOpenManageAutomationsModal}
         />
       ),
@@ -446,7 +457,7 @@ const generateTableHeaders = (
           headerProps,
           checkIfRowIsSelectable: (row) =>
             // allow selecting inherited policies in primo mode
-            isPrimoMode || row.original.team_id !== null,
+            isPrimoMode || row.original.fleet_id !== null,
         });
 
         // Regular table selection logic
@@ -483,7 +494,7 @@ const generateTableHeaders = (
         );
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const inheritedPolicy = cellProps.row.original.team_id === null;
+        const inheritedPolicy = cellProps.row.original.fleet_id === null;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,
@@ -536,7 +547,6 @@ const nextPolicyUpdateMs = (
 
 const generateDataSet = (
   policiesList: IPolicyStats[] = [],
-  currentAutomatedPolicies?: number[],
   osquery_policy?: number
 ): IPolicyStats[] => {
   policiesList = policiesList.sort((a, b) =>
@@ -578,12 +588,6 @@ const generateDataSet = (
       : 0);
 
   policiesList.forEach((policyItem) => {
-    policyItem.webhook =
-      currentAutomatedPolicies &&
-      currentAutomatedPolicies.includes(policyItem.id)
-        ? "On"
-        : "Off";
-
     // Define policy has_run based on updated_at compared against last time policies ran.
     const policyItemUpdatedAt = new Date(policyItem.updated_at);
     // TODO: restore and update setting of policyItem.has_run based on upcoming custom

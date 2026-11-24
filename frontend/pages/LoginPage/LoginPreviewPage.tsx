@@ -10,7 +10,6 @@ import { AppContext } from "context/app";
 import paths from "router/paths";
 import sessionsAPI from "services/entities/sessions";
 import authToken from "utilities/auth_token";
-import local from "utilities/local";
 
 interface ILoginPreviewPageProps {
   router: InjectedRouter; // v3
@@ -34,7 +33,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
     try {
       const {
         user,
-        available_teams,
+        available_fleets,
         token,
         token_expires_at,
       } = await sessionsAPI.login(formData);
@@ -44,7 +43,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
       authToken.save(token, expiresAt);
 
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setCurrentTeam(undefined);
 
       return router.push(DASHBOARD);

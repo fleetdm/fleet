@@ -4,6 +4,7 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import { IApiError } from "interfaces/errors";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import endpoints from "utilities/endpoints";
 
 export const UPLOAD_ERROR_MESSAGES = {
   wrongType: {
@@ -12,8 +13,17 @@ export const UPLOAD_ERROR_MESSAGES = {
   },
   unsigned: {
     condition: (reason: string) => reason.includes("file is not"),
-    message:
-      "Couldn’t upload. The package must be signed. Click “Learn more” below to learn how to sign.",
+    message: (
+      <>
+        Couldn’t upload. The package must be signed.{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/sign-bootstrap-package`}
+          text="Learn more"
+          newTab
+          variant="flash-message-link"
+        />
+      </>
+    ),
   },
   noDistribution: {
     condition: (reason: string) =>
@@ -37,14 +47,20 @@ export const UPLOAD_ERROR_MESSAGES = {
 };
 
 export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
-  const apiReason = err.data.errors[0].reason;
+  const apiReason = err?.data?.errors?.[0]?.reason;
+  if (!apiReason) {
+    return UPLOAD_ERROR_MESSAGES.default.message;
+  }
 
   const error = Object.values(UPLOAD_ERROR_MESSAGES).find((errType) =>
     errType.condition(apiReason)
   );
 
   if (!error) {
-    return UPLOAD_ERROR_MESSAGES.default.message;
+    // Only the upload URL request's reasons are written for admins.
+    return err.config?.url?.endsWith(endpoints.STAGED_UPLOAD)
+      ? `Couldn’t upload. ${apiReason}`
+      : UPLOAD_ERROR_MESSAGES.default.message;
   }
 
   return error.message;

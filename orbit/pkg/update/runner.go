@@ -247,7 +247,7 @@ func (r *Runner) UpdateAction() (bool, error) {
 
 	// TODO(sarah): Should we reconsider usage of `didUpdate`? It seems that in most cases it is
 	// used to signal that orbit should restart. Does that make sense when we are dealing with more
-	// loosely coupled components such as Nudge?
+	// loosely coupled components such as swiftDialog?
 	var didUpdate bool
 	for _, target := range r.opt.Targets {
 		meta, err := r.updater.Lookup(target)
@@ -397,7 +397,7 @@ func (r *Runner) updateTarget(target string) error {
 		return fmt.Errorf("symlink current: %w", err)
 	}
 
-	// oVC == 1 if upgrading or -1 if downgrading, 0 if the same version
+	// oVC == 1 if downgrading or -1 if upgrading, 0 if the same version
 	if oVC != nil && *oVC != 0 && runtime.GOOS == "windows" {
 		if err := updateUninstallFleetdRegistryVersion(newVersion); err != nil {
 			return fmt.Errorf("update orbit version in Windows registry: %w", err)

@@ -294,6 +294,26 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, rule.CPEMatches(pythonAnyTargetSW), "CVE-2024-3219 should not match Python with target_sw=*")
 
+	// Test that the VLC for Android CVEs only match on Android.
+	for _, cve := range []string{"CVE-2026-26227", "CVE-2026-26228"} {
+		rule, ok = cpeMatchingRules.FindMatch(cve)
+		require.True(t, ok)
+
+		vlcAndroid, err := wfn.Parse("cpe:2.3:a:videolan:vlc:3.6.5:*:*:*:*:android:*:*")
+		require.NoError(t, err)
+		require.True(t, rule.CPEMatches(vlcAndroid), "%s should match VLC on Android", cve)
+
+		for _, desktop := range []string{
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:macos:*:*",
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:windows:*:*",
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:*:*:*",
+		} {
+			vlcDesktop, err := wfn.Parse(desktop)
+			require.NoError(t, err)
+			require.False(t, rule.CPEMatches(vlcDesktop), "%s should not match %s", cve, desktop)
+		}
+	}
+
 	// Test that gitk CVEs don't match the base git package
 	gitCPEMeta, err := wfn.Parse("cpe:2.3:a:git:git:2.47.1:*:*:*:*:*:*:*")
 	require.NoError(t, err)
@@ -329,6 +349,22 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 		abrWindows, err := wfn.Parse("cpe:2.3:a:fasttracksoftware:admin_by_request:5.0:*:*:*:*:windows:*:*")
 		require.NoError(t, err)
 		require.True(t, rule.CPEMatches(abrWindows), "%s should match on Windows", cve)
+	}
+
+	// Test that CVE-2017-2744 does not match current HP Support Assistant 9.x versions.
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2017-2744")
+	require.True(t, ok)
+	for _, tc := range []struct {
+		cpe   string
+		match bool
+	}{
+		{"cpe:2.3:a:hp:support_assistant:9.55.10.0:*:*:*:*:windows:*:*", false},
+		{"cpe:2.3:a:hp:support_assistant:9.11:*:*:*:*:windows:*:*", false},
+		{"cpe:2.3:a:hp:support_assistant:8.1.40.3:*:*:*:*:windows:*:*", true},
+	} {
+		hpsa, err := wfn.Parse(tc.cpe)
+		require.NoError(t, err)
+		require.Equal(t, tc.match, rule.CPEMatches(hpsa), tc.cpe)
 	}
 
 	// Test that CVE-2024-7006 (libtiff) only matches on Linux.

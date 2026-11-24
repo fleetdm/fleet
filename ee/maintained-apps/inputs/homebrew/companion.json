@@ -1,6 +1,6 @@
 {
   "name": "Bitfocus Companion",
-  "unique_identifier": "companion.bitfocus.no",
+  "unique_identifier": "test-companion.bitfocus.no",
   "token": "companion",
   "installer_format": "dmg",
   "slug": "companion/darwin",

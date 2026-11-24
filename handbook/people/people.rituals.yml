@@ -64,3 +64,12 @@
   autoIssue:
     labels: [":help-people"]
     repo: "confidential"
+- task: "Vanta check"
+  startedOn: "2025-06-09"
+  frequency: "Weekly"
+  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
+  moreInfoUrl: "https://fleetdm.com/handbook/people#monitor-compliance-tests"
+  dri: "ireedy"
+  autoIssue:
+    labels: [":help-people"]
+    repo: "confidential"

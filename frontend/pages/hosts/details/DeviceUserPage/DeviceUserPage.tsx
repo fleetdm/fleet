@@ -48,7 +48,7 @@ import {
   HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
-import { normalizeEmptyValues } from "utilities/helpers";
+import { getHostOSDisplayName, normalizeEmptyValues } from "utilities/helpers";
 import { isDarkMode } from "utilities/theme";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -94,6 +94,7 @@ import {
 } from "./helpers";
 import InfoModal from "./InfoModal";
 import useDeviceSSO from "./useDeviceSSO";
+import useGoogleConditionalAccessSignIn from "./useGoogleConditionalAccessSignIn";
 
 const baseClass = "device-user";
 
@@ -149,6 +150,7 @@ interface IDeviceUserPageProps {
       setup_only?: string;
       sso_error?: string;
       create_pin?: string;
+      mobile?: string;
     };
     search?: string;
   };
@@ -164,6 +166,10 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
+  // ?mobile=1 dev override: latch at mount so SelfService navigations
+  // (which drop the param from the URL) don't flip us back to desktop.
+  const [mobileOverride] = useState(() => location.query.mobile === "1");
+  const isMobile = isMobileDevice || mobileOverride;
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -207,7 +213,12 @@ const DeviceUserPage = ({
   const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
     false
   );
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [refetchStart, setRefetchStart] = useState<{
+    at: number;
+    byUser: boolean;
+  } | null>(null);
+  const refetchStartTime = refetchStart?.at ?? null;
+  const isUserRequestedRefetch = !!refetchStart?.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
   const [darkMode, setDarkMode] = useState(() => isDarkMode());
@@ -278,7 +289,7 @@ const DeviceUserPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const isRefetching = ({
@@ -333,6 +344,9 @@ const DeviceUserPage = ({
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
+          // Automatic refetches (enrollment, software installs, admin requests) can catch a busy host between osquery check-ins,
+          // and the end user is at the host, so only their own refetch gets toasts. The status card still shows a real outage.
+          const shouldNotify = isUserRequestedRefetch;
 
           // Only set timer if not already running
           if (!refetchStartTime) {
@@ -348,16 +362,13 @@ const DeviceUserPage = ({
               isIOSOrIPadOS ||
               isRecentlyEnrolled(responseHost.last_enrolled_at)
             ) {
-              setRefetchStartTime(Date.now());
+              setRefetchStart({ at: Date.now(), byUser: false });
               setTimeout(() => {
                 refetchDupDetails();
                 refetchExtensions();
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              notify.error(
-                `This host is offline. Please try refetching host vitals later.`
-              );
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -376,9 +387,11 @@ const DeviceUserPage = ({
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (shouldNotify) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
               }
             } else {
               // Timeout reached (3 minutes)
@@ -386,7 +399,7 @@ const DeviceUserPage = ({
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
-              if (!isIOSOrIPadOS) {
+              if (!isIOSOrIPadOS && shouldNotify) {
                 notify.error(
                   "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
                 );
@@ -407,17 +420,13 @@ const DeviceUserPage = ({
   const {
     host,
     license,
-    org_logo_url: orgLogoUrl = "",
-    org_logo_url_light_background: orgLogoUrlLightBackground = "",
     org_logo_url_dark_mode: orgLogoUrlDarkMode = "",
     org_logo_url_light_mode: orgLogoUrlLightMode = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
   } = dupDetails || {};
-  const darkLogoURL = orgLogoUrlDarkMode || orgLogoUrl;
-  const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
-  const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
+  const orgLogoURL = darkMode ? orgLogoUrlDarkMode : orgLogoUrlLightMode;
   const isPremiumTier = license?.tier === "premium";
   const diskEncryptionSetting = host?.mdm.os_settings?.disk_encryption;
   const needsBitLockerPIN =
@@ -547,6 +556,16 @@ const DeviceUserPage = ({
     hasSession: !!dupDetails,
   });
 
+  const {
+    isChecking: isCheckingGoogleSignIn,
+    isRedirecting: isRedirectingToGoogle,
+  } = useGoogleConditionalAccessSignIn({
+    deviceAuthToken,
+    isSignInRequired:
+      !!dupDetails?.google_conditional_access_sign_in_required &&
+      !isSSORequired,
+  });
+
   const { bypassConditionalAccess } = deviceUserAPI;
 
   const [isLoadingBypass, setIsLoadingBypass] = useState(false);
@@ -598,40 +617,45 @@ const DeviceUserPage = ({
     setSelectedPolicy(null);
   }, [setShowPolicyDetailsModal, setSelectedPolicy]);
 
-  // User-initiated refetch always starts a new timer!
-  const onRefetchHost = useCallback(async () => {
-    if (!host) return;
-    setShowRefetchSpinner(true);
+  // A refetch always starts a new timer!
+  const startRefetch = useCallback(
+    async (byUser: boolean) => {
+      if (!host) return;
+      setShowRefetchSpinner(true);
 
-    // Trigger APNS ping independently of the main refetch
-    if (canTriggerAPNSPing(host)) {
-      deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
-        notify.error("Failed to send APNS ping", { response: error });
-      });
-    }
+      // Trigger APNS ping independently of the main refetch
+      if (canTriggerAPNSPing(host)) {
+        deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
 
-    try {
-      await deviceUserAPI.refetch(deviceAuthToken);
-      setRefetchStartTime(Date.now());
-      setTimeout(() => {
-        refetchDupDetails();
-        refetchExtensions();
-      }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-    } catch (error) {
-      notify.error(getErrorMessage(error, host.display_name), {
-        response: error,
-      });
-      resetHostRefetchStates();
-    }
-  }, [host, deviceAuthToken, refetchDupDetails, refetchExtensions]);
+      try {
+        await deviceUserAPI.refetch(deviceAuthToken);
+        setRefetchStart({ at: Date.now(), byUser });
+        setTimeout(() => {
+          refetchDupDetails();
+          refetchExtensions();
+        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+      } catch (error) {
+        notify.error(getErrorMessage(error, host.display_name), {
+          response: error,
+        });
+        resetHostRefetchStates();
+      }
+    },
+    [host, deviceAuthToken, refetchDupDetails, refetchExtensions]
+  );
+
+  const onRefetchHost = useCallback(() => startRefetch(true), [startRefetch]);
 
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
     if (queuedSelfServiceRefetch && !showRefetchSpinner) {
       setQueuedSelfServiceRefetch(false);
-      onRefetchHost();
+      startRefetch(false);
     }
-  }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
+  }, [queuedSelfServiceRefetch, showRefetchSpinner, startRefetch]);
 
   // Triggered when a software update finishes
   const requestRefetch = () => {
@@ -640,7 +664,7 @@ const DeviceUserPage = ({
       setQueuedSelfServiceRefetch(true);
     } else {
       // Otherwise, run it now
-      onRefetchHost();
+      startRefetch(false);
     }
   };
 
@@ -694,12 +718,20 @@ const DeviceUserPage = ({
     [deviceAuthToken]
   );
 
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.installProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.uninstallProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
   const renderDeviceUserPage = () => {
-    // While the toggle's refetch is in flight the cached list is for the other
-    // toggle state, so blank the card instead of showing the wrong rows.
-    const displayedPolicies = isDupDetailsPreviousData
-      ? []
-      : host?.policies || [];
+    const displayedPolicies = host?.policies || [];
     // Counted from the list the tab shows, so it follows the hidden-policies toggle.
     const failingPoliciesCount = displayedPolicies.filter(
       (p) => p.response === "fail"
@@ -711,7 +743,7 @@ const DeviceUserPage = ({
       !!host &&
       shouldShowControlsTab({
         platform: host.platform,
-        osVersion: host.os_version,
+        osVersion: getHostOSDisplayName(host.os_name, host.os_version),
         enrollmentStatus: host.mdm?.enrollment_status ?? null,
         hasControls: controls.length > 0,
       });
@@ -788,7 +820,7 @@ const DeviceUserPage = ({
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
           requireAllSoftware={
-            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            (isAppleHost && globalConfig?.mdm?.macos_require_all_software) ??
             false
           }
           toggleInfoModal={toggleInfoModal}
@@ -797,8 +829,12 @@ const DeviceUserPage = ({
       );
     }
 
-    // iOS/iPadOS devices or narrow screens should show mobile UI
-    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+    if (isCheckingGoogleSignIn || isRedirectingToGoogle) {
+      return <Spinner {...(isMobileView && { variant: "mobile" })} />;
+    }
+
+    // isIOSIPadOS: Fleet platform. isMobile: user agent or ?mobile=1.
+    const shouldShowMobileUI = isIOSIPadOS || isMobile;
 
     if (shouldShowMobileUI) {
       // Force redirect to self-service route for iOS/iPadOS devices
@@ -844,7 +880,7 @@ const DeviceUserPage = ({
         <div className={`${baseClass} main-content`}>
           <DeviceUserBanners
             hostPlatform={host.platform}
-            hostOsVersion={host.os_version}
+            hostOsVersion={getHostOSDisplayName(host.os_name, host.os_version)}
             mdmEnrollmentStatus={host.mdm.enrollment_status}
             mdmEnabledAndConfigured={!!globalConfig?.mdm.enabled_and_configured}
             connectedToFleetMdm={!!host.mdm.connected_to_fleet}
@@ -975,6 +1011,13 @@ const DeviceUserPage = ({
                     canResendProfiles={isAppleHost || isWindows(host.platform)}
                     resendRequest={resendProfile}
                     onProfileResent={refetchDupDetails}
+                    isMacOSHost={host.platform === "darwin"}
+                    canManageSelfServiceProfiles={
+                      isPremiumTier && host.platform === "darwin"
+                    }
+                    isPremiumTier={isPremiumTier}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     router={router}
                   />
                 </TabPanel>
@@ -990,7 +1033,7 @@ const DeviceUserPage = ({
                     isMyDevicePage
                     isPremiumTier={isPremiumTier}
                     platform={host.platform}
-                    hostTeamId={host.team_id || 0}
+                    hostTeamId={host.fleet_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}
                     onShowInventoryVersions={setHostSWForInventoryVersions}
                   />
@@ -1003,6 +1046,7 @@ const DeviceUserPage = ({
                     isLoading={isDupDetailsPreviousData}
                     deviceUser
                     showHiddenPolicies={showHiddenPolicies}
+                    hasHiddenPolicies={!!host?.issues?.hidden_policies_count}
                     onToggleShowHiddenPolicies={() =>
                       setShowHiddenPolicies((current) => !current)
                     }
@@ -1103,7 +1147,7 @@ const DeviceUserPage = ({
   const renderDeviceSSOState = () => {
     if (isRedirectingToSSO) {
       return (
-        <div className={`${baseClass}__sso-redirect`} role="status">
+        <div className={`${baseClass}__redirect`} role="status">
           <Spinner {...(isMobileView && { variant: "mobile" })} />
           <span>Redirecting to your organization’s sign-in page…</span>
         </div>
@@ -1120,12 +1164,24 @@ const DeviceUserPage = ({
     );
   };
 
+  // Auth errors (expired token, SSO required, bad enroll URL) are actionable;
+  // the "enlarge your browser" overlay is not. Let the error page win.
+  const hasDeviceUserError =
+    isSSORequired ||
+    (dupDetailsError && !dupDetails) ||
+    isAuthenticationError ||
+    !!enrollUrlError;
+
+  const showUnsupportedScreen =
+    !hasDeviceUserError &&
+    shouldShowUnsupportedScreen(location.pathname, isMobile);
+
   const coreWrapperClassnames = classNames("core-wrapper", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
 
   const siteNavContainerClassnames = classNames("site-nav-container", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
 
   // The SSO branch has to come first: a refused device call is an error to
@@ -1161,9 +1217,7 @@ const DeviceUserPage = ({
 
   return (
     <div className="app-wrap">
-      {shouldShowUnsupportedScreen(location.pathname) && (
-        <UnsupportedScreenSize />
-      )}
+      {showUnsupportedScreen && <UnsupportedScreenSize />}
       <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">

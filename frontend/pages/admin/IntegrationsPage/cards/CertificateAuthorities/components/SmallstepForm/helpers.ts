@@ -1,5 +1,7 @@
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
+
+import { getCANameConflictError } from "../helpers";
 
 import { ISmallstepFormData } from "./SmallstepForm";
 
@@ -30,8 +32,8 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  smallstepIntegrations: ICertificateAuthorityPartial[],
-  isEditing: boolean
+  certAuthorities: ICertificateAuthorityPartial[],
+  editingId?: number
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -52,15 +54,15 @@ export const generateFormValidations = (
         },
         {
           name: "unique",
-          isValid: (formData: ISmallstepFormData) => {
-            return (
-              isEditing ||
-              smallstepIntegrations.find(
-                (cert) => cert.name === formData.name
-              ) === undefined
-            );
-          },
-          message: "Name is already used by another custom SCEP CA.",
+          isValid: (formData: ISmallstepFormData) =>
+            getCANameConflictError(
+              formData.name,
+              certAuthorities,
+              editingId
+            ) === undefined,
+          message: (formData: ISmallstepFormData) =>
+            getCANameConflictError(formData.name, certAuthorities, editingId) ??
+            "",
         },
       ],
     },
@@ -75,7 +77,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: ISmallstepFormData) => {
-            return valid_url({ url: formData.scepURL });
+            return isValidURL({ url: formData.scepURL });
           },
           message: "Must be a valid URL.",
         },
@@ -92,7 +94,7 @@ export const generateFormValidations = (
         {
           name: "validUrl",
           isValid: (formData: ISmallstepFormData) => {
-            return valid_url({ url: formData.challengeURL });
+            return isValidURL({ url: formData.challengeURL });
           },
           message: "Must be a valid URL.",
         },

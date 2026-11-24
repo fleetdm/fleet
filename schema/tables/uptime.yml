@@ -1,4 +1,9 @@
 name: uptime
+platforms:
+  - windows
+  - darwin
+  - linux
+  - chrome
 examples: |-
   See how long hosts that have been up for more than a month have been up. This
   could indicate systems that are not ephemeral as expected, or not being
@@ -7,3 +12,8 @@ examples: |-
   ```
   SELECT days FROM uptime WHERE days >='31'
   ```
+notes: |-
+  On ChromeOS:
+    - This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
+    - Uptime is calculated from the last Chrome profile startup, which serves as a proxy for the device's last reboot. The startup timestamp persists across extension service worker restarts.
+    - The table returns no rows until the extension records its first Chrome profile startup after installation.

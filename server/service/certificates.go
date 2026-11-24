@@ -51,7 +51,7 @@ func validateCertificateTemplateName(name string) error {
 
 type createCertificateTemplateRequest struct {
 	Name                   string `json:"name"`
-	TeamID                 uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID                 uint   `json:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 	SubjectAlternativeName string `json:"subject_alternative_name,omitempty"`
@@ -183,7 +183,7 @@ type listCertificateTemplatesRequest struct {
 	fleet.ListOptions
 
 	// If not provided, intentionally defaults to 0 aka "No team"
-	TeamID uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID uint `query:"fleet_id,optional"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -443,8 +443,10 @@ func (svc *Service) resolveTeamNamesForSpecs(ctx context.Context, specs []*fleet
 			continue
 		}
 
-		// Handle empty string and "No team" as teamID = 0
-		if spec.Team == "" || spec.Team == "No team" {
+		if reason, removed := removedFleetName(spec.Team, false); removed {
+			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
+		}
+		if spec.Team == "" || fleet.IsUnassignedFleetName(spec.Team) {
 			teamNameToID[spec.Team] = 0
 			continue
 		}
@@ -602,7 +604,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 type deleteCertificateTemplateSpecsRequest struct {
 	IDs    []uint `json:"ids"`
-	TeamID uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID uint   `json:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 }
 
 type deleteCertificateTemplateSpecsResponse struct {
@@ -636,7 +638,7 @@ func (svc *Service) DeleteCertificateTemplateSpecs(ctx context.Context, certific
 	}
 	if len(uniqueIDs) != len(certificateTemplates) {
 		return authz.ForbiddenWithInternal(
-			"can only delete templates from team parameter",
+			"can only delete templates from fleet parameter",
 			authz.UserFromContext(ctx),
 			&fleet.CertificateTemplate{TeamID: teamID},
 			fleet.ActionWrite,

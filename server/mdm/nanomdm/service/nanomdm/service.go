@@ -13,6 +13,7 @@ import (
 
 	"github.com/micromdm/nanolib/log"
 	"github.com/micromdm/nanolib/log/ctxlog"
+	"github.com/micromdm/plist"
 )
 
 // Service is the main NanoMDM service which dispatches to storage.
@@ -277,7 +278,32 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	)
 	// We expand secrets in the command before returning it to the caller so that we never store unencrypted secrets in the database.
 	// User can issue a one-off MDM command that contains a secret variable, for example.
-	expanded, err := s.store.ExpandEmbeddedSecrets(r.Context, string(cmd.Raw))
+	// Mark the command as failed so it won't be retried forever
+	storeFailedResult := func(errorMsg string) {
+		failedResult := &mdm.CommandResults{
+			Enrollment:  results.Enrollment,
+			CommandUUID: cmd.CommandUUID,
+			Status:      "Error",
+			ErrorChain: []mdm.ErrorChain{{
+				ErrorCode:            -1,
+				ErrorDomain:          "Fleet",
+				LocalizedDescription: errorMsg,
+			}},
+		}
+		// The stored result can't be empty: without it the command stays
+		// first in the queue and blocks every command behind it.
+		raw, marshalErr := plist.Marshal(failedResult)
+		if marshalErr != nil {
+			logger.Info("level", "error", "msg", "marshalling failed command result", "err", marshalErr)
+		}
+		failedResult.Raw = raw
+		if storeErr := s.store.StoreCommandReport(r, failedResult); storeErr != nil {
+			logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
+		}
+	}
+
+	written := string(cmd.Raw)
+	expanded, err := s.store.ExpandEmbeddedSecrets(r.Context, written)
 	if err != nil {
 		// This error should never happen since secrets have been validated on profile upload.
 		logger.Info("level", "error", "msg", "expanding embedded secrets", "err", err)
@@ -285,27 +311,23 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	} else {
 		cmd.Raw = []byte(expanded)
 	}
+	if err := fleet.ValidateNoHostSecretVariablesAdded(written, string(cmd.Raw)); err != nil {
+		logger.Info("level", "error", "msg", "refusing command", "command_uuid", cmd.CommandUUID, "err", err)
+		storeFailedResult(err.Error())
+		return nil, nil
+	}
 
 	expandHostSecrets := func(cmdRaw string, onError func(hostUUID string, errorMsg string)) (expanded string, didError bool) {
-		hostUUID := results.UDID
+		// The device channel ID is the UDID for device enrollments and the EnrollmentID for ADUE, which has no UDID.
+		var hostUUID string
+		if resolved := results.Resolved(); resolved != nil {
+			hostUUID = resolved.DeviceChannelID
+		}
 		hostExpanded, err := s.store.ExpandHostSecrets(r.Context, cmdRaw, hostUUID)
 		if err != nil {
 			errorMsg := fmt.Sprintf("failed to expand host secrets: %v", err)
 			logger.Info("level", "error", "msg", "expanding host secrets", "err", err)
-			// Mark the command as failed so it won't be retried forever
-			failedResult := &mdm.CommandResults{
-				Enrollment:  results.Enrollment,
-				CommandUUID: cmd.CommandUUID,
-				Status:      "Error",
-				ErrorChain: []mdm.ErrorChain{{
-					ErrorCode:            -1,
-					ErrorDomain:          "Fleet",
-					LocalizedDescription: errorMsg,
-				}},
-			}
-			if storeErr := s.store.StoreCommandReport(r, failedResult); storeErr != nil {
-				logger.Info("level", "error", "msg", "storing failed command result", "err", storeErr)
-			}
+			storeFailedResult(errorMsg)
 
 			onError(hostUUID, errorMsg)
 
@@ -322,6 +344,20 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 			// Mark the host's recovery lock status as failed so it's not stuck in pending.
 			if storeErr := s.store.SetRecoveryLockFailed(r.Context, hostUUID, cmd.CommandUUID, errorMsg); storeErr != nil {
 				logger.Info("level", "error", "msg", "setting recovery lock failed", "err", storeErr)
+			}
+		})
+		if didError {
+			return nil, nil
+		}
+
+		cmd.Raw = []byte(hostExpanded)
+	}
+
+	// RotateFileVaultKey is device-only, so UDID is the host UUID.
+	if cmd.Command.Command.RequestType == fleet.RotateFileVaultKeyCmdName {
+		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
+			if storeErr := s.store.SetDiskEncryptionKeyRotationFailed(r.Context, hostUUID, cmd.CommandUUID, errorMsg); storeErr != nil {
+				logger.Info("level", "error", "msg", "setting disk encryption key rotation failed", "err", storeErr)
 			}
 		})
 		if didError {
@@ -350,7 +386,7 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		// ($FLEET_HOST_SECRET_*) secrets are per-host, so expand them here so the
 		// host-specific value (e.g. the Platform SSO device registration token)
 		// is injected only at delivery time and never stored in the command nor
-		// shown on the /mdm/commands endpoint. This is a no-op when the profile
+		// shown on the /commands endpoint. This is a no-op when the profile
 		// carries no host secrets.
 		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
 			logger.Info("level", "error", "msg", "failed to expand host secrets for profile", "host_uuid", hostUUID, "err", errorMsg)

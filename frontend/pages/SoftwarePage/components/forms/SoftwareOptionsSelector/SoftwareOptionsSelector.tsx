@@ -7,6 +7,7 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
 import Slider from "components/forms/fields/Slider";
+import FormField from "components/forms/FormField";
 import Spinner from "components/Spinner";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
@@ -40,26 +41,37 @@ interface ICategoriesSelector {
   /** When provided, categories are fetched from the self-service categories API
    * for this fleet. When undefined, the hardcoded list is used. */
   teamId?: number;
+  /** Override the section label. Defaults to "Categories". */
+  label?: string;
+  /** Override the preview button copy. Defaults to "Preview end user
+   * experience". */
+  previewButtonLabel?: string;
+  /** When true, each category checkbox is disabled and removed from the
+   * tab order. */
+  disabled?: boolean;
 }
 
 export const AndroidOptionsDescription = () => (
   <p>
-    Currently, Android apps can only be added as self-service and the end user
-    can install them from the <strong>Play Store</strong> in their work profile.
-    Additionally, you can install it when hosts enroll on the{" "}
+    Currently, Android apps are always available in self-service (Google Play
+    Store) in their work profile. You can automatically install it when hosts
+    enroll via{" "}
     <CustomLink
       url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
-      text="Setup experience"
-    />{" "}
-    page.
+      text="setup experience"
+    />
+    .
   </p>
 );
 
-const CategoriesSelector = ({
+export const CategoriesSelector = ({
   onSelectCategory,
   selectedCategories,
   onClickPreviewEndUserExperience,
   teamId,
+  label = "Categories",
+  previewButtonLabel = "Preview end user experience",
+  disabled = false,
 }: ICategoriesSelector) => {
   const isDynamic = teamId !== undefined;
 
@@ -117,9 +129,10 @@ const CategoriesSelector = ({
       return (
         <div className={`${baseClass}__categories-empty`}>
           <CustomLink
-            url={getPathWithQueryParams(paths.SOFTWARE_LIBRARY_CATEGORIES, {
-              fleet_id: teamId,
-            })}
+            url={getPathWithQueryParams(
+              paths.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES,
+              { fleet_id: teamId }
+            )}
             text="Add category"
           />
           <span>to assign software to it.</span>
@@ -137,6 +150,7 @@ const CategoriesSelector = ({
               value={selectedCategories.includes(cat.value)}
               onChange={onSelectCategory}
               parseTarget
+              disabled={disabled}
             >
               <div className={`${baseClass}__label-name`}>{cat.label}</div>
             </Checkbox>
@@ -147,17 +161,24 @@ const CategoriesSelector = ({
   };
 
   return (
-    <>
-      <div className="form-field__label">Categories</div>
+    <FormField
+      name="category"
+      label={
+        <div className={`${baseClass}__categories-header`}>
+          <span>{label}</span>
+          <Button
+            variant="subdued"
+            size="small"
+            onClick={onClickPreviewEndUserExperience}
+            className={`${baseClass}__preview-button`}
+          >
+            {previewButtonLabel}
+          </Button>
+        </div>
+      }
+    >
       {renderList()}
-      <Button
-        variant="secondary"
-        onClick={onClickPreviewEndUserExperience}
-        className={`${baseClass}__preview-button`}
-      >
-        Preview end user experience
-      </Button>
-    </>
+    </FormField>
   );
 };
 
@@ -211,7 +232,11 @@ const SoftwareOptionsSelector = ({
     : undefined;
 
   return (
-    <div className={`form-field ${classNames}`}>
+    <div
+      className={classnames(`form-field ${classNames}`, {
+        [`${baseClass}--disabled`]: disableOptions,
+      })}
+    >
       <div className="form-field__label">Options</div>
       {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
@@ -231,6 +256,7 @@ const SoftwareOptionsSelector = ({
             selectedCategories={formData.categories}
             onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             teamId={teamId}
+            disabled={disableOptions}
           />
         )}
       </div>

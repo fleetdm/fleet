@@ -116,7 +116,7 @@ parasails.registerPage('new-license', {
       // Convert the quoted price into a string that contains commas.
       this.quotedPrice = this.quotedPrice.toLocaleString('en', {useGrouping:true});
       this.numberOfHostsQuoted = this.quote.numberOfHosts;
-      if(this.quote.numberOfHosts < 700) {
+      if(this.quote.numberOfHosts < 500) {
         this.formData.quoteId = this.quote.id;
         this.showBillingForm = true;
       }

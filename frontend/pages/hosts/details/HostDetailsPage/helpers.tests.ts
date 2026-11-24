@@ -1,7 +1,14 @@
 import createMockHost from "__mocks__/hostMock";
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
 
-import { canShowMyDeviceButton, hasEverEnrolled } from "./helpers";
+import {
+  canShowMyDeviceButton,
+  canViewHostAISessions,
+  hasEverEnrolled,
+} from "./helpers";
 
 describe("canShowMyDeviceButton", () => {
   it("returns true when Fleet Desktop is installed and the host is not wiped", () => {
@@ -9,7 +16,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns true for a locked host that still has Fleet Desktop", () => {
@@ -17,7 +24,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "locked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   // Android and ChromeOS have no My device page, so the link must be hidden
@@ -28,7 +35,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false for ChromeOS even with Fleet Desktop reported", () => {
@@ -37,7 +44,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false for legacy ChromeOS (CrOS) even with Fleet Desktop reported", () => {
@@ -47,7 +54,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "unlocked" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   // iOS/iPadOS never run Fleet Desktop; they reach the My device page by host
@@ -56,32 +63,44 @@ describe("canShowMyDeviceButton", () => {
     const host = createMockHost({
       platform: "ios",
       fleet_desktop_version: null,
-      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: "On (automatic)",
+      },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns true for iPadOS without Fleet Desktop", () => {
     const host = createMockHost({
       platform: "ipados",
       fleet_desktop_version: null,
-      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: "On (automatic)",
+      },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns false for a wiped iOS host", () => {
     const host = createMockHost({
       platform: "ios",
       fleet_desktop_version: null,
-      mdm: { ...createMockHost().mdm, device_status: "wiped" },
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "wiped",
+        enrollment_status: "On (automatic)",
+      },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false when Fleet Desktop is not installed", () => {
     const host = createMockHost({ fleet_desktop_version: null });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false when the host has been wiped", () => {
@@ -89,7 +108,7 @@ describe("canShowMyDeviceButton", () => {
       fleet_desktop_version: "1.22.1",
       mdm: { ...createMockHost().mdm, device_status: "wiped" },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
   it("returns false when the host has a wipe in flight", () => {
@@ -101,8 +120,23 @@ describe("canShowMyDeviceButton", () => {
         pending_action: "wipe",
       },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(false);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
+
+  it.each([
+    { device_status: "reset", pending_action: "" },
+    { device_status: "unlocked", pending_action: "reset" },
+    { device_status: "reset", pending_action: "wipe" },
+  ] as const)(
+    "returns false for device_status $device_status with pending_action '$pending_action'",
+    (mdmStatus) => {
+      const host = createMockHost({
+        fleet_desktop_version: "1.22.1",
+        mdm: { ...createMockHost().mdm, ...mdmStatus },
+      });
+      expect(canShowMyDeviceButton(host, false, true)).toBe(false);
+    }
+  );
 
   // Only wipe-related states hide the button. Other transient states leave the
   // end-user page reachable, so the button stays visible.
@@ -115,7 +149,7 @@ describe("canShowMyDeviceButton", () => {
         pending_action: "clear_passcode",
       },
     });
-    expect(canShowMyDeviceButton(host, false)).toBe(true);
+    expect(canShowMyDeviceButton(host, false, true)).toBe(true);
   });
 
   it("returns false for ios when fleet desktop SSO is configured", () => {
@@ -123,7 +157,61 @@ describe("canShowMyDeviceButton", () => {
       platform: "ios",
       fleet_desktop_version: "1.22.1",
     });
-    expect(canShowMyDeviceButton(host, true)).toBe(false);
+    expect(canShowMyDeviceButton(host, true, true)).toBe(false);
+  });
+});
+
+describe("canShowMyDeviceButton for iOS/iPadOS enrollment and tier", () => {
+  const iosHost = (enrollmentStatus: MdmEnrollmentStatus | null) =>
+    createMockHost({
+      platform: "ios",
+      fleet_desktop_version: null,
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: enrollmentStatus,
+      },
+    });
+
+  it.each<MdmEnrollmentStatus | null>(["Pending", "Off", null])(
+    "returns false when MDM status is %s",
+    (status) => {
+      expect(canShowMyDeviceButton(iosHost(status), false, true)).toBe(false);
+    }
+  );
+
+  it.each<MdmEnrollmentStatus>([
+    "On (automatic)",
+    "On (manual)",
+    "On (personal)",
+    "On (manual - personal)",
+    "On (company-owned)",
+  ])("returns true when MDM status is %s", (status) => {
+    expect(canShowMyDeviceButton(iosHost(status), false, true)).toBe(true);
+  });
+
+  it("returns false when enrolled but the UUID isn't known yet", () => {
+    const host = { ...iosHost("On (automatic)"), uuid: "" };
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
+  });
+
+  it("returns false on Fleet Free even when enrolled", () => {
+    expect(canShowMyDeviceButton(iosHost("On (automatic)"), false, false)).toBe(
+      false
+    );
+  });
+
+  it("does not apply the tier or enrollment checks to macOS", () => {
+    const host = createMockHost({
+      platform: "darwin",
+      fleet_desktop_version: "1.22.1",
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        enrollment_status: "Off",
+      },
+    });
+    expect(canShowMyDeviceButton(host, false, false)).toBe(true);
   });
 });
 
@@ -149,4 +237,135 @@ describe("hasEverEnrolled", () => {
       false
     );
   });
+});
+
+describe("canViewHostAISessions", () => {
+  const teamHost = createMockHost({ platform: "darwin", fleet_id: 1 });
+
+  it.each(["darwin", "windows", "ubuntu", "rhel"] as HostPlatform[])(
+    "returns true for a global admin on a Premium %s host",
+    (platform) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({ global_role: "admin" }),
+          host: { ...teamHost, platform },
+        })
+      ).toBe(true);
+    }
+  );
+
+  it("returns true for a global maintainer", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({ global_role: "maintainer" }),
+        host: teamHost,
+      })
+    ).toBe(true);
+  });
+
+  it.each(["admin", "maintainer"] as const)(
+    "returns true for a %s of the host's fleet",
+    (role) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({
+            global_role: null,
+            fleets: [createMockTeam({ id: 1, role })],
+          }),
+          host: teamHost,
+        })
+      ).toBe(true);
+    }
+  );
+
+  it("returns false on Fleet Free", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: false,
+        currentUser: createMockUser({ global_role: "admin" }),
+        host: teamHost,
+      })
+    ).toBe(false);
+  });
+
+  it.each(["observer", "observer_plus", "technician"] as const)(
+    "returns false for a global %s",
+    (role) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({ global_role: role }),
+          host: teamHost,
+        })
+      ).toBe(false);
+    }
+  );
+
+  it.each(["observer", "observer_plus", "technician"] as const)(
+    "returns false for a %s of the host's fleet",
+    (role) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({
+            global_role: null,
+            fleets: [createMockTeam({ id: 1, role })],
+          }),
+          host: teamHost,
+        })
+      ).toBe(false);
+    }
+  );
+
+  it("returns true for a global admin on a host with no fleet", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({ global_role: "admin" }),
+        host: { ...teamHost, fleet_id: null },
+      })
+    ).toBe(true);
+  });
+
+  it("returns false for a fleet admin on a host with no fleet", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({
+          global_role: null,
+          fleets: [createMockTeam({ id: 1, role: "admin" })],
+        }),
+        host: { ...teamHost, fleet_id: null },
+      })
+    ).toBe(false);
+  });
+
+  it("returns false for an admin of a different fleet", () => {
+    expect(
+      canViewHostAISessions({
+        isPremiumTier: true,
+        currentUser: createMockUser({
+          global_role: null,
+          fleets: [createMockTeam({ id: 2, role: "admin" })],
+        }),
+        host: teamHost,
+      })
+    ).toBe(false);
+  });
+
+  it.each(["ios", "ipados", "android", "chrome"] as HostPlatform[])(
+    "returns false on %s hosts",
+    (platform) => {
+      expect(
+        canViewHostAISessions({
+          isPremiumTier: true,
+          currentUser: createMockUser({ global_role: "admin" }),
+          host: { ...teamHost, platform },
+        })
+      ).toBe(false);
+    }
+  );
 });

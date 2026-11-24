@@ -1,3 +1,4 @@
+import { isAnyMDMConfigured } from "interfaces/mdm";
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
@@ -9,12 +10,13 @@ const buildCommandsItems = (
   derived: IDerivedContext
 ): ICommandItem[] => {
   const {
-    search,
     canAccessSettings,
     canRunLiveReport,
     canWrite,
     canEditCustomVariable,
     canAddSoftware,
+    canAddConfigurationProfile,
+    config,
     isTechnician,
     isPremiumTier,
     isPrimoMode,
@@ -30,26 +32,13 @@ const buildCommandsItems = (
   const {
     hasTeamOrUnassigned,
     isGitOpsMode,
+    isSoftwareGitOpsMode,
     switchesFromUnassigned,
+    switchesFromAllFleets,
     defaultDestination,
   } = derived;
 
   return [
-    // Add new pack — companion to the "Packs" page in pages.ts. Shares
-    // the same search-regex condition. Kept here so the Commands group
-    // stays self-contained.
-    ...(/packs|create new pack|add new pack/.test(search.toLowerCase())
-      ? [
-          {
-            id: "new-pack",
-            label: "Add new pack",
-            group: "Commands" as const,
-            path: paths.NEW_PACK,
-            keywords: ["packs", "add new pack", "create new pack"],
-          },
-        ]
-      : []),
-
     // View commands — open picker pages with searchable lists. Placed at
     // the top of the Commands group so view actions appear before write
     // actions like Add hosts within this group.
@@ -195,6 +184,39 @@ const buildCommandsItems = (
               "device health",
             ],
           },
+          // Same gate as the profiles card's "Add profile": current-fleet
+          // admins and maintainers, once some MDM is on. Hidden in GitOps
+          // mode, where the page can't be submitted.
+          ...(canAddConfigurationProfile &&
+          !isGitOpsMode &&
+          isAnyMDMConfigured(config?.mdm)
+            ? [
+                {
+                  id: "add-profile",
+                  label: "Add profile",
+                  group: "Commands" as const,
+                  path: withTeamId(paths.CONTROLS_CUSTOM_SETTINGS_NEW),
+                  teamName: switchesFromAllFleets,
+                  keywords: [
+                    "create",
+                    "new",
+                    "upload",
+                    "configuration",
+                    "mobileconfig",
+                    "declaration",
+                    "ddm",
+                    "csp",
+                    "custom",
+                    "settings",
+                    "macos",
+                    "ios",
+                    "ipados",
+                    "windows",
+                    "android",
+                  ],
+                },
+              ]
+            : []),
           // Software add actions require Premium + a team or unassigned
           // (not "All fleets"). Each destination page renders a
           // <PremiumFeatureMessage /> in Free. Also gated on
@@ -296,26 +318,30 @@ const buildCommandsItems = (
                     "python",
                   ],
                 },
-                {
-                  id: "add-self-service-category",
-                  label: "Add self-service category",
-                  group: "Commands" as const,
-                  // SelfServiceCategoriesPage opens its Add modal on
-                  // `?add_category=1`, mirroring the Variables/Scripts pattern.
-                  path: withTeamId(
-                    `${paths.SOFTWARE_LIBRARY_CATEGORIES}?add_category=1`
-                  ),
-                  keywords: [
-                    "add category",
-                    "create category",
-                    "new category",
-                    "self service",
-                    "self-service",
-                    "create self-service category",
-                    "new self-service category",
-                    "categories",
-                  ],
-                },
+                ...(!isSoftwareGitOpsMode
+                  ? [
+                      {
+                        id: "add-self-service-category",
+                        label: "Add self-service category",
+                        group: "Commands" as const,
+                        // SelfServiceCategoriesSection opens its Add modal on
+                        // `?add_category=1`, mirroring the Variables/Scripts pattern.
+                        path: withTeamId(
+                          `${paths.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES}?add_category=1`
+                        ),
+                        keywords: [
+                          "add category",
+                          "create category",
+                          "new category",
+                          "self service",
+                          "self-service",
+                          "create self-service category",
+                          "new self-service category",
+                          "categories",
+                        ],
+                      },
+                    ]
+                  : []),
               ]
             : []),
           // Script and variable actions require a team or unassigned
@@ -483,14 +509,7 @@ const buildCommandsItems = (
                         label: "Add fleet",
                         group: "Commands" as const,
                         path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
-                        keywords: [
-                          "new fleet",
-                          "add fleet",
-                          "team",
-                          "create team",
-                          "add team",
-                          "new team",
-                        ],
+                        keywords: ["new fleet", "add fleet", "create fleet"],
                       },
                     ]
                   : []),

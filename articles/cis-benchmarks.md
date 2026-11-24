@@ -12,6 +12,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 - macOS 26.0 Tahoe
 - Windows 10 Enterprise
 - Windows 11 Enterprise
+- Windows 11 (Intune)
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
 

@@ -47,7 +47,7 @@
     border: solid 1px $ui-fleet-black-10;
     border-radius: $border-radius;
     font-size: $small;
-    padding: 9.5px 12px 9.5px 36px;
+    padding: 9.5px 9px 9.5px 36px;
     color: $core-fleet-black;
     font-family: "Inter", sans-serif;
     font-size: $x-small;
@@ -77,8 +77,8 @@
     }
 
     &--error {
-      color: $core-vibrant-red;
-      border: 1px solid $core-vibrant-red;
+      color: $ui-error;
+      border: 1px solid $ui-error;
       box-sizing: border-box;
       border-radius: $border-radius;
 
