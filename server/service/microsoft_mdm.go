@@ -1168,7 +1168,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	// its device only by a device-reported hardware ID. Without it the enrollment still proceeds, but cannot replace a
 	// host's enrollment. Logged here rather than in authBinarySecurityToken so that each enrollment logs it once.
 	if authToken.IsAzureJWTToken() && entraDeviceID == "" {
-		svc.logger.ErrorContext(ctx, "Entra access token has no deviceid claim, so Fleet cannot verify which device this Windows MDM "+
+		svc.logger.WarnContext(ctx, "Entra access token has no deviceid claim, so Fleet cannot verify which device this Windows MDM "+
 			"enrollment comes from. Add deviceid as an optional access token claim in the manifest of the "+
 			"Microsoft Entra MDM app registration",
 			"user_id", userID,
