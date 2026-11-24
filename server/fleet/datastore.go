@@ -4025,9 +4025,9 @@ type Datastore interface {
 	// Secret variables
 
 	// UpsertSecretVariables inserts or updates secret variables in the database.
-	// It returns the names of the variables that were created and the names of
-	// those that were updated, so callers can emit the corresponding activities.
-	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) (created []string, updated []string, err error)
+	// It returns the variables that were created (with ID and Name populated) and the
+	// names of those that were updated, so callers can emit the corresponding activities.
+	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) (created []SecretVariable, updated []string, err error)
 
 	// CreateSecretVariable inserts a secret variable (value encrypted) and returns its ID.
 	// Returns an AlreadyExistsError error if there's already a secret variable with the same name.

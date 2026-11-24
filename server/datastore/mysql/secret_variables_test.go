@@ -54,9 +54,9 @@ func TestSecretVariables(t *testing.T) {
 func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	createdNames, updatedNames, err := ds.UpsertSecretVariables(ctx, nil)
+	createdSecrets, updatedNames, err := ds.UpsertSecretVariables(ctx, nil)
 	require.NoError(t, err)
-	require.Empty(t, createdNames)
+	require.Empty(t, createdSecrets)
 	require.Empty(t, updatedNames)
 	results, err := ds.GetSecretVariables(ctx, nil)
 	require.NoError(t, err)
@@ -75,8 +75,13 @@ func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 		return secrets
 	}
 	secrets := createExpectedSecrets()
-	createdNames, updatedNames, err = ds.UpsertSecretVariables(ctx, secrets)
+	createdSecrets, updatedNames, err = ds.UpsertSecretVariables(ctx, secrets)
 	require.NoError(t, err)
+	var createdNames []string
+	for _, c := range createdSecrets {
+		require.NotZero(t, c.ID)
+		createdNames = append(createdNames, c.Name)
+	}
 	require.ElementsMatch(t, []string{"test1", "test2", "test3"}, createdNames)
 	require.Empty(t, updatedNames)
 
@@ -90,11 +95,16 @@ func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 	// Update a secret and insert a new one
 	secretMap["test2"] = "newTestValue2"
 	secretMap["test4"] = "testValue4"
-	createdNames, updatedNames, err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
+	createdSecrets, updatedNames, err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
 		{Name: "test2", Value: secretMap["test2"]},
 		{Name: "test4", Value: secretMap["test4"]},
 	})
 	require.NoError(t, err)
+	createdNames = nil
+	for _, c := range createdSecrets {
+		require.NotZero(t, c.ID)
+		createdNames = append(createdNames, c.Name)
+	}
 	require.ElementsMatch(t, []string{"test4"}, createdNames)
 	require.ElementsMatch(t, []string{"test2"}, updatedNames)
 	results, err = ds.GetSecretVariables(ctx, []string{"test2", "test4"})
@@ -109,11 +119,11 @@ func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 	original, err := ds.GetSecretVariables(ctx, []string{"test1"})
 	require.NoError(t, err)
 	require.Len(t, original, 1)
-	createdNames, updatedNames, err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
+	createdSecrets, updatedNames, err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
 		{Name: "test1", Value: secretMap["test1"]},
 	})
 	require.NoError(t, err)
-	require.Empty(t, createdNames)
+	require.Empty(t, createdSecrets)
 	require.Empty(t, updatedNames)
 	updated, err := ds.GetSecretVariables(ctx, []string{"test1"})
 	require.NoError(t, err)

@@ -64,12 +64,13 @@ func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables [
 	// Emit an activity per created/updated variable so secret changes are
 	// auditable.
 	user := authz.UserFromContext(ctx)
-	for _, name := range created {
+	for _, secret := range created {
 		if err := svc.NewActivity(
 			ctx,
 			user,
 			fleet.ActivityCreatedCustomVariable{
-				CustomVariableName: name,
+				CustomVariableID:   secret.ID,
+				CustomVariableName: secret.Name,
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for secret variable creation")

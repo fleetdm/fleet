@@ -31,7 +31,7 @@ var secretVariableAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"updated_at": "updated_at",
 }
 
-func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
+func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []fleet.SecretVariable, updated []string, err error) {
 	if len(secretVariables) == 0 {
 		return nil, nil, nil
 	}
@@ -68,23 +68,23 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 	}
 
 	if len(variablesToInsert) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(variablesToInsert)), ",")
-		stmt := fmt.Sprintf(`
-		INSERT INTO secret_variables (name, value)
-		VALUES %s`, values)
-		args := make([]interface{}, 0, len(variablesToInsert)*2)
+		// Inserted one at a time (rather than a single multi-row INSERT) so each
+		// row's LastInsertId can be captured for the returned `created` list.
+		stmt := `INSERT INTO secret_variables (name, value) VALUES (?, ?)`
 		for _, secretVariable := range variablesToInsert {
 			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "encrypt secret value for insert with server private key")
 			}
-			args = append(args, secretVariable.Name, valueEncrypted)
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "insert secret variables")
-		}
-		for _, secretVariable := range variablesToInsert {
-			created = append(created, secretVariable.Name)
+			res, err := ds.writer(ctx).ExecContext(ctx, stmt, secretVariable.Name, valueEncrypted)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "insert secret variable")
+			}
+			id, _ := res.LastInsertId()
+			created = append(created, fleet.SecretVariable{
+				ID:   uint(id), //nolint:gosec // dismiss G115
+				Name: secretVariable.Name,
+			})
 		}
 	}
 
@@ -143,7 +143,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	}
 
 	stmt, args, err := sqlx.In(`
-		SELECT name, value, updated_at
+		SELECT id, name, value, updated_at
 		FROM secret_variables
 		WHERE name IN (?)`, names)
 	if err != nil {

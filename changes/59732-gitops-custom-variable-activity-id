@@ -1,0 +1,1 @@
+- Fixed a bug where creating custom variables via GitOps (spec endpoint) logged a created_custom_variable activity with custom_variable_id 0.

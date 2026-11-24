@@ -19,7 +19,7 @@ func TestCreateSecretVariables(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
+	ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []fleet.SecretVariable, updated []string, err error) {
 		return nil, nil, nil
 	}
 
@@ -99,7 +99,7 @@ func TestCreateSecretVariables(t *testing.T) {
 		require.ErrorContains(t, err, "Couldn't save secret variables. Missing required private key")
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleGitOps)}})
-		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []fleet.SecretVariable, updated []string, err error) {
 			return nil, nil, errors.New("test error")
 		}
 		err = svc.CreateSecretVariables(ctx, []fleet.SecretVariable{{Name: "FOO", Value: "bar"}}, false)
@@ -115,8 +115,8 @@ func TestCreateSecretVariablesEmitsActivities(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
 
 	t.Run("emits a created activity per created variable and an updated activity per updated variable", func(t *testing.T) {
-		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
-			return []string{"CREATED"}, []string{"UPDATED"}, nil
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []fleet.SecretVariable, updated []string, err error) {
+			return []fleet.SecretVariable{{ID: 42, Name: "CREATED"}}, []string{"UPDATED"}, nil
 		}
 		var activities []activity_api.ActivityDetails
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
@@ -132,6 +132,7 @@ func TestCreateSecretVariablesEmitsActivities(t *testing.T) {
 
 		createdActivity, ok := activities[0].(fleet.ActivityCreatedCustomVariable)
 		require.True(t, ok)
+		require.Equal(t, uint(42), createdActivity.CustomVariableID)
 		require.Equal(t, "CREATED", createdActivity.CustomVariableName)
 
 		updatedActivity, ok := activities[1].(fleet.ActivityUpdatedCustomVariable)
@@ -140,7 +141,7 @@ func TestCreateSecretVariablesEmitsActivities(t *testing.T) {
 	})
 
 	t.Run("emits no activity when nothing changed", func(t *testing.T) {
-		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []fleet.SecretVariable, updated []string, err error) {
 			return nil, nil, nil
 		}
 		activityCalled := false
@@ -154,7 +155,7 @@ func TestCreateSecretVariablesEmitsActivities(t *testing.T) {
 	})
 
 	t.Run("emits no activity on a dry run", func(t *testing.T) {
-		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []fleet.SecretVariable, updated []string, err error) {
 			t.Fatal("UpsertSecretVariables should not be called on a dry run")
 			return nil, nil, nil
 		}
