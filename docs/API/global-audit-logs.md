@@ -449,7 +449,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_google_cas
+### added_google_cas
 
 Generated when Google CAS certificate authority configuration is added in Fleet.
 
@@ -464,7 +464,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_google_cas
+### edited_google_cas
 
 Generated when Google CAS certificate authority configuration is edited in Fleet.
 
@@ -479,7 +479,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_google_cas
+### deleted_google_cas
 
 Generated when Google CAS certificate authority configuration is deleted in Fleet.
 
@@ -494,7 +494,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_ejbca
+### added_ejbca
 
 Generated when EJBCA certificate authority configuration is added in Fleet.
 
@@ -509,7 +509,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_ejbca
+### edited_ejbca
 
 Generated when EJBCA certificate authority configuration is edited in Fleet.
 
@@ -524,7 +524,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_ejbca
+### deleted_ejbca
 
 Generated when EJBCA certificate authority configuration is deleted in Fleet.
 
@@ -1027,6 +1027,7 @@ This activity contains the following field:
 - [rotated_disk_encryption_key](#rotated-disk-encryption-key)
 - [failed_to_rotate_disk_encryption_key](#failed-to-rotate-disk-encryption-key)
 - [bound_host_to_idp_account](#bound-host-to-idp-account)
+- [unbound_host_from_idp_account](#unbound-host-from-idp-account)
 - [refused_host_idp_account_change](#refused-host-idp-account-change)
 - [set_host_google_device_id](#set-host-google-device-id)
 - [deleted_host_google_device_id](#deleted-host-google-device-id)
@@ -1396,7 +1397,7 @@ This activity contains the following fields:
 }
 ```
 
-## unbound_host_from_idp_account
+### unbound_host_from_idp_account
 
 Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
 
