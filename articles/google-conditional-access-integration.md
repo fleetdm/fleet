@@ -2,6 +2,8 @@
 
 With Fleet's [conditional access](https://fleetdm.com/guides/conditional-access), Google blocks sign-in from iPhones, iPads, and Android devices that aren't company-owned and managed by Fleet. Google calls this Context-Aware Access.
 
+> **Note:** Before you connect Google, [reach out to Fleet](https://fleetdm.com/contact) with your Fleet server's URL. Google conditional access only works after Fleet adds your server to the fleetdm.com allowlist.
+
 How it works:
 
 1. You connect Fleet to Google with a service account that you create and own.
