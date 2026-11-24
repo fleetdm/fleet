@@ -9,7 +9,7 @@ permissions: {}
 jobs:
   scorecard-analysis:
     name: Run Scorecard on PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       pull-requests: write
@@ -25,9 +25,11 @@ jobs:
 
       - name: Install Scorecard
         run: |
-          SCORECARD_VERSION=$(curl -s https://api.github.com/repos/ossf/scorecard/releases/latest | grep -oP '"tag_name": "\K[^"]+')
-          SCORECARD_URL="https://github.com/ossf/scorecard/releases/download/${SCORECARD_VERSION}/scorecard-linux"
-          curl -sSfL "$SCORECARD_URL" -o /tmp/scorecard
+          SCORECARD_VERSION=$(curl -s https://api.github.com/repos/ossf/scorecard/releases/latest | grep '"tag_name"' | head -1 | cut -d'"' -f4)
+          SCORECARD_URL="https://github.com/ossf/scorecard/releases/download/${SCORECARD_VERSION}/scorecard_${SCORECARD_VERSION#v}_linux_amd64.tar.gz"
+          curl -sSfL "$SCORECARD_URL" -o /tmp/scorecard.tar.gz
+          tar -xz -C /tmp -f /tmp/scorecard.tar.gz
+          mv /tmp/scorecard_*/scorecard /tmp/scorecard
           chmod +x /tmp/scorecard
           /tmp/scorecard --version
 
