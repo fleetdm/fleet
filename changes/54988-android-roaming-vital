@@ -1,0 +1,1 @@
+- Added the `roaming` and `roaming_updated_at` Android host vitals, reported by the Fleet Android agent through the new `PUT /api/fleetd/vitals` endpoint and returned by the host details and My device endpoints.
