@@ -1,1 +1,0 @@
-- Fixed reports and policies with a saved SQL syntax error opening without showing the error until the query is edited or saved.
