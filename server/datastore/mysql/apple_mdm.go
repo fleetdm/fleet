@@ -2562,7 +2562,7 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
 		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
-		       profile_uuid, assign_profile_response, response_updated_at, hardware_serial
+		       profile_uuid, assign_profile_response, response_updated_at, throttled_retry_after, hardware_serial
 		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -4669,21 +4669,31 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 		}
 	}
 
+	// Without a wait from Apple, throttled hosts fall back to depThrottledCooldownPeriod.
+	var throttledRetryAfterSeconds *int64
+	if payload.RetryAfterSeconds > 0 {
+		throttledRetryAfterSeconds = new(min(int64(payload.RetryAfterSeconds), int64(depThrottledMaxRetryAfter.Seconds())))
+		if int64(payload.RetryAfterSeconds) > *throttledRetryAfterSeconds {
+			ds.logger.WarnContext(ctx, "capping Apple's retry_after_seconds for throttled profile assignments",
+				"retry_after_seconds", payload.RetryAfterSeconds, "capped_to", *throttledRetryAfterSeconds)
+		}
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success,
-			string(fleet.DEPAssignProfileResponseSuccess), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseSuccess), abmTokenID, nil); err != nil {
 			return err
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible,
-			string(fleet.DEPAssignProfileResponseNotAccessible), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseNotAccessible), abmTokenID, nil); err != nil {
 			return err
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed,
-			string(fleet.DEPAssignProfileResponseFailed), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseFailed), abmTokenID, nil); err != nil {
 			return err
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, throttled,
-			string(fleet.DEPAssignProfileResponseThrottled), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseThrottled), abmTokenID, throttledRetryAfterSeconds); err != nil {
 			return err
 		}
 		return nil
@@ -4691,7 +4701,7 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 }
 
 func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, profileUUID string, serials []string,
-	status string, abmTokenID *uint,
+	status string, abmTokenID *uint, retryAfterSeconds *int64,
 ) error {
 	if len(serials) == 0 {
 		return nil
@@ -4711,6 +4721,7 @@ SET
 	profile_uuid = ?,
 	assign_profile_response = ?,
 	response_updated_at = CURRENT_TIMESTAMP,
+	throttled_retry_after = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? SECOND),
 	retry_job_id = 0
 WHERE
 	hosts.hardware_serial IN (?)
@@ -4718,9 +4729,9 @@ WHERE
 	var args []interface{}
 	var err error
 	if abmTokenID != nil {
-		stmt, args, err = sqlx.In(stmt, abmTokenID, profileUUID, status, serials)
+		stmt, args, err = sqlx.In(stmt, abmTokenID, profileUUID, status, retryAfterSeconds, serials)
 	} else {
-		stmt, args, err = sqlx.In(stmt, profileUUID, status, serials)
+		stmt, args, err = sqlx.In(stmt, profileUUID, status, retryAfterSeconds, serials)
 	}
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
@@ -4731,8 +4742,11 @@ WHERE
 	}
 
 	n, _ := res.RowsAffected()
-	logger.InfoContext(ctx, "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n,
-		"serials", fmt.Sprintf("%s", serials), "abm_token_id", abmTokenID)
+	attrs := []any{"profile_uuid", profileUUID, "status", status, "devices", n, "serials", fmt.Sprintf("%s", serials), "abm_token_id", abmTokenID}
+	if retryAfterSeconds != nil {
+		attrs = append(attrs, "retry_after_seconds", *retryAfterSeconds)
+	}
+	logger.InfoContext(ctx, "update host dep assign profile responses", attrs...)
 
 	return nil
 }
@@ -4741,6 +4755,9 @@ WHERE
 const (
 	depFailedCooldownPeriod    = 1 * time.Hour // TODO: Make this a test config option?
 	depThrottledCooldownPeriod = 24 * time.Hour
+	// depThrottledMaxRetryAfter caps Apple's retry_after_seconds so that a bad value can't keep a
+	// host from being assigned for longer than this.
+	depThrottledMaxRetryAfter = 7 * 24 * time.Hour
 )
 
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
@@ -4751,7 +4768,7 @@ func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Contex
 	stmt := `
 SELECT
 	CASE WHEN (assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0)) OR
-	(assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0)) THEN
+	(assign_profile_response = ? AND (COALESCE(throttled_retry_after, DATE_ADD(response_updated_at, INTERVAL ? SECOND)) > NOW() OR retry_job_id != 0)) THEN
 		'skip'
 	ELSE
 		'assign'
@@ -4825,7 +4842,7 @@ WHERE
 ) OR (assign_profile_response = ?
 	AND(retry_job_id = 0 OR j.state = ?)
 	AND(response_updated_at IS NULL
-		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND)))
+		OR COALESCE(throttled_retry_after, DATE_ADD(response_updated_at, INTERVAL ? SECOND)) <= NOW()))
 ORDER BY response_updated_at ASC
 LIMIT ?`
 

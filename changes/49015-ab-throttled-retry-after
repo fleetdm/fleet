@@ -1,0 +1,1 @@
+- Fleet now waits as long as Apple Business asks before retrying a throttled profile assignment, instead of always waiting 24 hours.
