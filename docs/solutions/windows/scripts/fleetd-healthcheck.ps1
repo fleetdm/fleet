@@ -280,7 +280,9 @@ if ($FleetUrl) {
   $TlsReason = $null
   if (($SvcCim.PathName -match '--fleet-certificate') -or ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_CERTIFICATE=?*' })) {
     $TlsReason = 'fleetd uses its own CA file (fleet.pem)'
-  } elseif (($SvcCim.PathName -match '--insecure') -or ($SvcEnv | Where-Object { $_ -eq 'ORBIT_INSECURE=true' })) {
+  } elseif (($SvcCim.PathName -match '--insecure(?=\s|$)|--insecure="?(?:1|t|true)"?(?=\s|$)') -or
+    ($SvcEnv | Where-Object { $_ -eq 'ORBIT_INSECURE=true' })) {
+    # Bare flag or an explicit true value only: --insecure="False" keeps verification on.
     $TlsReason = 'fleetd runs with ORBIT_INSECURE, so it does not verify the certificate'
   }
   try {
