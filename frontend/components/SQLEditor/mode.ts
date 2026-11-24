@@ -69,6 +69,16 @@ ace.define(
         ];
       };
 
+      // Both FROM-clause states skip whitespace and comments, and leave the clause on anything they don't recognize.
+      // The fallback must stay last: it matches without consuming, so it would otherwise beat every rule after it.
+      var fromClauseState = function (rules) {
+        return commentRules().concat(
+          [{ token: "text", regex: "\\s+" }],
+          rules,
+          [{ token: "empty", regex: "(?=\\S)", next: "start" }]
+        );
+      };
+
       // Parentheses push onto Ace's state stack so the ")" closing a FROM-clause subquery resumes the FROM clause.
       var pushParen = function (returnState) {
         return function (currentState, stack) {
@@ -139,11 +149,7 @@ ace.define(
           },
         ]),
         // Expects a table name, or "(" for a subquery.
-        tableRef: commentRules().concat([
-          {
-            token: "text",
-            regex: "\\s+",
-          },
+        tableRef: fromClauseState([
           {
             token: "paren.lparen",
             regex: "[\\(]",
@@ -163,18 +169,9 @@ ace.define(
             regex: identifierRegex,
             next: "afterTable",
           },
-          {
-            token: "empty",
-            regex: "(?=\\S)",
-            next: "start",
-          },
         ]),
         // After a table name: an optional alias, then "," or JOIN for another table, or a keyword ending the clause.
-        afterTable: commentRules().concat([
-          {
-            token: "text",
-            regex: "\\s+",
-          },
+        afterTable: fromClauseState([
           {
             token: "text",
             regex: ",",
@@ -200,11 +197,6 @@ ace.define(
           {
             token: "identifier",
             regex: identifierRegex,
-          },
-          {
-            token: "empty",
-            regex: "(?=\\S)",
-            next: "start",
           },
         ]),
       };
