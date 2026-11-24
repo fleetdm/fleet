@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ func TestJobs(t *testing.T) {
 		{"QueueAndProcessJobs", testQueueAndProcessJobs},
 		{"QueueAndProcessJobs", testQueueAndProcessFilteredJobs},
 		{"CleanupWorkerJobs", testCleanupWorkerJobs},
+		{"ExpediteQueuedJobs", testExpediteQueuedJobs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -204,4 +206,57 @@ func testCleanupWorkerJobs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	require.Equal(t, queuedJobs[0].ID, jobs[0].ID)
+}
+
+func testExpediteQueuedJobs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC().Truncate(time.Second)
+	later := now.Add(10 * time.Minute)
+
+	newJob := func(name, args string, state fleet.JobState, notBefore time.Time) *fleet.Job {
+		j, err := ds.NewJob(ctx, &fleet.Job{
+			Name: name, Args: new(json.RawMessage(args)), State: fleet.JobStateQueued, NotBefore: notBefore,
+		})
+		require.NoError(t, err)
+		if state != fleet.JobStateQueued {
+			j.State = state
+			_, err = ds.UpdateJob(ctx, j.ID, j)
+			require.NoError(t, err)
+		}
+		return j
+	}
+	matching := newJob("j1", `{"task": "t1", "host_uuid": "h1", "extra": "x"}`, fleet.JobStateQueued, later)
+	alreadyDue := newJob("j1", `{"task": "t1", "host_uuid": "h1"}`, fleet.JobStateQueued, now.Add(-time.Minute))
+	otherHost := newJob("j1", `{"task": "t1", "host_uuid": "h2"}`, fleet.JobStateQueued, later)
+	otherTask := newJob("j1", `{"task": "t2", "host_uuid": "h1"}`, fleet.JobStateQueued, later)
+	otherName := newJob("j2", `{"task": "t1", "host_uuid": "h1"}`, fleet.JobStateQueued, later)
+	notQueued := newJob("j1", `{"task": "t1", "host_uuid": "h1"}`, fleet.JobStateFailure, later)
+
+	fractionalNow := now.Add(600 * time.Millisecond)
+	require.NoError(t, ds.ExpediteQueuedJobs(ctx, "j1", json.RawMessage(`{"task": "t1", "host_uuid": "h1"}`), fractionalNow))
+
+	for _, c := range []struct {
+		job           *fleet.Job
+		wantNotBefore time.Time
+	}{
+		{matching, now},
+		{alreadyDue, now.Add(-time.Minute)},
+		{otherHost, later},
+		{otherTask, later},
+		{otherName, later},
+		{notQueued, later},
+	} {
+		got, err := ds.GetJob(ctx, c.job.ID)
+		require.NoError(t, err)
+		require.Equal(t, c.job.State, got.State, "job %d", c.job.ID)
+		require.WithinDuration(t, c.wantNotBefore, got.NotBefore, 0, "job %d", c.job.ID)
+	}
+
+	jobs, err := ds.GetFilteredQueuedJobs(ctx, 10, now, []string{"j1"})
+	require.NoError(t, err)
+	var ids []uint
+	for _, j := range jobs {
+		ids = append(ids, j.ID)
+	}
+	require.ElementsMatch(t, []uint{matching.ID, alreadyDue.ID}, ids)
 }

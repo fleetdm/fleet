@@ -1916,6 +1916,136 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstallVerificationPushFailure()
 	require.False(t, pending)
 }
 
+func (s *integrationMDMTestSuite) TestVPPInstallAckedDuringVerifyBackoff() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	s.registerResetVPPProxyData(t)
+	originalAssets := s.appleVPPConfigSrvConfig.Assets
+	t.Cleanup(func() { s.appleVPPConfigSrvConfig.Assets = originalAssets })
+	s.appleVPPProxySrvData = map[string]string{}
+	for _, id := range []string{"200", "201", "202"} {
+		s.appleVPPProxySrvData[id] = fmt.Sprintf(`{"id": "%[1]s", "attributes": {"name": "App %[1]s", "platformAttributes": {"ios": {"bundleId": "com.example.app%[1]s", "artwork": {"url": "https://example.com/images/%[1]s/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone"]}}`, id)
+		s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets,
+			vpp.Asset{AdamID: id, PricingParam: "STDQ", AvailableCount: 10})
+	}
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new(t.Name())}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+	s.setVPPTokenForTeam(team.ID)
+
+	titleIDs := map[string]uint{}
+	for _, id := range []string{"200", "201", "202"} {
+		var addAppResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: id, Platform: fleet.IOSPlatform}, http.StatusOK, &addAppResp)
+		titleIDs[id] = addAppResp.TitleID
+	}
+
+	host, device := s.createAppleMobileHostThenEnrollMDM("ios")
+	otherHost, otherDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers,
+		device.SerialNumber, otherDevice.SerialNumber)
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{host.ID, otherHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	installCmdUUID := func(h *fleet.Host, adamID string) string {
+		var cmdUUID string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &cmdUUID, `SELECT ua.execution_id FROM upcoming_activities ua
+				JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+				WHERE ua.host_id = ? AND vaua.adam_id = ?`, h.ID, adamID)
+		})
+		require.NotEmpty(t, cmdUUID)
+		return cmdUUID
+	}
+	queuedVerifyJob := func(h *fleet.Host) fleet.Job {
+		var jobs []fleet.Job
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &jobs,
+				"SELECT id, name, state, not_before FROM jobs WHERE name = ? AND state = ? AND args->>'$.host_uuid' = ?",
+				worker.AppleSoftwareJobName, fleet.JobStateQueued, h.UUID)
+		})
+		require.Len(t, jobs, 1)
+		return jobs[0]
+	}
+	checkInUntilIdle := func(d *mdmtest.TestAppleMDMClient, deferred map[string]bool, reportedInstalled ...string) (verifyCmds []string) {
+		for answered := true; answered; {
+			answered = false
+			cmd, err := d.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				switch {
+				case cmd.Command.RequestType == "InstallApplication" && deferred[cmd.CommandUUID]:
+					cmd, err = d.NotNow(cmd.CommandUUID)
+					require.NoError(t, err)
+					continue
+				case cmd.Command.RequestType == "InstallApplication":
+					cmd, err = d.Acknowledge(cmd.CommandUUID)
+				case cmd.Command.RequestType == "InstalledApplicationList":
+					if strings.HasPrefix(cmd.CommandUUID, fleet.VerifySoftwareInstallVPPPrefix) {
+						verifyCmds = append(verifyCmds, cmd.CommandUUID)
+					}
+					var apps []fleet.Software
+					for _, id := range reportedInstalled {
+						apps = append(apps, fleet.Software{
+							Name: "App " + id, BundleIdentifier: "com.example.app" + id, Version: "1.0.0", Installed: true,
+						})
+					}
+					cmd, err = d.AcknowledgeInstalledApplicationList(d.UUID, cmd.CommandUUID, apps)
+				default:
+					require.Fail(t, "unexpected MDM command", cmd.Command.RequestType)
+				}
+				require.NoError(t, err)
+				answered = true
+			}
+		}
+		return verifyCmds
+	}
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", otherHost.ID, titleIDs["200"]),
+		&installSoftwareRequest{}, http.StatusAccepted)
+	s.runWorker()
+	require.Len(t, checkInUntilIdle(otherDevice, nil), 1)
+	otherJob := queuedVerifyJob(otherHost)
+	require.Greater(t, time.Until(otherJob.NotBefore), 25*time.Second)
+
+	for _, id := range []string{"200", "201", "202"} {
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleIDs[id]),
+			&installSoftwareRequest{}, http.StatusAccepted)
+	}
+	cmdAcked, cmdDeferred := installCmdUUID(host, "201"), installCmdUUID(host, "202")
+	s.runWorker()
+	require.Len(t, checkInUntilIdle(device, map[string]bool{cmdDeferred: true}, "200"), 2)
+	require.Greater(t, time.Until(queuedVerifyJob(host).NotBefore), 25*time.Second)
+
+	require.Empty(t, checkInUntilIdle(device, nil, "200"))
+	now, notBefore := time.Now(), queuedVerifyJob(host).NotBefore
+	assert.False(t, notBefore.After(now), "the deferred install's first check waits until %s, now is %s", notBefore, now.UTC())
+	assert.WithinDuration(t, otherJob.NotBefore, queuedVerifyJob(otherHost).NotBefore, 0)
+
+	s.runWorker()
+	verifyCmds := checkInUntilIdle(device, nil, "200", "201", "202")
+	require.Len(t, verifyCmds, 1)
+	for _, cmdUUID := range []string{cmdAcked, cmdDeferred} {
+		var install struct {
+			VerificationCmdUUID *string    `db:"verification_command_uuid"`
+			VerificationAt      *time.Time `db:"verification_at"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &install,
+				"SELECT verification_command_uuid, verification_at FROM host_vpp_software_installs WHERE command_uuid = ?", cmdUUID)
+		})
+		assert.Equal(t, verifyCmds[0], ptr.ValOrZero(install.VerificationCmdUUID))
+		assert.NotNil(t, install.VerificationAt)
+	}
+	require.Empty(t, checkInUntilIdle(otherDevice, nil))
+	assert.WithinDuration(t, otherJob.NotBefore, queuedVerifyJob(otherHost).NotBefore, 0)
+}
+
 func (s *integrationMDMTestSuite) TestInHouseAppInstallErrorThenUpdatePackage() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
