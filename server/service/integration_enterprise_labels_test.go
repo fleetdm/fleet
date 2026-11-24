@@ -96,6 +96,41 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 	}, http.StatusConflict)
 	require.Contains(t, extractServerErrorText(res.Body), "More than one fleet has a label named")
 
+	// A fleet ID narrows the name to the global labels and that fleet's labels.
+	specPath := func(name string) string { return "/api/latest/fleet/spec/labels/" + url.PathEscape(name) }
+	for _, tc := range []struct {
+		name        string
+		fleetID     uint
+		wantLabelID uint
+	}{
+		{shared, team1.ID, team1Label.ID},
+		{shared, team2.ID, team2Label.ID},
+		{globalName, team2.ID, createResp.Label.ID},
+		{globalName, 0, createResp.Label.ID},
+	} {
+		var specResp fleet.GetLabelSpecResponse
+		s.DoJSON("GET", specPath(tc.name), nil, http.StatusOK, &specResp, "fleet_id", fmt.Sprint(tc.fleetID))
+		require.Equal(t, tc.wantLabelID, specResp.Spec.ID, "%s on fleet %d", tc.name, tc.fleetID)
+	}
+	s.Do("GET", specPath(shared), nil, http.StatusNotFound, "fleet_id", "0")
+
+	func() {
+		fleetAdmin := &fleet.User{
+			Name:  t.Name() + "_fleet_admin",
+			Email: uuid.NewString() + "@example.com",
+			Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}},
+		}
+		require.NoError(t, fleetAdmin.SetPassword(test.GoodPassword, 10, 10))
+		fleetAdmin, err = s.ds.NewUser(ctx, fleetAdmin)
+		require.NoError(t, err)
+		s.token = s.getTestToken(fleetAdmin.Email, test.GoodPassword)
+		defer func() { s.token = s.getTestAdminToken() }()
+		var fleetAdminSpecResp fleet.GetLabelSpecResponse
+		s.DoJSON("GET", specPath(shared), nil, http.StatusOK, &fleetAdminSpecResp, "fleet_id", fmt.Sprint(team1.ID))
+		require.Equal(t, team1Label.ID, fleetAdminSpecResp.Spec.ID)
+		s.Do("GET", specPath(shared), nil, http.StatusForbidden, "fleet_id", fmt.Sprint(team2.ID))
+	}()
+
 	// Moving the name to global from one fleet doesn't set aside another fleet's label.
 	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
 		Specs:        []*fleet.LabelSpec{{Name: shared, Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic}},

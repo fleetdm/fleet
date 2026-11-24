@@ -60,6 +60,7 @@ func newDBConnForTests(t *testing.T) *sqlx.DB {
 		fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=true&loc=UTC&multiStatements=true", testUsername, testPassword, testAddress),
 	)
 	require.NoError(t, err)
+	t.Cleanup(func() { db.Close() })
 
 	name := strings.ReplaceAll(strings.ReplaceAll(t.Name(), "/", "_"), " ", "_")
 	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s;", name, name, name))
