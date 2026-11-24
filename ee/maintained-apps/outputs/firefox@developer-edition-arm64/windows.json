@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "160.0",
+      "version": "162.0",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (AArch64 en-US)' AND publisher = 'Mozilla') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (AArch64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '160.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (AArch64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '162.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/160.0b3/win64-aarch64/en-US/Firefox%20Setup%20160.0b3.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/162.0b1/win64-aarch64/en-US/Firefox%20Setup%20162.0b1.exe",
       "install_script_ref": "8c6800a6",
       "uninstall_script_ref": "7acf5964",
-      "sha256": "48678db05c7cf06bb8358da80ee3d0e0a096e0dedcafca2d448b8426b04e0909",
+      "sha256": "38ab4e5ddab8997030f61e8816e8e0ed6bfd70982efc510f3d2a9dfeac064115",
       "default_categories": [
         "Browsers"
       ]
