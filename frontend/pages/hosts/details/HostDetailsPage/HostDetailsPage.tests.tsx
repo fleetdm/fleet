@@ -776,6 +776,46 @@ describe("HostDetailsPage - reset", () => {
   });
 });
 
+describe("HostDetailsPage - activity card tab switch", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("refetches all four activity queries when switching tabs so stale data (finished scripts, outdated Upcoming badge) refreshes without a reload", async () => {
+    stubQueries(mockAppleHost());
+    const { user } = renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
+
+    await waitFor(() => {
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenCalled();
+      expect(activitiesAPI.getHostUpcomingActivities).toHaveBeenCalled();
+      expect(commandAPI.getCommands).toHaveBeenCalled();
+    });
+    const pastCallsBefore = (activitiesAPI.getHostPastActivities as jest.Mock)
+      .mock.calls.length;
+    const upcomingCallsBefore = (activitiesAPI.getHostUpcomingActivities as jest.Mock)
+      .mock.calls.length;
+    const commandsCallsBefore = (commandAPI.getCommands as jest.Mock).mock.calls
+      .length;
+
+    await user.click(screen.getByRole("tab", { name: /upcoming/i }));
+
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(pastCallsBefore);
+      expect(
+        (activitiesAPI.getHostUpcomingActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(upcomingCallsBefore);
+      // Covers both past (ran,failed) and upcoming (pending) MDM commands.
+      expect(
+        (commandAPI.getCommands as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(commandsCallsBefore + 1);
+    });
+  });
+});
+
 describe("HostDetailsPage - invalid host id", () => {
   afterEach(() => {
     jest.resetAllMocks();

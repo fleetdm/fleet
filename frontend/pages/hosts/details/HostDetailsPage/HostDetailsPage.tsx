@@ -861,6 +861,7 @@ const HostDetailsPage = ({
     isError: pastMDMCommandsIsError,
     isLoading: pastMDMCommandsIsLoading,
     isPreviousData: pastMDMCommandsIsPreviousData,
+    refetch: refetchPastMDMCommands,
   } = useQuery(
     [
       {
@@ -892,6 +893,7 @@ const HostDetailsPage = ({
     isError: upcomingMDMCommandsIsError,
     isLoading: upcomingMDMCommandsIsLoading,
     isPreviousData: upcomingMDMCommandsIsPreviousData,
+    refetch: refetchUpcomingMDMCommands,
   } = useQuery(
     [
       {
@@ -1144,6 +1146,12 @@ const HostDetailsPage = ({
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
+    // Refetch both tabs' queries: the switched-to tab needs fresh data, and
+    // the Upcoming count badge is visible from either tab.
+    refetchPastActivities();
+    refetchUpcomingActivities();
+    refetchPastMDMCommands();
+    refetchUpcomingMDMCommands();
   };
 
   const onShowActivityDetails = useCallback(
@@ -2021,13 +2029,15 @@ const HostDetailsPage = ({
                   isLoading={
                     activeActivityTab === "past"
                       ? pastActivitiesIsLoading ||
-                        pastMDMCommandsIsLoading ||
                         pastActivitiesIsPreviousData ||
-                        pastMDMCommandsIsPreviousData
+                        (canGetMDMCommands &&
+                          (pastMDMCommandsIsLoading ||
+                            pastMDMCommandsIsPreviousData))
                       : upcomingActivitiesIsLoading ||
-                        upcomingMDMCommandsIsLoading ||
                         upcomingActivitiesIsPreviousData ||
-                        upcomingMDMCommandsIsPreviousData
+                        (canGetMDMCommands &&
+                          (upcomingMDMCommandsIsLoading ||
+                            upcomingMDMCommandsIsPreviousData))
                   }
                   isError={
                     activeActivityTab === "past"
