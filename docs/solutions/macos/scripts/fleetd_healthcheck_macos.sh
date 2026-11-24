@@ -3,7 +3,7 @@
 #
 # Checks the health of all fleetd components on macOS and collects logs into
 # a timestamped archive for support/troubleshooting. macOS counterpart to
-# fleetd_healthcheck_ubuntu.sh / fleetd_healthcheck_windows.ps1.
+# linux_ubuntu_fleetd_healthcheck.sh / fleetd-healthcheck.ps1.
 #
 # Components checked:
 #   - com.fleetdm.orbit   (LaunchDaemon, runs orbit as root)
@@ -12,6 +12,8 @@
 #                          app bundle under /opt/orbit/bin/osqueryd/macos-app/)
 #   - fleet-desktop       (process: optional, only present if packaged with
 #                          --fleet-desktop; started by orbit, not its own LaunchAgent)
+#   - fleetd installation (pkg receipt, /var/log/install.log, MDM delivery of
+#                          fleetd via InstallEnterpriseApplication)
 #
 # Sources:
 #   - LaunchDaemon:        /Library/LaunchDaemons/com.fleetdm.orbit.plist
@@ -19,6 +21,7 @@
 #                          /opt/orbit/bin/orbit/orbit)
 #   - Install root:        /opt/orbit (orbit/CHANGELOG.md — installer paths)
 #   - Orbit symlink:       /usr/local/bin/orbit
+#   - Pkg receipt:         <identifier>.base.pkg, com.fleetdm.orbit.base.pkg by default
 #   - Enroll secret:       /opt/orbit/secret.txt (ORBIT_ENROLL_SECRET_PATH).
 #                          On macOS this is removed after first successful
 #                          enrollment and the secret is kept in the login
@@ -35,18 +38,37 @@
 # Also collects a lookback window (default 72h, override with LOOKBACK_HOURS env
 # var) of system events — reboots, installer activity, launchd job failures,
 # unified log errors — to help correlate a reported problem with what changed
-# beforehand.
+# beforehand. fleetd install history uses a longer window (default 14 days,
+# INSTALL_LOOKBACK_DAYS) because hosts often fail at enrollment, days before
+# anyone runs this script.
 #
 # Must be run as root (sudo).
 
-set -euo pipefail
+# No `set -e`: a diagnostic script should keep going and report as much as it
+# can, rather than abort on the first unexpected non-zero exit.
+set -uo pipefail
 
-# ── Colour helpers ─────────────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-ok()   { echo -e "  ${GREEN}[OK]${NC}    $*"; }
-warn() { echo -e "  ${YELLOW}[WARN]${NC}  $*"; }
-fail() { echo -e "  ${RED}[FAIL]${NC}  $*"; }
-info() { echo -e "  [INFO]  $*"; }
+# Never call `log` unqualified in this script: a shell function or alias named
+# `log` would shadow macOS's /usr/bin/log and silently produce empty log files.
+LOG_BIN="/usr/bin/log"
+
+# ── Output helpers ─────────────────────────────────────────────────────────────
+# Colour only when writing to a terminal, so pasted/redirected output stays clean.
+if [[ -t 1 ]]; then
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+else
+  RED=''; GREEN=''; YELLOW=''; NC=''
+fi
+# Every line shown to the user also goes to summary.txt (without colour codes).
+# printf, not `echo -e`: run as `sh script.sh`, macOS sh prints "-e" literally.
+status() { printf "  ${2}%-6s${NC}  %s\n" "$1" "$3"; printf "  %-6s  %s\n" "$1" "$3" >> "${SUMMARY}"; }
+out()  { printf '%s\n' "$*"; printf '%s\n' "$*" >> "${SUMMARY}"; }
+ok()   { status "[OK]"   "${GREEN}"  "$*"; }
+warn() { status "[WARN]" "${YELLOW}" "$*"; }
+fail() { status "[FAIL]" "${RED}"    "$*"; }
+info() { status "[INFO]" ""          "$*"; }
+# Indented multi-line output (every line indented, not just the first).
+indent() { sed 's/^/    /' | tee -a "${SUMMARY}"; }
 
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root (sudo)." >&2
@@ -54,6 +76,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 LOOKBACK_HOURS="${LOOKBACK_HOURS:-72}"
+INSTALL_LOOKBACK_DAYS="${INSTALL_LOOKBACK_DAYS:-14}"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 HOSTNAME_SAFE=$(hostname | tr '.' '_')
@@ -62,26 +85,29 @@ WORK_DIR=$(mktemp -d "/tmp/${ARCHIVE_NAME}.XXXXXX")
 SUMMARY="${WORK_DIR}/summary.txt"
 OVERALL_EXIT=0
 
-log() { echo "$*" | tee -a "${SUMMARY}"; }
-
 ORBIT_ROOT="/opt/orbit"
 LAUNCH_DAEMON_LABEL="com.fleetdm.orbit"
 LAUNCH_DAEMON_PLIST="/Library/LaunchDaemons/${LAUNCH_DAEMON_LABEL}.plist"
+# Take the binary path from the LaunchDaemon when present, so a future rename
+# of the orbit binary doesn't break the checks below.
+ORBIT_BIN=$(/usr/libexec/PlistBuddy -c "Print :ProgramArguments:0" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
+ORBIT_BIN="${ORBIT_BIN:-${ORBIT_ROOT}/bin/orbit/orbit}"
 
 # ── Header ─────────────────────────────────────────────────────────────────────
-log "============================================================"
-log " Fleet fleetd Health Check"
-log " Host:      $(hostname)"
-log " Date:      $(date)"
-log " macOS:     $(sw_vers -productName) $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
-log " Kernel:    $(uname -r)"
-log "============================================================"
-log ""
+out "============================================================"
+out " Fleet fleetd Health Check"
+out " Host:      $(hostname)"
+out " Date:      $(date)"
+out " macOS:     $(sw_vers -productName) $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
+out " Kernel:    $(uname -r)"
+out " Serial:    $(ioreg -c IOPlatformExpertDevice -d 2 | awk -F'"' '/IOPlatformSerialNumber/ {print $4}')"
+out "============================================================"
+out ""
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. LAUNCHDAEMON
 # ══════════════════════════════════════════════════════════════════════════════
-log "── 1. LaunchDaemon (${LAUNCH_DAEMON_LABEL}) ─────────────────"
+out "── 1. LaunchDaemon (${LAUNCH_DAEMON_LABEL}) ─────────────────"
 
 if [[ -f "${LAUNCH_DAEMON_PLIST}" ]]; then
   ok "LaunchDaemon plist found: ${LAUNCH_DAEMON_PLIST}"
@@ -95,12 +121,14 @@ if echo "${LAUNCHCTL_PRINT}" | grep -q "state = running"; then
   ok "${LAUNCH_DAEMON_LABEL} is running"
 elif [[ -n "${LAUNCHCTL_PRINT}" ]] && ! echo "${LAUNCHCTL_PRINT}" | grep -qi "could not find"; then
   fail "${LAUNCH_DAEMON_LABEL} is loaded but not running"
+  # last exit code / reason explain crash loops
+  echo "${LAUNCHCTL_PRINT}" | grep -E "last exit|state =|runs =" | indent
   OVERALL_EXIT=1
 else
   fail "${LAUNCH_DAEMON_LABEL} is NOT loaded in launchd"
   OVERALL_EXIT=1
 fi
-echo "${LAUNCHCTL_PRINT}" >> "${SUMMARY}"
+echo "${LAUNCHCTL_PRINT}" > "${WORK_DIR}/launchctl_print.txt"
 
 if [[ -f "${LAUNCH_DAEMON_PLIST}" ]]; then
   RUN_AT_LOAD=$(/usr/libexec/PlistBuddy -c "Print :RunAtLoad" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || echo "unknown")
@@ -116,34 +144,45 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. PROCESS CHECKS
 # ══════════════════════════════════════════════════════════════════════════════
-log ""
-log "── 2. Processes ────────────────────────────────────────────"
+out ""
+out "── 2. Processes ────────────────────────────────────────────"
 
+# macOS pgrep has no Linux-style -a (on macOS -a means "include ancestors");
+# -l -f prints PID plus full command line.
 check_process() {
   local label="$1"
   local pattern="$2"
   local result
-  result=$(pgrep -af "${pattern}" 2>/dev/null || true)
+  result=$(pgrep -lf "${pattern}" 2>/dev/null || true)
   if [[ -n "${result}" ]]; then
     ok "${label} is running"
-    echo "    ${result}" | tee -a "${SUMMARY}"
+    echo "${result}" | indent
   else
     fail "${label} is NOT running (pattern: ${pattern})"
     OVERALL_EXIT=1
   fi
 }
 
-# orbit binary path is /opt/orbit/bin/orbit/orbit, runs as root
-check_process "orbit"    "${ORBIT_ROOT}/bin/orbit/orbit"
+check_process "orbit"    "${ORBIT_BIN}"
 
-# osqueryd runs from an app bundle orbit manages under bin/osqueryd/macos-app/
-check_process "osqueryd" "osqueryd"
+# Match orbit's own osqueryd only: another osquery install (standalone osquery,
+# another vendor's agent) must not count as fleetd being healthy.
+check_process "osqueryd (fleetd)" "${ORBIT_ROOT}/bin/osqueryd/"
+
+# Two steps, not a pipe: a concurrent `grep ... osqueryd` would match itself.
+ALL_OSQUERYD=$(pgrep -lf "osqueryd" 2>/dev/null || true)
+OTHER_OSQUERYD=$(printf '%s\n' "${ALL_OSQUERYD}" | grep -v -e "${ORBIT_ROOT}/bin/osqueryd/" -e '^$' || true)
+if [[ -n "${OTHER_OSQUERYD}" ]]; then
+  warn "osqueryd running from outside ${ORBIT_ROOT} (another osquery install?):"
+  echo "${OTHER_OSQUERYD}" | indent
+fi
 
 # fleet-desktop: only present if package was built with --fleet-desktop;
 # started by orbit itself rather than its own LaunchAgent
-if pgrep -af "fleet-desktop" >/dev/null 2>&1; then
+DESKTOP_PROCS=$(pgrep -lf "fleet-desktop" 2>/dev/null || true)
+if [[ -n "${DESKTOP_PROCS}" ]]; then
   ok "fleet-desktop is running"
-  pgrep -af "fleet-desktop" | tee -a "${SUMMARY}" | sed 's/^/    /'
+  echo "${DESKTOP_PROCS}" | indent
 else
   warn "fleet-desktop is NOT running (expected if not packaged with --fleet-desktop)"
 fi
@@ -151,8 +190,8 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. KEY FILES
 # ══════════════════════════════════════════════════════════════════════════════
-log ""
-log "── 3. Key files and directories ────────────────────────────"
+out ""
+out "── 3. Key files and directories ────────────────────────────"
 
 check_file() {
   local label="$1"
@@ -165,13 +204,12 @@ check_file() {
   fi
 }
 
-check_file "orbit binary"     "${ORBIT_ROOT}/bin/orbit/orbit"
+check_file "orbit binary"     "${ORBIT_BIN}"
 check_file "orbit symlink"    "/usr/local/bin/orbit"
 check_file "osquery pidfile"  "${ORBIT_ROOT}/osquery.pid"
 
 # Enroll secret is intentionally removed from disk after first enrollment on
-# macOS (moved to the login keychain), so its absence is normal — only flag
-# it if orbit has never enrolled (no node key either, see below).
+# macOS (moved to the login keychain), so its absence is normal.
 if [[ -f "${ORBIT_ROOT}/secret.txt" ]]; then
   info "enroll secret still on disk: ${ORBIT_ROOT}/secret.txt (expected before first enrollment)"
 else
@@ -186,18 +224,27 @@ else
   OVERALL_EXIT=1
 fi
 
+if [[ -d "${ORBIT_ROOT}" ]]; then
+  ls -laR "${ORBIT_ROOT}" 2>/dev/null | grep -v -i "secret" > "${WORK_DIR}/opt_orbit_listing.txt" || true
+fi
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. LAUNCHDAEMON CONFIGURATION SUMMARY (REDACTED)
 # ══════════════════════════════════════════════════════════════════════════════
-log ""
-log "── 4. LaunchDaemon configuration (redacted) ────────────────"
+out ""
+out "── 4. LaunchDaemon configuration (redacted) ────────────────"
+FLEET_URL=""
 if [[ -f "${LAUNCH_DAEMON_PLIST}" ]]; then
-  # Convert to XML text and redact anything that looks like a secret/token/key
+  # In XML plists the value is on the line after its <key>, so redact the
+  # <string> that follows any secret-looking key (except *_PATH, which is a path).
   plutil -convert xml1 -o - "${LAUNCH_DAEMON_PLIST}" 2>/dev/null \
-    | grep -v -i "secret\|password\|token" \
-    | tee -a "${SUMMARY}" \
-    | sed 's/^/    /' >/dev/null || true
-  ok "Collected redacted LaunchDaemon plist contents"
+    | awk '
+        redact && /<string>/ { sub(/<string>.*<\/string>/, "<string>REDACTED</string>"); redact=0 }
+        /<key>/ { k=toupper($0); redact = (k ~ /SECRET|PASSWORD|TOKEN|KEY/ && k !~ /_PATH</) }
+        { print }' \
+    | indent >/dev/null
+  ok "Collected redacted LaunchDaemon plist contents (in summary.txt)"
+  FLEET_URL=$(/usr/libexec/PlistBuddy -c "Print :EnvironmentVariables:ORBIT_FLEET_URL" "${LAUNCH_DAEMON_PLIST}" 2>/dev/null || true)
 else
   fail "${LAUNCH_DAEMON_PLIST} not found"
   OVERALL_EXIT=1
@@ -206,21 +253,99 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. ORBIT VERSION
 # ══════════════════════════════════════════════════════════════════════════════
-log ""
-log "── 5. Orbit version ────────────────────────────────────────"
-if command -v orbit >/dev/null 2>&1; then
-  ORBIT_VERSION=$(orbit version 2>/dev/null || echo "unknown")
-  info "${ORBIT_VERSION}"
-  echo "${ORBIT_VERSION}" >> "${SUMMARY}"
+out ""
+out "── 5. Orbit version ────────────────────────────────────────"
+# Call the real binary rather than the PATH symlink, so a missing symlink
+# doesn't hide the version.
+if [[ -x "${ORBIT_BIN}" ]]; then
+  ORBIT_VERSION=$("${ORBIT_BIN}" version 2>/dev/null || echo "unknown")
+  echo "${ORBIT_VERSION}" | indent
 else
-  warn "orbit not found on PATH (/usr/local/bin/orbit missing or not in PATH)"
+  warn "orbit binary not found at ${ORBIT_BIN}"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 6. LOG COLLECTION
+# 6. FLEETD INSTALLATION, MDM, AND CONNECTIVITY
 # ══════════════════════════════════════════════════════════════════════════════
-log ""
-log "── 6. Log collection ───────────────────────────────────────"
+# With automatic (ADE) enrollment, Fleet installs fleetd with an MDM
+# InstallEnterpriseApplication command. A host can then be MDM-enrolled with no
+# fleetd on disk. These checks tell "never installed" from "installed but
+# not running".
+out ""
+out "── 6. fleetd installation, MDM, and connectivity ──────────"
+INSTALL_DIR="${WORK_DIR}/logs/install"
+mkdir -p "${INSTALL_DIR}"
+
+FLEETD_PKGS=$(pkgutil --pkgs 2>/dev/null | grep -i -E 'fleet|orbit' || true)
+if [[ -n "${FLEETD_PKGS}" ]]; then
+  ok "fleetd package receipt(s) found:"
+  echo "${FLEETD_PKGS}" | indent
+  while read -r pkg; do
+    pkgutil --pkg-info "${pkg}" >> "${INSTALL_DIR}/pkg_receipts.txt" 2>&1 || true
+  done <<< "${FLEETD_PKGS}"
+else
+  fail "No fleetd package receipt (pkgutil --pkgs): the fleetd package was never installed on this Mac"
+  OVERALL_EXIT=1
+fi
+
+# /var/log/install.log is searched in full (including rotated copies), not
+# just the lookback window: the failed install is usually from enrollment day.
+: > "${INSTALL_DIR}/install_log_fleet.log"
+for f in /var/log/install.log /var/log/install.log.*; do
+  [[ -f "${f}" ]] || continue
+  case "${f}" in
+    *.gz|*.bz2) zgrep -i -E 'fleet|orbit' "${f}" >> "${INSTALL_DIR}/install_log_fleet.log" 2>/dev/null || true ;;
+    *)          grep  -i -E 'fleet|orbit' "${f}" >> "${INSTALL_DIR}/install_log_fleet.log" 2>/dev/null || true ;;
+  esac
+done
+INSTALL_LOG_LINES=$(wc -l < "${INSTALL_DIR}/install_log_fleet.log" | tr -d ' ')
+if [[ "${INSTALL_LOG_LINES}" -gt 0 ]]; then
+  info "${INSTALL_LOG_LINES} line(s) mentioning fleet/orbit in /var/log/install.log* (last 20 below, all in logs/install/install_log_fleet.log)"
+  tail -20 "${INSTALL_DIR}/install_log_fleet.log" | indent
+else
+  warn "No mention of fleet/orbit in /var/log/install.log*: the installer never ran for fleetd (or the log has rotated away)"
+fi
+
+# MDM enrollment state (works without fleetd)
+MDM_STATUS=$(profiles status -type enrollment 2>&1 || true)
+echo "${MDM_STATUS}" > "${INSTALL_DIR}/mdm_enrollment_status.txt"
+if echo "${MDM_STATUS}" | grep -q "MDM enrollment: Yes"; then
+  ok "Mac is MDM enrolled"
+else
+  warn "Mac is not MDM enrolled"
+fi
+echo "${MDM_STATUS}" | indent
+
+# MDM delivery of fleetd: mdmclient receives InstallEnterpriseApplication, then
+# the pkg is downloaded and handed to installd.
+"${LOG_BIN}" show --last "${INSTALL_LOOKBACK_DAYS}d" --style syslog --predicate \
+  '(process == "mdmclient" OR process == "storedownloadd" OR process == "appstored" OR process == "installd") AND (eventMessage CONTAINS[c] "fleet" OR eventMessage CONTAINS[c] "orbit" OR eventMessage CONTAINS[c] "InstallEnterpriseApplication")' \
+  > "${INSTALL_DIR}/mdm_fleetd_delivery.log" 2>&1 || true
+DELIVERY_LINES=$(grep -c -i -E 'fleet|orbit|InstallEnterpriseApplication' "${INSTALL_DIR}/mdm_fleetd_delivery.log" || true)
+info "${DELIVERY_LINES:-0} unified log line(s) about MDM delivery/install of fleetd in last ${INSTALL_LOOKBACK_DAYS}d (logs/install/mdm_fleetd_delivery.log)"
+
+# Fleet server reachability. Without the LaunchDaemon plist, fall back to the
+# MDM server's origin, which is the same Fleet server.
+if [[ -z "${FLEET_URL}" ]]; then
+  FLEET_URL=$(echo "${MDM_STATUS}" | sed -n 's|^MDM server: \(https://[^/]*\).*|\1|p' | head -1)
+fi
+if [[ -n "${FLEET_URL}" ]]; then
+  HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${FLEET_URL%/}/healthz" 2>"${INSTALL_DIR}/curl_error.txt" || true)
+  if [[ "${HTTP_CODE}" =~ ^[1-5][0-9][0-9]$ && "${HTTP_CODE}" != "000" ]]; then
+    ok "Fleet server reachable: ${FLEET_URL} (HTTP ${HTTP_CODE} from /healthz)"
+  else
+    fail "Cannot reach Fleet server ${FLEET_URL}: $(head -1 "${INSTALL_DIR}/curl_error.txt")"
+    OVERALL_EXIT=1
+  fi
+else
+  warn "Fleet server URL unknown (no LaunchDaemon plist and no MDM server) — skipped reachability check"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 7. LOG COLLECTION
+# ══════════════════════════════════════════════════════════════════════════════
+out ""
+out "── 7. Log collection ───────────────────────────────────────"
 
 collect_log() {
   local label="$1"
@@ -270,100 +395,108 @@ fi
 # `log show` over a wide window can take a while and produce a large file, so
 # this is bounded to the same LOOKBACK_HOURS as the system-events section.
 mkdir -p "${WORK_DIR}/logs/unified_log"
-if log show --predicate 'eventMessage contains "orbit" or eventMessage contains "osquery" or eventMessage contains "fleet"' \
-    --style syslog --last "${LOOKBACK_HOURS}h" \
-    > "${WORK_DIR}/logs/unified_log/orbit_osquery_fleet.log" 2>&1; then
-  ok "Collected unified log entries mentioning orbit/osquery/fleet (last ${LOOKBACK_HOURS}h)"
+UNIFIED_LOG="${WORK_DIR}/logs/unified_log/orbit_osquery_fleet.log"
+if "${LOG_BIN}" show --predicate 'eventMessage CONTAINS[c] "orbit" OR eventMessage CONTAINS[c] "osquery" OR eventMessage CONTAINS[c] "fleet"' \
+    --style syslog --last "${LOOKBACK_HOURS}h" > "${UNIFIED_LOG}" 2>&1; then
+  ok "Collected unified log entries mentioning orbit/osquery/fleet (last ${LOOKBACK_HOURS}h, $(wc -l < "${UNIFIED_LOG}" | tr -d ' ') lines)"
 else
   warn "Failed to query unified log (log show) — see unified_log/orbit_osquery_fleet.log for details"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 7. SYSTEM EVENTS (lookback window)
+# 8. SYSTEM EVENTS (lookback window)
 # ══════════════════════════════════════════════════════════════════════════════
 # Captures what changed on the box before the user noticed a problem — reboots,
 # installer activity, launchd job failures, and unified log errors. Users
 # rarely remember every change; having this saves a round trip of clarifying
 # questions when triaging a report.
-log ""
-log "── 7. System events, last ${LOOKBACK_HOURS}h ───────────────"
+out ""
+out "── 8. System events, last ${LOOKBACK_HOURS}h ───────────────"
 
-mkdir -p "${WORK_DIR}/logs/system_events"
+SYSEV_DIR="${WORK_DIR}/logs/system_events"
+mkdir -p "${SYSEV_DIR}"
 
-# Reboots/shutdowns
+# Reboots/shutdowns (macOS `last` has no -x; reboot/shutdown are pseudo-users)
 if command -v last >/dev/null 2>&1; then
-  last -x reboot shutdown 2>/dev/null | head -20 \
-    > "${WORK_DIR}/logs/system_events/reboots.log" || true
+  last reboot shutdown 2>/dev/null | head -20 > "${SYSEV_DIR}/reboots.log" || true
   ok "Collected reboot/shutdown history"
 fi
 
 # Installer activity (pkg installs/removals go through installd)
-if log show --predicate 'process == "installd"' --style syslog --last "${LOOKBACK_HOURS}h" \
-    > "${WORK_DIR}/logs/system_events/installer_activity.log" 2>&1; then
-  RECENT_PKG_COUNT=$(grep -cE 'PackageKit|Install|Removed' "${WORK_DIR}/logs/system_events/installer_activity.log" 2>/dev/null || echo 0)
-  if [[ "${RECENT_PKG_COUNT}" -gt 0 ]]; then
-    warn "${RECENT_PKG_COUNT} installer-related log line(s) in last ${LOOKBACK_HOURS}h (see installer_activity.log)"
+if "${LOG_BIN}" show --predicate 'process == "installd"' --style syslog --last "${LOOKBACK_HOURS}h" \
+    > "${SYSEV_DIR}/installer_activity.log" 2>&1; then
+  # grep -c prints 0 *and* exits 1 on no match, so `|| echo 0` would yield "0\n0".
+  INSTALLED_PKGS=$(grep -c "Installed \"" "${SYSEV_DIR}/installer_activity.log" || true)
+  if [[ "${INSTALLED_PKGS:-0}" -gt 0 ]]; then
+    warn "${INSTALLED_PKGS} package install(s) in last ${LOOKBACK_HOURS}h (see installer_activity.log)"
+    grep "Installed \"" "${SYSEV_DIR}/installer_activity.log" | tail -10 | indent
   else
-    ok "No installer activity in last ${LOOKBACK_HOURS}h"
+    ok "No package installs in last ${LOOKBACK_HOURS}h"
   fi
 else
   warn "Failed to query installer activity via log show"
 fi
 
-# launchd jobs with a non-zero/unknown last exit status (unrelated failures
-# often explain "it stopped working")
+# launchd jobs with a non-zero last exit status (unrelated failures often
+# explain "it stopped working")
 FAILED_JOBS=$(launchctl list | awk 'NR>1 && $2 != "0" && $2 != "-" {print}' || true)
-echo "${FAILED_JOBS}" > "${WORK_DIR}/logs/system_events/launchd_failed_jobs.log"
+echo "${FAILED_JOBS}" > "${SYSEV_DIR}/launchd_failed_jobs.log"
 if [[ -n "${FAILED_JOBS}" ]]; then
   warn "launchd reports jobs with non-zero last exit status:"
-  echo "${FAILED_JOBS}" | tee -a "${SUMMARY}" | sed 's/^/    /'
+  echo "${FAILED_JOBS}" | indent
 else
   ok "No launchd jobs with a non-zero last exit status"
 fi
 
 # Unified log errors/faults in the window
-if log show --predicate 'messageType == error OR messageType == fault' --style syslog --last "${LOOKBACK_HOURS}h" \
-    > "${WORK_DIR}/logs/system_events/log_errors.log" 2>&1; then
-  ERR_COUNT=$(wc -l < "${WORK_DIR}/logs/system_events/log_errors.log" 2>/dev/null || echo 0)
-  if [[ "${ERR_COUNT}" -gt 0 ]]; then
+if "${LOG_BIN}" show --predicate 'messageType == error OR messageType == fault' --style syslog --last "${LOOKBACK_HOURS}h" \
+    > "${SYSEV_DIR}/log_errors.log" 2>&1; then
+  # Skip the "Timestamp ..." header line log show always prints.
+  ERR_COUNT=$(grep -vc '^Timestamp' "${SYSEV_DIR}/log_errors.log" || true)
+  if [[ "${ERR_COUNT:-0}" -gt 0 ]]; then
     warn "${ERR_COUNT} error/fault-level log line(s) in last ${LOOKBACK_HOURS}h (see log_errors.log)"
   else
     ok "No error/fault-level log entries in last ${LOOKBACK_HOURS}h"
   fi
 
   # Memory-pressure / jetsam kills — macOS' equivalent of the Linux OOM killer
-  MEMORY_HITS=$(grep -i "jetsam\|memorystatus" "${WORK_DIR}/logs/system_events/log_errors.log" 2>/dev/null || true)
+  MEMORY_HITS=$(grep -i "jetsam\|memorystatus" "${SYSEV_DIR}/log_errors.log" 2>/dev/null || true)
   if [[ -n "${MEMORY_HITS}" ]]; then
     warn "Memory-pressure/jetsam activity detected in last ${LOOKBACK_HOURS}h"
-    echo "${MEMORY_HITS}" > "${WORK_DIR}/logs/system_events/memory_pressure_events.log"
+    echo "${MEMORY_HITS}" > "${SYSEV_DIR}/memory_pressure_events.log"
   fi
 else
   warn "Failed to query unified log for errors/faults"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 8. PACKAGE THE ARCHIVE
+# FINAL RESULT AND ARCHIVE
 # ══════════════════════════════════════════════════════════════════════════════
-log ""
-log "── 8. Packaging archive ────────────────────────────────────"
-
+# The result is written before archiving so summary.txt in the archive is
+# complete, and nothing writes to WORK_DIR after it's removed.
 ARCHIVE_PATH="/tmp/${ARCHIVE_NAME}.tar.gz"
-tar -czf "${ARCHIVE_PATH}" -C "$(dirname "${WORK_DIR}")" "$(basename "${WORK_DIR}")"
-rm -rf "${WORK_DIR}"
 
-info "Archive created: ${ARCHIVE_PATH}"
-log ""
-
-# ══════════════════════════════════════════════════════════════════════════════
-# FINAL RESULT
-# ══════════════════════════════════════════════════════════════════════════════
-log "============================================================"
+out ""
+out "============================================================"
 if [[ ${OVERALL_EXIT} -eq 0 ]]; then
-  log " Result: ALL CHECKS PASSED"
+  out " Result: ALL CHECKS PASSED"
 else
-  log " Result: ONE OR MORE CHECKS FAILED — review summary above"
+  out " Result: ONE OR MORE CHECKS FAILED — review summary above"
 fi
-log " Archive: ${ARCHIVE_PATH}"
-log "============================================================"
+out "============================================================"
+
+if tar -czf "${ARCHIVE_PATH}" -C "$(dirname "${WORK_DIR}")" "$(basename "${WORK_DIR}")"; then
+  rm -rf "${WORK_DIR}"
+  # Logs can contain usernames, URLs, and emails: keep the archive private to
+  # the admin who ran the script rather than world-readable in /tmp.
+  chmod 600 "${ARCHIVE_PATH}"
+  [[ -n "${SUDO_USER:-}" ]] && chown "${SUDO_USER}" "${ARCHIVE_PATH}" 2>/dev/null
+  echo " Archive: ${ARCHIVE_PATH}"
+  echo " Send this file to Fleet support."
+else
+  echo " Archive creation failed; diagnostic data kept at: ${WORK_DIR}" >&2
+  OVERALL_EXIT=1
+fi
+echo "============================================================"
 
 exit ${OVERALL_EXIT}
