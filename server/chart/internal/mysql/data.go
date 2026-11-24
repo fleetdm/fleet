@@ -458,7 +458,8 @@ func (ds *Datastore) forEachSCDRow(
 }
 
 // CleanupSCDData deletes closed SCD rows whose valid_to is older than the
-// retention cutoff. Open rows (valid_to = sentinel) are always preserved.
+// retention cutoff, and changes recorded before it. Open rows (valid_to =
+// sentinel) and current sets are always preserved.
 // Deletes in batches so each statement holds locks briefly and the concurrent
 // collection cron can interleave writes.
 func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
@@ -484,14 +485,16 @@ func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 			return ctxerr.Wrap(ctx, err, "cleanup SCD data rows affected")
 		}
 		if n < int64(scdCleanupBatch) {
-			return nil
+			break
 		}
 	}
+	return ds.cleanupSCDChanges(ctx, cutoff)
 }
 
 // DeleteAllForDataset removes every host_scd_data row for the given dataset in
-// batches. Used by the global scrub worker. Loops until a DELETE affects zero
-// rows; the loop is naturally idempotent on retry.
+// batches, then the dataset's change storage. Used by the global scrub worker.
+// Loops until a DELETE affects zero rows; the loop is naturally idempotent on
+// retry.
 func (ds *Datastore) DeleteAllForDataset(ctx context.Context, dataset string, batchSize int) error {
 	if batchSize <= 0 {
 		batchSize = 5000
@@ -508,9 +511,10 @@ func (ds *Datastore) DeleteAllForDataset(ctx context.Context, dataset string, ba
 			return ctxerr.Wrap(ctx, err, "rows affected for dataset delete")
 		}
 		if n == 0 {
-			return nil
+			break
 		}
 	}
+	return ds.deleteSCDChangesForDataset(ctx, dataset, batchSize)
 }
 
 // HostIDsInFleets returns host IDs whose team_id is one of the given fleet IDs.
@@ -542,8 +546,9 @@ func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]ui
 
 // ApplyScrubMaskToDataset pages through host_scd_data rows for the given
 // dataset in id-order, applies BlobANDNOT(host_bitmap, mask) to each, and
-// writes the result back. Idempotent: re-running with the same mask is a
-// no-op for already-scrubbed rows.
+// writes the result back, then clears the mask from the dataset's change
+// storage. Idempotent: re-running with the same mask is a no-op for
+// already-scrubbed rows.
 //
 // An empty mask is a no-op (ANDNOT with empty leaves the bitmap unchanged).
 // The walk happens once for the dataset regardless of how many fleets the
@@ -614,7 +619,7 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 				"batches", batchNum,
 				"rows_scanned", totalScanned,
 				"rows_updated", totalUpdated)
-			return nil
+			return ds.scrubSCDChanges(ctx, dataset, mask)
 		}
 		batchNum++
 
