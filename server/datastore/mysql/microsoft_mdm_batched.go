@@ -14,9 +14,10 @@ import (
 
 // windowsReconcileHostPredicate selects the hosts the Windows reconciler manages. The enrollment relationships are EXISTS subqueries
 // rather than JOINs so a host with more than one mdm_windows_enrollments row (the table has no uniqueness on host_uuid) yields one
-// record. A device's enrollment and host_mdm_windows_profiles rows are keyed by UUID, so when hosts rows share a UUID only the eligible
-// row with the highest id is selected. The NOT EXISTS must repeat each per-row condition, or a newer ineligible row would hide it.
-// Its index and join-order hints stop MySQL from reading hosts or host_mdm once per row when their index statistics are stale.
+// record. A device's enrollment and host_mdm_windows_profiles rows are keyed by UUID, so when hosts rows share a UUID only one eligible
+// row is selected: the one whose osquery_host_id is the UUID (fleetd's default host identifier), else the highest id. The NOT EXISTS
+// must repeat each per-row condition, or a higher-ranked ineligible row would hide it. Its index and join-order hints stop MySQL from
+// reading hosts or host_mdm once per row when their index statistics are stale.
 const windowsReconcileHostPredicate = `
 			h.platform = 'windows'
 			AND EXISTS (
@@ -28,7 +29,8 @@ const windowsReconcileHostPredicate = `
 			AND NOT EXISTS (
 				SELECT 1 FROM hosts h2 FORCE INDEX (idx_hosts_uuid)
 				STRAIGHT_JOIN host_mdm hmdm2 ON hmdm2.host_id = h2.id AND hmdm2.enrolled = 1
-				WHERE h2.uuid = h.uuid AND h2.id > h.id AND h2.platform = 'windows'
+				WHERE h2.uuid = h.uuid AND h2.platform = 'windows'
+					AND (COALESCE(h2.osquery_host_id = h2.uuid, FALSE), h2.id) > (COALESCE(h.osquery_host_id = h.uuid, FALSE), h.id)
 			)`
 
 // listWindowsMDMHostsForReconcileBatchTransaction returns up to batchSize Windows-MDM-enrolled hosts with uuid > afterHostUUID,

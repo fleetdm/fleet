@@ -2693,7 +2693,19 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		if hostLoaded {
 			return cachedHost, nil
 		}
-		host, err := svc.ds.HostLiteByIdentifier(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
+		// Hosts rows can share the device's UUID. Use the row the profile reconciler manages, so the release reads the same
+		// fleet's setup software and settings as the profiles the device gets, and fall back when the reconciler has none.
+		primaryCtx := ctxdb.RequirePrimary(ctx, true)
+		reconciled, err := svc.ds.GetWindowsMDMHostForReconcile(primaryCtx, device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "lookup reconciled host for ESP")
+		}
+		var host *fleet.HostLite
+		if reconciled != nil {
+			host, err = svc.ds.HostLiteByID(primaryCtx, reconciled.HostID)
+		} else {
+			host, err = svc.ds.HostLiteByIdentifier(primaryCtx, device.HostUUID)
+		}
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP")
 		}

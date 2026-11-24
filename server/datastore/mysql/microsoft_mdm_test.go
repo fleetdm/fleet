@@ -9515,6 +9515,36 @@ func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) 
 		requireOneDelivery(t, sharedUUID, []string{"Install"})
 	})
 
+	t.Run("older row with the fleetd host identifier", func(t *testing.T) {
+		sharedUUID := strings.ToUpper(uuid.NewString())
+		hFleetd := newHost("dup-g-fleetd", sharedUUID, &team.ID)
+		windowsEnroll(t, ds, hFleetd)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET osquery_host_id = uuid WHERE id = ?`, hFleetd.ID)
+			return err
+		})
+		hNewer := newHost("dup-g-newer", sharedUUID, nil)
+		setMDMEnrolled(hNewer, true)
+
+		requireReconcilesRow(t, sharedUUID, hFleetd)
+		requireOneDelivery(t, sharedUUID, []string{"Install"})
+	})
+
+	t.Run("older row without a host identifier", func(t *testing.T) {
+		sharedUUID := strings.ToUpper(uuid.NewString())
+		hOld := newHost("dup-h-old", sharedUUID, nil)
+		windowsEnroll(t, ds, hOld)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET osquery_host_id = NULL WHERE id = ?`, hOld.ID)
+			return err
+		})
+		hNew := newHost("dup-h-new", sharedUUID, &team.ID)
+		setMDMEnrolled(hNew, true)
+
+		requireReconcilesRow(t, sharedUUID, hNew)
+		requireOneDelivery(t, sharedUUID, []string{"Install"})
+	})
+
 	t.Run("rows whose UUIDs differ only in letter case", func(t *testing.T) {
 		for _, olderLower := range []bool{true, false} {
 			hostUUID := strings.ToUpper(uuid.NewString())
