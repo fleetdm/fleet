@@ -475,7 +475,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
 	}
 
+	selected := payload.InstallerID != 0 || payload.InstallerIDInPath
 	if software.SoftwareInstallersCount < 1 {
+		if selected {
+			return nil, ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", payload.InstallerID)
+		}
 		return nil, &fleet.BadRequestError{
 			Message: "There are no software installers defined yet for this title and fleet. Please add an installer instead of attempting to edit.",
 		}
@@ -489,18 +493,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// siblings is reused for both installer targeting and the hash-collision check below.
 	var siblings []*fleet.SoftwareInstaller
-	if software.SoftwareInstallersCount > 1 || payload.InstallerID != 0 {
+	if software.SoftwareInstallersCount > 1 || selected {
 		siblings, err = svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting title packages")
 		}
 
 		switch {
-		case payload.InstallerID == 0 && software.SoftwareInstallersCount > 1:
+		case !selected && software.SoftwareInstallersCount > 1:
 			return nil, &fleet.BadRequestError{
 				Message: "installer_id is required when the title has multiple packages.",
 			}
-		case payload.InstallerID != 0:
+		case selected:
 			var found bool
 			for _, p := range siblings {
 				if p.InstallerID == payload.InstallerID {
@@ -1286,20 +1290,22 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
 
-	// An installer id always refers to a software installer, never a VPP or in-house app.
+	// An installer id refers to a software installer or an in-house app, never a VPP app.
 	if installerID != nil {
-		if metaInstaller == nil {
-			return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
-		}
-		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting title packages")
-		}
-		for _, pkg := range pkgs {
-			if pkg.InstallerID == *installerID {
-				pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
-				return svc.deleteSoftwareInstaller(ctx, pkg)
+		if metaInstaller != nil {
+			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting title packages")
 			}
+			for _, pkg := range pkgs {
+				if pkg.InstallerID == *installerID {
+					pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
+					return svc.deleteSoftwareInstaller(ctx, pkg)
+				}
+			}
+		}
+		if metaInHouse != nil && metaInHouse.InstallerID == *installerID {
+			return svc.deleteSoftwareInstaller(ctx, metaInHouse)
 		}
 		return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
 	}
