@@ -918,6 +918,18 @@ const HostDetailsPage = ({
     }
   );
 
+  // Nil the MDM commands data when the host can't take MDM commands
+  // (non-Apple). The queries are disabled in that state, but keepPreviousData
+  // keeps the previous (Apple) host's results alive, which would otherwise
+  // leak into the command feed, the Upcoming badge count, and anywhere else
+  // downstream reads these.
+  const availablePastMDMCommands = canGetMDMCommands
+    ? pastMDMCommands
+    : undefined;
+  const availableUpcomingMDMCommands = canGetMDMCommands
+    ? upcomingMDMCommands
+    : undefined;
+
   const featuresConfig = host?.fleet_id
     ? teams?.find((t) => t.id === host.fleet_id)?.features
     : config?.features;
@@ -1951,16 +1963,10 @@ const HostDetailsPage = ({
   };
 
   const renderContent = (mainContentConfig: IMainContentConfig) => {
-    // keepPreviousData holds the previous host's MDM commands even when the
-    // new host's query is disabled, which would expose Apple's commands on a
-    // non-Apple host if the user had the MDM toggle on (toggle persists via
-    // localStorage, so showMDMCommands can be true while the toggle button
-    // itself is hidden). Nil the commands prop when queries aren't enabled.
-    const getActiveMDMCommands = () => {
-      if (!canGetMDMCommands) return undefined;
-      if (activeActivityTab === "past") return pastMDMCommands;
-      return upcomingMDMCommands;
-    };
+    const getActiveMDMCommands = () =>
+      activeActivityTab === "past"
+        ? availablePastMDMCommands
+        : availableUpcomingMDMCommands;
     return (
       <>
         <>
@@ -2069,8 +2075,8 @@ const HostDetailsPage = ({
                   onShowMDMCommands={() => updateShowMDMCommands(true)}
                   onHideMDMCommands={() => updateShowMDMCommands(false)}
                   upcomingCount={
-                    (upcomingActivities?.count || 0) +
-                    (canGetMDMCommands ? upcomingMDMCommands?.count || 0 : 0)
+                    (upcomingActivities?.count ?? 0) +
+                    (availableUpcomingMDMCommands?.count ?? 0)
                   }
                   onChangeTab={onChangeActivityTab}
                   onNextPage={() => setActivityPage(activityPage + 1)}
