@@ -4244,6 +4244,13 @@
       "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
     },
     {
+      "name": "Herdr",
+      "slug": "herdr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.herdr.app",
+      "description": "Herdr is a desktop app for running terminals and coding agents."
+    },
+    {
       "name": "Hex Fiend",
       "slug": "hex-fiend/darwin",
       "platform": "darwin",
