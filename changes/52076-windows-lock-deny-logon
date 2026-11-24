@@ -1,0 +1,2 @@
+- Changed Windows lock to block sign-ins by denying local and Remote Desktop log on for the Users and Guests groups, instead of turning off cached logins. Unlock restores the previous settings. After a lock, the host now restarts instead of shutting down.
+- Fixed Windows hosts showing Settings > Accounts > Sign-in options as managed by your organization after an unlock.
