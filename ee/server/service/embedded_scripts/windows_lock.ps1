@@ -122,6 +122,6 @@ New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\
 Write-Host "All users have been logged out and their accounts disabled."
 Write-Host "Logging in with other Microsoft accounts has been disabled"
 
-# Shutdown computer in 15 seconds, after command has returned to Fleet
-Write-Host "Shutting down in 15 seconds"
-shutdown /s /f /t 15
+# Restart computer in 15 seconds, after command has returned to Fleet
+Write-Host "Restarting in 15 seconds"
+shutdown /r /f /t 15
