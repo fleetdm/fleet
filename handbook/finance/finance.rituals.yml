@@ -3,7 +3,7 @@
   frequency: "Weekly"
   description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report findings to in the `#g-sales` channel."
   moreInfoUrl: "https://fleetdm.com/handbook/finance#communicate-the-status-of-customer-financial-actions"
-  dri: "rfoo2015"
+  dri: "bigaapl"
   autoIssue:
     labels: [":help-finance"]
     repo: "confidential"
