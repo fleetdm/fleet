@@ -110,7 +110,7 @@ describe("getErrorMessage", () => {
       <div>
         {getErrorMessage(
           createErrResponse(
-            'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration'
+            'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade'
           ),
           "edit"
         )}
@@ -123,7 +123,7 @@ describe("getErrorMessage", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /fleet-5-migration/ })
+      screen.getByRole("link", { name: /fleet-5-upgrade/ })
     ).toBeInTheDocument();
   });
 

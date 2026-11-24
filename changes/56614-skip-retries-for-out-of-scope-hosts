@@ -1,0 +1,1 @@
+- Fixed policy install/script automation retries not checking if the host is still in the policy's scope.

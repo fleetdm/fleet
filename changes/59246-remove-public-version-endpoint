@@ -1,0 +1,1 @@
+- **Breaking change:** Removed the public `/version` endpoint, which showed the Fleet server version without logging in. It now returns a 410. Use the authenticated `GET /api/v1/fleet/version` endpoint instead, or `/healthz` for health checks.

@@ -1,5 +1,3 @@
-import { QueryClient } from "react-query";
-
 import { IConfig } from "interfaces/config";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { TicketOrWebhookState } from "interfaces/policy";
@@ -12,15 +10,6 @@ import { ITeamConfig } from "interfaces/team";
 import { addedFromNow } from "utilities/date_format";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { pluralize } from "utilities/strings/stringUtils";
-
-/** Settings responses list the webhook or ticket policies (`policy_ids`) and
- *  the settings modal sends that list back, so refetch them after a policy's
- *  automation changes or a stale list undoes the change.
- *  TODO(#58577): remove with `policy_ids`. */
-export const invalidateWebhookPolicySettings = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries(["config"]);
-  queryClient.invalidateQueries(["teams"]);
-};
 
 /** "webhook" or "ticket" when a failing policies webhook or ticket destination
  *  is turned on in the config; "disabled" otherwise. */

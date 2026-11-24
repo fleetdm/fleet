@@ -133,7 +133,11 @@ describe("BootstrapAdvancedOptions", () => {
     );
 
     await user.click(screen.getByText(MIGRATION_LABEL));
-    expect(screen.getByLabelText(MIGRATION_LABEL)).toBeChecked();
+    // Not an exact match: the click leaves the label hovered, so its tooltip
+    // is open and its text is part of the label.
+    const migrationCheckbox = () =>
+      screen.getByLabelText(MIGRATION_LABEL, { exact: false });
+    expect(migrationCheckbox()).toBeChecked();
 
     // e.g. after the bootstrap package is deleted and the config is refetched
     rerender(
@@ -143,7 +147,7 @@ describe("BootstrapAdvancedOptions", () => {
       />
     );
 
-    expect(screen.getByLabelText(MIGRATION_LABEL)).not.toBeChecked();
+    expect(migrationCheckbox()).not.toBeChecked();
   });
 
   it("links to the enrollment link in the manual enrollment tooltip when there is an enroll secret", async () => {

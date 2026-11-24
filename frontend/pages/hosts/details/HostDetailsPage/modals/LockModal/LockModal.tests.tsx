@@ -24,7 +24,7 @@ describe("LockModal", () => {
 
     expect(
       screen.getByText(
-        /Lock a host when it needs to be returned to your organization./i
+        /During offboarding, lock a host when it needs to be returned to your organization./i
       )
     ).toBeInTheDocument();
     expect(
@@ -34,20 +34,85 @@ describe("LockModal", () => {
     expect(screen.getByText(/macos-host-1/i)).toBeInTheDocument();
   });
 
-  it("renders iOS Lost Mode description and preview card when platform is iOS/iPadOS", () => {
+  it("renders the iOS description and preview card without Lost Mode copy", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<LockModal {...MOCK_PROPS} platform="ios" hostName="iphone-1" />);
 
     expect(
-      screen.getByText(/This enables what Apple calls/i)
+      screen.getByText(
+        /During offboarding, lock a host when it needs to be returned to your organization./i
+      )
     ).toBeInTheDocument();
-    expect(screen.getByText(/Lost Mode/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Lost Mode/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/It can only be unlocked through Fleet./i)
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/End user experience/i)).toBeInTheDocument();
     expect(
       screen.getByAltText(/iPhone with a lock screen message/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/I wish to lock/i)).toBeInTheDocument();
     expect(screen.getByText(/iphone-1/i)).toBeInTheDocument();
+  });
+
+  it.each(["windows", "ubuntu"])(
+    "renders only the offboarding line for %s",
+    (platform) => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<LockModal {...MOCK_PROPS} platform={platform} />);
+
+      expect(
+        screen.getByText(
+          /During offboarding, lock a host when it needs to be returned to your organization./i
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/unlock PIN/i)).not.toBeInTheDocument();
+    }
+  );
+
+  it("renders the Android BYOD copy", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <LockModal
+        {...MOCK_PROPS}
+        platform="android"
+        hostMdmEnrollmentStatus="On (personal)"
+      />
+    );
+
+    expect(
+      screen.getByText("Lock the end user out of the work profile.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fleet will generate an unlock PIN. To view it, select/)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Actions > View unlock PIN")).toBeInTheDocument();
+    expect(screen.queryByText(/During offboarding/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/six-digit/)).not.toBeInTheDocument();
+  });
+
+  it("renders the Android company-owned copy", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <LockModal
+        {...MOCK_PROPS}
+        platform="android"
+        hostMdmEnrollmentStatus="On (automatic)"
+      />
+    );
+
+    expect(
+      screen.getByText(
+        /During offboarding, lock a host when it needs to be returned to your organization./i
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fleet will generate an unlock PIN. To view it, select/)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Actions > View unlock PIN")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Lock the end user out of the work profile.")
+    ).not.toBeInTheDocument();
   });
 
   it("renders WiFi warning for iOS/iPadOS platforms", () => {

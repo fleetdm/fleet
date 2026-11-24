@@ -480,18 +480,26 @@ func (c *Client) MDMLockHost(hostID uint) error {
 	return nil
 }
 
-func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
+func (c *Client) MDMUnlockHost(hostID uint) (*fleet.UnlockHostResponse, error) {
 	var response fleet.UnlockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), &response); err != nil {
-		return "", fmt.Errorf("lock host request: %w", err)
+		return nil, fmt.Errorf("unlock host request: %w", err)
 	}
-	return response.UnlockPIN, nil
+	return &response, nil
 }
 
 func (c *Client) MDMWipeHost(hostID uint) error {
 	var response fleet.WipeHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
 		return fmt.Errorf("wipe host request: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) MDMResetHost(hostID uint) error {
+	var response fleet.ResetHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/reset", hostID), &response); err != nil {
+		return fmt.Errorf("reset host request: %w", err)
 	}
 	return nil
 }

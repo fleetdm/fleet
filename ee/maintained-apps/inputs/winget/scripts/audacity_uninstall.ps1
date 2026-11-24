@@ -2,6 +2,7 @@
 # any legacy Audacity 3.x Inno Setup install that an earlier version of this
 # Fleet-maintained app may have deployed.
 
+$ErrorActionPreference = 'Stop'
 $upgradeCode = '{C9D47FF5-2A6D-4A42-9038-93C7D3C3FB23}'
 $timeoutSeconds = 300
 $successCodes = @(0, 3010, 1641)

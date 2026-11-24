@@ -1,3 +1,6 @@
+import { render } from "@testing-library/react";
+import React from "react";
+
 import { getInstallErrorMessage } from "./helpers";
 
 const makeErr = (reason: string) => ({
@@ -54,6 +57,56 @@ describe("getInstallErrorMessage", () => {
     );
     expect(result).toBe(
       "Couldn't install. Couldn't resolve a Fleet variable in the managed app configuration for this host."
+    );
+  });
+
+  it("surfaces the expired VPP token name", () => {
+    const result = getInstallErrorMessage(
+      makeErr(
+        `Couldn't install. VPP token "Acme US" is expired. Please renew it and try again.`
+      )
+    );
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain(`VPP token "Acme US" is expired`);
+    expect(container.textContent).toContain(
+      "Settings > Integration > Volume Purchasing Program"
+    );
+    expect(container.textContent).not.toContain(
+      "Please renew it and try again"
+    );
+    // One period before "Go to", not two.
+    expect(container.textContent).not.toContain("..");
+  });
+
+  it("surfaces an expired VPP token whose name contains quotes", () => {
+    // Go's %q escapes embedded quotes as \", which arrives verbatim in the
+    // JSON response reason. The UI shouldn't silently fall back to the
+    // generic install error.
+    const result = getInstallErrorMessage(
+      makeErr(
+        `Couldn't install. VPP token "Acme \\"US\\"" is expired. Please renew it and try again.`
+      )
+    );
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain("is expired");
+    expect(container.textContent).toContain(
+      "Settings > Integration > Volume Purchasing Program"
+    );
+    expect(container.textContent).not.toBe(
+      "Couldn't install. Please try again."
+    );
+  });
+
+  it("prefers the expiration message when the token name contains a later branch's trigger phrase", () => {
+    const result = getInstallErrorMessage(
+      makeErr(
+        `Couldn't install. VPP token "fleetd installed inc" is expired. Please renew it and try again.`
+      )
+    );
+    const { container } = render(<>{result}</>);
+    expect(container.textContent).toContain("is expired");
+    expect(container.textContent).toContain(
+      "Settings > Integration > Volume Purchasing Program"
     );
   });
 

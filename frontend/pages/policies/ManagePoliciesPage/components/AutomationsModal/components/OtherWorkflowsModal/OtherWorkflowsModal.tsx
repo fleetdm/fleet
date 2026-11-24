@@ -138,14 +138,10 @@ const OtherWorkflowsModal = forwardRef<
         })) || null;
 
       // Each policy's automation_type decides whether it sends webhooks or
-      // tickets. Until the server stops reading policy_ids from settings, a
-      // fleet settings save without it turns that automation off on every
-      // policy in the fleet, so the list the server returned is sent back.
-      // TODO(#58577): stop sending policy_ids.
+      // tickets; these settings only hold the destination.
       const newWebhook = {
         failing_policies_webhook: {
           destination_url: destinationUrl,
-          policy_ids: webhook.policy_ids || [],
           enable_failing_policies_webhook:
             isPolicyAutomationsEnabled && isWebhookEnabled,
         },

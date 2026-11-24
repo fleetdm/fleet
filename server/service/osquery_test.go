@@ -2280,6 +2280,9 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
+		return nil, nil
+	}
 
 	lq := live_query_mock.New(t)
 	lq.On("QueriesForHost", uint(1)).Return(map[string]string{}, nil)
@@ -6930,7 +6933,7 @@ func TestProcessVPPForNewlyFailingPoliciesExpiredTokenFailsOnlyItsApp(t *testing
 		},
 		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			if *vppApp.VPPTokenID == expiredTokID {
-				return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+				return "", fleet.NewUserMessageError(errors.New(`Couldn't install. VPP token "Expired" is expired. Please renew it and try again.`), http.StatusUnprocessableEntity)
 			}
 			installedTokenIDs = append(installedTokenIDs, *vppApp.VPPTokenID)
 			return "command-uuid", nil

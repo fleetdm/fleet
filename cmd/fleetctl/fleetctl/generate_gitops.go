@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
@@ -65,7 +65,11 @@ type Software struct {
 type teamToProcess struct {
 	ID   *uint
 	Team *fleet.Team
+	// FileName names both fleets/<FileName>.yml and lib/<FileName>/.
+	FileName string
 }
+
+const unassignedFileName = "unassigned"
 
 type generateGitopsClient interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
@@ -153,6 +157,9 @@ var aliasRules = buildAliasRules()
 func buildAliasRules() map[string]aliasRule {
 	rules := make(map[string]aliasRule)
 	for _, m := range slices.Concat(spec.DeprecatedGitOpsKeyMappings, spec.RemovedGitOpsKeys) {
+		if m.NewPath == "" {
+			continue
+		}
 		// Take the last segment of the old and new paths as the leaf key names.
 		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
 		oldLeaf := m.OldPath
@@ -444,8 +451,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			return ErrGeneric
 		}
 		noTeam = teamToProcess{
-			ID:   ptr.Uint(0),
-			Team: noTeamData,
+			ID:       new(uint(0)),
+			Team:     noTeamData,
+			FileName: unassignedFileName,
 		}
 	}
 
@@ -461,16 +469,25 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting fleets: %s\n", err)
 			return ErrGeneric
 		}
+		// Assigned from every fleet, so a single-fleet export writes the same
+		// file as a full export.
+		fileNames := fleetFileNames(teams)
 		// If a specific team is requested, find it.
-		if cmd.CLI.String(fleetFlagName) != "" {
-			transformedSelectedName := generateFilename(cmd.CLI.String(fleetFlagName))
-			for _, team := range teams {
-				if transformedSelectedName == generateFilename(team.Name) {
-					teamsToProcess = []teamToProcess{{
-						ID:   &team.ID,
-						Team: &team,
-					}}
-				}
+		if selected := cmd.CLI.String(fleetFlagName); selected != "" {
+			i := slices.IndexFunc(teams, func(t fleet.Team) bool { return t.Name == selected })
+			if i < 0 {
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return strings.EqualFold(t.Name, selected) })
+			}
+			if i < 0 {
+				selectedFileName := generateFilename(selected)
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return fileNames[t.ID] == selectedFileName })
+			}
+			if i >= 0 {
+				teamsToProcess = []teamToProcess{{
+					ID:       &teams[i].ID,
+					Team:     &teams[i],
+					FileName: fileNames[teams[i].ID],
+				}}
 			}
 			if len(teamsToProcess) == 0 {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Fleet %s not found\n", cmd.CLI.String(fleetFlagName))
@@ -481,8 +498,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			teamsToProcess = make([]teamToProcess, len(teams)+2)
 			for i, team := range teams {
 				teamsToProcess[i] = teamToProcess{
-					ID:   &team.ID,
-					Team: &team,
+					ID:       &team.ID,
+					Team:     &team,
+					FileName: fileNames[team.ID],
 				}
 			}
 			teamsToProcess[len(teams)] = noTeam
@@ -505,7 +523,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			if team.ID == 0 {
 				displayName = "Unassigned"
 			}
-			teamFileName = generateFilename(displayName)
+			teamFileName = teamToProcess.FileName
 			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": displayName,
@@ -525,15 +543,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			WindowsUpdates:             cmd.AppConfig.MDM.WindowsUpdates,
 			MacOSSetup:                 cmd.AppConfig.MDM.MacOSSetup,
 			WindowsSettings:            cmd.AppConfig.MDM.WindowsSettings,
-		}
-
-		// Collect failing policy IDs from webhook settings so we can output
-		// webhooks_and_tickets_enabled per-policy instead of policy_ids in settings.
-		var failingPolicyIDs map[uint]bool
-		if team == nil {
-			failingPolicyIDs = policyIDSliceToSet(cmd.AppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-		} else {
-			failingPolicyIDs = policyIDSliceToSet(team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 		}
 
 		if team == nil {
@@ -629,7 +638,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate policies.
-		policies, err := cmd.generatePolicies(teamToProcess.ID, fileName, failingPolicyIDs)
+		policies, err := cmd.generatePolicies(teamToProcess.ID, fileName)
 		if err != nil {
 			teamName := "global"
 			if team != nil {
@@ -666,10 +675,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		case "":
 			fileName = "default.yml"
 		case "unassigned":
-			fileName = "fleets/unassigned.yml"
+			fileName = "fleets/" + unassignedFileName + ".yml"
 		default:
-			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
-			fileName = "fleets/" + teamFileName + ".yml"
+			// Free ignores --fleet and exports only default.yml.
+			fileName = "fleets/" + generateFilename(cmd.CLI.String(fleetFlagName)) + ".yml"
+			if teamsToProcess[0].ID != nil {
+				fileName = "fleets/" + teamsToProcess[0].FileName + ".yml"
+			}
 		}
 
 		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
@@ -842,6 +854,34 @@ func uniqueFilename(fileName string, taken map[string]bool) string {
 	return candidate
 }
 
+// fleetFileNames gives each fleet a distinct file name, since distinct names can
+// sanitize alike ("Mac/Win" and "Macawin"). The lowest ID keeps the sanitized
+// name, so a newer fleet is the one numbered. No fleet can take Unassigned's
+// file or no-team.yml, which fleetctl gitops rejects.
+func fleetFileNames(teams []fleet.Team) map[uint]string {
+	order := make([]int, len(teams))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortFunc(order, func(a, b int) int { return cmp.Compare(teams[a].ID, teams[b].ID) })
+	taken := map[string]bool{unassignedFileName + ".yml": true, "no-team.yml": true}
+	names := make(map[uint]string, len(teams))
+	// Sanitized names go first, so a numbered name ("macawin-2") can't take the
+	// file of a fleet that sanitizes to it ("Macawin-2").
+	for _, i := range order {
+		if fileName := generateFilename(teams[i].Name) + ".yml"; !taken[fileName] {
+			taken[fileName] = true
+			names[teams[i].ID] = strings.TrimSuffix(fileName, ".yml")
+		}
+	}
+	for _, i := range order {
+		if _, ok := names[teams[i].ID]; !ok {
+			names[teams[i].ID] = strings.TrimSuffix(uniqueFilename(generateFilename(teams[i].Name)+".yml", taken), ".yml")
+		}
+	}
+	return names
+}
+
 func scriptExtensionForPlatform(platform string) string {
 	if platform == "windows" {
 		return ".ps1"
@@ -875,7 +915,7 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(cmd.AppConfig.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(cmd.AppConfig.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -1067,10 +1107,11 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
 
-		// Google Workspace IdP is a premium-only integration, so omit it from the
-		// generated free-tier GitOps so the example stays valid on reapply.
+		// Google Workspace IdP and Google conditional access are premium-only integrations,
+		// so omit them from the generated free-tier GitOps so the example stays valid on reapply.
 		if !cmd.AppConfig.License.IsPremium() {
 			delete(result, "google_workspace")
+			delete(result, "google_conditional_access")
 		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
@@ -1126,6 +1167,16 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					})
 				}
 			}
+		}
+	}
+	// The key is never exportable, so even insecure mode only gets a placeholder.
+	if gca, ok := result["google_conditional_access"].(map[string]any); ok {
+		if _, ok := gca["api_key_json"]; ok {
+			gca["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google service account key JSON here")
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.google_conditional_access.api_key_json",
+			})
 		}
 	}
 
@@ -1524,7 +1575,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	// For "No Team" (team ID 0), only include webhook settings
 	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
 	// See https://github.com/fleetdm/fleet/issues/20287
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(team.Config.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(team.Config.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -2015,7 +2066,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string, failingPolicyIDs map[uint]bool) ([]map[string]any, error) {
+func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string) ([]map[string]any, error) {
 	policies, err := cmd.Client.GetPolicies(teamId)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
@@ -2027,14 +2078,18 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	t := reflect.TypeOf(fleet.Policy{})
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
+		automation := func(a fleet.PolicyAutomation) bool {
+			return policy.AutomationType != nil && *policy.AutomationType == a
+		}
 		policySpec := map[string]interface{}{
 			jsonFieldName(t, "Name"):                         policy.Name,
 			jsonFieldName(t, "Description"):                  policy.Description,
 			jsonFieldName(t, "Resolution"):                   policy.Resolution,
 			jsonFieldName(t, "Platform"):                     policy.Platform,
-			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
-			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "CalendarEventsEnabled"):        automation(fleet.PolicyAutomationCalendar),
+			jsonFieldName(t, "ConditionalAccessEnabled"):     automation(fleet.PolicyAutomationConditionalAccess),
 			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
+			"webhooks_and_tickets_enabled":                   automation(fleet.PolicyAutomationWebhookOrTicket),
 		}
 		if cmd.AppConfig.License.IsPremium() {
 			policySpec[jsonFieldName(t, "Critical")] = policy.Critical
@@ -2064,8 +2119,6 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			policySpec["type"] = policy.Type
 		}
 
-		// This is derived from the failing_policies_webhook.policy_ids field, which is being deprecated.
-		policySpec["webhooks_and_tickets_enabled"] = failingPolicyIDs[policy.ID]
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
@@ -2125,20 +2178,8 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	return result, nil
 }
 
-func policyIDSliceToSet(ids []uint) map[uint]bool {
-	m := make(map[uint]bool, len(ids))
-	for _, id := range ids {
-		m[id] = true
-	}
-	return m
-}
-
-// webhookSettingsWithoutPolicyIDs serializes the given webhook settings struct
-// to a map and removes the failing_policies_webhook.policy_ids key (since
-// those are now represented as webhooks_and_tickets_enabled on individual
-// policies).
-// TODO - remove this in Fleet 5 when we remove support for policy_ids under failing_policies_webhook.
-func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error) {
+// webhookSettingsMap serializes the given webhook settings struct to a map.
+func webhookSettingsMap(webhookSettings any) (map[string]any, error) {
 	b, err := json.Marshal(webhookSettings)
 	if err != nil {
 		return nil, fmt.Errorf("marshal webhook settings: %w", err)
@@ -2146,9 +2187,6 @@ func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error
 	var m map[string]any
 	if err := json.Unmarshal(b, &m); err != nil {
 		return nil, fmt.Errorf("unmarshal webhook settings: %w", err)
-	}
-	if fpw, ok := m["failing_policies_webhook"].(map[string]any); ok {
-		delete(fpw, "policy_ids")
 	}
 	return m, nil
 }

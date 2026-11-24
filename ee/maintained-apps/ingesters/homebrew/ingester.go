@@ -245,6 +245,18 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	caskVersion := out.Version
 	external_refs.EnrichManifest(out)
 
+	if input.Token == "parsec" {
+		// The cask version ("150-105c") names the parsecd dylib that Parsec.app
+		// downloads and updates by itself; the app bundle (what the apps table
+		// reports) only changes when Parsec republishes the pkg. Version by the
+		// bundle inside the installer so the patch policy can pass.
+		version, err := external_refs.ParsecPackageAppVersion(ctx, out.InstallerURL)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading Parsec app version from installer")
+		}
+		out.Version = version
+	}
+
 	// create patch policy
 	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
 		Platform:    "darwin",
@@ -397,6 +409,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core' AND version_compare(version, '%s') < 0) AND (EXISTS (SELECT 1 FROM package_receipts WHERE package_id = 'com.googlecode.munki.core') OR NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s'));",
 			versions.Core, out.UniqueIdentifier,
+		)
+	}
+	if input.Token == "parsec" {
+		// ParsecPackageAppVersion falls back to CFBundleVersion when the bundle has
+		// no short version; compare the installed bundle the same way.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(COALESCE(NULLIF(bundle_short_version, ''), bundle_version), '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
 		)
 	}
 	switch input.Token {

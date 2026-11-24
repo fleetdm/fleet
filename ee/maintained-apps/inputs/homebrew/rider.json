@@ -4,6 +4,5 @@
   "token": "rider",
   "installer_format": "dmg",
   "slug": "rider/darwin",
-  "default_categories": ["Developer tools"],
-  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/rider-install.sh"
+  "default_categories": ["Developer tools"]
 }

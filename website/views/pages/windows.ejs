@@ -188,6 +188,8 @@
       </div>
 
       <div purpose="faq-section">
+        <%/* Anchor for /windows#faq.  It's an anchor instead of id="faq" because an element with that id would also boot the /faq page script.  position:absolute keeps it out of this flex column, so it doesn't add a gap above the heading, while leaving it right where the heading starts (so the jump still lands on "FAQ"). */%>
+        <a name="faq" style="position: absolute;"></a>
         <h2>FAQ</h2>
         <div purpose="accordion">
           <div purpose="accordion-item">

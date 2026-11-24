@@ -1,0 +1,1 @@
+- Go toolchain installs (Homebrew `go` and `go@*`, Arch Linux `go`, and the Windows Go installer) are now checked against the Go vulnerability database instead of NVD. This fixes the false positive CVE-2023-49292 on Homebrew Go, which was matched to the unrelated `ecies/go` library, and reports Go standard library and toolchain CVEs as soon as the Go team publishes them.

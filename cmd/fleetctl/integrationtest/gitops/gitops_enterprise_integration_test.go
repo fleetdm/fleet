@@ -854,6 +854,111 @@ software:
 	assert.Empty(t, certTemplates)
 }
 
+// TestReplaceCAUsedByCertificateTemplates changes the type of a custom SCEP CA that a certificate template uses, keeping its name. A
+// template can only use a custom SCEP CA, so the same run moves the template to another one.
+func (s *enterpriseIntegrationGitopsTestSuite) TestReplaceCAUsedByCertificateTemplates() {
+	t := s.T()
+	ctx := t.Context()
+	fleetctlConfig := s.createFleetctlConfig(t, s.createGitOpsUser(t))
+	scepURL := scep_server.StartTestSCEPServer(t).URL + "/scep"
+	digiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		profileID := strings.TrimPrefix(r.URL.Path, "/mpki/api/v2/profile/")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"id": profileID, "name": "DigiCert", "status": "Active"})
+	}))
+	t.Cleanup(digiCertServer.Close)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	scepCA := func(name string) string {
+		return fmt.Sprintf("      - name: %s\n        url: %s\n        challenge: challenge\n", name, scepURL)
+	}
+	// apply runs GitOps with the given CAs and a fleet certificate template that uses templateCA.
+	apply := func(certificateAuthorities, templateCA string) {
+		globalFile := s.writeConfigFile(t, fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+%spolicies:
+reports:
+`, certificateAuthorities))
+		teamFile := s.writeConfigFile(t, fmt.Sprintf(`
+name: CA Replace Team
+controls:
+  android_settings:
+    certificates:
+      - name: TestCert
+        certificate_authority_name: %s
+        subject_name: "CN=test,O=Fleet"
+settings:
+  secrets:
+    - secret: ca_replace_team_secret
+agent_options:
+policies:
+reports:
+software:
+`, templateCA))
+		fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile})
+	}
+	templateCAName := func() string {
+		team, err := s.DS.TeamByName(ctx, "CA Replace Team")
+		require.NoError(t, err)
+		templates, _, err := s.DS.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, templates, 1)
+		return templates[0].CertificateAuthorityName
+	}
+
+	apply("    custom_scep_proxy:\n"+scepCA("WIFI")+scepCA("OTHER"), "WIFI")
+	require.Equal(t, "WIFI", templateCAName())
+
+	var (
+		mu     sync.Mutex
+		edited []string
+	)
+	prev := s.activityMock.NewActivityFunc
+	s.activityMock.NewActivityFunc = func(ctx context.Context, u *activity_api.User, a activity_api.ActivityDetails) error {
+		if edit, ok := a.(*fleet.ActivityTypeEditedAndroidCertificate); ok {
+			mu.Lock()
+			edited = append(edited, ptr.ValOrZero(edit.TeamName))
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, u, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
+	// WIFI becomes a DigiCert CA. The custom SCEP CA has to be deleted before its name can be taken, which takes its template with it, and
+	// then the fleet config adds the template back on the other CA. Each pass records an edit of the fleet's certificates.
+	apply(fmt.Sprintf(`    digicert:
+      - name: WIFI
+        url: %s
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: ["digicert_upn"]
+        certificate_seat_id: digicert_seat_id
+    custom_scep_proxy:
+`, digiCertServer.URL)+scepCA("OTHER"), "OTHER")
+	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(ctx, false)
+	require.NoError(t, err)
+	require.Len(t, groupedCAs.DigiCert, 1)
+	require.Equal(t, "WIFI", groupedCAs.DigiCert[0].Name)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	require.Equal(t, "OTHER", groupedCAs.CustomScepProxy[0].Name)
+	require.Equal(t, "OTHER", templateCAName())
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []string{"CA Replace Team", "CA Replace Team"}, edited)
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) writeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 	f, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1460,17 +1565,25 @@ software:
 	require.ErrorAs(t, err, &nfe)
 }
 
-// Helper function to get No Team webhook settings from the database. policy_ids isn't stored in the settings; it's
-// built from the policies that have the webhook or ticket automation on.
+// Helper function to get No Team webhook settings from the database.
 func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
 	cfg, err := ds.DefaultTeamConfig(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	settings := cfg.WebhookSettings.FailingPoliciesWebhook
-	require.Empty(t, settings.PolicyIDs)
-	settings.PolicyIDs, err = ds.WebhooksAndTicketsPolicyIDs(ctx, new(uint(0)))
+	return cfg.WebhookSettings.FailingPoliciesWebhook
+}
+
+// noTeamWebhookPolicyIDs returns the No Team policies that have the webhook or ticket automation on.
+func noTeamWebhookPolicyIDs(ctx context.Context, t *testing.T, ds *mysql.Datastore) []uint {
+	policies, _, err := ds.ListTeamPolicies(ctx, 0, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
-	return settings
+	var ids []uint
+	for _, p := range policies {
+		if p.WebhooksAndTicketsEnabled {
+			ids = append(ids, p.ID)
+		}
+	}
+	return ids
 }
 
 // Helper function to verify No Team webhook settings match expected values
@@ -1481,7 +1594,6 @@ func verifyNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Da
 	if expected.Enable {
 		require.Equal(t, expected.DestinationURL, actual.DestinationURL)
 		require.Equal(t, expected.HostBatchSize, actual.HostBatchSize)
-		require.ElementsMatch(t, expected.PolicyIDs, actual.PolicyIDs)
 	}
 }
 
@@ -1527,6 +1639,7 @@ policies:
     query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
     description: Test policy for no team
     resolution: This is a test
+    webhooks_and_tickets_enabled: true
 controls:
 software:
 settings:
@@ -1535,10 +1648,6 @@ settings:
       enable_failing_policies_webhook: true
       destination_url: https://example.com/no-team-webhook
       host_batch_size: 50
-      policy_ids:
-        - 1
-        - 2
-        - 3
 `
 
 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1551,10 +1660,17 @@ settings:
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
+	// policy_ids was removed in Fleet 5.
+	policyIDsFilePath := filepath.Join(t.TempDir(), "unassigned.yml")
+	require.NoError(t, os.WriteFile(policyIDsFilePath, []byte(noTeamTemplateWithWebhook+"      policy_ids: [1]\n"), 0o644))
+	fleetctltest.RunAppCheckErr(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", policyIDsFilePath},
+		policyIDsFilePath+`: The "settings.webhook_settings.failing_policies_webhook.policy_ids" key is not available anymore. `+
+			"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade")
+
 	// Test dry-run first
 	output := fleetctltest.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
-	s.assertDryRunOutputWithDeprecation(t, output, true)
+	s.assertDryRunOutput(t, output)
 
 	// Check that webhook settings are mentioned in the output
 	require.Contains(t, output, "would've applied webhook settings for unassigned hosts")
@@ -1562,21 +1678,23 @@ settings:
 	// Apply the configuration (non-dry-run)
 	output = fleetctltest.RunAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
-	s.assertRealRunOutputWithDeprecation(t, output, true)
+	s.assertRealRunOutput(t, output)
 
 	// Verify the output mentions webhook settings were applied
 	require.Contains(t, output, "applying webhook settings for unassigned hosts")
 	require.Contains(t, output, "applied webhook settings for unassigned hosts")
 
-	// Verify webhook settings were actually applied by checking the database
-	// Each policy's webhooks_and_tickets_enabled decides its automation, so the deprecated policy_ids list turns none on
-	// (the YAML's policy leaves the key out, and IDs 1-3 aren't other "Unassigned" policies).
+	// Verify webhook settings were actually applied by checking the database, and that the policy's
+	// webhooks_and_tickets_enabled turned its automation on.
+	noTeamPolicies, _, err := s.DS.ListTeamPolicies(ctx, 0, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, noTeamPolicies, 1)
 	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
 		Enable:         true,
 		DestinationURL: "https://example.com/no-team-webhook",
 		HostBatchSize:  50,
-		PolicyIDs:      nil,
 	})
+	require.Equal(t, []uint{noTeamPolicies[0].ID}, noTeamWebhookPolicyIDs(ctx, t, s.DS))
 
 	// Test updating webhook settings
 	const noTeamTemplateUpdatedWebhook = `
@@ -1594,9 +1712,6 @@ settings:
       enable_failing_policies_webhook: false
       destination_url: https://updated.example.com/webhook
       host_batch_size: 100
-      policy_ids:
-        - 4
-        - 5
 `
 
 	noTeamFileUpdated, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -1622,8 +1737,9 @@ settings:
 		Enable:         false,
 		DestinationURL: "https://updated.example.com/webhook",
 		HostBatchSize:  100,
-		PolicyIDs:      []uint{4, 5},
 	})
+	// The policy leaves webhooks_and_tickets_enabled out, so its automation is off.
+	require.Empty(t, noTeamWebhookPolicyIDs(ctx, t, s.DS))
 
 	// Test removing webhook settings entirely
 	const noTeamTemplateNoWebhook = `
@@ -5629,12 +5745,12 @@ settings:
 		teamSettings string
 	}{
 		{
-			specialCase:  "All teams",
+			specialCase:  "All fleets",
 			teamName:     teamName,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
 		},
 		{
-			specialCase: "No team",
+			specialCase: "Unassigned",
 			teamName:    "Unassigned",
 		},
 	}
@@ -5656,7 +5772,7 @@ settings:
 
 			teamFileName := teamFile.Name()
 
-			if tc.specialCase == "No team" {
+			if tc.specialCase == "Unassigned" {
 				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "unassigned.yml")
 				err = os.Rename(teamFile.Name(), noTeamFilePath)
 				require.NoError(t, err)
@@ -5675,7 +5791,7 @@ settings:
 			require.Contains(t, realRunOutput, "gitops succeeded")
 
 			var teamID uint
-			if tc.specialCase != "No team" {
+			if tc.specialCase != "Unassigned" {
 				team, err := s.DS.TeamByName(ctx, teamName)
 				require.NoError(t, err)
 				teamID = team.ID
@@ -5784,7 +5900,7 @@ settings:
 	}{
 		{
 			testName:     "All VPP with setup experience",
-			VPPTeam:      "All teams",
+			VPPTeam:      "All fleets",
 			teamName:     teamName,
 			teamTemplate: testVPP,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
@@ -5792,7 +5908,7 @@ settings:
 		},
 		{
 			testName:     "Packages fail",
-			VPPTeam:      "All teams",
+			VPPTeam:      "All fleets",
 			teamName:     teamName,
 			teamTemplate: testPackages,
 			teamSettings: `secrets: [{"secret":"enroll_secret"}]`,
@@ -5800,14 +5916,14 @@ settings:
 		},
 		{
 			testName:     "No team VPP",
-			VPPTeam:      "No team",
+			VPPTeam:      "Unassigned",
 			teamName:     "Unassigned",
 			teamTemplate: testVPP,
 			errContains:  ptr.String("Couldn't edit software."),
 		},
 		{
 			testName:     "No team Installers",
-			VPPTeam:      "No team",
+			VPPTeam:      "Unassigned",
 			teamName:     "Unassigned",
 			teamTemplate: testPackages,
 			errContains:  new(`"setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`),
@@ -5832,7 +5948,7 @@ settings:
 
 			teamFileName := teamFile.Name()
 
-			if tc.VPPTeam == "No team" {
+			if tc.VPPTeam == "Unassigned" {
 				noTeamFilePath := filepath.Join(filepath.Dir(teamFile.Name()), "unassigned.yml")
 				err = os.Rename(teamFile.Name(), noTeamFilePath)
 				require.NoError(t, err)
@@ -7364,7 +7480,7 @@ settings:
 		ac.WebhookSettings.ActivitiesWebhook = fleet.ActivitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/act"}
 		ac.WebhookSettings.HostStatusWebhook = fleet.HostStatusWebhookSettings{Enable: true, DestinationURL: "https://example.com/hs", HostPercentage: 12, DaysCount: 3}
 		ac.WebhookSettings.FailingPoliciesWebhook = fleet.FailingPoliciesWebhookSettings{
-			Enable: true, DestinationURL: "https://example.com/fp", HostBatchSize: 9, PolicyIDs: ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs,
+			Enable: true, DestinationURL: "https://example.com/fp", HostBatchSize: 9,
 		}
 		ac.WebhookSettings.VulnerabilitiesWebhook = fleet.VulnerabilitiesWebhookSettings{Enable: true, DestinationURL: "https://example.com/vuln", HostBatchSize: 8}
 		ac.GitOpsConfig.GitopsModeEnabled = true

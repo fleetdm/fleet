@@ -109,7 +109,7 @@ func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.T
 		}
 		noTeam := &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}
 		lites = append(lites, noTeam.ToTeamLite())
@@ -143,7 +143,7 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras boo
 		}
 		return &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}, nil
 	}

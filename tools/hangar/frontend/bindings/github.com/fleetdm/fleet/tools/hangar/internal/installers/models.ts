@@ -50,38 +50,6 @@ export class Channels {
 }
 
 /**
- * Download is one file served to a client.
- */
-export class Download {
-    "path": string;
-    "client": string;
-    "at_ms": number;
-
-    /** Creates a new Download instance. */
-    constructor($$source: Partial<Download> = {}) {
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
-        if (!("client" in $$source)) {
-            this["client"] = "";
-        }
-        if (!("at_ms" in $$source)) {
-            this["at_ms"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Download instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Download {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new Download($$parsedSource as Partial<Download>);
-    }
-}
-
-/**
  * ManifestEntry records how one installer was built.
  */
 export class ManifestEntry {
@@ -242,62 +210,6 @@ export class ScanResult {
 }
 
 /**
- * ShareStatus is the share server's state for the tab.
- */
-export class ShareStatus {
-    "running": boolean;
-    "port": number;
-    "root": string;
-
-    /**
-     * http://<lan-ip>:<port>/, "" when stopped
-     */
-    "url": string;
-    "started_at_ms": number;
-
-    /**
-     * newest first
-     */
-    "recent": Download[];
-
-    /** Creates a new ShareStatus instance. */
-    constructor($$source: Partial<ShareStatus> = {}) {
-        if (!("running" in $$source)) {
-            this["running"] = false;
-        }
-        if (!("port" in $$source)) {
-            this["port"] = 0;
-        }
-        if (!("root" in $$source)) {
-            this["root"] = "";
-        }
-        if (!("url" in $$source)) {
-            this["url"] = "";
-        }
-        if (!("started_at_ms" in $$source)) {
-            this["started_at_ms"] = 0;
-        }
-        if (!("recent" in $$source)) {
-            this["recent"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ShareStatus instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ShareStatus {
-        const $$createField5_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("recent" in $$parsedSource) {
-            $$parsedSource["recent"] = $$createField5_0($$parsedSource["recent"]);
-        }
-        return new ShareStatus($$parsedSource as Partial<ShareStatus>);
-    }
-}
-
-/**
  * SharedFile is one installer under the share root, with ready-to-paste
  * commands for the machine that will install it.
  */
@@ -394,5 +306,3 @@ const $$createType1 = ManifestEntry.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
 const $$createType3 = Team.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = Download.createFrom;
-const $$createType6 = $Create.Array($$createType5);

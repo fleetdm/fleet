@@ -67,39 +67,50 @@ func (s *integrationTestSuite) TestListActivities() {
 func (s *integrationTestSuite) TestGlobalPoliciesAutomationConfig() {
 	t := s.T()
 
-	gpParams := fleet.GlobalPolicyRequest{
-		Name:  "policy1",
-		Query: "select 41;",
+	gpParams := fleet.CreatePolicyRequest{
+		Name:           "policy1",
+		Query:          "select 41;",
+		AutomationType: new(fleet.PolicyAutomationWebhookOrTicket),
 	}
-	gpResp := fleet.GlobalPolicyResponse{}
+	gpResp := fleet.CreatePolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(fmt.Sprintf(`{
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
 		"webhook_settings": {
     		"failing_policies_webhook": {
      	 		"enable_failing_policies_webhook": true,
      	 		"destination_url": "http://some/url",
-     			"policy_ids": [%d],
 				"host_batch_size": 1000
     		},
     		"interval": "1h"
   		}
-	}`, gpResp.Policy.ID)), http.StatusOK)
+	}`), http.StatusOK)
 
 	config := s.getConfig()
 	require.True(t, config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://some/url", config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	require.Equal(t, []uint{gpResp.Policy.ID}, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 	require.Equal(t, 1*time.Hour, config.WebhookSettings.Interval.Duration)
 	require.Equal(t, 1000, config.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
 
-	deletePolicyParams := fleet.DeleteGlobalPoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
-	deletePolicyResp := fleet.DeleteGlobalPoliciesResponse{}
+	var getPolicyResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), nil, http.StatusOK, &getPolicyResp)
+	require.NotNil(t, getPolicyResp.Policy.AutomationType)
+	require.Equal(t, fleet.PolicyAutomationWebhookOrTicket, *getPolicyResp.Policy.AutomationType)
+
+	// policy_ids no longer turns the automation on per policy.
+	res := s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(fmt.Sprintf(`{
+		"webhook_settings": {"failing_policies_webhook": {"policy_ids": [%d]}}
+	}`, gpResp.Policy.ID)), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), `The "policy_ids" parameter is not available anymore`)
+
+	deletePolicyParams := fleet.DeletePoliciesRequest{IDs: []uint{gpResp.Policy.ID}}
+	deletePolicyResp := fleet.DeletePoliciesResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deletePolicyParams, http.StatusOK, &deletePolicyResp)
 
-	config = s.getConfig()
-	require.Empty(t, config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) // nolint:nilaway // getConfig fails the test via require internally on error, cannot be nil here
+	var listResp fleet.ListPoliciesResponse
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listResp, "automation_type", string(fleet.PolicyAutomationWebhookOrTicket))
+	require.Empty(t, listResp.Policies)
 }
 
 func (s *integrationTestSuite) TestActivitiesWebhookConfig() {

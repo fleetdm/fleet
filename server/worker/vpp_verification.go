@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -57,7 +58,11 @@ func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verific
 	// if disableManagedOnlyApps is true
 	err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, !disableManagedOnlyApps)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")
+		// A failed push leaves the command queued for the next check-in; a job retry would queue another.
+		if _, pushFailed := errors.AsType[*apple_mdm.NotificationFailedError](err); !pushFailed {
+			return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")
+		}
+		v.Log.ErrorContext(ctx, "sending push notification for install verification", "host_uuid", hostUUID, "err", err)
 	}
 
 	if err := v.Datastore.ReplaceVPPInstallVerificationUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {

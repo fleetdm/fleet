@@ -1,5 +1,6 @@
 # Each Datadog Agent release has a new ProductCode, so this script finds every
 # installed version by the Agent's UpgradeCode and uninstalls each one.
+$ErrorActionPreference = 'Stop'
 $upgradeCode = '{0C50421B-AEFB-4F15-A809-7AF256D608A5}'
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product

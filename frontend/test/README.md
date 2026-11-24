@@ -24,9 +24,11 @@ This file configures the testing environment for every test file.
 
 ## Request handlers and their setup
 
-Default handlers and custom handlers are both defined within the `handlers` directory and return [mocked data](../__mocks__/README.md). The handlers directory will naturally grow with more default and custom handlers required for more tests. We use [mock service worker](https://mswjs.io/docs/api/rest) to define all request handlers.
+Request handlers are defined within the `handlers` directory and return [mocked data](../__mocks__/README.md). The handlers directory will naturally grow as more tests need them. We use [mock service worker](https://mswjs.io/docs/api/rest) to define all request handlers.
 
-Default handlers and custom handlers differ in their setup. Default handlers are setup in [mock-server.ts](./mock-server.ts). The mock server will serve the default handlers outlined in [default-handlers.ts](./default-handlers.ts). Custom handlers must be setup inline within a component's test suite (`frontend/**/ComponentName.tests.tsx`). For example, we would setup the custom handler `activityHandler9Activities` inline using `mockServer.use(activityHandler9Activities);`.
+The mock server in [mock-server.ts](./mock-server.ts) starts with no handlers. Every handler a test needs must be setup inline within the component's test suite (`frontend/**/ComponentName.tests.tsx`). For example, we would setup the handler `activityHandler9Activities` inline using `mockServer.use(activityHandler9Activities);`. If every test in the file needs the same handler, call `mockServer.use` in a `beforeEach`.
+
+The mock server only runs in test files that import it. Requests from a test file that doesn't import it aren't mocked.
 
 ## Testing utilities
 

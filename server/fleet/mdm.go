@@ -135,6 +135,16 @@ const (
 	OneTimeChallengeTTL = 1 * time.Hour
 )
 
+// ChallengeScope is the delivery a one-time challenge is created for. A challenge is only accepted for the scope it
+// was created with.
+type ChallengeScope struct {
+	HostUUID string
+	// ProfileUUID is the profile UUID, or "g<certificate template ID>" for Android certificate templates.
+	ProfileUUID string
+	// CAName is empty for Android certificate templates, where the template already determines the CA.
+	CAName string
+}
+
 // NDESNotConfiguredMsg is the failure detail for a $FLEET_VAR_NDES_SCEP_CHALLENGE
 // reference when no NDES certificate authority is configured.
 const NDESNotConfiguredMsg = "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE."
@@ -1177,6 +1187,9 @@ const (
 	// secret for the macOS account provisioning / Platform SSO feature. Stored
 	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
 	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
+	// MDMAssetGoogleConditionalAccessServiceAccountKey is the customer's Google
+	// service account key JSON, delegated for the cloud-identity.devices scope.
+	MDMAssetGoogleConditionalAccessServiceAccountKey MDMAssetName = "google_conditional_access_service_account_key" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {
@@ -1419,17 +1432,6 @@ const (
 	NullTeamNoTeam NullTeamType = "noteam"
 )
 
-func (n NullTeamType) PrettyName() string {
-	switch n {
-	case NullTeamAllTeams:
-		return ReservedNameAllTeams
-	case NullTeamNoTeam:
-		return ReservedNameNoTeam
-	default:
-		return string(n)
-	}
-}
-
 type AppleDevice int
 
 const (
@@ -1552,11 +1554,6 @@ type MDMConfigProfileStatus struct {
 	Verifying uint `json:"verifying" db:"verifying"`
 	Pending   uint `json:"pending" db:"pending"`
 	Failed    uint `json:"failed" db:"failed"`
-}
-
-// MDMWipeMetadata specifies optional metadata for the remote wipe command
-type MDMWipeMetadata struct {
-	Windows *MDMWindowsWipeMetadata
 }
 
 type MDMCommandResults interface {

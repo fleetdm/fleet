@@ -18,6 +18,7 @@ export default {
   // Conditional access
   CONDITIONAL_ACCESS_MICROSOFT: `/${API_VERSION}/fleet/conditional-access/microsoft`,
   CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
+  CONDITIONAL_ACCESS_GOOGLE: `/${API_VERSION}/fleet/conditional_access/google`,
   CONDITIONAL_ACCESS_IDP_SIGNING_CERT: `/${API_VERSION}/fleet/conditional_access/idp/signing_cert`,
   CONDITIONAL_ACCESS_IDP_APPLE_PROFILE: `/${API_VERSION}/fleet/conditional_access/idp/apple/profile`,
   CONDITIONAL_ACCESS_IDP_WINDOWS_PROFILES: `/${API_VERSION}/fleet/conditional_access/idp/windows/profiles`,
@@ -33,7 +34,7 @@ export default {
   },
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
-  GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  POLICIES: `/${API_VERSION}/fleet/policies`,
   POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
     `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
   POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
@@ -86,6 +87,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/install`,
   DEVICE_UNINSTALL_PROFILE: (token: string, profileUUID: string) =>
     `/${API_VERSION}/fleet/device/${token}/configuration_profiles/${profileUUID}/uninstall`,
+  DEVICE_GOOGLE_CONDITIONAL_ACCESS: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/conditional_access/google`,
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
   DEVICE_NOTIFICATION: (token: string, notificationUuid: string) =>
@@ -115,6 +118,7 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_RESET: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/reset`,
   HOST_CLEAR_PASSCODE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/clear_passcode`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
@@ -134,6 +138,10 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
   HOST_CERTIFICATES: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/certificates`,
+  HOST_AI_SESSIONS: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions`,
+  HOST_AI_SESSION_EVENTS: (id: number, aiSessionId: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/ai_sessions/${aiSessionId}/events`,
   HOST_DEVICE_MAPPING: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
   HOST_DEVICE_MAPPING_IDP: (id: number) =>

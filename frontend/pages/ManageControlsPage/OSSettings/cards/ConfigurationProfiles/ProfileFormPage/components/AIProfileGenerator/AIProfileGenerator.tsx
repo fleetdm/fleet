@@ -202,6 +202,8 @@ interface IAIProfileGeneratorProps {
   listPath: string;
   /** Where Create manually and the timeout go. */
   manualLocation: { pathname: string; query: Record<string, unknown> };
+  /** Preselects this platform in the dropdown when its MDM is on. */
+  defaultPlatform?: string;
 }
 
 /** The default Add profile view: the admin describes a profile and reviews
@@ -214,10 +216,16 @@ const AIProfileGenerator = ({
   gitOpsModeEnabled,
   listPath,
   manualLocation,
+  defaultPlatform,
 }: IAIProfileGeneratorProps) => {
   const { config } = useContext(AppContext);
   const platformOptions = getAIPlatformOptions(config?.mdm);
-  const [platform, setPlatform] = useState(platformOptions[0]?.value);
+  const [platform, setPlatform] = useState(
+    (
+      platformOptions.find(({ value }) => value === defaultPlatform) ??
+      platformOptions[0]
+    )?.value
+  );
   const [instructions, setInstructions] = useState("");
   // Edits to the title and summary made before the profile arrives.
   const [edits, setEdits] = useState<{ name?: string; description?: string }>(

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -209,6 +210,25 @@ func (d *Datastore) invalidateAfterHostUpdate(ctx context.Context, host *fleet.H
 
 	d.pipelinedDEL(ctx, keys)
 	d.recordHostCacheInvalidation(ctx, reason)
+}
+
+// MDMWindowsDeleteEnrolledDeviceOnReenrollment invalidates the host the deleted enrollment was linked to: a host back from a
+// reset has its orbit_node_key cleared here.
+func (d *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error) {
+	hostUUID, err := d.Datastore.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, mdmDeviceHWID)
+	if err != nil || hostUUID == "" || !d.hostCacheEnabled {
+		return hostUUID, err
+	}
+	host, err := d.Datastore.HostLiteByIdentifier(ctx, hostUUID)
+	switch {
+	case fleet.IsNotFound(err):
+	case err != nil:
+		// The enrollment is already gone, so the entry is left to expire with its TTL.
+		logging.WithErr(ctx, err)
+	default:
+		d.hostCacheDeleteByID(ctx, host.ID, "enroll")
+	}
+	return hostUUID, nil
 }
 
 // invalidateAfterHostEnroll is the common tail for write paths that may CREATE a host or rotate its

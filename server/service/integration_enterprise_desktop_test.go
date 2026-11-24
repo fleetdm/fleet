@@ -65,11 +65,13 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, err)
 
 	// add a global policy
-	gpParams := fleet.GlobalPolicyRequest{
-		QueryID:    &qr.ID,
-		Resolution: "some global resolution",
+	gpParams := fleet.CreatePolicyRequest{
+		Name:        qr.Name,
+		Query:       qr.Query,
+		Description: qr.Description,
+		Resolution:  "some global resolution",
 	}
-	gpResp := fleet.GlobalPolicyResponse{}
+	gpResp := fleet.CreatePolicyResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
@@ -103,19 +105,21 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.NoError(t, err)
 
 	s.token = s.getTestToken(email, password)
-	tpParams := fleet.TeamPolicyRequest{
+	tpParams := fleet.CreatePolicyRequest{
+		TeamID:      &team.ID,
 		Name:        "TestQueryEnterpriseTeamPolicy",
 		Query:       "select * from osquery;",
 		Description: "Some description",
 		Resolution:  "some team resolution",
 		Platform:    "darwin",
 	}
-	tpResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
+	tpResp := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", tpParams, http.StatusOK, &tpResp)
 
 	// add a hidden policy to the team, failing on the host
-	hiddenResp := fleet.TeamPolicyResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+	hiddenResp := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID:   &team.ID,
 		Name:     "TestQueryEnterpriseHiddenTeamPolicy",
 		Query:    "select * from osquery;",
 		Platform: "darwin",

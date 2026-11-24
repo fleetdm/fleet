@@ -14,6 +14,7 @@ module.exports.policies = {
   'admin/*': 'is-super-admin',
   'query-generator/*': 'has-query-generator-access',
   'microsoft-proxy/*': true,
+  'google-proxy/*': true,
   // Bypass the `is-logged-in` policy for:
 
   'entrance/*': true,
@@ -48,7 +49,6 @@ module.exports.policies = {
   'view-software-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
-  'view-integrations': true,
   'deliver-talk-to-us-form-submission': true,
   'get-human-interpretation-from-osquery-sql': true,
   'customers/view-new-license': true,
@@ -80,7 +80,6 @@ module.exports.policies = {
   'deliver-whitepaper-download-request': true,
   'deliver-partner-registration-submission': true,
   'view-partners': true,
-  'deliver-webinar-access-request': true,
   'view-download': true,
   'view-endpoint-governance': true,
   'view-security-and-control': true,

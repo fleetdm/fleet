@@ -862,4 +862,30 @@ describe("LibraryItemAccordion", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe("Android web app row", () => {
+    it("renders the icon override and labels actions as 'Edit targets' / 'Delete software'", async () => {
+      const { user } = renderAccordion({
+        isFma: false,
+        installerType: "app-store",
+        androidPlayStoreId: "com.google.enterprise.webapp.abc123",
+        canActivateMultipleVersions: true,
+        canDownload: false,
+        filename: "Fleet docs",
+        iconOverride: <div data-testid="title-icon" />,
+        onEditClick: jest.fn(),
+        onTrashClick: jest.fn(),
+      });
+      expect(screen.getByTestId("title-icon")).toBeInTheDocument();
+      expect(screen.getByText("Fleet docs")).toBeInTheDocument();
+
+      await user.click(screen.getByText("Fleet docs"));
+      expect(
+        screen.getByRole("button", { name: "Edit targets" })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Delete software" })
+      ).toBeInTheDocument();
+    });
+  });
 });
