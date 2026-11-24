@@ -13843,7 +13843,7 @@ func testListHostsSortedPagesMatchFullList(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, ds, nil, "q1", "select 1", 0, true)
-	pol, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{QueryID: &q.ID})
+	pol, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{Name: q.Name, Query: q.Query, Description: q.Description})
 	require.NoError(t, err)
 	enableMacOSDiskEncryptionForTest(t, ds, &team1.ID)
 
