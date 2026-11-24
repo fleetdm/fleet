@@ -19,6 +19,7 @@ import { AppContext } from "context/app";
 import { IMdmConfig } from "interfaces/config";
 import PATHS from "router/paths";
 import { AutofillConfigProfilePlatform } from "services/entities/autofill";
+import { pluralize } from "utilities/strings/stringUtils";
 
 import EditTargetsModal, { IProfileTargets } from "../EditTargetsModal";
 import GeneratedProfileSummary from "../GeneratedProfileSummary";
@@ -36,6 +37,9 @@ const baseClass = "ai-profile-generator";
 export const MAX_INSTRUCTIONS_LENGTH = 2000;
 
 const OS_SETTINGS_LEARN_MORE_URL = "https://fleetdm.com/os-settings";
+const UPGRADE_URL = "https://fleetdm.com/upgrade";
+// fleetdm.com sets the limit; keep this in step with it.
+const FREE_PROMPT_LIMIT = 15;
 
 // The arrow overlaps the default offset, leaving no gap above the button.
 const ACTION_TIP_OFFSET = 10;
@@ -61,7 +65,7 @@ const isPlatformMDMOn = (
 ) =>
   platform === "apple"
     ? !!mdm?.enabled_and_configured
-    : !!mdm?.windows_enabled_and_configured;
+    : !!mdm?.windows_mdm_enabled;
 
 /** The platforms the AI can generate for with their MDM turned on. */
 export const getAIPlatformOptions = (mdm?: IMdmConfig) =>
@@ -69,7 +73,10 @@ export const getAIPlatformOptions = (mdm?: IMdmConfig) =>
 
 const countCharacters = (text: string) => Array.from(text).length;
 
-const getSendTooltip = (instructions: string) => {
+const getSendTooltip = (instructions: string, isLimited: boolean) => {
+  if (isLimited) {
+    return "You have reached the prompt limit.";
+  }
   if (!instructions.trim()) {
     return "Write instructions to generate a profile";
   }
@@ -79,10 +86,31 @@ const getSendTooltip = (instructions: string) => {
   return null;
 };
 
+const LimitMessage = ({ retryAfterDays }: { retryAfterDays?: number }) => (
+  <div className={`${baseClass}__error-message`}>
+    You have reached the {FREE_PROMPT_LIMIT} prompt limit.{" "}
+    {retryAfterDays ? (
+      <>
+        Try again in{" "}
+        <b>
+          {retryAfterDays} {pluralize(retryAfterDays, "day")}
+        </b>
+        , or upgrade to{" "}
+      </>
+    ) : (
+      "Upgrade to "
+    )}
+    <CustomLink url={UPGRADE_URL} text="Fleet Premium" newTab />
+  </div>
+);
+
 const ErrorBanner = ({ error }: { error: IGenerationError }) => (
   <div className={`${baseClass}__error`} role="alert">
-    <Icon name="error-outline" color="ui-error" />
-    {error.kind === "decline" ? (
+    <Icon name="error" color="ui-error" />
+    {error.kind === "limit" && (
+      <LimitMessage retryAfterDays={error.retryAfterDays} />
+    )}
+    {error.kind === "decline" && (
       <div className={`${baseClass}__error-message`}>
         Your request could not be processed. {error.reason}{" "}
         <CustomLink
@@ -91,7 +119,8 @@ const ErrorBanner = ({ error }: { error: IGenerationError }) => (
           newTab
         />
       </div>
-    ) : (
+    )}
+    {error.kind === "failure" && (
       <div className={`${baseClass}__error-message`}>
         Couldn&apos;t generate configuration profile.
         {error.reason ? ` ${error.reason.replace(/\.$/, "")}.` : ""} Please try
@@ -206,7 +235,9 @@ const AIProfileGenerator = ({
   });
   const { status, nameDescription, profile, error, step, runId } = generation;
 
-  const sendTooltip = getSendTooltip(instructions);
+  // Holds until the page unmounts: a run can't start after it to clear it.
+  const isLimited = error?.kind === "limit";
+  const sendTooltip = getSendTooltip(instructions, isLimited);
   const canSend = !sendTooltip && !!platform;
 
   const onGenerate = () => {
@@ -264,7 +295,7 @@ const AIProfileGenerator = ({
     >
       <Button
         variant="secondary"
-        icon="refresh"
+        icon="retry"
         ariaLabel="Retry"
         className={`${baseClass}__action-button`}
         // a save in flight would redirect away from the new generation

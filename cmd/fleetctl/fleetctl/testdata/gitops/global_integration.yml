@@ -6,7 +6,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ./lib/macos-password-secret.mobileconfig
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
   windows_settings:
     custom_settings:
       - path: ./lib/windows-screenlock-secret.xml

@@ -54,6 +54,7 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	t := s.T()
 
 	h, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	enrolledHostUUIDs := []string{h.UUID}
 
 	// fetch the host, it will match the one created above
 	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
@@ -63,6 +64,7 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	require.NotEqual(t, h.LastEnrolledAt, hostResp.Host.LastEnrolledAt)
 
 	h, _ = s.createAppleMobileHostThenEnrollMDM("ipados")
+	enrolledHostUUIDs = append(enrolledHostUUIDs, h.UUID)
 
 	// fetch the host, it will match the one created above
 	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
@@ -72,6 +74,7 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	require.NotEqual(t, h.LastEnrolledAt, hostResp.Host.LastEnrolledAt)
 
 	h, _ = s.createIpodHostThenEnrollMDM()
+	enrolledHostUUIDs = append(enrolledHostUUIDs, h.UUID)
 
 	// fetch the host, it will match the one created above
 	hostResp = getHostResponse{}
@@ -80,9 +83,11 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	require.NotEqual(t, h.LastEnrolledAt, hostResp.Host.LastEnrolledAt)
 
 	// list commands returns empty set -- no MDM commands should be queued at this point
-	var listCmdResp listMDMAppleCommandsResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
-	require.Empty(t, listCmdResp.Results)
+	for _, hostUUID := range enrolledHostUUIDs {
+		var listCmdResp listMDMCommandsResponse
+		s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listCmdResp, "host_identifier", hostUUID)
+		require.Empty(t, listCmdResp.Results, hostUUID)
+	}
 }
 
 // assertHostMDMCertificates checks the certificates the host details API reports
@@ -460,9 +465,14 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	// TODO: add test for GET /hosts/:id/certificates endpoint, should be empty
 
 	// list commands should return all the commands we sent
-	var listCmdResp listMDMAppleCommandsResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
-	require.Len(t, listCmdResp.Results, commandsSent)
+	var listedCommands int
+	for _, h := range []*fleet.Host{host, hostIPad, hostIPod} {
+		var listCmdResp listMDMCommandsResponse
+		s.DoJSON("GET", "/api/latest/fleet/commands", nil, http.StatusOK, &listCmdResp,
+			"host_identifier", h.UUID, "per_page", fmt.Sprint(fleet.MaxMDMCommandsPerPage))
+		listedCommands += len(listCmdResp.Results)
+	}
+	require.Equal(t, commandsSent, listedCommands)
 }
 
 func (s *integrationMDMTestSuite) TestOTAEnrollment() {
@@ -601,7 +611,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			var specResp applyTeamSpecsResponse
 			teamSecret := "team_secret"
 			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
-			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+			s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 
 			hwModel := "MacBookPro16,1"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
@@ -618,7 +628,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	t.Run("succeeds", func(t *testing.T) {
 		verifySuccessfulOTAEnrollment := func(mdmDevice *mdmtest.TestAppleMDMClient, hwModel, platform string, enrollTime time.Time) getHostResponse {
 			var hostByIdentifierResp getHostResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 			require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 			require.Equal(t, platform, hostByIdentifierResp.Host.Platform)
 			require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
@@ -666,7 +676,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			var specResp applyTeamSpecsResponse
 			teamSecret := "team_secret"
 			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}}}}
-			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+			s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 
 			hwModel := "iPad13,16"
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
@@ -762,7 +772,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 			var specResp applyTeamSpecsResponse
 			teamSecret := "team_secret_used_session"
 			teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team used session", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}, MDM: fleet.TeamSpecMDM{MacOSSetup: fleet.MacOSSetup{EnableEndUserAuthentication: true}}}}}
-			s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+			s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 
 			mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
 				s.server.URL,
@@ -1074,7 +1084,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	var specResp applyTeamSpecsResponse
 	teamSecret := "team_secret"
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: teamSecret}}}}}
-	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &specResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets", teamSpecs, http.StatusOK, &specResp)
 
 	// enroll a BYOD iPhone
 	model := "iPhone14,6"
@@ -1504,7 +1514,7 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity, 1000)
 	s.Require().NoError(err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled
@@ -1592,7 +1602,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	checkExpectedCommands(mdmClientDEP, false, 1)
 
 	// run the cron-based refetch, will not do anything as the devices were just refetched
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity, 1000)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 0)
@@ -1605,7 +1615,7 @@ func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDev
 	require.NoError(t, s.ds.UpdateHost(ctx, hostDEP))
 
 	// run the cron-based refetch again, will enqueue the commands with the correct managed only flag
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity, 1000)
 	require.NoError(t, err)
 
 	checkExpectedCommands(mdmClientBYOD, true, 1)

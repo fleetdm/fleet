@@ -15,7 +15,7 @@ import (
 //
 // ADDING A DATASTORE METHOD: decide whether it can change what
 // Service.GetClientConfig returns — agent options (global or team), scheduled
-// reports, 2017 packs, or label membership that reports are scoped to. Indirect
+// reports, or label membership that reports are scoped to. Indirect
 // changes count: a method that edits a label a report targets changes the
 // config for every host whose membership shifts.
 //
@@ -86,17 +86,6 @@ func (d *Datastore) invalidate(ctx context.Context, reason string) {
 		"source", reason)
 }
 
-// invalidateAndResetLegacyFlag additionally drops the cached deployment-wide
-// "legacy packs present" gate flag — pack CRUD is what adds/removes 2017
-// packs, so the answer may have just changed in either direction.
-func (d *Datastore) invalidateAndResetLegacyFlag(ctx context.Context, reason string) {
-	d.invalidate(ctx, reason)
-	if err := d.store.ResetLegacyPacksFlag(ctx); err != nil {
-		d.logger.ErrorContext(ctx, "config etag legacy packs flag reset failed; flag will expire via its TTL",
-			"reason", reason, "err", err)
-	}
-}
-
 // invalidateAndResetLabelScopes additionally drops the cached label-scope
 // mode state — query CRUD can add/remove label-scoped reports (query_labels
 // rows) and label deletion can cascade them away, either of which changes
@@ -122,14 +111,6 @@ func (d *Datastore) invalidateHost(ctx context.Context, hostID uint, reason stri
 	if err := d.store.InvalidateHost(ctx, hostID); err != nil {
 		d.logErrRateLimited(ctx, "config etag host invalidation failed; record will expire via backstop TTL",
 			"reason", reason, "host_id", hostID, "err", err)
-	}
-}
-
-// invalidateHosts fans a per-host invalidation across the distinct hosts of
-// a committed batch.
-func (d *Datastore) invalidateHosts(ctx context.Context, hostIDs map[uint]struct{}, reason string) {
-	for hostID := range hostIDs {
-		d.invalidateHost(ctx, hostID, reason)
 	}
 }
 
@@ -228,71 +209,6 @@ func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 }
 
 // ///////////////////////////////////////////////////////////////////////////
-// 2017 "legacy" packs and their scheduled queries. Pack CRUD also resets
-// the cached "legacy packs present" gate flag, since it is exactly what
-// adds/removes the hard-bypass blocker.
-// ///////////////////////////////////////////////////////////////////////////
-
-func (d *Datastore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
-	if err := d.Datastore.ApplyPackSpecs(ctx, specs); err != nil {
-		return err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "ApplyPackSpecs")
-	return nil
-}
-
-func (d *Datastore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
-	p, err := d.Datastore.NewPack(ctx, pack, opts...)
-	if err != nil {
-		return nil, err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "NewPack")
-	return p, nil
-}
-
-func (d *Datastore) SavePack(ctx context.Context, pack *fleet.Pack) error {
-	if err := d.Datastore.SavePack(ctx, pack); err != nil {
-		return err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "SavePack")
-	return nil
-}
-
-func (d *Datastore) DeletePack(ctx context.Context, name string) error {
-	if err := d.Datastore.DeletePack(ctx, name); err != nil {
-		return err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "DeletePack")
-	return nil
-}
-
-func (d *Datastore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	s, err := d.Datastore.NewScheduledQuery(ctx, sq, opts...)
-	if err != nil {
-		return nil, err
-	}
-	d.invalidate(ctx, "NewScheduledQuery")
-	return s, nil
-}
-
-func (d *Datastore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s, err := d.Datastore.SaveScheduledQuery(ctx, sq)
-	if err != nil {
-		return nil, err
-	}
-	d.invalidate(ctx, "SaveScheduledQuery")
-	return s, nil
-}
-
-func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	if err := d.Datastore.DeleteScheduledQuery(ctx, id); err != nil {
-		return err
-	}
-	d.invalidate(ctx, "DeleteScheduledQuery")
-	return nil
-}
-
-// ///////////////////////////////////////////////////////////////////////////
 // Labels: deletion and manual membership edits.
 // ///////////////////////////////////////////////////////////////////////////
 
@@ -303,8 +219,8 @@ func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 // rare admin action, so the deployment-wide invalidation costs nothing; the
 // label-scope mode state is reset too, since the last label-scoped report of
 // a scope may just have become unscoped.
-func (d *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
-	if err := d.Datastore.DeleteLabel(ctx, name, filter); err != nil {
+func (d *Datastore) DeleteLabel(ctx context.Context, id uint) error {
+	if err := d.Datastore.DeleteLabel(ctx, id); err != nil {
 		return err
 	}
 	d.invalidateAndResetLabelScopes(ctx, "DeleteLabel")
@@ -425,36 +341,4 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 	}
 	d.invalidateHost(ctx, host.ID, "RecordLabelQueryExecutions")
 	return nil
-}
-
-// AsyncBatchInsertLabelMembership / AsyncBatchDeleteLabelMembership are the
-// async collector persistence path: invalidate every distinct host in the
-// committed batch (batch tuples are [labelID, hostID]). Invalidating when
-// the agent first stages results in Redis would be insufficient — the
-// collector may not have committed yet. AsyncBatchUpdateLabelTimestamp is
-// deliberately NOT hooked: it touches timestamps only, never membership.
-func (d *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
-	if err := d.Datastore.AsyncBatchInsertLabelMembership(ctx, batch); err != nil {
-		return err
-	}
-	d.invalidateHosts(ctx, distinctBatchHosts(batch), "AsyncBatchInsertLabelMembership")
-	return nil
-}
-
-func (d *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error {
-	if err := d.Datastore.AsyncBatchDeleteLabelMembership(ctx, batch); err != nil {
-		return err
-	}
-	d.invalidateHosts(ctx, distinctBatchHosts(batch), "AsyncBatchDeleteLabelMembership")
-	return nil
-}
-
-// distinctBatchHosts extracts the distinct host IDs from async label
-// membership batch tuples ([labelID, hostID]).
-func distinctBatchHosts(batch [][2]uint) map[uint]struct{} {
-	hosts := make(map[uint]struct{}, len(batch))
-	for _, tup := range batch {
-		hosts[tup[1]] = struct{}{}
-	}
-	return hosts
 }

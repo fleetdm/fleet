@@ -24,7 +24,7 @@ quit_app_at_path() {
 
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" >/dev/null || exit 1
-trap 'hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true' EXIT
+trap 'hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; } || hdiutil detach -force "$MOUNT_POINT" >/dev/null 2>&1 || true' EXIT
 
 NEW_APP=$(find "$MOUNT_POINT" -maxdepth 1 -name 'QGIS-final-*.app' -print -quit)
 if [[ -z "$NEW_APP" ]]; then

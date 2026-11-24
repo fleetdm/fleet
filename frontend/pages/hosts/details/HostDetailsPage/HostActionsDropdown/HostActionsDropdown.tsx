@@ -121,8 +121,6 @@ const HostActionsDropdown = ({
     isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
-    scriptsGloballyDisabled:
-      globalConfig?.server_settings?.scripts_disabled ?? false,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
     isRecoveryLockPasswordEnabled,

@@ -432,17 +432,22 @@ func ParseDeviceinfo(b64 string) (*fleet.MDMAppleMachineInfo, *pkcs7.PKCS7, erro
 
 // ParseMachineInfoFromPKCS7 parses a MachineInfo plist from a PKCS7 payload without verifying
 // its signature. Callers must pass the returned PKCS7 payload to VerifyMachineInfoSignature.
-func ParseMachineInfoFromPKCS7(buf []byte) (*fleet.MDMAppleMachineInfo, *pkcs7.PKCS7, error) {
-	if err := cryptoutil.ValidateBERDepth(buf, cryptoutil.MaxBERDepth); err != nil {
+func ParseMachineInfoFromPKCS7(buf []byte) (info *fleet.MDMAppleMachineInfo, p7 *pkcs7.PKCS7, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic while parsing PKCS7: %v", r)
+		}
+	}()
+	if err = cryptoutil.ValidateBERDepth(buf, cryptoutil.MaxBERDepth); err != nil {
 		return nil, nil, fmt.Errorf("invalid pkcs7: %w", err)
 	}
 
-	p7, err := pkcs7.Parse(buf)
+	p7, err = pkcs7.Parse(buf)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not decode pkcs7: %w", err)
 	}
 
-	info := new(fleet.MDMAppleMachineInfo)
+	info = new(fleet.MDMAppleMachineInfo)
 	if err = plist.Unmarshal(p7.Content, info); err != nil {
 		return nil, nil, fmt.Errorf("could not decode plist: %w", err)
 	}

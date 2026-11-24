@@ -53,14 +53,14 @@ func NewRegistry() *Registry {
 func (r *Registry) Register(method, path string, tier Tier) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.routes[normalizeSpanName(spanKey(method, path))] = tier
+	r.routes[CleanRouteTemplate(spanKey(method, path))] = tier
 }
 
 // Lookup returns the tier for a span name and a bool indicating whether the route was found in the registry. Span names are
 // normalized before lookup so the gorilla version regex is stripped to "_version_". Cron and other non HTTP span names (no
 // leading "METHOD ") simply won't be in the registry and return (TierAlways, false).
 func (r *Registry) Lookup(spanName string) (Tier, bool) {
-	normalized := normalizeSpanName(spanName)
+	normalized := CleanRouteTemplate(spanName)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	t, ok := r.routes[normalized]
@@ -78,7 +78,10 @@ var versionTemplatePattern = regexp.MustCompile(`\{fleetversion:[^}]*\}`)
 // includes the regex would miss the registry and silently fall to TierAlways at 100% sampling.
 var muxParamRegexPattern = regexp.MustCompile(`\{([a-zA-Z0-9_]+):[^}]+\}`)
 
-func normalizeSpanName(name string) string {
+// CleanRouteTemplate rewrites a gorilla/mux route template, or a span name built from one, into the readable form used for
+// span names and the http.route attribute: "/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}" becomes
+// "/api/_version_/fleet/hosts/{id}".
+func CleanRouteTemplate(name string) string {
 	// Apply versionTemplatePattern first because it strips both the param name and the surrounding braces (replacing with
 	// `_version_`). muxParamRegexPattern preserves the braces. Running it first would turn {fleetversion:...} into
 	// {fleetversion}, which would then no longer match versionTemplatePattern.

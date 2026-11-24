@@ -184,6 +184,7 @@ func (ts *WithServer) CreateCommonDSMocks() {
 
 func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 	ts.AndroidAPIClient.InitCommonMocks()
+	ts.AndroidAPIClient.InitDeviceLookupMocks()
 	ts.AndroidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
 		ts.ProxyCallbackURL = callbackURL
 		return &android.SignupDetails{

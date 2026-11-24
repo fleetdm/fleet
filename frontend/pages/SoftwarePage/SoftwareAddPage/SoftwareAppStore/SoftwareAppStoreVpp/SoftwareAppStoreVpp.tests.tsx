@@ -33,7 +33,7 @@ const teamMismatchVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
         org_name: "Test Org",
         location: "US",
         renew_date: "2027-01-01",
-        teams: [{ team_id: 999, name: "Other fleet" }],
+        fleets: [{ fleet_id: 999, name: "Other fleet" }],
       },
     ],
   });
@@ -47,7 +47,7 @@ const teamVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
         org_name: "Test Org",
         location: "US",
         renew_date: "2027-01-01",
-        teams: [{ team_id: 1, name: "Workstations" }],
+        fleets: [{ fleet_id: 1, name: "Workstations" }],
       },
     ],
   });
@@ -103,6 +103,7 @@ describe("SoftwareAppStoreVpp", () => {
           isPremiumTier: true,
           isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: true,
+          isOnGlobalTeam: true,
         },
       },
     });
@@ -123,7 +124,7 @@ describe("SoftwareAppStoreVpp", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows ask your admin copy for non-admins when no VPP tokens exist", async () => {
+  it("shows ask your admin copy for global non-admins when no VPP tokens exist", async () => {
     mockServer.use(emptyVppHandler, labelsHandler);
 
     const render = createCustomRenderer({
@@ -133,6 +134,7 @@ describe("SoftwareAppStoreVpp", () => {
           isPremiumTier: true,
           isMacMdmEnabledAndConfigured: true,
           isGlobalAdmin: false,
+          isOnGlobalTeam: true,
         },
       },
     });
@@ -150,6 +152,54 @@ describe("SoftwareAppStoreVpp", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Enable VPP" })
+    ).not.toBeInTheDocument();
+  });
+
+  // GET /vpp_tokens filters to tokens the team-scoped user's fleets can read,
+  // so an empty list can also mean the fleet simply isn't on any token. The
+  // user can't tell the difference, so show the actionable "add fleet to VPP"
+  // message instead of the misleading "VPP isn't enabled" one.
+  it("shows add fleet to VPP copy for a fleet admin when their fleet isn't on any token", async () => {
+    mockServer.use(emptyVppHandler, labelsHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isMacMdmEnabledAndConfigured: true,
+          isGlobalAdmin: false,
+          isOnGlobalTeam: false,
+        },
+      },
+    });
+
+    render(
+      <SoftwareAppStoreVpp
+        currentTeamId={1}
+        currentTeamName="Workstations"
+        router={router}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Workstations fleet isn't added to Volume Purchasing Program \(VPP\)/i
+        )
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(
+        "To add App Store apps, ask your admin to add Workstations fleet to VPP."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit VPP" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Volume Purchasing Program \(VPP\) isn't enabled/i)
     ).not.toBeInTheDocument();
   });
 
@@ -308,14 +358,14 @@ describe("SoftwareAppStoreVpp", () => {
       org_name: "Acme Inc.",
       location: "Acme Inc.",
       country_code: "us",
-      teams: [{ team_id: 1, name: "Workstations" }],
+      fleets: [{ fleet_id: 1, name: "Workstations" }],
     });
     const jpToken = createMockVppToken({
       id: 2,
       org_name: "Acme K.K.",
       location: "Acme K.K.",
       country_code: "jp",
-      teams: [{ team_id: 1, name: "Workstations" }],
+      fleets: [{ fleet_id: 1, name: "Workstations" }],
     });
 
     const tokensHandler = (tokens: IMdmVppToken[]) =>
@@ -449,11 +499,11 @@ describe("SoftwareAppStoreVpp", () => {
     it("offers an All fleets token alongside a fleet token", async () => {
       mockServer.use(
         tokensHandler([
-          createMockVppToken({ ...usToken, teams: [] }),
+          createMockVppToken({ ...usToken, fleets: [] }),
           jpToken,
           createMockVppToken({
             id: 3,
-            teams: [{ team_id: 999, name: "Other fleet" }],
+            fleets: [{ fleet_id: 999, name: "Other fleet" }],
           }),
         ])
       );
@@ -600,7 +650,7 @@ describe("SoftwareAppStoreVpp", () => {
         tokensHandler([
           createMockVppToken({
             ...usToken,
-            teams: [{ team_id: 0, name: "Unassigned" }],
+            fleets: [{ fleet_id: 0, name: "Unassigned" }],
           }),
         ])
       );

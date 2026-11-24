@@ -37,7 +37,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
       `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
   pending_install: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: "Installing...",
     tooltip: () => "Fleet is installing software.",
   },
@@ -117,7 +117,7 @@ const InstallerStatus = ({
         tipOffset={8}
       >
         <div className={`${baseClass}__status-with-tooltip`}>
-          {displayConfig.iconName === "pending-outline" && (
+          {displayConfig.iconName === "pending" && (
             <Spinner size="x-small" centered={false} delay={0} />
           )}
           {last_install && displayConfig.displayText === "Failed" && (

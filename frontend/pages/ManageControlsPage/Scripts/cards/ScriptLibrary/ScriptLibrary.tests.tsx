@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -43,9 +44,7 @@ describe("ScriptLibrary empty state", () => {
       context: {
         app: {
           isGlobalAdmin: true,
-          config: {
-            server_settings: { scripts_disabled: false },
-          },
+          config: createMockConfig(),
         },
       },
     });
@@ -61,29 +60,6 @@ describe("ScriptLibrary empty state", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders Upload CTA even when scripts are disabled (managing library is still allowed)", async () => {
-    mockServer.use(emptyScriptsHandler);
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          config: {
-            server_settings: { scripts_disabled: true },
-          },
-        },
-      },
-    });
-
-    render(<ScriptLibrary {...baseProps} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("No scripts")).toBeInTheDocument();
-    });
-    expect(screen.getByRole("button", { name: /upload/i })).toBeInTheDocument();
-  });
-
   it("hides Upload CTA and info text for global technician", async () => {
     mockServer.use(emptyScriptsHandler);
 
@@ -92,9 +68,7 @@ describe("ScriptLibrary empty state", () => {
       context: {
         app: {
           isGlobalTechnician: true,
-          config: {
-            server_settings: { scripts_disabled: false },
-          },
+          config: createMockConfig(),
         },
       },
     });
@@ -120,9 +94,7 @@ describe("ScriptLibrary empty state", () => {
       context: {
         app: {
           isTeamTechnician: true,
-          config: {
-            server_settings: { scripts_disabled: false },
-          },
+          config: createMockConfig(),
         },
       },
     });
@@ -157,7 +129,7 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
       context: {
         app: {
           isGlobalAdmin: true,
-          config: { server_settings: { scripts_disabled: false } },
+          config: createMockConfig(),
         },
       },
     });
@@ -188,7 +160,7 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
       context: {
         app: {
           isGlobalAdmin: true,
-          config: { server_settings: { scripts_disabled: false } },
+          config: createMockConfig(),
         },
       },
     });
@@ -253,7 +225,7 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
       context: {
         app: {
           isGlobalTechnician: true,
-          config: { server_settings: { scripts_disabled: false } },
+          config: createMockConfig(),
         },
       },
     });

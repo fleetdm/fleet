@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
@@ -130,6 +131,14 @@ const FleetAppDetailsForm = ({
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
   });
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.values(formData.labelTargets).some(
+    (v) => v === true
+  );
+  const labelsRequired = formData.targetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
 
   // Fetch labels for DropdownTargetLabelSelector
   const {
@@ -159,6 +168,7 @@ const FleetAppDetailsForm = ({
     const newData = { ...formData, targetType: value };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value === "All hosts") setShowLabelsError(false);
   };
 
   const onSelectCustomTarget = (value: string) => {
@@ -174,16 +184,41 @@ const FleetAppDetailsForm = ({
     };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value) setShowLabelsError(false);
   };
 
   const onChangeInstallScript = (value: string) => {
     setFormData((prevData) => ({ ...prevData, installScript: value }));
   };
 
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax warning without flashing mid-token. Blur / submit still fire
+  // immediately. The warning is advisory: Save isn't gated on preInstallQuery
+  // validity.
+  const debounceValidatePreInstallQuery = useDebouncedCallback(
+    (value?: string) => {
+      setFormValidation(
+        generateFormValidation({ ...formData, preInstallQuery: value })
+      );
+    },
+    3000
+  );
+
   const onChangePreInstallQuery = (value?: string) => {
-    const newData = { ...formData, preInstallQuery: value };
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
+    setFormData({ ...formData, preInstallQuery: value });
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (formValidation.preInstallQuery?.message) {
+      setFormValidation({
+        ...formValidation,
+        preInstallQuery: { isValid: true, message: "" },
+      });
+    }
+    debounceValidatePreInstallQuery(value);
+  };
+
+  const onBlurPreInstallQuery = () => {
+    setFormValidation(generateFormValidation(formData));
   };
 
   const onChangePostInstallScript = (value?: string) => {
@@ -196,11 +231,16 @@ const FleetAppDetailsForm = ({
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
+    setShowLabelsError(labelsRequired);
+    if (labelsRequired) return;
     onSubmit(formData);
   };
 
   const isSoftwareAlreadyAdded = !!softwareTitleId;
-  const isSubmitDisabled = isSoftwareAlreadyAdded || !formValidation.isValid;
+  // Save stays enabled when Custom labels are missing — the submit handler
+  // surfaces the inline labels error instead. Pre-install query syntax
+  // errors are advisory and never block submission either.
+  const isSubmitDisabled = isSoftwareAlreadyAdded;
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
@@ -264,6 +304,7 @@ const FleetAppDetailsForm = ({
               formData.customTarget
             )}
             disableOptions={disableChildren}
+            labelsError={labelsError}
           />
         )}
       />
@@ -308,6 +349,7 @@ const FleetAppDetailsForm = ({
             uninstallScript={formData.uninstallScript}
             onClickShowSchema={() => undefined}
             onChangePreInstallQuery={onChangePreInstallQuery}
+            onBlurPreInstallQuery={onBlurPreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
             onChangeUninstallScript={onChangeUninstallScript}

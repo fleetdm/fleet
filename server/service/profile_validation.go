@@ -96,7 +96,7 @@ func profileValidationEditMessage(f profilevalidation.Finding, windows bool) str
 }
 
 // profileValidationBatchMessage is the batch endpoint error (GitOps, fleetctl
-// apply, batch API, Puppet), naming the failing profile.
+// apply, batch API), naming the failing profile.
 func profileValidationBatchMessage(profileName string, f profilevalidation.Finding, windows bool) string {
 	return fmt.Sprintf("Couldn't edit configuration_profiles. \"%s\": %s To skip validation, set `enable_profile_validation` to false in your GitOps configuration.",
 		profileName, profileValidationSentence(f, windows))

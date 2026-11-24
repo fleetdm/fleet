@@ -306,3 +306,39 @@ func TestAdGuardVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestBundleVersionAppsShortenToShortVersion(t *testing.T) {
+	// Each expected value is the app's CFBundleShortVersionString for that cask
+	// version, which is what host inventory reports.
+	tcs := []struct {
+		slug     string
+		version  string
+		expected string
+	}{
+		{slug: "sigmaos/darwin", version: "1.19.0.4", expected: "1.19.0"},
+		{slug: "malwarebytes/darwin", version: "5.29.2.4310", expected: "5.29.2"},
+		{slug: "malwarebytes/darwin", version: "5.28.4.4244", expected: "5.28.4"},
+		{slug: "plex-media-server/darwin", version: "1.43.5.11079", expected: "1.43.5"},
+		{slug: "chrome-remote-desktop-host/darwin", version: "157.0.8103.38", expected: "157.0.8103"},
+		{slug: "google-earth-pro/darwin", version: "7.3.7.1327", expected: "7.3"},
+		{slug: "disk-drill/darwin", version: "6.3.2326", expected: "6.3"},
+		{slug: "kdenlive/darwin", version: "26.08.3", expected: "26.08"},
+		{slug: "syncmate/darwin", version: "8.11.604", expected: "8.11"},
+		{slug: "redcine-x-pro/darwin", version: "65.2.1", expected: "65.2"},
+		{slug: "redcine-x-pro/darwin", version: "65.1.3", expected: "65.1"},
+		{slug: "bitrix24/darwin", version: "24.0.37.92", expected: "24.0.37"},
+		{slug: "4k-slideshow-maker/darwin", version: "2.0.1", expected: "2.0"},
+		{slug: "4k-stogram/darwin", version: "4.9.0", expected: "4.9"},
+		{slug: "4k-video-downloader/darwin", version: "4.33.5", expected: "4.33"},
+		{slug: "4k-video-to-mp3/darwin", version: "3.0.1", expected: "3.0"},
+		{slug: "4k-youtube-to-mp3/darwin", version: "26.3.5", expected: "26.3"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.slug+" "+tc.version, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: tc.slug}
+			EnrichManifest(app)
+			assert.Equal(t, tc.expected, app.Version)
+		})
+	}
+}

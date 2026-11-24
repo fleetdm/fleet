@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -31,6 +31,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -83,7 +84,6 @@ func TestHosts(t *testing.T) {
 		{"DeleteWithSoftware", testHostsDeleteWithSoftware},
 		{"MDMAppleEnrollmentPermissions", testHostMDMAppleEnrollmentPermissions},
 		{"SaveHostPackStatsDB", testSaveHostPackStatsDB},
-		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
 		{"WithTeamPackStats", testHostsWithTeamPackStats},
 		{"Delete", testHostsDelete},
 		{"HostListOptionsTeamFilter", testHostListOptionsTeamFilter},
@@ -118,6 +118,7 @@ func TestHosts(t *testing.T) {
 		{"MarkSeenMany", testHostsMarkSeenMany},
 		{"CleanupIncoming", testHostsCleanupIncoming},
 		{"IDsByIdentifier", testHostIDsByIdentifier},
+		{"IDsByLabelIdentifier", testHostIDsByLabelIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
 		{"ByUUID", testHostsByUUID},
@@ -129,7 +130,6 @@ func TestHosts(t *testing.T) {
 		{"TotalAndUnseenSince", testHostsTotalAndUnseenSince},
 		{"ListByPolicy", testHostsListByPolicy},
 		{"SaveTonsOfUsers", testHostsUpdateTonsOfUsers},
-		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
 		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
 		{"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
 		{"HostsListBySoftware", testHostsListBySoftware},
@@ -137,6 +137,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
+		{"HostsOSNameAndVersionLoaders", testHostsOSNameAndVersionLoaders},
 		{"HostsListByVulnerability", testHostsListByVulnerability},
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
@@ -151,8 +152,6 @@ func TestHosts(t *testing.T) {
 		{"TeamHostsExpiration", testTeamHostsExpiration},
 		{"TeamHostsExpirationBatchSize", testTeamHostsExpirationBatchSize},
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
-		{"HostsAllPackStats", testHostsAllPackStats},
-		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
 		{"HostsPackStatsNoDuplication", testHostsPackStatsNoDuplication},
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
 		{"HostsReadsLessRows", testHostsReadsLessRows},
@@ -347,25 +346,12 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	require.NoError(t, err)
 	assert.Nil(t, reloaded.TeamID, "UpdateHost must not resurrect a team_id that was cleared by a concurrent transfer")
 
-	p, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    t.Name(),
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-
 	err = ds.DeleteHost(context.Background(), host.ID)
 	require.NoError(t, err)
-
-	newP, err := ds.Pack(context.Background(), p.ID)
-	require.NoError(t, err)
-	require.Empty(t, newP.Hosts)
 
 	host, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
 	assert.Nil(t, host)
-
-	err = ds.DeletePack(context.Background(), newP.Name)
-	require.NoError(t, err)
 }
 
 func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
@@ -445,156 +431,45 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 	assert.Nil(t, host)
 }
 
-func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
-	host, err := ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("1"),
-		UUID:            "1",
-		Hostname:        "foo.local",
-		PrimaryIP:       "192.168.1.1",
-		PrimaryMac:      "30-65-EC-6F-C4-58",
-		Platform:        "darwin",
+// Report IDs are resolved on the primary: a report that hasn't reached the
+// replica yet must still get its stats.
+func TestSaveHostPackStatsReadsPrimary(t *testing.T) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := CreateMySQLDSWithOptions(t, opts)
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "foo.local", "192.168.1.1", "1", "1", time.Now())
+	report, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:     "time",
+		Query:    "select * from time",
+		Saved:    true,
+		Interval: 30,
+		Logging:  fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	require.NotNil(t, host)
 
-	// Pack and query must exist for stats to save successfully
-	pack1, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test1",
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
-	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
-	stats1 := []fleet.ScheduledQueryStats{
-		{
-			PackName:           pack1.Name,
-			ScheduledQueryName: squery1.Name,
-
-			ScheduledQueryID: squery1.ID,
-			QueryName:        query1.Name,
-			PackID:           pack1.ID,
-			AverageMemory:    8000,
-			Denylisted:       false,
-			Executions:       164,
-			Interval:         30,
-			LastExecuted:     time.Unix(1620325191, 0).UTC(),
-			OutputSize:       1337,
-			SystemTime:       150,
-			UserTime:         180,
-			WallTime:         0,
-		},
-	}
-
-	pack2, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test2",
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
-	query2 := test.NewQuery(t, ds, nil, "processes", "select * from processes", 0, true)
-	squery3 := test.NewScheduledQuery(t, ds, pack2.ID, query2.ID, 30, true, true, "processes")
-	stats2 := []fleet.ScheduledQueryStats{
-		{
-			PackName:           pack2.Name,
-			ScheduledQueryName: squery2.Name,
-
-			ScheduledQueryID: squery2.ID,
-			QueryName:        query1.Name,
-			PackID:           pack2.ID,
-			AverageMemory:    431,
-			Denylisted:       true,
-			Executions:       1,
-			Interval:         30,
-			LastExecuted:     time.Unix(980943843, 0).UTC(),
-			OutputSize:       134,
-			SystemTime:       1656,
-			UserTime:         18453,
-			WallTime:         10,
-		},
-		{
-			ScheduledQueryName: squery3.Name,
-			PackName:           pack2.Name,
-
-			ScheduledQueryID: squery3.ID,
-			QueryName:        query2.Name,
-			PackID:           pack2.ID,
-			AverageMemory:    8000,
-			Denylisted:       false,
-			Executions:       164,
-			Interval:         30,
-			LastExecuted:     time.Unix(1620325191, 0).UTC(),
-			OutputSize:       1337,
-			SystemTime:       150,
-			UserTime:         180,
-			WallTime:         0,
-		},
-	}
-
-	packStats := []fleet.PackStats{
-		{
-			PackName: "test1",
-			// Append an additional entry to be sure that receiving stats for a
-			// now-deleted query doesn't break saving. This extra entry should
-			// not be returned on loading the host.
-			QueryStats: append(stats1, fleet.ScheduledQueryStats{PackName: "foo", ScheduledQueryName: "bar"}),
-		},
-		{
-			PackName:   "test2",
-			QueryStats: stats2,
-		},
-	}
-
-	err = ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, packStats)
+	err = ds.SaveHostPackStats(ctx, nil, host.ID, []fleet.PackStats{{
+		PackName: "Global",
+		QueryStats: []fleet.ScheduledQueryStats{{
+			ScheduledQueryName: report.Name,
+			Executions:         3,
+			Interval:           30,
+			LastExecuted:       time.Unix(1620325191, 0).UTC(),
+		}},
+	}})
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
-	require.NoError(t, err)
-
-	require.Len(t, host.PackStats, 2)
-	sort.Slice(host.PackStats, func(i, j int) bool {
-		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	var executions []uint64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &executions,
+			`SELECT executions FROM scheduled_query_stats WHERE host_id = ? AND scheduled_query_id = ?`, host.ID, report.ID)
 	})
-
-	assert.Equal(t, host.PackStats[0].PackName, "test1")
-	// A new behavior is introduced with the new query model. If multiple scheduled queries
-	// with the same referenced query_id are executed in user packs, then only one of the results
-	// is gathered in Fleet.
-	assert.ElementsMatch(t, host.PackStats[0].QueryStats, []fleet.ScheduledQueryStats{
-		{
-			PackName:           pack1.Name,
-			ScheduledQueryName: squery1.Name,
-
-			ScheduledQueryID: squery1.ID,
-			QueryName:        query1.Name,
-			PackID:           pack1.ID,
-			//
-			// These are the values for the same query1 in the second pack (it overrides the first schedule stats).
-			//
-			AverageMemory: 431,
-			Denylisted:    true,
-			Executions:    1,
-			Interval:      30,
-			LastExecuted:  time.Unix(980943843, 0).UTC(),
-			OutputSize:    134,
-			SystemTime:    1656,
-			UserTime:      18453,
-			WallTime:      10000,
-		},
-	})
-	assert.Equal(t, host.PackStats[1].PackName, "test2")
-	// Server calculates WallTimeMs if WallTimeMs==0 coming in. (osquery wall_time -> wall_time_ms -> DB wall_time)
-	stats2[0].WallTime *= 1000
-	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
+	require.Equal(t, []uint64{3}, executions)
 }
 
-// testHostsSavePackStatsOverwrites now behaves in a way that if two scheduled queries in a pack
-// reference the same query_id, then their stat values are overriden.
-func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
-	host, err := ds.NewHost(context.Background(), &fleet.Host{
+func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -609,146 +484,76 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	// Pack and query must exist for stats to save successfully
-	pack1, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test1",
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
-	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
-	pack2, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test2",
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query1.ID, 30, true, true, "time-scheduled")
-	query2 := test.NewQuery(t, ds, nil, "processes", "select * from processes", 0, true)
+	query1 := test.NewQueryWithSchedule(t, ds, nil, "time", "select * from time", 0, true, 30, false)
+	query2 := test.NewQueryWithSchedule(t, ds, nil, "processes", "select * from processes", 0, true, 30, false)
 
-	execTime1 := time.Unix(1620325191, 0).UTC()
+	stats1 := fleet.ScheduledQueryStats{
+		ScheduledQueryName: query1.Name,
+		AverageMemory:      8000,
+		Denylisted:         false,
+		Executions:         164,
+		Interval:           30,
+		LastExecuted:       time.Unix(1620325191, 0).UTC(),
+		OutputSize:         1337,
+		SystemTime:         150,
+		UserTime:           180,
+		WallTime:           0,
+	}
+	stats2 := fleet.ScheduledQueryStats{
+		ScheduledQueryName: query2.Name,
+		AverageMemory:      431,
+		Denylisted:         true,
+		Executions:         1,
+		Interval:           30,
+		LastExecuted:       time.Unix(980943843, 0).UTC(),
+		OutputSize:         134,
+		SystemTime:         1656,
+		UserTime:           18453,
+		WallTime:           10,
+	}
 
 	packStats := []fleet.PackStats{
 		{
-			PackName: "test1",
-			QueryStats: []fleet.ScheduledQueryStats{
-				{
-					ScheduledQueryName: squery1.Name,
-					ScheduledQueryID:   squery1.ID,
-					QueryName:          query1.Name,
-					PackName:           pack1.Name,
-					PackID:             pack1.ID,
-					AverageMemory:      8000,
-					Denylisted:         false,
-					Executions:         164,
-					Interval:           30,
-					LastExecuted:       execTime1,
-					OutputSize:         1337,
-					SystemTime:         150,
-					UserTime:           180,
-					WallTime:           0,
-				},
-			},
+			PackName: "Global",
+			// Stats for a now-deleted report must not break saving.
+			QueryStats: []fleet.ScheduledQueryStats{stats1, stats2, {ScheduledQueryName: "deleted"}},
 		},
 		{
-			PackName: "test2",
-			QueryStats: []fleet.ScheduledQueryStats{
-				{
-					ScheduledQueryName: squery2.Name,
-					ScheduledQueryID:   squery2.ID,
-					QueryName:          query2.Name,
-					PackName:           pack2.Name,
-					PackID:             pack2.ID,
-					AverageMemory:      431,
-					Denylisted:         true,
-					Executions:         1,
-					Interval:           30,
-					LastExecuted:       execTime1,
-					OutputSize:         134,
-					SystemTime:         1656,
-					UserTime:           18453,
-					WallTime:           10,
-				},
-			},
+			// Stats for a pack that isn't Global or the host's team are ignored.
+			PackName:   "2017 pack",
+			QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: query1.Name, Executions: 1}},
 		},
 	}
 
-	err = ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, packStats)
+	err = ds.SaveHostPackStats(ctx, host.TeamID, host.ID, packStats)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
 
-	sort.Slice(host.PackStats, func(i, j int) bool {
-		return host.PackStats[i].PackName < host.PackStats[j].PackName
-	})
+	require.Len(t, host.PackStats, 1)
+	require.Equal(t, "Global", host.PackStats[0].PackName)
 
-	require.Len(t, host.PackStats, 2)
-	assert.Equal(t, host.PackStats[0].PackName, "test1")
-	assert.Equal(t, execTime1, host.PackStats[0].QueryStats[0].LastExecuted)
-
-	execTime2 := execTime1.Add(24 * time.Hour)
-
-	packStats = []fleet.PackStats{
-		{
-			PackName: "test1",
-			QueryStats: []fleet.ScheduledQueryStats{
-				{
-					ScheduledQueryName: squery1.Name,
-					ScheduledQueryID:   squery1.ID,
-					QueryName:          query1.Name,
-					PackName:           pack1.Name,
-					PackID:             pack1.ID,
-					AverageMemory:      8000,
-					Denylisted:         false,
-					Executions:         164,
-					Interval:           30,
-					LastExecuted:       execTime2,
-					OutputSize:         1337,
-					SystemTime:         150,
-					UserTime:           180,
-					WallTime:           0,
-				},
-			},
-		},
-		{
-			PackName: "test2",
-			QueryStats: []fleet.ScheduledQueryStats{
-				{
-					ScheduledQueryName: squery2.Name,
-					ScheduledQueryID:   squery2.ID,
-					QueryName:          query2.Name,
-					PackName:           pack2.Name,
-					PackID:             pack2.ID,
-					AverageMemory:      431,
-					Denylisted:         true,
-					Executions:         1,
-					Interval:           30,
-					LastExecuted:       execTime1,
-					OutputSize:         134,
-					SystemTime:         1656,
-					UserTime:           18453,
-					WallTime:           10,
-				},
-			},
-		},
+	expected := func(q *fleet.Query, s fleet.ScheduledQueryStats) fleet.ScheduledQueryStats {
+		s.ScheduledQueryID = q.ID
+		s.QueryName = q.Name
+		s.PackName = "Global"
+		// Server calculates WallTimeMs if WallTimeMs==0 coming in. (osquery wall_time -> wall_time_ms -> DB wall_time)
+		s.WallTime *= 1000
+		return s
 	}
-	err = ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, packStats)
+	require.ElementsMatch(t, []fleet.ScheduledQueryStats{expected(query1, stats1), expected(query2, stats2)}, host.PackStats[0].QueryStats)
+
+	// Only the two resolved report stats are stored: nothing for the 2017 pack
+	// and no zero-ID row for the deleted report.
+	var rows int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &rows, `SELECT COUNT(*) FROM scheduled_query_stats WHERE host_id = ?`, host.ID)
 	require.NoError(t, err)
-
-	gotHost, err := ds.Host(context.Background(), host.ID)
-	require.NoError(t, err)
-
-	sort.Slice(gotHost.PackStats, func(i, j int) bool {
-		return gotHost.PackStats[i].PackName < gotHost.PackStats[j].PackName
-	})
-
-	require.Len(t, gotHost.PackStats, 2)
-	assert.Equal(t, gotHost.PackStats[0].PackName, "test1")
-	assert.Equal(t, execTime1, gotHost.PackStats[0].QueryStats[0].LastExecuted)
+	require.Equal(t, 2, rows)
 }
 
 func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
-	host, err := ds.NewHost(context.Background(), &fleet.Host{
+	host, err := ds.NewHost(t.Context(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -763,45 +568,15 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	team, err := ds.NewTeam(context.Background(), &fleet.Team{
+	team, err := ds.NewTeam(t.Context(), &fleet.Team{
 		Name: "team1",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	require.NoError(t, ds.AddHostsToTeam(t.Context(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 	host.TeamID = &team.ID
 	tpQuery := test.NewQueryWithSchedule(t, ds, &team.ID, "tp-time", "select * from time", 0, true, 30, true)
 
-	// Create a new pack and target to the host.
-	// Pack and query must exist for stats to save successfully
-	pack1, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test1",
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
-	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
-	stats1 := []fleet.ScheduledQueryStats{
-		{
-			PackName:           pack1.Name,
-			ScheduledQueryName: squery1.Name,
-
-			QueryName:          query1.Name,
-			PackID:             pack1.ID,
-			DiscardData:        false,
-			AutomationsEnabled: false,
-			LastFetched:        nil,
-			AverageMemory:      8000,
-			Denylisted:         false,
-			Executions:         164,
-			Interval:           30,
-			LastExecuted:       time.Unix(1620325191, 0).UTC(),
-			OutputSize:         1337,
-			SystemTime:         150,
-			UserTime:           180,
-			WallTime:           0,
-		},
-	}
-	stats2 := []fleet.ScheduledQueryStats{
+	stats := []fleet.ScheduledQueryStats{
 		{
 			PackName:           fmt.Sprintf("team-%d", team.ID),
 			ScheduledQueryName: tpQuery.Name,
@@ -824,39 +599,21 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 	}
 
 	packStats := []fleet.PackStats{
-		{PackName: pack1.Name, QueryStats: stats1},
-		{PackName: fmt.Sprintf("team-%d", team.ID), QueryStats: stats2},
+		{PackName: fmt.Sprintf("team-%d", team.ID), QueryStats: stats},
+		// Stats for a pack that isn't Global or the host's team are ignored.
+		{PackName: "test1", QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: tpQuery.Name, Executions: 1}}},
 	}
-	err = ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, packStats)
+	err = ds.SaveHostPackStats(t.Context(), host.TeamID, host.ID, packStats)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	host, err = ds.Host(t.Context(), host.ID)
 	require.NoError(t, err)
 
-	require.Len(t, host.PackStats, 2)
-	sort.Sort(packStatsSlice(host.PackStats))
-
-	assert.Equal(t, host.PackStats[0].PackName, teamScheduleName(team))
-	stats2[0].PackName = "Team: team1"
-	stats2[0].ScheduledQueryID = tpQuery.ID
-	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats2)
-	assert.Equal(t, host.PackStats[1].PackName, pack1.Name)
-	stats1[0].ScheduledQueryID = squery1.ID
-	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats1)
-}
-
-type packStatsSlice []fleet.PackStats
-
-func (p packStatsSlice) Len() int {
-	return len(p)
-}
-
-func (p packStatsSlice) Less(i, j int) bool {
-	return p[i].PackID < p[j].PackID
-}
-
-func (p packStatsSlice) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
+	require.Len(t, host.PackStats, 1)
+	assert.Equal(t, "Team: "+team.Name, host.PackStats[0].PackName)
+	stats[0].PackName = "Team: team1"
+	stats[0].ScheduledQueryID = tpQuery.ID
+	assert.ElementsMatch(t, host.PackStats[0].QueryStats, stats)
 }
 
 func testHostsDelete(t *testing.T, ds *Datastore) {
@@ -4522,6 +4279,37 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, hostsByIdentifier[0], hosts[0].ID)
 }
 
+func testHostIDsByLabelIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("osq.host%d", i)),
+			NodeKey:        new(fmt.Sprintf("nk.%d", i)),
+			UUID:           fmt.Sprintf("uuid.%d", i),
+			HardwareSerial: fmt.Sprintf("hws.%d", i),
+			Hostname:       fmt.Sprintf("foo.%d.local", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	ids, err := ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
+	require.NoError(t, err)
+	assert.NotNil(t, ids)
+	assert.Empty(t, ids)
+
+	ids, err = ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "uuid.1", "hws.2"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID}, ids)
+
+	// HostIDsByIdentifier still matches them, for live queries and profile variables.
+	ids, err = ds.HostIDsByIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, ids)
+}
+
 func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -4712,6 +4500,75 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, uint(9), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	t.Run("priority across and within columns", func(t *testing.T) {
+		setSerial := func(h *fleet.Host, value string) { h.HardwareSerial = value }
+		setUUID := func(h *fleet.Host, value string) { h.UUID = value }
+		setHostname := func(h *fleet.Host, value string) { h.Hostname = value }
+		setOsqueryHostID := func(h *fleet.Host, value string) { h.OsqueryHostID = &value }
+		setNodeKey := func(h *fleet.Host, value string) { h.NodeKey = &value }
+
+		// The expected loser is created first, so the winner never has the lower ID unless the case is about the tie-break.
+		testCases := []struct {
+			name         string
+			setLoser     func(*fleet.Host, string)
+			setWinner    func(*fleet.Host, string)
+			winnerIsLast bool
+		}{
+			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
+			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
+			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
+			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
+			{name: "lowest ID wins on a shared hostname", setLoser: setHostname, setWinner: setHostname},
+			{name: "lowest ID wins on a shared serial", setLoser: setSerial, setWinner: setSerial},
+			{name: "lowest ID wins on a shared UUID", setLoser: setUUID, setWinner: setUUID},
+		}
+		for i, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				contested := fmt.Sprintf("contested_%d", i)
+				newContender := func(suffix string, set func(*fleet.Host, string)) uint {
+					contender := &fleet.Host{
+						DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+						OsqueryHostID: new(contested + "_osquery_" + suffix), NodeKey: new(contested + "_node_key_" + suffix),
+						UUID: contested + "_uuid_" + suffix, Hostname: contested + "_hostname_" + suffix, HardwareSerial: contested + "_serial_" + suffix,
+					}
+					set(contender, contested)
+					created, err := ds.NewHost(t.Context(), contender)
+					require.NoError(t, err)
+					return created.ID
+				}
+				firstID := newContender("first", tc.setLoser)
+				lastID := newContender("last", tc.setWinner)
+				wantID := firstID
+				if tc.winnerIsLast {
+					wantID = lastID
+				}
+
+				host, err := ds.HostByIdentifier(t.Context(), contested)
+				require.NoError(t, err)
+				require.Equal(t, wantID, host.ID)
+
+				hostLite, err := ds.HostLiteByIdentifier(t.Context(), contested)
+				require.NoError(t, err)
+				require.Equal(t, wantID, hostLite.ID)
+			})
+		}
+	})
+
+	t.Run("blank identifiers match nothing", func(t *testing.T) {
+		_, err := ds.NewHost(t.Context(), &fleet.Host{
+			DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+			OsqueryHostID: new(""), NodeKey: new(""),
+		})
+		require.NoError(t, err)
+
+		for _, blank := range []string{"", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
+			_, err := ds.HostByIdentifier(t.Context(), blank)
+			require.True(t, fleet.IsNotFound(err), "HostByIdentifier(%q): %v", blank, err)
+			_, err = ds.HostLiteByIdentifier(t.Context(), blank)
+			require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", blank, err)
+		}
+	})
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	assert.ErrorIs(t, err, sql.ErrNoRows)
@@ -5209,21 +5066,11 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
 
-	// software_id is foo v0.0.2
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &fooV002ID}, 2)
+	// software_version_id is foo v0.0.2
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: &fooV002ID}, 2)
 	require.Len(t, hosts, 2)
 	got := []uint{hosts[0].ID, hosts[1].ID}
 	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
-
-	// software_version_id is foo v0.0.2 (works exacty the same)
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: &fooV002ID}, 2)
-	require.Len(t, hosts, 2)
-	got = []uint{hosts[0].ID, hosts[1].ID}
-	require.ElementsMatch(t, []uint{host1.ID, host2.ID}, got)
-
-	// unknown software_id
-	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: ptr.Uint(fooV002ID + 100)}, 0)
-	require.Len(t, hosts, 0)
 
 	// unknown software_version_id
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareVersionIDFilter: ptr.Uint(fooV002ID + 100)}, 0)
@@ -5729,6 +5576,126 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testHostsOSNameAndVersionLoaders(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(name, platform, osVersion string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
+			UUID:            name,
+			Hostname:        name + ".local",
+			Platform:        platform,
+			OSVersion:       osVersion,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	// The OS row keeps "Microsoft" in Windows names (vulnerability matching uses it); the API drops it.
+	win := newHost("win", "windows", "Windows 11 Pro 24H2 10.0.26100.1742")
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, win.ID, fleet.OperatingSystem{
+		Name: "Microsoft Windows 11 Pro 24H2", Version: "10.0.26100.1742", Arch: "64-bit", KernelVersion: "10.0.26100.1742",
+		Platform: "windows", DisplayVersion: "24H2",
+	}))
+	// The OS inventory records Omarchy as "Arch Linux" "rolling"; the API returns the host's own name and version.
+	arch := newHost("arch", "arch", "Arch Linux rolling")
+	omarchy := newHost("omarchy", "omarchy", "Omarchy 4.0.0")
+	for _, h := range []*fleet.Host{arch, omarchy} {
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+			Name: "Arch Linux", Version: "rolling", Arch: "x86_64", KernelVersion: "6.12.1-arch1-1", Platform: h.Platform,
+		}))
+	}
+	// Hosts without an OS row yet: an Android device that reports no version, and an Omarchy host before its inventory
+	// comes in, which the Omarchy filter must not match.
+	android := newHost("android", "android", "Android")
+	omarchyNoOS := newHost("omarchy-no-os", "omarchy", "Omarchy 4.0.0")
+	all := []*fleet.Host{win, arch, omarchy, android, omarchyNoOS}
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "os name and version", Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range all {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	type osFields struct{ combined, name, version string }
+	want := map[uint]osFields{
+		win.ID:         {"Windows 11 Pro 24H2 10.0.26100.1742", "Windows 11 Pro 24H2", "10.0.26100.1742"},
+		arch.ID:        {"Arch Linux rolling", "Arch Linux", "rolling"},
+		omarchy.ID:     {"Omarchy 4.0.0", "Omarchy", "4.0.0"},
+		android.ID:     {"Android", "", ""},
+		omarchyNoOS.ID: {"Omarchy 4.0.0", "", ""},
+	}
+	checkHosts := func(t *testing.T, hosts ...*fleet.Host) {
+		t.Helper()
+		require.Len(t, hosts, len(want))
+		for _, h := range hosts {
+			w, ok := want[h.ID]
+			require.True(t, ok, "unexpected host %d", h.ID)
+			assert.Equal(t, w.combined, h.OSVersion)
+			assert.Equal(t, w.name, h.OSName)
+			assert.Equal(t, w.version, h.OSVersionOnly)
+		}
+	}
+
+	adminFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts, err := ds.ListHosts(ctx, adminFilter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	hosts, err = ds.ListHostsInLabel(ctx, adminFilter, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	hosts, err = ds.SearchHosts(ctx, adminFilter, "", false)
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	var byID, byIdentifier []*fleet.Host
+	for _, h := range all {
+		got, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		byID = append(byID, got)
+		got, err = ds.HostByIdentifier(ctx, h.UUID)
+		require.NoError(t, err)
+		byIdentifier = append(byIdentifier, got)
+	}
+	checkHosts(t, byID...)
+	checkHosts(t, byIdentifier...)
+
+	for _, h := range all {
+		health, err := ds.GetHostHealth(ctx, h.ID)
+		require.NoError(t, err)
+		assert.Equal(t, want[h.ID].name, health.OSName)
+		assert.Equal(t, want[h.ID].version, health.OsVersion)
+	}
+
+	// The returned values round-trip into the os_name and os_version filters. Windows names also match with
+	// "Microsoft", and the inventory's "Arch Linux" "rolling" still matches every host it groups.
+	for _, tc := range []struct {
+		name, version string
+		wantIDs       []uint
+	}{
+		{"Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
+		{"Microsoft Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
+		{"Omarchy", "4.0.0", []uint{omarchy.ID}},
+		{"Arch Linux", "rolling", []uint{arch.ID, omarchy.ID}},
+	} {
+		hosts = listHostsCheckCount(t, ds, adminFilter, fleet.HostListOptions{
+			OSNameFilter: new(tc.name), OSVersionFilter: new(tc.version),
+		}, len(tc.wantIDs))
+		var gotIDs []uint
+		for _, h := range hosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		assert.ElementsMatch(t, tc.wantIDs, gotIDs, tc.name)
+	}
+}
+
 func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 	// seed hosts
 	var hosts []*fleet.Host
@@ -5843,7 +5810,9 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Execute the batch script on all hosts.
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
 	require.NoError(t, err)
 
 	// Filter by batch script execution ID, without status, should return all hosts
@@ -5909,7 +5878,9 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	// The SQL for retrieving "pending" hosts has to check both the host_script_results table (for hosts
 	// that have "activated" the script activity) and the upcoming_activities table (for hosts that
 	// have not yet activated the script activity).
-	secondExecID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	secondExecID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, secondExecID)
 	require.NoError(t, err)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 3)
@@ -5926,7 +5897,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[1].ID)
 
 	// Simulate that host1 ran the script successfully
-	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false)
 	require.NoError(t, err)
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host1.ID,
@@ -5937,7 +5908,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that host2 errored out
-	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false)
 	require.NoError(t, err)
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host2.ID,
@@ -5948,7 +5919,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that host3 cancelled the script execution
-	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false)
 	require.NoError(t, err)
 
 	// Cancel the execution
@@ -6732,186 +6703,6 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 	}
 	t.Log("Count1", atomic.LoadInt32(&count1))
 	t.Log("Count2", atomic.LoadInt32(&count2))
-}
-
-func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
-	host1, err := ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("1"),
-		UUID:            "1",
-		Hostname:        "foo.local",
-		PrimaryIP:       "192.168.1.1",
-		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   ptr.String("1"),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, host1)
-
-	host2, err := ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("2"),
-		UUID:            "2",
-		Hostname:        "foo.local2",
-		PrimaryIP:       "192.168.1.2",
-		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   ptr.String("2"),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, host2)
-
-	pack1 := test.NewPack(t, ds, "test1")
-	query1 := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
-	squery1 := test.NewScheduledQuery(t, ds, pack1.ID, query1.ID, 30, true, true, "time-scheduled")
-
-	pack2 := test.NewPack(t, ds, "test2")
-	query2 := test.NewQuery(t, ds, nil, "time2", "select * from time", 0, true)
-	squery2 := test.NewScheduledQuery(t, ds, pack2.ID, query2.ID, 30, true, true, "time-scheduled")
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	saveHostRandomStats := func(host *fleet.Host) error {
-		packStats := []fleet.PackStats{
-			{
-				PackName: pack1.Name,
-				QueryStats: []fleet.ScheduledQueryStats{
-					{
-						ScheduledQueryName: squery1.Name,
-						ScheduledQueryID:   squery1.ID,
-						QueryName:          query1.Name,
-						PackName:           pack1.Name,
-						PackID:             pack1.ID,
-						AverageMemory:      8000,
-						Denylisted:         false,
-						Executions:         uint64(rand.Intn(1000)),
-						Interval:           30,
-						LastExecuted:       time.Now().UTC(),
-						OutputSize:         1337,
-						SystemTime:         150,
-						UserTime:           180,
-						WallTime:           0,
-					},
-				},
-			},
-			{
-				PackName: pack2.Name,
-				QueryStats: []fleet.ScheduledQueryStats{
-					{
-						ScheduledQueryName: squery2.Name,
-						ScheduledQueryID:   squery2.ID,
-						QueryName:          query2.Name,
-						PackName:           pack2.Name,
-						PackID:             pack2.ID,
-						AverageMemory:      8000,
-						Denylisted:         false,
-						Executions:         uint64(rand.Intn(1000)),
-						Interval:           30,
-						LastExecuted:       time.Now().UTC(),
-						OutputSize:         1337,
-						SystemTime:         150,
-						UserTime:           180,
-						WallTime:           0,
-					},
-				},
-			},
-		}
-		return ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, packStats)
-	}
-
-	errCh := make(chan error)
-	var counter int32
-	const total = int32(100)
-
-	var wg sync.WaitGroup
-
-	loopAndSaveHost := func(host *fleet.Host) {
-		defer wg.Done()
-
-		for {
-			err := saveHostRandomStats(host)
-			if err != nil {
-				errCh <- err
-				return
-			}
-			atomic.AddInt32(&counter, 1)
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				if atomic.LoadInt32(&counter) > total {
-					cancelFunc()
-					return
-				}
-			}
-		}
-	}
-
-	wg.Add(3)
-	go loopAndSaveHost(host1)
-	go loopAndSaveHost(host2)
-
-	go func() {
-		defer wg.Done()
-
-		for {
-			specs := []*fleet.PackSpec{
-				{
-					Name: "test1",
-					Queries: []fleet.PackSpecQuery{
-						{
-							QueryName: "time",
-							Interval:  uint(rand.Intn(1000)),
-						},
-						{
-							QueryName: "time2",
-							Interval:  uint(rand.Intn(1000)),
-						},
-					},
-				},
-				{
-					Name: "test2",
-					Queries: []fleet.PackSpecQuery{
-						{
-							QueryName: "time",
-							Interval:  uint(rand.Intn(1000)),
-						},
-						{
-							QueryName: "time2",
-							Interval:  uint(rand.Intn(1000)),
-						},
-					},
-				},
-			}
-			err := ds.ApplyPackSpecs(context.Background(), specs)
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-		}
-	}()
-
-	ticker := time.NewTicker(10 * time.Second)
-	select {
-	case err := <-errCh:
-		cancelFunc()
-		require.NoError(t, err)
-	case <-ctx.Done():
-		wg.Wait()
-	case <-ticker.C:
-		require.Fail(t, "timed out")
-	}
 }
 
 // Large enough that tests not exercising batching delete everything in one call.
@@ -7820,238 +7611,6 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 	assertContains(teamQueryStats, query7.Name) // no interval, but has a query result
 }
 
-func testHostsAllPackStats(t *testing.T, ds *Datastore) {
-	host, err := ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("1"),
-		UUID:            "1",
-		Hostname:        "foo.local",
-		PrimaryIP:       "192.168.1.1",
-		PrimaryMac:      "30-65-EC-6F-C4-58",
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-	require.NotNil(t, host)
-
-	// Create a "user created" pack (and one scheduled query in it).
-	userPack, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test1",
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-	userQuery := test.NewQuery(t, ds, nil, "user-time", "select * from time", 0, true)
-	userSQuery := test.NewScheduledQuery(t, ds, userPack.ID, userQuery.ID, 30, true, true, "time-scheduled-user")
-
-	// Even if the scheduled queries didn't run, we get their pack stats (with zero values).
-	host, err = ds.Host(context.Background(), host.ID)
-	require.NoError(t, err)
-	packStats := host.PackStats
-	require.Len(t, packStats, 1)
-	sort.Sort(packStatsSlice(packStats))
-	for _, tc := range []struct {
-		expectedPack   *fleet.Pack
-		expectedQuery  *fleet.Query
-		expectedSQuery *fleet.ScheduledQuery
-		packStats      fleet.PackStats
-	}{
-		{
-			expectedPack:   userPack,
-			expectedQuery:  userQuery,
-			expectedSQuery: userSQuery,
-			packStats:      packStats[0],
-		},
-	} {
-		require.Equal(t, tc.expectedPack.ID, tc.packStats.PackID)
-		require.Equal(t, tc.expectedPack.Name, tc.packStats.PackName)
-		require.Len(t, tc.packStats.QueryStats, 1)
-		require.False(t, tc.packStats.QueryStats[0].Denylisted)
-		require.Empty(t, tc.packStats.QueryStats[0].Description) // because test.NewQuery doesn't set a description.
-		require.NotZero(t, tc.packStats.QueryStats[0].Interval)
-		require.Equal(t, tc.packStats.PackID, tc.packStats.QueryStats[0].PackID)
-		require.Equal(t, tc.packStats.PackName, tc.packStats.QueryStats[0].PackName)
-		require.Equal(t, tc.expectedQuery.Name, tc.packStats.QueryStats[0].QueryName)
-		require.Equal(t, tc.expectedSQuery.ID, tc.packStats.QueryStats[0].ScheduledQueryID)
-		require.Equal(t, tc.expectedSQuery.Name, tc.packStats.QueryStats[0].ScheduledQueryName)
-
-		require.Zero(t, tc.packStats.QueryStats[0].AverageMemory)
-		require.Zero(t, tc.packStats.QueryStats[0].Executions)
-		require.Equal(t, expLastExec, tc.packStats.QueryStats[0].LastExecuted)
-		require.Zero(t, tc.packStats.QueryStats[0].OutputSize)
-		require.Zero(t, tc.packStats.QueryStats[0].SystemTime)
-		require.Zero(t, tc.packStats.QueryStats[0].UserTime)
-		require.Zero(t, tc.packStats.QueryStats[0].WallTime)
-	}
-
-	userPackSQueryStats := []fleet.ScheduledQueryStats{{
-		ScheduledQueryName: userSQuery.Name,
-		ScheduledQueryID:   userSQuery.ID,
-		QueryName:          userQuery.Name,
-		PackName:           userPack.Name,
-		PackID:             userPack.ID,
-		AverageMemory:      0,
-		Denylisted:         false,
-		Executions:         0,
-		Interval:           30,
-		LastExecuted:       expLastExec,
-		OutputSize:         0,
-		SystemTime:         0,
-		UserTime:           0,
-		WallTime:           0,
-	}}
-	// Reload the host and set the scheduled queries stats.
-	host, err = ds.Host(context.Background(), host.ID)
-	require.NoError(t, err)
-
-	host, err = ds.Host(context.Background(), host.ID)
-	require.NoError(t, err)
-	packStats = host.PackStats
-	require.Len(t, packStats, 1)
-	sort.Sort(packStatsSlice(packStats))
-
-	require.ElementsMatch(t, packStats[0].QueryStats, userPackSQueryStats)
-}
-
-// See #2965.
-func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
-	osqueryHostID1, _ := server.GenerateRandomText(10)
-	host1, err := ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("1"),
-		UUID:            "1",
-		Hostname:        "foo.local",
-		PrimaryIP:       "192.168.1.1",
-		PrimaryMac:      "30-65-EC-6F-C4-58",
-		Platform:        "darwin",
-		OsqueryHostID:   &osqueryHostID1,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, host1)
-
-	osqueryHostID2, _ := server.GenerateRandomText(10)
-	host2, err := ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("2"),
-		UUID:            "2",
-		Hostname:        "bar.local",
-		PrimaryIP:       "192.168.1.2",
-		PrimaryMac:      "30-65-EC-6F-C4-59",
-		Platform:        "darwin",
-		OsqueryHostID:   &osqueryHostID2,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, host2)
-
-	// Create global pack (and one scheduled query in it).
-	test.AddAllHostsLabel(t, ds) // the global pack needs the "All Hosts" label.
-	labels, err := ds.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, false)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
-
-	userPack, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test1",
-		HostIDs: []uint{host1.ID, host2.ID},
-	})
-	require.NoError(t, err)
-
-	userQuery := test.NewQuery(t, ds, nil, "global-time", "select * from time", 0, true)
-	userSQuery := test.NewScheduledQuery(t, ds, userPack.ID, userQuery.ID, 30, true, true, "time-scheduled-global")
-	err = ds.AsyncBatchInsertLabelMembership(context.Background(), [][2]uint{
-		{labels[0].ID, host1.ID},
-		{labels[0].ID, host2.ID},
-	})
-	require.NoError(t, err)
-
-	globalStatsHost1 := []fleet.ScheduledQueryStats{{
-		ScheduledQueryName: userSQuery.Name,
-		ScheduledQueryID:   userSQuery.ID,
-		QueryName:          userQuery.Name,
-		PackName:           userPack.Name,
-		PackID:             userPack.ID,
-		AverageMemory:      8000,
-		Denylisted:         false,
-		Executions:         164,
-		Interval:           30,
-		LastExecuted:       time.Unix(1620325191, 0).UTC(),
-		OutputSize:         1337,
-		SystemTime:         150,
-		UserTime:           180,
-		WallTimeMs:         0,
-	}}
-	globalStatsHost2 := []fleet.ScheduledQueryStats{{
-		ScheduledQueryName: userSQuery.Name,
-		ScheduledQueryID:   userSQuery.ID,
-		QueryName:          userQuery.Name,
-		PackName:           userPack.Name,
-		PackID:             userPack.ID,
-		AverageMemory:      9000,
-		Denylisted:         false,
-		Executions:         165,
-		Interval:           30,
-		LastExecuted:       time.Unix(1620325192, 0).UTC(),
-		OutputSize:         1338,
-		SystemTime:         151,
-		UserTime:           181,
-		WallTimeMs:         1,
-	}}
-
-	// Reload the hosts and set the scheduled queries stats.
-	for _, tc := range []struct {
-		hostID      uint
-		globalStats []fleet.ScheduledQueryStats
-	}{
-		{
-			hostID:      host1.ID,
-			globalStats: globalStatsHost1,
-		},
-		{
-			hostID:      host2.ID,
-			globalStats: globalStatsHost2,
-		},
-	} {
-		host, err := ds.Host(context.Background(), tc.hostID)
-		require.NoError(t, err)
-		hostPackStats := []fleet.PackStats{
-			{PackID: userPack.ID, PackName: userPack.Name, QueryStats: tc.globalStats},
-		}
-		err = ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, hostPackStats)
-		require.NoError(t, err)
-	}
-
-	// Both hosts should see just one stats entry on the one pack.
-	for _, tc := range []struct {
-		host          *fleet.Host
-		expectedStats []fleet.ScheduledQueryStats
-	}{
-		{
-			host:          host1,
-			expectedStats: globalStatsHost1,
-		},
-		{
-			host:          host2,
-			expectedStats: globalStatsHost2,
-		},
-	} {
-		host, err := ds.Host(context.Background(), tc.host.ID)
-		require.NoError(t, err)
-		packStats := host.PackStats
-		require.Len(t, packStats, 1)
-		require.Len(t, packStats[0].QueryStats, 1)
-		// Update wall time.
-		tc.expectedStats[0].WallTime = tc.expectedStats[0].WallTimeMs
-		tc.expectedStats[0].WallTimeMs = 0
-		require.ElementsMatch(t, packStats[0].QueryStats, tc.expectedStats)
-	}
-}
-
 // See #22384.
 func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
 	osqueryHostID, _ := server.GenerateRandomText(10)
@@ -8111,7 +7670,7 @@ func testHostsPackStatsNoDuplication(t *testing.T, ds *Datastore) {
 // See #2964.
 func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	osqueryHostID1, _ := server.GenerateRandomText(10)
-	host1, err := ds.NewHost(context.Background(), &fleet.Host{
+	host1, err := ds.NewHost(t.Context(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -8128,7 +7687,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1)
 
 	osqueryHostID2, _ := server.GenerateRandomText(10)
-	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+	host2, err := ds.NewHost(t.Context(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -8144,277 +7703,84 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, host2)
 
-	test.AddAllHostsLabel(t, ds)
-	labels, err := ds.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{}, false)
-	require.NoError(t, err)
-	require.Len(t, labels, 1)
+	newReport := func(name, platform string) *fleet.Query {
+		q, err := ds.NewQuery(t.Context(), &fleet.Query{
+			Name:     name,
+			Query:    "select * from time",
+			Saved:    true,
+			Interval: 30,
+			Platform: platform,
+			Logging:  fleet.LoggingSnapshot,
+		})
+		require.NoError(t, err)
+		return q
+	}
+	linuxQuery := newReport("Report For Linux only", "linux")
+	darwinQuery := newReport("Report For Darwin only", "darwin")
+	darwinLinuxQuery := newReport("Report For Darwin and Linux", "darwin,linux")
+	allQuery := newReport("Report For All Platforms", "")
 
-	userPack, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test1",
-		HostIDs: []uint{host1.ID, host2.ID},
-	})
-	require.NoError(t, err)
-	userQuery1 := test.NewQuery(t, ds, nil, "global-time", "select * from time", 0, true)
-	userQuery2 := test.NewQuery(t, ds, nil, "global-time-2", "select * from time", 0, true)
-	userQuery3 := test.NewQuery(t, ds, nil, "global-time-3", "select * from time", 0, true)
-	userQuery4 := test.NewQuery(t, ds, nil, "global-time-4", "select * from time", 0, true)
-	userQuery5 := test.NewQuery(t, ds, nil, "global-time-5", "select * from time", 0, true)
-	userSQuery1, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     "Scheduled Query For Linux only",
-		PackID:   userPack.ID,
-		QueryID:  userQuery1.ID,
-		Interval: 30,
-		Snapshot: ptr.Bool(true),
-		Removed:  ptr.Bool(true),
-		Platform: ptr.String("linux"),
-	})
-	require.NoError(t, err)
-	require.NotZero(t, userSQuery1.ID)
-
-	userSQuery2, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     "Scheduled Query For Darwin only",
-		PackID:   userPack.ID,
-		QueryID:  userQuery2.ID,
-		Interval: 30,
-		Snapshot: ptr.Bool(true),
-		Removed:  ptr.Bool(true),
-		Platform: ptr.String("darwin"),
-	})
-	require.NoError(t, err)
-	require.NotZero(t, userSQuery2.ID)
-
-	userSQuery3, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     "Scheduled Query For Darwin and Linux",
-		PackID:   userPack.ID,
-		QueryID:  userQuery3.ID,
-		Interval: 30,
-		Snapshot: ptr.Bool(true),
-		Removed:  ptr.Bool(true),
-		Platform: ptr.String("darwin,linux"),
-	})
-	require.NoError(t, err)
-	require.NotZero(t, userSQuery3.ID)
-
-	userSQuery4, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     "Scheduled Query For All Platforms",
-		PackID:   userPack.ID,
-		QueryID:  userQuery4.ID,
-		Interval: 30,
-		Snapshot: ptr.Bool(true),
-		Removed:  ptr.Bool(true),
-		Platform: ptr.String(""),
-	})
-	require.NoError(t, err)
-	require.NotZero(t, userSQuery4.ID)
-
-	userSQuery5, err := ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     "Scheduled Query For All Platforms v2",
-		PackID:   userPack.ID,
-		QueryID:  userQuery5.ID,
-		Interval: 30,
-		Snapshot: ptr.Bool(true),
-		Removed:  ptr.Bool(true),
-		Platform: nil,
-	})
-	require.NoError(t, err)
-	require.NotZero(t, userSQuery5.ID)
-
-	err = ds.AsyncBatchInsertLabelMembership(context.Background(), [][2]uint{
-		{labels[0].ID, host1.ID},
-		{labels[0].ID, host2.ID},
-	})
-	require.NoError(t, err)
-
+	stats := func(q *fleet.Query, base uint) fleet.ScheduledQueryStats {
+		return fleet.ScheduledQueryStats{
+			ScheduledQueryName: q.Name,
+			ScheduledQueryID:   q.ID,
+			QueryName:          q.Name,
+			PackName:           "Global",
+			AverageMemory:      uint64(8000 + base),
+			Denylisted:         false,
+			Executions:         uint64(164 + base),
+			Interval:           30,
+			LastExecuted:       time.Unix(int64(1620325191+base), 0).UTC(), //nolint:gosec // bounded by test fixture
+			OutputSize:         uint64(1337 + base),
+			SystemTime:         uint64(150 + base),
+			UserTime:           uint64(180 + base),
+			WallTimeMs:         uint64(base),
+		}
+	}
 	globalStats := []fleet.ScheduledQueryStats{
-		{
-			ScheduledQueryName: userSQuery2.Name,
-			ScheduledQueryID:   userSQuery2.ID,
-			QueryName:          userQuery2.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      8001,
-			Denylisted:         false,
-			Executions:         165,
-			Interval:           30,
-			LastExecuted:       time.Unix(1620325192, 0).UTC(),
-			OutputSize:         1338,
-			SystemTime:         151,
-			UserTime:           181,
-			WallTimeMs:         1,
-		},
-		{
-			ScheduledQueryName: userSQuery3.Name,
-			ScheduledQueryID:   userSQuery3.ID,
-			QueryName:          userQuery3.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      8002,
-			Denylisted:         false,
-			Executions:         166,
-			Interval:           30,
-			LastExecuted:       time.Unix(1620325193, 0).UTC(),
-			OutputSize:         1339,
-			SystemTime:         152,
-			UserTime:           182,
-			WallTimeMs:         2,
-		},
-		{
-			ScheduledQueryName: userSQuery4.Name,
-			ScheduledQueryID:   userSQuery4.ID,
-			QueryName:          userQuery4.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      8003,
-			Denylisted:         false,
-			Executions:         167,
-			Interval:           30,
-			LastExecuted:       time.Unix(1620325194, 0).UTC(),
-			OutputSize:         1340,
-			SystemTime:         153,
-			UserTime:           183,
-			WallTimeMs:         3,
-		},
-		{
-			ScheduledQueryName: userSQuery5.Name,
-			ScheduledQueryID:   userSQuery5.ID,
-			QueryName:          userQuery5.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      8003,
-			Denylisted:         false,
-			Executions:         167,
-			Interval:           30,
-			LastExecuted:       time.Unix(1620325194, 0).UTC(),
-			OutputSize:         1340,
-			SystemTime:         153,
-			UserTime:           183,
-			WallTimeMs:         3,
-		},
+		stats(darwinQuery, 1),
+		stats(darwinLinuxQuery, 2),
+		stats(allQuery, 3),
 	}
 
-	// Reload the host and set the scheduled queries stats for the scheduled queries that apply.
-	// Plus we set schedule query stats for a query that does not apply (globalSQuery1)
-	// (This could happen if the target platform of a schedule query is changed after creation.)
-	stats := make([]fleet.ScheduledQueryStats, len(globalStats))
-	copy(stats, globalStats)
-	stats = append(stats, fleet.ScheduledQueryStats{
-		ScheduledQueryName: userSQuery1.Name,
-		ScheduledQueryID:   userSQuery1.ID,
-		QueryName:          userQuery1.Name,
-		PackName:           userPack.Name,
-		PackID:             userPack.ID,
-		AverageMemory:      8003,
-		Denylisted:         false,
-		Executions:         167,
-		Interval:           30,
-		LastExecuted:       time.Unix(1620325194, 0).UTC(),
-		OutputSize:         1340,
-		SystemTime:         153,
-		UserTime:           183,
-		WallTime:           3,
+	// Also send stats for the report that doesn't apply to host1's platform
+	// (this could happen if the target platform of a report is changed after creation).
+	payload := append(slices.Clone(globalStats), stats(linuxQuery, 4))
+	err = ds.SaveHostPackStats(t.Context(), host1.TeamID, host1.ID, []fleet.PackStats{
+		{PackName: "Global", QueryStats: payload},
 	})
-	host, err := ds.Host(context.Background(), host1.ID)
-	require.NoError(t, err)
-	hostPackStats := []fleet.PackStats{
-		{PackID: userPack.ID, PackName: userPack.Name, QueryStats: stats},
-	}
-	err = ds.SaveHostPackStats(context.Background(), host.TeamID, host.ID, hostPackStats)
 	require.NoError(t, err)
 
-	// host should only return scheduled query stats only for the scheduled queries
-	// scheduled to run on "darwin".
-	host, err = ds.Host(context.Background(), host.ID)
+	// host1 only gets stats for the reports that run on "darwin".
+	host, err := ds.Host(t.Context(), host1.ID)
 	require.NoError(t, err)
-	packStats := host.PackStats
-	require.Len(t, packStats, 1)
-	require.Len(t, packStats[0].QueryStats, 4)
-	sort.Slice(packStats[0].QueryStats, func(i, j int) bool {
-		return packStats[0].QueryStats[i].ScheduledQueryID < packStats[0].QueryStats[j].ScheduledQueryID
-	})
-	sort.Slice(globalStats, func(i, j int) bool {
-		return globalStats[i].ScheduledQueryID < globalStats[j].ScheduledQueryID
-	})
-	// Update wall time
+	require.Len(t, host.PackStats, 1)
 	for i := range globalStats {
 		globalStats[i].WallTime = globalStats[i].WallTimeMs
 		globalStats[i].WallTimeMs = 0
 	}
-	require.ElementsMatch(t, packStats[0].QueryStats, globalStats)
+	require.ElementsMatch(t, globalStats, host.PackStats[0].QueryStats)
 
-	// host2 should only return scheduled query stats only for the scheduled queries
-	// scheduled to run on "linux"
-	host2, err = ds.Host(context.Background(), host2.ID)
+	// host2 only gets the reports that run on "linux", with zero values since
+	// it reported no stats.
+	host, err = ds.Host(t.Context(), host2.ID)
 	require.NoError(t, err)
-	packStats2 := host2.PackStats
-	require.Len(t, packStats2, 1)
-	require.Len(t, packStats2[0].QueryStats, 4)
-	zeroStats := []fleet.ScheduledQueryStats{
-		{
-			ScheduledQueryName: userSQuery1.Name,
-			ScheduledQueryID:   userSQuery1.ID,
-			QueryName:          userQuery1.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      0,
-			Denylisted:         false,
-			Executions:         0,
+	require.Len(t, host.PackStats, 1)
+	zero := func(q *fleet.Query) fleet.ScheduledQueryStats {
+		return fleet.ScheduledQueryStats{
+			ScheduledQueryName: q.Name,
+			ScheduledQueryID:   q.ID,
+			QueryName:          q.Name,
+			PackName:           "Global",
 			Interval:           30,
 			LastExecuted:       expLastExec,
-			OutputSize:         0,
-			SystemTime:         0,
-			UserTime:           0,
-			WallTime:           0,
-		},
-		{
-			ScheduledQueryName: userSQuery3.Name,
-			ScheduledQueryID:   userSQuery3.ID,
-			QueryName:          userQuery3.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      0,
-			Denylisted:         false,
-			Executions:         0,
-			Interval:           30,
-			LastExecuted:       expLastExec,
-			OutputSize:         0,
-			SystemTime:         0,
-			UserTime:           0,
-			WallTime:           0,
-		},
-		{
-			ScheduledQueryName: userSQuery4.Name,
-			ScheduledQueryID:   userSQuery4.ID,
-			QueryName:          userQuery4.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      0,
-			Denylisted:         false,
-			Executions:         0,
-			Interval:           30,
-			LastExecuted:       expLastExec,
-			OutputSize:         0,
-			SystemTime:         0,
-			UserTime:           0,
-			WallTime:           0,
-		},
-		{
-			ScheduledQueryName: userSQuery5.Name,
-			ScheduledQueryID:   userSQuery5.ID,
-			QueryName:          userQuery5.Name,
-			PackName:           userPack.Name,
-			PackID:             userPack.ID,
-			AverageMemory:      0,
-			Denylisted:         false,
-			Executions:         0,
-			Interval:           30,
-			LastExecuted:       expLastExec,
-			OutputSize:         0,
-			SystemTime:         0,
-			UserTime:           0,
-			WallTime:           0,
-		},
+		}
 	}
-	require.ElementsMatch(t, packStats2[0].QueryStats, zeroStats)
+	require.ElementsMatch(t, []fleet.ScheduledQueryStats{
+		zero(linuxQuery),
+		zero(darwinLinuxQuery),
+		zero(allQuery),
+	}, host.PackStats[0].QueryStats)
 }
 
 // testHostsNoSeenTime tests all changes around the seen_time issue #3095.
@@ -10664,20 +10030,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Updates scheduled_query_stats.
-	pack, err := ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "test1",
-		HostIDs: []uint{host.ID},
-	})
-	require.NoError(t, err)
-	query := test.NewQuery(t, ds, nil, "time", "select * from time", 0, true)
-	squery := test.NewScheduledQuery(t, ds, pack.ID, query.ID, 30, true, true, "time-scheduled")
+	query := test.NewQueryWithSchedule(t, ds, nil, "time", "select * from time", 0, true, 30, false)
 	stats := []fleet.ScheduledQueryStats{
 		{
-			ScheduledQueryName: squery.Name,
-			ScheduledQueryID:   squery.ID,
+			ScheduledQueryName: query.Name,
 			QueryName:          query.Name,
-			PackName:           pack.Name,
-			PackID:             pack.ID,
+			PackName:           "Global",
 			AverageMemory:      8000,
 			Denylisted:         false,
 			Executions:         164,
@@ -10691,7 +10049,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	}
 	hostPackStats := []fleet.PackStats{
 		{
-			PackName:   "test1",
+			PackName:   "Global",
 			QueryStats: stats,
 		},
 	}
@@ -10959,10 +10317,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
+	batchExecID, err := ds.NewBatchScriptExecution(ctx, nil, script.ID, []uint{host.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, batchExecID)
 	require.NoError(t, err)
 
-	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName", false)
 	require.NoError(t, err)
 
 	// Insert into host_identity_scep_certificates table
@@ -10981,7 +10341,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, _, err = ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 		Filename:        "test.ipa",
 		StorageID:       uuid.NewString(),
-		Platform:        string(fleet.MacOSPlatform),
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -12225,6 +11584,26 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, info.OsqueryEnrolled)
+
+	// company-owned only while enrolled in Fleet and not personal
+	require.True(t, info.FleetEnrolledCorporate)
+	for _, tc := range []struct {
+		enrolled     bool
+		mdmName      string
+		personalType fleet.PersonalEnrollmentType
+		want         bool
+	}{
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeManualProfile, false},
+		{false, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, false},
+		{true, "Other MDM", fleet.PersonalEnrollmentTypeNone, false},
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, true},
+	} {
+		err = ds.SetOrUpdateMDMData(ctx, host.ID, false, tc.enrolled, "https://"+strings.ReplaceAll(tc.mdmName, " ", "")+".example.com", false, tc.mdmName, "", tc.personalType)
+		require.NoError(t, err)
+		info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, tc.want, info.FleetEnrolledCorporate, "%+v", tc)
+	}
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
@@ -14205,6 +13584,9 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 		CPUType: "cpuType",
 	})
 	require.NoError(t, err)
+	require.NoError(t, ds.UpdateHostOperatingSystem(t.Context(), 1, fleet.OperatingSystem{
+		Name: "macOS", Version: "15.2", Arch: "arm64", KernelVersion: "24.2.0", Platform: "darwin",
+	}))
 	h, err := ds.Host(context.Background(), 1)
 	require.NoError(t, err)
 
@@ -14290,7 +13672,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.Platform, hh.Platform)
 	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
-	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Equal(t, "macOS", hh.OSName)
+	require.Equal(t, "15.2", hh.OsVersion)
 	require.Equal(t, ptr.Uint(team.ID), hh.TeamID)
 	require.Equal(t, h.UpdatedAt, hh.UpdatedAt)
 	require.Len(t, hh.FailingPolicies, 1)
@@ -14329,7 +13712,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.Platform, hh.Platform)
 	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
-	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Empty(t, hh.OSName)
+	require.Empty(t, hh.OsVersion)
 	require.Empty(t, hh.FailingPolicies)
 	require.Empty(t, hh.VulnerableSoftware)
 	require.Equal(t, h.TeamID, hh.TeamID)
@@ -16021,14 +15405,12 @@ func testHostTimeZone(t *testing.T, ds *Datastore) {
 		Name:                "foobar",
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		Hosts:               []string{host.Hostname},
+		Hosts:               []string{host.UUID},
 	}
 	err = ds.ApplyLabelSpecs(t.Context(), []*fleet.LabelSpec{l1s})
 	require.NoError(t, err)
-	l1, err := ds.LabelByName(t.Context(), l1s.Name, fleet.TeamFilter{
-		User: test.UserAdmin,
-	})
-	require.NoError(t, err)
+	l1 := labelByName(t, ds, l1s.Name, fleet.TeamFilter{User: test.UserAdmin})
+	require.NotNil(t, l1)
 	hosts, err = ds.ListHostsInLabel(t.Context(), fleet.TeamFilter{
 		User: test.UserAdmin,
 	}, l1.ID, fleet.HostListOptions{})

@@ -37,26 +37,6 @@ export default {
     const path = MDM_APPLE_BM;
     return sendRequest("GET", path);
   },
-  loadKeys: () => {
-    const { MDM_APPLE_BM_KEYS } = endpoints;
-    const path = MDM_APPLE_BM_KEYS;
-
-    return sendRequest("POST", path).then(({ private_key, public_key }) => {
-      let decodedPublic;
-      let decodedPrivate;
-      try {
-        decodedPublic = global.window.atob(public_key);
-        decodedPrivate = global.window.atob(private_key);
-      } catch (err) {
-        return Promise.reject(`Unable to decode keys: ${err}`);
-      }
-      if (!decodedPrivate || !decodedPublic) {
-        return Promise.reject("Missing or undefined keys.");
-      }
-
-      return Promise.resolve({ decodedPublic, decodedPrivate });
-    });
-  },
 
   downloadPublicKey: () => {
     const { MDM_APPLE_AB_PUBLIC_KEY } = endpoints;

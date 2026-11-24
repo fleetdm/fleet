@@ -34,6 +34,7 @@ import SQLEditor from "components/SQLEditor";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import {
   getCustomTargetOptions,
+  getLabelsRequiredError,
   LabelScope,
 } from "components/TargetLabelSelector/labelScopes";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -204,6 +205,8 @@ const EditQueryForm = ({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
   const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
     "labelsIncludeAny"
   );
@@ -290,22 +293,29 @@ const EditQueryForm = ({
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
 
-  const debounceSQL = useDebouncedCallback((sql: string) => {
-    const { errors: newErrors } = validateQuerySQL(sql);
-
-    setErrors({
-      ...newErrors,
-    });
-  }, 500);
-
   queryIdForEdit = queryIdForEdit || 0;
 
+  // Compute compatibility once the stored query lands. On-change updates
+  // happen in onChangeQuery; syntax validation runs on blur / submit, not
+  // on every keystroke, so incomplete SQL doesn't flash "Syntax error".
   useEffect(() => {
     if (!isStoredQueryLoading && queryIdForEdit === lastEditedQueryId) {
       setCompatiblePlatforms(lastEditedQueryBody);
     }
-    debounceSQL(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryIdForEdit, lastEditedQueryId, isStoredQueryLoading]);
+
+  const validateSqlOnBlur = (sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  };
+
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // an error without flashing mid-token. Blur / submit still fire immediately.
+  const debounceValidateSql = useDebouncedCallback((sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+    setErrors((prev) => ({ ...prev, query: newErrors.query ?? undefined }));
+  }, 3000);
 
   const toggleSaveNewQueryModal = () => {
     setShowSaveNewQueryModal(!showSaveNewQueryModal);
@@ -340,6 +350,13 @@ const EditQueryForm = ({
   const onChangeQuery = (sqlString: string) => {
     setQueryWasChanged(true);
     setLastEditedQueryBody(sqlString);
+    setCompatiblePlatforms(sqlString);
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (errors.query) {
+      setErrors({ ...errors, query: undefined });
+    }
+    debounceValidateSql(sqlString);
   };
 
   const frequencyOptions = useMemo(
@@ -366,7 +383,25 @@ const EditQueryForm = ({
       ...selectedLabels,
       [labelName]: value,
     });
+    if (value) {
+      setShowLabelsError(false);
+    }
   };
+
+  const hasSelectedLabel = Object.entries(selectedLabels).some(
+    ([, v]) => v === true
+  );
+  const labelsRequired = selectedTargetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired
+      ? getLabelsRequiredError(selectedCustomTarget)
+      : null;
+
+  useEffect(() => {
+    if (platformSelector.isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [platformSelector.isAnyPlatformSelected]);
 
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
@@ -396,10 +431,10 @@ const EditQueryForm = ({
   const handleSaveQuery = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (isExistingQuery && !lastEditedQueryName) {
+    if (isExistingQuery && !lastEditedQueryName.trim()) {
       return setErrors({
         ...errors,
-        name: "Report name must be present",
+        name: "Enter a report name",
       });
     }
 
@@ -408,16 +443,44 @@ const EditQueryForm = ({
     // allow save when invalid sqlite syntax
     const canSave = valid || (!valid && newErrs.query !== EMPTY_QUERY_ERR);
 
-    if (canSave) {
-      if (!isExistingQuery) {
-        platformSelector.setSelectedPlatforms(
-          platformCompatibility.getCompatiblePlatforms()
-        );
-        setShowSaveNewQueryModal(true);
-      } else {
-        onUpdate(updateQueryData);
-      }
+    if (!canSave) return;
+
+    if (!isExistingQuery) {
+      platformSelector.setSelectedPlatforms(
+        platformCompatibility.getCompatiblePlatforms()
+      );
+      setShowSaveNewQueryModal(true);
+      return;
     }
+
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+    if (!hasPlatform || labelsRequired) return;
+
+    onUpdate(updateQueryData);
+  };
+
+  const handleSaveAsNewQuery = () => {
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+    if (!hasPlatform || labelsRequired) return;
+    toggleSaveAsNewQueryModal();
+  };
+
+  // Pre-validate before opening the confirm-changes modal so inline errors
+  // (name, platforms, labels) aren't hidden behind it.
+  const handleSaveWithConfirm = () => {
+    if (!lastEditedQueryName.trim()) {
+      setErrors({ ...errors, name: "Enter a report name" });
+      return;
+    }
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+    if (!hasPlatform || labelsRequired) return;
+    toggleConfirmSaveChangesModal();
   };
 
   const renderLabelComponent = (): JSX.Element | null => {
@@ -455,8 +518,17 @@ const EditQueryForm = ({
           value={lastEditedQueryName}
           error={errors && errors.name}
           onChange={(value: string) => setLastEditedQueryName(value)}
+          onFocus={() => {
+            if (errors.name) {
+              setErrors({ ...errors, name: undefined });
+            }
+          }}
           onBlur={() => {
-            setLastEditedQueryName(lastEditedQueryName.trim());
+            const trimmed = lastEditedQueryName.trim();
+            setLastEditedQueryName(trimmed);
+            if (!trimmed) {
+              setErrors({ ...errors, name: "Enter a report name" });
+            }
           }}
           disabled={gitOpsModeEnabled}
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
@@ -629,15 +701,11 @@ const EditQueryForm = ({
 
   // Global admin, any maintainer, any observer+ on new query
   const renderEditableQueryForm = () => {
-    // Save and save as new disabled for query name blank on existing query or sql errors
+    // Save stays enabled when name, platforms, or labels are missing — click
+    // reveals the inline errors via handleSaveQuery, matching Fleet's form
+    // validation pattern.
     const disableSaveFormErrors =
-      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
-      (!!errors.query && errors.query === EMPTY_QUERY_ERR) ||
-      (isExistingQuery && !platformSelector.isAnyPlatformSelected) ||
-      (selectedTargetType === "Custom" &&
-        !Object.entries(selectedLabels).some(([, value]) => {
-          return value;
-        }));
+      !!errors.query && errors.query === EMPTY_QUERY_ERR;
 
     return (
       <>
@@ -748,7 +816,7 @@ const EditQueryForm = ({
               >
                 Observers can run
               </Checkbox>
-              {isExistingQuery && platformSelector.render()}
+              {isExistingQuery && platformSelector.render(platformError)}
               {isPremiumTier && (
                 <DropdownTargetLabelSelector
                   selectedTargetType={selectedTargetType}
@@ -759,9 +827,13 @@ const EditQueryForm = ({
                   }
                   selectedLabels={selectedLabels}
                   className={`${baseClass}__target`}
-                  onSelectTargetType={setSelectedTargetType}
+                  onSelectTargetType={(val) => {
+                    setSelectedTargetType(val);
+                    if (val === "All hosts") setShowLabelsError(false);
+                  }}
                   onSelectLabel={onSelectLabel}
                   labels={labels || []}
+                  labelsError={labelsError}
                   disableOptions={gitOpsModeEnabled}
                   suppressTitle
                 />
@@ -777,6 +849,7 @@ const EditQueryForm = ({
             onLoad={onLoad}
             wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangeQuery}
+            onBlur={() => validateSqlOnBlur(lastEditedQueryBody)}
             handleSubmit={
               confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
             }
@@ -836,7 +909,7 @@ const EditQueryForm = ({
                         className="save-loading"
                         onClick={
                           confirmChanges
-                            ? toggleConfirmSaveChangesModal
+                            ? handleSaveWithConfirm
                             : handleSaveQuery()
                         }
                         disabled={disableSaveFormErrors || disableChildren}
@@ -852,7 +925,7 @@ const EditQueryForm = ({
                     renderChildren={(disableChildren) => (
                       <Button
                         variant="secondary"
-                        onClick={toggleSaveAsNewQueryModal}
+                        onClick={handleSaveAsNewQuery}
                         disabled={disableSaveFormErrors || disableChildren}
                       >
                         Save as new

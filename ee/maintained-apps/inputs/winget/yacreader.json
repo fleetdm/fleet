@@ -3,6 +3,7 @@
   "slug": "yacreader/windows",
   "package_identifier": "YACReader.YACReader",
   "unique_identifier": "YACReader",
+  "open_process_names": ["yacreader.exe", "yacreaderlibrary.exe"],
   "fuzzy_match_name": true,
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'YACReader %';",
   "installer_arch": "x64",

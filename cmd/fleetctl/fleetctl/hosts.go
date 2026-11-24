@@ -32,7 +32,6 @@ func transferCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     fleetFlagName,
-				Aliases:  []string{"team"},
 				Usage:    "Fleet name hosts will be transferred to. Use '' for unassigned",
 				Required: true,
 			},

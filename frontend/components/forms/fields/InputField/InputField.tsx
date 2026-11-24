@@ -144,7 +144,9 @@ const InputField = ({
             copyText={copyText}
             variant="secondary"
             className={`${baseClass}__action-button`}
-            tooltipOffset={10}
+            // Clears the 8px gap to the field so the badge sits inside it,
+            // away from the field's border.
+            tooltipOffset={18}
           />
         )}
         {enableShowSecret && (

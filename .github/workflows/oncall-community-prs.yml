@@ -53,7 +53,8 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
         run: |
-          count=$(grep -c . "$RUNNER_TEMP/prs.txt" || true)
+          # Only count pr lines, not the section headers.
+          count=$(grep -c '^<https://github.com/fleetdm/fleet/pull/' "$RUNNER_TEMP/prs.txt" || true)
           if [ "$count" -eq 0 ]; then
             text=":tada: No open PRs from outside contributors this week."
           else

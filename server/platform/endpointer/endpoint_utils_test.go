@@ -910,3 +910,47 @@ func TestMakeDecoderPremiumErrorNamesTheRenamedFieldAsSent(t *testing.T) {
 		})
 	}
 }
+
+type internalFieldsRequest struct {
+	Page    uint     `query:"page,optional"`
+	IsEE    bool     `json:"-"`
+	Columns []string `json:"-"`
+}
+
+func TestMakeDecoderIgnoresServerInternalFields(t *testing.T) {
+	decode := MakeDecoder(internalFieldsRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	t.Run("no body is required", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/?page=2", nil)
+		r.Header.Set("Origin", "https://example.com")
+		req, err := decode(t.Context(), r)
+		require.NoError(t, err)
+		require.Equal(t, uint(2), req.(*internalFieldsRequest).Page)
+	})
+
+	t.Run("the body cannot set them", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", strings.NewReader(`{"IsEE":true,"Columns":["x"]}`))
+		req, err := decode(t.Context(), r)
+		require.NoError(t, err)
+		require.False(t, req.(*internalFieldsRequest).IsEE)
+		require.Empty(t, req.(*internalFieldsRequest).Columns)
+	})
+}
+
+type queryOnlyRequest struct {
+	DryRun bool `json:"-" query:"dry_run,optional"`
+	json.RawMessage
+}
+
+func TestMakeDecoderKeepsBodyRequirementForTaggedSkippedFields(t *testing.T) {
+	decode := MakeDecoder(queryOnlyRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	r := httptest.NewRequest("PATCH", "/", nil)
+	_, err := decode(t.Context(), r)
+	require.ErrorContains(t, err, "Expected JSON Body")
+
+	r = httptest.NewRequest("PATCH", "/", strings.NewReader(`{}`))
+	r.Header.Set("Origin", "https://example.com")
+	_, err = decode(t.Context(), r)
+	require.ErrorContains(t, err, `Expected Content-Type "application/json"`)
+}

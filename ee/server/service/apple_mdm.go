@@ -292,7 +292,7 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 	}
 	if teamID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx)
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("fleet_name", "cannot specify both fleet_id and fleet_name"))
 	}
 
 	var resolvedTeamName string

@@ -440,7 +440,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
-      require_all_software_macos: isEnabled,
+      macos_require_all_software: isEnabled,
     });
   },
 
@@ -448,7 +448,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
-      require_all_software_windows: isEnabled,
+      windows_require_all_software: isEnabled,
     });
   },
 

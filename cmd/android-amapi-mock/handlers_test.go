@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 const (
@@ -925,4 +927,59 @@ func TestEnrollmentTokenExpiry(t *testing.T) {
 		require.NoError(t, err, "formatted as %q", formatted)
 		require.Equal(t, 9999, parsed.Year())
 	})
+}
+
+// TestDeviceAndOperationLookupsForPubSubVerification checks the lookups Fleet makes when it
+// handles a Pub/Sub notification: a fake device reports its hardware identity, and its
+// operations report as done.
+func TestDeviceAndOperationLookupsForPubSubVerification(t *testing.T) {
+	mux, _ := newTestMux(t)
+	registerTestDevice(t, mux, defaultRegisterRequest(), http.StatusOK)
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName, nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var device androidmanagement.Device
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &device))
+	require.NotNil(t, device.HardwareInfo)
+	assert.Equal(t, testESID, device.HardwareInfo.EnterpriseSpecificId)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/"+testDeviceName+"/operations/op-1", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	var op androidmanagement.Operation
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &op))
+	assert.Equal(t, testDeviceName+"/operations/op-1", op.Name)
+	assert.True(t, op.Done)
+
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises/"+testEnterpriseID+"/devices/unknown/operations/op-1", nil))
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestWriteGoogleError(t *testing.T) {
+	notFoundBody := `{"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}`
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"google 404 passes through", &googleapi.Error{Code: http.StatusNotFound, Body: notFoundBody}, http.StatusNotFound, notFoundBody},
+		{"wrapped google 429 passes through", fmt.Errorf("get: %w", &googleapi.Error{Code: http.StatusTooManyRequests, Body: `{"error":{"code":429}}`}), http.StatusTooManyRequests, `{"error":{"code":429}}`},
+		{"google error without a body is a 502", &googleapi.Error{Code: http.StatusNotFound}, http.StatusBadGateway, ""},
+		{"non-google error is a 502", errors.New("dial tcp: connection refused"), http.StatusBadGateway, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			writeGoogleError(rr, c.err)
+			require.Equal(t, c.wantCode, rr.Code)
+			if c.wantBody != "" {
+				assert.Equal(t, c.wantBody, rr.Body.String())
+			} else {
+				assert.Contains(t, rr.Body.String(), `"BAD_GATEWAY"`)
+			}
+		})
+	}
 }

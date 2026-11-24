@@ -3,6 +3,8 @@ import { uniqueId } from "lodash";
 import React, { useLayoutEffect, useRef } from "react";
 import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
+
 /** Shrinks the tooltip to hug balanced text. `text-wrap: balance` alone
  * leaves the container at `max-width` (intrinsic width is computed as
  * wrap: normal), and setting width on the tooltip root gets wiped by
@@ -267,11 +269,13 @@ const TooltipWrapper = ({
           openEvents={isMobileView ? { click: true } : { mouseenter: true }}
           closeEvents={isMobileView ? { click: true } : { mouseleave: true }}
         >
-          {textBalanced ? (
-            <BalancedTipContent>{tipContent}</BalancedTipContent>
-          ) : (
-            tipContent
-          )}
+          <CustomLinkSizeContext.Provider value="small">
+            {textBalanced ? (
+              <BalancedTipContent>{tipContent}</BalancedTipContent>
+            ) : (
+              tipContent
+            )}
+          </CustomLinkSizeContext.Provider>
         </ReactTooltip5>
       )}
     </span>

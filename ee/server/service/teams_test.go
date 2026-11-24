@@ -1655,7 +1655,7 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 
 	t.Run("macOS enable admin account requires Apple MDM", func(t *testing.T) {
 		_, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
-			MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)},
+			MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)},
 		}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "setup_experience.enable_managed_local_account")
@@ -2612,4 +2612,50 @@ func TestDeleteTeamCleansStaleAppConfigTeamNames(t *testing.T) {
 			require.Equal(t, tc.wantVPP, appCfg.MDM.VolumePurchasingProgram.Value)
 		})
 	}
+}
+
+func TestModifyTeamPartialSetupExperienceKeepsEndUserAuth(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(t.Context(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+		tm := &fleet.Team{ID: tid, Name: "team-1"}
+		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		tm.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(true)
+		return tm, nil
+	}
+	var saved *fleet.Team
+	ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+		saved = team
+		return team, nil
+	}
+
+	mockSvc := &svcmock.Service{}
+	mockSvc.HasCustomSetupAssistantConfigurationWebURLFunc = func(context.Context, *uint) (bool, error) {
+		return false, nil
+	}
+	mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+		authz:   authorizer,
+		logger:  slog.New(slog.DiscardHandler),
+	}
+
+	// Decode from JSON so the payload carries only the keys a client sent.
+	var payload fleet.TeamPayload
+	require.NoError(t, json.Unmarshal([]byte(`{"mdm": {"setup_experience": {"lock_end_user_info": false}}}`), &payload))
+
+	_, err = svc.ModifyTeam(ctx, 1, payload)
+	require.NoError(t, err)
+	require.NotNil(t, saved)
+	require.True(t, saved.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+	require.False(t, saved.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 }

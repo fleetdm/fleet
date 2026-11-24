@@ -220,9 +220,9 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders an applied_spec_team type activity for a single team", () => {
+  it("renders an applied_spec_fleet type activity for a single team", () => {
     const activity = createMockActivity({
-      type: ActivityType.AppliedSpecTeam,
+      type: ActivityType.AppliedSpecFleet,
       details: { fleets: [createMockTeamSummary()] },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -233,9 +233,9 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Team 1")).toBeInTheDocument();
   });
 
-  it("renders an applied_spec_team type activity for multiple team", () => {
+  it("renders an applied_spec_fleet type activity for multiple team", () => {
     const activity = createMockActivity({
-      type: ActivityType.AppliedSpecTeam,
+      type: ActivityType.AppliedSpecFleet,
       details: {
         fleets: [createMockTeamSummary(), createMockTeamSummary()],
       },
@@ -555,12 +555,12 @@ describe("Activity Feed", () => {
   });
 
   // // // // // // // // // // // //
-  // changed_user_team_role  tests
+  // changed_user_fleet_role  tests
   // // // // // //// // // // // //
 
-  it("renders a changed_user_team_role type activity", () => {
+  it("renders a changed_user_fleet_role type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_email: "newuser@example.com",
         role: "maintainer",
@@ -575,10 +575,10 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
-  it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
+  it("correctly renders a changed_user_fleet_role type activity when a new SSO team user is created via JIT provisioning", () => {
     const activity = createMockActivity({
       actor_full_name: "Ally Admin",
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_email: "jit@sso.com",
         role: "maintainer",
@@ -602,10 +602,10 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
-  it("renders passive voice without JIT suffix for changed_user_team_role when actor_id === user_id (invite flow)", () => {
+  it("renders passive voice without JIT suffix for changed_user_fleet_role when actor_id === user_id (invite flow)", () => {
     const activity = createMockActivity({
       actor_id: 5,
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_id: 5,
         user_email: "invited@example.com",
@@ -622,11 +622,11 @@ describe("Activity Feed", () => {
     expect(screen.queryByText(/via just-in-time/)).toBeNull();
   });
 
-  it("correctly renders a changed_user_team_role type activity when changing an existing user's team role", () => {
+  it("correctly renders a changed_user_fleet_role type activity when changing an existing user's team role", () => {
     const activity = createMockActivity({
       actor_id: 1,
       actor_full_name: "Ally Admin",
-      type: ActivityType.UserChangedTeamRole,
+      type: ActivityType.UserChangedFleetRole,
       details: {
         user_id: 3,
         user_email: "user@example.com",
@@ -651,9 +651,9 @@ describe("Activity Feed", () => {
 
   // // // // // // // // // // // //
 
-  it("renders a deleted_user_team_role type activity globally", () => {
+  it("renders a deleted_user_fleet_role type activity globally", () => {
     const activity = createMockActivity({
-      type: ActivityType.UserDeletedTeamRole,
+      type: ActivityType.UserDeletedFleetRole,
       details: {
         user_email: "newuser@example.com",
         fleet_name: "Test Team",
@@ -666,10 +666,10 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
 
-  it("renders a deleted_user_team_role via JIT provisioning", () => {
+  it("renders a deleted_user_fleet_role via JIT provisioning", () => {
     const activity = createMockActivity({
       actor_full_name: "Jit User",
-      type: ActivityType.UserDeletedTeamRole,
+      type: ActivityType.UserDeletedFleetRole,
       details: {
         user_email: "jit@sso.com",
         fleet_name: "Test Team",
@@ -756,21 +756,6 @@ describe("Activity Feed", () => {
     expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
   });
 
-  it("renders an 'edited_disk_encryption_settings' type activity with a missing platform", () => {
-    const activity = createMockActivity({
-      type: ActivityType.EditedDiskEncryptionSettings,
-      details: { fleet_name: "Alphas" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "edited disk encryption settings for unknown hosts assigned to the",
-        { exact: false }
-      )
-    ).toBeInTheDocument();
-  });
-
   it("renders an 'edited_disk_encryption_settings' type activity for hosts that are unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.EditedDiskEncryptionSettings,
@@ -786,84 +771,96 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders an 'enabled_macos_disk_encryption' type activity for a team", () => {
-    // Test deprecated activity type
-    const activity = createMockActivity({
-      type: ActivityType.EnabledMacDiskEncryption,
-      details: { fleet_name: "Alphas" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+  describe("'edited_disk_encryption_settings' platform", () => {
+    // The API sends platform values outside the Platform type for this activity.
+    const diskEncryptionDetails = (details: {
+      fleet_name?: string | null;
+      platform?: string | null;
+    }) => (details as unknown) as IActivityDetails;
 
-    expect(
-      screen.getByText("enforced disk encryption for hosts assigned to the", {
-        exact: false,
-      })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
-    const withNoTeams = screen.queryByText("with no team");
-    expect(withNoTeams).toBeNull();
+    it("renders macos as macOS", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedDiskEncryptionSettings,
+        details: diskEncryptionDetails({ platform: "macos" }),
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByText(
+          "edited disk encryption settings for macOS hosts that are unassigned."
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("renders an unexpected platform as-is", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedDiskEncryptionSettings,
+        details: diskEncryptionDetails({ platform: "plan9" }),
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByText(
+          "edited disk encryption settings for plan9 hosts that are unassigned."
+        )
+      ).toBeInTheDocument();
+    });
+
+    // Activities recorded before Fleet 4.92 were migrated with a null platform.
+    it("renders a null platform for a fleet as all hosts", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedDiskEncryptionSettings,
+        details: diskEncryptionDetails({
+          fleet_name: "Alphas",
+          platform: null,
+        }),
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByText(
+          "edited disk encryption settings for all hosts assigned to the",
+          { exact: false }
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByText("Alphas")).toBeInTheDocument();
+      expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+    });
+
+    it("renders a null platform for unassigned hosts as all hosts", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedDiskEncryptionSettings,
+        details: diskEncryptionDetails({ fleet_name: null, platform: null }),
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByText(
+          "edited disk encryption settings for all hosts that are unassigned."
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText("assigned to the")).toBeNull();
+    });
+
+    it("renders a missing platform the same as a null one", () => {
+      const activity = createMockActivity({
+        type: ActivityType.EditedDiskEncryptionSettings,
+        details: { fleet_name: "Alphas" },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(
+        screen.getByText(
+          "edited disk encryption settings for all hosts assigned to the",
+          { exact: false }
+        )
+      ).toBeInTheDocument();
+    });
   });
 
-  it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
+  it("renders a 'read_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.DisabledMacDiskEncryption,
-      details: { fleet_name: "Alphas" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "removed disk encryption enforcement for hosts assigned to the",
-        {
-          exact: false,
-        }
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
-    const withNoTeams = screen.queryByText("with no team");
-    expect(withNoTeams).toBeNull();
-  });
-
-  it("renders an 'enabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
-    // Test deprecated activity type
-    const activity = createMockActivity({
-      type: ActivityType.EnabledMacDiskEncryption,
-      details: {},
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "enforced disk encryption for hosts that are unassigned."
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText("assigned to the")).toBeNull();
-  });
-
-  it("renders a 'disabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
-    // Test deprecated activity type
-    const activity = createMockActivity({
-      type: ActivityType.DisabledMacDiskEncryption,
-      details: {},
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "removed disk encryption enforcement for hosts that are unassigned.",
-        {
-          exact: false,
-        }
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText("assigned to the")).toBeNull();
-  });
-
-  it("renders a 'viewed_host_recovery_lock_password' type activity", () => {
-    const activity = createMockActivity({
-      type: ActivityType.ViewedHostRecoveryLockPassword,
+      type: ActivityType.ReadHostRecoveryLockPassword,
       details: { host_display_name: "Anna's MacBook Pro" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);

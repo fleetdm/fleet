@@ -149,17 +149,9 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
 	slogLogger := slog.New(&zerologSlogHandler{logger: c.logger})
-	opts := []scepclient.Option{
-		scepclient.WithTimeout(c.timeout),
-		scepclient.WithRootCA(c.rootCA),
-	}
-	if c.insecure {
-		opts = append(opts, scepclient.Insecure())
-	}
-
-	scepClient, err := scepclient.New(c.scepURL, slogLogger, opts...)
+	scepClient, err := c.newSCEPClient(slogLogger)
 	if err != nil {
-		return nil, fmt.Errorf("create SCEP client: %w", err)
+		return nil, err
 	}
 	caCerts, err := enrollment.FetchCACerts(ctx, scepClient)
 	if err != nil {
@@ -211,6 +203,30 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 
 	c.logger.Info().Msg("SCEP enrollment successful")
 	return cert, nil
+}
+
+// Capabilities returns the SCEP server's GetCACaps response.
+func (c *Client) Capabilities(ctx context.Context) ([]byte, error) {
+	scepClient, err := c.newSCEPClient(slog.New(&zerologSlogHandler{logger: c.logger}))
+	if err != nil {
+		return nil, err
+	}
+	return scepClient.GetCACaps(ctx)
+}
+
+func (c *Client) newSCEPClient(logger *slog.Logger) (scepclient.Client, error) {
+	opts := []scepclient.Option{
+		scepclient.WithTimeout(c.timeout),
+		scepclient.WithRootCA(c.rootCA),
+	}
+	if c.insecure {
+		opts = append(opts, scepclient.Insecure())
+	}
+	scepClient, err := scepclient.New(c.scepURL, logger, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create SCEP client: %w", err)
+	}
+	return scepClient, nil
 }
 
 // zerologSlogHandler adapts zerolog.Logger to slog.Handler so it can be used with *slog.Logger.

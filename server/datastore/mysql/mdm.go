@@ -25,6 +25,7 @@ import (
 var mdmConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"profile_uuid": "profile_uuid",
 	"team_id":      "team_id",
+	"fleet_id":     "team_id",
 	"name":         "name",
 	"platform":     "platform",
 	"identifier":   "identifier",
@@ -147,7 +148,7 @@ WHERE TRUE
 }
 
 // mdmCommandsOrderAllowlist is the closed set of order_key values accepted
-// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands.
+// by GET /api/v1/fleet/commands.
 var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"host_uuid":    "host_uuid",
 	"command_uuid": "command_uuid",
@@ -231,8 +232,8 @@ WHERE ` + whereTeam
 	case err != nil:
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
 	case len(dest) == 0:
-		// TODO: should we return an empty slice or an error?
-		return []*fleet.MDMCommand{}, nil, nil, nil
+		// The lookup is filtered by team, so a host the caller can't see is not found too.
+		return nil, nil, nil, ctxerr.Wrap(ctx, notFound("Host").WithName(identifier))
 	case len(dest) > 1:
 		// TODO: how should we handle this unexpected case?
 		ds.logger.DebugContext(

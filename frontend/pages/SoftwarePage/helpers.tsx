@@ -21,12 +21,14 @@ import {
   IAppStoreAppVersion,
   ISoftwareTitle,
   ISoftwareInstallPolicyUI,
-  ISoftwareInstallPolicy,
   SCRIPT_PACKAGE_SOURCES,
   SoftwareInstallPolicyTypeSet,
 } from "interfaces/software";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
+import {
+  formatFleet5RemovalMessage,
+  internationalTimeOnlyFormat,
+} from "utilities/helpers";
 
 /**
  * helper function to generate error message for secret variables based
@@ -81,7 +83,7 @@ export const getInstallType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getTargetType = (
-  softwareInstaller?: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ) => {
   if (!softwareInstaller) return "All hosts";
 
@@ -94,7 +96,7 @@ export const getTargetType = (
 
 // Used in EditSoftwareModal and PackageForm
 export const getCustomTarget = (
-  softwareInstaller?: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ) => {
   if (!softwareInstaller) return "labelsIncludeAny";
 
@@ -105,7 +107,7 @@ export const getCustomTarget = (
 
 // Used in EditSoftwareModal and PackageForm
 export const generateSelectedLabels = (
-  softwareInstaller?: ISoftwarePackage | IAppStoreApp
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
 ) => {
   if (
     !softwareInstaller ||
@@ -287,11 +289,21 @@ export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {
-  const { software_package, app_store_app } = softwareTitle;
-  if (software_package) {
-    return software_package.automatic_install_policies?.length || 0;
-  } else if (app_store_app) {
-    return app_store_app.automatic_install_policies?.length || 0;
+  if (softwareTitle.software_package) {
+    return (
+      softwareTitle.software_package.automatic_install_policies?.length || 0
+    );
+  }
+  if (
+    "app_store_apps" in softwareTitle &&
+    softwareTitle.app_store_apps?.length
+  ) {
+    return (
+      softwareTitle.app_store_apps[0].automatic_install_policies?.length || 0
+    );
+  }
+  if ("app_store_app" in softwareTitle && softwareTitle.app_store_app) {
+    return softwareTitle.app_store_app.automatic_install_policies?.length || 0;
   }
   return 0;
 };
@@ -503,7 +515,11 @@ const rewriteMissingFleetSecretReason = (reason: string): string | null => {
  * error, so callers can fall back to the raw reason or their own default. The
  * BE validates FLEET_VAR variables one at a time and returns on the first
  * unsupported one; FLEET_SECRET errors can carry multiple names. */
-export const rewriteVariableErrorReason = (reason: string): string | null => {
+export const rewriteVariableErrorReason = (reason: string): React.ReactNode => {
+  const fleet5Removal = formatFleet5RemovalMessage(reason);
+  if (fleet5Removal) {
+    return <>Couldn&apos;t edit. {fleet5Removal}</>;
+  }
   if (
     reason.includes("unsupported variable") &&
     reason.includes("$FLEET_VAR_")

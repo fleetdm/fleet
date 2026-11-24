@@ -32,7 +32,7 @@ import { DEFAULT_EMPTY_CELL_VALUE, BATTERY_TOOLTIP } from "utilities/constants";
 import {
   humanHostMemory,
   wrapFleetHelper,
-  removeOSPrefix,
+  getHostOSDisplayName,
   compareVersions,
   internationalTimeFormat,
 } from "utilities/helpers";
@@ -185,6 +185,9 @@ export const buildHostVitals = ({
     mdm_enrollment_hardware_attested,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = vitalsData;
+  const osDisplayName =
+    getHostOSDisplayName(vitalsData.os_name, os_version) ||
+    DEFAULT_EMPTY_CELL_VALUE;
 
   const vitals: VitalForSort[] = [];
 
@@ -273,7 +276,7 @@ export const buildHostVitals = ({
   }
 
   // Disk encryption
-  if (platformSupportsDiskEncryption(platform, os_version)) {
+  if (platformSupportsDiskEncryption(platform, osDisplayName)) {
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
       platform,
       diskEncryptionEnabled
@@ -292,7 +295,7 @@ export const buildHostVitals = ({
         break;
       case (diskEncryptionEnabled === null ||
         diskEncryptionEnabled === undefined) &&
-        platformSupportsDiskEncryption(platform, os_version):
+        platformSupportsDiskEncryption(platform, osDisplayName):
         statusText = "Unknown";
         break;
       default:
@@ -593,8 +596,8 @@ export const buildHostVitals = ({
 
   if (!osUpdateMinimumVersion) {
     const version = isAndroidHost
-      ? stripAndroidOSPatchLevel(vitalsData.os_version)
-      : vitalsData.os_version;
+      ? stripAndroidOSPatchLevel(osDisplayName) ?? osDisplayName
+      : osDisplayName;
     const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
       <>
         {version.slice(0, -8)}&nbsp;
@@ -639,10 +642,7 @@ export const buildHostVitals = ({
       osUpdateMinimumVersion === OS_UPDATE_REQUIREMENT_PENDING;
     const osVersionRequirementMet =
       isPendingRequirement ||
-      compareVersions(
-        removeOSPrefix(vitalsData.os_version),
-        osUpdateMinimumVersion
-      ) >= 0;
+      compareVersions(os_version, osUpdateMinimumVersion) >= 0;
 
     vitals.push({
       sortKey: "Operating system",
@@ -653,7 +653,7 @@ export const buildHostVitals = ({
           value={
             <span className={`${baseClass}__os-version`}>
               {!osVersionRequirementMet && (
-                <Icon name="error-outline" color="ui-fleet-black-75" />
+                <Icon name="error" color="ui-fleet-black-75" />
               )}
               <TooltipWrapper
                 className={`${baseClass}__ellipsis-tooltip`}
@@ -666,7 +666,7 @@ export const buildHostVitals = ({
                 }
               >
                 <span className={`${baseClass}__ellipsis-tooltip-text`}>
-                  {vitalsData.os_version}
+                  {osDisplayName}
                 </span>
               </TooltipWrapper>
             </span>

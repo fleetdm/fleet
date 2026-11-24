@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -67,12 +68,6 @@ func TestConfigRoundtrip(t *testing.T) {
 					// we have to explicitly set value for this key as it will only
 					// accept intermediate or modern
 					key_v.SetString(TLSProfileModern)
-				case "EnableAsyncHostProcessing":
-					// supports a bool or per-task config
-					key_v.SetString("true")
-				case "AsyncHostCollectInterval", "AsyncHostCollectLockTimeout":
-					// supports a duration or per-task config
-					key_v.SetString("30s")
 				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "Bucket", "Prefix", "Region", "EndpointURL", "AccessKeyID", "SecretAccessKey", "StsAssumeRoleArn", "StsExternalID":
 					key_v.SetString("")
@@ -116,227 +111,9 @@ func TestConfigRoundtrip(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure the read config is the same as the original
-	actual := man.LoadConfig()
+	actual, err := man.LoadConfig()
+	require.NoError(t, err)
 	assert.Equal(t, *original, actual)
-}
-
-func TestConfigOsqueryAsync(t *testing.T) {
-	cases := []struct {
-		desc         string
-		yaml         string
-		envVars      []string
-		panics       bool
-		wantLabelCfg AsyncProcessingConfig
-	}{
-		{
-			desc: "default",
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 false,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled true",
-			yaml: `
-osquery:
-  enable_async_host_processing: true`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled invalid",
-			yaml: `
-osquery:
-  enable_async_host_processing: nope`,
-			panics: true,
-		},
-		{
-			desc: "yaml set enabled per-task",
-			yaml: `
-osquery:
-  enable_async_host_processing: label_membership=true&policy_membership=false`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set invalid per-task",
-			yaml: `
-osquery:
-  enable_async_host_processing: label_membership=nope&policy_membership=false`,
-			panics: true,
-		},
-		{
-			desc:    "envvar set enabled",
-			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=true"},
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc:    "envvar set enabled on",
-			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=on"}, // on/off, yes/no is only valid in yaml
-			panics:  true,
-		},
-		{
-			desc:    "envvar set enabled per task",
-			envVars: []string{"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=policy_membership=false&label_membership=true"},
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml collect interval lock timeout",
-			yaml: `
-osquery:
-  enable_async_host_processing: true
-  async_host_collect_interval: 10s
-  async_host_collect_lock_timeout: 20s`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         10 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      20 * time.Second,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml collect interval lock timeout per task",
-			yaml: `
-osquery:
-  enable_async_host_processing: true
-  async_host_collect_interval: label_membership=10s
-  async_host_collect_lock_timeout: policy_membership=20s`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         10 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml env var override",
-			yaml: `
-osquery:
-  enable_async_host_processing: false
-  async_host_collect_interval: label_membership=10s
-  async_host_collect_lock_timeout: policy_membership=20s
-  async_host_insert_batch: 10`,
-			envVars: []string{
-				"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING=policy_membership=false&label_membership=true",
-				"FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL=policy_membership=30s&label_membership=50s",
-				"FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT=40s",
-			},
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         50 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      40 * time.Second,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             10,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.desc, func(t *testing.T) {
-			var cmd cobra.Command
-			// Leaving this flag unset means that no attempt will be made to load
-			// the config file
-			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-			man := NewManager(&cmd)
-
-			// load the yaml config
-			man.viper.SetConfigType("yaml")
-			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
-
-			// TODO: tried to test command-line flags too by using cmd.SetArgs to
-			// test-case values, but that didn't seem to work, not sure how it can
-			// be done in our particular setup.
-
-			// save the current env before clearing it.
-			testutils.SaveEnv(t)
-
-			os.Clearenv()
-			for _, env := range c.envVars {
-				kv := strings.SplitN(env, "=", 2)
-				t.Setenv(kv[0], kv[1])
-			}
-
-			var loadedCfg FleetConfig
-			if c.panics {
-				require.Panics(t, func() {
-					loadedCfg = man.LoadConfig()
-				})
-			} else {
-				require.NotPanics(t, func() {
-					loadedCfg = man.LoadConfig()
-				})
-				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
-				require.Equal(t, c.wantLabelCfg, got)
-			}
-		})
-	}
 }
 
 // TestOsqueryConfigETagDefaults pins both config ETag flags off. The feature
@@ -387,7 +164,7 @@ func TestOsqueryConfigETagDefaults(t *testing.T) {
 
 			var loadedCfg FleetConfig
 			require.NotPanics(t, func() {
-				loadedCfg = man.LoadConfig()
+				loadedCfg = mustLoadConfig(t, man)
 			})
 			require.Equal(t, c.wantConfigETags, loadedCfg.Osquery.ConfigETags)
 			require.Equal(t, c.wantRedisETags, loadedCfg.Osquery.RedisConfigETags)
@@ -504,11 +281,11 @@ server:
 			var loadedCfg FleetConfig
 			if c.panics {
 				require.Panics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg, _ = man.LoadConfig()
 				})
 			} else {
 				require.NotPanics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg = mustLoadConfig(t, man)
 				})
 				require.Equal(t, c.expectedOverrides, loadedCfg.Server.EndpointRequestSizeOverrides)
 			}
@@ -562,7 +339,7 @@ ses:
 				t.Setenv(kv[0], kv[1])
 			}
 
-			loadedCfg := man.LoadConfig()
+			loadedCfg := mustLoadConfig(t, man)
 			require.Equal(t, c.want, loadedCfg.SES.SenderDomain)
 		})
 	}
@@ -1076,16 +853,26 @@ func TestAppleCommandCleanupValidate(t *testing.T) {
 			c.AppleCommandCleanupMaxRowDeletionsPerRun = 0
 			c.AppleCommandCleanupMaxCmdDeletionsPerRun = 0
 		}, ""},
-		{"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
-			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
-			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
-			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
-			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)"},
-		{"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
-			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)"},
+		{
+			"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
+			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)",
+		},
+		{
+			"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -1123,7 +910,7 @@ func loadConfigWithOverrides(t *testing.T, yaml string, envVars []string) FleetC
 		t.Setenv(kv[0], kv[1])
 	}
 
-	return man.LoadConfig()
+	return mustLoadConfig(t, man)
 }
 
 func TestAppleCommandCleanupConfig(t *testing.T) {
@@ -1402,10 +1189,10 @@ func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
 
 	testutils.SaveEnv(t)
 	os.Clearenv()
-	require.False(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+	require.False(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
 
 	t.Setenv("FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE", "true")
-	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+	require.True(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
 }
 
 func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
@@ -1415,7 +1202,7 @@ func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
 		man := NewManager(&cmd)
 		man.viper.SetConfigType("yaml")
 		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
-		return man.LoadConfig().Osquery
+		return mustLoadConfig(t, man).Osquery
 	}
 
 	testutils.SaveEnv(t)
@@ -1639,7 +1426,7 @@ func TestSoftwareInstallersSignedURLKeys(t *testing.T) {
 			}
 			cmd := &cobra.Command{}
 			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-			require.Equal(t, c.want, NewManager(cmd).LoadConfig().S3.SoftwareInstallersSignedURL)
+			require.Equal(t, c.want, mustLoadConfig(t, NewManager(cmd)).S3.SoftwareInstallersSignedURL)
 		})
 	}
 }
@@ -1769,3 +1556,71 @@ type testSigner struct{}
 func (*testSigner) Public() crypto.PublicKey { return nil }
 
 func (*testSigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) { return nil, nil }
+
+func mustLoadConfig(t *testing.T, man Manager) FleetConfig {
+	t.Helper()
+	cfg, err := man.LoadConfig()
+	require.NoError(t, err)
+	return cfg
+}
+
+func TestRemovedConfigKeys(t *testing.T) {
+	newManager := func(t *testing.T, yaml string) (*cobra.Command, Manager) {
+		cmd := &cobra.Command{Use: "serve", Run: func(*cobra.Command, []string) {}}
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return cmd, man
+	}
+	// removedMessage builds the expected message with the old and new names in the form the user set them.
+	removedMessage := func(e removednames.Entry, convert func(string) string) string {
+		newName := e.New
+		if newName != "" {
+			newName = convert(newName)
+		}
+		return removednames.Message(convert(e.Old), newName)
+	}
+
+	for _, removedKey := range removednames.Filter(removednames.KindConfigKey, 0) {
+		t.Run(removedKey.Old, func(t *testing.T) {
+			t.Run("file", func(t *testing.T) {
+				// Nest the dotted key as YAML, the way it appears in a config file.
+				var yaml strings.Builder
+				parts := strings.Split(removedKey.Old, ".")
+				for i, part := range parts {
+					yaml.WriteString(strings.Repeat("  ", i))
+					yaml.WriteString(part)
+					yaml.WriteString(":")
+					if i < len(parts)-1 {
+						yaml.WriteString("\n")
+					}
+				}
+				yaml.WriteString(" value\n")
+
+				_, man := newManager(t, yaml.String())
+				want := removedMessage(removedKey, func(s string) string { return s })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("env", func(t *testing.T) {
+				t.Setenv(envNameFromConfigKey(removedKey.Old), "value")
+
+				_, man := newManager(t, "")
+				want := removedMessage(removedKey, envNameFromConfigKey)
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("flag", func(t *testing.T) {
+				cmd, man := newManager(t, "")
+				require.NoError(t, cmd.ParseFlags([]string{"--" + flagNameFromConfigKey(removedKey.Old) + "=value"}))
+
+				want := removedMessage(removedKey, func(s string) string { return "--" + flagNameFromConfigKey(s) })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+		})
+	}
+}

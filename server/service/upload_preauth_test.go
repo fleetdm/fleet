@@ -28,15 +28,12 @@ import (
 
 type uploadPreAuthRoute struct {
 	method, template, path, endpointPath string
-	inCatalog                            bool
 }
 
 var uploadPreAuthRoutes = []uploadPreAuthRoute{
-	{"POST", "/software/package", "/api/latest/fleet/software/package", "/api/v1/fleet/software/package", true},
-	{"PATCH", "/software/titles/{id}/package", "/api/v1/fleet/software/titles/1/package", "/api/v1/fleet/software/titles/{id}/package", true},
-	{"POST", "/bootstrap", "/api/2022-04/fleet/bootstrap", "/api/v1/fleet/bootstrap", true},
-	{"POST", "/mdm/bootstrap", "/api/latest/fleet/mdm/bootstrap", "/api/v1/fleet/mdm/bootstrap", false},
-	{"POST", "/mdm/apple/bootstrap", "/api/latest/fleet/mdm/apple/bootstrap", "/api/v1/fleet/mdm/apple/bootstrap", false},
+	{"POST", "/software/package", "/api/latest/fleet/software/package", "/api/v1/fleet/software/package"},
+	{"PATCH", "/software/titles/{id}/package", "/api/v1/fleet/software/titles/1/package", "/api/v1/fleet/software/titles/{id}/package"},
+	{"POST", "/bootstrap", "/api/2022-04/fleet/bootstrap", "/api/v1/fleet/bootstrap"},
 }
 
 type uploadPreAuthBody struct {
@@ -131,11 +128,6 @@ func TestUploadPreAuthRoles(t *testing.T) {
 				{"team1 observer and team2 admin", test.UserTeamObserverTeam1TeamAdminTeam2, http.StatusNoContent, "", ""},
 				{"route API-only global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin), APIOnly: true,
 					APIEndpoints: []fleet.APIEndpointRef{{Method: route.method, Path: route.endpointPath}}}, http.StatusNoContent, "", ""},
-			}
-			if !route.inCatalog {
-				cases[len(cases)-1].status = http.StatusForbidden
-				cases[len(cases)-1].message = "Forbidden"
-				cases[len(cases)-1].reason = auth.EndpointRestrictionDeniedMessage
 			}
 			users := make(map[string]*fleet.User, len(cases))
 			for i, tc := range cases {

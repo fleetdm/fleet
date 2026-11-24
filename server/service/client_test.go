@@ -413,9 +413,9 @@ func TestExtractTeamSpecsMDMCustomSettings(t *testing.T) {
 			"no settings",
 			`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
 `,
 			nil,
 		},
@@ -423,18 +423,18 @@ spec:
 			"no custom settings",
 			`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: Fleet
     mdm:
       macos_settings:
       windows_settings:
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: Fleet2
     mdm:
       macos_settings:
@@ -446,9 +446,9 @@ spec:
 			"empty custom settings",
 			`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: "Fleet"
     mdm:
       macos_settings:
@@ -459,9 +459,9 @@ spec:
         custom_settings:
 ---
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: "Fleet2"
     mdm:
       macos_settings:
@@ -477,9 +477,9 @@ spec:
 			"custom settings specified",
 			`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: "Fleet"
     mdm:
       android_settings:
@@ -522,9 +522,9 @@ spec:
 			"old custom settings specified",
 			`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: "Fleet"
     mdm:
       macos_settings:
@@ -548,9 +548,9 @@ spec:
 			"invalid custom settings",
 			`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: "Fleet"
     mdm:
       android_settings:
@@ -584,9 +584,9 @@ spec:
 			"old invalid custom settings",
 			`
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: "Fleet"
     mdm:
       macos_settings:

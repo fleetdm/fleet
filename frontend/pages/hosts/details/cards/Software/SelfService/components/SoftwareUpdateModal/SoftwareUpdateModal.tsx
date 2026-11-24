@@ -77,11 +77,7 @@ const StatusMessage = ({
   return (
     <IconStatusMessage
       className={`${baseClass}__status-message`}
-      iconName={
-        softwareStatus === "pending_install"
-          ? "pending-outline"
-          : "error-outline"
-      }
+      iconName={softwareStatus === "pending_install" ? "pending" : "error"}
       iconColor="ui-fleet-black-50"
       message={<span>{renderMessage()}</span>}
     />

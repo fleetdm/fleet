@@ -3,8 +3,8 @@
     {
       "version": "20.26.280.8833",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.' AND version_compare(version, '20.26.280.8833') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Twingate %' AND publisher = 'Twingate Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Twingate %' AND publisher = 'Twingate Inc.' AND version_compare(version, '20.26.280.8833') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'twingate.exe');"
       },
       "installer_url": "https://binaries.twingate.com/client/windows/versions/2026.280.8833/TwingateWindowsInstaller.msi",

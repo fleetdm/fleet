@@ -45,6 +45,7 @@ interface IGetStatusMessageProps {
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
+  activityCreatedAt?: string;
   /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
    - From Host -> Software: override based on inventory.
    - From Activity feed: never override (always show the failure).
@@ -71,6 +72,7 @@ export const getStatusMessage = ({
   appName,
   hostDisplayName,
   commandUpdatedAt,
+  activityCreatedAt,
   canOverrideFailureWithInstalled = false,
   failureReason,
   actorFullName,
@@ -80,8 +82,8 @@ export const getStatusMessage = ({
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
-    commandUpdatedAt
-      ? ` (${timeAgo(new Date(commandUpdatedAt), {
+    (activityCreatedAt || commandUpdatedAt)
+      ? ` (${timeAgo(new Date(activityCreatedAt || commandUpdatedAt), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -280,6 +282,7 @@ export type ISoftwareIpaInstallDetails = {
   /** Whether the install was triggered as a self-service action. Renders the
    *  actor as "End user". */
   selfService?: boolean;
+  activityCreatedAt?: string;
 };
 
 interface ISoftwareIpaInstallDetailsModal {
@@ -308,6 +311,7 @@ export const SoftwareIpaInstallDetailsModal = ({
     actorFullName,
     fleetInitiated,
     selfService,
+    activityCreatedAt,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -442,6 +446,7 @@ export const SoftwareIpaInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: commandUpdatedAt || "",
+    activityCreatedAt,
     canOverrideFailureWithInstalled,
     failureReason,
     actorFullName,

@@ -124,7 +124,7 @@ func (r ResetPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ResetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	TeamIDs   []uint `json:"fleet_ids" premium:"true"`
 	PolicyIDs []uint `json:"policy_ids"`
 }
 

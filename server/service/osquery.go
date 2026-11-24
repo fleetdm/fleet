@@ -32,6 +32,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -630,10 +631,9 @@ func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
 }
 
 // getPackConfig returns the marshaled pack config JSON for the host. It uses
-// a cache for hosts without legacy packs and without label-scoped queries,
-// keyed by (teamID, queryReportsDisabled). The cache is nil when
-// osquery.config_in_memory_cache is disabled, which makes every call
-// build from the database.
+// a cache for hosts without label-scoped queries, keyed by (teamID,
+// queryReportsDisabled). The cache is nil when osquery.config_in_memory_cache
+// is disabled, which makes every call build from the database.
 //
 // bypassTeamPackCache When true, the team-keyed packConfigCache is
 // neither read NOR written. Per-host cache mode (label-scoped reports in the
@@ -644,22 +644,19 @@ func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
 // construction, invisible to every invalidation mechanism. This bypass
 // prevents systematic cross-host wrongness; it is not defense against a rare
 // race.
-// packs are the host's legacy (2017) packs, which make the config host-specific,
-// so its ETag must never reach the team-shared store.
-func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, packs []*fleet.Pack, bypassTeamPackCache bool) (raw json.RawMessage, err error) {
+func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, bypassTeamPackCache bool) (raw json.RawMessage, err error) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetch app config")
 	}
 	queryReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
 
-	// Fast path: if no legacy packs and no label-scoped queries, try the cached pack config.
+	// Fast path: if no label-scoped queries, try the cached pack config.
 	// The scheduled queries pack config is identical for all hosts in the
 	// same team ONLY when no queries have label targeting. When labels are
 	// involved, ListScheduledQueriesForAgents filters per host, so the
 	// result varies per host and cannot be cached at the team level.
-	useLegacyPacks := len(packs) > 0
-	canUseCache := !useLegacyPacks && !bypassTeamPackCache && svc.packConfigCache != nil
+	canUseCache := !bypassTeamPackCache && svc.packConfigCache != nil
 	if canUseCache {
 		// Check (with caching) whether any scheduled queries have label targeting.
 		// This is cached separately from the pack config itself to avoid a DB
@@ -695,43 +692,8 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, packs [
 		}
 	}
 
-	// Cache miss, label-scoped queries present, or legacy packs: build pack config from DB.
+	// Cache miss or label-scoped queries present: build pack config from DB.
 	packConfig := fleet.Packs{}
-
-	for _, pack := range packs {
-		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "list scheduled queries in pack")
-		}
-
-		configQueries := fleet.Queries{}
-		for _, query := range queries {
-			queryContent := fleet.QueryContent{
-				Query:    query.Query,
-				Interval: query.Interval,
-				Platform: query.Platform,
-				Version:  query.Version,
-				Removed:  query.Removed,
-				Shard:    query.Shard,
-				Denylist: query.Denylist,
-			}
-
-			if query.Removed != nil {
-				queryContent.Removed = query.Removed
-			}
-
-			if query.Snapshot != nil && *query.Snapshot {
-				queryContent.Snapshot = query.Snapshot
-			}
-
-			configQueries[query.Name] = queryContent
-		}
-
-		packConfig[pack.Name] = fleet.PackContent{
-			Platform: pack.Platform,
-			Queries:  configQueries,
-		}
-	}
 
 	globalQueries, err := svc.getScheduledQueries(ctx, nil)
 	if err != nil {
@@ -765,7 +727,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, packs [
 	}
 
 	// Cache the result (including empty) for future requests (only when safe
-	// to cache: no legacy packs, no label-scoped queries in scope, and the
+	// to cache: no label-scoped queries in scope, and the
 	// caller did not require a per-host-correct build).
 	if canUseCache {
 		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
@@ -779,15 +741,7 @@ func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host, packs [
 // Redis ETag store). It remains the entry point for the launcher (gRPC)
 // service. The osquery HTTP endpoint uses GetClientConfigWithETag instead.
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return nil, newOsqueryError("internal error: missing host from request context")
-	}
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, newOsqueryError("internal error: list packs for host: " + err.Error())
-	}
-	return svc.buildClientConfig(ctx, packs, false)
+	return svc.buildClientConfig(ctx, false)
 }
 
 // buildClientConfig performs the full osquery config build: agent options +
@@ -807,7 +761,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error)
 //
 // bypassTeamPackCache must be true for per-host cache-mode builds — see the
 // notice on getPackConfig.
-func (svc *Service) buildClientConfig(ctx context.Context, packs []*fleet.Pack, bypassTeamPackCache bool) (config map[string]any, err error) {
+func (svc *Service) buildClientConfig(ctx context.Context, bypassTeamPackCache bool) (config map[string]any, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -848,7 +802,7 @@ func (svc *Service) buildClientConfig(ctx context.Context, packs []*fleet.Pack, 
 		}
 	}
 
-	packConfigJSON, err := svc.getPackConfig(ctx, host, packs, bypassTeamPackCache)
+	packConfigJSON, err := svc.getPackConfig(ctx, host, bypassTeamPackCache)
 	if err != nil {
 		return nil, newOsqueryError("internal error: build pack config: " + err.Error())
 	}
@@ -903,8 +857,8 @@ func (svc *Service) buildClientConfig(ctx context.Context, packs []*fleet.Pack, 
 // clientConfigETagScope returns the Redis ETag scope for a host: "global" for
 // hosts with no team (fleet), "team:<id>" otherwise. Together with the host's
 // platform this identifies the config representation — the rendered config is
-// identical for every non-legacy-pack host in the same (team, platform) pair,
-// which is the same fact the packConfigCache relies on.
+// identical for every host in the same (team, platform) pair, which is the
+// same fact the packConfigCache relies on.
 func clientConfigETagScope(host *fleet.Host) string {
 	if host.TeamID != nil {
 		return fmt.Sprintf("team:%d", *host.TeamID)
@@ -945,49 +899,37 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	}
 	scope := clientConfigETagScope(host)
 
-	// Cache-mode selection from the two cached gate answers. Their loaders
-	// (below) are the only DB load the short circuit machinery performs, at
+	// Cache-mode selection from the cached label-scope gate answer. Its loader
+	// (below) is the only DB load the short circuit machinery performs, at
 	// most once per few minutes per cluster.
-	// labelScopesUnknown is set when the deployment has no legacy packs but the
-	// label-scope state could not be read or loaded. In that state the
-	// deployment MAY have label-scoped reports, which makes the team-keyed
-	// pack cache host-incorrect (see getPackConfig) — so the full build
-	// below must bypass it even though the request stays in bypass mode (no
-	// Redis record reads/writes with unknown state). Cost: one
-	// pre-#48702-cost build for the few requests that hit gate errors or
-	// leader-election contention. This branch is unreachable during a full
-	// Redis outage — the legacy gate fails first and plain bypass (with the
-	// team cache, i.e. exact baseline behavior) applies.
+	// labelScopesUnknown is set when another request is loading the
+	// label-scope state. In that state the deployment MAY have label-scoped
+	// reports, which makes the team-keyed pack cache host-incorrect (see
+	// getPackConfig) — so the full build below must bypass it even though the
+	// request stays in bypass mode (no Redis record reads/writes with unknown
+	// state). On a hard Redis error (e.g. an outage) the build keeps using the
+	// team cache: that cache does its own label-scoped check, and skipping it
+	// would send every config request to the database for the whole outage.
 	labelScopesUnknown := false
 	mode := fleet.ConfigETagModeOff
 	if store != nil {
 		mode = fleet.ConfigETagModeBypass
-		legacyPresent, err := store.LegacyPacksPresent(ctx, svc.userPacksExist)
+		scopes, err := store.LabelScopes(ctx, svc.labelScopedReportScopes)
 		switch {
 		case errors.Is(err, fleet.ErrConfigETagGateLoading):
 			// Another request on this instance is loading the gate state:
-			// normal contention, not a fault. Bypass for this request
-			// without waiting and without error logging (see the store's
+			// normal contention, not a fault. Bypass for this request without
+			// waiting and without error logging (see the store's
 			// leader-election docs).
+			labelScopesUnknown = true
 		case err != nil:
 			// FAIL OPEN: unknown gate state bypasses the short circuit —
 			// costing performance, never correctness.
-			svc.logConfigETagError(ctx, "config etag: legacy packs gate unavailable; bypassing short circuit", err)
-		case !legacyPresent:
-			scopes, err := store.LabelScopes(ctx, svc.labelScopedReportScopes)
-			switch {
-			case errors.Is(err, fleet.ErrConfigETagGateLoading):
-				// normal contention: bypass silently, as above — but the
-				// build must be per-host correct (see labelScopesUnknown).
-				labelScopesUnknown = true
-			case err != nil:
-				svc.logConfigETagError(ctx, "config etag: label scope state unavailable; bypassing short circuit", err)
-				labelScopesUnknown = true
-			case scopes.PerHostMode(host.TeamID):
-				mode = fleet.ConfigETagModeHost
-			default:
-				mode = fleet.ConfigETagModeShared
-			}
+			svc.logConfigETagError(ctx, "config etag: label scope state unavailable; bypassing short circuit", err)
+		case scopes.PerHostMode(host.TeamID):
+			mode = fleet.ConfigETagModeHost
+		default:
+			mode = fleet.ConfigETagModeShared
 		}
 		// Bounded state log: once per Fleet container, on first observation.
 		svc.configETagStateOnce.Do(func() {
@@ -1047,13 +989,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// the deployment may have label-scoped reports, so the cached render may
 	// be host-incorrect for this host. Shared mode and plain bypass keep the
 	// pre-existing build path, in-memory caches and all.
-	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
-	if err != nil {
-		return nil, newOsqueryError("internal error: list packs for host: " + err.Error())
-	}
-	usedLegacyPacks := len(packs) > 0
-
-	config, err := svc.buildClientConfig(ctx, packs, mode == fleet.ConfigETagModeHost || labelScopesUnknown)
+	config, err := svc.buildClientConfig(ctx, mode == fleet.ConfigETagModeHost || labelScopesUnknown)
 	if err != nil {
 		return nil, err
 	}
@@ -1063,11 +999,7 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	}
 	etag := clientConfigETag(body)
 
-	// usedLegacyPacks is checked here, not just in mode selection, because the
-	// legacy gate is cached for minutes and can be stale: if THIS build saw
-	// legacy packs, its config is host-specific in ways even a per-host record
-	// does not model, so it must never be published.
-	if store != nil && !usedLegacyPacks {
+	if store != nil {
 		// Only shared/host modes publish; bypass and off never touch Redis, so
 		// the absence of a case is the "nothing to publish" path.
 		switch mode {
@@ -1115,21 +1047,6 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 		}
 	}
 	return result, nil
-}
-
-// userPacksExist is the loader for the legacy (2017) packs gate — the hard
-// deployment-wide bypass. ListPacks (without IncludeSystemPacks) broadly
-// matches packs whose pack_type is NULL or empty — deliberately wider than
-// ListPacksForHost's strict `pack_type IS NULL`, because for this gate
-// over-matching only costs the optimization while under-matching could let a
-// host's stale etag match past a legacy pack change. Errors report as
-// present (fail toward bypassing the optimization).
-func (svc *Service) userPacksExist(ctx context.Context) (bool, error) {
-	packs, err := svc.ds.ListPacks(ctx, fleet.PackListOptions{ListOptions: fleet.ListOptions{PerPage: 1}})
-	if err != nil {
-		return true, ctxerr.Wrap(ctx, err, "list user packs for config etag gate")
-	}
-	return len(packs) > 0, nil
 }
 
 // labelScopedReportScopes is the loader for the label-scope mode state: one
@@ -1520,8 +1437,7 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 }
 
 func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
-	labelReportedAt := svc.task.GetHostLabelReportedAt(ctx, host)
-	if !svc.shouldUpdate(labelReportedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !svc.shouldUpdate(host.LabelUpdatedAt, svc.config.Osquery.LabelUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, nil
 	}
 	labelQueries, err := svc.ds.LabelQueriesForHost(ctx, host)
@@ -1547,11 +1463,6 @@ const dueHostsChunkSize = 1000
 // a campaign whose one-shot wake-up was lost anywhere along the way is
 // recovered within one interval check tick, and hosts stop being re-notified
 // once they answer (answering clears their targeting in the store).
-//
-// Known limitation: with async task processing enabled, the label/policy
-// reported-at timestamps may be fresher in Redis than the hosts table columns
-// used here. This can only over-notify (one cheap empty read per tick until
-// the async timestamps are flushed), never miss due work.
 func (svc *Service) ListHostIDsDueForDistributedRead(ctx context.Context, hostIDs []uint) (map[uint]string, error) {
 	// skipauth: internal caller (the per-instance interval check job), not a
 	// user-facing endpoint.
@@ -1739,8 +1650,7 @@ func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host 
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
-	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
-	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
+	if !svc.shouldUpdate(host.PolicyUpdatedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil
 	}
 	// This must come after the check above to avoid unnecessary queries to the database. Most
@@ -1953,13 +1863,26 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
+	skippedSoftwareQueries := preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	// Lazy-load detail query config only when a detail result is present, to avoid
 	// unnecessary HostFeatures/TeamMDMConfig/conditional access DB calls for payloads
 	// that only contain label, policy, or live-query results.
 	var detailConfig *hostDetailQueryConfig
 	var detailConfigFailed bool
+
+	// Only a batch with the main software query can delete a skipped query's rows, and such a
+	// batch loads the config anyway.
+	if len(skippedSoftwareQueries) > 0 && hasMainSoftwareResults(results) {
+		cfg, err := svc.loadHostDetailQueryConfig(ctx, host)
+		if err != nil {
+			detailConfigFailed = true
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "loading host detail query config"))
+		} else {
+			detailConfig = cfg
+			ctx = preservedsources.NewContext(ctx, svc.preservedSoftwareSources(ctx, host, cfg, skippedSoftwareQueries))
+		}
+	}
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -2042,7 +1965,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 
 		if len(labelResults) > 0 {
-			if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			now := svc.clock.Now()
+			host.LabelUpdatedAt = now
+			if err := svc.ds.RecordLabelQueryExecutions(ctx, host, labelResults, now, ac.ServerSettings.DeferredSaveHost); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -2167,14 +2092,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 		}
 
-		// NOTE(mna): currently, failing policies webhook wouldn't see the new
-		// flipped policies on the next run if async processing is enabled and the
-		// collection has not been done yet (not persisted in mysql). Should
-		// FlippingPoliciesForHost take pending redis data into consideration, or
-		// maybe we should impose restrictions between async collection interval
-		// and policy update interval?
-
-		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing)
+		now := svc.clock.Now()
+		host.PolicyUpdatedAt = now
+		stalePolicyIDs, err := svc.ds.RecordPolicyQueryExecutions(ctx, host, policyResults, now, ac.ServerSettings.DeferredSaveHost, newPassing)
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -2183,7 +2103,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
 		// The host was sent the "no policies" wildcard query, so no policies are in scope
 		// for it and all of its stored policy_membership rows are stale.
-		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{})
+		now := svc.clock.Now()
+		host.PolicyUpdatedAt = now
+		stalePolicyIDs, err := svc.ds.RecordPolicyQueryExecutions(ctx, host, nil, now, ac.ServerSettings.DeferredSaveHost, []uint{})
 		if err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -2392,6 +2314,7 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 // any overrides that are set.
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
+// It returns the extra queries that did not run or failed.
 func preProcessSoftwareResults(
 	ctx context.Context,
 	host *fleet.Host,
@@ -2400,33 +2323,24 @@ func preProcessSoftwareResults(
 	messages map[string]string,
 	overrides map[string]osquery_utils.DetailQuery,
 	logger *slog.Logger,
-) {
-	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(ctx, vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+) (skipped []string) {
+	merge := func(name string, query osquery_utils.DetailQuery) {
+		if !preProcessSoftwareExtraResults(ctx, hostDetailQueryPrefix+name, host.ID, results, statuses, messages, query, logger) {
+			skipped = append(skipped, name)
+		}
+	}
 
-	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
-	preProcessSoftwareExtraResults(ctx, pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(ctx, pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
-	preProcessSoftwareExtraResults(ctx, fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	fleetdNixPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_nix"
-	preProcessSoftwareExtraResults(ctx, fleetdNixPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
-	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	adobePluginsExtraQuery := hostDetailQueryPrefix + "software_adobe_plugins"
-	preProcessSoftwareExtraResults(ctx, adobePluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-
-	goBinariesExtraQuery := hostDetailQueryPrefix + "software_go_binaries"
-	preProcessSoftwareExtraResults(ctx, goBinariesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	merge("software_vscode_extensions", osquery_utils.DetailQuery{})
+	merge("software_python_packages", osquery_utils.DetailQuery{})
+	merge("software_python_packages_with_users_dir", osquery_utils.DetailQuery{})
+	merge("software_linux_fleetd_pacman", osquery_utils.DetailQuery{})
+	merge("software_linux_fleetd_nix", osquery_utils.DetailQuery{})
+	merge("software_jetbrains_plugins", osquery_utils.DetailQuery{})
+	merge("software_adobe_plugins", osquery_utils.DetailQuery{})
+	merge("software_go_binaries", osquery_utils.DetailQuery{})
 
 	for name, query := range overrides {
-		fullQueryName := hostDetailQueryPrefix + "software_" + name
-		preProcessSoftwareExtraResults(ctx, fullQueryName, host.ID, results, statuses, messages, query, logger)
+		merge("software_"+name, query)
 	}
 
 	// The flag lands on the software row shared by every host, so a host must not be able to set
@@ -2443,18 +2357,17 @@ func preProcessSoftwareResults(
 
 	// Merged last so every row it can flag is already present, including rows the overrides add
 	// or re-append.
-	aiToolsExtraQuery := hostDetailQueryPrefix + "software_ai_tools"
-	aiToolsMerge := osquery_utils.DetailQuery{
+	merge("software_ai_tools", osquery_utils.DetailQuery{
 		SoftwareProcessResults: func(mainRows, aiRows []map[string]string) []map[string]string {
 			return osquery_utils.AIToolsProcessResults(host.Platform, mainRows, aiRows)
 		},
-	}
-	preProcessSoftwareExtraResults(ctx, aiToolsExtraQuery, host.ID, results, statuses, messages, aiToolsMerge, logger)
+	})
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 
 	updateFleetdVersion(host.Platform, results)
+	return skipped
 }
 
 // updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
@@ -2571,6 +2484,8 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	results[linuxSoftware] = sw
 }
 
+// preProcessSoftwareExtraResults reports whether the extra query ran without error. A query
+// with no status did not run, e.g. its discovery found no table.
 func preProcessSoftwareExtraResults(
 	ctx context.Context,
 	softwareExtraQuery string,
@@ -2580,14 +2495,14 @@ func preProcessSoftwareExtraResults(
 	messages map[string]string,
 	override osquery_utils.DetailQuery,
 	logger *slog.Logger,
-) {
+) (executed bool) {
 	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
 	defer delete(results, softwareExtraQuery)
 
 	status, ok := statuses[softwareExtraQuery]
 	if !ok {
-		return // query did not execute, e.g. the table does not exist.
+		return false // query did not execute, e.g. the table does not exist.
 	}
 	failed := status != fleet.StatusOK
 	if failed {
@@ -2598,22 +2513,17 @@ func preProcessSoftwareExtraResults(
 			"message", messages[softwareExtraQuery],
 			"hostID", hostID,
 		)
-		return
+		return false
 	}
 
 	// Extract the results of the extra query.
 	softwareExtraRows := results[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
-		return
+		return true
 	}
 
 	// Append the results of the extra query to the main query.
-	for _, query := range []string{
-		// Only one of these execute in each host.
-		hostDetailQueryPrefix + "software_macos",
-		hostDetailQueryPrefix + "software_windows",
-		hostDetailQueryPrefix + "software_linux",
-	} {
+	for _, query := range mainSoftwareQueries {
 		if _, ok := results[query]; !ok {
 			continue
 		}
@@ -2627,8 +2537,9 @@ func preProcessSoftwareExtraResults(
 			results[query] = removeOverrides(results[query], override)
 			results[query] = append(results[query], softwareExtraRows...)
 		}
-		return
+		return true
 	}
+	return true
 }
 
 func removeOverrides(rows []map[string]string, override osquery_utils.DetailQuery) []map[string]string {
@@ -2746,12 +2657,6 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 	}
 	if query.DirectIngestFunc != nil {
 		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows)
-		if err != nil {
-			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
-		}
-		return true, nil
-	} else if query.DirectTaskIngestFunc != nil {
-		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows)
 		if err != nil {
 			return false, newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
@@ -3526,15 +3431,6 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Bail if scripts are disabled globally
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if cfg.ServerSettings.ScriptsDisabled {
-		return nil
-	}
-
 	var policyTeamID uint
 	if hostTeamID == nil {
 		policyTeamID = fleet.PolicyNoTeamID
@@ -3591,7 +3487,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			"script_name", scriptMetadata.Name,
 		)
 
-		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false)
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list host pending script executions")
 		}
@@ -4145,9 +4041,10 @@ func (svc *Service) preProcessOsqueryResults(
 	type parsedName struct {
 		scope fleet.TeamScopedQueryName
 		ok    bool
-		// capped marks a name left unresolved because the submission hit the
-		// distinct-name cap, as opposed to one Fleet does not know. The two must
-		// stay distinguishable: unknown names pass through, capped ones drop.
+		// capped marks a name Fleet declined to resolve (too long, or past the
+		// submission's distinct-name cap), as opposed to one Fleet does not know.
+		// The two must stay distinguishable: unknown names pass through, capped
+		// ones drop.
 		capped bool
 	}
 	parsedByRaw := make(map[string]parsedName)
@@ -4162,6 +4059,10 @@ func (svc *Service) preProcessOsqueryResults(
 			continue
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if errors.Is(err, errScheduledQueryNameTooLong) {
+			parsedByRaw[queryResult.QueryName] = parsedName{capped: true}
+			continue
+		}
 		if errors.Is(err, fleet.ErrLegacyQueryPack) {
 			// Legacy query. Cannot be stored and cannot infer team ID, but still
 			// used by some customers.
@@ -4900,31 +4801,40 @@ var (
 func findPackDelimiterString(scheduledQueryName string) string {
 	scheduledQueryName = scheduledQueryName[4:] // always starts with "pack"
 
-	count := dcounter.FindAllString(scheduledQueryName, -1)
+	markers := dcounter.FindAllStringIndex(scheduledQueryName, -1)
 
 	// If Global or team-<team_id> does not appear, then the
 	// pack_delimiter is invalid.
-	if len(count) == 0 {
+	if len(markers) == 0 {
 		return ""
 	}
 
-	if len(count) == 1 {
+	if len(markers) == 1 {
 		matches := pattern.FindStringSubmatch(scheduledQueryName)
 		if len(matches) > 1 {
 			return matches[1]
 		}
+		return ""
 	}
 
-	// Handle edge cases where "Global" or "team-<team_id>"" appears multiple times in the query
-	// name. Regex is not pre-compiled, so it is a less performant operation.
-	// Go's regexp doesn't support backreferences so we have to perform some manual work.
-	if len(count) > 1 {
-		for l := 1; l < len(scheduledQueryName); l++ {
-			sep := scheduledQueryName[:l]
-			rest := scheduledQueryName[l:]
-			pattern := fmt.Sprintf(`^(?:(Global)|(team-\d+))%s.+`, regexp.QuoteMeta(sep))
-			matched, _ := regexp.MatchString(pattern, rest)
-			if matched {
+	// "Global" or "team-<team_id>" appears multiple times in the query name, so the delimiter is
+	// the text before the first marker that is repeated right after it, ahead of the query name.
+	for _, marker := range markers {
+		start, end := marker[0], marker[1]
+		if start == 0 {
+			continue
+		}
+		sep := scheduledQueryName[:start]
+
+		// The team ID match is greedy, but a delimiter starting with a digit belongs after a
+		// shorter team ID.
+		minEnd := end
+		if strings.HasPrefix(scheduledQueryName[start:end], "team-") {
+			minEnd = start + len("team-") + 1
+		}
+		for markerEnd := minEnd; markerEnd <= end; markerEnd++ {
+			rest := scheduledQueryName[markerEnd:]
+			if len(rest) > len(sep) && strings.HasPrefix(rest, sep) {
 				return sep
 			}
 		}
@@ -4933,6 +4843,12 @@ func findPackDelimiterString(scheduledQueryName string) string {
 	return ""
 }
 
+// Fleet query names are at most 255 characters (up to 1020 bytes), which leaves ample room for
+// the "pack" prefix, team ID and delimiters.
+const maxScheduledQueryNameLen = 4096
+
+var errScheduledQueryNameTooLong = errors.New("scheduled query name too long")
+
 // getQueryNameAndTeamIDFromResult attempts to parse the scheduled query name reported by osquery.
 //
 // The expected format of query names managed by Fleet is:
@@ -4940,6 +4856,9 @@ func findPackDelimiterString(scheduledQueryName string) string {
 func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 	if !strings.HasPrefix(path, "pack") || len(path) <= 4 {
 		return nil, "", fmt.Errorf("unknown format: %q", path)
+	}
+	if len(path) > maxScheduledQueryNameLen {
+		return nil, "", errScheduledQueryNameTooLong
 	}
 
 	sep := findPackDelimiterString(path)

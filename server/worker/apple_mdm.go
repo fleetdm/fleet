@@ -319,7 +319,20 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	const fleetAdminFullName = "Fleet Admin"
 
 	// Only send AccountConfiguration for macOS devices, that did not come from AB migration
-	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) && !args.FromMDMMigration {
+	sendAccountConfiguration := isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) && !args.FromMDMMigration
+	if isMacOS(args.Platform) {
+		// sso_enabled is only evaluated when there is an enroll reference, so a missing reference shows up
+		// here as sso_enabled=false even if end user authentication is turned on.
+		a.Log.InfoContext(ctx, "post-DEP enrollment account configuration decision",
+			"host_uuid", args.HostUUID,
+			"send_account_configuration", sendAccountConfiguration,
+			"from_mdm_migration", args.FromMDMMigration,
+			"has_enroll_reference", args.EnrollReference != "",
+			"sso_enabled", ssoEnabled,
+			"managed_admin_account_enabled", managedAdminAccountEnabled,
+		)
+	}
+	if sendAccountConfiguration {
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
@@ -750,7 +763,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
 				Status:              string(fleet.SoftwareInstallFailed),
 				HostPlatform:        host.Platform,
@@ -765,7 +778,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,
-				SoftwareDisplayName: softwareDisplayName,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
 				Source:              app.Source,
 				Status:              string(fleet.SoftwareInstallFailed),
 				FromSetupExperience: true,

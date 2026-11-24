@@ -20,7 +20,7 @@ export const getFleetVppTokens = (
     .filter(
       // A non-null, empty `teams` means the token is assigned to All fleets.
       (t) =>
-        t.teams?.length === 0 || t.teams?.some((tm) => tm.team_id === teamId)
+        t.fleets?.length === 0 || t.fleets?.some((tm) => tm.fleet_id === teamId)
     )
     .sort((a, b) => a.id - b.id);
 

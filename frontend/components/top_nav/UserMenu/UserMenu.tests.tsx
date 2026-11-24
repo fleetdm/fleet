@@ -126,7 +126,7 @@ describe("UserMenu - component", () => {
         onUserMenuItemClick={noop}
         isGlobalAdmin={false}
         isAnyTeamAdmin
-        currentUser={createMockUser({ global_role: null, teams: [mockTeam] })}
+        currentUser={createMockUser({ global_role: null, fleets: [mockTeam] })}
         currentTeam={createMockTeamSummary({ id: mockTeam.id })}
       />
     );

@@ -57,8 +57,6 @@ The custom variable must already exist when you save the template, or the save f
 
 Certificate authority variables — for example `$FLEET_VAR_NDES_SCEP_CHALLENGE`, `$FLEET_VAR_DIGICERT_DATA_<CA>`, `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA>`, `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`, and `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` — and the Platform SSO device registration token can't be used in a name template. They resolve to one-time challenges, proxy URLs, or certificate data: values that are meaningless as a device name and would expose secrets in a name that's visible on the device, in reports, and in the Fleet UI. Fleet rejects a template that references them.
 
-The deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable also isn't supported; use the `HOST_END_USER_IDP_*` variables above instead.
-
 ### Renaming when a variable's value changes
 
 Fleet keeps host names in sync with their variables. When a host's IdP data changes (for example, the end user's department is updated) or a custom variable's value changes, Fleet resolves the template again and renames the hosts that use that variable.

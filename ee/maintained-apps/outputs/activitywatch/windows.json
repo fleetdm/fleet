@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.14.1",
+      "version": "0.14.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors' AND version_compare(version, '0.14.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors' AND version_compare(version, '0.14.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'aw-qt.exe');"
       },
-      "installer_url": "https://github.com/ActivityWatch/activitywatch/releases/download/v0.14.1/activitywatch-v0.14.1-windows-x86_64-setup.exe",
+      "installer_url": "https://github.com/ActivityWatch/activitywatch/releases/download/v0.14.2/activitywatch-v0.14.2-windows-x86_64-setup.exe",
       "install_script_ref": "f9e41d90",
       "uninstall_script_ref": "e72cca96",
-      "sha256": "190bc1fb82194e20d52619dbf884751d7b6ae044477623a384069bc3ea85a64d",
+      "sha256": "86f2cd3c8eb8df1da30706bddee677e2af541a943ae32fbdc7de09135485a054",
       "default_categories": [
         "Productivity"
       ]

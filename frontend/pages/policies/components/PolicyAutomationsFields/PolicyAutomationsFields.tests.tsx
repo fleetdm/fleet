@@ -5,7 +5,7 @@ import { createMockScript } from "__mocks__/scriptMock";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
-  createMockAppStoreApp,
+  createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
 import createMockUser from "__mocks__/userMock";
 import { IPolicy } from "interfaces/policy";
@@ -146,7 +146,7 @@ const vppTitle: ISoftwareTitle = createMockSoftwareTitle({
   name: "VPP App",
   source: "apps",
   software_package: null,
-  app_store_app: createMockAppStoreApp({ version: "5.0.0" }),
+  app_store_apps: [createMockAppStoreAppVersion({ version: "5.0.0" })],
   packages: null,
 });
 
