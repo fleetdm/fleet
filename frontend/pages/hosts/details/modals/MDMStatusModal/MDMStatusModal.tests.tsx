@@ -9,7 +9,7 @@ import hostAPI from "services/entities/hosts";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { internationalTimeFormat } from "utilities/helpers";
 
-import MDMStatusModal from "./MDMStatusModal";
+import MDMStatusModal, { getThrottleCopy } from "./MDMStatusModal";
 
 jest.mock("services/entities/hosts");
 jest.mock("components/ToastNotification", () => ({
@@ -51,6 +51,7 @@ const mockDepAssignmentResponse = {
     assign_profile_response: "SUCCESS",
     profile_uuid: "762C4D36550103CCC53AA212A8D31CDD",
     response_updated_at: "2025-12-04 01:35:27",
+    throttled_retry_after: null,
     added_at: "2025-12-04 01:35:27",
     deleted_at: null,
     ab_token_id: 1,
@@ -475,6 +476,42 @@ describe("MDMStatusModal - component", () => {
     expect(screen.getByText("Throttled")).toBeInTheDocument();
   });
 
+  it("tells when Fleet will retry a throttled assignment using Apple's retry time", async () => {
+    const minutesFromNow = (minutes: number) =>
+      new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      ...mockDepAssignmentResponse,
+      host_dep_assignment: {
+        ...mockDepAssignmentResponse.host_dep_assignment,
+        assign_profile_response: "THROTTLED",
+        response_updated_at: minutesFromNow(-60),
+        throttled_retry_after: minutesFromNow(150),
+      },
+    });
+
+    const { user } = render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (automatic)"
+        router={mockRouter}
+        isPremiumTier
+        platform={"darwin"}
+        depProfileError
+        user={createMockUser()}
+        lastMDMCheckIn=""
+        onSuccessfulCheckIn={jest.fn()}
+        fleetId={null}
+        onExit={jest.fn()}
+      />
+    );
+
+    await user.hover(await screen.findByText("Throttled"));
+
+    expect(
+      await screen.findByText(/Fleet will try again in 2 hours/)
+    ).toBeInTheDocument();
+  });
+
   it("navigates to hosts with dep_assign_profile_response filter when profile error row is clicked", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
       ...mockDepAssignmentResponse,
@@ -602,6 +639,40 @@ describe("MDMStatusModal - component", () => {
 
     await user.click(screen.getByText("Close"));
     expect(onExit).toHaveBeenCalled();
+  });
+});
+
+describe("getThrottleCopy", () => {
+  const minutesFromNow = (minutes: number) =>
+    new Date(Date.now() + minutes * 60 * 1000).toISOString();
+
+  it("counts down to Apple's retry time", () => {
+    expect(getThrottleCopy(minutesFromNow(-60), minutesFromNow(185))).toBe(
+      "in 3 hours"
+    );
+    expect(getThrottleCopy(minutesFromNow(-60), minutesFromNow(30))).toBe(
+      "in <1 hour"
+    );
+  });
+
+  it("isn't limited to 24 hours when Apple asks for longer", () => {
+    expect(
+      getThrottleCopy(minutesFromNow(0), minutesFromNow(48 * 60 + 5))
+    ).toBe("in 48 hours");
+  });
+
+  it("falls back to 24 hours after the response without a valid retry time", () => {
+    expect(getThrottleCopy(minutesFromNow(-55), null)).toBe("in 23 hours");
+    expect(getThrottleCopy(minutesFromNow(-55), "not a date")).toBe(
+      "in 23 hours"
+    );
+  });
+
+  it("says 'when available.' once the retry time has passed or is unknown", () => {
+    expect(getThrottleCopy(minutesFromNow(-60), minutesFromNow(-1))).toBe(
+      "when available."
+    );
+    expect(getThrottleCopy(null, null)).toBe("when available.");
   });
 });
 
