@@ -54,8 +54,12 @@ relaunch_application() {
   # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
   # and GUI session — 'sudo -u' alone doesn't do this, which can cause
   # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  # Differs from the shared helper in ingesters/homebrew/scripts.go on purpose:
+  # QGIS and QGIS LTR share this bundle ID, so a plain 'open <path>' can
+  # activate whichever variant is already running and exit 0 without opening
+  # the one just installed. -n opens the bundle at this path.
   local open_args=(-b "$bundle_id")
-  [[ -z "$app_path" ]] || open_args=("$app_path")
+  [[ -z "$app_path" ]] || open_args=(-n "$app_path")
   local timeout_duration=30
   local attempt=0 delay=2 open_status open_output
   SECONDS=0

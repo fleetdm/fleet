@@ -195,17 +195,43 @@ stop_processes_in_bundle() {
   # pgrep -f and pkill -f take an extended regular expression, so the dot in
   # "Maestral.app" would also match a path like "MaestralXapp". Escape it.
   local pattern="^$(printf '%s' "$app_path" | sed 's/[][(){}.^$*+?|\\]/\\&/g')/Contents/MacOS/"
-  pgrep -f "$pattern" >/dev/null || return 0
+  # pgrep exits 1 for "no matches" and 2 or 3 for its own failures, so only a 1
+  # confirms nothing is left; anything else must not be read as "safe to
+  # replace".
+  none_left() {
+    local rc
+    pgrep -f "$pattern" >/dev/null
+    rc=$?
+    case $rc in
+      0) return 1 ;;
+      1) return 0 ;;
+      *) echo "Couldn't check for processes running from $app_path (pgrep exited $rc)."; return 2 ;;
+    esac
+  }
+
+  none_left
+  case $? in
+    0) return 0 ;;
+    2) return 1 ;;
+  esac
   echo "Stopping remaining processes from $app_path..."
   pkill -TERM -f "$pattern"
   for _ in {1..10}; do
-    pgrep -f "$pattern" >/dev/null || return 0
+    none_left
+    case $? in
+      0) return 0 ;;
+      2) return 1 ;;
+    esac
     sleep 1
   done
   echo "Forcing remaining processes from $app_path to stop."
   pkill -KILL -f "$pattern"
   sleep 1
-  pgrep -f "$pattern" >/dev/null || return 0
+  none_left
+  case $? in
+    0) return 0 ;;
+    2) return 1 ;;
+  esac
   echo "Processes from $app_path are still running; not replacing it."
   return 1
 }
