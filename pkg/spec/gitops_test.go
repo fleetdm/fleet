@@ -3234,6 +3234,7 @@ func TestExpandBaseItems(t *testing.T) {
 			"{policies/*.yml,platforms/macos/reports/*.yml}":    false,
 			"platforms/macos/{policies/*.yml,reports/*.yml}":    false,
 			"platforms/{windows,macos}/{reports/*.yml,x/*.yml}": false,
+			"platforms/[m{]acos/{policies/*.yml,reports/*.yml}": false,
 			"{policies/*.yml,platforms/macos/reprots/*.yml}":    true,
 			"platforms/macos/{policies/*.yml,reprots/*.yml}":    true,
 			"platforms/{windows,linux}/{reports/*.yml,x/*.yml}": true,
@@ -3396,6 +3397,9 @@ func TestExpandBraceAlternatives(t *testing.T) {
 		`\{a,b}/*.yml`:      {`\{a,b}/*.yml`},
 		"{a,b/*.yml":        {"{a,b/*.yml"},
 		"a}/{b,}*.yml":      {"a}/b*.yml", "a}/*.yml"},
+		"[a{]/{b,c}.yml":    {"[a{]/b.yml", "[a{]/c.yml"},
+		`[\]{]/{b,c}.yml`:   {`[\]{]/b.yml`, `[\]{]/c.yml`},
+		"[a/{b,c}.yml":      {"[a/b.yml", "[a/c.yml"},
 	} {
 		assert.Equal(t, want, expandBraceAlternatives(pattern), pattern)
 	}

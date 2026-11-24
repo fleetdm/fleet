@@ -1934,6 +1934,16 @@ func expandBraceAlternatives(pattern string) []string {
 		switch pattern[i] {
 		case '\\':
 			i++
+		case '[':
+			// Braces and commas inside a character class are literal.
+			for j := i + 1; j < len(pattern); j++ {
+				if pattern[j] == '\\' {
+					j++
+				} else if pattern[j] == ']' {
+					i = j
+					break
+				}
+			}
 		case '{':
 			if depth == 0 {
 				start, commas = i, nil
