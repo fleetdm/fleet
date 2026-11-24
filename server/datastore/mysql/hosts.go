@@ -6099,6 +6099,13 @@ func (ds *Datastore) GetHostOrbitInfo(ctx context.Context, hostID uint) (*fleet.
 }
 
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string, mdmName string) (mdmID uint, err error) {
+	return ds.getOrInsertMDMSolutionWithWriter(ctx, ds.writer(ctx), serverURL, mdmName)
+}
+
+// getOrInsertMDMSolutionWithWriter is getOrInsertMDMSolution for use inside a transaction. The solution row almost
+// always exists, so it's read from the replica and only inserted on writer when missing. An upsert here would lock
+// the row (shared by every host on that MDM) until the enclosing transaction commits.
+func (ds *Datastore) getOrInsertMDMSolutionWithWriter(ctx context.Context, writer sqlx.ExtContext, serverURL string, mdmName string) (mdmID uint, err error) {
 	readStmt := &parameterizedStmt{
 		Statement: `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
 		Args:      []interface{}{mdmName, serverURL},
@@ -6107,7 +6114,7 @@ func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL strin
 		Statement: `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`,
 		Args:      []interface{}{mdmName, serverURL},
 	}
-	return ds.optimisticGetOrInsert(ctx, readStmt, insStmt)
+	return ds.optimisticGetOrInsertWithWriter(ctx, writer, readStmt, insStmt)
 }
 
 func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error) {

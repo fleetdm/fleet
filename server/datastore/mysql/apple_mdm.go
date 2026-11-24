@@ -1490,11 +1490,11 @@ func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host
 		return ctxerr.Wrap(ctx, err, "mdm apple upsert host get app config")
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger, appCfg, personalType)
+		return ds.ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger, appCfg, personalType)
 	})
 }
 
-func ingestMDMAppleDeviceFromCheckinDB(
+func (ds *Datastore) ingestMDMAppleDeviceFromCheckinDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	mdmHost *fleet.Host,
@@ -1521,7 +1521,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, matchSerial, "", "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, personalType)
+		return ds.insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, personalType)
 
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
@@ -1545,7 +1545,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 				return ctxerr.Wrap(ctx, errSerialEnrolledUnderAnotherUUID())
 			}
 		}
-		return updateMDMAppleHostDB(ctx, tx, enrolledHostInfo.ID, mdmHost, appCfg, personalType)
+		return ds.updateMDMAppleHostDB(ctx, tx, enrolledHostInfo.ID, mdmHost, appCfg, personalType)
 	}
 }
 
@@ -1606,7 +1606,7 @@ func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnroll
 	return refetchRequested, lastEnrolledAt
 }
 
-func updateMDMAppleHostDB(
+func (ds *Datastore) updateMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
@@ -1691,14 +1691,14 @@ func updateMDMAppleHostDB(
 		}
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, personalType, hostID); err != nil {
+	if err := ds.upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, personalType, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 
 	return nil
 }
 
-func insertMDMAppleHostDB(
+func (ds *Datastore) insertMDMAppleHostDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	mdmHost *fleet.Host,
@@ -1772,7 +1772,7 @@ func insertMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, personalType, mdmHost.ID); err != nil {
+	if err := ds.upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg, appleMDMInfoFromCheckin, personalType, mdmHost.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -1797,7 +1797,7 @@ type hostToCreateFromMDM struct {
 	UUID *string
 }
 
-func createHostFromMDMDB(
+func (ds *Datastore) createHostFromMDMDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	logger *slog.Logger,
@@ -1940,7 +1940,7 @@ func createHostFromMDMDB(
 	// migration) we'll get an 'added' event. In that case, we
 	// expect that MDM info will be updated in due time as we ingest
 	// future osquery data from the host
-	if err := upsertMDMAppleHostMDMInfoDB(
+	if err := ds.upsertMDMAppleHostMDMInfoDB(
 		ctx,
 		tx,
 		appCfg,
@@ -1985,7 +1985,7 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				UUID:           &deviceInfo.UDID,
 			},
 		}
-		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, personalType, teamID, teamID, teamID)
+		_, hosts, err := ds.createHostFromMDMDB(ctx, tx, ds.logger, toInsert, appleMDMInfoFromOTAEnrollment, personalType, teamID, teamID, teamID)
 		if idpUUID != "" && len(hosts) > 0 {
 			host := hosts[0]
 			ds.logger.InfoContext(ctx, fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
@@ -2088,7 +2088,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 			}
 		}
 
-		n, hosts, err := createHostFromMDMDB(
+		n, hosts, err := ds.createHostFromMDMDB(
 			ctx,
 			tx,
 			ds.logger,
@@ -2253,7 +2253,7 @@ const (
 	appleMDMInfoFromCheckin                                 // enrolled=1, from_dep=derived, wide ON DUPLICATE
 )
 
-func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, source appleMDMInfoSource, personalType fleet.PersonalEnrollmentType, hostIDs ...uint) error {
+func (ds *Datastore) upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, source appleMDMInfoSource, personalType fleet.PersonalEnrollmentType, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -2267,22 +2267,9 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 	// enrolled yet.
 	enrolled := source != appleMDMInfoFromDEPSync
 
-	result, err := tx.ExecContext(ctx, `
-		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
-		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
-		fleet.WellKnownMDMFleet, serverURL)
+	mdmID, err := ds.getOrInsertMDMSolutionWithWriter(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert mdm solution")
-	}
-
-	var mdmID int64
-	if insertOnDuplicateDidInsertOrUpdate(result) {
-		mdmID, _ = result.LastInsertId()
-	} else {
-		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
-		if err := sqlx.GetContext(ctx, tx, &mdmID, stmt, fleet.WellKnownMDMFleet, serverURL); err != nil {
-			return ctxerr.Wrap(ctx, err, "query mdm solution id")
-		}
+		return ctxerr.Wrap(ctx, err, "get or insert mdm solution")
 	}
 
 	depAssignedSet := map[uint]struct{}{}
@@ -2852,7 +2839,7 @@ INSERT INTO hosts (
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, *host); err != nil {
 			return ctxerr.Wrap(ctx, err, "restore pending dep host label membership")
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, appleMDMInfoFromDEPSync, fleet.PersonalEnrollmentTypeNone, host.ID); err != nil {
+		if err := ds.upsertMDMAppleHostMDMInfoDB(ctx, tx, ac, appleMDMInfoFromDEPSync, fleet.PersonalEnrollmentTypeNone, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -6787,7 +6774,8 @@ LIMIT ?`
 	}
 	args := []any{refetchTypes}
 	for _, platform := range []string{"ios", "ipados"} {
-		args = append(args,
+		args = append(
+			args,
 			refetchTypes, len(refetchTypes), platform, limit,
 			refetchTypes, len(refetchTypes), platform, int(interval.Seconds()), limit,
 		)
