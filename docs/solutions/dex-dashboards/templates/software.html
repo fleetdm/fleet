@@ -7,8 +7,6 @@
 /*__BASE_CSS__*/
 .act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.vendor-row { cursor: pointer; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; }
-.vendor-row:hover, .vendor-row[aria-pressed="true"] { background: var(--panel-2); }
 .host-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 24px; margin-top: 12px; font-size: 12px; }
 .host-list > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 4px; min-width: 0; }
 .host-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
@@ -162,15 +160,10 @@ function render() {
   }
   const vlist = Object.values(vend).filter((v) => v.idle).sort((a, b) => b.idle - a.idle).slice(0, 8);
   const vmax = Math.max(1, ...vlist.map((v) => v.seats));
-  mount("vendors", vlist.length ? [h("div", { class: "bars" }, vlist.map((v) => {
-    const row = barRows([{ label: v.vendor, valueText: `${fmt.n(v.idle)} of ${fmt.n(v.seats)}`, segs: [
+  mount("vendors", vlist.length ? [barRows(vlist.map((v) => ({ label: v.vendor, valueText: `${fmt.n(v.idle)} of ${fmt.n(v.seats)}`, segs: [
       { value: v.idle, color: "var(--warn)", tip: `${v.vendor}: ${fmt.n(v.idle)} idle seats (${fmt.pct(pct(v.idle, v.seats))}) across ${fmt.plural(v.apps, "app")}` },
-      { value: v.seats - v.idle, color: "var(--neutral)", tip: `${v.vendor}: ${fmt.n(v.seats - v.idle)} seats in use` }] }], vmax);
-    const btn = h("div", { class: "vendor-row", role: "button", tabindex: "0", "aria-pressed": vendorFilter === v.vendor ? "true" : "false",
-      onclick: () => { vendorFilter = vendorFilter === v.vendor ? "" : v.vendor; render(); },
-      onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); vendorFilter = vendorFilter === v.vendor ? "" : v.vendor; render(); } } }, row);
-    return btn;
-  })), legend([["Idle seats", "var(--warn)"], ["In use", "var(--neutral)"]])] : empty("No idle seats", ""));
+      { value: v.seats - v.idle, color: "var(--neutral)", tip: `${v.vendor}: ${fmt.n(v.seats - v.idle)} seats in use` }],
+    pressed: vendorFilter === v.vendor, onclick: () => { vendorFilter = vendorFilter === v.vendor ? "" : v.vendor; render(); } })), vmax), legend([["Idle seats", "var(--warn)"], ["In use", "var(--neutral)"]])] : empty("No idle seats", ""));
 
   // Staleness of idle seats
   const idleDays = seats.flatMap((a) => a.hosts.filter((x) => isIdle(x[2])).map((x) => x[2]));

@@ -261,8 +261,8 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32, epochPer
 }
 
 // rpmEpoch returns "1" or "2" for percent of package names, and "" (no epoch) for the rest. It's
-// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's shared
-// software metadata, so disagreeing agents would rewrite it constantly.
+// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's part
+// of the software's identity, so disagreeing agents would each get their own software row.
 func rpmEpoch(name string, percent int) string {
 	if stablePercentile("epoch", name) >= percent {
 		return ""

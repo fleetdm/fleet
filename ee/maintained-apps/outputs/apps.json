@@ -821,6 +821,13 @@
       "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
     },
     {
+      "name": "AutoHotkey",
+      "slug": "autohotkey/windows",
+      "platform": "windows",
+      "unique_identifier": "AutoHotkey",
+      "description": "AutoHotkey is a scripting language for automating tasks and creating hotkeys on Windows."
+    },
+    {
       "name": "Autopsy",
       "slug": "autopsy/windows",
       "platform": "windows",
@@ -972,6 +979,13 @@
       "slug": "bambu-studio/darwin",
       "platform": "darwin",
       "unique_identifier": "com.bambulab.bambu-studio",
+      "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bambu Studio",
+      "slug": "bambu-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Bambu Studio",
       "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
     },
     {
@@ -4748,6 +4762,13 @@
       "description": "Jump Desktop is a remote desktop application."
     },
     {
+      "name": "k6",
+      "slug": "k6/windows",
+      "platform": "windows",
+      "unique_identifier": "k6",
+      "description": "k6 is an open-source load testing tool for developers, with tests written in JavaScript."
+    },
+    {
       "name": "Kaleidoscope",
       "slug": "kaleidoscope/darwin",
       "platform": "darwin",
@@ -6979,6 +7000,13 @@
       "platform": "windows",
       "unique_identifier": "Portfolio Performance",
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
+    },
+    {
+      "name": "Positron",
+      "slug": "positron/windows",
+      "platform": "windows",
+      "unique_identifier": "Positron",
+      "description": "Positron is a data science IDE for working with Python and R."
     },
     {
       "name": "Postgres",

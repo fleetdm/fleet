@@ -2,10 +2,12 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
+import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
 import { WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { getDetailGuidance, getDetailText } from "../detailFormatting";
 import OSSettingsActionsCell from "../OSSettingsActionsCell";
@@ -122,6 +124,13 @@ const ControlDetailsModal = ({
   const showDetailBlock =
     !!detailText && !detailReplacesMessage && !guidance?.supersedesDetail;
 
+  // Windows failures report bare SyncML codes, like "<LocURI>: status 405".
+  const showWindowsStatusCodesLink =
+    showDetailBlock &&
+    control.status === "failed" &&
+    control.platform === "windows" &&
+    /: status \d+/.test(detailText);
+
   return (
     <Modal title="Details" onExit={onExit} className={baseClass}>
       <>
@@ -154,6 +163,16 @@ const ControlDetailsModal = ({
             >
               {detailText}
             </Textarea>
+          )}
+          {showWindowsStatusCodesLink && (
+            <p className={`${baseClass}__details-help`}>
+              Windows returns a status code for each setting.{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/windows-profile-status-codes`}
+                text="Learn more"
+                newTab
+              />
+            </p>
           )}
         </div>
         {/* .modal-cta-wrap is row-reverse, so the primary action comes first. */}

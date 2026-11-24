@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.5.6",
+      "version": "9.5.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Beats winlogbeat % (x86_64)' AND publisher = 'Elastic';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Beats winlogbeat % (x86_64)' AND publisher = 'Elastic' AND version_compare(version, '9.5.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Beats winlogbeat % (x86_64)' AND publisher = 'Elastic' AND version_compare(version, '9.5.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'winlogbeat.exe');"
       },
-      "installer_url": "https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-9.5.6-windows-x86_64.msi",
+      "installer_url": "https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-9.5.7-windows-x86_64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "7dba5f47",
-      "sha256": "0f4d0750cb9b6cc089d43ed9418450f6ccca90d82a9c6f16d1fed8243791c9c8",
+      "sha256": "81cd29a703914cd514542186bad6f1766c211143bee0f5e6dd5a4fa24d12e160",
       "default_categories": [
         "Security"
       ],

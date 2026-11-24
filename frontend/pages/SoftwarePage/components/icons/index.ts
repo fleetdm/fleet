@@ -110,6 +110,7 @@ import Atext from "./png/Atext.png";
 import Audacity from "./png/Audacity.png";
 import AudioHijack from "./png/AudioHijack.png";
 import Audiveris from "./png/Audiveris.png";
+import AutoHotkey from "./png/AutoHotkey.png";
 import Autopsy from "./png/Autopsy.png";
 import AvastSecureBrowser from "./png/AvastSecureBrowser.png";
 import AviatrixVpnClient from "./png/AviatrixVpnClient.png";
@@ -552,6 +553,7 @@ import Joplin from "./png/Joplin.png";
 import JordanbairdIce from "./png/JordanbairdIce.png";
 import JuliaApp from "./png/JuliaApp.png";
 import JumpDesktop from "./png/JumpDesktop.png";
+import K6 from "./png/K6.png";
 import Kaleidoscope from "./png/Kaleidoscope.png";
 import Kap from "./png/Kap.png";
 import Kdenlive from "./png/Kdenlive.png";
@@ -805,6 +807,7 @@ import Popchar from "./png/Popchar.png";
 import Popclip from "./png/Popclip.png";
 import Popsql from "./png/Popsql.png";
 import Portfolioperformance from "./png/Portfolioperformance.png";
+import Positron from "./png/Positron.png";
 import PostgresApp from "./png/PostgresApp.png";
 import Postgresql15 from "./png/Postgresql15.png";
 import Postgresql16 from "./png/Postgresql16.png";
@@ -1277,6 +1280,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   audacity: Audacity,
   "audio hijack": AudioHijack,
   audiveris: Audiveris,
+  autohotkey: AutoHotkey,
   autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
@@ -1739,6 +1743,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   joplin: Joplin,
   julia: JuliaApp,
   "jump desktop": JumpDesktop,
+  k6: K6,
   kaleidoscope: Kaleidoscope,
   kap: Kap,
   kdenlive: Kdenlive,
@@ -2009,6 +2014,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   popclip: Popclip,
   popsql: Popsql,
   "portfolio performance": Portfolioperformance,
+  positron: Positron,
   postgres: PostgresApp,
   "postgresql 15": Postgresql15,
   "postgresql 16": Postgresql16,
