@@ -3497,7 +3497,8 @@ This activity contains the following fields:
 - "status": Whether notification is displayed or failed.
 - "software_titles": Names of the software titles included in the notification.
 - "policy_ids": IDs of the patch policies included in the notification.
-- "time_before": Either 1 hour or 5 minutes before patch is forced.
+- "time_before": Either 1 hour or 5 minutes before patch is forced. Not included when `early_notice` is `true`.
+- "early_notice": `true` if the end user was notified as soon as the apps became outdated, before the 1-hour notice. Only for patch policies with `patch_deadline` set to `true`.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
 - "script_execution_id": Execution ID of the script run that displayed the notification to the end user.
 - "exit_code": Exit code of the notification script. `0` on success; non-zero encodes the failure reason (e.g. `41` for a locked screen).
@@ -3515,6 +3516,23 @@ This activity contains the following fields:
   "time_before": 3600,
   "install_at": "2026-08-06T14:00:00Z",
   "script_execution_id": "c672cccb-fcfa-4424-a25f-dd2d2e3eb3be",
+  "exit_code": 0
+}
+```
+
+#### Example (early notice)
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "patch_notification_uuid": "3b1e7d2a-5c4f-4e8b-9a6d-2f0c8e1b7a54",
+  "software_titles": ["Google Chrome"],
+  "status": "success",
+  "policy_ids": [1339],
+  "early_notice": true,
+  "install_at": "2026-12-04T22:00:00Z",
+  "script_execution_id": "8d2f4a61-7b3e-4c9a-b5d0-1e6f9a2c3b47",
   "exit_code": 0
 }
 ```
