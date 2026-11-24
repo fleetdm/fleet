@@ -47,7 +47,7 @@ class DeviceVitalsWorkerTest {
         // Enroll once up front so each test only queues the vitals response.
         mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody("""{"orbit_node_key": "worker-node-key"}"""))
         mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-        ApiClient.reportVitals(roaming = false)
+        ApiClient.reportVitals(DeviceVitals(roaming = false))
         mockWebServer.takeRequest()
         mockWebServer.takeRequest()
 

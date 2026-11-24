@@ -16,18 +16,18 @@ import androidx.work.WorkerParameters
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Reports the vitals Fleet can't get from AMAPI (currently roaming) to PUT /api/fleetd/vitals.
+ * Reports the vitals Fleet can't get from AMAPI ([DeviceVitals]) to PUT /api/fleetd/vitals.
  */
 class DeviceVitalsWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val roaming = RoamingReader.read(applicationContext)
-        if (roaming == null) {
-            Log.d(TAG, "device has no telephony, skipping vitals report")
+        val vitals = DeviceVitals.collect(applicationContext)
+        if (vitals.isEmpty()) {
+            Log.d(TAG, "no vitals to report on this device")
             return Result.success()
         }
 
-        return ApiClient.reportVitals(roaming = roaming).fold(
+        return ApiClient.reportVitals(vitals).fold(
             onSuccess = { Result.success() },
             onFailure = { error ->
                 when {

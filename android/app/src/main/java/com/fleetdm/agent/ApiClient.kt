@@ -389,12 +389,12 @@ object ApiClient : CertificateApiClient {
         )
     }
 
-    suspend fun reportVitals(roaming: Boolean): Result<Unit> = withReenrollOnUnauthorized {
+    suspend fun reportVitals(vitals: DeviceVitals): Result<Unit> = withReenrollOnUnauthorized {
         makeRequest(
             endpoint = "/api/fleetd/vitals",
             method = "PUT",
-            body = ReportVitalsRequest(roaming = roaming),
-            bodySerializer = ReportVitalsRequest.serializer(),
+            body = vitals,
+            bodySerializer = DeviceVitals.serializer(),
             responseSerializer = ReportVitalsResponse.serializer(),
         ).fold(
             onSuccess = { response ->
@@ -402,7 +402,7 @@ object ApiClient : CertificateApiClient {
                     FleetLog.e(TAG, "failed to report vitals: ${response.error}")
                     Result.failure(Exception(response.error))
                 } else {
-                    Log.i(TAG, "reported vitals (roaming=$roaming)")
+                    Log.i(TAG, "reported vitals: $vitals")
                     Result.success(Unit)
                 }
             },
@@ -608,12 +608,6 @@ enum class UpdateCertificateStatusOperation {
 private data class UpdateCertificateStatusResponse(
     @SerialName("error")
     val error: String? = null,
-)
-
-@Serializable
-private data class ReportVitalsRequest(
-    @SerialName("roaming")
-    val roaming: Boolean,
 )
 
 @Serializable

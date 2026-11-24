@@ -54,11 +54,11 @@ class ApiClientReportVitalsTest {
     }
 
     @Test
-    fun `reportVitals sends roaming with the orbit node key`() = runTest {
+    fun `reportVitals sends the vitals with the orbit node key`() = runTest {
         enqueueEnrollment("vitals-node-key")
         mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
 
-        val result = ApiClient.reportVitals(roaming = true)
+        val result = ApiClient.reportVitals(DeviceVitals(roaming = true))
         assertTrue("report should succeed: ${result.exceptionOrNull()}", result.isSuccess)
 
         assertEquals("/api/fleet/orbit/enroll", mockWebServer.takeRequest().path)
@@ -74,7 +74,7 @@ class ApiClientReportVitalsTest {
         enqueueEnrollment("vitals-node-key")
         mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
 
-        assertTrue(ApiClient.reportVitals(roaming = false).isSuccess)
+        assertTrue(ApiClient.reportVitals(DeviceVitals(roaming = false)).isSuccess)
 
         mockWebServer.takeRequest()
         val body = JSONObject(mockWebServer.takeRequest().body.readUtf8())
@@ -83,10 +83,21 @@ class ApiClientReportVitalsTest {
     }
 
     @Test
+    fun `reportVitals leaves out vitals the device couldn't read`() = runTest {
+        enqueueEnrollment("vitals-node-key")
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+        ApiClient.reportVitals(DeviceVitals(roaming = null))
+
+        mockWebServer.takeRequest()
+        assertEquals("a missing vital must be omitted, not sent as null", "{}", mockWebServer.takeRequest().body.readUtf8())
+    }
+
+    @Test
     fun `reportVitals fails when the server rejects the report`() = runTest {
         enqueueEnrollment("vitals-node-key")
         mockWebServer.enqueue(MockResponse().setResponseCode(403).setBody("""{"message": "forbidden"}"""))
 
-        assertTrue(ApiClient.reportVitals(roaming = true).isFailure)
+        assertTrue(ApiClient.reportVitals(DeviceVitals(roaming = true)).isFailure)
     }
 }
