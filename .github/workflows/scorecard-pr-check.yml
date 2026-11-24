@@ -109,6 +109,11 @@ jobs:
               return prDetails.filter(detail => !baseSet.has(detail));
             }
 
+            // Helper function to filter out Info-level details
+            function filterInfoDetails(details) {
+              return details.filter(detail => !detail.startsWith('Info:'));
+            }
+
             // Find new or regressed issues (score decreased)
             const newIssues = [];
 
@@ -117,43 +122,52 @@ jobs:
               
               // If the check didn't exist in base, it's new
               if (!baseCheck) {
+                const significantDetails = filterInfoDetails(prCheck.details);
                 newIssues.push({
                   name: checkName,
                   prScore: prCheck.score,
                   baseScore: null,
                   isNew: true,
                   reason: prCheck.reason,
-                  prDetails: prCheck.details.slice(0, 3) // Show first 3 details
+                  prDetails: significantDetails // Show all non-Info details
                 });
               }
               // If the score decreased, it's a regression
               else if (prCheck.score < baseCheck.score) {
+                const significantDetails = filterInfoDetails(prCheck.details);
                 newIssues.push({
                   name: checkName,
                   prScore: prCheck.score,
                   baseScore: baseCheck.score,
                   isRegression: true,
                   reason: prCheck.reason,
-                  prDetails: prCheck.details.slice(0, 3)
+                  prDetails: significantDetails
                 });
               }
               // For checks with details (like Vulnerabilities), compare detail counts and content
               // This catches cases where details change even if score stays the same
               else if (prCheck.details && baseCheck.details && 
                        prCheck.details.length > baseCheck.details.length) {
-                const newDetails = findNewDetails(prCheck.details, baseCheck.details);
-                newIssues.push({
-                  name: checkName,
-                  prScore: prCheck.score,
-                  baseScore: baseCheck.score,
-                  isRegression: true,
-                  detailsAdded: true,
-                  prDetailCount: prCheck.details.length,
-                  baseDetailCount: baseCheck.details.length,
-                  newDetailsCount: newDetails.length,
-                  reason: prCheck.reason,
-                  newDetails: newDetails.slice(0, 5) // Show first 5 new details
-                });
+                // Filter out Info-level details before comparing
+                const prDetailsSignificant = filterInfoDetails(prCheck.details);
+                const baseDetailsSignificant = filterInfoDetails(baseCheck.details);
+                
+                // Only flag as regression if significant (non-Info) details increased
+                if (prDetailsSignificant.length > baseDetailsSignificant.length) {
+                  const newDetails = findNewDetails(prDetailsSignificant, baseDetailsSignificant);
+                  newIssues.push({
+                    name: checkName,
+                    prScore: prCheck.score,
+                    baseScore: baseCheck.score,
+                    isRegression: true,
+                    detailsAdded: true,
+                    prDetailCount: prDetailsSignificant.length,
+                    baseDetailCount: baseDetailsSignificant.length,
+                    newDetailsCount: newDetails.length,
+                    reason: prCheck.reason,
+                    newDetails: newDetails // Show all new details
+                  });
+                }
               }
             });
 
