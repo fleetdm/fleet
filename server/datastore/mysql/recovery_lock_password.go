@@ -161,18 +161,22 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	})
 }
 
+// viewableRecoveryLockPasswordExpr is the password an admin can view, shared by the lookup and the
+// availability flag so they agree. Once the device accepts a Set, its password is shown even before the
+// verify comes back. Otherwise the stored password is shown if Fleet verified it on the current
+// enrollment: verify_command_uuid is only set by a passing verify and is cleared on re-enrollment.
+// The pending_encrypted_password guard sends the last-known-password verify, which clears it, to the
+// stored password.
+const viewableRecoveryLockPasswordExpr = `
+	CASE
+		WHEN status <=> 'verifying' AND operation_type = 'install' AND pending_encrypted_password IS NOT NULL
+			THEN pending_encrypted_password
+		WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL THEN encrypted_password
+	END`
+
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	// verify_command_uuid is only set once Fleet verifies a password on the current enrollment, and is
-	// cleared on re-enrollment, so it tells a still-valid password apart from one left over from before.
-	const stmt = `
-		SELECT
-			CASE
-				WHEN status = 'verifying' AND operation_type = 'install' AND pending_encrypted_password IS NOT NULL
-					THEN pending_encrypted_password
-				WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL
-					THEN encrypted_password
-			END AS encrypted_password,
-			status, updated_at, auto_rotate_at
+	stmt := `
+		SELECT ` + viewableRecoveryLockPasswordExpr + ` AS encrypted_password, status, updated_at, auto_rotate_at
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
 
@@ -209,12 +213,12 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 }
 
 func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-	const stmt = `
+	stmt := `
 		SELECT
 			status,
 			operation_type,
 			COALESCE(error_message, '') AS detail,
-			encrypted_password IS NOT NULL AND (status <=> 'verified' OR verify_command_uuid IS NOT NULL) AS password_available
+			(` + viewableRecoveryLockPasswordExpr + `) IS NOT NULL AS password_available
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
 

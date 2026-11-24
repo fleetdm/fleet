@@ -1540,7 +1540,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", hostID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.RecoveryLockPassword)
 		status := getHostRecoveryLockStatus(hostID)
-		assert.True(t, status.PasswordAvailable, "a known recovery lock password should be available in host details")
+		assert.Equal(t, resp.RecoveryLockPassword.Password != nil, status.PasswordAvailable, "host details availability must match the password lookup")
 		return resp.RecoveryLockPassword
 	}
 
@@ -1575,7 +1575,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		return host, mdmClient, *pw.Password
 	}
 
-	t.Run("pending rotation shows the prior password until the new one verifies", func(t *testing.T) {
+	t.Run("pending rotation shows the prior password until the device accepts the new one", func(t *testing.T) {
 		host, mdmClient, prior := verifiedHostWithPassword(t)
 
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
@@ -1585,7 +1585,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, pw.Password)
 		assert.Equal(t, prior, *pw.Password)
 
-		// Verifying: device applied the new password, Fleet hasn't confirmed it yet.
+		// Verifying: the device accepted the new password, so it is shown before Fleet confirms it.
 		setCmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 		require.NotNil(t, setCmd)
@@ -1601,14 +1601,54 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		pw = viewPassword(t, host.ID)
 		require.NotNil(t, pw.Password)
-		assert.Equal(t, prior, *pw.Password)
+		accepted := *pw.Password
+		assert.NotEqual(t, prior, accepted)
 
 		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
 		require.NoError(t, err)
 
 		pw = viewPassword(t, host.ID)
 		require.NotNil(t, pw.Password)
-		assert.NotEqual(t, prior, *pw.Password)
+		assert.Equal(t, accepted, *pw.Password)
+	})
+
+	t.Run("initial install shows the pending password once the device accepts the set", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
+		}, http.StatusOK, &appConfigResponse{})
+		t.Cleanup(func() {
+			s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+				"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
+			}, http.StatusOK, &appConfigResponse{})
+		})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+
+		// Not yet accepted by the device: nothing to show.
+		assert.Nil(t, viewPassword(t, host.ID).Password)
+
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd)
+
+		pw := viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		pending := *pw.Password
+
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		pw = viewPassword(t, host.ID)
+		require.NotNil(t, pw.Password)
+		assert.Equal(t, pending, *pw.Password)
 	})
 
 	t.Run("failed rotation keeps showing the prior password", func(t *testing.T) {
