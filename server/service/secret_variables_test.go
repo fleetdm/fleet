@@ -118,6 +118,9 @@ func TestCreateSecretVariablesEmitsActivities(t *testing.T) {
 		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
 			return []string{"CREATED"}, []string{"UPDATED"}, nil
 		}
+		ds.GetSecretVariablesFunc = func(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
+			return []fleet.SecretVariable{{ID: 7, Name: "CREATED"}}, nil
+		}
 		var activities []activity_api.ActivityDetails
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 			activities = append(activities, activity)
@@ -133,6 +136,7 @@ func TestCreateSecretVariablesEmitsActivities(t *testing.T) {
 		createdActivity, ok := activities[0].(fleet.ActivityCreatedCustomVariable)
 		require.True(t, ok)
 		require.Equal(t, "CREATED", createdActivity.CustomVariableName)
+		require.Equal(t, uint(7), createdActivity.CustomVariableID)
 
 		updatedActivity, ok := activities[1].(fleet.ActivityUpdatedCustomVariable)
 		require.True(t, ok)
