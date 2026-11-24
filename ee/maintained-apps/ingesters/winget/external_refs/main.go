@@ -12,6 +12,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"1password/windows":                {OnePasswordVersionShortener},
 	"anyburn/windows":                  {AnyBurnVersionShortener},
 	"aomei-backupper-standard/windows": {AOMEIBackupperVersionShortener},
+	"bandicam/windows":                 {BandicamVersionedURL},
 	"datadog-agent/windows":            {DatadogAgentVersionNormalizer},
 	"eclipse-temurin-jdk-11/windows":   {TemurinMSIVersion},
 	"eclipse-temurin-jdk-17/windows":   {TemurinMSIVersion},

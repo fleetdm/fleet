@@ -848,6 +848,8 @@ type TeamPolicyFunc func(ctx context.Context, teamID uint, policyID uint) (*flee
 
 type CleanupPolicyMembershipFunc func(ctx context.Context, now time.Time) error
 
+type CleanupPendingPolicyMembershipFunc func(ctx context.Context) error
+
 type IsPolicyFailingFunc func(ctx context.Context, policyID uint, hostID uint) (bool, error)
 
 type CountHostSoftwareInstallAttemptsFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) (int, error)
@@ -1165,6 +1167,8 @@ type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error
 
 type GetAppleSerialEnrolledUnderAnotherUUIDFunc func(ctx context.Context, serial string, uuid string) (string, error)
+
+type GetAppleAccountDrivenEnrollmentIDTakenFunc func(ctx context.Context, enrollmentID string) (bool, error)
 
 type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error)
 
@@ -3891,6 +3895,9 @@ type DataStore struct {
 	CleanupPolicyMembershipFunc        CleanupPolicyMembershipFunc
 	CleanupPolicyMembershipFuncInvoked bool
 
+	CleanupPendingPolicyMembershipFunc        CleanupPendingPolicyMembershipFunc
+	CleanupPendingPolicyMembershipFuncInvoked bool
+
 	IsPolicyFailingFunc        IsPolicyFailingFunc
 	IsPolicyFailingFuncInvoked bool
 
@@ -4367,6 +4374,9 @@ type DataStore struct {
 
 	GetAppleSerialEnrolledUnderAnotherUUIDFunc        GetAppleSerialEnrolledUnderAnotherUUIDFunc
 	GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked bool
+
+	GetAppleAccountDrivenEnrollmentIDTakenFunc        GetAppleAccountDrivenEnrollmentIDTakenFunc
+	GetAppleAccountDrivenEnrollmentIDTakenFuncInvoked bool
 
 	GetHostMDMAppleEnrollmentPermissionsFunc        GetHostMDMAppleEnrollmentPermissionsFunc
 	GetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
@@ -9487,6 +9497,13 @@ func (s *DataStore) CleanupPolicyMembership(ctx context.Context, now time.Time) 
 	return s.CleanupPolicyMembershipFunc(ctx, now)
 }
 
+func (s *DataStore) CleanupPendingPolicyMembership(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupPendingPolicyMembershipFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupPendingPolicyMembershipFunc(ctx)
+}
+
 func (s *DataStore) IsPolicyFailing(ctx context.Context, policyID uint, hostID uint) (bool, error) {
 	s.mu.Lock()
 	s.IsPolicyFailingFuncInvoked = true
@@ -10598,6 +10615,13 @@ func (s *DataStore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, 
 	s.GetAppleSerialEnrolledUnderAnotherUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAppleSerialEnrolledUnderAnotherUUIDFunc(ctx, serial, uuid)
+}
+
+func (s *DataStore) GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error) {
+	s.mu.Lock()
+	s.GetAppleAccountDrivenEnrollmentIDTakenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleAccountDrivenEnrollmentIDTakenFunc(ctx, enrollmentID)
 }
 
 func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {

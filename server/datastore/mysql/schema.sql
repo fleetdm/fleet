@@ -894,6 +894,7 @@ CREATE TABLE `host_dep_assignments` (
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `assign_profile_response` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `response_updated_at` timestamp NULL DEFAULT NULL,
+  `throttled_retry_after` timestamp NULL DEFAULT NULL,
   `retry_job_id` int unsigned NOT NULL DEFAULT '0',
   `abm_token_id` int unsigned DEFAULT NULL,
   `mdm_migration_deadline` timestamp(6) NULL DEFAULT NULL,
@@ -904,7 +905,7 @@ CREATE TABLE `host_dep_assignments` (
   KEY `fk_host_dep_assignments_abm_token_id` (`abm_token_id`),
   KEY `idx_hdep_hardware_serial` (`hardware_serial`),
   CONSTRAINT `fk_host_dep_assignments_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -3069,6 +3070,8 @@ CREATE TABLE `policies` (
   `type` enum('dynamic','patch') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'dynamic',
   `patch_software_title_id` int unsigned DEFAULT NULL,
   `needs_full_membership_cleanup` tinyint(1) NOT NULL DEFAULT '0',
+  `needs_partial_membership_cleanup` tinyint(1) NOT NULL DEFAULT '0',
+  `membership_cleanup_generation` int unsigned NOT NULL DEFAULT '0',
   `continuous_automations_enabled` tinyint(1) NOT NULL DEFAULT '0',
   `patch_when_closed` tinyint(1) NOT NULL DEFAULT '0',
   `resend_apple_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,

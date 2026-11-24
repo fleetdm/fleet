@@ -44,6 +44,9 @@ type Profile struct {
 type ProfileResponse struct {
 	ProfileUUID string            `json:"profile_uuid"`
 	Devices     map[string]string `json:"devices"`
+	// RetryAfterSeconds is set by Apple (protocol version 10 and later) when at least one device is
+	// THROTTLED: the minimum wait before retrying those devices.
+	RetryAfterSeconds int `json:"retry_after_seconds,omitempty"`
 }
 
 // AssignProfiles uses the Apple "Assign a profile to a list of devices" API

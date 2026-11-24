@@ -1120,6 +1120,8 @@
     <script src="/js/pages/docs/app-library.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
     <script src="/js/pages/docs/command-details.page.js"></script>
+    <script src="/js/pages/docs/integration-details.page.js"></script>
+    <script src="/js/pages/docs/integrations-directory.page.js"></script>
     <script src="/js/pages/docs/mdm-commands.page.js"></script>
     <script src="/js/pages/docs/os-settings.page.js"></script>
     <script src="/js/pages/docs/osquery-table-details.page.js"></script>
@@ -1149,7 +1151,6 @@
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/infrastructure-as-code.page.js"></script>
-    <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/landing-pages/android-mdm.page.js"></script>
     <script src="/js/pages/landing-pages/apple-mdm.page.js"></script>
     <script src="/js/pages/landing-pages/autonomous-endpoint-management.page.js"></script>
@@ -1327,7 +1328,11 @@
       // Announcement banner: lights the flutes of reeded glass.  (Styled in layout.less.)
       (function(){
         var banner = document.querySelector('[purpose="announcement-banner"]');
-        if (!banner) { return; }
+        if (!banner) {
+          // Set explicitly, so sticky elements offset by this don't depend on the var() fallback in their styles.
+          document.documentElement.style.setProperty('--announcement-banner-height', '0px');
+          return;
+        }
         var flutesContainer = banner.querySelector('[purpose="banner-flutes"]');
         var flutes = [];
         var RESTING_LIT = 0.15;

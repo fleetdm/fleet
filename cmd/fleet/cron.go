@@ -1388,6 +1388,27 @@ func newAppleMDMWorkerSchedule(
 	return s, nil
 }
 
+// newPolicyMembershipCleanupSchedule runs the policy result cleanups that policy changes requested.
+func newPolicyMembershipCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronPolicyMembershipCleanup)
+		defaultInterval = time.Hour
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("pending_policy_membership_cleanup", func(ctx context.Context) error {
+			return ds.CleanupPendingPolicyMembership(ctx)
+		}),
+	)
+	return s, nil
+}
+
 func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2815,6 +2836,7 @@ func newMaintainedAppsAutoUpdateSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	triggerPolicyMembershipCleanup func(context.Context),
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -2834,7 +2856,10 @@ func newMaintainedAppsAutoUpdateSchedule(
 			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
 			defer cancel()
 
-			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
+			err := eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
+			// When the update changed a patch policy's query, it marked the policy's old results for cleanup. This starts that cleanup.
+			triggerPolicyMembershipCleanup(ctx)
+			return err
 		}),
 	)
 

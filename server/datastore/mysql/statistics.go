@@ -120,7 +120,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fleet maintained apps")
 		}
-		numHostsFleetMDMEnrolledMacOS, numHostsFleetMDMEnrolledWindows, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
+		numHostsFleetMDMEnrolledMacOS, numHostsFleetMDMEnrolledWindows, numHostsFleetMDMEnrolledIOS, numHostsFleetMDMEnrolledIpadOS, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "number of hosts enrolled in Fleet MDM")
 		}
@@ -222,6 +222,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
 		stats.NumHostsFleetMDMEnrolledMacOS = numHostsFleetMDMEnrolledMacOS
 		stats.NumHostsFleetMDMEnrolledWindows = numHostsFleetMDMEnrolledWindows
+		stats.NumHostsFleetMDMEnrolledIOS = numHostsFleetMDMEnrolledIOS
+		stats.NumHostsFleetMDMEnrolledIpadOS = numHostsFleetMDMEnrolledIpadOS
 		stats.NumMDMAppleProfiles = numMDMAppleProfiles
 		stats.NumMDMWindowsProfiles = numMDMWindowsProfiles
 		stats.NumMDMAppleDeclarations = numMDMAppleDeclarations

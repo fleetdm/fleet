@@ -97,8 +97,11 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint)
 		}
 		activityHostID = &host.ID
 		activityHostName = new(host.DisplayName())
-	} else if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset policy")
+	} else {
+		if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset policy")
+		}
+		svc.TriggerPolicyMembershipCleanup(ctx)
 	}
 
 	var activityTeamID *int64
