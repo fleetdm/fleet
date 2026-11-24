@@ -1,0 +1,1 @@
+- Added `--fleet` to `fleetctl get label <name>` and `--label-fleet` to `fleetctl hosts transfer`, to pick one fleet's label when more than one fleet has a label with the same name.

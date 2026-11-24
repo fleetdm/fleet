@@ -77,6 +77,7 @@ export interface IDepAssignmentHostResponse {
     assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
     response_updated_at: string;
+    throttled_retry_after: string | null;
     added_at: string;
     deleted_at: string | null;
     ab_token_id: number;

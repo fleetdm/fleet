@@ -24,11 +24,12 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   parse_config:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       json: ${{steps.get_config_json.outputs.json}}
@@ -48,6 +49,8 @@ jobs:
         run: echo "json=$(jq -c . < .github/workflows/config/randokiller.json)" >> $GITHUB_OUTPUT
 
   test-go:
+    permissions:
+      contents: read
     needs: parse_config
     strategy:
       matrix:

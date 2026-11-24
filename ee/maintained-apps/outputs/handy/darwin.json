@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.10.1",
+      "version": "0.10.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.pais.handy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.pais.handy' AND version_compare(bundle_short_version, '0.10.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.pais.handy' AND version_compare(bundle_short_version, '0.10.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.pais.handy' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/cjpais/Handy/releases/download/v0.10.1/Handy_0.10.1_aarch64.dmg",
+      "installer_url": "https://github.com/cjpais/Handy/releases/download/v0.10.2/Handy_0.10.2_aarch64.dmg",
       "install_script_ref": "6d6fa6ba",
       "uninstall_script_ref": "eedc62eb",
-      "sha256": "7cdef5de7d1bfcea70813320b897540cbead2190f5280db6d9760a59e5995463",
+      "sha256": "b8b893fbf9e8262abb0e363cb0ac6715cc69eac2fd6ffd8c0785278083a0e3ca",
       "default_categories": [
         "Productivity"
       ]

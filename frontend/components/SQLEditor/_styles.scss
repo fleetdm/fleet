@@ -3,7 +3,7 @@
     @include form-label;
 
     &--error {
-      color: $core-vibrant-red;
+      color: $ui-error;
     }
 
     &--with-action {
@@ -43,7 +43,7 @@
       .ace_editor.ace-fleet,
       .ace_editor.ace-fleet:hover,
       .ace_editor.ace-fleet.ace_focus {
-        border-color: $core-vibrant-red;
+        border-color: $ui-error;
       }
     }
     &--disabled {

@@ -130,6 +130,7 @@ import Badgeify from "./png/Badgeify.png";
 import BalenaEtcher from "./png/BalenaEtcher.png";
 import BalsamiqWireframes from "./png/BalsamiqWireframes.png";
 import BambuStudio from "./png/BambuStudio.png";
+import Bandicam from "./png/Bandicam.png";
 import Bandiview from "./png/Bandiview.png";
 import Bartender from "./png/Bartender.png";
 import Batfi from "./png/Batfi.png";
@@ -188,6 +189,8 @@ import Captain from "./png/Captain.png";
 import Capto from "./png/Capto.png";
 import CarbonCopyCloner from "./png/CarbonCopyCloner.png";
 import Cardhop from "./png/Cardhop.png";
+import CatoClient from "./png/CatoClient.png";
+import CatoEnterpriseBrowser from "./png/CatoEnterpriseBrowser.png";
 import Cavalry from "./png/Cavalry.png";
 import CertifyTheWeb from "./png/CertifyTheWeb.png";
 import Chalk from "./png/Chalk.png";
@@ -488,6 +491,7 @@ import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
+import Herdr from "./png/Herdr.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -1301,6 +1305,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   balenaetcher: BalenaEtcher,
   "balsamiq wireframes": BalsamiqWireframes,
   "bambu studio": BambuStudio,
+  bandicam: Bandicam,
   bandiview: Bandiview,
   bartender: Bartender,
   batfi: Batfi,
@@ -1362,6 +1367,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   capto: Capto,
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
+  "cato browser": CatoEnterpriseBrowser,
+  "cato client": CatoClient,
+  "cato enterprise browser": CatoEnterpriseBrowser,
   cavalry: Cavalry,
   "certify the web": CertifyTheWeb,
   chalk: Chalk,
@@ -1675,6 +1683,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
+  herdr: Herdr,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,

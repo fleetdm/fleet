@@ -1,4 +1,4 @@
-import { omit, pick } from "lodash";
+import { noop, omit, pick } from "lodash";
 import React, {
   useContext,
   useState,
@@ -155,7 +155,6 @@ import LabelsCard from "../cards/Labels";
 import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import MunkiIssuesCard from "../cards/MunkiIssues";
 import PoliciesCard from "../cards/Policies";
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import SoftwareInventoryCard from "../cards/Software";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import UserCard from "../cards/User";
@@ -334,7 +333,6 @@ const HostDetailsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [
@@ -386,9 +384,6 @@ const HostDetailsPage = ({
 
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
-  const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
-    null
-  );
   const [
     packageInstallDetails,
     setPackageInstallDetails,
@@ -918,6 +913,18 @@ const HostDetailsPage = ({
     }
   );
 
+  // Nil the MDM commands data when the host can't take MDM commands
+  // (non-Apple). The queries are disabled in that state, but keepPreviousData
+  // keeps the previous (Apple) host's results alive, which would otherwise
+  // leak into the command feed, the Upcoming badge count, and anywhere else
+  // downstream reads these.
+  const availablePastMDMCommands = canGetMDMCommands
+    ? pastMDMCommands
+    : undefined;
+  const availableUpcomingMDMCommands = canGetMDMCommands
+    ? upcomingMDMCommands
+    : undefined;
+
   const featuresConfig = host?.fleet_id
     ? teams?.find((t) => t.id === host.fleet_id)?.features
     : config?.features;
@@ -972,12 +979,23 @@ const HostDetailsPage = ({
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
-  const togglePolicyDetailsModal = useCallback(
+  // The policy page filters its automation runs to this host when the policy
+  // has an automation, which it only knows once the policy loads.
+  const onClickPolicy = useCallback(
     (policy: IHostPolicy) => {
-      setPolicyDetailsModal(!showPolicyDetailsModal);
-      setSelectedPolicy(policy);
+      router.push({
+        pathname: PATHS.POLICY_DETAILS(policy.id),
+        // Inherited policies have no fleet, so keep the host's fleet, or No
+        // fleet (0) for an unassigned host. Free tier has no fleets.
+        query: {
+          fleet_id: isPremiumTier
+            ? policy.fleet_id ?? host?.fleet_id ?? 0
+            : undefined,
+        },
+        state: { hostSearch: host?.display_name },
+      });
     },
-    [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
+    [router, isPremiumTier, host?.fleet_id, host?.display_name]
   );
 
   const toggleBootstrapPackageModal = useCallback(() => {
@@ -1014,11 +1032,6 @@ const HostDetailsPage = ({
   const toggleClearPasscodeModal = useCallback(() => {
     setShowClearPasscodeModal(!showClearPasscodeModal);
   }, [showClearPasscodeModal, setShowClearPasscodeModal]);
-
-  const onCancelPolicyDetailsModal = useCallback(() => {
-    setPolicyDetailsModal(false);
-    setSelectedPolicy(null);
-  }, [setPolicyDetailsModal, setSelectedPolicy]);
 
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
@@ -1142,8 +1155,28 @@ const HostDetailsPage = ({
   }, [host?.id]);
 
   const onChangeActivityTab = (tabIndex: number) => {
-    setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
+    const newTab = tabIndex === 0 ? "past" : "upcoming";
+    setActiveActivityTab(newTab);
     setActivityPage(0);
+    // Invalidate the destination tab's queries across all page keys so the
+    // re-render at page 0 refetches even within staleTime; manual refetch()
+    // would close over the pre-reset pageIndex. Upcoming is always
+    // invalidated (its counts power the badge visible from either tab). MDM
+    // command scopes are skipped when canGetMDMCommands is false: those
+    // queries are disabled, and an unguarded fetch with the command_status
+    // filter returns 400 on non-Apple hosts (server/datastore/mysql/mdm.go).
+    const scopes = new Set<string>(["upcoming-activities"]);
+    if (canGetMDMCommands) scopes.add("host-upcoming-mdm-commands");
+    if (newTab === "past") {
+      scopes.add("past-activities");
+      if (canGetMDMCommands) scopes.add("host-past-mdm-commands");
+    }
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        scopes.has(
+          (query.queryKey[0] as { scope?: string } | undefined)?.scope ?? ""
+        ),
+    });
   };
 
   const onShowActivityDetails = useCallback(
@@ -1931,6 +1964,10 @@ const HostDetailsPage = ({
   };
 
   const renderContent = (mainContentConfig: IMainContentConfig) => {
+    const getActiveMDMCommands = () =>
+      activeActivityTab === "past"
+        ? availablePastMDMCommands
+        : availableUpcomingMDMCommands;
     return (
       <>
         <>
@@ -2013,21 +2050,19 @@ const HostDetailsPage = ({
                       ? pastActivities
                       : upcomingActivities
                   }
-                  commands={
-                    activeActivityTab === "past"
-                      ? pastMDMCommands
-                      : upcomingMDMCommands
-                  }
+                  commands={getActiveMDMCommands()}
                   isLoading={
                     activeActivityTab === "past"
                       ? pastActivitiesIsLoading ||
-                        pastMDMCommandsIsLoading ||
                         pastActivitiesIsPreviousData ||
-                        pastMDMCommandsIsPreviousData
+                        (canGetMDMCommands &&
+                          (pastMDMCommandsIsLoading ||
+                            pastMDMCommandsIsPreviousData))
                       : upcomingActivitiesIsLoading ||
-                        upcomingMDMCommandsIsLoading ||
                         upcomingActivitiesIsPreviousData ||
-                        upcomingMDMCommandsIsPreviousData
+                        (canGetMDMCommands &&
+                          (upcomingMDMCommandsIsLoading ||
+                            upcomingMDMCommandsIsPreviousData))
                   }
                   isError={
                     activeActivityTab === "past"
@@ -2041,8 +2076,8 @@ const HostDetailsPage = ({
                   onShowMDMCommands={() => updateShowMDMCommands(true)}
                   onHideMDMCommands={() => updateShowMDMCommands(false)}
                   upcomingCount={
-                    (upcomingActivities?.count || 0) +
-                    (upcomingMDMCommands?.count || 0)
+                    (upcomingActivities?.count ?? 0) +
+                    (availableUpcomingMDMCommands?.count ?? 0)
                   }
                   onChangeTab={onChangeActivityTab}
                   onNextPage={() => setActivityPage(activityPage + 1)}
@@ -2212,8 +2247,8 @@ const HostDetailsPage = ({
                   <PoliciesCard
                     policies={host?.policies || []}
                     isLoading={isLoadingHost}
-                    togglePolicyDetailsModal={togglePolicyDetailsModal}
-                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
+                    togglePolicyDetailsModal={onClickPolicy}
+                    closePolicyDetailsModal={noop}
                     hostPlatform={host.platform}
                     currentTeamId={currentTeam?.id}
                     canManagePolicies={canManagePolicies}
@@ -2266,12 +2301,6 @@ const HostDetailsPage = ({
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
               hostsTeamId={host.fleet_id}
-            />
-          )}
-          {!!host && showPolicyDetailsModal && (
-            <PolicyDetailsModal
-              onCancel={onCancelPolicyDetailsModal}
-              policy={selectedPolicy}
             />
           )}
           {!!host && showReleaseFromABModal && (

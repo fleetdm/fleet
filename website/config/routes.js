@@ -427,6 +427,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /admin/profile-generator-usage': {
+    action: 'admin/view-profile-generator-usage',
+    locals: {
+      hideFooterLinks: true,
+      showAdminLinks: true,
+    }
+  },
+
 
   'GET /connect-vanta': {
     action: 'view-connect-vanta',
@@ -1626,6 +1634,7 @@ module.exports.routes = {
   'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
   'GET /learn-more-about/fleet-5-upgrade': '/guides/upgrade-to-fleet-5',
   'GET /learn-more-about/fleet-5-migration': '/guides/upgrade-to-fleet-5',
+  'GET /learn-more-about/fleetctl-trigger': '/guides/trigger-fleet-schedules-on-demand',
 
 
   // Sitemap

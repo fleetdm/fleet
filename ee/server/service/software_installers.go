@@ -882,6 +882,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, activeInstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 			}
+			// The new version's patch policy query clears the policy's results.
+			svc.TriggerPolicyMembershipCleanup(ctx)
 
 			// the pinned version is now the active installer; return it, not the one we pinned away from
 			payload.InstallerID = activeInstallerID

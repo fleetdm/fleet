@@ -3,9 +3,9 @@
     {
       "version": "26.11.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'GoldenDict-ng';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GoldenDict-ng' AND version_compare(version, '26.11.0') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'goldendict-ng.exe');"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'goldendict-ng%';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'goldendict-ng%' AND version_compare(version, '26.11.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'goldendict.exe');"
       },
       "installer_url": "https://github.com/xiaoyifang/goldendict-ng/releases/download/v26.11.0/GoldenDict-ng-26.11.0-Qt6.8.3-Windows-installer.exe",
       "install_script_ref": "9d79ff67",
