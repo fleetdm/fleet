@@ -45,7 +45,11 @@ var ToolRoutes = map[string][]Route{
 		{"GET", "/api/v1/fleet/hosts"},
 		{"GET", "/api/v1/fleet/hosts/:id"},
 	},
-	"get_labels":         {{"GET", "/api/v1/fleet/labels"}},
+	"get_labels": {{"GET", "/api/v1/fleet/labels"}},
+	"get_os_versions": {
+		{"GET", "/api/v1/fleet/fleets"},
+		{"GET", "/api/v1/fleet/os_versions"},
+	},
 	"get_osquery_schema": {},
 	"get_policies": {
 		{"GET", "/api/v1/fleet/fleets"},

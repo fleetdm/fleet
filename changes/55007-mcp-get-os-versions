@@ -1,0 +1,1 @@
+- Added a `get_os_versions` tool to Fleet's MCP server that lists operating system versions with host counts from stored inventory.

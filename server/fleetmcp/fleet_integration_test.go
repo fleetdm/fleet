@@ -1458,3 +1458,77 @@ func TestGetHostByIdentifierRejectsHostIDOnlyMatch(t *testing.T) {
 		}
 	}
 }
+
+func osVersionsTestServer(t *testing.T, total int, wantPlatform string, calls *atomic.Int32) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/fleet/fleets":
+			_ = json.NewEncoder(w).Encode(map[string]any{"fleets": []Team{{ID: 275, Name: "💻 Workstations"}}})
+		case "/api/v1/fleet/os_versions":
+			calls.Add(1)
+			q := r.URL.Query()
+			if q.Get("fleet_id") != "275" || q.Get("platform") != wantPlatform || q.Get("max_vulnerabilities") != "0" || q.Get("page") != "0" {
+				t.Errorf("unexpected query %q", r.URL.RawQuery)
+			}
+			perPage, _ := strconv.Atoi(q.Get("per_page"))
+			// Equal host counts, returned in reverse version order, to exercise the client-side tiebreaker.
+			versions := make([]OSVersion, min(total, perPage))
+			for i := range versions {
+				versions[i] = OSVersion{OSName: "macOS", OSVersion: fmt.Sprintf("27.0.%03d", len(versions)-i), Platform: "darwin", HostsCount: 2}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"count": total, "counts_updated_at": "2026-10-06T14:00:00Z", "os_versions": versions})
+		default:
+			t.Errorf("unexpected path %q", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func TestListOSVersions_SinglePageAtCap(t *testing.T) {
+	orig := fetchOSVersionsHardCap
+	fetchOSVersionsHardCap = 5
+	defer func() { fetchOSVersionsHardCap = orig }()
+
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 5, "darwin", &calls)
+	defer srv.Close()
+
+	res, err := newTestClient(srv.URL).ListOSVersions(t.Context(), "💻 workstations", "macos")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := len(res.OSVersions), 5; got != want {
+		t.Fatalf("len(OSVersions) = %d, want %d", got, want)
+	}
+	if res.Truncated {
+		t.Errorf("a complete result exactly at the cap must not be marked truncated")
+	}
+	if first := res.OSVersions[0]; first.OSName != "macOS" || first.OSVersion != "27.0.001" {
+		t.Errorf("expected ties ordered by name then version, got first %q %q", first.OSName, first.OSVersion)
+	}
+	if res.CountsUpdatedAt != "2026-10-06T14:00:00Z" {
+		t.Errorf("CountsUpdatedAt = %q", res.CountsUpdatedAt)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Errorf("expected 1 request, got %d", got)
+	}
+}
+
+func TestListOSVersions_TruncatedAboveCap(t *testing.T) {
+	orig := fetchOSVersionsHardCap
+	fetchOSVersionsHardCap = 5
+	defer func() { fetchOSVersionsHardCap = orig }()
+
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 6, "ubuntu", &calls)
+	defer srv.Close()
+
+	// A Linux distribution's platform is passed through, not folded into "linux".
+	res, err := newTestClient(srv.URL).ListOSVersions(t.Context(), "💻 Workstations", "Ubuntu")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.OSVersions) != 5 || !res.Truncated {
+		t.Errorf("got %d rows truncated=%v, want 5 rows truncated=true", len(res.OSVersions), res.Truncated)
+	}
+}
