@@ -818,6 +818,31 @@ describe("HostDetailsPage - activity card tab switch", () => {
       ).toBeGreaterThan(pastCallsBeforePast);
     });
   });
+
+  it("doesn't fire getCommands on a tab switch when the host can't take MDM commands (non-Apple), avoiding a 400 from the command_status filter", async () => {
+    stubQueries(mockWindowsHost());
+    const { user } = renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
+
+    await screen.findByText("Activity");
+    const commandsCallsBefore = (commandAPI.getCommands as jest.Mock).mock.calls
+      .length;
+
+    await user.click(await screen.findByRole("tab", { name: /upcoming/i }));
+    await user.click(await screen.findByRole("tab", { name: /past/i }));
+
+    // Wait for the past refetch to confirm the switch handler ran at least
+    // once, then assert no getCommands calls were fired by either switch.
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(1);
+    });
+    expect((commandAPI.getCommands as jest.Mock).mock.calls.length).toBe(
+      commandsCallsBefore
+    );
+  });
 });
 
 describe("HostDetailsPage - invalid host id", () => {

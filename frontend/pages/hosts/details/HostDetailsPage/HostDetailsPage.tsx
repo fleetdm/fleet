@@ -861,7 +861,6 @@ const HostDetailsPage = ({
     isError: pastMDMCommandsIsError,
     isLoading: pastMDMCommandsIsLoading,
     isPreviousData: pastMDMCommandsIsPreviousData,
-    refetch: refetchPastMDMCommands,
   } = useQuery(
     [
       {
@@ -893,7 +892,6 @@ const HostDetailsPage = ({
     isError: upcomingMDMCommandsIsError,
     isLoading: upcomingMDMCommandsIsLoading,
     isPreviousData: upcomingMDMCommandsIsPreviousData,
-    refetch: refetchUpcomingMDMCommands,
   } = useQuery(
     [
       {
@@ -1147,15 +1145,25 @@ const HostDetailsPage = ({
     const newTab = tabIndex === 0 ? "past" : "upcoming";
     setActiveActivityTab(newTab);
     setActivityPage(0);
-    // Upcoming queries always refetch: they power the Upcoming list AND the
-    // count badge visible on either tab. Past queries only refetch when
-    // switching to Past (Past has no badge).
-    refetchUpcomingActivities();
-    refetchUpcomingMDMCommands();
+    // Invalidate the destination tab's queries across all page keys so the
+    // re-render at page 0 refetches even within staleTime; manual refetch()
+    // would close over the pre-reset pageIndex. Upcoming is always
+    // invalidated (its counts power the badge visible from either tab). MDM
+    // command scopes are skipped when canGetMDMCommands is false: those
+    // queries are disabled, and an unguarded fetch with the command_status
+    // filter returns 400 on non-Apple hosts (server/datastore/mysql/mdm.go).
+    const scopes = new Set<string>(["upcoming-activities"]);
+    if (canGetMDMCommands) scopes.add("host-upcoming-mdm-commands");
     if (newTab === "past") {
-      refetchPastActivities();
-      refetchPastMDMCommands();
+      scopes.add("past-activities");
+      if (canGetMDMCommands) scopes.add("host-past-mdm-commands");
     }
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        scopes.has(
+          (query.queryKey[0] as { scope?: string } | undefined)?.scope ?? ""
+        ),
+    });
   };
 
   const onShowActivityDetails = useCallback(
@@ -1943,6 +1951,16 @@ const HostDetailsPage = ({
   };
 
   const renderContent = (mainContentConfig: IMainContentConfig) => {
+    // keepPreviousData holds the previous host's MDM commands even when the
+    // new host's query is disabled, which would expose Apple's commands on a
+    // non-Apple host if the user had the MDM toggle on (toggle persists via
+    // localStorage, so showMDMCommands can be true while the toggle button
+    // itself is hidden). Nil the commands prop when queries aren't enabled.
+    const getActiveMDMCommands = () => {
+      if (!canGetMDMCommands) return undefined;
+      if (activeActivityTab === "past") return pastMDMCommands;
+      return upcomingMDMCommands;
+    };
     return (
       <>
         <>
@@ -2025,11 +2043,7 @@ const HostDetailsPage = ({
                       ? pastActivities
                       : upcomingActivities
                   }
-                  commands={
-                    activeActivityTab === "past"
-                      ? pastMDMCommands
-                      : upcomingMDMCommands
-                  }
+                  commands={getActiveMDMCommands()}
                   isLoading={
                     activeActivityTab === "past"
                       ? pastActivitiesIsLoading ||
