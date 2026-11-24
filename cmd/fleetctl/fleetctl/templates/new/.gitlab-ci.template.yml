@@ -18,7 +18,7 @@ fleet-gitops:
   script:
     - FLEET_URL="$(printf '%s' "$FLEET_URL" | sed 's:/*$::')"
     - >
-      FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent | jq --raw-output '.version')"
+      FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" --fail --silent --connect-timeout 10 --max-time 60 | jq --raw-output '.version')"
     - >
       if [[ -n "$FLEET_VERSION" ]] ; then
         curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | FLEETCTL_VERSION="$FLEET_VERSION" bash || curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash

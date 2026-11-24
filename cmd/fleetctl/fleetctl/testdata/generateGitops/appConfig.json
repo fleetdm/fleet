@@ -169,7 +169,6 @@
     "failing_policies_webhook": {
       "enable_failing_policies_webhook": true,
       "destination_url": "https://some-failing-policies-webhook-url.com",
-      "policy_ids": [],
       "host_batch_size": 2
     },
     "vulnerabilities_webhook": {
@@ -213,7 +212,12 @@
           "owl": "hoot"
         }
       }
-    ]
+    ],
+    "google_conditional_access": {
+      "customer_id": "C02cajzvg",
+      "admin_email": "admin@fleetdm.com",
+      "api_key_json": "********"
+    }
   },
   "mdm": {
     "apple_server_url": "http://some-apple-server-url.com",

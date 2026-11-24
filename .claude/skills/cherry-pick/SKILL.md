@@ -22,13 +22,13 @@ Usage: `/cherry-pick <PR_NUMBER> [RC_BRANCH]`
 
 If an RC branch was provided as the second argument, use it (but still confirm with the user before proceeding).
 
-Otherwise, auto-detect by listing both minor and patch RC branches:
+Otherwise, auto-detect by listing major, minor, and patch RC branches:
 
 ```
-git for-each-ref 'refs/remotes/origin/rc-minor-fleet-v*' 'refs/remotes/origin/rc-patch-fleet-v*' --format='%(refname:strip=3)' | grep -E '^rc-(minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V
+git for-each-ref 'refs/remotes/origin/rc-major-fleet-v*' 'refs/remotes/origin/rc-minor-fleet-v*' 'refs/remotes/origin/rc-patch-fleet-v*' --format='%(refname:strip=3)' | grep -E '^rc-(major|minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -t v -k 2 -V
 ```
 
-From the results, suggest the most recent `rc-minor-fleet-v*` branch as the default. If patch branches also exist, mention them as alternatives. **Always ask the user to confirm the target RC branch before proceeding.**
+From the results, suggest the most recent `rc-major-fleet-v*` or `rc-minor-fleet-v*` branch as the default. If patch branches also exist, mention them as alternatives. **Always ask the user to confirm the target RC branch before proceeding.**
 
 ## Step 3: Get the merge commit and GitHub username
 

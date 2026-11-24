@@ -69,6 +69,18 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 			errMsg: "Missing $FLEET_VAR_DIGICERT_DATA_caName in the profile",
 		},
 		{
+			name: "DigiCert CA name in another case",
+			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_CANAME", "$FLEET_VAR_DIGICERT_DATA_CANAME", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "Fleet variable $FLEET_VAR_DIGICERT_PASSWORD_CANAME does not exist.",
+		},
+		{
+			name: "Custom SCEP CA name in another case",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepname", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepname", "Name",
+				"com.apple.security.scep"),
+			errMsg: "Fleet variable $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepname does not exist.",
+		},
+		{
 			name: "Custom SCEP badCA",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_bad", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_bad", "Name",
 				"com.apple.security.scep"),

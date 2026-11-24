@@ -57,6 +57,64 @@ func checkAutomationTypeCompanions(automationType *fleet.PolicyAutomation, c pol
 	return nil
 }
 
+// checkCreateCompanions checks that a new policy's software_title_id, software_package_id, script_id, and profile_uuid
+// come with the automation_type they belong to. A patch policy's software_title_id names the app it checks, so it
+// doesn't need one.
+func checkCreateCompanions(req fleet.CreatePolicyRequest) error {
+	if req.AutomationType != nil {
+		return nil
+	}
+	patch := req.Type != nil && *req.Type == fleet.PolicyTypePatch
+	for _, f := range []struct {
+		set   bool
+		field string
+	}{
+		{!patch && req.SoftwareTitleID != nil && *req.SoftwareTitleID != 0, "software_title_id"},
+		{req.SoftwareInstallerID != nil && *req.SoftwareInstallerID != 0, "software_package_id"},
+		{req.ScriptID != nil && *req.ScriptID != 0, "script_id"},
+		{req.ProfileUUID != nil && *req.ProfileUUID != "", "profile_uuid"},
+	} {
+		if f.set {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%s requires automation_type", f.field)}
+		}
+	}
+	return nil
+}
+
+// checkUpdateCompanions checks an update without automation_type, which can only change the item of the policy's
+// current automation, such as the script of a policy that runs a script. A patch policy's software_title_id is
+// checked by normalizePatchPolicyUpdate.
+func checkUpdateCompanions(policy *fleet.Policy, p fleet.ModifyPolicyPayload) error {
+	current := policy.Automations()
+	patch := policy.Type == fleet.PolicyTypePatch
+	for _, f := range []struct {
+		set, value bool
+		field      string
+		automation fleet.PolicyAutomation
+	}{
+		{!patch && p.SoftwareTitleID.Set, p.SoftwareTitleID.Valid && p.SoftwareTitleID.Value != 0, "software_title_id",
+			fleet.PolicyAutomationSoftware},
+		{p.SoftwareInstallerID.Set, p.SoftwareInstallerID.Valid && p.SoftwareInstallerID.Value != 0, "software_package_id",
+			fleet.PolicyAutomationSoftware},
+		{p.ScriptID.Set, p.ScriptID.Valid && p.ScriptID.Value != 0, "script_id", fleet.PolicyAutomationScript},
+		{p.ProfileUUID.Set, p.ProfileUUID.Valid && p.ProfileUUID.Value != "", "profile_uuid",
+			fleet.PolicyAutomationConfigurationProfile},
+	} {
+		has := slices.Contains(current, f.automation)
+		switch {
+		case !f.set:
+		case f.value && !has:
+			return &fleet.BadRequestError{Message: fmt.Sprintf(
+				"%s can only change the item of a policy with automation_type %q; set automation_type to switch automations",
+				f.field, f.automation)}
+		case !f.value && has:
+			return &fleet.BadRequestError{Message: fmt.Sprintf(
+				"%s can't be removed on its own; set automation_type to null to remove the automation", f.field)}
+		}
+	}
+	return nil
+}
+
 // checkPolicyAutomations checks the automations a write leaves the policy with. Automations the policy already had are
 // allowed, so policies saved before these rules can still be edited, but can't gain or swap in another automation.
 func checkPolicyAutomations(teamID *uint, before, after []fleet.PolicyAutomation) error {
@@ -159,7 +217,7 @@ func policySpecTeamID(spec *fleet.PolicySpec, teamIDsByName map[string]uint) *ui
 	switch spec.Team {
 	case "":
 		return nil
-	case "No team":
+	case fleet.DisplayNameNoTeam:
 		return new(uint(0))
 	default:
 		return new(teamIDsByName[spec.Team])

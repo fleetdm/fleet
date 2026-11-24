@@ -3265,20 +3265,24 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
 			OperationName: "enterprises/E/devices/D/operations/lock-1",
-			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
-		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd))
+		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd, "a7k3m9q2x5w8"))
 
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
 		require.NoError(t, err)
-		require.Equal(t, string(android.MDMAndroidCommandTypeLock), got.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), got.CommandType)
 		require.Equal(t, string(android.MDMAndroidCommandStatusPending), got.Status)
 
 		status, err := ds.GetHostLockWipeStatus(ctx, host)
 		require.NoError(t, err)
 		require.Equal(t, fleet.PendingActionLock, status.PendingAction())
 		require.Equal(t, "android", status.HostFleetPlatform)
+		// A 12-character PIN only fits after the unlock_pin column was widened.
+		require.Equal(t, "a7k3m9q2x5w8", status.UnlockPIN)
+		require.False(t, status.IsAndroidUnlockPINAvailable(), "PIN isn't available until the device acknowledges")
+		require.True(t, status.AndroidLockedAt().IsZero())
 	})
 
 	t.Run("Wipe overwrites wipe_ref on subsequent calls (re-queue)", func(t *testing.T) {
@@ -3337,6 +3341,105 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 		require.Equal(t, cmd.CommandUUID, status.ClearPasscodeMDMCommand.CommandUUID)
 		require.True(t, status.IsPendingClearPasscode())
 		require.Equal(t, fleet.PendingActionClearPasscode, status.PendingAction())
+	})
+
+	t.Run("Lock PIN is per host and replaced on re-lock", func(t *testing.T) {
+		hostA := newBareAndroidHostForTest(t, ds, "android-lock-pin-a")
+		hostB := newBareAndroidHostForTest(t, ds, "android-lock-pin-b")
+
+		lock := func(t *testing.T, h *fleet.Host, pin string) string {
+			t.Helper()
+			cmd := &android.MDMAndroidCommand{
+				CommandUUID:   uuid.NewString(),
+				HostUUID:      h.UUID,
+				OperationName: "enterprises/E/devices/" + h.UUID + "/operations/" + uuid.NewString(),
+				CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+				Status:        string(android.MDMAndroidCommandStatusPending),
+			}
+			require.NoError(t, ds.LockHostViaAndroidMDM(ctx, h, cmd, pin))
+			return cmd.CommandUUID
+		}
+		readActions := func(t *testing.T, h *fleet.Host) (lockRef, pin string) {
+			t.Helper()
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return q.QueryRowxContext(ctx, `SELECT lock_ref, unlock_pin FROM host_mdm_actions WHERE host_id = ?`, h.ID).
+					Scan(&lockRef, &pin)
+			})
+			return lockRef, pin
+		}
+
+		lockA := lock(t, hostA, "135792")
+		lockB := lock(t, hostB, "864213")
+
+		ref, pin := readActions(t, hostA)
+		assert.Equal(t, lockA, ref)
+		assert.Equal(t, "135792", pin)
+		ref, pin = readActions(t, hostB)
+		assert.Equal(t, lockB, ref)
+		assert.Equal(t, "864213", pin)
+
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockA, string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
+		status, err := ds.GetHostLockWipeStatus(ctx, hostA)
+		require.NoError(t, err)
+		require.True(t, status.IsAndroidUnlockPINAvailable())
+		require.Equal(t, "135792", status.UnlockPIN)
+		cmdRow, err := ds.GetMDMAndroidCommandByUUID(ctx, lockA)
+		require.NoError(t, err)
+		require.False(t, status.AndroidLockedAt().IsZero())
+		require.Equal(t, cmdRow.UpdatedAt, status.AndroidLockedAt())
+
+		// Wipe and clear passcode leave the PIN alone.
+		require.NoError(t, ds.ClearPasscodeHostViaAndroidMDM(ctx, hostA, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      hostA.UUID,
+			OperationName: "enterprises/E/devices/" + hostA.UUID + "/operations/clear",
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+		_, pin = readActions(t, hostA)
+		assert.Equal(t, "135792", pin)
+
+		// Re-lock replaces both the ref and the PIN, and the PIN is unavailable until the new lock is acknowledged.
+		relockA := lock(t, hostA, "975318")
+		ref, pin = readActions(t, hostA)
+		assert.Equal(t, relockA, ref)
+		assert.Equal(t, "975318", pin)
+		status, err = ds.GetHostLockWipeStatus(ctx, hostA)
+		require.NoError(t, err)
+		require.False(t, status.IsAndroidUnlockPINAvailable())
+
+		// The other host is untouched.
+		ref, pin = readActions(t, hostB)
+		assert.Equal(t, lockB, ref)
+		assert.Equal(t, "864213", pin)
+
+		// A lock that errors leaves the PIN unavailable.
+		errCode := "INVALID_VALUE"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, relockA, string(android.MDMAndroidCommandStatusError), &errCode, nil, nil))
+		status, err = ds.GetHostLockWipeStatus(ctx, hostA)
+		require.NoError(t, err)
+		require.False(t, status.IsAndroidUnlockPINAvailable())
+	})
+
+	t.Run("Lock from before Fleet 5 has no PIN", func(t *testing.T) {
+		h := newBareAndroidHostForTest(t, ds, "android-legacy-lock")
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      h.UUID,
+			OperationName: "enterprises/E/devices/" + h.UUID + "/operations/legacy-lock",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+		}))
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, 'android')`, h.ID, cmdUUID)
+			return err
+		})
+
+		status, err := ds.GetHostLockWipeStatus(ctx, h)
+		require.NoError(t, err)
+		require.Empty(t, status.UnlockPIN)
+		require.False(t, status.IsAndroidUnlockPINAvailable())
 	})
 }
 
@@ -4052,10 +4155,16 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	googleName := "devices/d1/deviceUsers/a"
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(testCtx(), res.Host.UUID, "C02cajzvg", []string{googleName}))
+
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
 	require.True(t, didUnenroll)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleName: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, res.Host.UUID))
 
 	// Calling unenrolled again returns false
 	didUnenroll, err = ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
@@ -4100,7 +4209,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 
 	// Create 5 android hosts, some company-owned (installed_from_dep = 1) and some personally-owned
 	isCompanyOwned := func(i int) bool { return i%2 == 0 }
-	var androidHostUUIDs []string
+	androidHostUUIDs := make([]string, 0, 5)
 	var androidHostIDs []uint
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
@@ -4172,12 +4281,24 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 		require.Len(t, records, 1)
 	}
 
+	// Google names are queued for unmark on the Android hosts only.
+	googleNames := map[string]string{androidHostUUIDs[0]: "devices/d1/deviceUsers/a", macHost.UUID: "devices/d2/deviceUsers/a"}
+	for hostUUID, name := range googleNames {
+		require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(testCtx(), hostUUID, "C02cajzvg", []string{name}))
+	}
+
 	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &enrolledCount, `SELECT COUNT(*) FROM host_mdm WHERE enrolled = 1`)
 	})
 	require.Equal(t, 1, enrolledCount)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleNames[androidHostUUIDs[0]]: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, androidHostUUIDs[0]))
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleNames[macHost.UUID]: fleet.GoogleConditionalAccessDeviceUserPending,
+	}, googleDeviceUserStates(t, ds, macHost.UUID))
 
 	// Company-owned hosts must report "Off", not "Pending", after unenrollment.
 	for i, hostID := range androidHostIDs {
@@ -5014,9 +5135,9 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.Host.UUID,
 			OperationName: "operations/" + esid + "-lock",
-			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 			Status:        string(android.MDMAndroidCommandStatusPending),
-		}))
+		}, "000000"))
 		for _, status := range []android.MDMAndroidCommandStatus{
 			android.MDMAndroidCommandStatusAcknowledged,
 			android.MDMAndroidCommandStatusError,

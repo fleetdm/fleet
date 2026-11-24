@@ -2008,7 +2008,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	SET
 		hmwp.status = NULL,
 		hmwp.command_uuid = '',
-		hmwp.detail = NULL
+		hmwp.detail = NULL,
+		hmwp.retries = 0
 	WHERE
 		h.id IN (:host_ids) AND
 		hmwp.operation_type = :operation_type_install AND

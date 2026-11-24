@@ -197,7 +197,7 @@ describe("TeamDetailsWrapper", () => {
                 {
                   name: "base",
                   reason:
-                    'A fleet named "Workstations" already exists. Choose a fleet name distinct from other fleets.',
+                    '"work-stations" is too similar to the fleet name "Workstations". Please try another name.',
                 },
               ],
             },
@@ -210,7 +210,7 @@ describe("TeamDetailsWrapper", () => {
 
       expect(
         await screen.findByText(
-          "Choose a fleet name distinct from other fleets."
+          "Name is too similar to another fleet name. Please try another name."
         )
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();

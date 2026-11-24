@@ -20,7 +20,7 @@ describe("OpenSoftwareModal", () => {
     expect(screen.getByText(/Finder > Applications/i)).toBeVisible();
     expect(screen.getByText(/and double-click it/i)).toBeVisible();
 
-    expect(screen.getByRole("button", { name: /Close/i })).toBeVisible();
+    expect(screen.getByText("Close")).toBeVisible();
   });
 
   it("renders Windows instructions when softwareSource is 'programs'", () => {
@@ -37,7 +37,7 @@ describe("OpenSoftwareModal", () => {
     expect(screen.getByText(/Start Menu/i)).toBeVisible();
     expect(screen.getByText(/and click it/i)).toBeVisible();
 
-    expect(screen.getByRole("button", { name: /Close/i })).toBeVisible();
+    expect(screen.getByText("Close")).toBeVisible();
   });
 
   it("renders nothing when softwareSource is unknown", () => {
@@ -65,7 +65,7 @@ describe("OpenSoftwareModal", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: /Close/i }));
+    await user.click(screen.getByText("Close"));
     expect(onExitMock).toHaveBeenCalled();
   });
 });

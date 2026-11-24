@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -92,52 +91,9 @@ func MunkiPackageVersions(ctx context.Context, installerURL string) (MunkiVersio
 }
 
 func munkiPackageVersions(fetch func(start, end int64) ([]byte, error)) (MunkiVersions, error) {
-	header, err := fetch(0, xarHeaderSize-1)
+	distXML, err := readXarTopLevelFile(fetch, "Distribution")
 	if err != nil {
-		return MunkiVersions{}, fmt.Errorf("fetching xar header: %w", err)
-	}
-	if len(header) != xarHeaderSize || string(header[0:4]) != "xar!" {
-		return MunkiVersions{}, fmt.Errorf("unexpected xar header (got %d bytes)", len(header))
-	}
-	rawTOCLen := binary.BigEndian.Uint64(header[8:16])
-	if rawTOCLen == 0 || rawTOCLen > maxTOCLen {
-		return MunkiVersions{}, fmt.Errorf("implausible xar table of contents length: %d bytes", rawTOCLen)
-	}
-	tocLenCompressed := int64(rawTOCLen) //nolint:gosec // G115: bounds-checked above against maxTOCLen
-
-	tocCompressed, err := fetch(xarHeaderSize, xarHeaderSize+tocLenCompressed-1)
-	if err != nil {
-		return MunkiVersions{}, fmt.Errorf("fetching xar table of contents: %w", err)
-	}
-	tocXML, err := zlibInflate(tocCompressed)
-	if err != nil {
-		return MunkiVersions{}, fmt.Errorf("inflating xar table of contents: %w", err)
-	}
-
-	var toc xarTOC
-	if err := xml.Unmarshal(tocXML, &toc); err != nil {
-		return MunkiVersions{}, fmt.Errorf("parsing xar table of contents: %w", err)
-	}
-
-	var dist *xarTOCFileData
-	for _, f := range toc.Files {
-		if f.Name == "Distribution" && f.Type == "file" && f.Data != nil {
-			dist = f.Data
-			break
-		}
-	}
-	if dist == nil {
-		return MunkiVersions{}, errors.New("no top-level Distribution file in xar table of contents")
-	}
-
-	heapStart := int64(xarHeaderSize) + tocLenCompressed
-	distCompressed, err := fetch(heapStart+dist.Offset, heapStart+dist.Offset+dist.Length-1)
-	if err != nil {
-		return MunkiVersions{}, fmt.Errorf("fetching Distribution file: %w", err)
-	}
-	distXML, err := zlibInflate(distCompressed)
-	if err != nil {
-		return MunkiVersions{}, fmt.Errorf("inflating Distribution file: %w", err)
+		return MunkiVersions{}, err
 	}
 
 	var dpr distributionPkgRefs
@@ -164,6 +120,63 @@ func munkiPackageVersions(fetch func(start, end int64) ([]byte, error)) (MunkiVe
 	}
 
 	return v, nil
+}
+
+// readXarTopLevelFile returns the inflated contents of the top-level file
+// called name in a flat pkg (xar), reading only the header, the table of
+// contents, and that file's bytes through fetch.
+func readXarTopLevelFile(fetch func(start, end int64) ([]byte, error), name string) ([]byte, error) {
+	header, err := fetch(0, xarHeaderSize-1)
+	if err != nil {
+		return nil, fmt.Errorf("fetching xar header: %w", err)
+	}
+	if len(header) != xarHeaderSize || string(header[0:4]) != "xar!" {
+		return nil, fmt.Errorf("unexpected xar header (got %d bytes)", len(header))
+	}
+	rawTOCLen := binary.BigEndian.Uint64(header[8:16])
+	if rawTOCLen == 0 || rawTOCLen > maxTOCLen {
+		return nil, fmt.Errorf("implausible xar table of contents length: %d bytes", rawTOCLen)
+	}
+	tocLenCompressed := int64(rawTOCLen) //nolint:gosec // G115: bounds-checked above against maxTOCLen
+
+	tocCompressed, err := fetch(xarHeaderSize, xarHeaderSize+tocLenCompressed-1)
+	if err != nil {
+		return nil, fmt.Errorf("fetching xar table of contents: %w", err)
+	}
+	tocXML, err := zlibInflate(tocCompressed)
+	if err != nil {
+		return nil, fmt.Errorf("inflating xar table of contents: %w", err)
+	}
+
+	var toc xarTOC
+	if err := xml.Unmarshal(tocXML, &toc); err != nil {
+		return nil, fmt.Errorf("parsing xar table of contents: %w", err)
+	}
+
+	var data *xarTOCFileData
+	for _, f := range toc.Files {
+		if f.Name == name && f.Type == "file" && f.Data != nil {
+			data = f.Data
+			break
+		}
+	}
+	if data == nil {
+		return nil, fmt.Errorf("no top-level %s file in xar table of contents", name)
+	}
+	if data.Offset < 0 || data.Length <= 0 || data.Length > maxTOCLen {
+		return nil, fmt.Errorf("implausible %s file location in xar table of contents", name)
+	}
+
+	heapStart := int64(xarHeaderSize) + tocLenCompressed
+	compressed, err := fetch(heapStart+data.Offset, heapStart+data.Offset+data.Length-1)
+	if err != nil {
+		return nil, fmt.Errorf("fetching %s file: %w", name, err)
+	}
+	contents, err := zlibInflate(compressed)
+	if err != nil {
+		return nil, fmt.Errorf("inflating %s file: %w", name, err)
+	}
+	return contents, nil
 }
 
 // munkiRangeClient has a short timeout and a response cap: every request it

@@ -24,6 +24,31 @@ const MAX_OUTPUT_TOKENS = 64000;
 const TRUNCATED_RESPONSE_MESSAGE =
   "The response was too long to finish, so nothing was changed. Try splitting the request into smaller changes.";
 
+// Opus 5.5's default, set explicitly so it doesn't change with the model.
+const EFFORT = "medium";
+
+// When a model declines mid-stream, the server keeps its partial output ahead of the
+// last `fallback` block. Of that partial, only text and completed server-tool pairs
+// may be acted on or sent back; its thinking and tool_use blocks must be dropped.
+function contentAfterFallback(content) {
+  const boundary = content.findLastIndex((b) => b.type === "fallback");
+  if (boundary === -1) {
+    return content;
+  }
+  const declined = content.slice(0, boundary);
+  const serverToolUseIds = new Set(declined.filter((b) => b.type === "server_tool_use").map((b) => b.id));
+  const pairedIds = new Set(
+    declined.filter((b) => b.tool_use_id && serverToolUseIds.has(b.tool_use_id)).map((b) => b.tool_use_id)
+  );
+  const kept = declined.filter(
+    (b) =>
+      b.type === "text" ||
+      (b.type === "server_tool_use" && pairedIds.has(b.id)) ||
+      (b.tool_use_id && pairedIds.has(b.tool_use_id))
+  );
+  return [...kept, ...content.slice(boundary)];
+}
+
 class ClaudeClient {
   constructor({ apiKey, model, mcpClient, maxToolCalls, skillLoader }) {
     this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 });
@@ -193,12 +218,17 @@ class ClaudeClient {
       max_tokens: MAX_OUTPUT_TOKENS,
       system: options.system || SYSTEM_PROMPT,
       messages,
+      output_config: { effort: EFFORT },
+      // Safety classifiers can decline benign security questions; this re-runs a
+      // declined request on the model Anthropic recommends for that refusal category.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
     };
 
     // Add MCP tools + Anthropic server-side tools (web search)
     const allTools = [
       ...tools,
-      { type: "web_search_20250305", name: "web_search", max_uses: 3 },
+      { type: "web_search_20260209", name: "web_search", max_uses: 3 },
     ];
     if (allTools.length > 0) {
       params.tools = allTools;
@@ -209,7 +239,7 @@ class ClaudeClient {
     }
 
     // Use streaming to get partial text for live Slack updates
-    const stream = this.client.messages.stream(params);
+    const stream = this.client.beta.messages.stream(params);
 
     if (onText) {
       stream.on("text", (text) => {
@@ -220,10 +250,15 @@ class ClaudeClient {
     const response = await stream.finalMessage();
 
     console.log(
-      `[claude] Response: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out tokens, stop: ${response.stop_reason}`
+      `[claude] Response: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out tokens, stop: ${response.stop_reason}, model: ${response.model}`
     );
 
-    return response;
+    // A refusal here means every model in the fallback chain declined.
+    if (response.stop_reason === "refusal") {
+      throw new Error(`Claude returned a refusal (category: ${response.stop_details?.category ?? "none"})`);
+    }
+
+    return { ...response, content: contentAfterFallback(response.content) };
   }
 
   // A truncated response is never safe to use: a cut-off config change would

@@ -47,15 +47,7 @@ module.exports = {
 
 
   fn: async function ({salesforceAccountId, salesforceContactId, leadDescription, leadSource, primaryBuyingSituation, numberOfHosts}) {
-    require('assert')(sails.config.custom.salesforceIntegrationUsername);
-    require('assert')(sails.config.custom.salesforceIntegrationPasskey);
-    let jsforce = require('jsforce');
-
-    // login to Salesforce
-    let salesforceConnection = new jsforce.Connection({
-      loginUrl : 'https://fleetdm.my.salesforce.com'
-    });
-    await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+    let salesforceConnection = await sails.helpers.salesforce.getConnection();
 
     // Get the Contact record.
     let contactRecord = await sails.helpers.flow.build(async ()=>{

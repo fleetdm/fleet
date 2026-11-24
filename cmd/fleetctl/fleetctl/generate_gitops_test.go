@@ -288,7 +288,6 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 					FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 						Enable:         true,
 						DestinationURL: "https://example.com/no-team-webhook",
-						PolicyIDs:      []uint{1, 2, 3},
 						HostBatchSize:  100,
 					},
 					HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
@@ -446,7 +445,29 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 	}, nil
 }
 
-func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+// mockPolicyAutomations is the automation_type the server returns for each mock policy, which generate-gitops writes
+// the calendar, conditional access, and webhook or ticket keys from.
+var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
+	"Global Policy":               fleet.PolicyAutomationConditionalAccess,
+	"Team Policy":                 fleet.PolicyAutomationConditionalAccess,
+	"Team patch policy":           fleet.PolicyAutomationConditionalAccess,
+	"Team VPP policy":             fleet.PolicyAutomationWebhookOrTicket,
+	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
+	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
+	"Team package install policy": fleet.PolicyAutomationSoftware,
+}
+
+func (c MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+	policies, err := c.mockPolicies(teamID)
+	for _, p := range policies {
+		if a, ok := mockPolicyAutomations[p.Name]; ok {
+			p.AutomationType = new(a)
+		}
+	}
+	return policies, err
+}
+
+func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	if teamID == nil {
 		return []*fleet.Policy{
 			{
@@ -3094,7 +3115,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies(nil, "default.yml", nil)
+	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var generatedPolicies []map[string]any
@@ -3120,7 +3141,7 @@ func TestGeneratePolicies(t *testing.T) {
 
 	var expectedTeamPolicies []map[string]any
 	var generatedTeamPolicies []map[string]any
-	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	policiesRaw, err = cmd.generatePolicies(new(uint(1)), "some_team")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
@@ -3483,13 +3504,13 @@ func TestGenerateMDMVPPTokens(t *testing.T) {
 					Location: "Widgets LLC",
 					Teams: []fleet.TeamTuple{
 						{ID: 2, Name: "Servers"},
-						{ID: 0, Name: fleet.TeamNameNoTeam},
+						{ID: 0, Name: fleet.DisplayNameNoTeam},
 					},
 				},
 			},
 			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
 				{Location: "Acme Inc.", Teams: []string{"Workstations"}},
-				{Location: "Widgets LLC", Teams: []string{"Servers", fleet.TeamNameNoTeam}},
+				{Location: "Widgets LLC", Teams: []string{"Servers", fleet.DisplayNameNoTeam}},
 			},
 		},
 		{
@@ -3971,7 +3992,7 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 		},
 	}
 
-	_, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
+	_, err = cmd.generatePolicies(new(uint(1)), "some_team")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Team patch policy")
 }
@@ -4009,6 +4030,132 @@ func TestGenerateProfilesFilenameCollision(t *testing.T) {
 		"Team Win": "<xml>team win</xml>",
 		"Team-Win": "<xml>team-win</xml>",
 	}, contentsByName)
+}
+
+// MockClientCollidingFleets serves fleets whose names sanitize to the same file
+// name as another fleet's ("Mac/Win" and "Macawin"), Unassigned's
+// ("Un/ssigned"), a numbered one ("Un/ssigned-2"), or the no-team.yml that
+// fleetctl gitops rejects ("No t?am"), each with a script of the same name and
+// its own contents.
+type MockClientCollidingFleets struct {
+	MockClient
+}
+
+func (c *MockClientCollidingFleets) ListTeams(string) ([]fleet.Team, error) {
+	// Not in ID order: the API doesn't promise one.
+	return []fleet.Team{{ID: 5, Name: "Un/ssigned-2"}, {ID: 4, Name: "Mac/Win"}, {ID: 3, Name: "Macawin"}, {ID: 2, Name: "Un/ssigned"}, {ID: 1, Name: "No t?am"}}, nil
+}
+
+func (c *MockClientCollidingFleets) ListScripts(query string) ([]*fleet.Script, error) {
+	for _, id := range []uint{1, 2, 3, 4, 5} {
+		if query == fmt.Sprintf("fleet_id=%d", id) {
+			return []*fleet.Script{{ID: 100 + id, TeamID: new(id), Name: "hello.sh"}}, nil
+		}
+	}
+	return c.MockClient.ListScripts(query)
+}
+
+func (c *MockClientCollidingFleets) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if strings.Contains(query, "fleet_id=0&") {
+		return c.MockClient.ListSoftwareTitles(query)
+	}
+	return nil, nil
+}
+
+func (c *MockClientCollidingFleets) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+	if teamID != nil {
+		return nil, nil
+	}
+	return c.MockClient.GetPolicies(teamID)
+}
+
+func (c *MockClientCollidingFleets) GetScriptContents(scriptID uint) ([]byte, error) {
+	if scriptID > 100 {
+		return fmt.Appendf(nil, "echo fleet %d", scriptID-100), nil
+	}
+	return c.MockClient.GetScriptContents(scriptID)
+}
+
+func runGenerateGitops(t *testing.T, client generateGitopsClient, flags map[string]string) string {
+	t.Helper()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	for name, value := range flags {
+		flagSet.String(name, value, "")
+	}
+	buf := new(bytes.Buffer)
+	err := createGenerateGitopsAction(client)(cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil))
+	require.NoError(t, err, buf.String())
+	return buf.String()
+}
+
+// exportedFleets maps each fleets/*.yml file in dir to the fleet name it holds
+// and the contents of the script it points at.
+func exportedFleets(t *testing.T, dir string) map[string][2]string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(dir, "fleets", "*.yml"))
+	require.NoError(t, err)
+	got := make(map[string][2]string, len(files))
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		require.NoError(t, err)
+		var spec struct {
+			Name     string `json:"name"`
+			Controls struct {
+				Scripts []struct {
+					Path string `json:"path"`
+				} `json:"scripts"`
+			} `json:"controls"`
+		}
+		require.NoError(t, yaml.Unmarshal(b, &spec))
+		var script string
+		for _, s := range spec.Controls.Scripts {
+			if filepath.Base(s.Path) == "hello.sh" {
+				b, err := os.ReadFile(filepath.Join(dir, "fleets", s.Path))
+				require.NoError(t, err)
+				script = string(b)
+			}
+		}
+		got[filepath.Base(f)] = [2]string{spec.Name, script}
+	}
+	return got
+}
+
+func TestGenerateGitopsFleetFilenameCollision(t *testing.T) {
+	configureFMAManifestServer(t)
+	client := &MockClientCollidingFleets{}
+
+	dir := t.TempDir()
+	runGenerateGitops(t, client, map[string]string{"dir": dir})
+	require.Equal(t, map[string][2]string{
+		"macawin.yml":      {"Macawin", "echo fleet 3"},
+		"macawin-2.yml":    {"Mac/Win", "echo fleet 4"},
+		"unassigned.yml":   {"Unassigned", ""},
+		"unassigned-2.yml": {"Un/ssigned-2", "echo fleet 5"},
+		"unassigned-3.yml": {"Un/ssigned", "echo fleet 2"},
+		"no-team-2.yml":    {"No t?am", "echo fleet 1"},
+	}, exportedFleets(t, dir))
+
+	// --fleet takes the fleet's name, and exports it to the same file as the
+	// full export does.
+	dir = t.TempDir()
+	runGenerateGitops(t, client, map[string]string{"dir": dir, "fleet": "Mac/Win"})
+	require.Equal(t, map[string][2]string{"macawin-2.yml": {"Mac/Win", "echo fleet 4"}}, exportedFleets(t, dir))
+	dir = t.TempDir()
+	runGenerateGitops(t, client, map[string]string{"dir": dir, "fleet": "Un/ssigned"})
+	require.Equal(t, map[string][2]string{"unassigned-3.yml": {"Un/ssigned", "echo fleet 2"}}, exportedFleets(t, dir))
+
+	for selected, want := range map[string]string{
+		"Mac/Win":    "Mac/Win\n",
+		"Macawin":    "Macawin\n",
+		"macawin-2":  "Mac/Win\n",
+		"Un/ssigned": "Un/ssigned\n",
+		"unassigned": "Unassigned\n",
+		"no t?am":    "No t?am\n",
+		"MAC/WIN":    "Mac/Win\n",
+		"un/ssigned": "Un/ssigned\n",
+	} {
+		require.Equal(t, want, runGenerateGitops(t, client, map[string]string{"fleet": selected, "key": "name"}), "--fleet %q", selected)
+	}
 }
 
 // MockClientVPPLocation serves the same three App Store titles for every fleet

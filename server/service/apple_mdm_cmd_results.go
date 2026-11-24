@@ -301,8 +301,11 @@ func NewInstalledApplicationListResultsHandler(
 							logger.ErrorContext(ctx, "untrack refetch apps command after enqueue failure",
 								"err", rmErr, "host_id", hostID)
 						}
+						return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
 					}
-					return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+					// The verify marker must still be released below, or it blocks the next install's verification.
+					logger.ErrorContext(ctx, "sending push notification for refetch apps after install verification",
+						"host_uuid", installedAppResult.HostUUID(), "err", err)
 				}
 			}
 		}

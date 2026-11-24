@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,22 +13,14 @@ import (
 )
 
 // PolicyPayload holds data for policy creation.
-//
-// If QueryID is not nil, then Name, Query and Description are ignored
-// (such fields are fetched from the queries table).
 type PolicyPayload struct {
-	// QueryID allows creating a policy from an existing query.
-	//
-	// Using QueryID is the old way of creating policies.
-	// Use Query, Name and Description instead.
-	QueryID *uint
-	// Name is the name of the policy (ignored if QueryID != nil).
+	// Name is the name of the policy.
 	Name string
-	// Query is the policy query (ignored if QueryID != nil).
+	// Query is the policy query.
 	Query string
 	// Critical marks the policy as high impact.
 	Critical bool
-	// Description is the policy description text (ignored if QueryID != nil).
+	// Description is the policy description text.
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
@@ -100,22 +91,14 @@ type PolicyPayload struct {
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
-//
-// If QueryID is not nil, then Name, Query and Description are ignored
-// (such fields are fetched from the queries table).
 type NewTeamPolicyPayload struct {
-	// QueryID allows creating a policy from an existing query.
-	//
-	// Using QueryID is the old way of creating policies.
-	// Use Query, Name and Description instead.
-	QueryID *uint
-	// Name is the name of the policy (ignored if QueryID != nil).
+	// Name is the name of the policy.
 	Name string
-	// Query is the policy query (ignored if QueryID != nil).
+	// Query is the policy query.
 	Query string
 	// Critical marks the policy as high impact.
 	Critical bool
-	// Description is the policy description text (ignored if QueryID != nil).
+	// Description is the policy description text.
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
 	Resolution string
@@ -167,7 +150,6 @@ type NewTeamPolicyPayload struct {
 var (
 	errPolicyEmptyName                               = errors.New("policy name cannot be empty")
 	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
 	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
 	ErrPolicyConflictingIncludeLabels                = errors.New("policy can include at most one of labels_include_any or labels_include_all")
 	ErrPolicyConflictingExcludeLabels                = errors.New("policy can include at most one of labels_exclude_any or labels_exclude_all")
@@ -230,9 +212,6 @@ func (p PolicyPayload) Verify() error {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
-		if p.QueryID != nil {
-			return errPolicyPatchAndQuerySet
-		}
 		if !emptyString(p.Query) {
 			return errPolicyPatchAndQuerySet
 		}
@@ -248,17 +227,11 @@ func (p PolicyPayload) Verify() error {
 		return nil
 	}
 
-	if p.QueryID != nil {
-		if p.Query != "" {
-			return errPolicyIDAndQuerySet
-		}
-	} else {
-		if err := verifyPolicyName(p.Name); err != nil {
-			return err
-		}
-		if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
-			return err
-		}
+	if err := verifyPolicyName(p.Name); err != nil {
+		return err
+	}
+	if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
+		return err
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
@@ -418,10 +391,10 @@ type ModifyPolicyPayload struct {
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
 	Critical *bool `json:"critical" premium:"true"`
-	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Set from automation_type.
 	//
 	// Only applies to team policies.
-	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
+	CalendarEventsEnabled *bool `json:"-"`
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	// Value 0 will unset the current installer from the policy.
 	//
@@ -452,12 +425,14 @@ type ModifyPolicyPayload struct {
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
 	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
 	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
-	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access. Set from
+	// automation_type.
 	//
 	// Only applies to team policies.
-	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
-	// AutomationType replaces the policy's automation, or removes it when null. When it's not set, the automation fields
-	// above are applied as is.
+	ConditionalAccessEnabled *bool    `json:"-"`
+	_                        struct{} `json:"-" removedkey:"calendar_events_enabled,conditional_access_enabled"`
+	// AutomationType replaces the policy's automation, or removes it when null. When it's not set, only the item of the
+	// policy's current automation can change.
 	AutomationType optjson.Any[PolicyAutomation] `json:"automation_type,omitzero"`
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden *bool `json:"hidden" premium:"true"`
@@ -696,11 +671,34 @@ type Policy struct {
 
 func (p Policy) MarshalJSON() ([]byte, error) {
 	type policy Policy
+	return json.Marshal(policy(p.withAutomationType()))
+}
+
+func (p Policy) withAutomationType() Policy {
 	p.AutomationType = nil
 	if automations := p.Automations(); len(automations) > 0 {
 		p.AutomationType = &automations[0]
 	}
-	return json.Marshal(policy(p))
+	return p
+}
+
+// policyMethodless is Policy without MarshalJSON, for encodings that set automation_type themselves.
+type policyMethodless Policy
+
+// apiPolicy is a policy as the policy endpoints return it: automation_type replaced the calendar and conditional
+// access booleans there. Host policy lists and the failing policies webhook still include them.
+type apiPolicy struct {
+	*policyMethodless
+	CalendarEventsEnabled    *struct{} `json:"calendar_events_enabled,omitempty"`
+	ConditionalAccessEnabled *struct{} `json:"conditional_access_enabled,omitempty"`
+}
+
+func newAPIPolicy(p *Policy) *apiPolicy {
+	if p == nil {
+		return nil
+	}
+	q := policyMethodless(p.withAutomationType())
+	return &apiPolicy{policyMethodless: &q}
 }
 
 type PolicyCalendarData struct {
@@ -1050,22 +1048,6 @@ const (
 	PolicyAutomationTypeOther             PolicyAutomationType = "other"
 	PolicyAutomationTypeNone              PolicyAutomationType = ""
 )
-
-// CheckWebhookOrTicketPolicyIDs checks that the settings policy_ids list doesn't turn the webhook or ticket automation
-// on for a policy of the scope that has another automation.
-//
-// TODO(#58577): remove with policy_ids.
-func CheckWebhookOrTicketPolicyIDs(ctx context.Context, ds Datastore, teamID *uint, policyIDs []uint) error {
-	policies, err := ds.PoliciesWithOtherAutomations(ctx, teamID, policyIDs)
-	if err != nil {
-		return err
-	}
-	if len(policies) > 0 {
-		return NewInvalidArgumentError("webhook_settings.failing_policies_webhook.policy_ids", fmt.Sprintf(
-			"policy %q already has an automation. Each policy can only have one automation.", policies[0].Name))
-	}
-	return nil
-}
 
 // PolicyListFilter narrows a list or count of policies. Empty fields don't filter.
 type PolicyListFilter struct {

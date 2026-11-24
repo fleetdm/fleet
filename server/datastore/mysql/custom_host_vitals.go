@@ -430,7 +430,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			desc:       "windows profiles",
 			selectStmt: customHostVitalResendWindowsProfilesSelectStmt,
 			updateStmt: `UPDATE host_mdm_windows_profiles
-				SET status = NULL, detail = NULL, command_uuid = ''
+				SET status = NULL, detail = NULL, command_uuid = '', retries = 0
 				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
 			isWindows: true,
 		},
@@ -585,7 +585,7 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 		return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: missingIDs, MissingNames: missingNames}
 	}
 
-	expanded := expandDocumentVars(document, func(s string) (string, bool) {
+	expanded, _ := expandDocumentVars(document, func(s string) (string, bool) {
 		if !strings.HasPrefix(s, fleet.CustomHostVitalPrefix) {
 			return "", false
 		}

@@ -174,6 +174,16 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		appConfig.ConditionalAccess.MicrosoftEntraConnectionConfigured = false
 	}
 
+	_, googleStatus, err := svc.GetGoogleConditionalAccess(ctx)
+	if err != nil {
+		return nil, err
+	}
+	appConfig.ConditionalAccess.Google = googleStatus
+	// The key lives in mdm_config_assets, so show it masked whenever one is stored.
+	if gca := appConfig.Integrations.GoogleConditionalAccess; gca != nil && googleStatus != nil && googleStatus.ServiceAccountKeyConfigured {
+		gca.APIKeyJSON = fleet.MaskedPassword
+	}
+
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
 	if vc.User.Teams != nil {
@@ -285,12 +295,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	if err != nil {
 		return nil, err
 	}
-	if !deviceAuthenticated {
-		if err := svc.loadGlobalWebhookPolicyIDs(ctx, ac); err != nil {
-			return nil, err
-		}
-	}
-
 	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
 	// current ServerURL. Persisted form stays relative; this is purely a
 	// read-time view. Safe to do here because no SaveAppConfig caller
@@ -318,28 +322,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	ac.Obfuscate()
 
 	return ac, nil
-}
-
-// loadGlobalWebhookPolicyIDs fills failing_policies_webhook.policy_ids from the "All fleets" policies that have the webhook or
-// ticket automation on.
-//
-// TODO(#58577): remove with policy_ids. Until the UI and GitOps set the automation on the policy, they read and write it
-// through policy_ids, so the list is built from the per-policy flag on reads and sets the flags on writes.
-func (svc *Service) loadGlobalWebhookPolicyIDs(ctx context.Context, ac *fleet.AppConfig) error {
-	ids, err := svc.ds.WebhooksAndTicketsPolicyIDs(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "load webhook and ticket policy IDs")
-	}
-	ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = ids
-	return nil
-}
-
-// samePolicyIDs reports whether a and b hold the same IDs, ignoring order and duplicates.
-func samePolicyIDs(a, b []uint) bool {
-	a, b = slices.Clone(a), slices.Clone(b)
-	slices.Sort(a)
-	slices.Sort(b)
-	return slices.Equal(slices.Compact(a), slices.Compact(b))
 }
 
 func (svc *Service) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
@@ -641,9 +623,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// AppConfig, in which case the cache will be up-to-date and safe to use).
 	ctx = ctxdb.BypassCachedMysql(ctx, false)
 
-	if err := svc.loadGlobalWebhookPolicyIDs(ctx, appConfig); err != nil {
-		return nil, err
-	}
 	oldAppConfig := appConfig.Copy()
 
 	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
@@ -782,12 +761,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableProfileValidation = true
 	}
 
+	// Copied before the merge below, which writes into the same struct. Read from
+	// appConfig rather than oldAppConfig, which nilaway can't prove non-nil.
+	oldGoogleConditionalAccess := copyGoogleConditionalAccessSettings(appConfig.Integrations.GoogleConditionalAccess)
+	oldServerURL := appConfig.ServerSettings.ServerURL
+
 	// We apply the config that is incoming to the old one
 	appConfig.EnableStrictDecoding()
 	if err := json.Unmarshal(p, &appConfig); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	gcaRequested := mergeGoogleConditionalAccessSettings(appConfig, oldGoogleConditionalAccess,
+		newAppConfig.Integrations.GoogleConditionalAccess, applyOpts.Overwrite, p)
 
 	// AppleOSUpdateSettings.UpdateNewHosts only applies to macOS ... so just ignore w/e posted for iOS/iPadOS
 	appConfig.MDM.IOSUpdates.UpdateNewHosts = optjson.Bool{}
@@ -823,6 +810,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// Google Workspace IdP is a premium-only feature.
 	if len(newAppConfig.Integrations.GoogleWorkspace) > 0 && !lic.IsPremium() {
 		invalid.Append("integrations.google_workspace", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	if newAppConfig.Integrations.GoogleConditionalAccess != nil && !lic.IsPremium() {
+		invalid.Append("integrations.google_conditional_access", ErrMissingLicense.Error())
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
@@ -1167,16 +1159,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
 	fleet.ValidateGoogleWorkspaceIntegrations(appConfig.Integrations.GoogleWorkspace, invalid)
+	fleet.ValidateGoogleConditionalAccessIntegration(appConfig.Integrations.GoogleConditionalAccess, invalid)
+	gcaKey := svc.takeGoogleConditionalAccessKey(appConfig.Integrations.GoogleConditionalAccess, invalid)
 	fleet.ValidateCertIdPIntrospectionAllowlists(&appConfig.Integrations, invalid)
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
-	if newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs; !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
-		if err := fleet.CheckWebhookOrTicketPolicyIDs(ctx, svc.ds, nil, newIDs); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "check webhook and ticket policies")
-		}
-	}
 
 	if err := applyAndValidateConditionalAccessOktaFields(ctx, appConfig, &newAppConfig, invalid, lic); err != nil {
 		return nil, err
@@ -1238,6 +1227,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	gcaPlan, err := svc.planVerifiedGoogleConditionalAccess(ctx, lic.IsPremium(), oldGoogleConditionalAccess,
+		appConfig.Integrations.GoogleConditionalAccess, gcaRequested, gcaKey, oldServerURL, appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
+
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
 	if windowsEnrollmentDefined {
 		appConfig.MDM.WindowsAutomaticEnrollment = optjson.Any[fleet.WindowsAutomaticEnrollment]{
@@ -1278,9 +1273,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// must reload to get the unchanged app config (retrieve with obfuscated secrets)
 		obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return nil, err
-		}
-		if err := svc.loadGlobalWebhookPolicyIDs(ctx, obfuscatedAppConfig); err != nil {
 			return nil, err
 		}
 		obfuscatedAppConfig.Obfuscate()
@@ -1424,18 +1416,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
-	// TODO(#58577): remove with policy_ids, see loadGlobalWebhookPolicyIDs. The list lives on the policies, so it isn't
-	// stored, and only a changed list is written, so a request that doesn't change it can't undo a concurrent change.
-	newIDs := appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
-	appConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = nil
+	if err := svc.applyGoogleConditionalAccessPlan(ctx, gcaPlan); err != nil {
+		return nil, err
+	}
+	dropGoogleConditionalAccessStatus(appConfig)
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
-	if !samePolicyIDs(oldAppConfig.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, newIDs) {
-		if err := svc.ds.SetWebhooksAndTicketsPolicies(ctx, nil, newIDs); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "set webhook and ticket policies from policy_ids")
-		}
-	}
+
+	// Returned once the rest of the update is done: the config is already saved.
+	gcaErr := svc.finishGoogleConditionalAccessPlan(ctx, gcaPlan)
 
 	if aapChanged {
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
@@ -1616,9 +1607,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, err
 	}
-	if err := svc.loadGlobalWebhookPolicyIDs(ctxdb.RequirePrimary(ctx, true), obfuscatedAppConfig); err != nil {
-		return nil, err
-	}
 	obfuscatedAppConfig.Obfuscate()
 
 	newAgentOptions := ""
@@ -1628,7 +1616,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.processSavedAppConfigChanges(ctx, oldAppConfig, appConfig, lic, oldAgentOptions, newAgentOptions,
 		conditionalAccessNoTeamUpdated); err != nil {
+		svc.logGoogleConditionalAccessUpdateError(ctx, gcaErr)
 		return nil, err
+	}
+	if gcaErr != nil {
+		return nil, gcaErr
 	}
 
 	return obfuscatedAppConfig, nil
@@ -2809,9 +2801,21 @@ func (svc *Service) validateABMAssignments(
 		if err != nil {
 			return nil, nil, err
 		}
-		teamsByName := map[string]*uint{"": nil, "No team": nil}
+		teamsByName := map[string]*uint{"": nil}
+		// Fleets created before "Unassigned" was reserved can still have that name.
+		var fleetsNamedUnassigned []string
 		for _, tm := range teams {
 			teamsByName[tm.Name] = &tm.ID
+			if fleet.IsUnassignedFleetName(tm.Name) {
+				fleetsNamedUnassigned = append(fleetsNamedUnassigned, fmt.Sprintf("%q", tm.Name))
+			}
+		}
+		slices.Sort(fleetsNamedUnassigned)
+		fleetID := func(name string) *uint {
+			if fleet.IsUnassignedFleetName(name) {
+				return nil
+			}
+			return teamsByName[norm.NFC.String(name)]
 		}
 		tokens, err := svc.ds.ListABMTokens(ctx)
 		if err != nil {
@@ -2848,6 +2852,17 @@ func (svc *Service) validateABMAssignments(
 			}
 
 			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam, bm.BYODTeam} {
+				if reason, removed := removedFleetName(tmName, false); removed {
+					invalid.Append("mdm.apple_business", reason)
+					return nil, nil, nil
+				}
+				if fleet.IsUnassignedFleetName(tmName) {
+					if len(fleetsNamedUnassigned) > 0 {
+						invalid.Appendf("mdm.apple_business", "fleets with the reserved name Unassigned must be renamed before you assign an Apple Business token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
+						return nil, nil, nil
+					}
+					continue
+				}
 				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
 					invalid.Appendf("mdm.apple_business", "fleet %s doesn't exist", tmName)
 					return nil, nil, nil
@@ -2860,10 +2875,10 @@ func (svc *Service) validateABMAssignments(
 			}
 
 			tok := tokensByName[orgName]
-			tok.MacOSDefaultTeamID = teamsByName[norm.NFC.String(bm.MacOSTeam)]
-			tok.IOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IOSTeam)]
-			tok.IPadOSDefaultTeamID = teamsByName[norm.NFC.String(bm.IpadOSTeam)]
-			tok.BYODDefaultTeamID = teamsByName[norm.NFC.String(bm.BYODTeam)]
+			tok.MacOSDefaultTeamID = fleetID(bm.MacOSTeam)
+			tok.IOSDefaultTeamID = fleetID(bm.IOSTeam)
+			tok.IPadOSDefaultTeamID = fleetID(bm.IpadOSTeam)
+			tok.BYODDefaultTeamID = fleetID(bm.BYODTeam)
 		}
 
 		return tokens, defaultTokenID, nil
@@ -2892,7 +2907,7 @@ func (svc *Service) validateVPPAssignments(
 	if err != nil {
 		return nil, err
 	}
-	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	teamsByName := map[string]uint{fleet.DisplayNameNoTeam: 0}
 	// Fleets created before "Unassigned" was reserved can still have that name.
 	var fleetsNamedUnassigned []string
 	for _, tm := range teams {
@@ -2918,19 +2933,21 @@ func (svc *Service) validateVPPAssignments(
 	}
 
 	tokensToSave := make(map[uint][]uint, len(volumePurchasingProgramInfo))
+	repeated := make(map[uint]struct{})
 	for _, vpp := range volumePurchasingProgramInfo {
 		for _, tmName := range vpp.Teams {
-			if tmName == fleet.DisplayNameAllTeams {
-				tmName = fleet.TeamNameAllTeams
+			if reason, removed := removedFleetName(tmName, true); removed {
+				invalid.Append("mdm.volume_purchasing_program", reason)
+				return nil, nil
 			}
 			if fleet.IsUnassignedFleetName(tmName) {
 				if len(fleetsNamedUnassigned) > 0 {
 					invalid.Appendf("mdm.volume_purchasing_program", "fleets with the reserved name Unassigned must be renamed before you assign a VPP token to Unassigned: %s", strings.Join(fleetsNamedUnassigned, ", "))
 					return nil, nil
 				}
-				tmName = fleet.TeamNameNoTeam
+				tmName = fleet.DisplayNameNoTeam
 			}
-			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
+			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.DisplayNameAllTeams {
 				invalid.Appendf("mdm.volume_purchasing_program", "fleet %s doesn't exist", tmName)
 				return nil, nil
 			}
@@ -2944,13 +2961,10 @@ func (svc *Service) validateVPPAssignments(
 
 		var tokenTeams []uint
 		for _, teamName := range vpp.Teams {
-			if teamName == fleet.DisplayNameAllTeams {
-				teamName = fleet.TeamNameAllTeams
-			}
 			if fleet.IsUnassignedFleetName(teamName) {
-				teamName = fleet.TeamNameNoTeam
+				teamName = fleet.DisplayNameNoTeam
 			}
-			if teamName == fleet.TeamNameAllTeams {
+			if teamName == fleet.DisplayNameAllTeams {
 				if len(vpp.Teams) > 1 {
 					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
 					return nil, nil
@@ -2963,7 +2977,17 @@ func (svc *Service) validateVPPAssignments(
 		}
 
 		tok := tokensByLocation[loc]
+		if _, ok := tokensToSave[tok.ID]; ok {
+			if _, ok := repeated[tok.ID]; !ok {
+				invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q is listed more than once. List each token once, with all of its fleets.", vpp.Location)
+				repeated[tok.ID] = struct{}{}
+			}
+			continue
+		}
 		tokensToSave[tok.ID] = tokenTeams
+	}
+	if len(repeated) > 0 {
+		return nil, nil
 	}
 
 	return tokensToSave, nil
@@ -3036,6 +3060,20 @@ type gitopsHistoricalDataView struct {
 			Vulnerabilities *bool `json:"vulnerabilities"`
 		} `json:"historical_data"`
 	} `json:"features"`
+}
+
+// googleConditionalAccessInPayload reports whether the payload has
+// integrations.google_conditional_access, even as null, which the decoded config can't tell
+// apart from a missing key.
+func googleConditionalAccessInPayload(p []byte) bool {
+	var view struct {
+		Integrations map[string]json.RawMessage `json:"integrations"`
+	}
+	if err := json.Unmarshal(p, &view); err != nil {
+		return false // the main decode surfaces the error
+	}
+	_, ok := view.Integrations["google_conditional_access"]
+	return ok
 }
 
 // applyHistoricalDataOverwriteDefaults defaults absent

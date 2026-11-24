@@ -1,0 +1,13 @@
+{
+  "name": "Bambu Studio",
+  "slug": "bambu-studio/windows",
+  "package_identifier": "Bambulab.Bambustudio",
+  "unique_identifier": "Bambu Studio",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "open_process_names": ["bambu-studio.exe"],
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/bambu-studio_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/bambu-studio_uninstall.ps1"
+}

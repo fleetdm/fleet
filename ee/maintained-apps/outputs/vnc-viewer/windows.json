@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.6.1.17",
+      "version": "8.6.2.18",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE (name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC') AND version_compare(version, '8.6.1.17') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC') AND version_compare(version, '8.6.2.18') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('rvncconnect.exe','vncviewer.exe'));"
       },
-      "installer_url": "https://downloads.realvnc.com/download/file/realvnc-connect-viewer/RealVNC-Connect-Viewer-8.6.1-Windows.msi.zip",
+      "installer_url": "https://downloads.realvnc.com/download/file/realvnc-connect-viewer/RealVNC-Connect-Viewer-8.6.2-Windows.msi.zip",
       "install_script_ref": "74f06b30",
       "uninstall_script_ref": "2bdfe962",
-      "sha256": "1340493e4bc58c78a7d132516cbb2b08fcf56d4f06347b2230fc7963975376ac",
+      "sha256": "82214243f0635af4f0c17705d4e952cc624dde31878f98d98acc722668df6de7",
       "default_categories": [
         "Productivity"
       ]

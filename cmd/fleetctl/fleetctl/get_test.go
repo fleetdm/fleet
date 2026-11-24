@@ -539,9 +539,9 @@ func TestGetHosts(t *testing.T) {
 		ComputerName:    "test_host",
 		Hostname:        "test_host",
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		require.NotEmpty(t, identifier)
-		return &fleet.HostLite{ID: testHost.ID}, nil
+		return testHost.ID, nil
 	}
 	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		return testHost, nil
@@ -1436,6 +1436,42 @@ spec:
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "label", "--json", "label1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 }
 
+func TestGetLabelWithFleet(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t,
+		&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+
+	const sharedName = "Engineering"
+	labelIDsByFleetID := map[uint]uint{3: 32, 4: 33}
+	ds.GetLabelSpecFunc = func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
+		require.Equal(t, sharedName, name)
+		if filter.TeamID == nil {
+			return nil, fleet.NewAmbiguousLabelNameError(name)
+		}
+		labelID, ok := labelIDsByFleetID[*filter.TeamID]
+		require.True(t, ok, "unexpected fleet ID %d", *filter.TeamID)
+		return &fleet.LabelSpec{ID: labelID, Name: name, Query: "select 1;", TeamID: filter.TeamID}, nil
+	}
+
+	t.Run("name alone is ambiguous", func(t *testing.T) {
+		_, err := runAppNoChecks([]string{"get", "label", sharedName})
+		require.ErrorContains(t, err, `More than one fleet has a label named "Engineering".`)
+		require.ErrorContains(t, err, "fleetctl get label --fleet <fleet ID> \"Engineering\"")
+	})
+
+	for fleetID, labelID := range labelIDsByFleetID {
+		t.Run(fmt.Sprintf("fleet %d", fleetID), func(t *testing.T) {
+			out := runAppForTest(t, []string{"get", "label", "--json", "--fleet", fmt.Sprint(fleetID), sharedName})
+			var got struct {
+				Spec fleet.LabelSpec `json:"spec"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(out), &got))
+			require.Equal(t, labelID, got.Spec.ID)
+			require.NotNil(t, got.Spec.TeamID)
+			require.Equal(t, fleetID, *got.Spec.TeamID)
+		})
+	}
+}
+
 func TestGetEnrollmentSecrets(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
@@ -2325,7 +2361,6 @@ func TestEnrichedAppConfig(t *testing.T) {
           "failing_policies_webhook": {
             "enable_failing_policies_webhook": false,
             "destination_url": "",
-            "policy_ids": null,
             "host_batch_size": 0
           },
           "vulnerabilities_webhook": {
@@ -3494,12 +3529,12 @@ func TestGetMDMCommands(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	ds.HostIDByIdentifierFunc = func(ctx context.Context, identifier string, _ fleet.HostIDByIdentifierOptions) (uint, error) {
 		fmt.Println("Called", identifier)
 		if identifier == "foo" || identifier == "h1" {
-			return &fleet.HostLite{ID: 1, UUID: "h1", Hostname: "host1"}, nil
+			return 1, nil
 		}
-		return nil, errors.New(fleet.HostIdentiferNotFound)
+		return 0, errors.New(fleet.HostIdentiferNotFound)
 	}
 
 	var empty bool

@@ -1054,23 +1054,30 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.True(t, found)
 
+	// Expect the RemoveProfile of N3 (whose install failed) and the InstallProfile of N4. The sync enqueues installs and removes
+	// concurrently, so they can arrive in either order.
+	var gotRemove bool
+	var installRaw []byte
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
-	// first command is the RemoveProfile of N3 (which was install failed)
-	require.NotNil(t, cmd, "Expecting removal of failed N3 install")
-	require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
-
-	// second command is the InstallProfile of N4
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
-	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
-	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-	fullCmd = micromdm.CommandPayload{}
-	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
+	for range 2 {
+		require.NotNil(t, cmd, "Expecting removal of failed N3 install and PKCS12 certificate")
+		switch cmd.Command.RequestType {
+		case "RemoveProfile":
+			gotRemove = true
+		case "InstallProfile":
+			installRaw = cmd.Raw
+		default:
+			require.Failf(t, "unexpected command", "request type %s", cmd.Command.RequestType)
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 	assert.Nil(t, cmd)
+	require.True(t, gotRemove, "Expecting removal of failed N3 install")
+	require.NotNil(t, installRaw, "Expecting PKCS12 certificate")
+	fullCmd = micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(installRaw, &fullCmd))
 
 	require.NotNil(t, fullCmd.Command)
 	require.NotNil(t, fullCmd.Command.InstallProfile)
@@ -1948,6 +1955,31 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	data, err := os.ReadFile("./testdata/PKCSReq.der")
 	require.NoError(t, err)
 	message := base64.StdEncoding.EncodeToString(data)
+
+	// Another host with the same profile pending cannot use this host's challenge, and trying doesn't use it up.
+	otherHostUUID := uuid.NewString()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+				(profile_identifier, host_uuid, command_uuid, profile_name, checksum, profile_uuid, status, operation_type)
+			SELECT profile_identifier, ?, command_uuid, profile_name, checksum, profile_uuid, status, operation_type
+			FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?`, otherHostUUID, host.UUID, profileUUID)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid, type, ca_name) VALUES (?, ?, ?, ?)`,
+			otherHostUUID, profileUUID, fleet.CAConfigCustomSCEPProxy, "scepName")
+		require.NoError(t, err)
+		return nil
+	})
+	otherHostIdentifier := url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", otherHostUUID, profileUUID, "scepName", gotChallenge))
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+otherHostIdentifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	checkChallenge(t, gotChallenge, true)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles WHERE host_uuid = ?`, otherHostUUID)
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `DELETE FROM host_mdm_managed_certificates WHERE host_uuid = ?`, otherHostUUID)
+		require.NoError(t, err)
+		return nil
+	})
 
 	// Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
 	// and this request is sufficient for testing our proxy functionality.
