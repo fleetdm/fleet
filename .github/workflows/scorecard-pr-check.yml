@@ -142,7 +142,7 @@ jobs:
 
       - name: Comment on PR with results
         if: steps.compare.outputs.newIssuesCount > 0
-        uses: actions/github-script # intentional error
+        uses: actions/github-script@v9 # intentional error
         env:
           NEW_ISSUES_JSON: ${{ steps.compare.outputs.newIssuesJson }}
         with:
