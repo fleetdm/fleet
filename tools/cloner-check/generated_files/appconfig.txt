@@ -141,6 +141,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	Default	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	MacOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	IpadOSTeam	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	TvOSTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMAppleABMAssignmentInfo	BYODTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMTermsExpired	bool
@@ -158,6 +159,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Int	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Int	Value	int
 github.com/fleetdm/fleet/v4/server/fleet/MDM	IOSUpdates	fleet.AppleOSUpdateSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDM	IPadOSUpdates	fleet.AppleOSUpdateSettings
+github.com/fleetdm/fleet/v4/server/fleet/MDM	TvOSUpdates	fleet.AppleOSUpdateSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsUpdates	fleet.WindowsUpdates
 github.com/fleetdm/fleet/v4/server/fleet/WindowsUpdates	DeadlineDays	optjson.Int
 github.com/fleetdm/fleet/v4/server/fleet/WindowsUpdates	GracePeriodDays	optjson.Int
