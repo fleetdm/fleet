@@ -1016,17 +1016,16 @@ def check_policies(ctx, fs, policies):
             if item.get("query"):
                 ctx.warn(isrc, f"{what}: patch policies generate their own query; 'query' is ignored")
             if len(options) > 1:
-                ctx.fail(isrc, f"{what}: only one of {', '.join(PATCH_OPTIONS)} can be set to true, but it sets {' and '.join(options)}")
+                ctx.fail(isrc, f"{what}: only one of force_patch, patch_when_closed, notify_before_patching, or patch_deadline can be set to true")
             inst = item.get("install_software")
-            if inst is False and options:
-                ctx.fail(isrc, f"{what}: if {options[0]} is true, install_software can't be set to false")
-            elif inst is False:
+            if inst is False:
+                if len(options) == 1:
+                    ctx.fail(isrc, f"{what}: if {options[0]} is true, install_software can't be set to false")
                 ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies")
             elif inst is not None:
                 if "force_patch" in options:
                     ctx.fail(isrc, f"{what}: if force_patch is true, install_software can't be set")
-                else:
-                    ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies; use '{options[0] if options else 'force_patch'}' instead")
+                ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies; use '{options[0] if options else 'force_patch'}' instead")
             if item.get("notify_before_patching") and slug and not str(slug).endswith("/darwin"):
                 ctx.fail(isrc, f"{what}: notify_before_patching is macOS-only")
             if item.get("patch_deadline") and slug and not str(slug).endswith("/darwin"):

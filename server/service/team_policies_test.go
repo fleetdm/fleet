@@ -1494,17 +1494,17 @@ func TestListPoliciesForcePatch(t *testing.T) {
 	}
 	ds.ListPoliciesInScopeFunc = func(ctx context.Context, teamID *uint, mergeInherited bool, opts fleet.ListOptions, filter fleet.PolicyListFilter) ([]*fleet.Policy, error) {
 		return []*fleet.Policy{
-			{PolicyData: fleet.PolicyData{ID: 1, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID)}},
-			{PolicyData: fleet.PolicyData{ID: 2, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID), PatchWhenClosed: true}},
-			{PolicyData: fleet.PolicyData{ID: 3, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID), NotifyBeforePatching: true}},
-			{PolicyData: fleet.PolicyData{ID: 4, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID), PatchDeadline: true}},
-			{PolicyData: fleet.PolicyData{ID: 5, TeamID: teamID, Type: fleet.PolicyTypePatch}},
-			{PolicyData: fleet.PolicyData{ID: 6, TeamID: teamID, Type: fleet.PolicyTypeDynamic, SoftwareInstallerID: new(softwareInstallerID)}},
+			{ID: 1, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID)},
+			{ID: 2, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID), PatchWhenClosed: true},
+			{ID: 3, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID), NotifyBeforePatching: true},
+			{ID: 4, TeamID: teamID, Type: fleet.PolicyTypePatch, SoftwareInstallerID: new(softwareInstallerID), PatchDeadline: true},
+			{ID: 5, TeamID: teamID, Type: fleet.PolicyTypePatch},
+			{ID: 6, TeamID: teamID, Type: fleet.PolicyTypeDynamic, SoftwareInstallerID: new(softwareInstallerID)},
 		}, nil
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
 
 	for _, teamID := range []uint{1, 0} {
 		policies, err := svc.ListPolicies(ctx, new(teamID), false, fleet.ListOptions{}, fleet.PolicyListFilter{})
