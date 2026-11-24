@@ -132,6 +132,8 @@ const HostLifecycleSection = ({
                 position="top"
                 showArrow
                 underline={false}
+                // Match GitOpsModeTooltipWrapper: point at the label row, not the help text.
+                anchorChildSelector=".form-field__label, .form-field > label"
               >
                 <Checkbox
                   disabled={disableChildren || !isAppleBusinessSetUp}
