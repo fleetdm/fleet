@@ -84,7 +84,7 @@ import {
   isLinuxLike,
   isWindows,
 } from "interfaces/platform";
-import { IHostPolicy, IPolicy } from "interfaces/policy";
+import { IHostPolicy } from "interfaces/policy";
 import {
   IHostSoftware,
   resolveUninstallStatus,
@@ -114,7 +114,6 @@ import hostAPI, {
   IGetHostCertificatesResponse,
   IGetHostCertsApiParams,
 } from "services/entities/hosts";
-import policiesAPI from "services/entities/policies";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import {
   formatMdmCommandNameForActivityItem,
@@ -202,14 +201,6 @@ import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import UnlockModal from "./modals/UnlockModal";
 import ViewUnlockPinModal from "./modals/ViewUnlockPinModal";
 import WipeModal from "./modals/WipeModal";
-
-const policyHasAutomation = (policy: IPolicy) =>
-  !!policy.install_software ||
-  !!policy.run_script ||
-  !!policy.patch_software ||
-  !!policy.resend_configuration_profile ||
-  !!policy.calendar_events_enabled ||
-  !!policy.conditional_access_enabled;
 
 const baseClass = "host-details";
 
@@ -988,31 +979,19 @@ const HostDetailsPage = ({
 
   const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
-  // Opens the policy's automation runs. When the policy has an automation,
-  // the runs are filtered to this host.
+  // The policy page filters its automation runs to this host when the policy
+  // has an automation, which it only knows once the policy loads.
   const onClickPolicy = useCallback(
-    async (policy: IHostPolicy) => {
-      let hasAutomation = false;
-      try {
-        // Host policies don't include their script, software, or profile
-        // automations, so load the full policy.
-        const { policy: fullPolicy } = await queryClient.fetchQuery(
-          ["policy", policy.id],
-          () => policiesAPI.load(policy.id)
-        );
-        hasAutomation = policyHasAutomation(fullPolicy);
-      } catch {
-        // Open the policy without the host filter.
-      }
-      router.push(
-        getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
-          // Inherited policies have no fleet, so keep the host's fleet.
-          fleet_id: policy.fleet_id ?? host?.fleet_id,
-          query: hasAutomation ? host?.display_name : undefined,
-        })
-      );
+    (policy: IHostPolicy) => {
+      router.push({
+        pathname: PATHS.POLICY_DETAILS(policy.id),
+        // Inherited policies have no fleet, so keep the host's fleet, or No
+        // fleet (0) for an unassigned host.
+        query: { fleet_id: policy.fleet_id ?? host?.fleet_id ?? 0 },
+        state: { hostSearch: host?.display_name },
+      });
     },
-    [queryClient, router, host?.fleet_id, host?.display_name]
+    [router, host?.fleet_id, host?.display_name]
   );
 
   const toggleBootstrapPackageModal = useCallback(() => {

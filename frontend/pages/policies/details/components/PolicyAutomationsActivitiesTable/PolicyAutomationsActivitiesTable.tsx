@@ -53,6 +53,7 @@ interface IPolicyAutomationsActivitiesTableProps {
   canResetPolicy: boolean;
   /** Prefills the host search, e.g. when linked from a host's policy. */
   initialSearchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
 const PolicyAutomationsActivitiesTable = ({
@@ -60,6 +61,7 @@ const PolicyAutomationsActivitiesTable = ({
   otherAutomationType,
   canResetPolicy,
   initialSearchQuery = "",
+  onSearchQueryChange,
 }: IPolicyAutomationsActivitiesTableProps): JSX.Element => {
   const { id: policyId } = policy;
   const queryClient = useQueryClient();
@@ -149,10 +151,14 @@ const PolicyAutomationsActivitiesTable = ({
     setPage(newPage);
   }, []);
 
-  const onSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setPage(0);
-  }, []);
+  const onSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      setPage(0);
+      onSearchQueryChange?.(value);
+    },
+    [onSearchQueryChange]
+  );
 
   const onStatusFilterChange = useCallback(
     (option: CustomOptionType | null) => {

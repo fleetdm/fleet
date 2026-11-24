@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
+import { omit } from "lodash";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -60,6 +61,8 @@ interface IPolicyDetailsPageProps {
     pathname: string;
     search: string;
     query: { fleet_id?: string; query?: string };
+    /** Set when opened from a host's policy. */
+    state?: { hostSearch?: string };
   };
 }
 
@@ -211,6 +214,34 @@ const PolicyDetailsPage = ({
     isTeamTechnician;
 
   const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
+
+  // The host's name only filters the runs of a policy with an automation; a
+  // policy without one has no runs to filter.
+  const hostSearch = location.state?.hostSearch;
+  const searchQuery =
+    location.query.query ??
+    (storedPolicy?.automation_type ? hostSearch : undefined);
+
+  // The URL's query always matches the runs search, so the page can be shared
+  // or reloaded with the same filter.
+  const replaceSearchQuery = useCallback(
+    (query?: string) => {
+      const rest = omit(location.query, "query");
+      router.replace({
+        pathname: location.pathname,
+        query: query ? { ...rest, query } : rest,
+      });
+    },
+    [router, location.pathname, location.query]
+  );
+
+  // Once the policy is known, moves the host's name from navigation state into
+  // the URL (or drops it), so a reload doesn't depend on the state.
+  useEffect(() => {
+    if (storedPolicy && hostSearch !== undefined) {
+      replaceSearchQuery(searchQuery);
+    }
+  }, [storedPolicy, hostSearch, searchQuery, replaceSearchQuery]);
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,
@@ -478,7 +509,8 @@ const PolicyDetailsPage = ({
       {!isLoading && !apiError && storedPolicy && (
         <PolicyAutomationsActivitiesTable
           policy={storedPolicy}
-          initialSearchQuery={location.query.query}
+          initialSearchQuery={searchQuery}
+          onSearchQueryChange={replaceSearchQuery}
           otherAutomationType={otherAutomationType}
           canResetPolicy={canEditPolicy}
         />

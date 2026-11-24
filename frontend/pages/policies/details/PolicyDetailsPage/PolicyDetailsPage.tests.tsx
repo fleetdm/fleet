@@ -5,7 +5,7 @@ import React from "react";
 import createMockConfig from "__mocks__/configMock";
 import createMockUser from "__mocks__/userMock";
 import { ILabelPolicy } from "interfaces/label";
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, PolicyAutomationType } from "interfaces/policy";
 import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
@@ -40,10 +40,27 @@ jest.mock("components/modals/ShowQueryModal", () => ({
 }));
 
 // Activities table fetches on mount; stub it out so the render test stays
-// focused on the policy's own fields.
+// focused on the policy's own fields. It surfaces the host search it receives
+// and lets a test change it.
 jest.mock("../components/PolicyAutomationsActivitiesTable", () => ({
   __esModule: true,
-  default: () => null,
+  default: ({
+    initialSearchQuery,
+    onSearchQueryChange,
+  }: {
+    initialSearchQuery?: string;
+    onSearchQueryChange?: (query: string) => void;
+  }) => (
+    <div>
+      <div data-testid="activities-table">{initialSearchQuery ?? ""}</div>
+      <button type="button" onClick={() => onSearchQueryChange?.("Other host")}>
+        Search other host
+      </button>
+      <button type="button" onClick={() => onSearchQueryChange?.("")}>
+        Clear search
+      </button>
+    </div>
+  ),
 }));
 
 const labels = (...names: string[]): ILabelPolicy[] =>
@@ -303,5 +320,130 @@ describe("PolicyDetailsPage - renders fresh policy data (regression #43310)", ()
     expect(screen.getByTestId("show-query-modal")).not.toHaveTextContent(
       "SELECT 'stale';"
     );
+  });
+});
+
+describe("PolicyDetailsPage - host search", () => {
+  const renderPage = ({
+    automationType,
+    query = { fleet_id: "2" },
+    state,
+  }: {
+    automationType: PolicyAutomationType | null;
+    query?: Record<string, string>;
+    state?: { hostSearch?: string };
+  }) => {
+    mockServer.use(
+      http.get(baseUrl(`/policies/${POLICY_ID}`), () =>
+        HttpResponse.json({
+          policy: createMockPolicy({
+            id: POLICY_ID,
+            fleet_id: null,
+            automation_type: automationType,
+          }),
+        })
+      )
+    );
+    const router = createMockRouter({ replace: jest.fn() });
+    const props = {
+      ...createProps(),
+      router,
+      location: {
+        pathname: `/policies/${POLICY_ID}`,
+        search: "",
+        query,
+        state,
+      },
+    };
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          ...baseAppContext,
+          isFreeTier: false,
+          isPremiumTier: true,
+          availableTeams: [{ id: 2, name: "Workstations" }],
+          setCurrentTeam: jest.fn(),
+        },
+      },
+    });
+    const { user } = render(
+      <PolicyDetailsPage
+        {...((props as unknown) as React.ComponentProps<
+          typeof PolicyDetailsPage
+        >)}
+      />
+    );
+    return { user, router };
+  };
+
+  it.each<PolicyAutomationType>([
+    "script",
+    "webhook_or_ticket",
+    "calendar",
+    "conditional_access",
+  ])(
+    "filters a %s policy's runs to the host it was opened from and puts the host in the URL",
+    async (automationType) => {
+      const { router } = renderPage({
+        automationType,
+        state: { hostSearch: "Workstation 1" },
+      });
+
+      expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+        "Workstation 1"
+      );
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: `/policies/${POLICY_ID}`,
+        query: { fleet_id: "2", query: "Workstation 1" },
+      });
+    }
+  );
+
+  it("doesn't filter a policy without an automation and drops the host", async () => {
+    const { router } = renderPage({
+      automationType: null,
+      query: { fleet_id: "2" },
+      state: { hostSearch: "Workstation 1" },
+    });
+
+    expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+      /^$/
+    );
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2" },
+    });
+  });
+
+  it("applies a search from the URL to any policy", async () => {
+    const { router } = renderPage({
+      automationType: null,
+      query: { fleet_id: "2", query: "Workstation 1" },
+    });
+
+    expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+      "Workstation 1"
+    );
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps the URL in sync with the search", async () => {
+    const { user, router } = renderPage({
+      automationType: "script",
+      query: { fleet_id: "2", query: "Workstation 1" },
+    });
+
+    await user.click(await screen.findByText("Search other host"));
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2", query: "Other host" },
+    });
+
+    await user.click(screen.getByText("Clear search"));
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2" },
+    });
   });
 });
