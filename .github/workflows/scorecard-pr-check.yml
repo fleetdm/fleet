@@ -20,6 +20,9 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Create results directory
+        run: mkdir -p /tmp/scorecard-results
+
       - name: Checkout PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -29,9 +32,12 @@ jobs:
         id: scorecard_pr
         uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
         with:
-          results_file: /tmp/results_pr.sarif
+          results_file: results_pr.sarif
           results_format: sarif
           publish_results: false
+
+      - name: Move PR results
+        run: mv results_pr.sarif /tmp/scorecard-results/results_pr.sarif
 
       - name: Checkout base branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,9 +49,12 @@ jobs:
         id: scorecard_base
         uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
         with:
-          results_file: /tmp/results_base.sarif
+          results_file: results_base.sarif
           results_format: sarif
           publish_results: false
+
+      - name: Move base results
+        run: mv results_base.sarif /tmp/scorecard-results/results_base.sarif
 
       - name: Compare Scorecard results
         id: compare
@@ -55,23 +64,23 @@ jobs:
             const fs = require('fs');
 
             // Check if files exist
-            if (!fs.existsSync('/tmp/results_pr.sarif')) {
-              console.log('Warning: /tmp/results_pr.sarif not found');
+            if (!fs.existsSync('/tmp/scorecard-results/results_pr.sarif')) {
+              console.log('Warning: /tmp/scorecard-results/results_pr.sarif not found');
               core.setOutput('newIssuesCount', 0);
               core.setOutput('newIssuesJson', JSON.stringify([]));
               return;
             }
 
-            if (!fs.existsSync('/tmp/results_base.sarif')) {
-              console.log('Warning: /tmp/results_base.sarif not found');
+            if (!fs.existsSync('/tmp/scorecard-results/results_base.sarif')) {
+              console.log('Warning: /tmp/scorecard-results/results_base.sarif not found');
               core.setOutput('newIssuesCount', 0);
               core.setOutput('newIssuesJson', JSON.stringify([]));
               return;
             }
 
             // Parse SARIF results
-            const prResults = JSON.parse(fs.readFileSync('/tmp/results_pr.sarif', 'utf8'));
-            const baseResults = JSON.parse(fs.readFileSync('/tmp/results_base.sarif', 'utf8'));
+            const prResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_pr.sarif', 'utf8'));
+            const baseResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_base.sarif', 'utf8'));
 
             // Extract checks and their scores
             const prChecks = new Map();
@@ -173,8 +182,9 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.compare.outputs.newIssuesCount }}" -gt "0" ]; then
-            echo "⚠️ Scorecard found ${{ steps.compare.outputs.newIssuesCount }} new or regressed security issues in this PR"
+            echo "❌ Scorecard found ${{ steps.compare.outputs.newIssuesCount }} new or regressed security issues in this PR"
             echo "See the PR comment above for details"
+            exit 1
           else
             echo "✓ No new Scorecard issues detected"
           fi
