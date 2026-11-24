@@ -300,7 +300,7 @@ A completed open position entry should look something like this:
 
 ## Hiring a new team member
 
-Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process and coordinating the hiring process end to end for all open positions. The Head of People owns initial outreach, the first interview (30 minutes) for every candidate, all interview scheduling, and all communication with candidates, including rejections. Interviewers don't book time with candidates or share interview outcomes with them directly. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
+Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process and coordinating the hiring process end to end for all open positions. The Head of People owns initial outreach, all interview scheduling, and all communication with candidates, including rejections. Interviewers don't book time with candidates or share interview outcomes with them directly. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
 
 Follow these steps for every candidate:
 

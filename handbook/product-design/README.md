@@ -178,7 +178,7 @@ The Head of People [coordinates the hiring process](https://fleetdm.com/handbook
 
 1. **Reach out** (Head of People): Send an email or LinkedIn message introducing Fleet. Include the URL for the position and invite the candidate to a 30 minute introduction call.
 2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role. The Head of People schedules the call.
-3. **HOP interview**: The Head of People interviews the candidate for 30 minutes.
+3. **HOP interview**: The Head of People interviews the candidate.
 4. **Deliver design challenge and review it**: The Head of People shares the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and schedules a 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate.
 5. **CTO interview**: The Head of People schedules a 30m talk with our CTO @lukeheath.
 6. **Conduct reference checks**: See the [ 🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for instructions.
