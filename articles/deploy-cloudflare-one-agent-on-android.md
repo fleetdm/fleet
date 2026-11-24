@@ -164,7 +164,7 @@ The agent isn't connected, and lockdown blocks all traffic without it. Factory r
 
 - [Cloudflare One Client MDM deployment parameters](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/parameters/)
 - [Install app store apps](https://fleetdm.com/guides/install-app-store-apps)
-- [GitOps YAML reference: app_store_apps](https://fleetdm.com/docs/configuration/yaml-files#app_store_apps)
+- [GitOps YAML reference: app_store_apps](https://fleetdm.com/docs/configuration/yaml-files#app-store-apps)
 
 <meta name="articleTitle" value="Deploy Cloudflare One Agent on Android">
 <meta name="authorFullName" value="Kitzy">

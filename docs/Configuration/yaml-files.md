@@ -718,7 +718,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
 
-A software title can have more than one package (see [packages](#packages)) or more than one App Store app version (see [app_store_apps](#app_store_apps)) on the same fleet. It can't mix types: if you specify Google Chrome for macOS once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
+A software title can have more than one package (see [packages](#packages)) or more than one App Store app version (see [app_store_apps](#app-store-apps)) on the same fleet. It can't mix types: if you specify Google Chrome for macOS once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
 The same custom package at different versions can upload side by side.
 This means, if you specify a Google Chrome at the same version for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet. Google Chrome at two different versions (i.e. Google Chrome v1.0 and v2.0) will upload together and both will be available in Fleet.
