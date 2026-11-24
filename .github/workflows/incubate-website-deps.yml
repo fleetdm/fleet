@@ -10,9 +10,7 @@ on:
     - cron: '0 7 * * *'  # 7am UTC nightly
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: write   # needed for `gh run rerun`
+permissions: {}
 
 concurrency:
   group: incubate-website-deps-${{ github.event.pull_request.number || github.run_id }}
@@ -21,6 +19,9 @@ concurrency:
 jobs:
   check-website-dep-changes:
     runs-on: ubuntu-22.04
+    permissions:
+      actions: write
+      contents: read
     env:
       INCUBATION_HOURS: 72
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

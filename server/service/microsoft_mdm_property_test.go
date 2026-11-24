@@ -77,6 +77,9 @@ func newPBTESPSvc(
 	ds.HostLiteByIdentifierFunc = func(ctx context.Context, id string) (*fleet.HostLite, error) {
 		return &fleet.HostLite{ID: 1, UUID: id, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
 	}
+	ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+		return &fleet.HostLite{ID: id, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		ac := &fleet.AppConfig{}
 		ac.MDM.WindowsEnabledAndConfigured = true

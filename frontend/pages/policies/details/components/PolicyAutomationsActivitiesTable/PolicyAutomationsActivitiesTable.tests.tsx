@@ -560,6 +560,48 @@ describe("PolicyAutomationsActivitiesTable", () => {
     expect(screen.getByPlaceholderText("Search hosts")).toBeInTheDocument();
   });
 
+  it("prefills the host search and fetches that host's runs", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+
+    render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+        initialSearchQuery="Anna's MacBook Pro"
+      />
+    );
+
+    expect(await screen.findByPlaceholderText("Search hosts")).toHaveValue(
+      "Anna's MacBook Pro"
+    );
+    expect(policiesAPI.getAutomationActivities).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "Anna's MacBook Pro" })
+    );
+  });
+
+  it("reports search changes", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+    const onSearchQueryChange = jest.fn();
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+        onSearchQueryChange={onSearchQueryChange}
+      />
+    );
+
+    await user.type(await screen.findByPlaceholderText("Search hosts"), "Anna");
+
+    await waitFor(() =>
+      expect(onSearchQueryChange).toHaveBeenLastCalledWith("Anna")
+    );
+  });
+
   it("renders one row per host for a batch activity sharing an activity id", async () => {
     (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
       mockResponse([

@@ -28,11 +28,12 @@ env:
   SWIFT_DIALOG_VERSION: 2.5.6
   SWIFT_DIALOG_BUILD: 4805
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   generate-macos:
+    permissions:
+      contents: read
     runs-on: macos-latest
     steps:
       - name: Harden Runner
