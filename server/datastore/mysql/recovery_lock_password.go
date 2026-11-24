@@ -358,7 +358,6 @@ func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID strin
 			pending_set_command_uuid = NULL,
 			pending_verify_command_uuid = NULL,
 			error_message = NULL,
-			auto_rotate_at = NULL,
 			retry = 0
 		WHERE host_uuid = ?
 		  AND pending_verify_command_uuid = ?
@@ -400,7 +399,8 @@ func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID, comman
 		    error_message = ?,
 			pending_encrypted_password = NULL,
 			pending_set_command_uuid = NULL,
-			pending_verify_command_uuid = NULL
+			pending_verify_command_uuid = NULL,
+			auto_rotate_at = NULL
 		WHERE host_uuid = ?
 		  AND (pending_set_command_uuid = ? OR pending_verify_command_uuid = ?)
 		  AND deleted = 0

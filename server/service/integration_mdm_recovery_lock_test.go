@@ -1752,7 +1752,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound, &getHostRecoveryLockPasswordResponse{})
 	})
 
-	t.Run("viewing during a pending rotation does not schedule another rotation", func(t *testing.T) {
+	t.Run("viewing during a rotation schedules a rotation only for the password shown", func(t *testing.T) {
 		// assertNoRotationScheduled views the password and checks nothing got scheduled.
 		assertNoRotationScheduled := func(t *testing.T, host *fleet.Host) {
 			t.Helper()
@@ -1761,12 +1761,9 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 			assert.Nil(t, dbAutoRotateAt(t, host.UUID))
 		}
 
-		t.Run("rotation in flight", func(t *testing.T) {
-			host, mdmClient, _ := verifiedHostWithPassword(t)
-
-			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
-			assertNoRotationScheduled(t, host)
-
+		// acceptSet delivers and acknowledges the queued SetRecoveryLock, returning the verify that follows.
+		acceptSet := func(t *testing.T, mdmClient *mdmtest.TestAppleMDMClient) *mdm.Command {
+			t.Helper()
 			setCmd, err := mdmClient.Idle()
 			require.NoError(t, err)
 			require.NotNil(t, setCmd)
@@ -1777,17 +1774,53 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 				require.NoError(t, err)
 			}
 			require.NotNil(t, verifyCmd)
+			return verifyCmd
+		}
+
+		t.Run("viewing the accepted password schedules its rotation once verified", func(t *testing.T) {
+			host, mdmClient, _ := verifiedHostWithPassword(t)
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+			// The prior password is about to be replaced, so viewing it schedules nothing.
 			assertNoRotationScheduled(t, host)
 
-			_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
-			require.NoError(t, err)
-			require.Nil(t, dbAutoRotateAt(t, host.UUID), "views during the rotation must not carry over once it verifies")
+			verifyCmd := acceptSet(t, mdmClient)
+			pw := viewPassword(t, host.ID)
+			require.NotNil(t, pw.AutoRotateAt)
+			assert.WithinDuration(t, time.Now().Add(time.Hour), *pw.AutoRotateAt, 2*time.Minute)
 
-			// Even with every deadline passed, the cron finds nothing to rotate.
+			// Not due yet, and not verified: the cron leaves it alone.
+			runRecoveryLockCron(t)
+
+			_, err := mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+			require.NoError(t, err)
+			require.NotNil(t, dbAutoRotateAt(t, host.UUID), "the view during verifying must carry over once it verifies")
+
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(t.Context(),
+					`UPDATE host_recovery_key_passwords SET auto_rotate_at = ? WHERE host_uuid = ?`,
+					time.Now().Add(-time.Minute), host.UUID)
+				return err
+			})
 			runRecoveryLockCron(t)
 			cmd, err := mdmClient.Idle()
 			require.NoError(t, err)
-			assert.Nil(t, cmd, "no additional rotation should be sent")
+			require.NotNil(t, cmd, "the viewed password should be rotated")
+			assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		})
+
+		t.Run("a failed verify drops the rotation scheduled while verifying", func(t *testing.T) {
+			host, mdmClient, _ := verifiedHostWithPassword(t)
+
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+			verifyCmd := acceptSet(t, mdmClient)
+			require.NotNil(t, viewPassword(t, host.ID).AutoRotateAt)
+
+			_, err := mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, false)
+			require.NoError(t, err)
+
+			// Auto-rotation only fires on verified rows, so a kept deadline would be a promise never kept.
+			assertNoRotationScheduled(t, host)
 		})
 
 		t.Run("rotation awaiting retry after a transient error", func(t *testing.T) {
