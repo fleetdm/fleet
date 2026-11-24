@@ -135,7 +135,7 @@ module.exports.custom = {
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     'docs/Configuration': 'noahtalerman', //« Interim API design DRI. Not a required reviewer (no CODEOWNERS entry), so anyone at Fleet can approve.
     'docs/API/rest-api.md': 'noahtalerman', //« Interim API design DRI. Not a required reviewer.
-    'docs/Contributing/reference/api-for-contributors.md': 'noahtalerman', //« Interim API design DRI. Not a required reviewer.
+    'docs/Contributing/reference/api-for-contributors.md': 'noahtalerman', //« Interim API design DRI. Required reviewers are the /docs/Contributing owners in CODEOWNERS.
     'schema': 'noahtalerman',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'noahtalerman', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
