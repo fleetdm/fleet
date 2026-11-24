@@ -83,11 +83,20 @@ jobs:
                       }
                     }
 
+                    const body = `## Script Diff Results\n\n${formattedOutput.trim()}`;
+                    await core.summary.addRaw(body).write();
+
+                    // Fork PRs get a read-only token, so they can't comment. The diff is in the job summary instead.
+                    if (context.payload.pull_request.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+                      console.log('PR is from a fork, skipping comment. See the job summary for the script diff.');
+                      return;
+                    }
+
                     await github.rest.issues.createComment({
                       issue_number: context.issue.number,
                       owner: context.repo.owner,
                       repo: context.repo.repo,
-                      body: `## Script Diff Results\n\n${formattedOutput.trim()}`
+                      body
                     });
                     console.log('Posted comment with script diff results');
                   } else {
