@@ -56,7 +56,7 @@ func TestProxyClientEnterprisesCreateStatusError(t *testing.T) {
 }
 
 func TestProxyClientAppCallsExplainRejectedSecret(t *testing.T) {
-	const rejectedSecretMsg = "fleetdm.com Android proxy rejected this Fleet server's secret"
+	const wantRejectionMsg = "fleetdm.com Android proxy rejected this Fleet server's secret"
 
 	calls := []struct {
 		name string
@@ -106,7 +106,7 @@ func TestProxyClientAppCallsExplainRejectedSecret(t *testing.T) {
 
 				err := c.call(t.Context(), client)
 				require.Error(t, err)
-				assert.Equal(t, st.wantRejectedSecret, strings.Contains(err.Error(), rejectedSecretMsg), err.Error())
+				assert.Equal(t, st.wantRejectedSecret, strings.Contains(err.Error(), wantRejectionMsg), err.Error())
 				var ae *googleapi.Error
 				require.ErrorAs(t, err, &ae)
 				assert.Equal(t, st.status, ae.Code)
