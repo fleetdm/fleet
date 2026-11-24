@@ -1,11 +1,11 @@
 # Install dependent software in order with policy automations
 
-Some apps need another piece of software, like a runtime or framework, installed first. Fleet doesn't support install ordering or dependencies between policy-triggered installs. Each policy's `install_software` automation targets one software item, and policies run independently on each host's check-in cadence, so there's no guarantee which install runs first. This guide covers two ways to install the prerequisite before the app that depends on it on macOS, Windows, and Linux hosts: gate the app's policy on the prerequisite, or install both from one custom install script.
+Some apps need another piece of software, like a runtime or framework, installed first. Fleet doesn't support install ordering or dependencies between policy-triggered installs. Each policy's `install_software` automation targets one software item, and policies run independently on each host's check-in cadence, so there's no guarantee which install runs first. On macOS, Windows, and Linux hosts, this guide covers two ways to install a prerequisite before the app that depends on it: gate the app's policy on the prerequisite, or install both from one custom install script. Each option covers the steps in the Fleet UI and in GitOps.
 
 ## Prerequisites
 
 - Fleet Premium. Policy automations that install software are a Premium feature.
-- A GitOps repository for your Fleet instance. The examples use GitOps YAML, but you can set up the same policies and install scripts in the Fleet UI.
+- To use GitOps, a GitOps repository for your Fleet instance. If you manage Fleet in the UI, you don't need one.
 - Both the prerequisite and the dependent app added to the same fleet (or "Unassigned"). Policy automations can only install software defined in the same fleet as the policy.
 
 > **Note:** Listing two software items under one `install_software` key isn't valid. Each policy installs exactly one software item.
@@ -16,7 +16,7 @@ Some apps need another piece of software, like a runtime or framework, installed
 |---|---|---|
 | **How it works** | The app's policy only fails after the prerequisite is installed | One script installs the prerequisite, then the app |
 | **Prerequisite tracked in Fleet** | Yes, it's its own software item with its own install status | No, Fleet only sees the app's install |
-| **Timing** | The app installs one or more policy cycles after the prerequisite | Both install in the same run |
+| **Timing** | The app installs on a later policy run, usually within minutes of the prerequisite | Both install in the same run |
 | **Maintenance** | Two policies, no custom scripts | You maintain the full install script, including the app's install command |
 | **Supported software** | Fleet-maintained apps, custom packages, and macOS App Store apps | Fleet-maintained apps and custom packages only |
 
@@ -29,9 +29,9 @@ Create two policies:
 1. The prerequisite's policy fails when the prerequisite is missing, which triggers its install.
 2. The app's policy passes while the prerequisite is missing. It only fails when the prerequisite is present and the app is missing, which triggers the app's install.
 
-This works with Fleet's default automation behavior. Fleet triggers an install when a host's policy result changes from passing to failing. When the prerequisite lands, the app's policy flips from passing to failing on the next policy run, and Fleet installs the app. If the prerequisite install fails, the app's policy keeps passing, so Fleet never tries to install the app without its prerequisite.
+This works with Fleet's default automation behavior. Fleet triggers an install when a policy starts failing on a host, either on its first result or when it changes from passing to failing. After the prerequisite installs, the app's policy flips from passing to failing on the next policy run, and Fleet installs the app. If the prerequisite install fails, the app's policy keeps passing, so Fleet never tries to install the app without its prerequisite.
 
-> **Note:** The app installs on a later policy run, not in the same run as the prerequisite. Fleet updates policy results once per [policy update interval](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval) (1 hour by default), so expect the app to install up to one interval after the prerequisite.
+> **Note:** The app installs on a later policy run, not in the same run as the prerequisite. After the prerequisite installs successfully, Fleet asks the host to refetch, which re-runs its policies, so the app typically installs within a few minutes. If the refetch doesn't happen, the app installs after the next [policy update interval](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval) (1 hour by default).
 
 ### Write the policy queries
 
@@ -51,23 +51,27 @@ SELECT 1 WHERE NOT EXISTS (
 );
 ```
 
-If the prerequisite is a package without an app bundle (for example, a command-line runtime), check the `package_receipts` table instead: `SELECT 1 FROM package_receipts WHERE package_id = '<PREREQ_PACKAGE_ID>'`.
+If the prerequisite is a package without an app bundle (for example, a command-line runtime), check the `package_receipts` table instead: `SELECT 1 FROM package_receipts WHERE package_id = '<PREREQ_PACKAGE_ID>'`. Use the same check in the app policy's `NOT EXISTS` clause.
+
+> **Note:** Until the fix from [osquery#9235](https://github.com/osquery/osquery/pull/9235) ships in fleetd, `package_receipts` may not show a newly installed package until fleetd restarts or the host reboots, so the app won't install until then. Consider checking for a file the prerequisite installs instead: `SELECT 1 FROM file WHERE path = '<PATH_INSTALLED_BY_PREREQUISITE>';`
 
 **Windows** uses the `programs` table:
 
 ```sql
 -- Prerequisite
-SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%';
+SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%' AND publisher = '<PREREQ_PUBLISHER>';
 
 -- App
 SELECT 1 WHERE NOT EXISTS (
-  SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%'
+  SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%' AND publisher = '<PREREQ_PUBLISHER>'
 ) OR EXISTS (
   SELECT 1 FROM programs WHERE name LIKE '<APP_NAME>%'
 );
 ```
 
-**Linux** uses the `deb_packages` table on Debian-based hosts and `rpm_packages` on RPM-based hosts. On RPM-based hosts, swap the table name:
+> **Tip:** A name match alone can catch the wrong program. For example, `LIKE 'Git%'` also matches GitHub Desktop. Add a `publisher` filter, or copy the `exists` query from the Fleet-maintained app's [metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
+
+**Linux** uses the `deb_packages` table on Debian-based hosts. On RPM-based hosts, use `rpm_packages` instead:
 
 ```sql
 -- Prerequisite
@@ -83,7 +87,17 @@ SELECT 1 WHERE NOT EXISTS (
 
 > **Note:** On Linux, a `.deb` or `.rpm` that declares its dependencies may not need either approach. Fleet's default install scripts use `apt-get` and `dnf`, which install declared dependencies from the host's configured repositories. Use these approaches when the prerequisite isn't declared or isn't in those repositories.
 
-### Add the policies in GitOps
+### Add the software and policies in the Fleet UI
+
+1. Add the prerequisite and the app to the same fleet. Go to **Software**, select the fleet, and select **Add software**. Add each item from the **Fleet-maintained**, **App store**, or **Custom package** tab. See [Deploy software](https://fleetdm.com/guides/deploy-software-packages) and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) for details.
+2. Go to **Policies**, select the same fleet, and select **Add policy**.
+3. Enter the prerequisite's query, select the platform, and select **Save**. Enter a name like "Windows - <Prerequisite> installed" and select **Save** again.
+4. Repeat steps 2 and 3 for the app, using the app's query. Name it like "Windows - <App> installed".
+5. On the **Policies** page, find the prerequisite's policy and select its cell in the **Automations** column.
+6. In the **Manage automations** dialog, select **Install software**, choose the prerequisite from the dropdown, and select **Save**.
+7. Repeat steps 5 and 6 for the app's policy, choosing the app.
+
+### Add the software and policies with GitOps
 
 In `fleets/fleet-name.yml`, add both software items and both policies. This example installs a custom package prerequisite and a Fleet-maintained app on Windows:
 
@@ -99,7 +113,7 @@ policies:
     platform: windows
     description: Checks that <Prerequisite> is installed.
     resolution: Fleet installs <Prerequisite> automatically.
-    query: "SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%';"
+    query: "SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%' AND publisher = '<PREREQ_PUBLISHER>';"
     install_software:
       package_path: ../lib/windows/software/prereq.package.yml
   - name: Windows - <App> installed
@@ -107,7 +121,7 @@ policies:
     description: Checks that <App> is installed. Passes until <Prerequisite> is installed.
     resolution: Fleet installs <App> automatically after <Prerequisite> is installed.
     query: >-
-      SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%')
+      SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '<PREREQ_NAME>%' AND publisher = '<PREREQ_PUBLISHER>')
       OR EXISTS (SELECT 1 FROM programs WHERE name LIKE '<APP_NAME>%');
     install_software:
       fleet_maintained_app_slug: <app-slug>/windows
@@ -115,16 +129,19 @@ policies:
 
 Use the same shape on macOS and Linux with the matching `platform` (`darwin` or `linux`) and query. To install an App Store app on macOS, use `install_software.app_store_id` instead. See the [policies reference](https://fleetdm.com/docs/configuration/yaml-files#policies) for every `install_software` option.
 
-> **Warning:** Don't set `continuous_automations_enabled: true` on the app's policy unless you need it. With it on, Fleet retries the install on every failing result, which can loop if the app installs but the policy query doesn't match what the host reports.
+On ARM64 Windows hosts, some Fleet-maintained apps use a separate slug (for example, `tortoisegit-arm64/windows`). Check the [app list](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) for the slug that matches your hosts.
+
+> **Warning:** Don't set `continuous_automations_enabled: true` on the app's policy unless you need it. With it on, Fleet retries the install on every failing result (at most once per policy update interval after a successful install), so it keeps reinstalling if the app installs but the policy query doesn't match what the host reports.
 
 ## Option 2: Install the prerequisite from a custom install script
 
-Set `install_script.path` on the dependent app to a script that installs the prerequisite first, then the app. One policy triggers the whole install.
+Replace the dependent app's install script with one that installs the prerequisite first, then the app. One policy triggers the whole install.
 
 Before you write the script:
 
 - Custom install scripts are supported for Fleet-maintained apps (macOS and Windows) and custom packages (`.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, and `.tar.gz`). They aren't supported for App Store apps or script-only packages (`.sh`, `.py`, and `.ps1`).
-- The script replaces Fleet's install script for the app. It must include the app's complete install command, not only the prerequisite step. Start from the app's default script: Fleet's [default scripts](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for custom packages, or the app's [metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) for Fleet-maintained apps.
+- The script replaces Fleet's install script for the app. It must include the app's complete install command, not only the prerequisite step. Start from the app's default script: Fleet's [default scripts](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for custom packages, or the app's [metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) for Fleet-maintained apps. Copy the whole default script, not only its install command. Default scripts often do more, like stopping the app's running processes, passing installer-specific flags, or retrying on certain exit codes.
+- `.tar.gz` packages have no default install script, so you write the app's install steps yourself. For `.exe` packages, the default script needs the installer's silent flag, which varies by installer.
 - Fleet only sends the app's installer to the host, at `$INSTALLER_PATH`. The script has to download the prerequisite itself, so the host needs network access to the prerequisite's URL.
 
 > **Warning:** The prerequisite isn't a Fleet-tracked install. Fleet doesn't report its install status, and it can't be uninstalled or patched from Fleet as part of the app. You maintain the script when either installer changes.
@@ -158,6 +175,7 @@ installer -pkg "$INSTALLER_PATH" -target /
 ```powershell
 $prereqUrl = "https://example.com/prereq.msi"
 $prereqName = "<PREREQ_NAME>*"
+$prereqPublisher = "<PREREQ_PUBLISHER>"
 $successCodes = @(0, 3010, 1641)
 
 $uninstallKeys = @(
@@ -165,7 +183,7 @@ $uninstallKeys = @(
   "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
 )
 $prereqInstalled = Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
-  Where-Object { $_.DisplayName -like $prereqName }
+  Where-Object { $_.DisplayName -like $prereqName -and $_.Publisher -eq $prereqPublisher }
 
 try {
   if (-not $prereqInstalled) {
@@ -201,9 +219,20 @@ apt-get install --assume-yes -f "$INSTALLER_PATH"
 
 On RPM-based hosts, use `dnf install --assumeyes` for both lines and drop `apt-get update`.
 
-### Add the script and policy in GitOps
+### Add the script and policy in the Fleet UI
 
-For a Fleet-maintained app, set `install_script.path` on the app in `fleets/fleet-name.yml`, then point a policy at it:
+1. Go to **Software**, select the fleet, and select **Add software**.
+2. To add a Fleet-maintained app, select the app on the **Fleet-maintained** tab. To add a custom package, select the **Custom package** tab and choose the file.
+3. Select **Advanced options**, replace the contents of the **Install script** field with your script, and select **Add software**.
+4. Go to **Policies**, select the same fleet, and select **Add policy**.
+5. Enter a query that passes when the app is installed, for example `SELECT 1 FROM programs WHERE name LIKE '<APP_NAME>%';` on Windows. Select the platform and select **Save**, then name the policy and select **Save** again.
+6. In the **Automations** column, select the policy's cell. In the **Manage automations** dialog, select **Install software**, choose the app from the dropdown, and select **Save**.
+
+To change the script on software you already added, go to the software's details page, select the edit icon next to the package in the **Library** section, and open **Advanced options**.
+
+### Add the script and policy with GitOps
+
+Save the script in your repository. For a Fleet-maintained app, set `install_script.path` on the app in `fleets/fleet-name.yml`, then point a policy at it:
 
 ```yaml
 software:
@@ -238,7 +267,7 @@ Then reference the package from a policy with `install_software.package_path`. S
 1. In Fleet, go to **Hosts** and select a host in scope.
 2. Select the **Policies** tab and confirm the policies show as passing after the next policy run.
 3. Select the **Software** tab and confirm both the prerequisite and the app appear in inventory.
-4. With Option 1, select the **Details** tab and, in the **Activity** card, confirm the prerequisite install ran before the app install.
+4. With Option 1, select the **Details** tab and, in the **Activity** card's **Past** tab, confirm the prerequisite install ran before the app install.
 
 ## Troubleshoot
 
@@ -256,7 +285,7 @@ The host can't reach the prerequisite's URL. Confirm the URL is reachable from t
 
 **The app installed but the prerequisite didn't (Option 2)**
 
-The script's "already installed" check returned a false positive. Run the check on its own on the host (`pkgutil --pkg-info` on macOS, or the registry lookup on Windows) and tighten the name or package ID.
+The script's "already installed" check returned a false positive. Run the check on its own on the host (`pkgutil --pkg-info` on macOS, or the registry lookup on Windows) and tighten the name, publisher, or package ID.
 
 ## Further reading
 
@@ -269,4 +298,4 @@ The script's "already installed" check returned a false positive. Run the check 
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-20">
-<meta name="description" value="Install a prerequisite before the app that depends on it on macOS, Windows, and Linux using gated policies or a custom install script.">
+<meta name="description" value="Install a prerequisite before the app that depends on it on macOS, Windows, and Linux using gated policies or a custom install script, in the Fleet UI or GitOps.">
