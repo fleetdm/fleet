@@ -60,7 +60,7 @@
   frequency: "Monthly"
   description: "Review and clear mail incurring storage fees"
   moreInfoUrl: null
-  dri: "rfoo2015"
+  dri: "bigaapl"
   autoIssue:
     labels: [":help-finance"]
     repo: "confidential"
