@@ -810,7 +810,7 @@ Only one of the objects is allowed in a single request.
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | custom_est_proxy   | object | body | See [custom_est_proxy](#custom-est-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
-| google_cas   | object | body | See [google_cas](#google_cas) |
+| google_cas   | object | body | See [google_cas](#google-cas) |
 | smallstep   | object | body | See [smallstep](#smallstep) |
 | ejbca             | object | body | See [ejbca](#ejbca) |
 

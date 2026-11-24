@@ -1316,7 +1316,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
 
-It can be set to a single duration value (e.g., "30s"), which defines the interval for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=10s&policy_membership=1m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
+It can be set to a single duration value (e.g., "30s"), which defines the interval for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=10s&policy_membership=1m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery-enable-async-host-processing) for the supported async task names.
 
 - Default value: 30s
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
@@ -1342,7 +1342,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. A number in
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a Fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another Fleet instance can proceed with the next collection.
 
-It can be set to a single duration value (e.g., "1m"), which defines the lock timeout for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=2m&policy_membership=5m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
+It can be set to a single duration value (e.g., "1m"), which defines the lock timeout for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=2m&policy_membership=5m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery-enable-async-host-processing) for the supported async task names.
 
 - Default value: 1m
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
@@ -3352,7 +3352,7 @@ On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identi
 
 ### s3_carves_endpoint_url
 
-> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s-3-software-installers-endpoint-url). Do not set this when using IRSA or IAM role-based authentication.
 
 - Default value: none
 - Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
@@ -3419,7 +3419,7 @@ observe throttling, or raise it to speed up a backlog's probe phase.
 
 ### s3_carves_region
 
-> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
+> Same region-discovery behavior as [`s3_software_installers_region`](#s-3-software-installers-region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value:
 - Environment variable: `FLEET_S3_CARVES_REGION`
@@ -3823,7 +3823,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
-> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s-3-software-installers-endpoint-url). Do not set this when using IRSA or IAM role-based authentication.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
@@ -3871,7 +3871,7 @@ This is the AWS S3 Region. Leave it blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
 
-> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
+> Same region-discovery behavior as [`s3_software_installers_region`](#s-3-software-installers-region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
@@ -3884,7 +3884,7 @@ You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 ## Mobile device management (MDM)
 
-> The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
+> The [`server_private_key` configuration option](#server-private-key) is required for macOS MDM features.
 
 > The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business (AB) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and AB token](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
