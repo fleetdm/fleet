@@ -15127,8 +15127,14 @@ func testGetAppleAccountDrivenEnrollmentIDTaken(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
 		UUID: "enrollment-id", HardwareSerial: "enrollment-id", HardwareModel: "iPhone14,5", Platform: "ios",
 	}, fleet.PersonalEnrollmentTypeAccountDriven))
+	// same UUID-equals-serial shape, but not an account-driven enrollment
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "lookalike-id", HardwareSerial: "lookalike-id", HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeManualProfile))
 
-	for id, want := range map[string]bool{"windows-uuid": true, "enrollment-id": false, "unknown-id": false} {
+	for id, want := range map[string]bool{
+		"windows-uuid": true, "enrollment-id": false, "lookalike-id": true, "unknown-id": false,
+	} {
 		taken, err := ds.GetAppleAccountDrivenEnrollmentIDTaken(ctx, id)
 		require.NoError(t, err)
 		assert.Equal(t, want, taken, id)
