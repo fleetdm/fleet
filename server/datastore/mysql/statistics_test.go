@@ -1129,12 +1129,14 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// With no hosts, both counts are zero (not null/missing).
-	macOS, windows, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
+	macOS, windows, ios, ipados, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
 	require.NoError(t, err)
 	assert.Zero(t, macOS)
 	assert.Zero(t, windows)
+	assert.Zero(t, ios)
+	assert.Zero(t, ipados)
 
-	// Each host exercises one branch of the query; only enrolled, non-server, Fleet-MDM darwin/windows hosts are counted.
+	// Each host exercises one branch of the query; only enrolled, non-server, Fleet-MDM darwin, windows, ios, and ipados hosts are counted.
 	cases := []struct {
 		name             string
 		platform         string
@@ -1145,11 +1147,12 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	}{
 		{"macOS Fleet MDM", "darwin", false, true, false, fleet.WellKnownMDMFleet},        // counted (macOS)
 		{"windows Fleet MDM", "windows", false, true, false, fleet.WellKnownMDMFleet},     // counted (Windows)
+		{"iOS Fleet MDM", "ios", false, true, false, fleet.WellKnownMDMFleet},             // counted (iOS)
+		{"iPadOS Fleet MDM", "ipados", false, true, false, fleet.WellKnownMDMFleet},       // counted (iPadOS)
 		{"macOS third-party MDM", "darwin", false, true, false, fleet.WellKnownMDMIntune}, // excluded: not Fleet
 		// ABM pending: DEP-assigned (installed_from_dep=1) but not yet enrolled (enrolled=0).
 		{"macOS ABM pending", "darwin", false, false, true, fleet.WellKnownMDMFleet},   // excluded: not enrolled
 		{"windows server host", "windows", true, true, false, fleet.WellKnownMDMFleet}, // excluded: is_server
-		{"iOS Fleet MDM", "ios", false, true, false, fleet.WellKnownMDMFleet},          // excluded: not macOS/Windows
 		{"macOS no MDM", "darwin", false, false, false, ""},                            // excluded: no MDM data
 	}
 	for i, c := range cases {
@@ -1171,6 +1174,8 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledMacOS)
 	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledWindows)
+	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledIOS)
+	assert.Equal(t, 1, stats.NumHostsFleetMDMEnrolledIpadOS)
 }
 
 func testStatisticsMDMProfileCounts(t *testing.T, ds *Datastore) {
