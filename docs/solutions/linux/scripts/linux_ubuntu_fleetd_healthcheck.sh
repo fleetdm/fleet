@@ -95,14 +95,23 @@ echo "${SYSTEMD_STATUS}" >> "${SUMMARY}"
 log ""
 log "── 2. Processes ────────────────────────────────────────────"
 
+# PID and executable only: command lines can be long, and a manually started
+# orbit can carry --enroll-secret.
+show_pids() {
+  local pid
+  for pid in $1; do
+    printf '%s %s\n' "${pid}" "$(readlink "/proc/${pid}/exe" 2>/dev/null || ps -o comm= -p "${pid}")"
+  done | indent
+}
+
 check_process() {
   local label="$1"
   local pattern="$2"
-  local result
-  result=$(pgrep -af "${pattern}" 2>/dev/null || true)
-  if [[ -n "${result}" ]]; then
+  local pids
+  pids=$(pgrep -f "${pattern}" 2>/dev/null || true)
+  if [[ -n "${pids}" ]]; then
     ok "${label} is running"
-    echo "${result}" | indent
+    show_pids "${pids}"
   else
     fail "${label} is NOT running (pattern: ${pattern})"
     OVERALL_EXIT=1
@@ -111,7 +120,9 @@ check_process() {
 
 # orbit binary path is /opt/orbit/bin/orbit/orbit
 # Source: linux_shared.go ExecStart=/opt/orbit/bin/orbit/orbit
-check_process "orbit"        "/opt/orbit/bin/orbit/orbit"
+# After an auto-update, orbit can run from bin/orbit/<platform>/<channel>/orbit,
+# so match the folder rather than the bin/orbit/orbit launcher path.
+check_process "orbit"        "/opt/orbit/bin/orbit/"
 
 # Match orbit's own osqueryd only: another osquery install must not count as
 # fleetd being healthy.
@@ -121,15 +132,15 @@ ALL_OSQUERYD=$(pgrep -af "osqueryd" 2>/dev/null || true)
 OTHER_OSQUERYD=$(printf '%s\n' "${ALL_OSQUERYD}" | grep -v -e "/opt/orbit/bin/osqueryd/" -e '^$' || true)
 if [[ -n "${OTHER_OSQUERYD}" ]]; then
   warn "osqueryd running from outside /opt/orbit (another osquery install?):"
-  echo "${OTHER_OSQUERYD}" | indent
+  show_pids "$(printf '%s\n' "${OTHER_OSQUERYD}" | awk '{print $1}')"
 fi
 
 # fleet-desktop: only present if package was built with --fleet-desktop
 # Source: constant.DesktopAppExecName = "fleet-desktop"
-DESKTOP_PROCS=$(pgrep -af "fleet-desktop" 2>/dev/null || true)
-if [[ -n "${DESKTOP_PROCS}" ]]; then
+DESKTOP_PIDS=$(pgrep -f "fleet-desktop" 2>/dev/null || true)
+if [[ -n "${DESKTOP_PIDS}" ]]; then
   ok "fleet-desktop is running"
-  echo "${DESKTOP_PROCS}" | indent
+  show_pids "${DESKTOP_PIDS}"
 else
   warn "fleet-desktop is NOT running (expected if not packaged with --fleet-desktop)"
 fi
@@ -155,8 +166,16 @@ check_file "orbit binary"        "/opt/orbit/bin/orbit/orbit"
 check_file "orbit symlink"       "/usr/local/bin/orbit"
 check_file "osquery pidfile"     "/opt/orbit/osquery.pid"
 check_file "env file"            "/etc/default/orbit"
-# No keystore on Linux, so orbit keeps the enroll secret file after enrolling.
-check_file "enroll secret"       "/opt/orbit/secret.txt"
+# The .deb/.rpm put the enroll secret in /etc/default/orbit (ORBIT_ENROLL_SECRET),
+# not in a file. Once orbit has a node key, it doesn't need the secret.
+if [[ -s /opt/orbit/secret.txt ]] || grep -qE '^ORBIT_ENROLL_SECRET(_PATH)?=.+' /etc/default/orbit 2>/dev/null; then
+  ok "enroll secret is configured (/etc/default/orbit or /opt/orbit/secret.txt)"
+elif [[ -s /opt/orbit/secret-orbit-node-key.txt ]]; then
+  info "enroll secret not configured (not needed: orbit is already enrolled)"
+else
+  fail "enroll secret not configured and orbit not enrolled: check ORBIT_ENROLL_SECRET in /etc/default/orbit"
+  OVERALL_EXIT=1
+fi
 
 # Report orbit node key presence without printing value
 if [[ -s "/opt/orbit/secret-orbit-node-key.txt" ]]; then
@@ -179,7 +198,7 @@ if [[ -f /etc/default/orbit ]]; then
       name = toupper($1)
       if (name ~ /SECRET|PASSWORD|TOKEN|KEY/ && name !~ /_PATH$/) print $1 "=<redacted>"
       else print
-    }' /etc/default/orbit | indent
+    }' /etc/default/orbit | grep -v '^[[:space:]]*$' | indent
   ORBIT_FLEET_URL=$(sed -n 's/^ORBIT_FLEET_URL=//p' /etc/default/orbit | head -1)
   FLEET_CERT=$(sed -n 's/^ORBIT_FLEET_CERTIFICATE=//p' /etc/default/orbit | head -1)
   FLEET_INSECURE=$(sed -n 's/^ORBIT_INSECURE=//p' /etc/default/orbit | head -1)
