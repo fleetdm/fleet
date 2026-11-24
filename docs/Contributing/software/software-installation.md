@@ -58,6 +58,9 @@ the acknowledgment of the `InstallApplication` command. Fleet attempts to verify
 - the verification timeout (defaults to 10m, configurable via the `FLEET_SERVER_VPP_VERIFY_TIMEOUT`
   env var).
 
+Fleet checks 30s, 1m and 3m after the acknowledgment, then once more at the verification timeout, so a host with one pending
+install whose app never shows up gets at most 5 `InstalledApplicationList` commands.
+
 
 ```mermaid
 sequenceDiagram

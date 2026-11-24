@@ -1,0 +1,1 @@
+- Reduced the `InstalledApplicationList` commands Fleet sends to verify an App Store or in-house app install on Apple hosts: Fleet now checks 30 seconds, 1 minute and 3 minutes after the device acknowledges the install, then once more at `server.vpp_verify_timeout`, instead of 5 seconds after each result until the timeout.

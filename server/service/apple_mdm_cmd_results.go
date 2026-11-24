@@ -61,6 +61,20 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 	}, nil
 }
 
+var vppVerifyCheckpoints = []time.Duration{30 * time.Second, time.Minute, 3 * time.Minute}
+
+// The last check lands on verifyTimeout, so its reply fails an install the device never reported.
+func nextVPPVerifyDelay(ackAge, verifyTimeout, minDelay time.Duration) time.Duration {
+	next := verifyTimeout
+	for _, checkpoint := range vppVerifyCheckpoints {
+		if checkpoint > ackAge && checkpoint < verifyTimeout {
+			next = checkpoint
+			break
+		}
+	}
+	return max(next-ackAge, minDelay)
+}
+
 func NewInstalledApplicationListResultsHandler(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
@@ -133,6 +147,7 @@ func NewInstalledApplicationListResultsHandler(
 		// See https://github.com/fleetdm/fleet/issues/37290#issuecomment-3774473552
 		const xcodeBundleID = "com.apple.dt.Xcode"
 		var poll, shouldRefetch, requireXcodeSpecialCase bool
+		var pollDelay time.Duration
 		setStatusForExpectedInstall := func(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
@@ -162,6 +177,13 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			if terminalStatus == "" {
+				delay := verifyRequestDelay
+				if expectedInstall.InstallCommandAckAt != nil {
+					delay = nextVPPVerifyDelay(time.Since(*expectedInstall.InstallCommandAckAt), verifyTimeout, verifyRequestDelay)
+				}
+				if !poll || delay < pollDelay {
+					pollDelay = delay
+				}
 				poll = true
 				// use the Xcode special-case (managedonly=false) only if it wasn't reported
 				// in the current result (if it was reported and gets here, it means is still "Installing"),
@@ -261,7 +283,7 @@ func NewInstalledApplicationListResultsHandler(
 			// Queue a job to verify the VPP install.
 			return ctxerr.Wrap(
 				ctx,
-				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, verifyRequestDelay,
+				worker.QueueVPPInstallVerificationJob(ctx, ds, logger, pollDelay,
 					installedAppResult.HostUUID(), installedAppResult.UUID(), requireXcodeSpecialCase),
 				"InstalledApplicationList handler: queueing vpp install verification job",
 			)

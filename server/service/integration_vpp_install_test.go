@@ -60,6 +60,16 @@ func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) *fleet.VPPToke
 	return resPatchVPP.Token
 }
 
+func (s *integrationMDMTestSuite) runWorkerWithVPPVerifyJobsDue() {
+	t := s.T()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE jobs SET not_before = ? WHERE name = ? AND state = ?`,
+			time.Now().Add(-1*time.Minute).UTC(), worker.AppleSoftwareJobName, fleet.JobStateQueued)
+		return err
+	})
+	s.runWorker()
+}
+
 // withVPPToken adds the vpp_token snapshot of tok to the expected details JSON
 // of an App Store app activity. A nil tok is the null of Google Play apps.
 func withVPPToken(t *testing.T, details string, tok *fleet.VPPTokenDB) string {
@@ -291,7 +301,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		}
 
 		// Process the InstallApplication command
-		s.runWorker()
+		s.runWorkerWithVPPVerifyJobsDue()
 		cmd, err := mdmClient.Idle()
 		require.NoError(t, err)
 
@@ -1712,7 +1722,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		}
 	}
 
-	s.runWorker()
+	s.runWorkerWithVPPVerifyJobsDue()
 
 	cmd, err = iosDevice.Idle()
 	require.NoError(t, err)
@@ -2992,7 +3002,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 
 	// check that it starts polling with ManagedOnly=true, and switches to ManagedOnly=false once it stops reporting it as Installing
 	processInstallAppCmds := func(device *mdmtest.TestAppleMDMClient, appList []fleet.Software, expectManagedOnly bool, expectCommands ...string) {
-		s.runWorker()
+		s.runWorkerWithVPPVerifyJobsDue()
 		cmd, err := device.Idle()
 		require.NoError(t, err)
 

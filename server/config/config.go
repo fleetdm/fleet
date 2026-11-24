@@ -1882,7 +1882,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.private_key_sts_assume_role_arn", "", "ARN of role to assume for accessing private key secret")
 	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
-	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Minimum delay before Fleet re-checks an App Store or in-house app install that a verification result didn't show, unless another install on the host is acknowledged first. Fleet backs off from the install's acknowledgment")
 	man.addConfigDuration("server.vpp_install_reap_timeout", 24*time.Hour,
 		"Minimum time a stuck App Store or in-house app install must have been activated before Fleet fails it to release the host's activity queue. Zero or less turns the reaper off, and a value below server.vpp_verify_timeout is raised to it. Android setup experience app installs the device hasn't reported for this long are also failed; for those, zero or less keeps them pending and the vpp_verify_timeout floor doesn't apply")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
