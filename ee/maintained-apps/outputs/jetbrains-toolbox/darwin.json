@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.9.1",
+      "version": "3.9.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox' AND version_compare(bundle_short_version, '3.9.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.toolbox' AND version_compare(bundle_short_version, '3.9.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.toolbox' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.9.1.89198-arm64.dmg",
+      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.9.2.89815-arm64.dmg",
       "install_script_ref": "fb73e501",
       "uninstall_script_ref": "a8fd36f5",
-      "sha256": "bd4ed78166bb9baab9d211b00a49fc865c187a7ef02b282007f04d889a63fa6d",
+      "sha256": "aadcca519831d9aa18060ad9c89984fc7d69196a9f13f1e7dc17e43c708e0ec2",
       "default_categories": [
         "Developer tools"
       ]

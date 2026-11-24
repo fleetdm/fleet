@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.3",
+      "version": "2026.3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland' AND version_compare(bundle_short_version, '2026.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.goland' AND version_compare(bundle_short_version, '2026.3.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.goland' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/go/goland-2026.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/go/goland-2026.3.0.1-aarch64.dmg",
       "install_script_ref": "b5f2cdd1",
       "uninstall_script_ref": "a9fe508d",
-      "sha256": "8f83727c7dd0cbdd50bfa0e43cc81e44fe0d4de1e76f634b19a365cc7c867827",
+      "sha256": "423537fd95b77c3b2443c272edc23ace7ae4a21576a6427a1211dfb9da1cd132",
       "default_categories": [
         "Developer tools"
       ]
