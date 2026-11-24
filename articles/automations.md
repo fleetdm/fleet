@@ -40,6 +40,8 @@ You can also use the [fleets API](https://fleetdm.com/docs/api/rest-api#update-f
 
 Policy automations are triggered if a policy fails on a host. 
 
+Each policy can have one automation: a calendar event, conditional access, software install, script, configuration profile resend, or a webhook or ticket. To use more than one, add a policy for each automation.
+
 Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) by default, and run in ascending order by policy ID after the ID is turned into a string ("100" runs before "53", which runs before "7"). 
 
 Several events can trigger a policy check sooner than this interval: a manual host refetch, a calendar event, a software install or uninstall completing, Apple App Store (VPP) app install verification, and an MDM check-in all ask the host to check in and run its policies again right away. Because of this, a policy can be evaluated far more often than once an hour, especially on a host with frequent software installs or MDM activity.
@@ -72,6 +74,10 @@ Automations for [software](https://fleetdm.com/guides/automatic-software-install
 Across policy runs, if the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying on that host. This limit doesn't apply to VPP apps.
 
 ### Webhooks and tickets
+
+Webhooks and tickets are turned on for each policy. Fleet sends the policy's failing hosts to the webhook, Jira, or Zendesk destination configured for the policy's fleet, or to the global destination for "All fleets" policies.
+
+You can also turn them on by setting `automation_type` to `"webhook_or_ticket"` with the [Update policy](https://fleetdm.com/docs/rest-api/rest-api#update-policy) API endpoint, or with the [`webhooks_and_tickets_enabled`](https://fleetdm.com/docs/configuration/yaml-files#webhook-or-ticket) GitOps option.
 
 For webhooks and tickets, automations are only triggered when a policy is newly failing. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail."
 

@@ -32,7 +32,7 @@ If you need to retrigger the automation on hosts that had previously failed, des
 > When the configuration profile automation on a policy is added or changed, the policy's status will reset for associated hosts. This allows the resend to trigger on hosts that had previously failed the policy.
 
 ## Via the API
-Configuration profile policy automation can be managed by setting the `profile_uuid` field on the Fleet REST API's [Add team policy](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy) or [Edit team policy](https://fleetdm.com/docs/rest-api/rest-api#edit-team-policy) endpoints.
+Configuration profile policy automation can be managed by setting `automation_type` to `"configuration_profile"` and `profile_uuid` on the Fleet REST API's [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) or [Update policy](https://fleetdm.com/docs/rest-api/rest-api#update-policy) endpoints.
 
 ## Via GitOps
 To configure configuration profile policy automation via GitOps, add a `resend_configuration_profile` key to the policy you want to automate, and set its value to the `name` of a profile defined in the same fleet's `controls` section. See the GitOps reference documentation for an example.
