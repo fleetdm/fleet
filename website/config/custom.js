@@ -552,6 +552,7 @@ module.exports.custom = {
   // googleConditionalAccessOauthClientId: '…',
   // googleConditionalAccessOauthClientSecret: '…',
   // googleConditionalAccessPartnerId: '…',
+  // googleConditionalAccessAllowedOrigins: ['…','…'],
 
   // Android proxy
   // androidEnterpriseProjectId: '…',

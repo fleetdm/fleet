@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/google/go-cmp/cmp"
 	"github.com/shirou/gopsutil/v4/process"
@@ -200,7 +201,12 @@ func main() {
 	}
 
 	printf("Translating software to CPE...\n")
-	err := nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger)
+	goVulnDB, err := govulndb.LoadArtifact(ctx, *dbDir)
+	if err != nil {
+		panic(err)
+	}
+	toolchains := govulndb.ToolchainRulesFrom(ctx, goVulnDB, logger)
+	err = nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger, []func(*fleet.Software) bool{toolchains.IsToolchainInstall})
 	if err != nil {
 		panic(err)
 	}
@@ -306,6 +312,10 @@ func vulnDBSync(ctx context.Context, vulnDBDir string, debug bool, logger *slog.
 	}
 	err := nvd.Sync(ctx, opts, logger)
 	if err != nil {
+		return err
+	}
+	// The Go vulnerability database carries the rules for which software NVD skips.
+	if _, err := govulndb.Refresh(ctx, vulnDBDir); err != nil {
 		return err
 	}
 	return nil

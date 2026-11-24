@@ -1,0 +1,1 @@
+- Improved the `fleetctl package --type=msi` error when Docker isn't running or is still starting. Previously, the error only said "heat failed".

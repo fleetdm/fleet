@@ -996,6 +996,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
 	expectAssignProfileResponseThrottled := ""     // set to device serial when testing the throttled profile assignment flow
 	expectAssignProfileResponseNotAccessible := "" // set to device serial when testing the not accessible profile assignment flow
+	throttledRetryAfterSeconds := 0                // sent by Apple along with throttled devices
+	var assignProfileProtocolVersions []string
 
 	s.enableABM(t.Name())
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1024,6 +1026,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			var prof profileAssignmentReq
 			require.NoError(t, json.Unmarshal(b, &prof))
 			profileAssignmentReqs = append(profileAssignmentReqs, prof)
+			assignProfileProtocolVersions = append(assignProfileProtocolVersions, r.Header.Get("X-Server-Protocol-Version"))
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
 			resp.Devices = make(map[string]string, len(prof.Devices))
@@ -1035,6 +1038,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseFailed)
 				case expectAssignProfileResponseThrottled:
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseThrottled)
+					resp.RetryAfterSeconds = throttledRetryAfterSeconds
 				default:
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
 				}
@@ -1698,6 +1702,55 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// list hosts shows pending (because MDM detail query hasn't been reported) but dep profile
 	// error has been cleared
 	checkListHostDEPError(serial, "Pending", false)
+
+	// Apple asks to wait 2 hours: the retry happens then, not after the fixed cooldown
+	serial = uuid.NewString()
+	devices = []godep.Device{
+		{SerialNumber: serial, Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+	expectAssignProfileResponseThrottled = serial
+	throttledRetryAfterSeconds = 7200
+	profileAssignmentReqs = []profileAssignmentReq{}
+	assignProfileProtocolVersions = nil
+	s.runDEPSchedule()
+	checkAssignProfileRequests(serial, nil)
+	for _, v := range assignProfileProtocolVersions {
+		require.Equal(t, "10", v)
+	}
+	profUUID = profileAssignmentReqs[0].ProfileUUID
+	checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, nil, expectNoJobID)
+	h = checkListHostDEPError(serial, "Pending", true)
+	var depAssignmentResp getHostDEPAssignmentResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", h.ID), nil, http.StatusOK, &depAssignmentResp)
+	require.NotNil(t, depAssignmentResp.HostDEPAssignment.ThrottledRetryAfter)
+	require.WithinDuration(t, time.Now().Add(2*time.Hour), *depAssignmentResp.HostDEPAssignment.ThrottledRetryAfter, time.Minute)
+
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runIntegrationsSchedule()
+	require.Empty(t, profileAssignmentReqs)
+	checkNoJobsPending()
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET
+			response_updated_at = DATE_SUB(response_updated_at, INTERVAL 121 MINUTE),
+			throttled_retry_after = DATE_SUB(throttled_retry_after, INTERVAL 121 MINUTE)
+			WHERE host_id = ?`, h.ID)
+		return err
+	})
+	s.runIntegrationsSchedule()
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, nil, nil)
+	require.NotZero(t, d.RetryJobID)
+
+	expectAssignProfileResponseThrottled = ""
+	throttledRetryAfterSeconds = 0
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runIntegrationsSchedule()
+	checkAssignProfileRequests(serial, nil)
+	checkHostCooldown(serial, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess, nil, expectNoJobID)
+	checkNoJobsPending()
+	depAssignmentResp = getHostDEPAssignmentResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", h.ID), nil, http.StatusOK, &depAssignmentResp)
+	require.Nil(t, depAssignmentResp.HostDEPAssignment.ThrottledRetryAfter)
 
 	// run with devices that already have valid and invalid profiles
 	// assigned, we shouldn't re-assign the valid ones.

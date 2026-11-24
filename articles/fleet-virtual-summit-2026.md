@@ -1,15 +1,15 @@
 ![Fleet virtual summit, November 10th, 11 AM ET / 8 AM PT / 4 PM GMT](../website/assets/images/articles/fleet-virtual-summit-2026-banner-600x313@2x.png)
 
 
-# Join the Fleet Virtual Summit 2026
+# Watch the Fleet Virtual Summit 2026
 
-Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 AM ET / 8 AM PT / 4 PM GMT. Four panels of IT and security practitioners will talk about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streams free on LinkedIn Live.
+Fleet hosted its first virtual summit on Tuesday, November 10, 2026. Four panels of IT and security practitioners talked about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streamed free on LinkedIn Live, and you can watch the recording on YouTube.
 
-## What to expect
+## What to expect from the sessions
 
 - **Four 30-minute panels, back to back.** Mike McNeil, Fleet's cofounder and CEO, hosts all four.
 - **Practitioners, not vendors.** Every panel is IT and security leaders talking about their own work: what they tried, what broke, and what they'd do differently. No slides and no demos.
-- **Questions answered live.** Fleet's team joins the stream to answer your questions in the LinkedIn comments as they come in.
+- **Questions answered live.** Fleet's team joined the stream to answer questions in the LinkedIn comments as they came in.
 
 ## The sessions
 
@@ -47,7 +47,7 @@ Engineering teams version-control production infrastructure, review changes in p
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
 
 
 ### Open source in enterprise device management
@@ -79,7 +79,7 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
   </tbody>
 </table>
 
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
 
 
 ### AI agents as a device management problem
@@ -109,7 +109,7 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 
 
 
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
 
 
 ### Device management 2027
@@ -142,23 +142,18 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 </table>
 
 
-<a purpose="cta-button" no-icon href="https://www.linkedin.com/events/7518683538410459136">Reserve a spot in this session</a>
+<a purpose="cta-button" no-icon href="https://www.youtube.com/watch?v=-CA-vLlicUc">Watch this session</a>
 
 
-## How to watch
+## Watch the sessions
 
-- **Date:** Tuesday, November 10, 2026
-- **Time:** 11 AM ET / 8 AM PT / 4 PM GMT
-- **Where:** LinkedIn Live
-- **Cost:** Free
-
-[Add the summit to your Google Calendar](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Fleet+Virtual+Summit+2026&dates=20261110T160000Z%2F20261110T180000Z&details=Four+panel+conversations+on+how+GitOps%2C+open+source%2C+and+AI+agents+get+device+management+to+2027.+Streaming+free+on+LinkedIn+Live.+Details%3A+https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026&location=https%3A%2F%2Ffleetdm.com%2Fannouncements%2Ffleet-virtual-summit-2026), and [follow Fleet on LinkedIn](https://www.linkedin.com/company/fleetdm) to catch the stream when it goes live.
+[Watch the full summit on YouTube](https://www.youtube.com/watch?v=-CA-vLlicUc). The four panels appear in the order listed above. [Follow Fleet on LinkedIn](https://www.linkedin.com/company/fleetdm) to catch the next one.
 
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-02">
-<meta name="articleTitle" value="Join the Fleet Virtual Summit 2026">
+<meta name="articleTitle" value="Watch the Fleet Virtual Summit 2026">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-2026-banner-600x313@2x.png">
-<meta name="description" value="Fleet's first virtual summit is November 10 on LinkedIn Live: four free panels on GitOps, open source, AI agents, and device management in 2027.">
+<meta name="description" value="Watch Fleet's first virtual summit: four panels on GitOps, open source, AI agents, and device management in 2027.">

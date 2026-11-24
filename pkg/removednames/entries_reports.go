@@ -11,6 +11,7 @@ var reportEntries = []Entry{
 	pathEntryFor("GET", "/queries/{id}/report", "/reports/{id}/report"),
 	pathEntryFor("DELETE", "/queries/id/{id}", "/reports/{id}"),
 	pathEntryFor("DELETE", "/reports/id/{id}", "/reports/{id}"),
+	pathEntryFor("DELETE", "/reports/{name}", "/reports/{id}"),
 	pathEntryFor("POST", "/queries/{id}/run", "/reports/{id}/run"),
 	pathEntryFor("GET", "/hosts/{id}/queries", "/hosts/{id}/reports"),
 	pathEntryFor("GET", "/hosts/{id}/queries/{report_id}", "/hosts/{id}/reports/{report_id}"),

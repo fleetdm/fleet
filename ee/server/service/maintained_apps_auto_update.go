@@ -36,8 +36,7 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 	// Catches up patch policies whose query fell behind their active installer, such
 	// as one refreshed in place by a server that didn't regenerate the policy. First,
 	// so a run that spends its budget on downloads can't skip it. Policies it doesn't
-	// reach in time still differ, so the next run picks them up, and the
-	// policy_membership cron finishes an interrupted results cleanup.
+	// reach in time still differ, so the next run picks them up.
 	syncCtx, cancel := context.WithTimeout(ctx, patchPolicySyncMaxRunTime)
 	err := ds.SyncPatchPolicyQueries(syncCtx)
 	cancel()

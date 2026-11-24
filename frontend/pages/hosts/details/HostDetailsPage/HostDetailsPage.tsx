@@ -200,6 +200,7 @@ import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectReportModal from "./modals/SelectReportModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import UnlockModal from "./modals/UnlockModal";
+import ViewUnlockPinModal from "./modals/ViewUnlockPinModal";
 import WipeModal from "./modals/WipeModal";
 
 const baseClass = "host-details";
@@ -346,6 +347,14 @@ const HostDetailsPage = ({
   );
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
+  // The PIN belongs to one host: remember which host opened the modal so it
+  // can't mount (and request a PIN) for a different host after navigation.
+  const [viewUnlockPinHostId, setViewUnlockPinHostId] = useState<number | null>(
+    null
+  );
+  useEffect(() => {
+    setViewUnlockPinHostId(null);
+  }, [hostIdFromURL]);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
@@ -909,6 +918,18 @@ const HostDetailsPage = ({
     }
   );
 
+  // Nil the MDM commands data when the host can't take MDM commands
+  // (non-Apple). The queries are disabled in that state, but keepPreviousData
+  // keeps the previous (Apple) host's results alive, which would otherwise
+  // leak into the command feed, the Upcoming badge count, and anywhere else
+  // downstream reads these.
+  const availablePastMDMCommands = canGetMDMCommands
+    ? pastMDMCommands
+    : undefined;
+  const availableUpcomingMDMCommands = canGetMDMCommands
+    ? upcomingMDMCommands
+    : undefined;
+
   const featuresConfig = host?.fleet_id
     ? teams?.find((t) => t.id === host.fleet_id)?.features
     : config?.features;
@@ -1133,8 +1154,28 @@ const HostDetailsPage = ({
   }, [host?.id]);
 
   const onChangeActivityTab = (tabIndex: number) => {
-    setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
+    const newTab = tabIndex === 0 ? "past" : "upcoming";
+    setActiveActivityTab(newTab);
     setActivityPage(0);
+    // Invalidate the destination tab's queries across all page keys so the
+    // re-render at page 0 refetches even within staleTime; manual refetch()
+    // would close over the pre-reset pageIndex. Upcoming is always
+    // invalidated (its counts power the badge visible from either tab). MDM
+    // command scopes are skipped when canGetMDMCommands is false: those
+    // queries are disabled, and an unguarded fetch with the command_status
+    // filter returns 400 on non-Apple hosts (server/datastore/mysql/mdm.go).
+    const scopes = new Set<string>(["upcoming-activities"]);
+    if (canGetMDMCommands) scopes.add("host-upcoming-mdm-commands");
+    if (newTab === "past") {
+      scopes.add("past-activities");
+      if (canGetMDMCommands) scopes.add("host-past-mdm-commands");
+    }
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        scopes.has(
+          (query.queryKey[0] as { scope?: string } | undefined)?.scope ?? ""
+        ),
+    });
   };
 
   const onShowActivityDetails = useCallback(
@@ -1418,6 +1459,9 @@ const HostDetailsPage = ({
       case "unlock":
         setShowUnlockHostModal(true);
         break;
+      case "viewUnlockPin":
+        setViewUnlockPinHostId(hostIdFromURL);
+        break;
       case "wipe":
         setShowWipeModal(true);
         break;
@@ -1489,6 +1533,7 @@ const HostDetailsPage = ({
         wipeAllowed={host.mdm.wipe_allowed}
         lockAllowed={host.mdm.lock_allowed}
         clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
+        unlockPinAvailable={host.mdm.unlock_pin_available}
       />
     );
   };
@@ -1918,6 +1963,10 @@ const HostDetailsPage = ({
   };
 
   const renderContent = (mainContentConfig: IMainContentConfig) => {
+    const getActiveMDMCommands = () =>
+      activeActivityTab === "past"
+        ? availablePastMDMCommands
+        : availableUpcomingMDMCommands;
     return (
       <>
         <>
@@ -2000,21 +2049,19 @@ const HostDetailsPage = ({
                       ? pastActivities
                       : upcomingActivities
                   }
-                  commands={
-                    activeActivityTab === "past"
-                      ? pastMDMCommands
-                      : upcomingMDMCommands
-                  }
+                  commands={getActiveMDMCommands()}
                   isLoading={
                     activeActivityTab === "past"
                       ? pastActivitiesIsLoading ||
-                        pastMDMCommandsIsLoading ||
                         pastActivitiesIsPreviousData ||
-                        pastMDMCommandsIsPreviousData
+                        (canGetMDMCommands &&
+                          (pastMDMCommandsIsLoading ||
+                            pastMDMCommandsIsPreviousData))
                       : upcomingActivitiesIsLoading ||
-                        upcomingMDMCommandsIsLoading ||
                         upcomingActivitiesIsPreviousData ||
-                        upcomingMDMCommandsIsPreviousData
+                        (canGetMDMCommands &&
+                          (upcomingMDMCommandsIsLoading ||
+                            upcomingMDMCommandsIsPreviousData))
                   }
                   isError={
                     activeActivityTab === "past"
@@ -2028,8 +2075,8 @@ const HostDetailsPage = ({
                   onShowMDMCommands={() => updateShowMDMCommands(true)}
                   onHideMDMCommands={() => updateShowMDMCommands(false)}
                   upcomingCount={
-                    (upcomingActivities?.count || 0) +
-                    (upcomingMDMCommands?.count || 0)
+                    (upcomingActivities?.count ?? 0) +
+                    (availableUpcomingMDMCommands?.count ?? 0)
                   }
                   onChangeTab={onChangeActivityTab}
                   onNextPage={() => setActivityPage(activityPage + 1)}
@@ -2512,6 +2559,7 @@ const HostDetailsPage = ({
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
+              hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               onSuccess={() => {
                 setHostMdmDeviceState("locking");
                 setShowLocationModal(false);
@@ -2533,6 +2581,14 @@ const HostDetailsPage = ({
                   setHostMdmDeviceState("unlocking");
               }}
               onClose={() => setShowUnlockHostModal(false)}
+            />
+          )}
+          {viewUnlockPinHostId === hostIdFromURL && (
+            <ViewUnlockPinModal
+              id={host.id}
+              onClose={() => setViewUnlockPinHostId(null)}
+              // viewing the PIN logs a viewed_host_unlock_pin activity
+              onViewed={refetchPastActivities}
             />
           )}
           {showWipeModal && (

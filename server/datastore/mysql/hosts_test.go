@@ -200,6 +200,7 @@ func TestHosts(t *testing.T) {
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
 		{"HostPreviouslyOrbitEnrolled", testHostPreviouslyOrbitEnrolled},
+		{"EnrollSerialMatch", testHostsEnrollSerialMatch},
 		{"OtherMDMHostIDWithUUID", testOtherMDMHostIDWithUUID},
 		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
@@ -1748,28 +1749,28 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostSuccess.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostFailed.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostThrottled.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostNotAccessible.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseNotAccessible), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseNotAccessible), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
@@ -1867,7 +1868,7 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 		err = updateHostDEPAssignProfileResponses(
 			ctx, ds.writer(ctx), ds.logger,
 			profileUUID, []string{hostFailed.HardwareSerial},
-			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 		)
 		require.NoError(t, err)
 	})
@@ -1885,7 +1886,7 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 		err = updateHostDEPAssignProfileResponses(
 			ctx, ds.writer(ctx), ds.logger,
 			profileUUID, []string{hostFailed.HardwareSerial},
-			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 		)
 		require.NoError(t, err)
 	})
@@ -3838,19 +3839,19 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostFailed.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostThrottled.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostSuccess.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
@@ -3874,7 +3875,7 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostFailed.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
@@ -11986,7 +11987,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate a failed JSON profile assignment
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
-		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 	_, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
@@ -13098,6 +13099,113 @@ func testHostPreviouslyOrbitEnrolled(t *testing.T, ds *Datastore) {
 	t.Run("empty hardware uuid", func(t *testing.T) {
 		_, err := ds.HostPreviouslyOrbitEnrolled(ctx, fleet.OrbitHostInfo{Platform: "windows"}, false)
 		require.Error(t, err)
+	})
+}
+
+func testHostsEnrollSerialMatch(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrollOrbit := func(t *testing.T, hardwareUUID, serial, platform string) *fleet.Host {
+		t.Helper()
+		h, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: hardwareUUID, HardwareSerial: serial, Platform: platform}),
+			fleet.WithEnrollOrbitNodeKey(uuid.NewString()),
+		)
+		require.NoError(t, err)
+		return h
+	}
+	enrollOsquery := func(t *testing.T, hardwareUUID, serial string) *fleet.Host {
+		t.Helper()
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(hardwareUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(hardwareUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(serial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
+		)
+		require.NoError(t, err)
+		return h
+	}
+	previouslyOrbitEnrolled := func(t *testing.T, hardwareUUID, serial, platform string) bool {
+		t.Helper()
+		got, err := ds.HostPreviouslyOrbitEnrolled(ctx,
+			fleet.OrbitHostInfo{HardwareUUID: hardwareUUID, HardwareSerial: serial, Platform: platform}, true)
+		require.NoError(t, err)
+		return got
+	}
+
+	t.Run("host with another UUID", func(t *testing.T) {
+		serial := uuid.NewString()
+		mac := enrollOrbit(t, uuid.NewString(), serial, "darwin")
+		enrollOsquery(t, mac.UUID, serial)
+		before, err := ds.Host(ctx, mac.ID)
+		require.NoError(t, err)
+		require.NotNil(t, before.OrbitNodeKey)
+		require.NotNil(t, before.NodeKey)
+
+		for _, platform := range []string{"darwin", "ubuntu"} {
+			otherUUID := uuid.NewString()
+			require.False(t, previouslyOrbitEnrolled(t, otherUUID, serial, platform))
+			other := enrollOrbit(t, otherUUID, serial, platform)
+			require.NotEqual(t, mac.ID, other.ID)
+			require.Equal(t, otherUUID, other.UUID)
+		}
+		require.NotEqual(t, mac.ID, enrollOsquery(t, uuid.NewString(), serial).ID)
+
+		withoutUUID, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(uuid.NewString()),
+			fleet.WithEnrollOsqueryHardwareSerial(serial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.NewString()),
+		)
+		require.NoError(t, err)
+		require.NotEqual(t, mac.ID, withoutUUID.ID)
+
+		after, err := ds.Host(ctx, mac.ID)
+		require.NoError(t, err)
+		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey)
+		require.Equal(t, before.NodeKey, after.NodeKey)
+
+		require.True(t, previouslyOrbitEnrolled(t, mac.UUID, serial, "darwin"))
+		require.Equal(t, mac.ID, enrollOrbit(t, mac.UUID, serial, "darwin").ID)
+		require.Equal(t, mac.ID, enrollOsquery(t, mac.UUID, serial).ID)
+	})
+
+	newHost := func(t *testing.T, hostUUID, serial string) *fleet.Host {
+		t.Helper()
+		zeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:            hostUUID,
+			HardwareSerial:  serial,
+			Platform:        "darwin",
+			LastEnrolledAt:  zeroTime,
+			DetailUpdatedAt: zeroTime,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// A host restored after deletion keeps its UUID but has no osquery identifier.
+	t.Run("host with the enrolling UUID and no osquery identifier", func(t *testing.T) {
+		hostUUID, serial := strings.ToUpper(uuid.NewString()), uuid.NewString()
+		h := newHost(t, hostUUID, serial)
+		require.Equal(t, h.ID, enrollOrbit(t, strings.ToLower(hostUUID), serial, "darwin").ID)
+
+		h = newHost(t, strings.ToUpper(uuid.NewString()), uuid.NewString())
+		require.Equal(t, h.ID, enrollOsquery(t, h.UUID, h.HardwareSerial).ID)
+	})
+
+	t.Run("host without a UUID", func(t *testing.T) {
+		h := newHost(t, "", uuid.NewString())
+		hardwareUUID := uuid.NewString()
+		require.False(t, previouslyOrbitEnrolled(t, hardwareUUID, h.HardwareSerial, "darwin"))
+		enrolled := enrollOrbit(t, hardwareUUID, h.HardwareSerial, "darwin")
+		require.Equal(t, h.ID, enrolled.ID)
+		require.Equal(t, hardwareUUID, enrolled.UUID)
+
+		h = newHost(t, "", uuid.NewString())
+		require.Equal(t, h.ID, enrollOsquery(t, uuid.NewString(), h.HardwareSerial).ID)
 	})
 }
 
@@ -15314,9 +15422,9 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 		CommandUUID:   androidLockUUID,
 		HostUUID:      andHost.UUID,
 		OperationName: "enterprises/E/devices/D/operations/lock-pending",
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
-	}))
+	}, "258147"))
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -15482,18 +15590,18 @@ func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore
 		CommandUUID:   lockA,
 		HostUUID:      hostA.UUID,
 		OperationName: "enterprises/E/devices/" + hostA.UUID + "/operations/lock-a",
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
-	}))
+	}, "258147"))
 
 	lockB := uuid.NewString()
 	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, hostB, &android.MDMAndroidCommand{
 		CommandUUID:   lockB,
 		HostUUID:      hostB.UUID,
 		OperationName: "enterprises/E/devices/" + hostB.UUID + "/operations/lock-b",
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
-	}))
+	}, "369258"))
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockB,
 		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 

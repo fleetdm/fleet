@@ -2158,58 +2158,10 @@ apiVersion: v1
 kind: query
 spec:
   name: Get unencrypted SSH keys for domain-joined accounts
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
   bash: "printf \"uid,username,description,path,encrypted\\n\"; for u in $(last | awk '{print $1}' | grep -vE '^(wtmp|reboot)$' | sort -u); do [ -d \"/Users/$u/.ssh\" ] && for f in $(find \"/Users/$u/.ssh\" -type f -name \"authorized_keys*\" 2>/dev/null); do uid=$(id -u \"$u\"); desc=$(dscl . -read /Users/\"$u\" RealName 2>/dev/null | cut -d: -f2- | sed 's/^ //'); echo \"$uid,$u,$desc,$f,0\"; done; done"
-  powershell: >-
-    $lastOutput = & last
-
-    $lastUsernames = $lastOutput | ForEach-Object {
-        if ($_ -match '^\s*(\S+)') { $matches[1] }
-    } | Select-Object -Unique
-
-
-    $passwdFile = "/etc/passwd"
-
-    if (Test-Path $passwdFile) {
-        $lines = Get-Content $passwdFile
-        foreach ($line in $lines) {
-            # /etc/passwd format: username:password:UID:GID:GECOS:home_directory:shell
-            $fields = $line -split ":"
-            if ($fields.Length -ge 7) {
-                $username = $fields[0]
-                $uid = $fields[2]
-                $description = $fields[4]
-                $homeDir = $fields[5]
-
-                if ($lastUsernames -contains $username) {
-                    # Assume the user's SSH authorized_keys file is in .ssh/authorized_keys in their home directory
-                    $sshKeyPath = Join-Path $homeDir ".ssh/authorized_keys"
-                    if (Test-Path $sshKeyPath) {
-                        $keyLines = Get-Content $sshKeyPath
-                        foreach ($keyLine in $keyLines) {
-                            if ([string]::IsNullOrWhiteSpace($keyLine)) {
-                                continue
-                            }
-                            # Determine if the key is encrypted by looking for the keyword "ENCRYPTED"
-                            $encrypted = if ($keyLine -match "ENCRYPTED") { 1 } else { 0 }
-                            if ($encrypted -eq 0) {
-                                $result = [PSCustomObject]@{
-                                    uid         = $uid
-                                    username    = $username
-                                    description = $description
-                                    path        = $sshKeyPath
-                                    encrypted   = $encrypted
-                                }
-                                Write-Output $result
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
   purpose: Informational
   tags: inventory, compliance, ssh, active directory
   remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
@@ -2716,7 +2668,7 @@ apiVersion: v1
 kind: query
 spec:
   name: Get servers with root login in the last 24 hours
-  platform: darwin, linux, windows
+  platform: darwin, linux
   description: Returns servers with root login in the last 24 hours and the time the users were logged in.
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
@@ -3119,7 +3071,7 @@ spec:
     
     Supported applications: Cursor (macOS/Linux/Windows), Claude Desktop (macOS/Windows), Claude Code (macOS/Linux), VSCode (macOS/Linux/Windows), Windsurf (macOS), Gemini CLI (macOS/Linux/Windows), LMStudio (macOS/Linux/Windows)
   query: |
-        /* ----------------------------------------------------------
+    /* ----------------------------------------------------------
       1️⃣  Get MCP client configurations from your endpoints.
           (including the two new VS Code extensions: RooCode & Augment)
       ---------------------------------------------------------- */
@@ -3132,7 +3084,7 @@ spec:
         ('/Library/Application Support/Claude/claude_desktop_config.json'),
 
         -- Claude Desktop (Windows)
-        ('\\AppData\\Roaming\\Claude\\claude_desktop_config.json'),
+        ('/AppData/Roaming/Claude/claude_desktop_config.json'),
 
         -- Claude Code
         ('/.claude.json'),
@@ -3140,18 +3092,18 @@ spec:
         /* ───── VS Code (original paths) ────────────────────── */
         ('/Library/Application Support/Code/User/mcp.json'),              -- macOS
         ('/.config/Code/User/mcp.json'),                                   -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\mcp.json'),                       -- Windows
+        ('/AppData/Roaming/Code/User/mcp.json'),                            -- Windows
 
         /* ───── VS Code – RooCode & Augment (new paths) ────────── */
         -- RooCode
         ('/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),          -- macOS
         ('/.config/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                              -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\globalStorage\\rooveterinaryinc.roo-cline\\settings\\mcp_settings.json'),              -- Windows
+        ('/AppData/Roaming/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                      -- Windows
 
         -- Augment
         ('/Library/Application Support/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),    -- macOS
         ('/.config/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                        -- Linux / Ubuntu
-        ('\\AppData\\Roaming\\Code\User\\globalStorage\\augment.vscode-augment\\augment-global-state\\mcpServers.json'),          -- Windows
+        ('/AppData/Roaming/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                -- Windows
 
         /* ───── Other apps ─────────────────────────────────── */
         ('/.gemini/settings.json'),   -- Gemini CLI (macOS/Linux/Windows)
@@ -3162,7 +3114,11 @@ spec:
       2️⃣  Build absolute file paths for every user + suffix
       ---------------------------------------------------------- */
     full_paths AS (
-      SELECT u.directory || p.path  AS full_path,
+      -- Suffixes use '/'; convert to '\' for Windows home directories
+      SELECT CASE WHEN instr(u.directory, '\') > 0
+                  THEN replace(u.directory || p.path, '/', '\')
+                  ELSE u.directory || p.path
+             END                   AS full_path,
             p.path                 AS suffix
       FROM users   u
       JOIN path_suffixes p ON 1=1     
@@ -3170,13 +3126,20 @@ spec:
 
     /* ----------------------------------------------------------
       3️⃣  Read only the files that actually exist and concat them
+          (file_lines errors on missing paths, so filter via file first)
       ---------------------------------------------------------- */
+    existing AS (
+      SELECT f.path
+      FROM full_paths fp
+      JOIN file f ON f.path = fp.full_path
+    ),
+
     config_files AS (
-      SELECT f.path,
-            group_concat(f.line, '') AS contents
-      FROM file_lines f
-      JOIN full_paths fp ON f.path = fp.full_path   
-      GROUP BY f.path
+      SELECT fl.path,
+            group_concat(fl.line, '') AS contents
+      FROM existing e
+      JOIN file_lines fl ON fl.path = e.path
+      GROUP BY fl.path
     )
 
     /* ----------------------------------------------------------
@@ -3198,7 +3161,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Mount Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check mount on the host - ATT&CK T1025,T1052
   query: SELECT device, device_alias, flags, path,type from mounts;
   purpose: Detection
@@ -3257,7 +3220,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - USB Device Discovery
-  platform: linux, darwin, windows
+  platform: linux, darwin
   description: Check USB device on the host - ATT&CK T1052
   query: SELECT * FROM usb_devices;
   purpose: Detection
@@ -3295,8 +3258,8 @@ spec:
   platform: linux, darwin, windows
   description: Lists all Opera extensions - ATT&CK T1176
   query: |-
-    SELECT u.username, ce.* FROM users u CROSS JOIN opera_extensions ce USING
-    (uid);
+    SELECT u.username, ce.* FROM users u CROSS JOIN chrome_extensions ce USING
+    (uid) WHERE ce.browser_type = 'opera';
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: teoseller,tux234
@@ -4535,7 +4498,7 @@ apiVersion: v1
 kind: query
 spec:
   name: MITRE - Services Snapshot
-  platform: linux, darwin, windows
+  platform: windows
   description: Snapshot Services query
   query: SELECT * FROM services;
   purpose: Detection
@@ -4792,7 +4755,7 @@ kind: query
 spec:
   name: MITRE - Windows Directory Creation
   platform: windows
-  description: "Check suspicious directory creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious directory creation under c:\windows - ATT&CK T1034,T1074,T1044'
   query: |-
     select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
     'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
@@ -4808,7 +4771,7 @@ kind: query
 spec:
   name: MITRE - Windows Temp Directory Creation
   platform: windows
-  description: "Check suspicious directory creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious directory creation under c:\windows\temp - ATT&CK T1034,T1074,T1044'
   query: |-
     select f.path,f.directory,u.username,f.hard_links,f.symlink,datetime(f.btime,
     'unixepoch', 'UTC') as btime, datetime(f.atime, 'unixepoch', 'UTC') as atime,
@@ -4936,7 +4899,7 @@ kind: query
 spec:
   name: MITRE - Windows File Creation
   platform: windows
-  description: "Check suspicious file creation under c:\windows - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious file creation under c:\windows - ATT&CK T1034,T1074,T1044'
   query: |-
     SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
     as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
@@ -4951,7 +4914,7 @@ kind: query
 spec:
   name: MITRE - Windows Temp File Creation
   platform: windows
-  description: "Check suspicious file creation under c:\windows\temp - ATT&CK T1034,T1074,T1044"
+  description: 'Check suspicious file creation under c:\windows\temp - ATT&CK T1034,T1074,T1044'
   query: |-
     SELECT hash.md5, path, file.filename, datetime(file.btime, 'unixepoch', 'UTC')
     as btime, datetime(file.atime, 'unixepoch', 'UTC') as atime, datetime(file.ctime,
