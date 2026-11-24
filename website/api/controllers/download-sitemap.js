@@ -51,6 +51,7 @@ module.exports = {
     let HAND_CODED_HTML_PAGES = [
       '/',//« home page
       '/pricing',
+      '/compare',
       '/contact',
       '/support',
       '/integrations',

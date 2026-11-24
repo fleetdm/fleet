@@ -647,6 +647,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /compare': {
+    action: 'view-compare',
+    locals: {
+      pageTitleForMeta: 'Compare Fleet',
+      pageDescriptionForMeta: 'Side-by-side comparisons of Fleet and the device management tools IT teams run today.',
+    }
+  },
+
   'GET /compare/:slug': {
     action: 'articles/view-basic-comparison'
   },
