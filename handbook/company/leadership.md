@@ -300,11 +300,48 @@ A completed open position entry should look something like this:
 
 ## Hiring a new team member
 
-Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process and coordinating the hiring process for all open positions. This includes scheduling interviews, moving candidates through each stage, keeping hiring managers and interviewers on track, handing candidates off between stages, and creating the 🛸 Why hire document for each candidate. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
+Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process and coordinating the hiring process end to end for all open positions. The Head of People owns initial outreach, the first interview (30 minutes) for every candidate, all interview scheduling, and all communication with candidates, including rejections. Interviewers don't book time with candidates or share interview outcomes with them directly. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
 
-To start the interview process, the Head of People will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the candidate's 🛸 Why hire document as they move through the process. 
+Follow these steps for every candidate:
+
+1. **Add the candidate:** To put someone in process, send the Head of People their name and LinkedIn profile. The Head of People adds them to the role's [candidate tracker](https://fleetdm.com/handbook/company/leadership#candidate-trackers) and creates their [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) from the template.
+2. **Share your scheduling link:** Each interviewer sends the Head of People their scheduling (Calendly) link, so the Head of People can book interviews on their behalf.
+3. **Schedule each interview:** The Head of People invites the candidate to the next stage in the [interview stages for the role](https://fleetdm.com/handbook/company/leadership#interview-stages-by-role) and books the interview using the interviewer's scheduling link.
+4. **Report the outcome:** On the same day as the interview, the interviewer posts in the candidate's thread in the role's hiring Slack channel to say the interview is done and whether the candidate should move forward. The interviewer records all substantive feedback in the candidate's 🛸 Why hire document, not in Slack.
+5. **Move the candidate on:** The Head of People updates the candidate tracker, then either schedules the next stage or sends the rejection.
+6. **Check references:** The hiring manager runs reference checks (the script is in the 🛸 Why hire document). The Head of People helps source references by asking the candidate for 3 (ideally including a manager) with their name, title, company, relationship to the candidate, email, and LinkedIn profile.
 
 > **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
+
+### Candidate trackers
+
+Each open position has its own candidate tracker, a Google Sheet that is the source of truth for where every candidate is in the process. Trackers are kept separate for each role for confidentiality, and are shared only with the role's hiring manager and interviewers.
+
+Each tracker has the following columns:
+
+- Name
+- LinkedIn profile
+- Why hire doc URL
+- Source
+- Hiring manager
+- One column for each interview stage
+- Rejection sent?
+- Notes
+- Last change
+
+Each interview stage column uses one of these values: "Not started", "Invitation sent", "Scheduled", "Passed", "Did not pass", or "Skipped".
+
+The trackers feed an internal hiring dashboard that shows each role's pipeline by stage and flags candidates with no progress for 3 or more business days.
+
+### Interview stages by role
+
+- **Software Engineer:** Head of People interview, Engineering manager, Technical challenge, Tech lead, Product, CTO, References, CEO
+- **QA Engineer, Automation:** Head of People interview, QA Engineering Manager, Challenge, Team interview, Engineering Manager, CTO, References, CEO
+- **QA Engineer, First Impressions:** Head of People interview, QA Engineering Manager, Challenge, Team interview, Engineering Manager, Mike T + Eric, Sam, CTO, References, CEO
+- **GTM Engineer:** Head of People interview, CEO (intro), Mike T + Eric, Sam, CTO, References, CEO (final)
+- **Customer Solutions Architect:** SVP Customer Success screen, Manager CSA, Team interview, Head of People interview, References, CEO
+- **Product Designer:** Reach out, Screening call, Head of People interview, Design challenge review, CTO, References, CEO
+- **Solutions Consultant:** Head of People initial screen, SVP Global Sales, Team interview 1, Team interview 2, Head of People standard interview, References, CEO
 
 
 ## Create a 30-60-90 day plan

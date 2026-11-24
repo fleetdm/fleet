@@ -174,13 +174,15 @@ To signal that the reference docs branch is ready for release, the API design DR
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-role-at-fleet), [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications), and [hiring a new team member](https://fleetdm.com/handbook/company/leadership#creating-a-new-role-at-fleet).
 
-1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30 minute introduction call.
-2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
-3. **HOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Head of People (HOP) to set up the HOP interview.
-4. **Deliver design challenge and schedule interview**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and send a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate.
-5. **Schedule CTO interview**: Send the candidate a Calendly link for 30m talk with our CTO @lukeheath.
+The Head of People [coordinates the hiring process](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member): they reach out to candidates, book every interview using each interviewer's scheduling link, and handle all communication with the candidate. Interviewers don't schedule with or message candidates directly.
+
+1. **Reach out** (Head of People): Send an email or LinkedIn message introducing Fleet. Include the URL for the position and invite the candidate to a 30 minute introduction call.
+2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role. The Head of People schedules the call.
+3. **HOP interview**: The Head of People interviews the candidate for 30 minutes.
+4. **Deliver design challenge and review it**: The Head of People shares the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and schedules a 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate.
+5. **CTO interview**: The Head of People schedules a 30m talk with our CTO @lukeheath.
 6. **Conduct reference checks**: See the [ 🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for instructions.
-7. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
+7. **CEO interview**: The Head of People connects with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
