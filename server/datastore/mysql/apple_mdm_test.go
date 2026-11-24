@@ -168,6 +168,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
+		{"TestDEPAssignProfileThrottledRetryAfter", testDEPAssignProfileThrottledRetryAfter},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
 		{"DeleteMDMAppleConfigProfileWithPolicyAutomation", testDeleteMDMAppleConfigProfileWithPolicyAutomation},
 		{"BatchSetMDMAppleDeclarationsCaseChange", testBatchSetMDMAppleDeclarationsCaseChange},
@@ -12415,6 +12416,94 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	}
 	require.Len(t, allSerials, apple_mdm.DEPSyncLimit, "limit process cooldowns to sync limit")
 	require.LessOrEqual(t, len(allSerials), 1000, "never go above 1000 devices as per Apple's recommendations")
+}
+
+func testDEPAssignProfileThrottledRetryAfter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.NoError(t, err)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "throttled", OsqueryHostID: new("throttled"), NodeKey: new("throttled"),
+		UUID: "throttled-uuid", HardwareSerial: "throttled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmToken.ID, make(map[uint]time.Time)))
+
+	respond := func(status fleet.DEPAssignProfileResponseStatus, retryAfterSeconds int) {
+		require.NoError(t, ds.UpdateHostDEPAssignProfileResponses(ctx, &godep.ProfileResponse{
+			ProfileUUID:       "profile",
+			Devices:           map[string]string{host.HardwareSerial: string(status)},
+			RetryAfterSeconds: retryAfterSeconds,
+		}, abmToken.ID))
+	}
+	retryAfter := func() *time.Time {
+		a, err := ds.GetHostDEPAssignment(ctx, host.ID)
+		require.NoError(t, err)
+		return a.ThrottledRetryAfter
+	}
+	// ageResponse moves the stored times back as if the response arrived d ago.
+	ageResponse := func(d time.Duration) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET
+				response_updated_at = DATE_SUB(response_updated_at, INTERVAL ? SECOND),
+				throttled_retry_after = DATE_SUB(throttled_retry_after, INTERVAL ? SECOND)
+				WHERE host_id = ?`, d.Seconds(), d.Seconds(), host.ID)
+			return err
+		})
+	}
+	requireCooldown := func(want bool) {
+		t.Helper()
+		skip, assign, err := ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, []string{host.HardwareSerial})
+		require.NoError(t, err)
+		expired, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+		require.NoError(t, err)
+		if want {
+			require.Equal(t, []string{host.HardwareSerial}, skip["org"])
+			require.Empty(t, assign)
+			require.Empty(t, expired)
+		} else {
+			require.Empty(t, skip)
+			require.Equal(t, []string{host.HardwareSerial}, assign["org"])
+			require.Equal(t, map[uint][]string{0: {host.HardwareSerial}}, expired)
+		}
+	}
+
+	// Apple's wait shorter than the fixed cooldown is honored
+	respond(fleet.DEPAssignProfileResponseThrottled, 7200)
+	require.NotNil(t, retryAfter())
+	require.WithinDuration(t, time.Now().Add(2*time.Hour), *retryAfter(), time.Minute)
+	requireCooldown(true)
+	ageResponse(2*time.Hour + time.Minute)
+	requireCooldown(false)
+
+	// and so is a wait longer than the fixed cooldown
+	respond(fleet.DEPAssignProfileResponseThrottled, int((30 * time.Hour).Seconds()))
+	ageResponse(depThrottledCooldownPeriod + time.Hour)
+	requireCooldown(true)
+	ageResponse(6 * time.Hour)
+	requireCooldown(false)
+
+	// but it's capped
+	respond(fleet.DEPAssignProfileResponseThrottled, int((30 * 24 * time.Hour).Seconds()))
+	require.WithinDuration(t, time.Now().Add(depThrottledMaxRetryAfter), *retryAfter(), time.Minute)
+
+	// without Apple's wait, the fixed cooldown applies
+	for _, seconds := range []int{0, -1} {
+		respond(fleet.DEPAssignProfileResponseThrottled, seconds)
+		require.Nil(t, retryAfter())
+		requireCooldown(true)
+		ageResponse(depThrottledCooldownPeriod - time.Hour)
+		requireCooldown(true)
+		ageResponse(time.Hour + time.Minute)
+		requireCooldown(false)
+	}
+
+	// any other response clears it, even when Apple throttled other devices in the same request
+	respond(fleet.DEPAssignProfileResponseThrottled, 7200)
+	require.NotNil(t, retryAfter())
+	respond(fleet.DEPAssignProfileResponseSuccess, 7200)
+	require.Nil(t, retryAfter())
 }
 
 func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {

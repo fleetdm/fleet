@@ -1749,28 +1749,28 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostSuccess.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostFailed.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostThrottled.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostNotAccessible.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseNotAccessible), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseNotAccessible), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
@@ -1868,7 +1868,7 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 		err = updateHostDEPAssignProfileResponses(
 			ctx, ds.writer(ctx), ds.logger,
 			profileUUID, []string{hostFailed.HardwareSerial},
-			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 		)
 		require.NoError(t, err)
 	})
@@ -1886,7 +1886,7 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 		err = updateHostDEPAssignProfileResponses(
 			ctx, ds.writer(ctx), ds.logger,
 			profileUUID, []string{hostFailed.HardwareSerial},
-			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+			string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 		)
 		require.NoError(t, err)
 	})
@@ -3839,19 +3839,19 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostFailed.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostThrottled.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseThrottled), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostSuccess.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseSuccess), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
@@ -3875,7 +3875,7 @@ func testHostsGenerateStatusStatisticsDEPErrors(t *testing.T, ds *Datastore) {
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
 		profileUUID, []string{hostFailed.HardwareSerial},
-		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 
@@ -11987,7 +11987,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	// simulate a failed JSON profile assignment
 	err = updateHostDEPAssignProfileResponses(
 		ctx, ds.writer(ctx), ds.logger,
-		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID,
+		"foo", []string{hFleet.HardwareSerial}, string(fleet.DEPAssignProfileResponseFailed), &abmToken.ID, nil,
 	)
 	require.NoError(t, err)
 	_, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
