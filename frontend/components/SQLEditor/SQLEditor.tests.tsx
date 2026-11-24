@@ -56,109 +56,37 @@ describe("SQLEditor autocomplete", () => {
   });
 });
 
-// Tokenizes SQL with the fleet mode (registered by importing SQLEditor) and returns each word's token type.
-const getTokenTypes = (sql: string): Record<string, string[]> => {
-  const { Mode } = ace.require("ace/mode/fleet");
-  const tokenizer = new Mode().getTokenizer();
-  const types: Record<string, string[]> = {};
+// Renders SQL with table tokens as [name] and column tokens as {name}, using the fleet mode registered by importing SQLEditor.
+const markHighlights = (sql: string): string => {
+  const tokenizer = new (ace.require("ace/mode/fleet").Mode)().getTokenizer();
   let state: string | string[] = "start";
-  sql.split("\n").forEach((line) => {
-    const result = tokenizer.getLineTokens(line, state);
-    state = result.state;
-    result.tokens.forEach((token: Ace.Token) => {
-      const word = token.value.trim();
-      if (word) {
-        types[word] = [...(types[word] || []), token.type];
-      }
-    });
-  });
-  return types;
+  return sql
+    .split("\n")
+    .map((line) => {
+      const result = tokenizer.getLineTokens(line, state);
+      state = result.state;
+      return result.tokens
+        .map(({ type, value }: Ace.Token) => {
+          if (type === "osquery-token") return `[${value}]`;
+          if (type === "osquery-column") return `{${value}}`;
+          return value;
+        })
+        .join("");
+    })
+    .join("\n");
 };
 
 describe("SQLEditor syntax highlighting", () => {
   // os_version, processes, and time are each both a table and a column name.
   it.each([
-    {
-      name: "table after FROM",
-      sql: "SELECT 1 FROM os_version WHERE major >= 13",
-      expected: { os_version: ["osquery-token"], major: ["osquery-column"] },
-    },
-    {
-      name: "column in SELECT list",
-      sql: "SELECT os_version FROM kernel_panics",
-      expected: {
-        os_version: ["osquery-column"],
-        kernel_panics: ["osquery-token"],
-      },
-    },
-    {
-      name: "same word as table and column",
-      sql: "SELECT time, pid FROM processes JOIN time WHERE processes.pid > 0",
-      expected: {
-        time: ["osquery-column", "osquery-token"],
-        processes: ["osquery-token", "osquery-column"],
-      },
-    },
-    {
-      name: "comma-separated tables with aliases",
-      sql:
-        "SELECT name FROM processes proc_alias, os_version AS os_alias WHERE uptime = 1",
-      expected: {
-        processes: ["osquery-token"],
-        proc_alias: ["identifier"],
-        os_version: ["osquery-token"],
-        os_alias: ["identifier"],
-        uptime: ["osquery-column"],
-      },
-    },
-    {
-      name: "LEFT JOIN with ON",
-      sql: "SELECT * FROM users u LEFT JOIN processes ON u.uid = processes.uid",
-      expected: {
-        users: ["osquery-token"],
-        processes: ["osquery-token", "osquery-column"],
-      },
-    },
-    {
-      name: "table on the line after FROM, with a comment between",
-      sql: "select * from /* comment */\n  os_version",
-      expected: { os_version: ["osquery-token"] },
-    },
-    {
-      name: "subquery after FROM",
-      sql: "SELECT * FROM (SELECT time FROM uptime)",
-      expected: { time: ["osquery-column"], uptime: ["osquery-token"] },
-    },
-    {
-      name: "table after a FROM-clause subquery",
-      sql:
-        "SELECT 1 FROM (\n  SELECT count(uid) FROM users\n) sub_alias, os_version JOIN processes WHERE time > 0",
-      expected: {
-        users: ["osquery-token"],
-        sub_alias: ["identifier"],
-        os_version: ["osquery-token"],
-        processes: ["osquery-token"],
-        time: ["osquery-column"],
-      },
-    },
-    {
-      name: "schema-qualified table",
-      sql: "SELECT 1 FROM main.os_version WHERE uptime > 0",
-      expected: {
-        main: ["identifier"],
-        os_version: ["osquery-token"],
-        uptime: ["osquery-column"],
-      },
-    },
-    {
-      name: "table after a line comment, trailing spaces, and a blank line",
-      sql: "SELECT 1 FROM -- comment\n\nos_version JOIN   \n  processes",
-      expected: { os_version: ["osquery-token"], processes: ["osquery-token"] },
-    },
-  ])("highlights $name", ({ sql, expected }) => {
-    const types = getTokenTypes(sql);
-    Object.entries(expected).forEach(([word, expectedTypes]) => {
-      expect(types[word]).toEqual(expectedTypes);
-    });
+    "SELECT 1 FROM [os_version] WHERE {major} >= 13",
+    "SELECT {time}, {pid} FROM [processes] JOIN [time] WHERE {os_version} > 0",
+    "SELECT {name} FROM [processes] proc_alias, [os_version] AS os_alias WHERE {uptime} = 1",
+    "SELECT * FROM [users] u LEFT JOIN [processes] ON u.{uid} = {pid}",
+    "select * from main.[os_version]",
+    "SELECT 1 FROM (\n  SELECT count({time}) FROM [uptime]\n) sub_alias, [os_version] JOIN [processes] WHERE {time} > 0",
+    "SELECT 1 FROM /* comment */\n  [os_version] JOIN -- comment\n\n[processes] JOIN   \n  [time]",
+  ])("highlights %s", (markedSql) => {
+    expect(markHighlights(markedSql.replace(/[[\]{}]/g, ""))).toBe(markedSql);
   });
 });
