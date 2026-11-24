@@ -74,7 +74,7 @@
   }
 }
 
-// A link cell's tooltip is portaled to the body, outside the cell, and uses react-tooltip-5 like TooltipWrapper.
+// A link cell's tooltip is portaled to the body, outside the cell.
 .tooltip-truncated-cell-portal {
   @include tooltip5-arrow-styles;
 

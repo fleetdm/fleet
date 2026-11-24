@@ -32,7 +32,7 @@ interface ITooltipTruncatedTextCellProps {
    * rather than just the truncated text. */
   alwaysShowTooltip?: boolean;
   /** Set when the cell renders inside a link. The tooltip then renders outside the link so clicking it does not
-   * navigate, and follows WCAG 2.2 SC 1.4.13: it stays open while hovered and closes on Escape. Default: false */
+   * navigate, stays open while hovered, and closes on Escape (the hover half of WCAG 2.2 SC 1.4.13). Default: false */
   isInsideLink?: boolean;
 }
 
