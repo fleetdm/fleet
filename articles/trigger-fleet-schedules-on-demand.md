@@ -6,23 +6,23 @@ The names and intervals below match Fleet 4.95. Schedules come and go between re
 
 ## Core
 
-+ [cleanups_then_aggregation](#cleanups_then_aggregation)
-+ [frequent_cleanups](#frequent_cleanups)
-+ [query_results_cleanup](#query_results_cleanup)
-+ [usage_statistics](#usage_statistics)
++ [cleanups_then_aggregation](#cleanups-then-aggregation)
++ [frequent_cleanups](#frequent-cleanups)
++ [query_results_cleanup](#query-results-cleanup)
++ [usage_statistics](#usage-statistics)
 + [vulnerabilities](#vulnerabilities)
 + [automations](#automations)
 + [integrations](#integrations)
-+ [host_vitals_label_membership](#host_vitals_label_membership)
-+ [chart_data_collection](#chart_data_collection)
-+ [upcoming_activities_maintenance](#upcoming_activities_maintenance)
-+ [fleet_initiated_activities_release](#fleet_initiated_activities_release)
-+ [scheduled_batch_activities](#scheduled_batch_activities)
-+ [batch_activity_completion_checker](#batch_activity_completion_checker)
-+ [activities_streaming](#activities_streaming)
++ [host_vitals_label_membership](#host-vitals-label-membership)
++ [chart_data_collection](#chart-data-collection)
++ [upcoming_activities_maintenance](#upcoming-activities-maintenance)
++ [fleet_initiated_activities_release](#fleet-initiated-activities-release)
++ [scheduled_batch_activities](#scheduled-batch-activities)
++ [batch_activity_completion_checker](#batch-activity-completion-checker)
++ [activities_streaming](#activities-streaming)
 + [calendar](#calendar)
-+ [google_workspace_sync](#google_workspace_sync)
-+ [end_user_notifications](#end_user_notifications)
++ [google_workspace_sync](#google-workspace-sync)
++ [end_user_notifications](#end-user-notifications)
 
 ### cleanups_then_aggregation
 
@@ -141,11 +141,11 @@ Sends due end user notifications and expires old ones.
 
 ## Software
 
-+ [maintained_apps](#maintained_apps)
-+ [maintained_apps_auto_update](#maintained_apps_auto_update)
-+ [windows_maintained_app_titles](#windows_maintained_app_titles)
-+ [refresh_vpp_app_versions](#refresh_vpp_app_versions)
-+ [app_store_app_configuration_reconciler](#app_store_app_configuration_reconciler)
++ [maintained_apps](#maintained-apps)
++ [maintained_apps_auto_update](#maintained-apps-auto-update)
++ [windows_maintained_app_titles](#windows-maintained-app-titles)
++ [refresh_vpp_app_versions](#refresh-vpp-app-versions)
++ [app_store_app_configuration_reconciler](#app-store-app-configuration-reconciler)
 
 ### maintained_apps
 
@@ -188,17 +188,17 @@ Reinstalls iOS and iPadOS App Store apps on hosts that didn't get the latest app
 
 ## Apple MDM
 
-+ [apple_mdm_dep_profile_assigner](#apple_mdm_dep_profile_assigner)
-+ [mdm_apple_profile_manager](#mdm_apple_profile_manager)
-+ [apple_mdm_worker](#apple_mdm_worker)
-+ [apple_mdm_apns_sweep](#apple_mdm_apns_sweep)
-+ [apple_mdm_iphone_ipad_refetcher](#apple_mdm_iphone_ipad_refetcher)
-+ [apple_mdm_iphone_ipad_reviver](#apple_mdm_iphone_ipad_reviver)
-+ [apple_mdm_os_updates](#apple_mdm_os_updates)
-+ [mdm_service_discovery](#mdm_service_discovery)
-+ [send_recovery_lock_commands](#send_recovery_lock_commands)
-+ [send_managed_local_account_rotation_commands](#send_managed_local_account_rotation_commands)
-+ [cleanup_expired_adue_challenges](#cleanup_expired_adue_challenges)
++ [apple_mdm_dep_profile_assigner](#apple-mdm-dep-profile-assigner)
++ [mdm_apple_profile_manager](#mdm-apple-profile-manager)
++ [apple_mdm_worker](#apple-mdm-worker)
++ [apple_mdm_apns_sweep](#apple-mdm-apns-sweep)
++ [apple_mdm_iphone_ipad_refetcher](#apple-mdm-iphone-ipad-refetcher)
++ [apple_mdm_iphone_ipad_reviver](#apple-mdm-iphone-ipad-reviver)
++ [apple_mdm_os_updates](#apple-mdm-os-updates)
++ [mdm_service_discovery](#mdm-service-discovery)
++ [send_recovery_lock_commands](#send-recovery-lock-commands)
++ [send_managed_local_account_rotation_commands](#send-managed-local-account-rotation-commands)
++ [cleanup_expired_adue_challenges](#cleanup-expired-adue-challenges)
 
 ### apple_mdm_dep_profile_assigner
 
@@ -276,9 +276,9 @@ Deletes expired enrollment challenges.
 
 ## Windows MDM
 
-+ [mdm_windows_profile_manager](#mdm_windows_profile_manager)
-+ [microsoft_autopilot_sync](#microsoft_autopilot_sync)
-+ [reencrypt_windows_disk_encryption_keys](#reencrypt_windows_disk_encryption_keys)
++ [mdm_windows_profile_manager](#mdm-windows-profile-manager)
++ [microsoft_autopilot_sync](#microsoft-autopilot-sync)
++ [reencrypt_windows_disk_encryption_keys](#reencrypt-windows-disk-encryption-keys)
 
 ### mdm_windows_profile_manager
 
@@ -303,9 +303,9 @@ Re-encrypts BitLocker recovery keys stored by older Fleet versions, and asks hos
 
 ## Android MDM
 
-+ [mdm_android_profile_manager](#mdm_android_profile_manager)
-+ [mdm_android_device_reconciler](#mdm_android_device_reconciler)
-+ [mdm_android_command_reconciler](#mdm_android_command_reconciler)
++ [mdm_android_profile_manager](#mdm-android-profile-manager)
++ [mdm_android_device_reconciler](#mdm-android-device-reconciler)
++ [mdm_android_command_reconciler](#mdm-android-command-reconciler)
 
 ### mdm_android_profile_manager
 
@@ -329,10 +329,10 @@ Checks Google for results of Android commands that never reported back.
 
 These do their work once, after you upgrade to the version that added them.
 
-+ [uninstall_software_migration](#uninstall_software_migration)
-+ [upgrade_code_software_migration](#upgrade_code_software_migration)
-+ [enable_android_app_reports_on_default_policy](#enable_android_app_reports_on_default_policy)
-+ [migrate_to_per_host_policy](#migrate_to_per_host_policy)
++ [uninstall_software_migration](#uninstall-software-migration)
++ [upgrade_code_software_migration](#upgrade-code-software-migration)
++ [enable_android_app_reports_on_default_policy](#enable-android-app-reports-on-default-policy)
++ [migrate_to_per_host_policy](#migrate-to-per-host-policy)
 
 ### uninstall_software_migration
 
