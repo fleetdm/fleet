@@ -1,9 +1,11 @@
 import classnames from "classnames";
 import { uniqueId } from "lodash";
-import React, { useEffect, useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import ReactTooltip from "react-tooltip";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 
+import { DEFAULT_DELAY_MS } from "components/TooltipWrapper/TooltipWrapper";
 import { COLORS } from "styles/var/colors";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
@@ -30,12 +32,11 @@ interface ITooltipTruncatedTextCellProps {
    * rather than just the truncated text. */
   alwaysShowTooltip?: boolean;
   /** Set when the cell renders inside a link. The tooltip then renders outside the link so clicking it does not
-   * navigate, waits before showing so sweeping across rows does not open it, and dismisses on Escape. Default: false */
+   * navigate, and follows WCAG 2.2 SC 1.4.13: it stays open while hovered and closes on Escape. Default: false */
   isInsideLink?: boolean;
 }
 
 const baseClass = "tooltip-truncated-cell";
-const LINK_TOOLTIP_SHOW_DELAY_MS = 500;
 
 const TooltipTruncatedTextCell = ({
   value,
@@ -76,31 +77,53 @@ const TooltipTruncatedTextCell = ({
   }, [value, hasPrefix, hasSuffix, justifySuffixEnd]);
   // End
 
-  // Stable across renders: the show/dismiss state below re-renders while the tooltip is open.
+  // Stable so a parent re-render while the tooltip is open does not re-anchor it.
   const [tooltipId] = useState(() => uniqueId());
-  const [isTooltipShown, setIsTooltipShown] = useState(false);
-  const [isTooltipDismissed, setIsTooltipDismissed] = useState(false);
-
-  useEffect(() => {
-    if (!isInsideLink || !isTooltipShown) {
-      return undefined;
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsTooltipDismissed(true);
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isInsideLink, isTooltipShown]);
 
   value =
     value === null || value === undefined || value === ""
       ? DEFAULT_EMPTY_CELL_VALUE
       : value;
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
+  const isTooltipDisabled =
+    isDefaultValue || (tooltipDisabled && !alwaysShowTooltip);
 
-  const reactTooltip = (
+  const tooltipContent = (
+    <>
+      {tooltip ?? value}
+      <div className="safari-hack">&nbsp;</div>
+      {/* Fixes triple click selecting next element in Safari */}
+    </>
+  );
+
+  const renderLinkTooltip = () =>
+    createPortal(
+      // React events bubble through portals, so stop clicks here before they reach the link's onClick.
+      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+      <div
+        className={classnames(`${baseClass}-portal`, {
+          "tooltip-break-on-word": tooltipBreakOnWord,
+        })}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ReactTooltip5
+          id={tooltipId}
+          className="truncated-tooltip"
+          place="top"
+          positionStrategy="fixed"
+          opacity={1}
+          disableStyleInjection
+          clickable
+          delayShow={DEFAULT_DELAY_MS}
+          globalCloseEvents={{ escape: true }}
+        >
+          {tooltipContent}
+        </ReactTooltip5>
+      </div>,
+      document.body
+    );
+
+  const renderTooltip = () => (
     <ReactTooltip
       place="top"
       effect="solid"
@@ -110,38 +133,25 @@ const TooltipTruncatedTextCell = ({
       className="truncated-tooltip" // responsive widths
       clickable
       delayHide={200} // need delay set to hover using clickable
-      delayShow={isInsideLink ? LINK_TOOLTIP_SHOW_DELAY_MS : undefined}
-      afterShow={isInsideLink ? () => setIsTooltipShown(true) : undefined}
-      afterHide={
-        isInsideLink
-          ? () => {
-              setIsTooltipShown(false);
-              setIsTooltipDismissed(false);
-            }
-          : undefined
-      }
     >
-      <>
-        {tooltip ?? value}
-        <div className="safari-hack">&nbsp;</div>
-        {/* Fixes triple click selecting next element in Safari */}
-      </>
+      {tooltipContent}
     </ReactTooltip>
   );
+
+  const anchorProps = isInsideLink
+    ? { "data-tooltip-id": isTooltipDisabled ? undefined : tooltipId }
+    : {
+        "data-tip": true,
+        "data-for": tooltipId,
+        "data-tip-disable": isTooltipDisabled,
+      };
 
   return (
     <div className={classNames}>
       {prefix && <span className="data-table__prefix">{prefix}</span>}
       <div
         className="data-table__tooltip-truncated-text-container"
-        data-tip
-        data-for={tooltipId}
-        data-tip-disable={
-          isDefaultValue || (tooltipDisabled && !alwaysShowTooltip)
-        }
-        onMouseEnter={
-          isInsideLink ? () => setIsTooltipDismissed(false) : undefined
-        }
+        {...anchorProps}
       >
         <span
           ref={ref}
@@ -152,23 +162,8 @@ const TooltipTruncatedTextCell = ({
           {value}
         </span>
       </div>
-      {isInsideLink
-        ? createPortal(
-            // React events bubble through portals, so stop clicks here before they reach the link's onClick.
-            // The dismissed modifier lives here because react-tooltip only reads its className when it shows.
-            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-            <div
-              className={classnames(`${baseClass}-portal`, {
-                "tooltip-break-on-word": tooltipBreakOnWord,
-                [`${baseClass}-portal--dismissed`]: isTooltipDismissed,
-              })}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {reactTooltip}
-            </div>,
-            document.body
-          )
-        : reactTooltip}
+      {isInsideLink && !isTooltipDisabled && renderLinkTooltip()}
+      {!isInsideLink && renderTooltip()}
       {suffix && <span className="data-table__suffix">{suffix}</span>}
     </div>
   );
