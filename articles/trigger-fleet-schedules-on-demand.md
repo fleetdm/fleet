@@ -1,6 +1,6 @@
 # Trigger Fleet server schedules on demand
 
-The Fleet server does much of its work on a timer. It checks for vulnerabilities every hour, sends policy webhooks once a day, and syncs the Fleet-maintained app catalog hourly. Usually that's fine, but sometimes you can't wait. Maybe you just set up a failing-policy webhook and want to test it now, not tomorrow. `fleetctl trigger` starts a schedule's next run right away. This guide covers how to use it, every schedule name you can trigger, how often each one runs, and when triggering helps.
+The Fleet server does much of its work on a timer. It checks for vulnerabilities every hour, sends policy webhooks once a day, and syncs the Fleet-maintained app catalog hourly. Usually that's fine, but sometimes you can't wait. Maybe you just set up a failing-policy webhook and want to test it now, not tomorrow. `fleetctl trigger` starts a schedule's (scheduled job's) next run right away. This guide covers how to use it, every schedule name you can trigger, how often each one runs, and when triggering helps.
 
 The names and intervals below match Fleet 4.95. Schedules come and go between releases, so ask your own server for its list (see [List the schedules your server runs](#list-the-schedules-your-server-runs)).
 
