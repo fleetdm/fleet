@@ -448,15 +448,15 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 // mockPolicyAutomations is the automation_type the server returns for each mock policy, which generate-gitops writes
 // the calendar, conditional access, and webhook or ticket keys from.
 var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
-	"Global Policy":                       fleet.PolicyAutomationConditionalAccess,
-	"Team Policy":                         fleet.PolicyAutomationConditionalAccess,
-	"Team patch policy":                   fleet.PolicyAutomationConditionalAccess,
-	"Team VPP policy":                     fleet.PolicyAutomationWebhookOrTicket,
-	"Team Profile policy":                 fleet.PolicyAutomationConfigurationProfile,
-	"Team FMA install policy":             fleet.PolicyAutomationSoftware,
-	"Team package install policy":         fleet.PolicyAutomationSoftware,
-	"Windows - My Windows FMA up to date": fleet.PolicyAutomationSoftware,
-	"Version Locked Name up to date":      fleet.PolicyAutomationSoftware,
+	"Global Policy":               fleet.PolicyAutomationConditionalAccess,
+	"Team Policy":                 fleet.PolicyAutomationConditionalAccess,
+	"Team patch policy":           fleet.PolicyAutomationConditionalAccess,
+	"Team VPP policy":             fleet.PolicyAutomationWebhookOrTicket,
+	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
+	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
+	"Team package install policy": fleet.PolicyAutomationSoftware,
+	"Team Windows patch policy":   fleet.PolicyAutomationSoftware,
+	"Team force patch policy":     fleet.PolicyAutomationSoftware,
 }
 
 func (c MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
@@ -642,7 +642,7 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 			&fleet.Policy{
 				ID:                           8,
-				Name:                         "Windows - My Windows FMA up to date",
+				Name:                         "Team Windows patch policy",
 				Resolution:                   new("Install the latest version from self-service"),
 				Description:                  "This is a team patch policy that patches when the app is closed",
 				Platform:                     "windows",
@@ -658,11 +658,12 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 			&fleet.Policy{
 				ID:          9,
-				Name:        "Version Locked Name up to date",
+				Name:        "Team force patch policy",
 				Resolution:  new("Install the latest version from self-service"),
 				Description: "This is a team patch policy that force patches",
 				Platform:    "windows",
 				Type:        fleet.PolicyTypePatch,
+				ForcePatch:  true,
 				PatchSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 10,
 				},

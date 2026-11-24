@@ -147,6 +147,20 @@ func TestPolicySpecVerifyFleetMaintainedAppSlug(t *testing.T) {
 			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", NotifyBeforePatching: true, PatchDeadline: true},
 			wantErr: ErrPolicyPatchOptionsMutuallyExclusive,
 		},
+		{
+			name: "patch policy with force_patch is allowed",
+			spec: PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", ForcePatch: true},
+		},
+		{
+			name:    "dynamic policy with force_patch is rejected",
+			spec:    PolicySpec{Name: "Chrome installed", Team: "Workstations", Query: "SELECT 1;", Type: PolicyTypeDynamic, ForcePatch: true},
+			wantErr: errPolicyForcePatchRequiresPatch,
+		},
+		{
+			name:    "force_patch with patch_when_closed is rejected",
+			spec:    PolicySpec{Name: "Chrome up to date", Team: "Workstations", Type: PolicyTypePatch, FleetMaintainedAppSlug: "google-chrome/darwin", ForcePatch: true, PatchWhenClosed: true},
+			wantErr: errPolicyForcePatchWithOtherPatchOption,
+		},
 	}
 
 	for _, tc := range testCases {

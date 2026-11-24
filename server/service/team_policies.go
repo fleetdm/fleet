@@ -158,6 +158,10 @@ func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy
 	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate install_software")
 	}
+	if policy.Type == fleet.PolicyTypePatch && policy.InstallSoftware != nil &&
+		!policy.PatchWhenClosed && !policy.NotifyBeforePatching && !policy.PatchDeadline {
+		policy.ForcePatch = true
+	}
 	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate run_script")
 	}

@@ -6442,7 +6442,7 @@ policies:
     patch_when_closed: true
     notify_before_patching: true
 `,
-			wantErrs: []string{`Couldn't apply policy "Chrome up to date": Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true, but it sets "patch_when_closed" and "notify_before_patching".`},
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			// The dry run skips the policy apply, so without this check only a real apply rejects it.
@@ -6549,7 +6549,7 @@ policies:
     patch_when_closed: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Couldn't apply policy "Chrome up to date": Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true, but it sets "patch_when_closed" and "patch_deadline".`},
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline together with notify_before_patching is rejected",
@@ -6563,7 +6563,7 @@ policies:
     notify_before_patching: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Couldn't apply policy "Chrome up to date": Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true, but it sets "notify_before_patching" and "patch_deadline".`},
+			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline on a Windows Fleet-maintained app is rejected",
@@ -6620,7 +6620,7 @@ policies:
 			wantErrs: []string{`Couldn't apply policy "Chrome installed": "force_patch" is only supported for patch policies`},
 		},
 		{
-			name:     "force_patch together with patch_when_closed is rejected with one error naming both options",
+			name:     "force_patch together with patch_when_closed is rejected",
 			software: fmaSoftware,
 			policies: `
 policies:
@@ -6631,8 +6631,7 @@ policies:
     force_patch: true
     patch_when_closed: true
 `,
-			wantErrs:     []string{`Couldn't apply policy "Chrome up to date": Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true, but it sets "force_patch" and "patch_when_closed".`},
-			unwantedErrs: []string{`can be set to true.`},
+			wantErrs: []string{`Couldn't apply policy "Chrome up to date": If "force_patch" is true, "patch_when_closed", "notify_before_patching", or "patch_deadline" can't be set to true.`},
 		},
 		{
 			name:     "install_software true alone on a patch policy force patches and logs the deprecation warning",
@@ -6763,7 +6762,7 @@ policies:
 		})
 	}
 
-	// Load a patch policy that sets two options from a path: file, the error should name the policy and both options.
+	// Load a patch policy that sets two options from a path: file, the policy should get one error.
 	t.Run("two options on a patch policy loaded from a path file are rejected with one error", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
@@ -6783,9 +6782,9 @@ policies:
 		configPath := filepath.Join(dir, "fleet.yml")
 		require.NoError(t, os.WriteFile(configPath, []byte(config), 0o644))
 		_, err := GitOpsFromFile(configPath, dir, premiumAppConfig(), nopLogf)
-		require.ErrorContains(t, err, `Couldn't apply policy "Chrome up to date": Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true, but it sets "force_patch" and "notify_before_patching".`)
+		require.ErrorContains(t, err, `Couldn't apply policy "Chrome up to date": If "force_patch" is true, "patch_when_closed", "notify_before_patching", or "patch_deadline" can't be set to true.`)
 		errorMessage := err.Error()
-		require.Equal(t, 1, strings.Count(errorMessage, "Only one of"))
+		require.Equal(t, 1, strings.Count(errorMessage, `If "force_patch" is true`))
 	})
 }
 

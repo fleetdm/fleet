@@ -18,8 +18,12 @@
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: fma1/darwin
+  force_patch: false
   hidden: false
   name: Team patch policy
+  notify_before_patching: false
+  patch_deadline: false
+  patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
   type: patch
@@ -30,9 +34,12 @@
   critical: false
   description: This is a team patch policy that notifies before patching
   fleet_maintained_app_slug: fma4/darwin
+  force_patch: false
   hidden: false
   name: My Notify FMA up to date
   notify_before_patching: true
+  patch_deadline: false
+  patch_when_closed: false
   platform: darwin
   resolution: Install the latest version from self-service
   type: patch
@@ -43,9 +50,12 @@
   critical: false
   description: This is a team patch policy with a patch deadline
   fleet_maintained_app_slug: fma5/darwin
+  force_patch: false
   hidden: false
   name: My Deadline FMA up to date
+  notify_before_patching: false
   patch_deadline: true
+  patch_when_closed: false
   platform: darwin
   resolution: Install the latest version from self-service
   type: patch
@@ -111,8 +121,11 @@
   critical: false
   description: This is a team patch policy that patches when the app is closed
   fleet_maintained_app_slug: fma2/windows
+  force_patch: false
   hidden: false
-  name: Windows - My Windows FMA up to date
+  name: Team Windows patch policy
+  notify_before_patching: false
+  patch_deadline: false
   patch_when_closed: true
   platform: windows
   resolution: Install the latest version from self-service
@@ -126,7 +139,10 @@
   fleet_maintained_app_slug: fma3/windows
   force_patch: true
   hidden: false
-  name: Version Locked Name up to date
+  name: Team force patch policy
+  notify_before_patching: false
+  patch_deadline: false
+  patch_when_closed: false
   platform: windows
   resolution: Install the latest version from self-service
   type: patch

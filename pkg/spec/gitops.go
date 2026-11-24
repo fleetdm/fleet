@@ -259,7 +259,6 @@ type GitOpsPolicySpec struct {
 	ContinuousAutomations      optjson.Bool                           `json:"continuous_automations_enabled"`
 	RunScript                  *PolicyRunScript                       `json:"run_script"`
 	InstallSoftware            optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
-	ForcePatch                 bool                                   `json:"force_patch"`
 	ResendConfigurationProfile string                                 `json:"resend_configuration_profile"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
@@ -2307,11 +2306,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
-		if item.ForcePatch && item.Type != fleet.PolicyTypePatch {
-			multiError = multierror.Append(multiError, fmt.Errorf(
-				`Couldn't apply policy %q: "force_patch" is only supported for patch policies`, item.Name,
-			))
-		}
 		if item.Type == fleet.PolicyTypePatch {
 			_, slugIsKnownFMA := fmasBySlug[item.FleetMaintainedAppSlug]
 			if !slugIsKnownFMA {
@@ -2340,22 +2334,15 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.PatchDeadline {
 				patchOptions = append(patchOptions, "patch_deadline")
 			}
-			if len(patchOptions) > 1 {
-				multiError = multierror.Append(multiError, fmt.Errorf(
-					`Couldn't apply policy %q: Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true, but it sets "%s".`,
-					item.Name, strings.Join(patchOptions, `" and "`),
-				))
-				continue
-			}
 			switch {
 			case item.InstallSoftware.Bool || item.InstallSoftware.Other != nil:
-				// Use install_software true or an installer as force_patch, unless another option is set.
 				if item.ForcePatch {
 					multiError = multierror.Append(multiError, fmt.Errorf(
 						`Couldn't apply policy %q: If "force_patch" is true, "install_software" can't be set.`,
 						item.Name,
 					))
 				}
+				// Without another option, install_software true or an object means force_patch.
 				if len(patchOptions) == 0 {
 					item.ForcePatch = true
 					patchOptions = []string{"force_patch"}
