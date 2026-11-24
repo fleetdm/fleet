@@ -34,7 +34,7 @@ jobs:
           tar -xz -C /tmp/scorecard-install -f /tmp/scorecard-install/scorecard.tar.gz
           chmod +x /tmp/scorecard-install/scorecard
           ln -s /tmp/scorecard-install/scorecard /usr/local/bin/scorecard
-          scorecard --version
+          scorecard version
 
       - name: Checkout PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
