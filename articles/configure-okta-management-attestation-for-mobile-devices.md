@@ -23,10 +23,10 @@ Check these before you start:
 2. Click the **Management attestation** tab.
 3. Click **Create app hint**.
 4. For the platform, select **iOS**.
-5. Generate a new secret key or enter a custom one that meets the minimum requirements. Save the key securely to use later in Fleet.
-6. For **Device management provider**, enter Fleet Device Management.
+5. Under **Secret key**, select **Use new secret key** to have Okta generate one, or **Use existing secret key** to enter your own. Copy the **Secret key value** and save it securely to use later in Fleet.
+6. For **Device management provider**, enter `Fleet`. Okta limits this field to 20 characters.
 7. For **Enrollment link**, enter `https://<your-fleet-url>/enroll?enroll_secret=<your-enrollment-token>&byod=true`, replacing the values with your own.
-8. Click **Save**, then select **Yes, trust this app hint for Management Attestation now**.
+8. Under **Trust this app hint for management attestation?**, select **Yes, trust this app hint for Management Attestation now**, then click **Save**.
 
 > **Note:** Some Okta orgs still use the older layout. There, click the **Endpoint management** tab, click **Add platform**, select **iOS**, and click **Next** before you configure the secret key.
 
