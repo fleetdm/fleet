@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.0.423",
+      "version": "0.0.424",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hnc.Discord';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hnc.Discord' AND version_compare(bundle_short_version, '0.0.423') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hnc.Discord' AND version_compare(bundle_short_version, '0.0.424') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hnc.Discord' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.423/Discord.dmg",
+      "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/osx/universal/0.0.424/Discord.dmg",
       "install_script_ref": "9dd5e76a",
       "uninstall_script_ref": "dfee0e7f",
-      "sha256": "8edb6957c30e78250909f4f746546077f25e032f9532852c4b1c2f8bfd37beb2",
+      "sha256": "38617824808249eecce6377d6e467936bf695f62662dbcf372e95c930a7b7e4d",
       "default_categories": [
         "Communication"
       ]
