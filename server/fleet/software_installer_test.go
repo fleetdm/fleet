@@ -184,25 +184,29 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 	}
 }
 
-func TestAllowedSetupExperiencePlatformsForExtension(t *testing.T) {
+func TestAllowedSetupExperiencePlatforms(t *testing.T) {
 	testCases := []struct {
 		ext      string
+		platform string
 		expected []string
 	}{
-		{".py", []string{"darwin", "linux"}},
-		{"py", []string{"darwin", "linux"}},
-		{".sh", []string{"darwin", "linux"}},
-		{"sh", []string{"darwin", "linux"}},
-		{".ps1", nil},
-		{"ps1", nil},
-		{".exe", nil},
-		{"exe", nil},
-		{"", nil},
+		{".py", "darwin", []string{"darwin", "linux"}},
+		{"py", "linux", []string{"darwin", "linux"}},
+		{".sh", "darwin", []string{"darwin", "linux"}},
+		{"sh", "linux", []string{"darwin", "linux"}},
+		{".ps1", "windows", nil},
+		{"ps1", "windows", nil},
+		{".exe", "windows", nil},
+		{"exe", "windows", nil},
+		{"", "", nil},
+		{"ipa", "ios", []string{"ios", "ipados"}},
+		{"ipa", "ipados", []string{"ios", "ipados"}},
+		{".ipa", "tvos", []string{"tvos"}},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.ext, func(t *testing.T) {
-			result := AllowedSetupExperiencePlatformsForExtension(tc.ext)
+		t.Run(tc.ext+" "+tc.platform, func(t *testing.T) {
+			result := AllowedSetupExperiencePlatforms(tc.ext, tc.platform)
 			require.Equal(t, tc.expected, result)
 		})
 	}

@@ -1,0 +1,1 @@
+- Added support for in-house (`.ipa`) apps on Apple TV (tvOS). A tvOS `.ipa` is added as one tvOS software title and can be installed on Apple TVs, including during setup experience. Self-service is not available for it.

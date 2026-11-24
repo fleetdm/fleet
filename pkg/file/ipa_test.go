@@ -180,3 +180,61 @@ func TestExtractZIPMetadataAppPlistSelection(t *testing.T) {
 		require.Nil(t, meta)
 	})
 }
+
+func TestExtractZIPMetadataPlatforms(t *testing.T) {
+	plistWith := func(extra string) string {
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.example.app</string>
+<key>CFBundleName</key><string>Test</string>
+<key>CFBundleShortVersionString</key><string>1.0</string>
+` + extra + `
+</dict></plist>`
+	}
+	const (
+		requiresIPhoneOS = `<key>LSRequiresIPhoneOS</key><true/>`
+		tvOSPlatforms    = `<key>CFBundleSupportedPlatforms</key><array><string>AppleTVOS</string></array>`
+		iOSPlatforms     = `<key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>`
+		tvOSFamily       = `<key>UIDeviceFamily</key><array><integer>3</integer></array>`
+		iOSFamily        = `<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>`
+		tvOSPlatformName = `<key>DTPlatformName</key><string>appletvos</string>`
+	)
+	iOS := []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform}
+	tvOS := []fleet.InstallableDevicePlatform{fleet.TVOSPlatform}
+
+	cases := []struct {
+		name  string
+		plist string
+		want  []fleet.InstallableDevicePlatform
+	}{
+		{"iOS", plistWith(requiresIPhoneOS + iOSPlatforms + iOSFamily), iOS},
+		{"iOS with only LSRequiresIPhoneOS", plistWith(requiresIPhoneOS), iOS},
+		{"tvOS by supported platforms", plistWith(tvOSPlatforms), tvOS},
+		{"tvOS by device family", plistWith(tvOSFamily), tvOS},
+		{"tvOS by platform name", plistWith(tvOSPlatformName), tvOS},
+		{"tvOS that also sets LSRequiresIPhoneOS", plistWith(requiresIPhoneOS + tvOSPlatforms + tvOSFamily), tvOS},
+		{"device family of an unexpected type", plistWith(requiresIPhoneOS + `<key>UIDeviceFamily</key><string>1</string>`), iOS},
+		{"supported platforms of an unexpected type", plistWith(requiresIPhoneOS + `<key>CFBundleSupportedPlatforms</key><string>iPhoneOS</string>`), iOS},
+		{"platform name of an unexpected type", plistWith(requiresIPhoneOS + `<key>DTPlatformName</key><integer>1</integer>`), iOS},
+		{"neither", plistWith(`<key>UIDeviceFamily</key><array><integer>6</integer></array>`), nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tfr, err := fleet.NewKeepFileReader(writeZip(t, [][2]string{
+				// a framework's markers don't decide the app's platform
+				{"Payload/App.app/Frameworks/TV.framework/Info.plist", plistWith(tvOSPlatforms)},
+				{"Payload/App.app/Info.plist", c.plist},
+			}))
+			require.NoError(t, err)
+			defer tfr.Close()
+
+			meta, err := file.ExtractZIPMetadata(tfr)
+			if c.want == nil {
+				require.ErrorIs(t, err, file.ErrInvalidType)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.want, meta.Platforms)
+		})
+	}
+}

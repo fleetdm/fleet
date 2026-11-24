@@ -939,11 +939,11 @@ WHERE
 		{{end}}
 	{{end}}
 	-- If for setup experience, exclude any installers that are not supported.
-	-- In-house apps are only supported for setup experience on iOS/iPadOS, so
-	-- they surface whenever the platform list includes a mobile platform (the
+	-- In-house apps are only supported for setup experience on iOS, iPadOS and
+	-- tvOS, so they surface whenever the platform list includes one of them (the
 	-- platform predicate above already restricts iha rows to the listed
 	-- platforms) and stay excluded for desktop-only queries.
-	{{if and .ForSetupExperience (not (containsAppleMobile $.Platform))}}
+	{{if and .ForSetupExperience (not (containsAppleMDMOnly $.Platform))}}
 		AND iha.id IS NULL
 	{{end}}
 GROUP BY
@@ -1033,9 +1033,9 @@ GROUP BY
 		"isDarwinOnly": func(platform string) bool {
 			return strings.TrimSpace(strings.ReplaceAll(platform, "macos", "darwin")) == "darwin"
 		},
-		"containsAppleMobile": func(platform string) bool {
+		"containsAppleMDMOnly": func(platform string) bool {
 			for p := range strings.SplitSeq(platform, ",") {
-				if p = strings.TrimSpace(p); p == "ios" || p == "ipados" {
+				if fleet.IsAppleMDMOnlyPlatform(strings.TrimSpace(p)) {
 					return true
 				}
 			}

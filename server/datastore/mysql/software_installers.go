@@ -219,11 +219,12 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, 0, err
 	}
 
-	// Insert in house app instead of software installer
-	// And add both iOS and ipadOS titles per https://github.com/fleetdm/fleet/issues/34283
+	// Insert an in-house app instead of a software installer. An iOS archive
+	// gets both an iOS and an iPadOS title, a tvOS archive a tvOS one.
 	if payload.Extension == "ipa" {
 		installerID, titleID, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 			TeamID:          payload.TeamID,
+			Platform:        payload.Platform,
 			Title:           payload.Title,
 			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
@@ -5064,14 +5065,12 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 	}
 
 	switch payload.Platform {
-	// currently, the platform will always be ios for .ipa files
-	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
-		// at the point where this method is called, we attempt to create both iOS and iPadOS entries
-		// for ipa apps, so check for conflicts on either platform.
-		for platform, source := range map[string]string{
-			string(fleet.IOSPlatform):    "ios_apps",
-			string(fleet.IPadOSPlatform): "ipados_apps",
-		} {
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform), string(fleet.TVOSPlatform):
+		// An iOS .ipa creates both an iOS and an iPadOS entry, so check for conflicts on either platform. A tvOS
+		// .ipa only creates a tvOS entry.
+		for _, inHousePlatform := range fleet.InHouseAppPlatforms(payload.Platform) {
+			platform := string(inHousePlatform)
+			source := fleet.AppleSoftwareSourceForPlatform(platform)
 			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")

@@ -450,12 +450,12 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				}
 			}
 		case sw.InHouseAppID != nil:
-			// In-house apps only install during setup experience on iOS/iPadOS,
+			// In-house apps only install during setup experience on iOS, iPadOS and tvOS,
 			// which is driven in one pass by the worker and never reaches this
 			// poll-driven flow. Fail the item instead of letting it fall through
 			// the switch silently and stall the queue.
 			sw.Status = fleet.SetupExperienceStatusFailure
-			sw.Error = new("In-house apps can only be installed during setup experience on iOS and iPadOS.")
+			sw.Error = new("In-house apps can only be installed during setup experience on iOS, iPadOS, and tvOS.")
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
 			}

@@ -30,6 +30,7 @@ func TestInHouseApps(t *testing.T) {
 	}{
 		{"InHouseAppInstallPushesViaDirectActivation", testInHouseAppInstallPushesViaDirectActivation},
 		{"TestInHouseAppsCrud", testInHouseAppsCrud},
+		{"TvOS", testInHouseAppsTvOS},
 		{"MultipleTeams", testInHouseAppsMultipleTeams},
 		{"BatchSetInHouseInstallers", testBatchSetInHouseInstallers},
 		{"BatchSetInHouseInstallersScopedViaLabels", testBatchSetInHouseInstallersScopedViaLabels},
@@ -2439,4 +2440,114 @@ func testRemovePendingInHouseAppInstallsSkipsInstallWithDeletedUpcomingActivity(
 		return sqlx.GetContext(ctx, q, &host1Canceled, `SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, cmdUUID1)
 	})
 	require.False(t, host1Canceled)
+}
+
+func testInHouseAppsTvOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	payload := func(platform, storageID string) *fleet.UploadSoftwareInstallerPayload {
+		return &fleet.UploadSoftwareInstallerPayload{
+			TeamID:           &team.ID,
+			UserID:           user.ID,
+			Title:            "foo",
+			Filename:         "foo.ipa",
+			BundleIdentifier: "com.foo",
+			StorageID:        storageID,
+			Platform:         platform,
+			Source:           fleet.AppleSoftwareSourceForPlatform(platform),
+			Extension:        "ipa",
+			Version:          "1.2.3",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			Configuration:    []byte("<dict/>"),
+		}
+	}
+	type row struct {
+		ID       uint   `db:"id"`
+		Platform string `db:"platform"`
+		Source   string `db:"source"`
+		TitleID  uint   `db:"title_id"`
+	}
+	rows := func() []row {
+		var got []row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got, `
+				SELECT iha.id, iha.platform, st.source, iha.title_id
+				FROM in_house_apps iha JOIN software_titles st ON st.id = iha.title_id
+				WHERE iha.global_or_team_id = ? ORDER BY iha.platform`, team.ID)
+		})
+		return got
+	}
+
+	// a tvOS app is added for tvOS only
+	tvInstallerID, tvTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload("tvos", "tvos-hash"))
+	require.NoError(t, err)
+	got := rows()
+	require.Len(t, got, 1)
+	require.Equal(t, row{ID: tvInstallerID, Platform: "tvos", Source: "tvos_apps", TitleID: tvTitleID}, got[0])
+
+	cfg, err := ds.GetInHouseAppConfiguration(ctx, tvInstallerID)
+	require.NoError(t, err)
+	require.Equal(t, "<dict/>", string(cfg))
+
+	// the iOS build of the same app can be added next to it
+	iosInstallerID, iosTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload("ios", "ios-hash"))
+	require.NoError(t, err)
+	got = rows()
+	require.Len(t, got, 3)
+	require.Equal(t, []string{"ios", "ipados", "tvos"}, []string{got[0].Platform, got[1].Platform, got[2].Platform})
+	require.Equal(t, row{ID: iosInstallerID, Platform: "ios", Source: "ios_apps", TitleID: iosTitleID}, got[0])
+	require.NotEqual(t, tvTitleID, iosTitleID)
+
+	// each can only be added once
+	for _, platform := range []string{"tvos", "ios"} {
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payload(platform, platform+"-hash-2"))
+		require.Error(t, err)
+		var existsErr fleet.AlreadyExistsError
+		require.ErrorAs(t, err, &existsErr)
+	}
+	require.Len(t, rows(), 3)
+
+	// each is found by its own title
+	meta, err := ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &team.ID, tvTitleID)
+	require.NoError(t, err)
+	require.Equal(t, "tvos", meta.Platform)
+	require.Equal(t, "tvos-hash", meta.StorageID)
+
+	exists, err := ds.CheckConflictingInHouseAppExists(ctx, &team.ID, "com.foo", "tvos")
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = ds.CheckConflictingInHouseAppExists(ctx, &team.ID, "com.foo", "darwin")
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	// removing the tvOS app leaves the iOS and iPadOS ones
+	require.NoError(t, ds.DeleteInHouseApp(ctx, tvInstallerID))
+	got = rows()
+	require.Len(t, got, 2)
+	require.Equal(t, []string{"ios", "ipados"}, []string{got[0].Platform, got[1].Platform})
+
+	// an App Store app only conflicts on its own platform
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	test.CreateInsertGlobalVPPToken(t, ds)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "foo", BundleIdentifier: "com.foo",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.TVOSPlatform}},
+	}, &team2.ID, nil)
+	require.NoError(t, err)
+
+	inTeam2 := func(platform string) *fleet.UploadSoftwareInstallerPayload {
+		p := payload(platform, platform+"-team2-hash")
+		p.TeamID = &team2.ID
+		return p
+	}
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, inTeam2("tvos"))
+	var conflictErr fleet.ConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, inTeam2("ios"))
+	require.NoError(t, err)
 }
