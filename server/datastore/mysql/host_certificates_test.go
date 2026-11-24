@@ -504,18 +504,30 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		require.Equal(t, scepFailDetail, detail)
 	})
 
-	// The other half of that contrast, pinned because the two resends now sit next to each other and differ only in
-	// this. An admin hitting Resend gets one more delivery, not a fresh budget.
-	t.Run("admin resend keeps the retries spent", func(t *testing.T) {
+	// The other half of that contrast: an admin hitting Resend starts a new budget, so a certificate that is again not
+	// found sends the profile again instead of failing it.
+	t.Run("admin resend starts a new retry budget", func(t *testing.T) {
 		h := mkHost(t, "resend-admin")
 		p := "w-resend-admin"
 		upsertWinProfile(t, h, p, "cmd-resend-admin", fleet.MDMDeliveryFailed, mdm.MaxWindowsProfileRetries)
+		insertConfigProfile(t, p, "resend-admin", false)
+		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
 
 		require.NoError(t, ds.ResendHostMDMProfile(ctx, h.UUID, p))
 
 		status, _, retries := getProfile(t, h, p)
 		require.Empty(t, status)
-		require.Equal(t, mdm.MaxWindowsProfileRetries, retries)
+		require.Zero(t, retries)
+
+		upsertWinProfile(t, h, p, "cmd-resend-admin-2", fleet.MDMDeliveryVerifying, 0)
+		backdateProfile(t, h, p, 2*time.Hour)
+		ingest(t, h, plainCert(t, h, "some-cert", fleet.SystemHostCertificate, ""))
+
+		status, detail, retries := getProfile(t, h, p)
+		require.Empty(t, status)
+		require.Empty(t, detail)
+		require.Equal(t, 1, retries)
+		requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryPending)
 	})
 
 	// Windows profiles are exempt from the "status must be pending" gate in validateIdentifier, so a straggling SCEP
