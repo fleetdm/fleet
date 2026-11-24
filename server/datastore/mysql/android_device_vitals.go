@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -37,10 +38,6 @@ type androidDeviceVitalsRow struct {
 
 	SecurityPostureDetails []byte `db:"security_posture_details"`
 	TelephonyInfos         []byte `db:"telephony_infos"`
-
-	// Written only by SetHostMDMAndroidRoaming; the AMAPI upsert never binds them.
-	Roaming          *bool      `db:"roaming"`
-	RoamingUpdatedAt *time.Time `db:"roaming_updated_at"`
 }
 
 func newAndroidDeviceVitalsRow(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) (*androidDeviceVitalsRow, error) {
@@ -142,18 +139,27 @@ func (ds *Datastore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, 
 	})
 }
 
-// SetHostMDMAndroidRoaming upserts only the roaming columns, so it neither
-// clobbers nor is clobbered by the AMAPI status report upsert above. The agent
-// can report before the first status report creates the row, hence the insert.
-func (ds *Datastore) SetHostMDMAndroidRoaming(ctx context.Context, hostUUID string, roaming bool) error {
-	const stmt = `
-		INSERT INTO host_mdm_android_device_vitals (host_uuid, roaming, roaming_updated_at)
-		VALUES (?, ?, NOW(6))
-		ON DUPLICATE KEY UPDATE
-			roaming = VALUES(roaming),
-			roaming_updated_at = VALUES(roaming_updated_at)`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, roaming); err != nil {
-		return ctxerr.Wrap(ctx, err, "set host mdm android roaming")
+// SetHostAndroidAgentVitals upserts only the vitals present in vitals, so a
+// report that leaves one out keeps its previous value. The column names come
+// from fleet.AndroidAgentVitals' struct tags, never from the request.
+func (ds *Datastore) SetHostAndroidAgentVitals(ctx context.Context, hostUUID string, vitals fleet.AndroidAgentVitals) error {
+	columns, values := vitals.ReportedColumns()
+	if len(columns) == 0 {
+		return ctxerr.New(ctx, "no android agent vitals to set")
+	}
+
+	updates := make([]string, 0, len(columns)+1)
+	updates = append(updates, "reported_at = VALUES(reported_at)")
+	for _, column := range columns {
+		updates = append(updates, column+" = VALUES("+column+")")
+	}
+	stmt := `INSERT INTO host_android_agent_vitals (host_uuid, reported_at, ` + strings.Join(columns, ", ") + `)
+		VALUES (?, NOW(6)` + strings.Repeat(", ?", len(columns)) + `)
+		ON DUPLICATE KEY UPDATE ` + strings.Join(updates, ", ")
+
+	args := append([]any{hostUUID}, values...)
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set host android agent vitals")
 	}
 	return nil
 }
@@ -163,7 +169,7 @@ const androidDeviceVitalsSelectStmt = `
 		host_uuid, adb_enabled, passcode_protected, play_protect_enabled, encryption_type,
 		manufacturer, security_update_version, device_kernel_version, bootloader_version,
 		system_update_status, security_posture, imei, meid, api_level,
-		security_posture_details, telephony_infos, roaming, roaming_updated_at
+		security_posture_details, telephony_infos
 	FROM host_mdm_android_device_vitals
 	WHERE host_uuid = ?`
 
@@ -185,8 +191,6 @@ func (ds *Datastore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *f
 		host.IMEI = row.IMEI
 		host.MEID = row.MEID
 		host.APILevel = row.APILevel
-		host.Roaming = row.Roaming
-		host.RoamingUpdatedAt = row.RoamingUpdatedAt
 
 		if row.SecurityPostureDetails != nil {
 			if err := json.Unmarshal(row.SecurityPostureDetails, &host.SecurityPostureDetails); err != nil {
@@ -204,5 +208,26 @@ func (ds *Datastore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *f
 		return ctxerr.Wrap(ctx, err, "get host mdm android device vitals")
 	}
 
+	return ds.loadHostAndroidAgentVitals(ctx, host)
+}
+
+var androidAgentVitalsSelectStmt = `SELECT reported_at, ` + strings.Join(fleet.AndroidAgentVitalColumns(), ", ") + `
+	FROM host_android_agent_vitals WHERE host_uuid = ?`
+
+func (ds *Datastore) loadHostAndroidAgentVitals(ctx context.Context, host *fleet.Host) error {
+	var row struct {
+		fleet.AndroidAgentVitals
+		ReportedAt time.Time `db:"reported_at"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, androidAgentVitalsSelectStmt, host.UUID)
+	switch {
+	case err == nil:
+		host.AndroidAgentVitals = row.AndroidAgentVitals
+		host.HostAndroidAgentVitals.ReportedAt = &row.ReportedAt
+	case errors.Is(err, sql.ErrNoRows):
+		// the agent hasn't reported yet; leave fields nil.
+	default:
+		return ctxerr.Wrap(ctx, err, "get host android agent vitals")
+	}
 	return nil
 }

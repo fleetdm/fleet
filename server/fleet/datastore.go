@@ -1490,12 +1490,13 @@ type Datastore interface {
 	// extracted from an AMAPI status report into
 	// host_mdm_android_device_vitals.
 	SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAndroidDeviceVitals) error
-	// SetHostMDMAndroidRoaming records the roaming state reported by the
-	// Fleet Android agent into host_mdm_android_device_vitals, leaving the
-	// AMAPI-sourced vitals untouched.
-	SetHostMDMAndroidRoaming(ctx context.Context, hostUUID string, roaming bool) error
+	// SetHostAndroidAgentVitals records the vitals the Fleet Android agent
+	// reported into host_android_agent_vitals. Only the vitals present in
+	// vitals are written; the others keep their previous value.
+	SetHostAndroidAgentVitals(ctx context.Context, hostUUID string, vitals AndroidAgentVitals) error
 	// LoadHostMDMAndroidDeviceVitals populates host's
-	// HostMDMAndroidDeviceVitals fields from host_mdm_android_device_vitals.
+	// HostMDMAndroidDeviceVitals fields from host_mdm_android_device_vitals
+	// and its HostAndroidAgentVitals fields from host_android_agent_vitals.
 	// Callers are responsible for only calling this for Android hosts.
 	LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *Host) error
 

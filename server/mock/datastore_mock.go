@@ -942,7 +942,7 @@ type LoadHostMDMAppleDeviceVitalsFunc func(ctx context.Context, host *fleet.Host
 
 type SetOrUpdateHostMDMAndroidDeviceVitalsFunc func(ctx context.Context, hostUUID string, vitals fleet.MDMAndroidDeviceVitals) error
 
-type SetHostMDMAndroidRoamingFunc func(ctx context.Context, hostUUID string, roaming bool) error
+type SetHostAndroidAgentVitalsFunc func(ctx context.Context, hostUUID string, vitals fleet.AndroidAgentVitals) error
 
 type LoadHostMDMAndroidDeviceVitalsFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -4034,8 +4034,8 @@ type DataStore struct {
 	SetOrUpdateHostMDMAndroidDeviceVitalsFunc        SetOrUpdateHostMDMAndroidDeviceVitalsFunc
 	SetOrUpdateHostMDMAndroidDeviceVitalsFuncInvoked bool
 
-	SetHostMDMAndroidRoamingFunc        SetHostMDMAndroidRoamingFunc
-	SetHostMDMAndroidRoamingFuncInvoked bool
+	SetHostAndroidAgentVitalsFunc        SetHostAndroidAgentVitalsFunc
+	SetHostAndroidAgentVitalsFuncInvoked bool
 
 	LoadHostMDMAndroidDeviceVitalsFunc        LoadHostMDMAndroidDeviceVitalsFunc
 	LoadHostMDMAndroidDeviceVitalsFuncInvoked bool
@@ -9821,11 +9821,11 @@ func (s *DataStore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, h
 	return s.SetOrUpdateHostMDMAndroidDeviceVitalsFunc(ctx, hostUUID, vitals)
 }
 
-func (s *DataStore) SetHostMDMAndroidRoaming(ctx context.Context, hostUUID string, roaming bool) error {
+func (s *DataStore) SetHostAndroidAgentVitals(ctx context.Context, hostUUID string, vitals fleet.AndroidAgentVitals) error {
 	s.mu.Lock()
-	s.SetHostMDMAndroidRoamingFuncInvoked = true
+	s.SetHostAndroidAgentVitalsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostMDMAndroidRoamingFunc(ctx, hostUUID, roaming)
+	return s.SetHostAndroidAgentVitalsFunc(ctx, hostUUID, vitals)
 }
 
 func (s *DataStore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *fleet.Host) error {

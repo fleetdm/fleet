@@ -39,9 +39,11 @@ func (svc *Service) SetAndroidAgentVitals(ctx context.Context, vitals fleet.Andr
 	if host.Platform != "android" {
 		return fleet.NewPermissionError("only Android hosts can report Android agent vitals")
 	}
-	if vitals.Roaming == nil {
-		return fleet.NewInvalidArgumentError("roaming", "required")
+	// Every vital is optional, so the agent can report the ones it can read;
+	// unknown fields from a newer agent are dropped by the decoder.
+	if vitals.IsEmpty() {
+		return fleet.NewInvalidArgumentError("vitals", "at least one vital is required")
 	}
 
-	return svc.ds.SetHostMDMAndroidRoaming(ctx, host.UUID, *vitals.Roaming)
+	return svc.ds.SetHostAndroidAgentVitals(ctx, host.UUID, vitals)
 }

@@ -1926,9 +1926,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			host.TelephonyInfos = nil
 			host.IMEI = nil
 			host.MEID = nil
-			// Roaming on a personally-owned phone reveals the owner's travel.
-			host.Roaming = nil
-			host.RoamingUpdatedAt = nil
+			host.AndroidAgentVitals.ClearPersonal()
 		}
 	}
 
