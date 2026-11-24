@@ -4773,12 +4773,12 @@ func (ds *Datastore) GetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Contex
 	return profileUUID, nil
 }
 
-func (ds *Datastore) SetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, profileUUID, abmTokenOrgName string) error {
+func (ds *Datastore) SetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, mainProfileUUID, tvOSProfileUUID, abmTokenOrgName string) error {
 	table, subquery := tvOSProfileUUIDTableAndSubquery(custom)
 	// MySQL can't update a table it selects from in a subquery, hence the derived table.
-	stmt := fmt.Sprintf(`UPDATE %s SET tvos_profile_uuid = ? WHERE id = (SELECT id FROM (%s) t)`, table, subquery)
+	stmt := fmt.Sprintf(`UPDATE %s SET tvos_profile_uuid = ? WHERE id = (SELECT id FROM (%s) t) AND profile_uuid = ?`, table, subquery)
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, ptr.ValOrZero(teamID), abmTokenOrgName); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, tvOSProfileUUID, ptr.ValOrZero(teamID), abmTokenOrgName, mainProfileUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set mdm apple setup assistant tvos profile uuid")
 	}
 	return nil

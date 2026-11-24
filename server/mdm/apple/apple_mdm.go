@@ -587,7 +587,7 @@ func (d *DEPService) tvOSProfileUUID(ctx context.Context, team *fleet.Team, abmT
 		}
 		tvOSProfUUID = res.ProfileUUID
 	}
-	if err := d.ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, tmID, custom, tvOSProfUUID, abmTokenOrgName); err != nil {
+	if err := d.ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, tmID, custom, profUUID, tvOSProfUUID, abmTokenOrgName); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "save tvOS profile uuid")
 	}
 	if tvOSProfUUID == "" {

@@ -1392,7 +1392,7 @@ type GetMDMAppleDefaultSetupAssistantFunc func(ctx context.Context, teamID *uint
 
 type GetMDMAppleSetupAssistantTvOSProfileUUIDFunc func(ctx context.Context, teamID *uint, custom bool, abmTokenOrgName string) (*string, error)
 
-type SetMDMAppleSetupAssistantTvOSProfileUUIDFunc func(ctx context.Context, teamID *uint, custom bool, profileUUID string, abmTokenOrgName string) error
+type SetMDMAppleSetupAssistantTvOSProfileUUIDFunc func(ctx context.Context, teamID *uint, custom bool, mainProfileUUID string, tvOSProfileUUID string, abmTokenOrgName string) error
 
 type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map[string]*fleet.Host, error)
 
@@ -11416,11 +11416,11 @@ func (s *DataStore) GetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context
 	return s.GetMDMAppleSetupAssistantTvOSProfileUUIDFunc(ctx, teamID, custom, abmTokenOrgName)
 }
 
-func (s *DataStore) SetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, profileUUID string, abmTokenOrgName string) error {
+func (s *DataStore) SetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, mainProfileUUID string, tvOSProfileUUID string, abmTokenOrgName string) error {
 	s.mu.Lock()
 	s.SetMDMAppleSetupAssistantTvOSProfileUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetMDMAppleSetupAssistantTvOSProfileUUIDFunc(ctx, teamID, custom, profileUUID, abmTokenOrgName)
+	return s.SetMDMAppleSetupAssistantTvOSProfileUUIDFunc(ctx, teamID, custom, mainProfileUUID, tvOSProfileUUID, abmTokenOrgName)
 }
 
 func (s *DataStore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
