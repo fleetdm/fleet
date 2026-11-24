@@ -241,7 +241,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 func chartStorageError(ctx, storageCtx context.Context, err error) error {
 	if ctx.Err() == nil && (storageCtx.Err() != nil || errors.Is(err, context.DeadlineExceeded)) {
 		return platform_http.NewUserMessageError(
-			errors.New("this chart took too long to load. Narrow the filters, for example with a higher minimum severity, and try again"),
+			errors.New("this chart took too long to load; narrow the filters and try again"),
 			http.StatusUnprocessableEntity,
 		)
 	}

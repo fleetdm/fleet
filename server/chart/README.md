@@ -37,8 +37,8 @@ datastore folds that observation into a slowly-changing-dimension (SCD) history 
 the `host_scd_data` table.
 
 On read, a chart request resolves which hosts the caller may see (a "filter mask"
-bitmap), walks the SCD history bucket by bucket, ANDs each bucket's host-set
-against the mask, and returns the population count per bucket. Everything is set
+bitmap), ORs the SCD history into one host-set per bucket, ANDs each bucket's
+host-set against the mask, and returns the population count per bucket. Everything is set
 math on bitmaps; a "value" on the chart is always a distinct-host count.
 
 ```
@@ -52,7 +52,7 @@ HTTP GET /api/_version_/fleet/charts/{metric}
        ├─ ViewerProvider.ViewerScope()      → team scope for authz + data
        ├─ authz.Authorize()                 → fail closed
        ├─ GetHostIDsForFilter() → mask      → cached per filter (hostFilterCache)
-       └─ GetSCDData(...) walks buckets, AND mask, popcount ─▶ []DataPoint
+       └─ GetSCDData(...) ORs rows per bucket, AND mask, popcount ─▶ []DataPoint
 ```
 
 ## Package layout
@@ -222,17 +222,19 @@ Open rows (sentinel `valid_to`) are never deleted.
    list → `NewBitmap`. This is memoized per canonicalized filter by `hostFilterCache`
    (60s TTL, singleflight-collapsed). The mask encodes "currently visible hosts,"
    which incidentally drops hosts deleted since the SCD rows were written.
-5. **Walk buckets.** `GetSCDData` streams the rows overlapping the range one at a
-   time and ORs each into one accumulator per bucket it counts for (per strategy),
-   so memory is bounded by the bucket count, not the rows read. Each accumulator is
-   then AND-ed with the mask → `popcount` → one `DataPoint`. Zero buckets are
-   emitted as `0`, not omitted. Entity lists longer than `scdEntityInListMax` are
-   filtered in Go rather than sent as an `IN` list, which MySQL stops using for an
-   index range at a few thousand IDs. Steps 4 and 5 run under a 30-second deadline
-   (`chartRequestTimeout`); when it fires the request returns a 422 asking the user
-   to narrow the filters.
+5. **Aggregate buckets.** `GetSCDData` streams the rows overlapping the range one
+   at a time and ORs each into one accumulator per bucket it counts for (per
+   strategy), so memory is bounded by the bucket count, not the rows read. Each
+   accumulator is then AND-ed with the mask → `popcount` → one `DataPoint`. Zero
+   buckets are emitted as `0`, not omitted. Entity lists longer than
+   `scdEntityInListMax` are filtered in Go rather than sent as an `IN` list, which
+   MySQL stops using for an index range at a few thousand IDs.
 6. **Respond** with metric, visualization, `TotalHosts` (popcount of the mask),
    resolution label, applied filters, and the data points.
+
+The storage work of steps 4 and 5, including resolving the CVE filters to entity
+IDs, runs under a 30-second deadline (`chartRequestTimeout`). When it fires the
+request returns a 422 asking the user to narrow the filters.
 
 Bucket boundaries are aligned to the client's local time via `tz_offset`
 (`computeBucketRange`), so an "hourly" or "daily" chart lines up with the user's

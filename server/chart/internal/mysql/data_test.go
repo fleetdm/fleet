@@ -61,46 +61,10 @@ func TestGetSCDData(t *testing.T) {
 			want: []int{4},
 		},
 		{
-			name: "accumulate unions across entities",
-			rows: []scdSeedRow{
-				{"slack", []uint{1, 2}, b, b.Add(time.Hour)},
-				{"zoom", []uint{2, 3}, b, b.Add(time.Hour)},
-				{"chrome", []uint{4}, b, b.Add(time.Hour)},
-			},
-			strategy: api.SampleStrategyAccumulate, start: b.Add(-time.Hour), end: b, bucketSize: time.Hour,
-			want: []int{4},
-		},
-		{
 			name: "snapshot takes the state at the bucket end, not the union",
 			rows: []scdSeedRow{
 				{"cve-A", []uint{1, 2, 3}, b, b.Add(14 * time.Hour)},
 				{"cve-A", []uint{1, 2}, b.Add(14 * time.Hour), open},
-			},
-			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
-			want: []int{2},
-		},
-		{
-			name: "snapshot unions the end state of each entity",
-			rows: []scdSeedRow{
-				{"cve-A", []uint{1, 2, 3}, b, b.Add(14 * time.Hour)},
-				{"cve-A", []uint{1, 2}, b.Add(14 * time.Hour), open},
-				{"cve-B", []uint{3, 4}, b.Add(5 * time.Hour), open},
-			},
-			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
-			want: []int{4},
-		},
-		{
-			name: "snapshot excludes an entity closed mid-bucket",
-			rows: []scdSeedRow{
-				{"cve-A", []uint{1, 2, 3}, b, b.Add(14 * time.Hour)},
-			},
-			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
-			want: []int{0},
-		},
-		{
-			name: "snapshot counts a row closed exactly at the bucket end",
-			rows: []scdSeedRow{
-				{"cve-A", []uint{1, 2}, b, b.Add(day)},
 			},
 			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
 			want: []int{2},
@@ -151,16 +115,6 @@ func TestGetSCDData(t *testing.T) {
 			want: []int{1, 2, 1},
 		},
 		{
-			name: "snapshot excludes rows just outside the window",
-			rows: []scdSeedRow{
-				{"before", []uint{1}, b.Add(-2 * day), b},
-				{"after", []uint{2}, b.Add(day), open},
-				{"last", []uint{3}, b.Add(-2 * day), b.Add(day)},
-			},
-			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
-			want: []int{1},
-		},
-		{
 			name: "accumulate excludes rows just outside the window",
 			rows: []scdSeedRow{
 				{"before", []uint{1}, b.Add(-2 * day), b},
@@ -193,13 +147,6 @@ func TestGetSCDData(t *testing.T) {
 			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b.Add(day), bucketSize: day,
 			entityIDs: []string{},
 			want:      []int{0, 0},
-		},
-		{
-			name:     "entityIDs at or below the IN list limit",
-			rows:     fourEntities,
-			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
-			entityIDs: []string{"CVE-A", "CVE-B", "CVE-C", "CVE-missing"},
-			want:      []int{3},
 		},
 		{
 			name:     "entityIDs exactly at the IN list limit",

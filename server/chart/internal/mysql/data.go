@@ -329,24 +329,25 @@ func (ds *Datastore) GetSCDData(
 		return nil, nil
 	}
 
-	// Bucket i is [first + i*bucketSize, first + (i+1)*bucketSize).
-	first := startDate.Add(bucketSize)
-	last := first.Add(time.Duration(numBuckets) * bucketSize)
+	// Bucket i is [windowStart + i*bucketSize, windowStart + (i+1)*bucketSize).
+	windowStart := startDate.Add(bucketSize)
+	windowEnd := windowStart.Add(time.Duration(numBuckets) * bucketSize)
 	snapshot := strategy == api.SampleStrategySnapshot
 
 	acc := make([]*roaring.Bitmap, numBuckets)
-	err := ds.forEachSCDRow(ctx, dataset, first, last, entityIDs, func(_ string, bitmap *roaring.Bitmap, validFrom, validTo time.Time) {
-		// The query guarantees validFrom < last and validTo > first.
-		// Clamping validTo keeps the sentinel from saturating the Duration.
-		if validTo.After(last) {
-			validTo = last
+	err := ds.forEachSCDRow(ctx, dataset, windowStart, windowEnd, entityIDs, func(_ string, bitmap *roaring.Bitmap, validFrom, validTo time.Time) {
+		// The query guarantees validFrom < windowEnd and validTo > windowStart.
+		// Clamping validTo keeps hi below numBuckets and keeps the sentinel
+		// from saturating the Duration.
+		if validTo.After(windowEnd) {
+			validTo = windowEnd
 		}
 		// Both strategies need validFrom < bucket end, so lo is the bucket
 		// holding validFrom. Integer division truncates toward zero, which
 		// only differs from floor for negative offsets, and those clamp to 0.
-		lo := max(int(validFrom.Sub(first)/bucketSize), 0)
+		lo := max(int(validFrom.Sub(windowStart)/bucketSize), 0)
 		// toOffset > 0, so integer division is floor.
-		toOffset := validTo.Sub(first)
+		toOffset := validTo.Sub(windowStart)
 		var hi int
 		if snapshot {
 			// Last bucket whose end is <= validTo.
@@ -355,7 +356,6 @@ func (ds *Datastore) GetSCDData(
 			// Last bucket whose start is < validTo.
 			hi = int((toOffset - 1) / bucketSize)
 		}
-		hi = min(hi, numBuckets-1)
 		for i := lo; i <= hi; i++ {
 			if acc[i] == nil {
 				acc[i] = bitmap.Clone()
@@ -369,17 +369,17 @@ func (ds *Datastore) GetSCDData(
 	}
 
 	results := make([]api.DataPoint, numBuckets)
-	for i := range numBuckets {
+	for i, bitmap := range acc {
 		var value uint64
-		switch {
-		case acc[i] == nil:
-		case filterMask != nil:
-			value = acc[i].AndCardinality(filterMask)
-		default:
-			value = acc[i].GetCardinality()
+		if bitmap != nil {
+			if filterMask != nil {
+				value = bitmap.AndCardinality(filterMask)
+			} else {
+				value = bitmap.GetCardinality()
+			}
 		}
 		results[i] = api.DataPoint{
-			Timestamp: first.Add(time.Duration(i) * bucketSize),
+			Timestamp: windowStart.Add(time.Duration(i) * bucketSize),
 			Value:     int(value), //nolint:gosec // host counts fit comfortably in int
 		}
 	}
@@ -398,10 +398,6 @@ func (ds *Datastore) forEachSCDRow(
 	entityIDs []string,
 	fn func(entityID string, bitmap *roaring.Bitmap, validFrom, validTo time.Time),
 ) error {
-	if entityIDs != nil && len(entityIDs) == 0 {
-		return nil
-	}
-
 	query := `
 		SELECT entity_id, host_bitmap, encoding_type, valid_from, valid_to
 		FROM host_scd_data
@@ -412,6 +408,9 @@ func (ds *Datastore) forEachSCDRow(
 	var allow map[string]struct{}
 	switch {
 	case entityIDs == nil:
+		// no entity filter
+	case len(entityIDs) == 0:
+		return nil
 	case len(entityIDs) <= scdEntityInListMax:
 		query += ` AND entity_id IN (?)`
 		args = append(args, entityIDs)
