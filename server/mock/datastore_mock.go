@@ -1078,6 +1078,8 @@ type GetJobFunc func(ctx context.Context, jobID uint) (*fleet.Job, error)
 
 type HasQueuedJobWithArgsFunc func(ctx context.Context, name string, args json.RawMessage) (bool, error)
 
+type ExpediteQueuedJobsFunc func(ctx context.Context, name string, argsSubset json.RawMessage, notBefore time.Time) error
+
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
@@ -4235,6 +4237,9 @@ type DataStore struct {
 
 	HasQueuedJobWithArgsFunc        HasQueuedJobWithArgsFunc
 	HasQueuedJobWithArgsFuncInvoked bool
+
+	ExpediteQueuedJobsFunc        ExpediteQueuedJobsFunc
+	ExpediteQueuedJobsFuncInvoked bool
 
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
@@ -10290,6 +10295,13 @@ func (s *DataStore) HasQueuedJobWithArgs(ctx context.Context, name string, args 
 	s.HasQueuedJobWithArgsFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasQueuedJobWithArgsFunc(ctx, name, args)
+}
+
+func (s *DataStore) ExpediteQueuedJobs(ctx context.Context, name string, argsSubset json.RawMessage, notBefore time.Time) error {
+	s.mu.Lock()
+	s.ExpediteQueuedJobsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExpediteQueuedJobsFunc(ctx, name, argsSubset, notBefore)
 }
 
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {

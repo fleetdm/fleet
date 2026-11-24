@@ -169,6 +169,33 @@ LIMIT 1`
 	return true, nil
 }
 
+func (ds *Datastore) ExpediteQueuedJobs(ctx context.Context, name string, argsSubset json.RawMessage, notBefore time.Time) error {
+	// not_before has second precision and MySQL rounds, which could put the job past notBefore.
+	notBefore = notBefore.Truncate(time.Second)
+
+	// Updating by id locks only the matching jobs; an UPDATE with this WHERE locks every queued job
+	// of the name, which blocks the worker's job updates.
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids,
+		`SELECT id FROM jobs WHERE name = ? AND state = ? AND not_before > ? AND JSON_CONTAINS(args, CAST(? AS JSON))`,
+		name, fleet.JobStateQueued, notBefore, []byte(argsSubset)); err != nil {
+		return ctxerr.Wrap(ctx, err, "select queued jobs to expedite")
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	// Re-check state and not_before for a job the worker ran, or another expedite moved, in between.
+	stmt, args, err := sqlx.In(`UPDATE jobs SET not_before = ? WHERE id IN (?) AND state = ? AND not_before > ?`,
+		notBefore, ids, fleet.JobStateQueued, notBefore)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build expedite queued jobs statement")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "expedite queued jobs")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) {
 	query := `
 		SELECT

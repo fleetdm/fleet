@@ -28,11 +28,15 @@ func (v *AppleSoftware) Name() string {
 	return AppleSoftwareJobName
 }
 
+type appleSoftwareHostTask struct {
+	Task     AppleSoftwareTask `json:"task"`
+	HostUUID string            `json:"host_uuid"`
+}
+
 type appleSoftwareArgs struct {
-	Task                    AppleSoftwareTask `json:"task"`
-	HostUUID                string            `json:"host_uuid"`
-	VerificationCommandUUID string            `json:"verification_command_uuid"`
-	DisableManagedOnlyApps  bool              `json:"disable_managed_only_apps,omitempty"`
+	appleSoftwareHostTask
+	VerificationCommandUUID string `json:"verification_command_uuid"`
+	DisableManagedOnlyApps  bool   `json:"disable_managed_only_apps,omitempty"`
 }
 
 func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error {
@@ -93,4 +97,15 @@ func QueueVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, log
 
 	logger.DebugContext(ctx, "queued VPP install verification job", "job_id", job.ID, "job_name", AppleSoftwareJobName, "task", args.Task)
 	return nil
+}
+
+// ExpediteVPPInstallVerificationJob makes the host's queued verification job,
+// if any, run on the next worker pass.
+func ExpediteVPPInstallVerificationJob(ctx context.Context, ds fleet.Datastore, hostUUID string) error {
+	subset, err := json.Marshal(&appleSoftwareHostTask{Task: verifyVPPTask, HostUUID: hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal verification job args")
+	}
+	return ctxerr.Wrap(ctx, ds.ExpediteQueuedJobs(ctx, AppleSoftwareJobName, subset, time.Now().UTC()),
+		"expedite VPP install verification job")
 }
