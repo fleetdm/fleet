@@ -29,7 +29,7 @@ jobs:
           SCORECARD_URL="https://github.com/ossf/scorecard/releases/download/${SCORECARD_VERSION}/scorecard_${SCORECARD_VERSION#v}_linux_amd64.tar.gz"
           curl -sSfL "$SCORECARD_URL" -o /tmp/scorecard.tar.gz
           tar -xz -C /tmp -f /tmp/scorecard.tar.gz
-          mv /tmp/scorecard_*/scorecard /tmp/scorecard
+          find /tmp -maxdepth 2 -name scorecard -type f -exec mv {} /tmp/scorecard \;
           chmod +x /tmp/scorecard
           /tmp/scorecard --version
 
