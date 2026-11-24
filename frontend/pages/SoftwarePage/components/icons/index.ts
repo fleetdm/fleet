@@ -22,6 +22,7 @@ import Extension from "./Extension";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
 import GoBinary from "./GoBinary";
+import Herdr from "./png/Herdr.png";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
@@ -1682,6 +1683,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
+  herdr: Herdr,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,
