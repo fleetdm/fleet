@@ -67,8 +67,8 @@ func appendChange(buf []byte, key uint32, added, removed []byte) []byte {
 	return append(buf, removed...)
 }
 
-func decodeChanges(b []byte) ([]entityChange, error) {
-	var out []entityChange
+// walkChanges calls fn with each entity's key and the encoded hosts added and removed, which alias b.
+func walkChanges(b []byte, fn func(key uint32, added, removed []byte) error) error {
 	next := func() (uint64, error) {
 		v, n := binary.Uvarint(b)
 		if n <= 0 {
@@ -77,7 +77,7 @@ func decodeChanges(b []byte) ([]entityChange, error) {
 		b = b[n:]
 		return v, nil
 	}
-	bitmap := func() (*roaring.Bitmap, error) {
+	bitmap := func() ([]byte, error) {
 		n, err := next()
 		if err != nil {
 			return nil, err
@@ -85,29 +85,48 @@ func decodeChanges(b []byte) ([]entityChange, error) {
 		if n > uint64(len(b)) {
 			return nil, errors.New("truncated chart changes")
 		}
-		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: b[:n], Encoding: chart.EncodingRoaring})
+		out := b[:n]
 		b = b[n:]
-		return rb, err
+		return out, nil
 	}
 	for len(b) > 0 {
 		key, err := next()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if key > uint64(^uint32(0)) {
-			return nil, errors.New("chart change entity key out of range")
+			return errors.New("chart change entity key out of range")
 		}
 		added, err := bitmap()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		removed, err := bitmap()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		out = append(out, entityChange{key: uint32(key), added: added, removed: removed})
+		if err := fn(uint32(key), added, removed); err != nil {
+			return err
+		}
 	}
-	return out, nil
+	return nil
+}
+
+func decodeChanges(b []byte) ([]entityChange, error) {
+	var out []entityChange
+	err := walkChanges(b, func(key uint32, addedBytes, removedBytes []byte) error {
+		added, err := chart.DecodeBitmap(chart.Blob{Bytes: addedBytes, Encoding: chart.EncodingRoaring})
+		if err != nil {
+			return err
+		}
+		removed, err := chart.DecodeBitmap(chart.Blob{Bytes: removedBytes, Encoding: chart.EncodingRoaring})
+		if err != nil {
+			return err
+		}
+		out = append(out, entityChange{key: key, added: added, removed: removed})
+		return nil
+	})
+	return out, err
 }
 
 func encodeChanges(chs []entityChange) []byte {

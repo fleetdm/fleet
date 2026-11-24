@@ -122,8 +122,9 @@ read path ORs across entities to get a distinct-host union.
 ### Change storage (`cve` only)
 
 The `cve` dataset is also recorded in a second form that stores what changed
-instead of a full host set per change. Nothing reads it yet; it is written next
-to `host_scd_data` while the read path is moved over.
+instead of a full host set per change. It is written next to `host_scd_data`
+while the read path is moved over. `ReplaySCDChanges` reads it (see [Replay
+read](#replay-read-change-storage)), but no request uses it yet.
 
 - `host_scd_entities` gives each `(dataset, entity_id)` a small integer key.
 - `host_scd_current` holds each entity's host set now, keyed by `(dataset,
@@ -140,8 +141,8 @@ to `host_scd_data` while the read path is moved over.
   not move `covered_from`, so changes older than the retention cutoff are gone
   even when `covered_from` is earlier; reads must stay within retention.
 
-The state at an instant is the current sets with every change after it undone.
-The layout is packed by hour because a chart request reads every change in its
+The state at an instant is the current sets with every change at or after it
+undone. The layout is packed by hour because a chart request reads every change in its
 window, newest first; one row per entity per hour made the keys outweigh the
 payload and the read cost several times more pages.
 
@@ -274,6 +275,28 @@ request returns a 422 asking the user to narrow the filters.
 Bucket boundaries are aligned to the client's local time via `tz_offset`
 (`computeBucketRange`), so an "hourly" or "daily" chart lines up with the user's
 day.
+
+### Replay read (change storage)
+
+`ReplaySCDChanges` (`internal/mysql/replay.go`) answers a snapshot request from
+the change storage and returns what `GetSCDData` returns for the same history,
+with the same labels and the same `nil`/empty meaning of the mask and the entity
+list. It is not wired into `GetChartData` yet.
+
+1. Resolve the entity IDs to keys through `host_scd_entities` (an `IN` list up to
+   `scdEntityInListMax`, else every key of the dataset filtered in Go).
+2. Load the current sets of those entities and count, for each host in the mask,
+   how many of them hold it. The counters are sized by the mask's largest host ID.
+3. Stream the change rows from the first bucket's end on, newest first. Before
+   undoing a change, record every bucket whose end is after it (the number of
+   hosts with a count above zero). Undoing decrements the hosts added and
+   increments the hosts removed. Rows are read whole whatever the filter; only
+   the matching entities' bitmaps are decoded.
+
+All reads run in one read-only transaction, so a collection that commits part
+way through cannot leave a change whose effect is missing from the current sets
+already read. Buckets that end before the change storage started hold the state
+it started from, not the history.
 
 ### Key invariant: nil vs empty
 
@@ -416,6 +439,7 @@ mocks elsewhere can crash if an interface method is missing.
 | `internal/service/handler.go` | Route registration + endpoint decode |
 | `internal/mysql/data.go` | SCD read/write: `RecordBucketData`, `GetSCDData`, cleanup, scrub |
 | `internal/mysql/changes.go` | Change storage: `RecordSCDChanges`, its encoding, cleanup and scrub |
+| `internal/mysql/replay.go` | Replay read of the change storage: `ReplaySCDChanges` |
 | `internal/mysql/charts.go` | Host-filter SQL, online-host query, CVE collection + tracked-CVE filter |
 | `bootstrap/bootstrap.go` | `New(...)` — wires the context together |
 | `arch_test.go` | Enforces the dependency rules above |
