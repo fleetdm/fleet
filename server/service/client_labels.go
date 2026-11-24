@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -30,9 +31,15 @@ func (c *Client) ApplyLabels(
 	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
+// escapeNamePathSegment escapes a name for one URL path segment. Dots are escaped too, because BaseClient.URL joins the
+// path with path.Join, which would drop a segment of "." or ".." before the request is sent.
+func escapeNamePathSegment(name string) string {
+	return strings.ReplaceAll(url.PathEscape(name), ".", "%2E")
+}
+
 // GetLabel retrieves information about a label by name
 func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
-	verb, path := "GET", "/api/latest/fleet/spec/labels/"+url.PathEscape(name)
+	verb, path := "GET", "/api/latest/fleet/spec/labels/"+escapeNamePathSegment(name)
 	var responseBody fleet.GetLabelSpecResponse
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.Spec, err

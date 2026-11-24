@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -60,6 +61,17 @@ func TestUrlGeneration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/subpath/prefix/test/path", bc.URL("test/path", "").String())
 		require.Equal(t, "https://test.com/subpath/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
+
+	t.Run("escaped path segments are sent as given", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "prefix/", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		for _, name := range []string{"Probe Café", ".", "..", "a/b", "100%", "a?b#c"} {
+			escaped := strings.ReplaceAll(url.PathEscape(name), ".", "%2E")
+			u := bc.URL("/api/latest/fleet/spec/labels/"+escaped, "")
+			require.Equal(t, "https://test.com/subpath/prefix/api/latest/fleet/spec/labels/"+escaped, u.String(), name)
+			require.Equal(t, "/subpath/prefix/api/latest/fleet/spec/labels/"+name, u.Path, name)
+		}
 	})
 }
 

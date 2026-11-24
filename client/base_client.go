@@ -127,6 +127,13 @@ func (bc *BaseClient) URL(reqPath, rawQuery string) *url.URL {
 	// are mutually exclusive by configuration convention; setting both
 	// concatenates them.
 	u.Path = path.Join(bc.BaseURL.Path, bc.URLPrefix, reqPath)
+	u.RawPath = ""
+	// A segment escaped by the caller (a name with "/", "." or a space) must reach the server escaped once, because the
+	// server decodes path values once.
+	escaped := path.Join(bc.BaseURL.EscapedPath(), bc.URLPrefix, reqPath)
+	if unescaped, err := url.PathUnescape(escaped); err == nil {
+		u.Path, u.RawPath = unescaped, escaped
+	}
 	u.RawQuery = rawQuery
 	return &u
 }
