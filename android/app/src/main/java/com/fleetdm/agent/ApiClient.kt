@@ -407,7 +407,11 @@ object ApiClient : CertificateApiClient {
                 }
             },
             onFailure = { throwable ->
-                FleetLog.e(TAG, "failed to report vitals: ${throwable.message}")
+                if (throwable is NotFoundException) {
+                    Log.i(TAG, "server doesn't accept vitals reports yet")
+                } else {
+                    FleetLog.e(TAG, "failed to report vitals: ${throwable.message}")
+                }
                 Result.failure(throwable)
             },
         )

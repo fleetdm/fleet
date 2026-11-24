@@ -13,6 +13,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Reports the vitals Fleet can't get from AMAPI (currently roaming) to PUT /api/fleetd/vitals.
@@ -28,7 +29,17 @@ class DeviceVitalsWorker(context: Context, workerParams: WorkerParameters) : Cor
 
         return ApiClient.reportVitals(roaming = roaming).fold(
             onSuccess = { Result.success() },
-            onFailure = { Result.retry() },
+            onFailure = { error ->
+                when {
+                    // A Fleet server older than this agent has no vitals endpoint; retrying won't help.
+                    error is ApiClient.NotFoundException -> Result.success()
+                    runAttemptCount >= MAX_RETRY_ATTEMPTS - 1 -> {
+                        Log.w(TAG, "vitals report failed after $MAX_RETRY_ATTEMPTS attempts, waiting for the next periodic run")
+                        Result.success()
+                    }
+                    else -> Result.retry()
+                }
+            },
         )
     }
 
@@ -36,10 +47,12 @@ class DeviceVitalsWorker(context: Context, workerParams: WorkerParameters) : Cor
         const val WORK_NAME = "fleet_device_vitals"
         private const val ON_CHANGE_WORK_NAME = "fleet_device_vitals_on_change"
         private const val TAG = "fleet-DeviceVitalsWorker"
+        private const val MAX_RETRY_ATTEMPTS = 3
 
         /**
-         * Reports as soon as the cellular network's roaming state changes, rather than waiting for the next
-         * periodic run. Only lives as long as the process does; the periodic work is the backstop.
+         * Reports as soon as a cellular data network's roaming state changes, rather than waiting for the next
+         * periodic run. It only sees changes while cellular data is up, and only lives as long as the process
+         * does; the periodic work is the backstop for both.
          */
         fun registerRoamingChangeCallback(context: Context) {
             val appContext = context.applicationContext
@@ -50,13 +63,17 @@ class DeviceVitalsWorker(context: Context, workerParams: WorkerParameters) : Cor
             connectivityManager.registerNetworkCallback(
                 request,
                 object : ConnectivityManager.NetworkCallback() {
-                    private var lastRoaming: Boolean? = null
+                    // Per network, so two SIMs with different roaming states don't re-trigger each other.
+                    private val lastRoaming = ConcurrentHashMap<Network, Boolean>()
 
                     override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
                         val roaming = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
-                        if (roaming == lastRoaming) return
-                        lastRoaming = roaming
+                        if (lastRoaming.put(network, roaming) == roaming) return
                         enqueueReport(appContext)
+                    }
+
+                    override fun onLost(network: Network) {
+                        lastRoaming.remove(network)
                     }
                 },
             )
