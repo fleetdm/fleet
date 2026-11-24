@@ -11,39 +11,46 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $registryKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Docker Desktop"
+# 3010 = reboot required, 1641 = reboot initiated
+$expectedExitCodes = @(0, 1641, 3010)
 
 try {
+    $before = Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue
+    if ($before) {
+        Write-Host "Docker Desktop $($before.DisplayVersion) is already installed; installing over it."
+    }
+
     # --accept-license suppresses the subscription agreement prompt.
     $process = Start-Process -FilePath "$exeFilePath" `
         -ArgumentList "install","--accept-license","--quiet" -PassThru
     # Touch the handle so ExitCode is still readable after the process exits.
     $null = $process.Handle
 
-    # The installer process can keep running for a while after the app is
-    # registered with Windows, so stop waiting as soon as the registration is
-    # there rather than blocking on the process.
-    $deadline = (Get-Date).AddMinutes(8)
-    while ((Get-Date) -lt $deadline) {
-        if (Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue) {
-            Write-Host "Docker Desktop registered in HKLM."
-            Exit 0
-        }
-        if ($process.HasExited) {
-            # Registration can land a moment after the installer exits.
-            Start-Sleep -Seconds 10
-            if (Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue) {
-                Write-Host "Docker Desktop registered in HKLM."
-                Exit 0
-            }
-            Write-Host "Install exit code: $($process.ExitCode)"
-            Write-Host "The installer exited without registering Docker Desktop. See C:\ProgramData\DockerDesktop\install-log-admin.txt."
-            if ($process.ExitCode -eq 0) { Exit 1 }
-            Exit $process.ExitCode
-        }
-        Start-Sleep -Seconds 10
+    # Wait for this install to finish. A registration that is already there
+    # belongs to the previous install and says nothing about this one.
+    if (-not $process.WaitForExit(8 * 60 * 1000)) {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "The installer did not finish within 8 minutes. See C:\ProgramData\DockerDesktop\install-log-admin.txt."
+        Exit 1
     }
 
-    Write-Host "Docker Desktop did not register within 8 minutes. See C:\ProgramData\DockerDesktop\install-log-admin.txt."
+    $exitCode = $process.ExitCode
+    Write-Host "Install exit code: $exitCode"
+    if ($expectedExitCodes -notcontains $exitCode) { Exit $exitCode }
+
+    # Child processes finish the registration, so it can land a little after the
+    # installer exits. Wait for the entry osquery's programs table reads.
+    $deadline = (Get-Date).AddMinutes(2)
+    while ((Get-Date) -lt $deadline) {
+        $after = Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue
+        if ($after) {
+            Write-Host "Docker Desktop $($after.DisplayVersion) registered in HKLM."
+            Exit 0
+        }
+        Start-Sleep -Seconds 5
+    }
+
+    Write-Host "The installer exited $exitCode but Docker Desktop is not registered. See C:\ProgramData\DockerDesktop\install-log-admin.txt."
     Exit 1
 } catch {
     Write-Host "Error: $_"
