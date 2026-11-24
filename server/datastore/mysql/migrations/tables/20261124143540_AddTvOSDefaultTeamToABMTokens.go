@@ -6,13 +6,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261123184615, Down_20261123184615)
+	MigrationClient.AddMigration(Up_20261124143540, Down_20261124143540)
 }
 
 // Apple TVs synced from ABM get their own default team, mirroring the existing
 // macOS/iOS/iPadOS columns. NULL means "No team", which is the default: before
 // this column existed Apple TVs fell through to the macOS default team.
-func Up_20261123184615(tx *sql.Tx) error {
+func Up_20261124143540(tx *sql.Tx) error {
 	if columnExists(tx, "abm_tokens", "tvos_default_team_id") {
 		return nil
 	}
@@ -28,6 +28,6 @@ func Up_20261123184615(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261123184615(_ *sql.Tx) error {
+func Down_20261124143540(_ *sql.Tx) error {
 	return nil
 }

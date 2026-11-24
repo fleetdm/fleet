@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261123184617(t *testing.T) {
+func TestUp_20261124143542(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	newDEPHost := func(serial, model, platform string) int64 {

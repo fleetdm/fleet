@@ -6,14 +6,14 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261123184613, Down_20261123184613)
+	MigrationClient.AddMigration(Up_20261124143538, Down_20261124143538)
 }
 
 // software_titles.additional_identifier discriminates titles that share a bundle
 // identifier across Apple platforms, and it is part of the bundle_identifier
 // unique key. tvOS apps need their own value, otherwise a tvOS title collides
 // with the macOS title of the same app (both would resolve to 0).
-func Up_20261123184613(tx *sql.Tx) error {
+func Up_20261124143538(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE software_titles
 		MODIFY COLUMN additional_identifier TINYINT UNSIGNED GENERATED ALWAYS AS
@@ -31,6 +31,6 @@ func Up_20261123184613(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261123184613(_ *sql.Tx) error {
+func Down_20261124143538(_ *sql.Tx) error {
 	return nil
 }

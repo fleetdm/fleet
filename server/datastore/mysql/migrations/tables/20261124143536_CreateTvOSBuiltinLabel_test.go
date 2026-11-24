@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261123184557(t *testing.T) {
+func TestUp_20261124143536(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	applyNext(t, db)
@@ -28,7 +28,7 @@ func TestUp_20261123184557(t *testing.T) {
 	require.EqualValues(t, 1, label.LabelMembershipType) // manual
 }
 
-func TestUp_20261123184557_RenamesConflictingLabel(t *testing.T) {
+func TestUp_20261124143536_RenamesConflictingLabel(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertLabel := func(name string, teamID *int64) int64 {

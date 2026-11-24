@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261123184617, Down_20261123184617)
+	MigrationClient.AddMigration(Up_20261124143542, Down_20261124143542)
 }
 
-func Up_20261123184617(tx *sql.Tx) error {
+func Up_20261124143542(tx *sql.Tx) error {
 	// DDL isn't transactional, so each step is skipped if an earlier attempt already applied it.
 	if !columnExists(tx, "host_dep_assignments", "device_family") {
 		if _, err := tx.Exec(`
@@ -45,6 +45,6 @@ func Up_20261123184617(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261123184617(_ *sql.Tx) error {
+func Down_20261124143542(_ *sql.Tx) error {
 	return nil
 }

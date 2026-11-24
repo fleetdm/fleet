@@ -9,14 +9,14 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261123184557, Down_20261123184557)
+	MigrationClient.AddMigration(Up_20261124143536, Down_20261124143536)
 }
 
-func Up_20261123184557(tx *sql.Tx) error {
+func Up_20261124143536(tx *sql.Tx) error {
 	// hard-coded timestamp is used so that schema.sql is stable
 	stableTS := time.Date(2026, 8, 11, 0, 0, 0, 0, time.UTC)
 
-	if err := renameConflictingTvOSLabel20261123184557(tx); err != nil {
+	if err := renameConflictingTvOSLabel20261124143536(tx); err != nil {
 		return err
 	}
 
@@ -49,11 +49,11 @@ func Up_20261123184557(tx *sql.Tx) error {
 	return nil
 }
 
-// renameConflictingTvOSLabel20261123184557 frees the name for the built-in
+// renameConflictingTvOSLabel20261124143536 frees the name for the built-in
 // label. A label name can't be used by both an all-fleets label and a fleet's
 // label, so labels in every scope are renamed, and the new name must be free
 // in every scope.
-func renameConflictingTvOSLabel20261123184557(tx *sql.Tx) error {
+func renameConflictingTvOSLabel20261124143536(tx *sql.Tx) error {
 	rows, err := tx.Query(`SELECT id FROM labels WHERE name = ? ORDER BY id`, fleet.BuiltinLabelTvOS)
 	if err != nil {
 		return fmt.Errorf("select labels named %q: %w", fleet.BuiltinLabelTvOS, err)
@@ -105,6 +105,6 @@ func renameConflictingTvOSLabel20261123184557(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261123184557(_ *sql.Tx) error {
+func Down_20261124143536(_ *sql.Tx) error {
 	return nil
 }

@@ -16,7 +16,7 @@ func requireSoftwareTitleAdditionalIdentifier(t *testing.T, db *sqlx.DB, titleID
 	require.Equal(t, want, *additionalIdentifier)
 }
 
-func TestUp_20261123184613(t *testing.T) {
+func TestUp_20261124143538(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	const bundleID = "com.netflix.Netflix"

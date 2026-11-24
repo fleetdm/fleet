@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261123184615(t *testing.T) {
+func TestUp_20261124143540(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	teamID := execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES ('Apple TVs')`)
