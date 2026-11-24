@@ -33,7 +33,7 @@ func (s *enrolledSerialCheckinService) Authenticate(r *mdm.Request, m *mdm.Authe
 			return ctxerr.Wrap(r.Context, err, "checking for a host with the enrollment ID")
 		}
 		if taken {
-			s.logger.InfoContext(r.Context, "refusing MDM check-in: enrollment ID matches another host", "enrollment_id", m.EnrollmentID)
+			s.logger.WarnContext(r.Context, "refusing MDM check-in: enrollment ID matches another host", "enrollment_id", m.EnrollmentID)
 			return nano_service.NewHTTPStatusError(http.StatusConflict, &fleet.ConflictError{
 				Message: "This enrollment ID belongs to another host.",
 			})
