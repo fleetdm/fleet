@@ -1903,22 +1903,20 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 	return result, nil
 }
 
-// checkGlobBaseDir returns an error if the directory a glob pattern starts
-// from (its longest prefix without glob metacharacters) is not an existing directory.
+// checkGlobBaseDir returns an error if the directory part of a glob pattern
+// (which may itself contain glob metacharacters) matches no existing directory.
 func checkGlobBaseDir(pattern string, baseDir string, entityType string) error {
-	absPattern := filepath.ToSlash(filepath.Clean(resolveApplyRelativePath(baseDir, pattern)))
-	dir, _ := doublestar.SplitPattern(absPattern)
-	dir = filepath.FromSlash(dir)
-	info, err := os.Stat(dir)
-	switch {
-	case os.IsNotExist(err):
-		return fmt.Errorf(`%s "paths" %q matched no files: directory %q does not exist`, entityType, pattern, dir)
-	case err != nil:
-		return fmt.Errorf(`failed to stat %s "paths" directory %q: %w`, entityType, dir, err)
-	case !info.IsDir():
-		return fmt.Errorf(`%s "paths" %q matched no files: %q is not a directory`, entityType, pattern, dir)
+	dirPattern := filepath.Dir(resolveApplyRelativePath(baseDir, pattern))
+	matches, err := doublestar.FilepathGlob(dirPattern)
+	if err != nil {
+		return fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
 	}
-	return nil
+	for _, match := range matches {
+		if info, err := os.Stat(match); err == nil && info.IsDir() {
+			return nil
+		}
+	}
+	return fmt.Errorf(`%s "paths" %q matched no files: no directory matches %q`, entityType, pattern, dirPattern)
 }
 
 // expandBaseItems validates path/paths fields on each entity (e.g. Label), expands glob

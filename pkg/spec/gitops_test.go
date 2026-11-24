@@ -3176,25 +3176,38 @@ func TestExpandBaseItems(t *testing.T) {
 	t.Run("no_matches_existing_dir_warning", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		var warnings []string
-		logFn := func(format string, args ...any) {
-			warnings = append(warnings, fmt.Sprintf(format, args...))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "platforms", "macos", "reports"), 0o755))
+		for _, pattern := range []string{
+			"*.yml",
+			"platforms/*/reports/*.yml",
+			"platforms/**/reports/*.yml",
+			"platforms/**/*.yml",
+		} {
+			var warnings []string
+			logFn := func(format string, args ...any) {
+				warnings = append(warnings, fmt.Sprintf(format, args...))
+			}
+			items := []fleet.BaseItem{{Paths: new(pattern)}}
+			result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
+			require.Empty(t, errs, pattern)
+			assert.Empty(t, result, pattern)
+			require.Len(t, warnings, 1, pattern)
+			assert.Contains(t, warnings[0], "matched no test", pattern)
 		}
-		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
-		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
-		require.Empty(t, errs)
-		assert.Empty(t, result)
-		require.Len(t, warnings, 1)
-		assert.Contains(t, warnings[0], "matched no test")
 	})
 
 	t.Run("no_matches_missing_dir_error", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "platforms", "macos", "reports"), 0o755))
 		for _, pattern := range []string{
 			"wrong-dir/reports/*.yml",
 			"wrong-dir/**/*.yml",
 			"../" + filepath.Base(dir) + "-missing/*.yml",
+			"platforms/macos/reprots/*.yml",
+			"platforms/*/reprots/*.yml",
+			"platforms/**/reprots/*.yml",
+			"platfroms/*/reports/*.yml",
 		} {
 			var warnings []string
 			logFn := func(format string, args ...any) {
@@ -3204,7 +3217,7 @@ func TestExpandBaseItems(t *testing.T) {
 			result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
 			require.Len(t, errs, 1, pattern)
 			assert.Contains(t, errs[0].Error(), fmt.Sprintf(`test "paths" %q matched no files`, pattern))
-			assert.Contains(t, errs[0].Error(), "does not exist")
+			assert.Contains(t, errs[0].Error(), "no directory matches", pattern)
 			assert.Empty(t, result, pattern)
 			assert.Empty(t, warnings, pattern)
 		}
@@ -3217,7 +3230,7 @@ func TestExpandBaseItems(t *testing.T) {
 		items := []fleet.BaseItem{{Paths: new("reports/*.yml")}}
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "is not a directory")
+		assert.Contains(t, errs[0].Error(), "no directory matches")
 	})
 
 	t.Run("all_matches_filtered_out_warning", func(t *testing.T) {
@@ -3574,18 +3587,19 @@ reports:
 	t.Run("glob_missing_dir_errors", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		require.NoError(t, os.MkdirAll(filepath.Join(dir, "reports"), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "reports", "a.yml"), []byte("- name: ReportA\n  query: SELECT 1;\n"), 0o644))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "fleets"), 0o755))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "platforms", "macos", "reports"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "platforms", "macos", "reports", "a.yml"), []byte("- name: ReportA\n  query: SELECT 1;\n"), 0o644))
 
 		top := yamlToRawJSON(t, `
 reports:
-  - paths: "wrong-dir/reports/*.yml"
+  - paths: "../platforms/*/reprots/*.yml"
 `)
 		teamName := "TestTeam"
 		result := &GitOps{TeamName: &teamName}
-		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
+		multiErr := parseReports(top, result, filepath.Join(dir, "fleets"), nopLogf, "test.yml", nil)
 		require.Error(t, multiErr.ErrorOrNil())
-		assert.ErrorContains(t, multiErr, `report "paths" "wrong-dir/reports/*.yml" matched no files`)
+		assert.ErrorContains(t, multiErr, `report "paths" "../platforms/*/reprots/*.yml" matched no files`)
 	})
 }
 
