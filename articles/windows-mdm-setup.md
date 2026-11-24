@@ -471,6 +471,8 @@ Follow the [steps above](#turn-on-windows-mdm) to turn on Windows MDM in Fleet.
 
 ### Step 2: Install Fleet's agent on the hosts
 
+> **Warning:** When a host leaves your current MDM solution, Windows may uninstall apps that solution installed. If you deployed Fleet's agent (fleetd) through your current MDM solution, the host can lose fleetd before it enrolls in Fleet. The host is then unmanaged, and you'll need another remote access tool or help from the end user to reinstall fleetd. Before you turn on automatic migration, install fleetd with a method your current MDM solution doesn't manage, such as Group Policy or a script. Also check which other apps your current MDM solution installed, and plan to reinstall the ones your end users need, like web browsers, with Fleet.
+
 1. [Enroll](https://fleetdm.com/docs/using-fleet/enroll-hosts) the Windows hosts you want to migrate to Fleet.
 
 2. Navigate to the **Hosts** tab in the main navigation bar and wait until your hosts are visible in the hosts list.
