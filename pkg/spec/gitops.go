@@ -2347,34 +2347,32 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				))
 				continue
 			}
-			if item.InstallSoftware.Set && !item.InstallSoftware.IsOther && !item.InstallSoftware.Bool {
-				if len(patchOptions) == 1 {
-					multiError = multierror.Append(multiError, fmt.Errorf(
-						`Couldn't apply policy %q: If %q is true, "install_software" can't be set to false.`,
-						item.Name, patchOptions[0],
-					))
-				} else {
-					if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-						logFn("[!] The \"policies.install_software\" key is deprecated.\n")
-					}
-				}
-			}
-			if item.InstallSoftware.Bool || item.InstallSoftware.Other != nil {
+			switch {
+			case item.InstallSoftware.Bool || item.InstallSoftware.Other != nil:
+				// Use install_software true or an installer as force_patch, unless another option is set.
 				if item.ForcePatch {
 					multiError = multierror.Append(multiError, fmt.Errorf(
 						`Couldn't apply policy %q: If "force_patch" is true, "install_software" can't be set.`,
 						item.Name,
 					))
-				} else {
-					replacementOption := "force_patch"
-					if len(patchOptions) == 1 {
-						replacementOption = patchOptions[0]
-					} else {
-						item.ForcePatch = true
-					}
-					if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-						logFn("[!] The \"policies.install_software\" key is deprecated. Use \"policies.%s\" instead.\n", replacementOption)
-					}
+				}
+				if len(patchOptions) == 0 {
+					item.ForcePatch = true
+					patchOptions = []string{"force_patch"}
+				}
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logFn("[!] The \"policies.install_software\" key is deprecated. Use \"policies.%s\" instead.\n", patchOptions[0])
+				}
+			case item.InstallSoftware.Set && !item.InstallSoftware.IsOther:
+				// Reject install_software false together with an option, since false turns patching off.
+				if len(patchOptions) == 1 {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: If %q is true, "install_software" can't be set to false.`,
+						item.Name, patchOptions[0],
+					))
+				}
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logFn("[!] The \"policies.install_software\" key is deprecated.\n")
 				}
 			}
 			if item.PatchWhenClosed || item.NotifyBeforePatching || item.PatchDeadline {

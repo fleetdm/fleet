@@ -6681,7 +6681,7 @@ policies:
 			wantLog:        `[!] The "policies.install_software" key is deprecated. Use "policies.patch_when_closed" instead.`,
 		},
 		{
-			name:     "install_software true together with force_patch is rejected",
+			name:     "install_software true together with force_patch is rejected and logs the deprecation warning",
 			software: fmaSoftware,
 			policies: `
 policies:
@@ -6693,6 +6693,7 @@ policies:
     force_patch: true
 `,
 			wantErrs: []string{`Couldn't apply policy "Chrome up to date": If "force_patch" is true, "install_software" can't be set.`},
+			wantLog:  `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`,
 		},
 		{
 			name:     "install_software false together with notify_before_patching is rejected",
@@ -6736,6 +6737,9 @@ policies:
 				logs.WriteString(fmt.Sprintf(format, a...))
 			}
 			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn)
+			if tc.wantLog != "" {
+				assert.Contains(t, logs.String(), tc.wantLog)
+			}
 			if len(tc.wantErrs) > 0 {
 				for _, want := range tc.wantErrs {
 					require.ErrorContains(t, err, want)
@@ -6755,9 +6759,6 @@ policies:
 			}
 			if tc.wantForcePatch != nil {
 				assert.Equal(t, *tc.wantForcePatch, g.Policies[0].ForcePatch)
-			}
-			if tc.wantLog != "" {
-				assert.Contains(t, logs.String(), tc.wantLog)
 			}
 		})
 	}
