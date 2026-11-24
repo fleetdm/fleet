@@ -43,7 +43,7 @@ jobs:
 
       - name: Run Scorecard on PR branch
         run: |
-          scorecard --repo . --format json > /tmp/scorecard-results/results_pr.sarif 2>&1 || true
+          scorecard --repo . --format json > /tmp/scorecard-results/results_pr.json
 
       - name: Checkout base branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Scorecard on base branch
         run: |
-          scorecard --repo . --format json > /tmp/scorecard-results/results_base.sarif 2>&1 || true
+          scorecard --repo . --format json > /tmp/scorecard-results/results_base.json
 
       - name: Compare Scorecard results
         id: compare
@@ -63,19 +63,19 @@ jobs:
             const fs = require('fs');
 
             // Check if files exist
-            if (!fs.existsSync('/tmp/scorecard-results/results_pr.sarif')) {
-              console.error('ERROR: /tmp/scorecard-results/results_pr.sarif not found');
+            if (!fs.existsSync('/tmp/scorecard-results/results_pr.json')) {
+              console.error('ERROR: /tmp/scorecard-results/results_pr.json not found');
               process.exit(1);
             }
 
-            if (!fs.existsSync('/tmp/scorecard-results/results_base.sarif')) {
-              console.error('ERROR: /tmp/scorecard-results/results_base.sarif not found');
+            if (!fs.existsSync('/tmp/scorecard-results/results_base.json')) {
+              console.error('ERROR: /tmp/scorecard-results/results_base.json not found');
               process.exit(1);
             }
 
             // Parse JSON results
-            const prResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_pr.sarif', 'utf8'));
-            const baseResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_base.sarif', 'utf8'));
+            const prResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_pr.json', 'utf8'));
+            const baseResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_base.json', 'utf8'));
 
             // Extract checks and their scores
             const prChecks = new Map();
