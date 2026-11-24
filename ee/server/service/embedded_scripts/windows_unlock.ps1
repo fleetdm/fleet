@@ -54,8 +54,9 @@ foreach ($user in $localUsers) {
 Write-Host "All disabled user accounts have been enabled."
 
 
-# Re-enable additional AD logins
-New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions" -Name 'value' -Value 0 -PropertyType DWORD -Force
+# Re-enable additional AD logins. 1 is the default ("allowed"); 0 means "not
+# allowed" and grays out Settings > Accounts > Sign-in options.
+New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions" -Name 'value' -Value 1 -PropertyType DWORD -Force
 
 # Lock no longer changes this, but hosts locked by earlier versions of
 # windows_lock.ps1 have cached logins turned off, so restore them here.
