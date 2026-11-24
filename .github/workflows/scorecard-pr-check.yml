@@ -23,21 +23,19 @@ jobs:
       - name: Create results directory
         run: mkdir -p /tmp/scorecard-results
 
+      - name: Install Scorecard
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/ossf/scorecard/main/install.sh | sh -s -- -b /usr/local/bin
+          scorecard --version
+
       - name: Checkout PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Run Scorecard on PR branch
-        id: scorecard_pr
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
-        with:
-          results_file: results_pr.sarif
-          results_format: sarif
-          publish_results: false
-
-      - name: Move PR results
-        run: mv results_pr.sarif /tmp/scorecard-results/results_pr.sarif
+        run: |
+          scorecard --repo . --format json > /tmp/scorecard-results/results_pr.sarif 2>&1 || true
 
       - name: Checkout base branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,15 +44,8 @@ jobs:
           persist-credentials: false
 
       - name: Run Scorecard on base branch
-        id: scorecard_base
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
-        with:
-          results_file: results_base.sarif
-          results_format: sarif
-          publish_results: false
-
-      - name: Move base results
-        run: mv results_base.sarif /tmp/scorecard-results/results_base.sarif
+        run: |
+          scorecard --repo . --format json > /tmp/scorecard-results/results_base.sarif 2>&1 || true
 
       - name: Compare Scorecard results
         id: compare
@@ -74,7 +65,7 @@ jobs:
               process.exit(1);
             }
 
-            // Parse SARIF results
+            // Parse JSON results
             const prResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_pr.sarif', 'utf8'));
             const baseResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_base.sarif', 'utf8'));
 
@@ -82,50 +73,46 @@ jobs:
             const prChecks = new Map();
             const baseChecks = new Map();
 
-            if (prResults.runs && prResults.runs[0] && prResults.runs[0].results) {
-              prResults.runs[0].results.forEach(result => {
-                if (result.ruleId) {
-                  prChecks.set(result.ruleId, {
-                    level: result.level || 'note',
-                    message: result.message?.text || ''
-                  });
-                }
+            if (prResults.checks) {
+              prResults.checks.forEach(check => {
+                prChecks.set(check.name, {
+                  score: check.score,
+                  details: check.details || []
+                });
               });
             }
 
-            if (baseResults.runs && baseResults.runs[0] && baseResults.runs[0].results) {
-              baseResults.runs[0].results.forEach(result => {
-                if (result.ruleId) {
-                  baseChecks.set(result.ruleId, {
-                    level: result.level || 'note',
-                    message: result.message?.text || ''
-                  });
-                }
+            if (baseResults.checks) {
+              baseResults.checks.forEach(check => {
+                baseChecks.set(check.name, {
+                  score: check.score,
+                  details: check.details || []
+                });
               });
             }
 
-            // Find new issues (in PR but not in base, or more severe)
+            // Find new or regressed issues (score decreased)
             const newIssues = [];
-            const severityOrder = { error: 3, warning: 2, note: 1, none: 0 };
 
-            prChecks.forEach((prCheck, checkId) => {
-              const baseCheck = baseChecks.get(checkId);
+            prChecks.forEach((prCheck, checkName) => {
+              const baseCheck = baseChecks.get(checkName);
               
               // If the check didn't exist in base, it's new
               if (!baseCheck) {
                 newIssues.push({
-                  id: checkId,
-                  level: prCheck.level,
-                  message: prCheck.message
+                  name: checkName,
+                  prScore: prCheck.score,
+                  baseScore: null,
+                  isNew: true
                 });
               }
-              // If the severity increased, it's a regression
-              else if (severityOrder[prCheck.level] > severityOrder[baseCheck.level]) {
+              // If the score decreased, it's a regression
+              else if (prCheck.score < baseCheck.score) {
                 newIssues.push({
-                  id: checkId,
-                  level: prCheck.level,
-                  message: prCheck.message,
-                  previous: baseCheck.level
+                  name: checkName,
+                  prScore: prCheck.score,
+                  baseScore: baseCheck.score,
+                  isRegression: true
                 });
               }
             });
@@ -135,14 +122,21 @@ jobs:
             core.setOutput('newIssuesJson', JSON.stringify(newIssues));
             
             if (newIssues.length > 0) {
-              console.log(`Found ${newIssues.length} new or regressed Scorecard issues`);
+              console.log(`Found ${newIssues.length} new or regressed Scorecard checks`);
+              newIssues.forEach(issue => {
+                if (issue.isNew) {
+                  console.log(`  - NEW: ${issue.name} (score: ${issue.prScore})`);
+                } else if (issue.isRegression) {
+                  console.log(`  - REGRESSED: ${issue.name} (${issue.baseScore} → ${issue.prScore})`);
+                }
+              });
             } else {
-              console.log('No new Scorecard issues found');
+              console.log('No new or regressed Scorecard checks found');
             }
 
       - name: Comment on PR with results
         if: steps.compare.outputs.newIssuesCount > 0
-        uses: actions/github-script@v9 # intentional error
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           NEW_ISSUES_JSON: ${{ steps.compare.outputs.newIssuesJson }}
         with:
@@ -150,19 +144,16 @@ jobs:
             const newIssues = JSON.parse(process.env.NEW_ISSUES_JSON);
             
             let comment = '## 🔒 OpenSSF Scorecard Changes Detected\n\n';
-            comment += `This PR introduces ${newIssues.length} new or regressed security/quality issue(s):\n\n`;
+            comment += `This PR introduces ${newIssues.length} new or regressed security/quality check(s):\n\n`;
 
             newIssues.forEach(issue => {
-              const icon = issue.level === 'error' ? '❌' : issue.level === 'warning' ? '⚠️' : 'ℹ️';
-              comment += `${icon} **${issue.id}** (${issue.level})`;
-              if (issue.previous) {
-                comment += ` - Regressed from ${issue.previous}`;
+              if (issue.isNew) {
+                comment += `✨ **${issue.name}** (NEW)\n`;
+                comment += `  - Score: ${issue.prScore}\n\n`;
+              } else if (issue.isRegression) {
+                comment += `⚠️ **${issue.name}** (REGRESSED)\n`;
+                comment += `  - Score: ${issue.baseScore} → ${issue.prScore}\n\n`;
               }
-              comment += '\n';
-              if (issue.message) {
-                comment += `  > ${issue.message}\n`;
-              }
-              comment += '\n';
             });
 
             comment += '\nSee the [OpenSSF Scorecard documentation](https://github.com/ossf/scorecard/blob/main/docs/checks.md) for details on each check.\n';
@@ -178,7 +169,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.compare.outputs.newIssuesCount }}" -gt "0" ]; then
-            echo "❌ Scorecard found ${{ steps.compare.outputs.newIssuesCount }} new or regressed security issues in this PR"
+            echo "❌ Scorecard found ${{ steps.compare.outputs.newIssuesCount }} new or regressed security checks in this PR"
             echo "See the PR comment above for details"
             exit 1
           else
