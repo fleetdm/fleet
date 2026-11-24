@@ -16,6 +16,17 @@ func Up_20261124143536(tx *sql.Tx) error {
 	// hard-coded timestamp is used so that schema.sql is stable
 	stableTS := time.Date(2026, 8, 11, 0, 0, 0, 0, time.UTC)
 
+	// A second run would otherwise rename the built-in label and leave its
+	// hosts in a label that is no longer the built-in one.
+	var exists bool
+	if err := tx.QueryRow(`SELECT EXISTS (SELECT 1 FROM labels WHERE name = ? AND label_type = ?)`,
+		fleet.BuiltinLabelTvOS, fleet.LabelTypeBuiltIn).Scan(&exists); err != nil {
+		return fmt.Errorf("check for built-in tvOS label: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
 	if err := renameConflictingTvOSLabel20261124143536(tx); err != nil {
 		return err
 	}

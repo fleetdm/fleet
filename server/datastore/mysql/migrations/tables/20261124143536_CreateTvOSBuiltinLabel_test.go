@@ -28,6 +28,20 @@ func TestUp_20261124143536(t *testing.T) {
 	require.EqualValues(t, 1, label.LabelMembershipType) // manual
 }
 
+func TestUp_20261124143536_KeepsExistingBuiltinLabel(t *testing.T) {
+	db := applyUpToPrev(t)
+
+	builtinID := execNoErrLastID(t, db, `
+		INSERT INTO labels (name, description, query, platform, label_type, label_membership_type)
+		VALUES ('tvOS', 'All tvOS hosts', '', '', 1, 1)`)
+
+	applyNext(t, db)
+
+	var ids []int64
+	require.NoError(t, db.Select(&ids, `SELECT id FROM labels WHERE name LIKE 'tvOS%'`))
+	require.Equal(t, []int64{builtinID}, ids)
+}
+
 func TestUp_20261124143536_RenamesConflictingLabel(t *testing.T) {
 	db := applyUpToPrev(t)
 
