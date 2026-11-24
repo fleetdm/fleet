@@ -734,7 +734,8 @@ const (
 
 // WindowsResetRestartWindow is how long a Windows host can still open an MDM session after acknowledging a reset, before it
 // restarts to reset. A session on the same enrollment after this window means the reset was interrupted and rolled back.
-const WindowsResetRestartWindow = 2 * time.Minute
+// Hosts without on-demand sync check in every minute, so it leaves room for a slow restart; a rollback is reported later.
+const WindowsResetRestartWindow = 10 * time.Minute
 
 // WindowsRemoteWipeLocURI is the LocURI Fleet executes for a RemoteWipe CSP node. It is also the command's request type
 // when its status is loaded, which is how a reset is told apart from a wipe.

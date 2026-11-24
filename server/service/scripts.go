@@ -1238,27 +1238,28 @@ func (svc *Service) LockHost(ctx context.Context, _ uint, _ bool) (string, error
 
 func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.UnlockHostRequest)
-	pin, err := svc.UnlockHost(ctx, req.HostID)
+	res, err := svc.UnlockHost(ctx, req.HostID)
 	if err != nil {
 		return fleet.UnlockHostResponse{Err: err}, nil
 	}
 
-	// We bail if a host is unlocked or wiped, so we can assume the host is locked at this point
-	resp := fleet.UnlockHostResponse{HostID: &req.HostID, DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
-	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
-	// call triggers the unlocking without further user action.
-	if pin != "" {
-		resp.UnlockPIN = pin
-	}
-	return resp, nil
+	// Only macOS and Android return an unlock PIN; for other platforms the UnlockHost call
+	// triggers the unlocking without further user action.
+	return fleet.UnlockHostResponse{
+		HostID:        &req.HostID,
+		UnlockPIN:     res.UnlockPIN,
+		LockedAt:      res.LockedAt,
+		DeviceStatus:  res.DeviceStatus,
+		PendingAction: res.PendingAction,
+	}, nil
 }
 
-func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
+func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return "", fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1270,7 +1271,8 @@ func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return fleet.WipeHostResponse{Err: err}, nil
 	}
-	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
+	// WipeHost refuses a locked or wiped host. A wipe queued behind an acknowledged reset is reported as unlocked here too,
+	// although getting the host shows its reset status.
 	return fleet.WipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
@@ -1318,17 +1320,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
-	switch {
-	case lockWipe.IsPendingLock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete."))
-	case lockWipe.IsPendingUnlock():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete."))
-	case lockWipe.IsPendingWipe():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online."))
-	case lockWipe.IsLocked():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked."))
-	case lockWipe.IsWiped():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict))
+	if err := lockWipe.ValidateWipeRequest(); err != nil {
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	// all good, go ahead with queuing the wipe request.

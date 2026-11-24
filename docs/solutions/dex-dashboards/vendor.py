@@ -6,7 +6,7 @@ what vendors shipped rather than the newest version the fleet happens to run.
            major versions Apple still updates, and the newest Apple silicon
            generation among Mac models
   Windows  Microsoft's Security Update Guide, api.msrc.microsoft.com: the newest
-           security build of each Windows release
+           security build of each Windows release, and the month's hotpatch build
   fleetd   Fleet's update server, updates.fleetdm.com: the stable channel
 
 Only issues GET requests. Each source fails on its own, and a page whose source
@@ -80,19 +80,31 @@ def windows():
         for b in node.get("Branch") or []:
             walk(b)
     walk(d.get("ProductTree") or {})
-    builds = {}
-    for vuln in d.get("Vulnerability") or []:
+    # {release: {build: [is hotpatch, vulnerabilities it fixes]}}
+    seen = {}
+    for i, vuln in enumerate(d.get("Vulnerability") or []):
         for r in vuln.get("Remediations") or []:
             if not (fixed := r.get("FixedBuild")):
                 continue
+            hot = "hotpatch" in (r.get("SubType") or "").lower()
             for pid in r.get("ProductID") or []:
                 if m := WINDOWS_PRODUCT.fullmatch(names.get(pid, "")):
-                    title = f"{m.group(1)} {m.group(2)}"
-                    if title not in builds or numeric(fixed) > numeric(builds[title]):
-                        builds[title] = fixed
+                    b = seen.setdefault(f"{m.group(1)} {m.group(2)}", {}).setdefault(fixed, [hot, set()])
+                    b[1].add(i)
+    builds, hotpatch = {}, {}
+    for title, bs in seen.items():
+        if monthly := [b for b, (hot, _) in bs.items() if not hot]:
+            builds[title] = max(monthly, key=numeric)
+        # Since 24H2, each month also ships a lower-numbered hotpatch build with the same fixes.
+        # Builds from past months, older hotpatches among them, are listed on only a few
+        # vulnerabilities each, so only a hotpatch listed about as widely as any build is this month's.
+        top = max(len(v) for _, v in bs.values())
+        if current := [b for b, (hot, v) in bs.items() if hot and 2 * len(v) >= top]:
+            hotpatch[title] = max(current, key=numeric)
     if not builds:
         raise ValueError(f"no Windows builds in {doc.get('ID')}")
-    return {"month": doc["ID"], "released": doc["InitialReleaseDate"][:10], "releases": builds}
+    return {"month": doc["ID"], "released": doc["InitialReleaseDate"][:10], "releases": builds,
+            "hotpatch": {t: b for t, b in hotpatch.items() if t in builds}}
 
 
 def fleetd():

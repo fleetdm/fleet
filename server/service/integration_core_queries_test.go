@@ -248,6 +248,7 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 		r := createReport(prefix + "_by_name")
 		for _, c := range []struct{ prefix, endpoint string }{
 			{"/api/latest/fleet/queries/", "DELETE /queries/{id}"},
+			{"/api/latest/fleet/reports/", "DELETE /reports/{name}"},
 		} {
 			res := s.Do("DELETE", c.prefix+url.PathEscape(r.Name), nil, http.StatusGone)
 			var body struct {
@@ -260,9 +261,13 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 			assert.Equal(t, `The "`+c.endpoint+`" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
 				body.Errors[0]["reason"])
 		}
-		// Nothing is registered for a report name under /reports.
-		s.Do("DELETE", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
 		requireReportExists(r.ID, true)
+
+		// "delete" is a valid report name, so DELETE gets the 410 even though POST /reports/delete is a live route.
+		s.Do("DELETE", "/api/latest/fleet/reports/delete", nil, http.StatusGone)
+		s.Do("DELETE", "/api/v1/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusGone)
+		// The 410 route wildcards the fleet segment, so it must not answer outside /fleet.
+		s.Do("DELETE", "/api/v1/other/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
 
 		// An all-digits value is gone too.
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%d", r.ID), nil, http.StatusGone)
@@ -276,7 +281,10 @@ func (s *integrationTestSuite) TestDeleteReportURLs() {
 		s.Do("PATCH", byIDPath(r.ID), fleet.QueryPayload{Description: new("updated")}, http.StatusOK)
 		s.Do("GET", byIDPath(r.ID), nil, http.StatusOK)
 
-		s.Do("GET", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusNotFound)
+		// The removed reports by name path is DELETE-only, so other methods get a 405 rather than a 410 naming an endpoint that never existed.
+		s.Do("GET", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
+		s.Do("PATCH", "/api/latest/fleet/reports/"+url.PathEscape(r.Name), nil, http.StatusMethodNotAllowed)
+
 		s.Do("GET", "/api/latest/fleet/queries/"+url.PathEscape(r.Name), nil, http.StatusGone)
 		s.Do("PUT", byIDPath(r.ID), nil, http.StatusMethodNotAllowed)
 		s.Do("GET", "/api/latest/fleet/reports/delete", nil, http.StatusMethodNotAllowed)

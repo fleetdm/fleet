@@ -737,6 +737,31 @@ func rejectSharedSecretForMDMManagedAppleHost(ctx context.Context, tx sqlx.ExtCo
 	return nil
 }
 
+// rejectSharedSecretForMDMManagedAppleSerial refuses a shared enroll secret that would insert a host with the serial of an
+// Apple host that is enrolled in Fleet MDM, or assigned to Fleet in Apple Business Manager, under another UUID. Enrollment
+// doesn't match such a host by serial, so rejectSharedSecretForMDMManagedAppleHost never sees it.
+func rejectSharedSecretForMDMManagedAppleSerial(ctx context.Context, tx sqlx.ExtContext, serial, hardwareUUID string) error {
+	if serial == "" {
+		return nil
+	}
+	var hostID uint
+	err := sqlx.GetContext(ctx, tx, &hostID, `
+		SELECT h.id FROM hosts h
+		WHERE h.hardware_serial = ? AND h.platform IN ('darwin', 'ios', 'ipados') AND h.uuid <> '' AND h.uuid <> ? AND (
+			EXISTS (SELECT 1 FROM nano_enrollments ne WHERE ne.id = h.uuid AND ne.enabled = 1) OR
+			EXISTS (SELECT 1 FROM host_dep_assignments hda WHERE hda.host_id = h.id AND hda.deleted_at IS NULL)
+		)
+		ORDER BY h.id LIMIT 1`, serial, hardwareUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "check MDM management of host with enrolling serial")
+	}
+	return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedSharedSecretForMDMManagedHost, HostID: &hostID},
+		"shared enroll secret presented for the serial of an MDM-managed Apple host")
+}
+
 // rejectSharedSecretForMDMManagedWindowsHost refuses a shared enroll secret for a matched Windows host that is enrolled in Fleet MDM,
 // so that another machine cannot take the host over by presenting its identifiers. Such a host gets a one-time secret through the
 // Fleetd enroll secret profile, which an admin resends when fleetd has to enroll again. An enrollment row linked to the host is the

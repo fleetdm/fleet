@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Create Google conditional access customer',
+  friendlyName: 'Create Google conditional access customer',// TODO: update this name to be create-or-update-google-conditional-access-customer
 
 
   description: 'Registers a Fleet server for a provided Google customer ID and returns a generated secret.',
@@ -20,6 +20,7 @@ module.exports = {
     connectionAlreadyExists: { description: 'The provided Google customer ID is already registered from another Origin.', statusCode: 409 },
     missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest' },
     invalidOriginHeader: { description: 'The Origin header is not an HTTPS URL.', responseType: 'badRequest' },
+    fleetInstanceNotOnAllowlist: {description: 'This Fleet instance is not on the allowlist.', responseType: 'unauthorized' }
   },
 
 
@@ -54,6 +55,11 @@ module.exports = {
       }
     }
 
+    // Return a fleetInstanceNotOnAllowlist response if this server url has not been added to sails.config.custom.googleConditionalAccessAllowedOrigins
+    if(!sails.config.custom.googleConditionalAccessAllowedOrigins.includes(this.req.get('origin'))) {
+      throw 'fleetInstanceNotOnAllowlist';
+    }
+
     let fleetServerSecret = require('node:crypto').randomBytes(15).toString('hex');
 
     let existingRegistration = await GoogleConditionalAccessServer.findOne({googleCustomerId});
@@ -62,6 +68,7 @@ module.exports = {
       if(existingRegistration.fleetInstanceUrl !== this.req.get('origin')) {
         throw 'connectionAlreadyExists';
       }
+      // Currently, this approach requires treating your Google Customer ID as a secret. In the upcoming GA release of this feature, you will be able to treat your Google Customer ID as a less sensitive credential.
       await GoogleConditionalAccessServer.updateOne({id: existingRegistration.id}).set({fleetServerSecret});
     } else {
       await GoogleConditionalAccessServer.create({

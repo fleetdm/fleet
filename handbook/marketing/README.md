@@ -106,6 +106,11 @@ On Thursdays, marketing reviews the names and accounts for upcoming meetings and
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
 
 
+### Route a non-ICP prospect to "Let's get you set up!"
+
+When a prospect is not an ICP fit (for example, an organization with only a few dozen hosts), send them to the "Let's get you set up!" group office hours instead of booking time with sales: [https://calendly.com/fleetdm/chat](https://calendly.com/fleetdm/chat)
+
+
 ### Monitor the #help-marketing Slack channel
 
 The Marketing Coordinator is the DRI for the #help-marketing Slack channel and is responsible for making sure nothing posted there goes unnoticed.

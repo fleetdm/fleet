@@ -19,7 +19,7 @@
   }
 
   &__description--error {
-    color: $core-vibrant-red;
+    color: $ui-error;
   }
 
   &__checkboxes {
@@ -37,7 +37,7 @@
     }
 
     &--error {
-      border-color: $core-vibrant-red;
+      border-color: $ui-error;
     }
   }
 
@@ -130,7 +130,7 @@
     }
 
     &--error {
-      color: $core-vibrant-red !important;
+      color: $ui-error !important;
       font-size: $xx-small;
     }
 

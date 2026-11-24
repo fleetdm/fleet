@@ -1,6 +1,6 @@
 # Build DEX dashboards with GitHub Actions
 
-The [DEX dashboards](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude) turn Fleet data into eight digital employee experience dashboards and an overview. That guide runs them as a Claude Code routine and publishes Claude artifacts. This guide runs the same scripts in a GitHub Actions workflow instead, keeps each dashboard's history on a branch in your repository, and serves the pages with GitHub Pages. You don't need a Claude account.
+The [DEX dashboards](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude) turn Fleet data into nine digital employee experience dashboards and an overview. That guide runs them as a Claude Code routine and publishes Claude artifacts. This guide runs the same scripts in a GitHub Actions workflow instead, keeps each dashboard's history on a branch in your repository, and serves the pages with GitHub Pages. You don't need a Claude account.
 
 ## How it works
 
@@ -81,6 +81,7 @@ An [environment](https://docs.github.com/en/actions/managing-workflow-runs-and-d
    - `DEX_GRID_INTENSITY`: grams of CO2 per kWh, for computers with no GeoIP country.
    - `DEX_COMPANY_DOMAINS`: comma-separated email domains that count as company sign-ins for coding agents. Without it, AI governance uses your identity provider's email domains, leaving out personal email providers such as gmail.com.
    - `DEX_WORKERS`: how many requests go to Fleet at once. The default is 8. Lower it if your Fleet server is busy during runs.
+   - `DEX_SCORING_FILE`: the path, in your repository, of a JSON file with your experience score settings. GitHub Pages can't save settings on the Experience score page, so try changes under **Scoring settings**, select **Download settings**, and commit the file. Without it, the page uses Fleet's default scoring.
 
 > **Note:** Don't add required reviewers to this environment. Every scheduled run would wait for someone to approve it.
 
@@ -153,14 +154,14 @@ The dashboards keep all their history, since it lives in the files. You lose the
 
 ## Verify
 
-1. Open the site. The overview shows each dashboard's numbers for today. Click any card, or any tab in the bar across the top, to open that dashboard in the same tab.
+1. Open the site. The overview shows each dashboard's numbers for today. Click any card, or any tab in the bar across the top, to open that dashboard in the same tab. Some tabs use a short name, such as **Experience** for Experience score and **Patching** for Patch velocity.
 2. Check that each dashboard shows today's date next to **Updated**.
 3. Open the `dex-data` branch. It has a `history` folder with one folder per dashboard.
 4. Open the site in a private browser window. GitHub should ask you to sign in before it shows the page. If it doesn't, the site is public: turn off GitHub Pages under **Settings > Pages** until you fix its visibility.
 
 ## Host the pages somewhere else
 
-To serve the pages from your own web host, remove the `deploy` job and the **Upload the site** step, and add a step to the Build job that uploads `${{ runner.temp }}/site` with your host's tool. For example, for an Amazon S3 bucket behind CloudFront, after configuring credentials with [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials):
+To serve the pages from your own web host, remove the `deploy` job and the **Upload the site** step, and add a step to the Build job that uploads `$RUNNER_TEMP/site` with your host's tool. For example, for an Amazon S3 bucket behind CloudFront, after configuring credentials with [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials):
 
 ```bash
 aws s3 sync "$RUNNER_TEMP/site" s3://<bucket>/dex --delete
@@ -213,6 +214,7 @@ If you deleted the sparse copy, clone it again as in step 1. Commit the changes 
 
 - **AI governance policy decisions don't save.** The page shows the inventory and risk findings, but nobody can record a posture or decision, and there's no change log. Those need the artifact's shared store.
 - **AI governance has no report download.** The **Download report** button saves the report through the Claude artifact, so the site doesn't show it. **Copy as CSV** works the same as in the Claude version.
+- **Experience score settings don't save on the page.** Anyone can preview changes under **Scoring settings** and download them, but the page always starts from the settings in `DEX_SCORING_FILE`, or Fleet's defaults, and there's no change log. To change the scoring for everyone, commit a downloaded settings file and point `DEX_SCORING_FILE` at it (step 3).
 - **Theme choices stay in each browser.** Each viewer's Light, Dark, or System choice is saved in their browser only.
 - **One site per repository.** GitHub Pages serves one site from each repository. To build dashboards for more than one Fleet server, for example a test server and production, use one repository for each.
 

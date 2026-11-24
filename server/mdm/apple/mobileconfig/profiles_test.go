@@ -13,6 +13,13 @@ func TestFleetdProfileTemplate(t *testing.T) {
 		{},
 		{PayloadType: "", EnrollSecret: "", ServerURL: "", PayloadName: ""},
 		{PayloadType: "test.example", EnrollSecret: "abc", ServerURL: "https://test.example", PayloadName: "test.example"},
+		// markup in every field must round-trip as text, not inject keys
+		{ // #nosec G101 - test data
+			PayloadType:  `a"b'c&d`,
+			EnrollSecret: "</string><key>Injected</key><string>x",
+			ServerURL:    "https://fleet.example.com/?x=</string><key>Injected</key><string>yes&y=1",
+			PayloadName:  "<b>name</b>",
+		},
 	}
 
 	for _, c := range cases {
@@ -33,6 +40,7 @@ func TestFleetdProfileTemplate(t *testing.T) {
 		require.Equal(t, c.ServerURL, pc["FleetURL"])
 		require.Equal(t, c.PayloadType, pc["PayloadType"])
 		require.Equal(t, c.PayloadName, pc["PayloadDisplayName"])
+		require.NotContains(t, pc, "Injected")
 		// script execution is always enabled
 		enableScripts, ok := pc["EnableScripts"].(bool)
 		require.True(t, ok)

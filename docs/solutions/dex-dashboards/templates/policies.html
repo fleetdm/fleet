@@ -21,10 +21,11 @@
 .host-list { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .host-list a { font-size: 12px; font-weight: 400; color: var(--ink-2); }
 .spark-fail polyline { fill: none; stroke: var(--bad); stroke-width: 2; stroke-linejoin: round; }
-.types { display: flex; flex-direction: column; gap: 12px; }
-.type-row { display: grid; grid-template-columns: minmax(120px, 200px) auto minmax(0, 1fr); align-items: center; gap: 12px; }
+/* One set of columns for every row, so the bars line up. */
+.types { display: grid; grid-template-columns: minmax(120px, max-content) max-content minmax(0, 1fr); gap: 12px; align-items: center; }
+.type-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
 .type-row .btn[aria-pressed="true"] { background: var(--ui-fleet-black-5); border-color: var(--ui-fleet-black-50); }
-@media (max-width: 600px) { .type-row { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .types { grid-template-columns: minmax(0, 1fr); } .type-row .btn { justify-self: start; } }
 .spark-fail line { stroke: var(--line); }
 </style>
 

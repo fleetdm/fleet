@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.1568",
+      "version": "1.6.1609",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Wispr Flow' AND publisher = 'Wispr Flow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wispr Flow' AND publisher = 'Wispr Flow' AND version_compare(version, '1.6.1568') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wispr Flow' AND publisher = 'Wispr Flow' AND version_compare(version, '1.6.1609') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'wispr flow.exe');"
       },
-      "installer_url": "https://dl.wisprflow.com/wispr-flow/win32/x64/Wispr%20Flow%20Setup-v1.6.1568.exe",
+      "installer_url": "https://dl.wisprflow.com/wispr-flow/win32/x64/Wispr%20Flow%20Setup-v1.6.1609.exe",
       "install_script_ref": "64aef5b7",
       "uninstall_script_ref": "f28d0ed2",
-      "sha256": "ad7273a50028319f35abf72f07808f92cc47c34db2a1f1a23546c9a77c1f78f6",
+      "sha256": "13e57effd7ae1eea31b30a6c1fcb7b9a3057acc1bad526246ca0037bab24f0a6",
       "default_categories": [
         "Productivity"
       ]

@@ -1142,7 +1142,7 @@ func (svc *Service) GetHostByIDOrIdentifier(ctx context.Context, identifier stri
 func (svc *Service) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
 	// Authorize before the lookup so a caller who can't list hosts can't probe which identifiers exist. The caller checks team access.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return 0, err
+		return 0, authz.GitOpsListError(ctx, fleet.GitOpsViewHostByIdentifierErrorMessage, err)
 	}
 	hostID, err := svc.ds.HostIDByIdentifier(ctx, identifier, fleet.HostIDByIdentifierOptions{MatchID: true})
 	if err != nil {
@@ -2250,6 +2250,9 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 	suppressAndroidBYODWipeStatus(host)
+	if host.FleetPlatform() == "android" {
+		host.MDM.UnlockPINAvailable = new(mdmActions.IsAndroidUnlockPINAvailable())
+	}
 
 	// Populate wipe/lock/clear_passcode allowed flags for manually-enrolled Apple hosts.
 	if fleet.IsApplePlatform(host.Platform) &&

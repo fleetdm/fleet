@@ -37,6 +37,13 @@
       "description": "3DF Zephyr Free is the free edition of 3Dflow's photogrammetry software for reconstructing 3D models from photos."
     },
     {
+      "name": "3Dconnexion 3DxWare 10",
+      "slug": "3dxware-10/windows",
+      "platform": "windows",
+      "unique_identifier": "3Dconnexion 3DxWare 10",
+      "description": "3Dconnexion 3DxWare 10 is the driver and configuration software for 3Dconnexion 3D mice and keyboards."
+    },
+    {
       "name": "4K Slideshow Maker",
       "slug": "4k-slideshow-maker/darwin",
       "platform": "darwin",
@@ -814,6 +821,13 @@
       "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
     },
     {
+      "name": "AutoHotkey",
+      "slug": "autohotkey/windows",
+      "platform": "windows",
+      "unique_identifier": "AutoHotkey",
+      "description": "AutoHotkey is a scripting language for automating tasks and creating hotkeys on Windows."
+    },
+    {
       "name": "Autopsy",
       "slug": "autopsy/windows",
       "platform": "windows",
@@ -966,6 +980,20 @@
       "platform": "darwin",
       "unique_identifier": "com.bambulab.bambu-studio",
       "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bambu Studio",
+      "slug": "bambu-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Bambu Studio",
+      "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bandicam",
+      "slug": "bandicam/windows",
+      "platform": "windows",
+      "unique_identifier": "Bandicam",
+      "description": "Bandicam is a screen recorder for capturing the screen, games, and video devices."
     },
     {
       "name": "BandiView",
@@ -1514,6 +1542,20 @@
       "description": "Cardhop is a contacts manager."
     },
     {
+      "name": "Cato Client",
+      "slug": "cato-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Cato Client",
+      "description": "Cato Client is a zero trust network access (ZTNA) and VPN client that connects devices to the Cato SASE Cloud."
+    },
+    {
+      "name": "Cato Enterprise Browser",
+      "slug": "cato-enterprise-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Cato Browser",
+      "description": "Cato Enterprise Browser is a Chromium-based browser that secures access to business applications through the Cato SASE Cloud."
+    },
+    {
       "name": "Cavalry",
       "slug": "cavalry/darwin",
       "platform": "darwin",
@@ -1668,10 +1710,24 @@
       "description": "Cisco Webex Recorder and Player plays Webex .wrf meeting recordings."
     },
     {
+      "name": "Citrix Workspace LTSR",
+      "slug": "citrix-workspace-ltsr/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace LTSR is the long-term servicing release of Citrix's unified workspace client, delivering secure access to virtual apps, desktops, and content."
+    },
+    {
       "name": "Citrix Workspace",
       "slug": "citrix-workspace/darwin",
       "platform": "darwin",
       "unique_identifier": "com.citrix.receiver.nomas",
+      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
@@ -3600,6 +3656,13 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Front",
+      "slug": "front/windows",
+      "platform": "windows",
+      "unique_identifier": "Front",
+      "description": "Front is a customer communication platform."
+    },
+    {
       "name": "FSMonitor",
       "slug": "fsmonitor/darwin",
       "platform": "darwin",
@@ -3911,7 +3974,7 @@
       "name": "GoldenDict-ng",
       "slug": "goldendict-ng/windows",
       "platform": "windows",
-      "unique_identifier": "GoldenDict-ng",
+      "unique_identifier": "goldendict-ng",
       "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
     },
     {
@@ -4179,6 +4242,13 @@
       "platform": "windows",
       "unique_identifier": "HeidiSQL",
       "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
+    },
+    {
+      "name": "Herdr",
+      "slug": "herdr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.herdr.app",
+      "description": "Herdr is a desktop app for running terminals and coding agents."
     },
     {
       "name": "Hex Fiend",
@@ -4713,6 +4783,13 @@
       "description": "Jump Desktop is a remote desktop application."
     },
     {
+      "name": "k6",
+      "slug": "k6/windows",
+      "platform": "windows",
+      "unique_identifier": "k6",
+      "description": "k6 is an open-source load testing tool for developers, with tests written in JavaScript."
+    },
+    {
       "name": "Kaleidoscope",
       "slug": "kaleidoscope/darwin",
       "platform": "darwin",
@@ -4842,7 +4919,7 @@
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",
-      "unique_identifier": "dev.kiro.cli",
+      "unique_identifier": "com.amazon.codewhisperer",
       "description": "Kiro CLI is an AI-powered productivity tool for the command-line."
     },
     {
@@ -5327,6 +5404,13 @@
       "platform": "darwin",
       "unique_identifier": "com.mailspring.mailspring",
       "description": "Mailspring is a fork of Nylas Mail."
+    },
+    {
+      "name": "Make Me Admin",
+      "slug": "make-me-admin/windows",
+      "platform": "windows",
+      "unique_identifier": "Make Me Admin",
+      "description": "Make Me Admin is a tool that lets standard users temporarily elevate their account to administrator."
     },
     {
       "name": "Malwarebytes for Mac",
@@ -5921,6 +6005,13 @@
       "slug": "mullvad-vpn/darwin",
       "platform": "darwin",
       "unique_identifier": "net.mullvad.vpn",
+      "description": "Mullvad VPN is a VPN client."
+    },
+    {
+      "name": "Mullvad VPN",
+      "slug": "mullvad-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mullvad VPN",
       "description": "Mullvad VPN is a VPN client."
     },
     {
@@ -6673,6 +6764,13 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
+      "name": "Parsec",
+      "slug": "parsec/darwin",
+      "platform": "darwin",
+      "unique_identifier": "tv.parsec.www",
+      "description": "Parsec is a remote desktop app for low-latency streaming and remote access to computers."
+    },
+    {
       "name": "Pastebot",
       "slug": "pastebot/darwin",
       "platform": "darwin",
@@ -6925,6 +7023,13 @@
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
     },
     {
+      "name": "Positron",
+      "slug": "positron/windows",
+      "platform": "windows",
+      "unique_identifier": "Positron",
+      "description": "Positron is a data science IDE for working with Python and R."
+    },
+    {
       "name": "Postgres",
       "slug": "postgres-app/darwin",
       "platform": "darwin",
@@ -6977,7 +7082,7 @@
       "name": "Postman",
       "slug": "postman/windows",
       "platform": "windows",
-      "unique_identifier": "Postman x64 11.75.4",
+      "unique_identifier": "Postman x64",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
@@ -7709,6 +7814,13 @@
       "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
     },
     {
+      "name": "Rocket.Chat",
+      "slug": "rocket-chat/windows",
+      "platform": "windows",
+      "unique_identifier": "Rocket.Chat",
+      "description": "Rocket.Chat is an official desktop client for Rocket.Chat."
+    },
+    {
       "name": "Rocket Typist",
       "slug": "rocket-typist/darwin",
       "platform": "darwin",
@@ -7833,6 +7945,13 @@
       "platform": "windows",
       "unique_identifier": "Safe Exam Browser",
       "description": "Safe Exam Browser is a web browser environment to carry out e-assessments safely."
+    },
+    {
+      "name": "Sandboxie-Plus",
+      "slug": "sandboxie-plus/windows",
+      "platform": "windows",
+      "unique_identifier": "Sandboxie-Plus",
+      "description": "Sandboxie-Plus is a sandbox tool for running programs in isolation so they can't make lasting changes to the system."
     },
     {
       "name": "SaneSideButtons",
@@ -8346,6 +8465,13 @@
       "description": "Splashtop Business is remote access software."
     },
     {
+      "name": "Splashtop Business",
+      "slug": "splashtop-business/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Business",
+      "description": "Splashtop Business is remote access software."
+    },
+    {
       "name": "Splashtop Streamer",
       "slug": "splashtop-streamer/darwin",
       "platform": "darwin",
@@ -8731,6 +8857,13 @@
       "description": "Tableau Prep is a data preparation tool for combining, shaping, and cleaning data for analysis in Tableau."
     },
     {
+      "name": "Tableau Reader",
+      "slug": "tableau-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Reader",
+      "description": "Tableau Reader is a free desktop application for opening and interacting with data visualizations built in Tableau."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
@@ -9067,6 +9200,13 @@
       "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
     },
     {
+      "name": "TortoiseSVN",
+      "slug": "tortoisesvn/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseSVN",
+      "description": "TortoiseSVN is an Apache Subversion (SVN) client for Windows, implemented as a File Explorer shell extension with overlay icons and context menu commands."
+    },
+    {
       "name": "Tower",
       "slug": "tower/darwin",
       "platform": "darwin",
@@ -9098,7 +9238,7 @@
       "name": "Transmission",
       "slug": "transmission/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.m0k.transmission.LSSharedFileList",
+      "unique_identifier": "org.m0k.transmission",
       "description": "Transmission is an open-source BitTorrent client."
     },
     {
@@ -9788,6 +9928,13 @@
       "description": "Windows App is a client for connecting to remote Windows devices, Cloud PCs, and virtual desktops."
     },
     {
+      "name": "Windscribe",
+      "slug": "windscribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Windscribe",
+      "description": "Windscribe is a VPN client that encrypts network traffic and blocks ads and trackers."
+    },
+    {
       "name": "Windsurf",
       "slug": "windsurf/windows",
       "platform": "windows",
@@ -10110,6 +10257,13 @@
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
     },
     {
+      "name": "ZeroTier One",
+      "slug": "zerotier-one/windows",
+      "platform": "windows",
+      "unique_identifier": "ZeroTier One",
+      "description": "ZeroTier One is a virtual networking client that connects devices over encrypted peer-to-peer networks."
+    },
+    {
       "name": "Zettlr",
       "slug": "zettlr/darwin",
       "platform": "darwin",
@@ -10157,6 +10311,13 @@
       "platform": "windows",
       "unique_identifier": "Zoom Rooms",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom VDI Universal Plugin",
+      "slug": "zoom-vdi-universal-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom VDI Universal Plugin(64bit)",
+      "description": "Zoom VDI Universal Plugin is an endpoint media plug-in that offloads Zoom audio and video processing to the local device in virtual desktop environments."
     },
     {
       "name": "Zoom",

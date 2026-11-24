@@ -1187,6 +1187,10 @@ type Service interface {
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
 	TriggerCronSchedule(ctx context.Context, name string) error
 
+	// TriggerPolicyMembershipCleanup starts the cleanup of the policy results that a policy change invalidated. It
+	// is for internal use after such a change, so it does no authorization, and only logs a failure.
+	TriggerPolicyMembershipCleanup(ctx context.Context)
+
 	// ResetAutomation sets the policies and all policies of the listed teams to fire again
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
@@ -1421,7 +1425,7 @@ type Service interface {
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
-	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	UnlockHost(ctx context.Context, hostID uint) (*HostUnlockResult, error)
 	WipeHost(ctx context.Context, hostID uint) error
 	// ResetHost erases a Windows host but keeps its provisioning packages, so a host set up with one can re-enroll itself.
 	ResetHost(ctx context.Context, hostID uint) error
