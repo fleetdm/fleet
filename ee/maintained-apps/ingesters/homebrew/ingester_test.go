@@ -265,7 +265,6 @@ func TestIngestValidations(t *testing.T) {
 
 			require.NoError(t, err)
 
-			// The per-app cases below check each query without the disk image condition.
 			for _, query := range []*string{&out.Queries.Exists, &out.Queries.Patched, &out.Queries.Open} {
 				*query = withoutDiskImageCondition(t, *query)
 			}

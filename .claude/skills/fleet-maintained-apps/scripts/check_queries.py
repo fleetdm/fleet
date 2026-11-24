@@ -14,8 +14,7 @@ rows, or the patch policy can never flag an outdated host.
     # then on the host: powershell -NoProfile -ExecutionPolicy Bypass -File check.ps1
 
 --app-path constrains every `FROM apps` to that path, so nothing has to be in
-/Applications (an enrolled Mac reports what's there to Fleet), and drops the
-generated "not on a mounted disk image" condition so a DMG bundle counts. A query that pins
+/Applications (an enrolled Mac reports what's there to Fleet). A query that pins
 `path` to an install location the --app-path doesn't match is skipped: test it
 with the app installed there.
 """
@@ -140,8 +139,7 @@ def constrain_apps(sql, paths):
     return "".join(result)
 
 
-# Generated darwin queries leave out bundles on a mounted disk image, which is
-# exactly where --app-path usually points.
+# --app-path usually points at a mounted disk image, which generated queries exclude.
 NOT_ON_DISK_IMAGE = re.compile(
     r" AND NOT EXISTS \(SELECT 1 FROM mounts m JOIN block_devices b ON b\.name = m\.device "
     r"WHERE b\.model = 'Disk Image' AND substr\(\w+\.path, 1, length\(m\.path\) \+ 1\) = m\.path \|\| '/'\)"

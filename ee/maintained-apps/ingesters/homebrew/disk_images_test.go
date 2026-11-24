@@ -100,8 +100,6 @@ func TestExcludeDiskImages(t *testing.T) {
 
 var fromAppsPattern = regexp.MustCompile(`(?i)\bFROM\s+apps\b`)
 
-// withoutDiskImageCondition checks that every read of the apps table in query leaves out disk images, and returns
-// the query without that condition.
 func withoutDiskImageCondition(t *testing.T, query string) string {
 	t.Helper()
 	reads := len(fromAppsPattern.FindAllStringIndex(query, -1))

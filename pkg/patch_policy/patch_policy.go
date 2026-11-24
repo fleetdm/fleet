@@ -145,11 +145,7 @@ func defaultMacOSQuery(bundleIdentifier string, version string) string {
 	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version), MacOSNotOnDiskImage("apps"))
 }
 
-// MacOSNotOnDiskImage is a condition on the apps table, referred to by qualifier, that leaves out bundles on a
-// mounted disk image. A DMG the end user left mounted reports its app at the old version, and installing to
-// /Applications can't update that copy, so counting it fails the patch policy until the DMG is ejected. Matching
-// the device rather than /Volumes also catches images mounted elsewhere and keeps apps on real external drives.
-// The qualifier is required because mounts also has a path column. When no disk image matches, nothing is excluded.
+// MacOSNotOnDiskImage excludes apps on a mounted disk image. The qualifier is required because mounts also has a path column.
 func MacOSNotOnDiskImage(qualifier string) string {
 	return fmt.Sprintf(
 		"NOT EXISTS (SELECT 1 FROM mounts m JOIN block_devices b ON b.name = m.device WHERE b.model = 'Disk Image' AND substr(%[1]s.path, 1, length(m.path) + 1) = m.path || '/')",

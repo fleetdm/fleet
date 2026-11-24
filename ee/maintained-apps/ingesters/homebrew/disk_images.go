@@ -7,10 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 )
 
-// excludeDiskImages adds patch_policy.MacOSNotOnDiskImage to the WHERE clause of every SELECT that reads the apps
-// table, so a copy on a mounted disk image counts as neither installed, outdated, nor open. It runs on the finished
-// queries so that every per-app override gets it. A SELECT on apps it can't safely extend is an error rather than
-// left unfiltered.
+// excludeDiskImages adds patch_policy.MacOSNotOnDiskImage to every WHERE clause that reads the apps table.
 func excludeDiskImages(query string) (string, error) {
 	var out strings.Builder
 	i := 0
@@ -43,7 +40,6 @@ func excludeDiskImages(query string) (string, error) {
 				return "", fmt.Errorf("query reads apps with %s after its WHERE clause: %s", kw, query)
 			}
 		}
-		// AND binds tighter than OR, so the condition would only apply to the last alternative.
 		if topLevelKeyword(body, 0, len(body), "OR") >= 0 {
 			body = "(" + body + ")"
 		}
@@ -55,8 +51,6 @@ func excludeDiskImages(query string) (string, error) {
 	return out.String(), nil
 }
 
-// matchFromApps reports whether "FROM apps" starts at i, and returns the name its columns are qualified with and the
-// index just past the table reference.
 func matchFromApps(s string, i int) (qualifier string, afterTable int, ok bool) {
 	if i > 0 && isIdentChar(s[i-1]) {
 		return "", 0, false
@@ -83,7 +77,6 @@ func matchFromApps(s string, i int) (qualifier string, afterTable int, ok bool) 
 	return alias, k, true
 }
 
-// clauseEnd returns the index of the ")" that closes the subquery starting at i, or of the ";" or end of s.
 func clauseEnd(s string, i int) int {
 	depth := 0
 	for i < len(s) {
@@ -108,7 +101,6 @@ func clauseEnd(s string, i int) int {
 	return i
 }
 
-// topLevelKeyword returns the index of the first kw in s[start:end] outside parentheses and string literals, or -1.
 func topLevelKeyword(s string, start, end int, kw string) int {
 	depth := 0
 	for i := start; i < end; {
@@ -130,7 +122,6 @@ func topLevelKeyword(s string, start, end int, kw string) int {
 	return -1
 }
 
-// matchWord reports whether the whole word w starts at s[i], ignoring case, and returns the index after it.
 func matchWord(s string, i int, w string) (int, bool) {
 	j := i + len(w)
 	if j > len(s) || !strings.EqualFold(s[i:j], w) || (j < len(s) && isIdentChar(s[j])) {
@@ -147,7 +138,6 @@ func readIdent(s string, i int) (string, int) {
 	return s[i:j], j
 }
 
-// skipQuoted returns the index just past the string literal opening at s[i], where a doubled quote is an escaped quote.
 func skipQuoted(s string, i int) int {
 	for j := i + 1; j < len(s); j++ {
 		if s[j] != '\'' {
