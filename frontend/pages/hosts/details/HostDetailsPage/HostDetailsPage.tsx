@@ -1146,8 +1146,7 @@ const HostDetailsPage = ({
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
-    // Refetch both tabs' queries: the switched-to tab needs fresh data, and
-    // the Upcoming count badge is visible from either tab.
+    // Refetch both tabs: the Upcoming count badge is visible from either tab.
     refetchPastActivities();
     refetchUpcomingActivities();
     refetchPastMDMCommands();
