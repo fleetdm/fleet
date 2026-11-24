@@ -15,7 +15,13 @@ Every one of those pickers is a GUI over a published schema. Apple's payload key
 
 An agent writing XML from memory invents keys. An agent reading a published schema does not. Fleet's [`fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops/SKILL.md) tells the agent which schema to read for each platform and how to validate what it writes. There's nothing else to install.
 
-As of fleetctl 4.95.0, a repo created with `fleetctl new` already includes the skill. Otherwise, copy the whole [`fleet-gitops` folder](https://github.com/fleetdm/fleet/tree/main/cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops) (`SKILL.md`, its `references/`, and the `scripts/validate.py` checker it runs) into your repo as `.agents/skills/fleet-gitops/`, the location Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code read. For Claude Code, add a `.claude/skills/fleet-gitops/SKILL.md` with the same frontmatter that tells it to read the `.agents` copy, or copy the folder there instead.
+Run `fleetctl new` (fleetctl 4.95.0 or later) to create a GitOps repo that includes the skill:
+
+```bash
+fleetctl new
+```
+
+Already have a repo? Copy the [`fleet-gitops` folder](https://github.com/fleetdm/fleet/tree/main/cmd/fleetctl/fleetctl/templates/new/.agents/skills/fleet-gitops) into it as `.agents/skills/fleet-gitops/`, and for Claude Code, also as `.claude/skills/fleet-gitops/`.
 
 The skill points the agent at these references:
 
