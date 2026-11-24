@@ -32,6 +32,8 @@ For Fleet customers moving from Intune with more than 500 devices who have negot
 
 ## Turn on Windows MDM
 
+> Fleet Cloud customers don't need to complete the steps below. Fleet manages the certificate and key for you. Just turn on Windows MDM in **Integrations** > **MDM**.
+
 ### Step 1: Generate your certificate and key
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between the Fleet server and a Windows host.
