@@ -254,6 +254,8 @@ Deleting the integration in Fleet doesn't unmark devices. They stay marked as ma
 
 Before Fleet 4.96, this guide registered hosts with a **Register with Google** bookmark in Chrome. You can still use it, for example to register iPhones and iPads that don't have the Gmail configuration from [Step 5](#step-5-set-up-iphones-and-ipads).
 
+> **Note:** Each host gets its own bookmark link, but until the company-owned device registers, the link works on any device. If someone copies it to a personal device and opens it there first, Fleet registers the personal device as that host and marks it as managed. Fleet only deploys the link to enrolled hosts, so someone would have to copy it from their company-owned device. The Self-service sign-in in [Step 5](#step-5-set-up-iphones-and-ipads) doesn't have this gap, because it only works on the device with Fleet's Gmail configuration.
+
 The bookmark doesn't send device traffic to fleetdm.com, so use it if you don't want device traffic going there. The only traffic to fleetdm.com is from your Fleet server, once, when you connect Google.
 
 In Fleet 4.96, the bookmark needs Google connected in Fleet ([Steps 1 to 4](#step-1-set-up-google-workspace)). Fleet uses the service account to check that each Google device ID is a real device in Google, and to store the device's Google Workspace accounts instead of only its ID. Google can give the same device a different device ID over its lifetime, so storing only the ID could miss marking it as managed.
@@ -263,8 +265,6 @@ How it works:
 1. Fleet installs Google Chrome on each managed device with a **Register with Google** bookmark. The bookmark's link includes the host's UUID in Fleet.
 2. The bookmark opens a page you host on Google Cloud behind Identity-Aware Proxy (IAP). IAP signs in the end user and tells the page which device in Google the request comes from.
 3. The page asks Fleet whether the host is enrolled and company-owned. If so, it saves the device's Google device ID on the host in Fleet, and Fleet marks the device as managed in Google. Once a host has a Google device ID, Fleet refuses a different one, so the link doesn't work on any other device. Fleet also refuses a device that's already registered to another host.
-
-Until a company-owned device registers, its link works on any device. If someone copies the link to a personal device and opens it there first, Fleet registers the personal device as that host and marks it as managed. Fleet only deploys the link to enrolled hosts, so someone would have to copy it from their company-owned device. The Self-service sign-in in [Step 5](#step-5-set-up-iphones-and-ipads) doesn't have this gap, because it only works on the device with Fleet's Gmail configuration.
 
 Hosts that register this way are unmarked like any other host. See [Remove a device](#remove-a-device).
 
