@@ -7,6 +7,7 @@ import (
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -141,6 +142,24 @@ func TestCreateSecretVariablesEmitsActivities(t *testing.T) {
 		updatedActivity, ok := activities[1].(fleet.ActivityUpdatedCustomVariable)
 		require.True(t, ok)
 		require.Equal(t, "UPDATED", updatedActivity.CustomVariableName)
+	})
+
+	t.Run("reads created variables from the primary", func(t *testing.T) {
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
+			return []string{"CREATED"}, nil, nil
+		}
+		var primaryRequired bool
+		ds.GetSecretVariablesFunc = func(ctx context.Context, names []string) ([]fleet.SecretVariable, error) {
+			primaryRequired = ctxdb.IsPrimaryRequired(ctx)
+			return []fleet.SecretVariable{{ID: 7, Name: "CREATED"}}, nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+		err := svc.CreateSecretVariables(ctx, []fleet.SecretVariable{{Name: "FLEET_SECRET_CREATED", Value: "a"}}, false)
+		require.NoError(t, err)
+		require.True(t, ds.GetSecretVariablesFuncInvoked)
+		require.True(t, primaryRequired)
 	})
 
 	t.Run("emits no activity when nothing changed", func(t *testing.T) {

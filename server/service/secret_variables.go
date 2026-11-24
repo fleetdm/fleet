@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -66,7 +67,7 @@ func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables [
 	user := authz.UserFromContext(ctx)
 	var createdIDs map[string]uint
 	if len(created) > 0 {
-		createdVariables, err := svc.ds.GetSecretVariables(ctx, created)
+		createdVariables, err := svc.ds.GetSecretVariables(ctxdb.RequirePrimary(ctx, true), created)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get created secret variables")
 		}
