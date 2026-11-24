@@ -88,7 +88,7 @@ const PolicyAutomationsActivitiesTable = ({
     { id: number; displayName: string } | undefined
   >(undefined);
 
-  const { data, isLoading, isError } = useQuery<
+  const { data, isFetching, isError } = useQuery<
     IPolicyAutomationActivitiesResponse,
     AxiosError
   >(
@@ -112,7 +112,9 @@ const PolicyAutomationsActivitiesTable = ({
         query: searchQuery,
         status: statusFilter,
       }),
-    { ...DEFAULT_USE_QUERY_OPTIONS, keepPreviousData: true }
+    // A short staleTime lets paging back to a just-visited page reuse its rows
+    // instead of refetching behind the loading spinner.
+    { ...DEFAULT_USE_QUERY_OPTIONS, keepPreviousData: true, staleTime: 5000 }
   );
 
   const { mutateAsync: resetPolicy, isLoading: isResetting } = useMutation(
@@ -271,7 +273,7 @@ const PolicyAutomationsActivitiesTable = ({
         getRowId={(row: IPolicyAutomationActivity) =>
           `${row.id}-${row.host_id}`
         }
-        isLoading={isLoading}
+        isLoading={isFetching}
         manualSortBy
         pageIndex={page}
         pageSize={DEFAULT_PAGE_SIZE}
