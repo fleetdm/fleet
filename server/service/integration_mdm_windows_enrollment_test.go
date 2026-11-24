@@ -2284,7 +2284,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEnrollDoesNotReplaceAnotherHosts
 
 // TestWindowsMDMEntraEnrollmentBoundToEntraDevice covers Entra enrollments, which name their device only by a device-reported
 // hardware ID: the Entra device ID signed into the access token decides whether an enrollment may replace the one holding that
-// hardware ID, and a token without it cannot replace an enrollment bound to an Entra device.
+// hardware ID, and nothing replaces a host's enrollment that is bound to no Entra device.
 func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevice() {
 	t := s.T()
 	ctx := t.Context()
@@ -2347,6 +2347,34 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 		sameDevice := newEntraHost(fleetdDevice.HardwareID, autopilotEntraDeviceID)
 		require.NoError(t, sameDevice.Enroll())
 		requireEnrollment(t, fleetdDevice.HardwareID, sameDevice.DeviceID, autopilotEntraDeviceID)
+	})
+
+	t.Run("a fleetd enrollment of a host without an Autopilot record is not replaced through Entra", func(t *testing.T) {
+		fleetdHost, fleetdDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+		var wipeResp fleet.WipeHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", fleetdHost.ID), nil, http.StatusOK, &wipeResp)
+
+		for _, entraDeviceID := range []string{uuid.NewString(), ""} {
+			require.ErrorContains(t, newEntraHost(fleetdDevice.HardwareID, entraDeviceID).Enroll(), "SOAP fault")
+			requireEnrollment(t, fleetdDevice.HardwareID, fleetdDevice.DeviceID, "")
+
+			// Management sessions load the newest enrollment holding the device ID.
+			sameDeviceID := newEntraHost("", entraDeviceID)
+			sameDeviceID.DeviceID = fleetdDevice.DeviceID
+			require.ErrorContains(t, sameDeviceID.Enroll(), "SOAP fault")
+			enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, fleetdDevice.DeviceID)
+			require.NoError(t, err)
+			require.Equal(t, fleetdDevice.HardwareID, enrollment.MDMHardwareID)
+		}
+		status, err := s.ds.GetHostLockWipeStatus(ctx, fleetdHost)
+		require.NoError(t, err)
+		require.True(t, status.IsPendingWipe())
+
+		// Deleting the host releases its hardware ID.
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetdHost.ID), nil, http.StatusOK, &deleteHostResponse{})
+		reenrolled := newEntraHost(fleetdDevice.HardwareID, uuid.NewString())
+		require.NoError(t, reenrolled.Enroll())
+		requireEnrollment(t, fleetdDevice.HardwareID, reenrolled.DeviceID, reenrolled.EntraDeviceID)
 	})
 
 	t.Run("the same host re-enrolls through Entra", func(t *testing.T) {
