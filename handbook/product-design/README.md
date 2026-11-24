@@ -187,7 +187,7 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 ### Confirm and celebrate
 
-The relevant Product Designer (PD) reviews the checkboxes in user stories we shipped but haven't closed. Are they done? If not, notify the relevant contributor to help get them done. If they're done, PD notifies the requester in the story with context on whether they think the entire request is fulfilled or still has some work left (more user stories to be drafted and shipped). The PD then closes the story.
+The relevant Product Designer (PD) reviews the checkboxes in user stories we shipped but haven't closed. Are they done? If not, notify the relevant contributor to help get them done. If they're done, the PD closes the story with a comment that @ mentions the Customer Success Manager (CSM) on whether they think the entire request is fulfilled or still has some work left (more user stories to be drafted and shipped).
 
 
 ### Update a company brand front
