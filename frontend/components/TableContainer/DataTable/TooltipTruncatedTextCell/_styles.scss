@@ -79,7 +79,9 @@
 }
 
 // Escape hides the tooltip without moving the pointer; react-tooltip's own hide() refuses while the pointer is on it.
-.tooltip-truncated-cell-portal .__react_component_tooltip.truncated-tooltip--dismissed {
+// Doubled class outranks react-tooltip's injected .__react_component_tooltip.show, which loads after this bundle.
+.tooltip-truncated-cell-portal.tooltip-truncated-cell-portal--dismissed
+  .__react_component_tooltip {
   visibility: hidden;
   pointer-events: none;
 }

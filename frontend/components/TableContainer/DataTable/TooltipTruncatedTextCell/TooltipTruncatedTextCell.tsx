@@ -107,9 +107,7 @@ const TooltipTruncatedTextCell = ({
       backgroundColor={COLORS["tooltip-bg"]}
       id={tooltipId}
       data-html
-      className={classnames("truncated-tooltip", {
-        "truncated-tooltip--dismissed": isTooltipDismissed,
-      })} // responsive widths
+      className="truncated-tooltip" // responsive widths
       clickable
       delayHide={200} // need delay set to hover using clickable
       delayShow={isInsideLink ? LINK_TOOLTIP_SHOW_DELAY_MS : undefined}
@@ -157,10 +155,12 @@ const TooltipTruncatedTextCell = ({
       {isInsideLink
         ? createPortal(
             // React events bubble through portals, so stop clicks here before they reach the link's onClick.
+            // The dismissed modifier lives here because react-tooltip only reads its className when it shows.
             // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
             <div
               className={classnames(`${baseClass}-portal`, {
                 "tooltip-break-on-word": tooltipBreakOnWord,
+                [`${baseClass}-portal--dismissed`]: isTooltipDismissed,
               })}
               onClick={(e) => e.stopPropagation()}
             >
