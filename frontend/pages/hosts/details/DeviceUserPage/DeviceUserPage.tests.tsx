@@ -1,4 +1,5 @@
 import { act, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
@@ -22,6 +23,7 @@ import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
+  defaultMacAdminsHandler,
   deviceSetupExperienceHandler,
   emptySetupExperienceHandler,
   googleConditionalAccessHandler,
@@ -29,6 +31,7 @@ import {
   ssoRequiredDeviceHandler,
   unauthorizedDeviceHandler,
 } from "test/handlers/device-handler";
+import { emptyDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -69,6 +72,14 @@ const mockLocation = {
   },
   search: undefined,
 };
+
+// The page loads both of these alongside the device details.
+beforeEach(() => {
+  mockServer.use(
+    defaultMacAdminsHandler,
+    emptyDeviceSelfServiceCategoriesHandler
+  );
+});
 
 describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
@@ -834,6 +845,9 @@ describe("Device User Page", () => {
     let refetchSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      // Fake from before the render, since the refetch poll is scheduled on
+      // first load. Date stays real: these tests move the clock through the spy.
+      jest.useFakeTimers({ doNotFake: ["Date"] });
       mockNow = REAL_NOW;
       dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockNow);
       refetchSpy = jest.spyOn(deviceUserAPI, "refetch").mockResolvedValue({});
@@ -842,6 +856,7 @@ describe("Device User Page", () => {
     });
 
     afterEach(() => {
+      jest.useRealTimers();
       dateNowSpy.mockRestore();
       refetchSpy.mockRestore();
     });
@@ -895,31 +910,27 @@ describe("Device User Page", () => {
         detailUpdatedAt: NEVER_REPORTED,
         expectedErrors: [],
       },
-    ])(
-      "$name",
-      async ({ detailUpdatedAt, expectedErrors }) => {
-        renderWithHost(
-          mockHost({
-            refetch_requested: true,
-            status: "online",
-            detail_updated_at: detailUpdatedAt,
-          })
-        );
-        // The first load starts the refetch timer and schedules the next poll via a real setTimeout.
-        await screen.findByText(/refetching\.\.\./i);
-        // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
-        mockNow += 200000;
-        await waitFor(
-          () =>
-            expect(
-              screen.queryByText(/refetching\.\.\./i)
-            ).not.toBeInTheDocument(),
-          { timeout: 4000 }
-        );
-        expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
-      },
-      10000
-    );
+    ])("$name", async ({ detailUpdatedAt, expectedErrors }) => {
+      renderWithHost(
+        mockHost({
+          refetch_requested: true,
+          status: "online",
+          detail_updated_at: detailUpdatedAt,
+        })
+      );
+      // The first load starts the refetch timer and schedules the next poll.
+      await screen.findByText(/refetching\.\.\./i);
+      // Jump past the 3-minute give-up window before that poll re-evaluates elapsed time.
+      mockNow += 200000;
+      await waitFor(
+        () =>
+          expect(
+            screen.queryByText(/refetching\.\.\./i)
+          ).not.toBeInTheDocument(),
+        { timeout: 4000 }
+      );
+      expect((notify.error as jest.Mock).mock.calls).toEqual(expectedErrors);
+    });
 
     it.each([
       { status: "offline" as const, elapsed: 0, message: OFFLINE_MESSAGE },
@@ -927,9 +938,12 @@ describe("Device User Page", () => {
     ])(
       "shows '$message' for a refetch the user asked for",
       async ({ status, elapsed, message }) => {
-        const { user } = renderWithHost(
+        renderWithHost(
           mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
         );
+        const user = userEvent.setup({
+          advanceTimers: jest.advanceTimersByTime,
+        });
 
         await user.click(
           await screen.findByRole("button", { name: /refetch/i })
@@ -952,8 +966,7 @@ describe("Device User Page", () => {
           () => expect(notify.error).toHaveBeenCalledWith(message),
           { timeout: 5000 }
         );
-      },
-      10000
+      }
     );
   });
 });
@@ -1550,12 +1563,11 @@ describe("Device User Page - Google conditional access sign-in", () => {
 
       const { container } = renderPage(platform);
 
-      expect(
-        await screen.findByText("Redirecting to Google sign-in...")
-      ).toBeInTheDocument();
       await waitFor(() =>
         expect(replaceLocation).toHaveBeenCalledWith(SIGN_IN_URL)
       );
+      expect(await screen.findByTestId("spinner")).toBeInTheDocument();
+      expect(screen.queryByText(/Redirecting to Google sign-in/)).toBeNull();
       expect(container.querySelector(".device-user-mobile")).toBeNull();
     }
   );
@@ -1567,7 +1579,6 @@ describe("Device User Page - Google conditional access sign-in", () => {
     const { container } = renderPage("ios");
 
     await expectSelfService(container);
-    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
     expect(replaceLocation).not.toHaveBeenCalled();
   });
 
@@ -1592,7 +1603,6 @@ describe("Device User Page - Google conditional access sign-in", () => {
     });
 
     await expectSelfService(container);
-    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
     expect(replaceLocation).toHaveBeenCalledTimes(1);
     // Each start mints a token and counts an attempt.
     expect(signInStarted).toHaveBeenCalledTimes(1);
@@ -1623,7 +1633,6 @@ describe("Device User Page - Google conditional access sign-in", () => {
     const { container } = renderPage("ios", false);
 
     await expectSelfService(container);
-    expect(screen.queryByText("Redirecting to Google sign-in...")).toBeNull();
     expect(statusCalled).not.toHaveBeenCalled();
     expect(replaceLocation).not.toHaveBeenCalled();
   });

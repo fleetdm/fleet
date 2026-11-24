@@ -830,12 +830,7 @@ const DeviceUserPage = ({
     }
 
     if (isCheckingGoogleSignIn || isRedirectingToGoogle) {
-      return (
-        <div className={`${baseClass}__redirect`} role="status">
-          <Spinner variant="mobile" />
-          <span>Redirecting to Google sign-in...</span>
-        </div>
-      );
+      return <Spinner {...(isMobileView && { variant: "mobile" })} />;
     }
 
     // isIOSIPadOS: Fleet platform. isMobile: user agent or ?mobile=1.

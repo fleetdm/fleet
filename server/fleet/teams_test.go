@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -364,7 +363,6 @@ func TestTeamConfigCopy(t *testing.T) {
 				FailingPoliciesWebhook: FailingPoliciesWebhookSettings{
 					Enable:         true,
 					DestinationURL: "https://policies.example.com",
-					PolicyIDs:      []uint{1, 2, 3},
 					HostBatchSize:  100,
 				},
 			},
@@ -378,18 +376,13 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.NotSame(t, tc.WebhookSettings.HostStatusWebhook, clone.WebhookSettings.HostStatusWebhook)
 		require.Equal(t, tc.WebhookSettings.HostStatusWebhook, clone.WebhookSettings.HostStatusWebhook)
 
-		// Verify deep copy of PolicyIDs slice
-		require.NotEqual(t,
-			reflect.ValueOf(tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs).Pointer(),
-			reflect.ValueOf(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs).Pointer(),
-		)
-		require.Equal(t, tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+		require.Equal(t, tc.WebhookSettings.FailingPoliciesWebhook, clone.WebhookSettings.FailingPoliciesWebhook)
 
 		// Modify original and verify clone is unaffected
 		tc.WebhookSettings.HostStatusWebhook.Enable = false
-		tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs[0] = 999
+		tc.WebhookSettings.FailingPoliciesWebhook.DestinationURL = "https://changed.example.com"
 		require.True(t, clone.WebhookSettings.HostStatusWebhook.Enable)
-		require.Equal(t, uint(1), clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs[0])
+		require.Equal(t, "https://policies.example.com", clone.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 	})
 
 	t.Run("deep copy features", func(t *testing.T) {
@@ -505,4 +498,32 @@ func TestTeamNameKey(t *testing.T) {
 	assert.Equal(t, "開発チーム2", TeamNameKey("開発・チーム 2"))
 	// A mark only counts right after its letter: here the breve follows a space and the digit.
 	assert.Equal(t, "и1", TeamNameKey("и \u0306 1\u0306"))
+}
+
+func TestReservedTeamNameReason(t *testing.T) {
+	for name, want := range map[string]string{
+		"Unassigned":      `"Unassigned" is a reserved fleet name`,
+		"unassigned":      `"unassigned" is a reserved fleet name`,
+		"ALL FLEETS":      `"ALL FLEETS" is a reserved fleet name`,
+		"No team":         `"No team" is a reserved fleet name`,
+		"all teams":       `"all teams" is a reserved fleet name`,
+		"Un-assigned":     `"Un-assigned" is too similar to the reserved name "Unassigned"`,
+		"Ünassigned":      `"Ünassigned" is too similar to the reserved name "Unassigned"`,
+		"Unassigned 🚀":    `"Unassigned 🚀" is too similar to the reserved name "Unassigned"`,
+		"Ｕｎａｓｓｉｇｎｅｄ":      `"Ｕｎａｓｓｉｇｎｅｄ" is too similar to the reserved name "Unassigned"`,
+		"All_fleets":      `"All_fleets" is too similar to the reserved name "All fleets"`,
+		"allfleets":       `"allfleets" is too similar to the reserved name "All fleets"`,
+		"No-team":         `"No-team" is too similar to the reserved name "No team"`,
+		"all-teams":       `"all-teams" is too similar to the reserved name "All teams"`,
+		"All teams!":      `"All teams!" is too similar to the reserved name "All teams"`,
+		"Unassigned 2":    "",
+		"Unassigned Macs": "",
+		"Not assigned":    "",
+		"All fleet":       "",
+		"Fleets":          "",
+		"Workstations":    "",
+		"🚀":               "",
+	} {
+		assert.Equal(t, want, ReservedTeamNameReason(name), name)
+	}
 }

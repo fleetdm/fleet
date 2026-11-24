@@ -13,6 +13,7 @@ on:
       - '**.jsx'
       - '**.ts'
       - '**.tsx'
+      - '.github/workflows/codeql-analysis.yml'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -29,7 +30,7 @@ permissions: {}
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-8core
+    runs-on: ubuntu-22.04
     permissions:
       actions: read
       contents: read

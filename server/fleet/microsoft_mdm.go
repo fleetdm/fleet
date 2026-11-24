@@ -1011,6 +1011,8 @@ type MDMWindowsSaveResponseResult struct {
 
 type MDMWindowsWipeResult struct {
 	HostUUID string
+	// Reset is set when the command was a Reset (doWipePersistProvisionedData) rather than a Wipe.
+	Reset bool
 }
 
 ///////////////////////////////////////////////////////////////

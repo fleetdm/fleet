@@ -119,10 +119,6 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			if tc.wantFlip {
 				require.Equal(t, tc.wantActiveID, gotActiveID)
 			}
-			// A literal pin short-circuits before querying cached versions.
-			if tc.pin != nil && *tc.pin != "" && (*tc.pin)[0] != '^' {
-				require.False(t, ds.GetFleetMaintainedVersionsByTitleIDFuncInvoked)
-			}
 		})
 	}
 }

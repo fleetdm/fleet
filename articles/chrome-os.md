@@ -15,6 +15,7 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 ## Current limitations in ChromeOS
 - Scheduled reports are currently not available for ChromeOS
 - The fleetd Chrome extension must be force-installed by enterprise policy in order to have full access to the host's data.
+- Last restarted (`last_restarted_at` in the API) is the last time Chrome started for the signed-in user.
 - More tables that could be added:
   - `disk_events`: https://github.com/fleetdm/fleet/issues/12405
   - `client_certificates`: https://github.com/fleetdm/fleet/issues/12465

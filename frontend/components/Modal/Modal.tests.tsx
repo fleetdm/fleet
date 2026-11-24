@@ -30,6 +30,19 @@ describe("Modal", () => {
     expect(screen.getByText("Foobar")).toBeVisible();
   });
 
+  it("calls onExit from the close button, which screen readers announce as 'Close'", () => {
+    const onExit = jest.fn();
+    render(
+      <Modal title="Test" onExit={onExit}>
+        <div>content</div>
+      </Modal>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    act(() => jest.runAllTimers());
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
   it("calls onExit when clicking the background overlay", async () => {
     const onExit = jest.fn();
     const { container } = render(

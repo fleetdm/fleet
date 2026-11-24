@@ -56,7 +56,7 @@ jobs:
           # rc-minor-fleet-v4.65.0-cherry-helm), leaving just the real RCs.
           # `|| true` keeps the step from failing when grep finds no matches.
           candidates=$(gh api "repos/${{ github.repository }}/branches" --paginate --jq '.[].name' \
-            | grep -E '^rc-(minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+            | grep -E '^rc-(major|minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' || true)
 
           # Keep only the RC branches whose version is strictly greater than
           # the latest released version (i.e. an in-flight release). `sort -V`
@@ -64,7 +64,7 @@ jobs:
           # and isn't equal to the released version, it's still active.
           active=()
           for b in $candidates; do
-            v=$(echo "$b" | sed -E 's/^rc-(minor|patch)-fleet-v//')
+            v=$(echo "$b" | sed -E 's/^rc-(major|minor|patch)-fleet-v//')
             top=$(printf '%s\n%s\n' "$v" "$latest_ver" | sort -V | tail -n1)
             if [ "$top" = "$v" ] && [ "$v" != "$latest_ver" ]; then
               active+=("$b")

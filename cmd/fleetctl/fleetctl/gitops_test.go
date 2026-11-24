@@ -1612,7 +1612,7 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 		return nil
 	}
 
-	// Server-side software for "Test Fleet" (teamID=1) and "No team" (teamID=0).
+	// Server-side software for "Test Fleet" (teamID=1) and Unassigned (teamID=0).
 	// This is what the pre-fetch will retrieve and inject as synthetic data into the parser.
 	// For team software, page 0 returns a full page of bogus results to exercise pagination,
 	// and page 1 returns the actual software that policies reference.
@@ -1754,7 +1754,7 @@ policies:
 		}
 	}
 	// Check that no-team policy also had the expected software title ID.
-	noTeamPolicySpecs := policySpecsByTeam["No team"]
+	noTeamPolicySpecs := policySpecsByTeam[fleet.DisplayNameNoTeam]
 	require.Len(t, noTeamPolicySpecs, 1, "expected 1 no-team policy")
 	assert.Equal(t, uint(30), *noTeamPolicySpecs[0].SoftwareTitleID, "expected server-side software ID to be injected into no-team policy spec")
 }
@@ -1930,7 +1930,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 			// Return a mock team 0 with the default config
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -2047,6 +2047,11 @@ software:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `is a reserved fleet name`)
+
+	t.Setenv("TEST_TEAM_NAME", "Un-assigned")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"Un-assigned" is too similar to the reserved name "Unassigned"`)
 
 	// Dry run
 	t.Setenv("TEST_TEAM_NAME", teamName)
@@ -2937,9 +2942,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Try to change team name again, but this time the new name conflicts with an existing team
 			t.Setenv("TEST_TEAM_NAME", "Conflict")
 			_, err := runAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
-			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
+			require.ErrorContains(t, err, `"Conflict" is too similar to the fleet name "Conflict". Please try another name.`)
 			_, err = runAppNoChecks([]string{"gitops", "-f", gitopsFile})
-			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
+			require.ErrorContains(t, err, `"Conflict" is too similar to the fleet name "Conflict". Please try another name.`)
 
 			// Now clear the settings
 			t.Setenv("TEST_TEAM_NAME", newTeamName)
@@ -3089,7 +3094,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 			// Return a mock team 0 with the default config
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -3440,7 +3445,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 			// Return a mock team 0 with the default config
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -3754,7 +3759,7 @@ func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
 		return nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-		return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+		return &fleet.TeamLite{ID: 0, Name: fleet.DisplayNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1
@@ -4666,15 +4671,15 @@ software:
 			},
 		},
 		{
-			name: "no team is supported",
+			name: "Unassigned is supported",
 			cfgs: []string{
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      byod_fleet: "No team"
-                                      macos_fleet: "No team"
-                                      ios_fleet: "No team"
-                                      ipados_fleet: "No team"`),
+                                      byod_fleet: "Unassigned"
+                                      macos_fleet: "Unassigned"
+                                      ios_fleet: "Unassigned"
+                                      ipados_fleet: "Unassigned"`),
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				assert.NoError(t, err)
@@ -4689,10 +4694,10 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
-							BYODTeam:         "No team",
-							MacOSTeam:        "No team",
-							IOSTeam:          "No team",
-							IpadOSTeam:       "No team",
+							BYODTeam:         "Unassigned",
+							MacOSTeam:        "Unassigned",
+							IOSTeam:          "Unassigned",
+							IpadOSTeam:       "Unassigned",
 						},
 					},
 				)
@@ -4700,12 +4705,12 @@ software:
 			},
 		},
 		{
-			name: "not provided teams defaults to no team",
+			name: "not provided fleets default to Unassigned",
 			cfgs: []string{
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                       ios_fleet: ""`),
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4721,7 +4726,7 @@ software:
 					[]fleet.MDMAppleABMAssignmentInfo{
 						{
 							OrganizationName: "Fleet Device Management Inc.",
-							MacOSTeam:        "No team",
+							MacOSTeam:        "Unassigned",
 							IOSTeam:          "",
 							IpadOSTeam:       "",
 							BYODTeam:         "",
@@ -4737,7 +4742,7 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Does not exist
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4760,7 +4765,7 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: "Café Inc."
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{{ID: 1, OrganizationName: "Café Inc."}},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
@@ -4778,10 +4783,10 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                     - organization_name: Foo Inc.
                                       default: true
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -4812,10 +4817,10 @@ software:
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
                                       default: true
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                     - organization_name: Foo Inc.
                                       default: true
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc."},
@@ -4840,9 +4845,9 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"
+                                      macos_fleet: "Unassigned"
                                     - organization_name: Foo Inc.
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -4870,7 +4875,7 @@ software:
 				global(`
                                   apple_business:
                                     - organization_name: Fleet Device Management Inc.
-                                      macos_fleet: "No team"`),
+                                      macos_fleet: "Unassigned"`),
 			},
 			tokens: []*fleet.ABMToken{
 				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
@@ -5418,10 +5423,6 @@ software:
 		"Global Webhook Policy 2":  true,
 		"Global No Webhook Policy": false,
 	}, appliedSpecs)
-	require.Empty(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), nil)
-	require.NoError(t, err)
-	require.Empty(t, webhookPolicyIDs)
 }
 
 func TestGitOpsFleetFailingPoliciesWebhookPolicyIDs(t *testing.T) {
@@ -5462,7 +5463,6 @@ agent_options:
 	savedFleet, err := ds.TeamByName(context.Background(), fleetName)
 	require.NoError(t, err)
 	require.False(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
-	require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
 }
 
 func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
@@ -5496,16 +5496,6 @@ func TestGitOpsFleetWebhooksAndTicketsEnabled(t *testing.T) {
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string,
 	) (fleetPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return appliedPolicies, nil, nil
-	}
-
-	// No settings write sets the fleet's webhook or ticket policies; each policy spec carries its own.
-	requireNoPolicyIDs := func(t *testing.T) {
-		savedFleet, err := ds.TeamByName(context.Background(), fleetName)
-		require.NoError(t, err)
-		require.Empty(t, savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-		webhookPolicyIDs, err := ds.WebhooksAndTicketsPolicyIDsFunc(t.Context(), &savedFleet.ID)
-		require.NoError(t, err)
-		require.Empty(t, webhookPolicyIDs)
 	}
 
 	t.Run("policy_ids is rejected", func(t *testing.T) {
@@ -5604,7 +5594,6 @@ agent_options:
 		require.NoError(t, err)
 		require.Equal(t, "http://example.com/webhook", savedFleet.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 		require.Equal(t, map[string]bool{"Webhook Policy 1": true, "Webhook Policy 2": true, "No Webhook Policy": false}, appliedSpecs)
-		requireNoPolicyIDs(t)
 	})
 
 	t.Run("does not re-fetch policies when all already exist", func(t *testing.T) {
@@ -5656,7 +5645,6 @@ agent_options:
 		require.Equal(t, 1, listTeamPoliciesCalls)
 
 		require.Equal(t, map[string]bool{"Existing Policy 1": true, "Existing Policy 2": true}, appliedSpecs)
-		requireNoPolicyIDs(t)
 	})
 }
 
@@ -7631,7 +7619,7 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		if tid == 0 {
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -8342,7 +8330,7 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		if tid == 0 {
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -8569,7 +8557,7 @@ func TestGitOpsHostNameTemplate(t *testing.T) {
 	defaultTeamConfig := &fleet.TeamConfig{}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid == 0 {
-			return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+			return &fleet.TeamLite{ID: 0, Name: fleet.DisplayNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
 		}
 		if tid == 1 && savedTeam != nil {
 			return savedTeam.ToTeamLite(), nil
@@ -8900,7 +8888,7 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 		if tid == 0 {
 			return &fleet.TeamLite{
 				ID:     0,
-				Name:   fleet.ReservedNameNoTeam,
+				Name:   fleet.DisplayNameNoTeam,
 				Config: defaultTeamConfig.ToLite(),
 			}, nil
 		}
@@ -9066,7 +9054,7 @@ software:
 
 				_, err := runAppNoChecks(args(valid, first, second))
 				require.ErrorContains(t, err, fmt.Sprintf(
-					"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Choose a fleet name distinct from other fleets.",
+					"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Please try another name.",
 					first, second), names)
 				requireNothingApplied(t)
 			}
@@ -9098,6 +9086,28 @@ software:
 			"-f", writeFleet(t, dir, "ram2.yml", "रम"),
 		})
 		require.NoError(t, err)
+
+		// Unassigned is fleet 0, so a fleet whose name only differs from it by ignored characters is not a duplicate of
+		// another file. The server rejects it as too similar to a reserved name.
+		globalFile := filepath.Join(dir, "default.yml")
+		require.NoError(t, os.WriteFile(globalFile, []byte(`
+controls:
+reports:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+labels:
+`), 0o600))
+		unassignedFile := filepath.Join(dir, "unassigned.yml")
+		require.NoError(t, os.WriteFile(unassignedFile, []byte("name: Unassigned\npolicies:\ncontrols:\nsoftware:\n"), 0o600))
+		_, err = runAppNoChecks([]string{"gitops", "--dry-run", "-f", globalFile, "-f", unassignedFile,
+			"-f", writeFleet(t, dir, "un-assigned.yml", "Un-assigned")})
+		require.ErrorContains(t, err, `"Un-assigned" is too similar to the reserved name "Unassigned"`)
 	})
 }
 

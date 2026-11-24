@@ -35,15 +35,22 @@ export const DROPDOWN_OPTIONS = [
 const createOnlyInstallableOnMacOSMessage = (reason: string) =>
   `Couldn't install. ${reason.replace("darwin", "macOS")}.`;
 
-const createVPPTokenExpiredMessage = () => (
+// Pass the backend reason through verbatim so any token name format (including
+// one with embedded quotes that Go's %q escapes as \") renders unambiguously.
+// Extracting the name with a regex misses escaped quotes and silently falls
+// back to the generic install error.
+const createVPPTokenExpiredMessage = (apiReason: string) => (
   <>
-    {INSTALL_SOFTWARE_ERROR_PREFIX} VPP token expired. Go to{" "}
+    {apiReason.replace(/\.?\s*Please renew it and try again\.?$/, "")}. Go to{" "}
     <b>
       Settings {">"} Integration {">"} Volume Purchasing Program
     </b>{" "}
     and renew token.
   </>
 );
+
+const isVPPTokenExpiredReason = (reason: string) =>
+  reason.includes("VPP token") && reason.includes("is expired");
 
 // determines if we want to show the API message as is to the user.
 const showAPIMessage = (message: string) => {
@@ -59,17 +66,24 @@ const showAPIMessage = (message: string) => {
 export const getInstallErrorMessage = (e: unknown) => {
   const reason = upperFirst(trimEnd(getErrorReason(e), "."));
 
+  // Check VPP expiration first so a token whose location happens to contain a
+  // later branch's trigger phrase (fleetd installed, can be installed only on)
+  // still gets the Settings guidance and token-name surfacing.
+  if (isVPPTokenExpiredReason(reason)) {
+    return createVPPTokenExpiredMessage(reason);
+  }
   if (reason.includes("fleetd installed")) {
     return `${INSTALL_SOFTWARE_ERROR_PREFIX}. ${reason}.`;
-  } else if (reason.includes("can be installed only on")) {
+  }
+  if (reason.includes("can be installed only on")) {
     return createOnlyInstallableOnMacOSMessage(reason);
-  } else if (reason.includes("VPP token expired")) {
-    return createVPPTokenExpiredMessage();
-  } else if (
+  }
+  if (
     reason.includes("unresolvable Fleet variable in managed app configuration")
   ) {
     return `${INSTALL_SOFTWARE_ERROR_PREFIX} Couldn't resolve a Fleet variable in the managed app configuration for this host.`;
-  } else if (showAPIMessage(reason)) {
+  }
+  if (showAPIMessage(reason)) {
     return reason;
   }
 

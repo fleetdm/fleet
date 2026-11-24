@@ -57,28 +57,22 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// NOTE: label names starting with "-" are sent as "labels_excluding_any"
 	// (and the leading "-" is removed from the name). Names starting with
-	// "!" are sent as the deprecated "labels" field (and the "!" is removed).
-	// Names starting with a "~" prefix are sent as "labels_include_any"
+	// a "~" prefix are sent as "labels_include_any"
 	// (and the leading "~" is removed.
 	addLabelsFields := func(labelNames []string) map[string][]string {
-		var deprLabels, inclAllLabels, inclAnyLabels, exclLabels []string
+		var inclAllLabels, inclAnyLabels, exclLabels []string
 		for _, lbl := range labelNames {
 			switch {
 			case strings.HasPrefix(lbl, "~"):
 				inclAnyLabels = append(inclAnyLabels, strings.TrimPrefix(lbl, "~"))
 			case strings.HasPrefix(lbl, "-"):
 				exclLabels = append(exclLabels, strings.TrimPrefix(lbl, "-"))
-			case strings.HasPrefix(lbl, "!"):
-				deprLabels = append(deprLabels, strings.TrimPrefix(lbl, "!"))
 			default:
 				inclAllLabels = append(inclAllLabels, lbl)
 			}
 		}
 
 		fields := make(map[string][]string)
-		if len(deprLabels) > 0 {
-			fields["labels"] = deprLabels
-		}
 		if len(inclAllLabels) > 0 {
 			fields["labels_include_all"] = inclAllLabels
 		}
@@ -347,14 +341,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAndroidProfile("android-profile-with-labels.json", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 
 	// profiles with invalid mix of labels (two include modes; exclude may combine with either include mode)
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"!foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all" or "labels_include_any" can be included.`)
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all" or "labels_include_any" can be included.`)
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all" or "labels_include_any" can be included.`)
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all" or "labels_include_any" can be included.`)
 
 	// profiles with same label in both include and exclude lists
 	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "-foo"}, http.StatusBadRequest, `Label "foo" cannot appear in both include and exclude lists.`)
@@ -363,7 +353,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"~bar", "-bar"}, http.StatusBadRequest, `Label "bar" cannot appear in both include and exclude lists.`)
 
 	// profiles with valid labels
-	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"!foo"}, http.StatusOK, "")
+	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"foo"}, http.StatusOK, "")
 	uuidAppleWithInclAnyLabel := assertAppleProfile("apple-profile-with-incl-any-labels.mobileconfig", "apple-profile-with-incl-any-labels", "ident-with-incl-any-labels", 0, []string{"~foo", "~bar"}, http.StatusOK, "")
 	uuidAppleDDMWithLabel := createAppleDeclaration("apple-decl-with-labels", "ident-decl-with-labels", 0, []string{"foo"})
 	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"-foo", "-bar"}, http.StatusOK, "")
@@ -1832,6 +1822,84 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 	}
 
 	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin", true)
+}
+
+// Validation runs on secret-expanded content, so an error quoting that content
+// must not carry the secret's value back to the caller.
+func (s *integrationMDMTestSuite) TestProfileValidationErrorsDontLeakSecrets() {
+	t := s.T()
+
+	const value = "leak-sentinel-value"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_LEAK", Value: value}},
+	}, http.StatusOK, &fleet.CreateSecretVariablesResponse{})
+
+	mobileconfig := func(payloadType string) []byte {
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>leak</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.leak</string>
+	<key>PayloadType</key>
+	<string>%s</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, payloadType, uuid.NewString()))
+	}
+	leakyMobileconfig := mobileconfig("$FLEET_SECRET_LEAK")
+	leakyDeclaration := []byte(`{"Type": "$FLEET_SECRET_LEAK", "Identifier": "com.example.leak.decl", "Payload": {}}`)
+
+	checkNotLeaked := func(t *testing.T, res *http.Response) {
+		t.Helper()
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.NotEmpty(t, body)
+		require.NotContains(t, string(body), value)
+	}
+
+	t.Run("create mobileconfig", func(t *testing.T) {
+		body, headers := generateNewProfileMultipartRequest(t, "leak.mobileconfig", leakyMobileconfig, s.token, nil)
+		checkNotLeaked(t, s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+			http.StatusBadRequest, headers))
+	})
+
+	t.Run("create declaration", func(t *testing.T) {
+		body, headers := generateNewProfileMultipartRequest(t, "leak.json", leakyDeclaration, s.token, nil)
+		checkNotLeaked(t, s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(),
+			http.StatusUnprocessableEntity, headers))
+	})
+
+	t.Run("edit mobileconfig", func(t *testing.T) {
+		body, headers := generateNewProfileMultipartRequest(t, "leak.mobileconfig", mobileconfig("Configuration"), s.token, nil)
+		var created newMDMConfigProfileResponse
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&created))
+		t.Cleanup(func() {
+			s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+created.ProfileUUID, nil, http.StatusOK)
+		})
+
+		body, headers = generateNewProfileMultipartRequest(t, "leak.mobileconfig", leakyMobileconfig, s.token, nil)
+		checkNotLeaked(t, s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+created.ProfileUUID,
+			body.Bytes(), http.StatusBadRequest, headers))
+	})
+
+	t.Run("batch", func(t *testing.T) {
+		for _, p := range []fleet.MDMProfileBatchPayload{
+			{Name: "leak", Contents: leakyMobileconfig},
+			{Name: "leak-decl", Contents: leakyDeclaration},
+		} {
+			checkNotLeaked(t, s.Do("POST", "/api/latest/fleet/mdm/profiles/batch",
+				batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{p}}, http.StatusUnprocessableEntity))
+		}
+	})
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileNameCantHoldSecretValue() {

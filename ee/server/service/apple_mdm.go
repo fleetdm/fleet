@@ -302,7 +302,7 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 			return ctxerr.Wrap(ctx, err, "resolving team for assets batch")
 		}
 		if tm == nil {
-			return ctxerr.Wrap(ctx, common_mysql.NotFound("Team"))
+			return ctxerr.Wrap(ctx, common_mysql.NotFound("Fleet"))
 		}
 		teamID = &tm.ID
 		resolvedTeamName = tm.Name

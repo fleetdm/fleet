@@ -1,0 +1,1 @@
+- Fixed the software details page for Android web apps: the type now shows as "Web app (Android)", the Versions count and **Add version** button are hidden, the library row shows the app's icon and name, and the **Edit targets** modal (previously **Edit version**) edits only targets, without the Name and Configuration fields.

@@ -23,7 +23,7 @@ func (r ListActivitiesResponse) Error() error { return r.Err }
 
 // ListHostPastActivitiesRequest is the HTTP request type for listing host past activities.
 type ListHostPastActivitiesRequest struct {
-	HostID      uint            `url:"id"`
+	Identifier  string          `url:"id"`
 	ListOptions api.ListOptions `url:"list_options"`
 }
 

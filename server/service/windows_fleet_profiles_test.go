@@ -232,6 +232,9 @@ func TestPushEnrollSecretToOrphanedEnrollment(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"}}, nil
 		}
+		ds.MDMWindowsFailInterruptedResetFunc = func(ctx context.Context, enrollmentID, hostID uint) (bool, error) {
+			return false, nil
+		}
 		cfg := config.TestConfig()
 		cfg.MDM.WindowsOneTimeEnrollSecrets = windowsOneTimeEnrollSecrets
 		svc, _ := newTestServiceWithConfig(t, ds, cfg, nil, nil)

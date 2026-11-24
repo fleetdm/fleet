@@ -29,6 +29,7 @@ var (
 		m + "/server/contexts/logging",
 		m + "/server/contexts/authz",
 		m + "/server/contexts/publicip",
+		m + "/server/contexts/redact",
 		m + "/pkg/fleethttp",
 	}
 )

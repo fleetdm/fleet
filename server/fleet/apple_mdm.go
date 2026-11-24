@@ -798,6 +798,9 @@ type HostDEPAssignment struct {
 	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
 	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
 	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
+	// ThrottledRetryAfter is when Apple allows a THROTTLED assignment to be retried, or nil if Apple
+	// didn't say, in which case Fleet retries after a fixed cooldown.
+	ThrottledRetryAfter *time.Time `db:"throttled_retry_after" json:"throttled_retry_after"`
 	// HardwareSerial is omitted from JSON to avoid overpopulating old responses.
 	HardwareSerial string `db:"hardware_serial" json:"-"`
 }

@@ -35,7 +35,7 @@ jobs:
   build-binaries:
     permissions:
       contents: read
-    runs-on: ubuntu-4core
+    runs-on: ubuntu-22.04
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4

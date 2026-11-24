@@ -77,8 +77,9 @@ export interface IPolicy {
   updated_at: string;
   // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical: boolean;
-  calendar_events_enabled: boolean;
-  conditional_access_enabled: boolean;
+  /** Only in host policy lists; the policy endpoints return `automation_type`. */
+  calendar_events_enabled?: boolean;
+  conditional_access_enabled?: boolean;
   /** Hidden from end users in Fleet Desktop. Absent on device (My device) policies. */
   hidden?: boolean;
   type: string;

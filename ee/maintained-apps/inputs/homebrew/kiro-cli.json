@@ -1,6 +1,6 @@
 {
   "name": "Kiro CLI",
-  "unique_identifier": "dev.kiro.cli",
+  "unique_identifier": "com.amazon.codewhisperer",
   "token": "kiro-cli",
   "installer_format": "dmg",
   "slug": "kiro-cli/darwin",

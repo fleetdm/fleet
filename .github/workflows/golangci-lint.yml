@@ -46,7 +46,7 @@ jobs:
       matrix:
         # PR/push runs Linux only for fast, cheap feedback. The full OS matrix
         # (macOS + Windows) runs nightly via the schedule trigger and on manual dispatch.
-        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-4core","macos-latest","windows-latest"]' || '["ubuntu-4core"]') }}
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-22.04","macos-latest","windows-latest"]' || '["ubuntu-22.04"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       # Tell git not to change line endings when checking out files on Windows. Without this gofmt
@@ -106,7 +106,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden Runner

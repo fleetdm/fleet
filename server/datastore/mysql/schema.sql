@@ -426,8 +426,11 @@ CREATE TABLE `challenges` (
   `challenge` char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `ca_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`challenge`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -891,6 +894,7 @@ CREATE TABLE `host_dep_assignments` (
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `assign_profile_response` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `response_updated_at` timestamp NULL DEFAULT NULL,
+  `throttled_retry_after` timestamp NULL DEFAULT NULL,
   `retry_job_id` int unsigned NOT NULL DEFAULT '0',
   `abm_token_id` int unsigned DEFAULT NULL,
   `mdm_migration_deadline` timestamp(6) NULL DEFAULT NULL,
@@ -901,7 +905,7 @@ CREATE TABLE `host_dep_assignments` (
   KEY `fk_host_dep_assignments_abm_token_id` (`abm_token_id`),
   KEY `idx_hdep_hardware_serial` (`hardware_serial`),
   CONSTRAINT `fk_host_dep_assignments_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1128,7 +1132,7 @@ CREATE TABLE `host_mdm_actions` (
   `host_id` int unsigned NOT NULL,
   `lock_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `wipe_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `unlock_pin` varchar(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unlock_pin` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `unlock_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `fleet_platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `clear_passcode_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -1136,7 +1140,7 @@ CREATE TABLE `host_mdm_actions` (
   KEY `idx_hma_lock_ref` (`lock_ref`),
   KEY `idx_hma_wipe_ref` (`wipe_ref`),
   KEY `idx_hma_unlock_ref` (`unlock_ref`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1953,10 +1957,10 @@ CREATE TABLE `in_house_apps` (
   `url` varchar(4095) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `install_during_setup` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `global_or_team_id` (`global_or_team_id`,`filename`,`platform`),
+  UNIQUE KEY `idx_in_house_apps_global_or_team_id_title_id` (`global_or_team_id`,`title_id`),
   KEY `fk_in_house_apps_title` (`title_id`),
   CONSTRAINT `fk_in_house_apps_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -3066,6 +3070,8 @@ CREATE TABLE `policies` (
   `type` enum('dynamic','patch') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'dynamic',
   `patch_software_title_id` int unsigned DEFAULT NULL,
   `needs_full_membership_cleanup` tinyint(1) NOT NULL DEFAULT '0',
+  `needs_partial_membership_cleanup` tinyint(1) NOT NULL DEFAULT '0',
+  `membership_cleanup_generation` int unsigned NOT NULL DEFAULT '0',
   `continuous_automations_enabled` tinyint(1) NOT NULL DEFAULT '0',
   `patch_when_closed` tinyint(1) NOT NULL DEFAULT '0',
   `resend_apple_profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,

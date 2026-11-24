@@ -31,7 +31,7 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestEnqueueDeviceLockReplacesOrphanRef", testEnqueueDeviceLockReplacesOrphanRef},
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
-		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
+		{"TestStoreAuthenticateKeepsBootstrapToken", testStoreAuthenticateKeepsBootstrapToken},
 		{"TestRetrievePushCert", testRetrievePushCert},
 		{"TestIsPushCertStale", testIsPushCertStale},
 		{"TestStorePushCert", testStorePushCert},
@@ -304,12 +304,10 @@ func testEnqueueDeviceLockReplacesOrphanRef(t *testing.T, ds *Datastore) {
 	require.Equal(t, "orphan-lock-cmd-2", lockRef)
 }
 
-// testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal verifies that
-// StoreAuthenticate does NOT clear the bootstrap token when a SCEP renewal is
-// in progress (renew_command_uuid is set in nano_cert_auth_associations), and
-// DOES clear it on a normal (re-)enrollment.
-// See https://github.com/fleetdm/fleet/issues/41167
-func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T, ds *Datastore) {
+// testStoreAuthenticateKeepsBootstrapToken verifies that StoreAuthenticate never updates the bootstrap token.
+// it only gets set or updated by the SetBootstrapToken command, to avoid false clears.
+// https://github.com/fleetdm/fleet/issues/57441
+func testStoreAuthenticateKeepsBootstrapToken(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	ns, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
@@ -342,7 +340,8 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	// Helper to read bootstrap_token_b64 from nano_devices.
 	getBootstrapToken := func() sql.NullString {
 		var token sql.NullString
-		err := ds.writer(ctx).QueryRowContext(ctx,
+		err := ds.writer(ctx).QueryRowContext(
+			ctx,
 			`SELECT bootstrap_token_b64 FROM nano_devices WHERE id = ?`, deviceUUID,
 		).Scan(&token)
 		require.NoError(t, err)
@@ -354,7 +353,7 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.True(t, token.Valid)
 	require.Equal(t, bootstrapToken, token.String)
 
-	// --- Case 1: Normal re-enrollment (no SCEP renewal) should clear the bootstrap token ---
+	// --- Case 1: Normal re-enrollment (no SCEP renewal) should not clear the bootstrap token ---
 
 	authMsg := &mdm.Authenticate{
 		Enrollment: mdm.Enrollment{UDID: deviceUUID},
@@ -370,16 +369,9 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.NoError(t, err)
 
 	token = getBootstrapToken()
-	require.False(t, token.Valid, "bootstrap token should be cleared on normal re-enrollment")
+	require.True(t, token.Valid, "bootstrap token should not be cleared on normal re-enrollment")
 
-	// --- Restore the bootstrap token for the next test case ---
-
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`UPDATE nano_devices SET bootstrap_token_b64 = ?, bootstrap_token_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		bootstrapToken, deviceUUID)
-	require.NoError(t, err)
-
-	// --- Case 2: SCEP renewal in progress should preserve the bootstrap token ---
+	// --- Case 2: SCEP renewal in progress should not clear the bootstrap token ---
 
 	// Simulate SCEP renewal by inserting a nano_command and setting renew_command_uuid.
 	renewCmdUUID := uuid.NewString()
@@ -406,7 +398,7 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.True(t, token.Valid, "bootstrap token should be preserved during SCEP renewal")
 	require.Equal(t, bootstrapToken, token.String)
 
-	// --- Case 3: After SCEP renewal completes (renew_command_uuid cleared), token should be cleared again ---
+	// --- Case 3: After SCEP renewal completes (renew_command_uuid cleared), token should still not be cleared ---
 
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		`UPDATE nano_cert_auth_associations SET renew_command_uuid = NULL WHERE id = ?`,
@@ -423,7 +415,7 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 	require.NoError(t, err)
 
 	token = getBootstrapToken()
-	require.False(t, token.Valid, "bootstrap token should be cleared after SCEP renewal completes")
+	require.True(t, token.Valid, "bootstrap token should still not be cleared after SCEP renewal completes")
 }
 
 func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
@@ -541,7 +533,8 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 	var lockRef string
 	err = ds.writer(ctx).QueryRow(
 		`SELECT COALESCE(unlock_pin, ''), COALESCE(lock_ref, '') FROM host_mdm_actions WHERE host_id = ?`,
-		host.ID).Scan(&storedPIN, &lockRef)
+		host.ID,
+	).Scan(&storedPIN, &lockRef)
 	require.NoError(t, err)
 
 	// Log the results

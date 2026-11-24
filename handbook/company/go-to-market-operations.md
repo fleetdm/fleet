@@ -490,8 +490,13 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 **Prerequisite:** Fleet's slide decks use the [Inter typeface](https://rsms.me/inter/). Install it on your computer before you edit or present a deck so the text renders correctly.
 
 ### First meeting decks
+
 - [Fleet for IT engineers and IT admins](https://drive.google.com/file/d/1NPGhLHf5_bv5gBmYFlW0sXKXPFgxqbdJ/view?usp=drive_link)
-- [Device management for Europe](https://docs.google.com/presentation/d/1_3Vyn32r9sfpKSfqelZq68u4ayXqE-opXZoJab6hhBU/edit?slide=id.g3d4265576de_4_433#slide=id.g3d4265576de_4_433)
+  > - At Fleet, we download and use a fresh copy of this deck _every time before a first call_.
+  > - Read skipped slides closely and use them to personalize for:
+  >   - Europe vs. outside of Europe
+  >   - Initially focused on Windows vs. Apple vs. Linux
+  >   - By vertical/industry
 
 ### PDFs to send
 - [Leave behind (PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)

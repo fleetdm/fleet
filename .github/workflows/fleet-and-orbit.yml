@@ -386,7 +386,7 @@ jobs:
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
-          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          until curl -v -fail ${{ needs.gen.outputs.address }}/healthz;
           do
             echo "Awaiting until fleet server responds..."
             sleep 10
@@ -409,7 +409,7 @@ jobs:
           attempts=0
           max_attempts=180  # ~30 minutes at 10s intervals
           while [ "$down" -lt "$required_down" ]; do
-            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/version; then
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/healthz; then
               down=0
             else
               down=$((down + 1))
@@ -483,7 +483,7 @@ jobs:
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
-          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          until curl -v -fail ${{ needs.gen.outputs.address }}/healthz;
           do
             echo "Awaiting until fleet server responds..."
             sleep 10
@@ -506,7 +506,7 @@ jobs:
           attempts=0
           max_attempts=180  # ~30 minutes at 10s intervals
           while [ "$down" -lt "$required_down" ]; do
-            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/version; then
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/healthz; then
               down=0
             else
               down=$((down + 1))
@@ -570,7 +570,7 @@ jobs:
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
-          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          until curl -v -fail ${{ needs.gen.outputs.address }}/healthz;
           do
             echo "Awaiting until fleet server responds..."
             sleep 10
@@ -593,7 +593,7 @@ jobs:
           attempts=0
           max_attempts=180  # ~30 minutes at 10s intervals
           while [ "$down" -lt "$required_down" ]; do
-            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/version; then
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/healthz; then
               down=0
             else
               down=$((down + 1))

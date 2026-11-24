@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
     runs-on: ${{ matrix.os }}
 
     steps:

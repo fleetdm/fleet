@@ -83,9 +83,10 @@ module.exports = {
       // Send a request to provision the new compliance tenant.
       let complianceTenantProvisionResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'PUT',
-        url: `${tenantDataSyncUrl}/PartnerTenants(guid'${informationAboutThisTenant.entraTenantId}')}?api-version=1.6`,
+        url: `${tenantDataSyncUrl}/PartnerTenants(guid'${informationAboutThisTenant.entraTenantId}')?api-version=1.6`,
         headers: {
-          'Authorization': `Bearer ${manageApiAccessToken}`
+          'Authorization': `Bearer ${manageApiAccessToken}`,
+          'Prefer': 'return-content'
         },
         body: {
           Provisioned: 1,// 1 = provisioned, 2 = deprovisioned.
@@ -111,7 +112,26 @@ module.exports = {
       //   "ErrorDetail": null
       // }
 
-
+      // Microsoft can respond with a 200 status code and report a provisioning failure in the response body.
+      // If we continued, the request to create a compliance policy would be silently ignored (204 + an all-zero policy ID).
+      if(!complianceTenantProvisionResponse.body) {
+        sails.log.warn(`Microsoft's PartnerTenants API returned an empty response body when provisioning tenant ${informationAboutThisTenant.entraTenantId}. Status: ${complianceTenantProvisionResponse.statusCode}. Response headers: ${require('util').inspect(complianceTenantProvisionResponse.headers, {depth: 1})}`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Provisioning failed: Microsoft's PartnerTenants API returned an empty response (HTTP ${complianceTenantProvisionResponse.statusCode}) when provisioning Fleet as a compliance partner on this Entra tenant.`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
+      let parsedProvisionResponse;
+      try {
+        parsedProvisionResponse = JSON.parse(complianceTenantProvisionResponse.body);
+      } catch(err){
+        sails.log.warn(`An error occured when parsing the JSON response body from the PartnerTenants endpoint for a microsoft compliance tenant. Status: ${complianceTenantProvisionResponse.statusCode}. Body length: ${complianceTenantProvisionResponse.body.length}. Body snippet: ${String(complianceTenantProvisionResponse.body).slice(0, 200)}. Full error:`, err);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `Provisioning failed: Could not parse response from Microsoft's PartnerTenants API (HTTP ${complianceTenantProvisionResponse.statusCode}). Underlying error: ${require('util').inspect(err, {depth: null})}`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
+      if(!_.isObject(parsedProvisionResponse) || parsedProvisionResponse.Provisioned !== 1 || parsedProvisionResponse.ErrorDetail !== null) {
+        sails.log.warn(`Microsoft's PartnerTenants API did not report that tenant ${informationAboutThisTenant.entraTenantId} was provisioned. Status: ${complianceTenantProvisionResponse.statusCode}. Response headers: ${require('util').inspect(complianceTenantProvisionResponse.headers, {depth: 1})}. Response body: ${require('util').inspect(parsedProvisionResponse, {depth: 3})}`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError: `Provisioning failed: Microsoft's PartnerTenants API did not provision Fleet as a compliance partner on this Entra tenant (HTTP ${complianceTenantProvisionResponse.statusCode}). Provisioned: ${_.isObject(parsedProvisionResponse) ? parsedProvisionResponse.Provisioned : undefined}. ErrorDetail: ${require('util').inspect(_.isObject(parsedProvisionResponse) ? parsedProvisionResponse.ErrorDetail : parsedProvisionResponse, {depth: 3})}`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
 
 
       // (2025-05-14) Testing note: If a request after this request fails, the request to create a policy will return a 409 error on subsequent runs.

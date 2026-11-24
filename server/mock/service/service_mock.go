@@ -47,6 +47,8 @@ type UsersByIDsFunc func(ctx context.Context, ids []uint) ([]*fleet.UserSummary,
 
 type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err error)
 
+type HostIDByIDOrIdentifierFunc func(ctx context.Context, identifier string) (uint, error)
+
 type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
 
 type GetHostActivitiesWebhookSettingsFunc func(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookDelivery, error)
@@ -250,8 +252,6 @@ type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 type SetHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint, googleDeviceID string) error
 
 type DeleteHostGoogleDeviceIDFunc func(ctx context.Context, hostID uint) error
-
-type HostLiteByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.HostLite, error)
 
 type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error)
 
@@ -679,6 +679,8 @@ type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSession
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
 
+type TriggerPolicyMembershipCleanupFunc func(ctx context.Context)
+
 type ResetAutomationFunc func(ctx context.Context, teamIDs []uint, policyIDs []uint) error
 
 type ProcessMDMMicrosoftDiscoveryFunc func(ctx context.Context, req *fleet.SoapRequest) (*fleet.SoapResponse, error)
@@ -797,9 +799,11 @@ type BatchScriptCancelFunc func(ctx context.Context, batchExecutionID string) er
 
 type LockHostFunc func(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 
-type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, err error)
+type UnlockHostFunc func(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error)
 
-type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
+type WipeHostFunc func(ctx context.Context, hostID uint) error
+
+type ResetHostFunc func(ctx context.Context, hostID uint) error
 
 type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error)
 
@@ -1036,6 +1040,9 @@ type Service struct {
 
 	GetHostLiteFunc        GetHostLiteFunc
 	GetHostLiteFuncInvoked bool
+
+	HostIDByIDOrIdentifierFunc        HostIDByIDOrIdentifierFunc
+	HostIDByIDOrIdentifierFuncInvoked bool
 
 	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
 	GetActivitiesWebhookSettingsFuncInvoked bool
@@ -1342,9 +1349,6 @@ type Service struct {
 
 	DeleteHostGoogleDeviceIDFunc        DeleteHostGoogleDeviceIDFunc
 	DeleteHostGoogleDeviceIDFuncInvoked bool
-
-	HostLiteByIdentifierFunc        HostLiteByIdentifierFunc
-	HostLiteByIdentifierFuncInvoked bool
 
 	HostLiteByIDFunc        HostLiteByIDFunc
 	HostLiteByIDFuncInvoked bool
@@ -1985,6 +1989,9 @@ type Service struct {
 	TriggerCronScheduleFunc        TriggerCronScheduleFunc
 	TriggerCronScheduleFuncInvoked bool
 
+	TriggerPolicyMembershipCleanupFunc        TriggerPolicyMembershipCleanupFunc
+	TriggerPolicyMembershipCleanupFuncInvoked bool
+
 	ResetAutomationFunc        ResetAutomationFunc
 	ResetAutomationFuncInvoked bool
 
@@ -2167,6 +2174,9 @@ type Service struct {
 
 	WipeHostFunc        WipeHostFunc
 	WipeHostFuncInvoked bool
+
+	ResetHostFunc        ResetHostFunc
+	ResetHostFuncInvoked bool
 
 	ClearPasscodeFunc        ClearPasscodeFunc
 	ClearPasscodeFuncInvoked bool
@@ -2554,6 +2564,13 @@ func (s *Service) GetHostLite(ctx context.Context, id uint) (host *fleet.Host, e
 	s.GetHostLiteFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostLiteFunc(ctx, id)
+}
+
+func (s *Service) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	s.mu.Lock()
+	s.HostIDByIDOrIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDByIDOrIdentifierFunc(ctx, identifier)
 }
 
 func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
@@ -3268,13 +3285,6 @@ func (s *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) err
 	s.DeleteHostGoogleDeviceIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostGoogleDeviceIDFunc(ctx, hostID)
-}
-
-func (s *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-	s.mu.Lock()
-	s.HostLiteByIdentifierFuncInvoked = true
-	s.mu.Unlock()
-	return s.HostLiteByIdentifierFunc(ctx, identifier)
 }
 
 func (s *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, error) {
@@ -4768,6 +4778,13 @@ func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {
 	return s.TriggerCronScheduleFunc(ctx, name)
 }
 
+func (s *Service) TriggerPolicyMembershipCleanup(ctx context.Context) {
+	s.mu.Lock()
+	s.TriggerPolicyMembershipCleanupFuncInvoked = true
+	s.mu.Unlock()
+	s.TriggerPolicyMembershipCleanupFunc(ctx)
+}
+
 func (s *Service) ResetAutomation(ctx context.Context, teamIDs []uint, policyIDs []uint) error {
 	s.mu.Lock()
 	s.ResetAutomationFuncInvoked = true
@@ -5181,18 +5198,25 @@ func (s *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlo
 	return s.LockHostFunc(ctx, hostID, viewPIN)
 }
 
-func (s *Service) UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error) {
+func (s *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error) {
 	s.mu.Lock()
 	s.UnlockHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnlockHostFunc(ctx, hostID)
 }
 
-func (s *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error {
+func (s *Service) WipeHost(ctx context.Context, hostID uint) error {
 	s.mu.Lock()
 	s.WipeHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.WipeHostFunc(ctx, hostID, metadata)
+	return s.WipeHostFunc(ctx, hostID)
+}
+
+func (s *Service) ResetHost(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ResetHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetHostFunc(ctx, hostID)
 }
 
 func (s *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {

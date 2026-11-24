@@ -1145,6 +1145,20 @@ func (a ActivityTypeUnlockedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeViewedHostUnlockPIN struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
+}
+
+func (a ActivityTypeViewedHostUnlockPIN) ActivityName() string {
+	return "viewed_host_unlock_pin"
+}
+
+func (a ActivityTypeViewedHostUnlockPIN) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeWipedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -1157,6 +1171,38 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeResetHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeResetHost) ActivityName() string {
+	return "reset_host"
+}
+
+func (a ActivityTypeResetHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+// ActivityTypeFailedReset is logged when a Windows host reports that the reset command failed, or comes back from an
+// interrupted reset without having been reset.
+type ActivityTypeFailedReset struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFailedReset) ActivityName() string {
+	return "failed_reset"
+}
+
+func (a ActivityTypeFailedReset) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedReset) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeWipeFailedHost struct {

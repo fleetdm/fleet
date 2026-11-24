@@ -343,7 +343,7 @@ type Datastore interface {
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
-	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
+	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs or hardware serials.
 	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostIDsByLabelIdentifier retrieves the IDs of hosts matching a manual label's host identifiers: UUIDs or hardware serials.
@@ -362,14 +362,18 @@ type Datastore interface {
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches are, in priority order,
-	// hardware_serial, UUID, hostname, osquery_host_id and node_key. The lowest host ID wins among hosts matching on the same column.
+	// hardware_serial, UUID and hostname. The lowest host ID wins among hosts matching on the same column.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
+	// HostIDByIdentifier returns the ID of the host matching identifier. Possible matches are, in priority order, the host ID (with
+	// opts.MatchID and a numeric identifier), hardware_serial, UUID and hostname. The newest host wins among hosts matching on the same
+	// column.
+	HostIDByIdentifier(ctx context.Context, identifier string, opts HostIDByIdentifierOptions) (uint, error)
 	// HostByUUID returns one host whose uuid column matches exactly. Unlike
 	// HostByIdentifier, it does not fall back to other identifier columns.
 	HostByUUID(ctx context.Context, uuid string) (*Host, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields using an
 	// "identifier" string. The identifier string will be matched against the
-	// hostname, osquery_host_id, node_key, uuid and hardware_serial columns.
+	// hostname, uuid and hardware_serial columns.
 	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
 	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
@@ -382,7 +386,8 @@ type Datastore interface {
 	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
 	// UpdateHostIssuesFailingPoliciesForSingleHost updates the failing policies count in host_issues table for a single host.
 	UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error
-	// Gets the last time the host's row in `host_issues` was updated
+	// GetHostIssuesLastUpdated gets the last time the host's row in `host_issues` was updated, or the zero time if it has none. It returns
+	// a not found error if the host doesn't exist.
 	GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error)
 	// UpdateHostIssuesVulnerabilities updates the critical vulnerabilities counts in host_issues.
 	UpdateHostIssuesVulnerabilities(ctx context.Context) error
@@ -1279,7 +1284,10 @@ type Datastore interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
+	// CleanupPolicyMembership removes the results of hosts that policies updated in the last 24 hours no longer target.
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// CleanupPendingPolicyMembership runs the policy result cleanups that policy changes requested.
+	CleanupPendingPolicyMembership(ctx context.Context) error
 	// IsPolicyFailing checks if a policy is currently failing for a given host.
 	IsPolicyFailing(ctx context.Context, policyID, hostID uint) (bool, error)
 	// CountHostSoftwareInstallAttempts counts how many install attempts exist for a specific
@@ -1886,6 +1894,10 @@ type Datastore interface {
 	// other than uuid, or "" if there's none or the device with uuid has a host of its own.
 	GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error)
 
+	// GetAppleAccountDrivenEnrollmentIDTaken reports whether a host other than the account-driven user enrollment's
+	// own would be matched by its enrollment ID.
+	GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error)
+
 	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
 	// Apple host. Returns a NotFound error when no row exists; callers that
 	// need a default should treat NotFound as AccessRights=8191 (all rights).
@@ -1959,14 +1971,6 @@ type Datastore interface {
 
 	// FilterWebhooksAndTicketsPolicies returns the policies among policyIDs that have the webhook or ticket automation on.
 	FilterWebhooksAndTicketsPolicies(ctx context.Context, policyIDs []uint) ([]PolicyIDAndTeam, error)
-	// WebhooksAndTicketsPolicyIDs returns the IDs of the policies in the scope that have the webhook or ticket automation
-	// on. A nil teamID is "All fleets", and 0 is "Unassigned".
-	WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error)
-	// WebhooksAndTicketsPolicyIDsByTeam is WebhooksAndTicketsPolicyIDs for several fleets at once, keyed by fleet ID.
-	WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error)
-	// PoliciesWithOtherAutomations returns the scope's policies among policyIDs that have the webhook or ticket
-	// automation off and another automation on. IDs of other scopes and deleted policies are ignored.
-	PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*Policy, error)
 	// WebhooksAndTicketsByPolicyName returns whether each named policy of the scope has the webhook or ticket automation
 	// on. Names without a policy are left out.
 	WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error)
@@ -1974,9 +1978,6 @@ type Datastore interface {
 	// the webhook or ticket automation on. Spec apply matches patch policies by app rather than by name. Slugs without a
 	// patch policy are left out.
 	WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, teamID uint, slugs []string) (map[string]bool, error)
-	// SetWebhooksAndTicketsPolicies turns the webhook or ticket automation on for exactly the policies in policyIDs that
-	// belong to the scope, and off for the scope's other policies.
-	SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -3370,9 +3371,23 @@ type Datastore interface {
 	// states in host_mdm_actions.
 	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
 
-	// WipeHostViaWindowsMDM sends a Windows MDM command to wipe a host and
-	// updates the states in host_mdm_actions.
+	// WipeHostViaWindowsMDM sends a Windows MDM command to wipe or reset a host and
+	// updates the states in host_mdm_actions. A wipe replaces a reset the host
+	// hasn't picked up, and waits behind one it acknowledged.
 	WipeHostViaWindowsMDM(ctx context.Context, host *Host, cmd *MDMWindowsCommand) error
+
+	// MDMWindowsFailInterruptedReset runs when an MDM session starts. If the enrollment acknowledged the host's reset
+	// more than WindowsResetRestartWindow ago, the reset was rolled back: it clears the reset status (handing it to a
+	// wipe queued behind the reset, if any) and returns true.
+	MDMWindowsFailInterruptedReset(ctx context.Context, enrollmentID, hostID uint) (bool, error)
+
+	// MDMWindowsRemoteWipeInProgress reports whether the enrollment's device acknowledged a RemoteWipe it may still be acting
+	// on: within WindowsResetRestartWindow, or a reset that MDMWindowsFailInterruptedReset hasn't cleared yet.
+	MDMWindowsRemoteWipeInProgress(ctx context.Context, enrollmentID, hostID uint) (bool, error)
+
+	// ClearEndUserAfterWindowsReset removes the end user mappings that a Windows host had before it acknowledged a reset, if
+	// EnrollOrbit would accept an enrollment with these options over that host. It returns whether it did.
+	ClearEndUserAfterWindowsReset(ctx context.Context, opts ...DatastoreEnrollOrbitOption) (bool, error)
 
 	// UpdateHostLockWipeStatusFromAppleMDMResult updates the host_mdm_actions
 	// table to reflect the result of the corresponding lock/wipe MDM command for
@@ -3882,6 +3897,9 @@ type Datastore interface {
 
 	// CancelPendingSetupExperienceSteps cancels any setup experience items for the given host that aren't already completed.
 	CancelPendingSetupExperienceSteps(ctx context.Context, hostUUID string) error
+	// HostIDBySetupExperienceUUID returns the ID of the host that fleet.HostUUIDForSetupExperience gives hostUUID for: its osquery host ID
+	// on Windows and Linux, and its UUID on the other platforms.
+	HostIDBySetupExperienceUUID(ctx context.Context, hostUUID string) (uint, error)
 
 	// GetSetupExperienceScript gets the setup experience script for a team. There can only be 1
 	// setup experience script per team.
@@ -4269,12 +4287,13 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
 
-	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
-	NewChallenge(ctx context.Context) (string, error)
-	// ConsumeChallenge checks if a valid challenge exists in the challenges table
-	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
-	// is not found or is expired.
-	ConsumeChallenge(ctx context.Context, challenge string) error
+	// NewChallenge generates a random, base64-encoded challenge for the given scope and inserts it into the challenges
+	// table.
+	NewChallenge(ctx context.Context, scope ChallengeScope) (string, error)
+	// ConsumeChallenge checks if a valid challenge exists in the challenges table for the given scope and deletes it if
+	// it does. The error will include sql.ErrNoRows if the challenge is not found, is expired, or was created for a
+	// different scope; in the last case the challenge is left in place.
+	ConsumeChallenge(ctx context.Context, challenge string, scope ChallengeScope) error
 	// CleanupExpiredChallenges removes expired challenges from the challenges table,
 	// intended to be run as a cron job.
 	CleanupExpiredChallenges(ctx context.Context) (int64, error)
@@ -4808,10 +4827,10 @@ type AndroidDatastore interface {
 	// cron to retire commands issued under an enterprise Fleet is no longer connected to.
 	FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
-	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
-	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName
-	// (returned by EnterprisesDevicesIssueCommand) before invoking.
-	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+	// LockHostViaAndroidMDM inserts the lock's RESET_PASSWORD row into mdm_android_commands and writes lock_ref and
+	// unlock_pin on host_mdm_actions in a single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate
+	// cmd.CommandUUID and cmd.OperationName (returned by EnterprisesDevicesIssueCommand) before invoking.
+	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand, unlockPIN string) error
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
 	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll

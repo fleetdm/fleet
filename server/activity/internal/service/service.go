@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/hashicorp/go-multierror"
 	"go.opentelemetry.io/otel"
 )
@@ -108,14 +109,16 @@ func (s *Service) ListActivities(ctx context.Context, opt api.ListOptions) ([]*a
 }
 
 // ListHostPastActivities returns past activities for a specific host.
-func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+func (s *Service) ListHostPastActivities(ctx context.Context, hostIdentifier string, opt api.ListOptions) ([]*api.Activity,
+	*api.PaginationMetadata, error,
+) {
 	// First ensure the user has access to list hosts, then check the specific host once team_id is loaded.
 	if err := s.authz.Authorize(ctx, &activity.Host{}, platform_authz.ActionList); err != nil {
 		return nil, nil, err
 	}
 
 	// Fetch host to get team_id for authorization
-	host, err := s.providers.GetHostLite(ctx, hostID)
+	host, err := s.hostByIDOrIdentifier(ctx, hostIdentifier)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -133,7 +136,7 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 		IncludeMetadata: true,
 	}
 
-	activities, meta, err := s.store.ListHostPastActivities(ctx, hostID, internalOpt)
+	activities, meta, err := s.store.ListHostPastActivities(ctx, host.ID, internalOpt)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list host past activities")
 	}
@@ -146,6 +149,31 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 	}
 
 	return activities, meta, nil
+}
+
+// hostByIDOrIdentifier loads the host that a host endpoint's :id path parameter names. A number is tried as the host ID first, without a
+// lookup, so a request by host ID costs what it did before identifiers were accepted. The identifier is looked up when it isn't a number,
+// or when no host has that ID, like a numeric serial.
+func (s *Service) hostByIDOrIdentifier(ctx context.Context, identifier string) (*activity.Host, error) {
+	if id, err := strconv.ParseUint(identifier, 10, 0); err == nil {
+		host, err := s.providers.GetHostLite(ctx, uint(id))
+		if !platform_errors.IsNotFound(err) {
+			return host, err
+		}
+		hostID, lookupErr := s.providers.HostIDByIDOrIdentifier(ctx, identifier)
+		switch {
+		case platform_errors.IsNotFound(lookupErr):
+			return nil, err
+		case lookupErr != nil:
+			return nil, lookupErr
+		}
+		return s.providers.GetHostLite(ctx, hostID)
+	}
+	hostID, err := s.providers.HostIDByIDOrIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, err
+	}
+	return s.providers.GetHostLite(ctx, hostID)
 }
 
 // enrichWithUserData adds user data (gravatar, email, name, api_only) to activities by fetching via ACL.
