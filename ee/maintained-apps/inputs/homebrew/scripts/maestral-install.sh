@@ -192,7 +192,9 @@ relaunch_application() {
 stop_processes_in_bundle() {
   local app_path="$1"
   app_path="${app_path%/}"
-  local pattern="^${app_path}/Contents/MacOS/"
+  # pgrep -f and pkill -f take an extended regular expression, so the dot in
+  # "Maestral.app" would also match a path like "MaestralXapp". Escape it.
+  local pattern="^$(printf '%s' "$app_path" | sed 's/[][(){}.^$*+?|\\]/\\&/g')/Contents/MacOS/"
   pgrep -f "$pattern" >/dev/null || return 0
   echo "Stopping remaining processes from $app_path..."
   pkill -TERM -f "$pattern"

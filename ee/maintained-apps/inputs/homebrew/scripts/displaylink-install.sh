@@ -203,8 +203,14 @@ fi
 sudo installer -pkg "$INSTALLER_PATH" -target /
 install_status=$?
 if [ $install_status -ne 0 ]; then
-	if [ -d "$BACKUP_APP" ] && [ ! -d "$INSTALLED_APP" ]; then
-		sudo mv "$BACKUP_APP" "$INSTALLED_APP"
+	if [ -d "$BACKUP_APP" ]; then
+		# A failed install can leave a partial app behind; it has to go before the
+		# previous one can be put back.
+		sudo rm -rf "$INSTALLED_APP"
+		if ! sudo mv "$BACKUP_APP" "$INSTALLED_APP"; then
+			echo "Could not restore the previous DisplayLink Manager. It is kept at $BACKUP_APP."
+			exit $install_status
+		fi
 	fi
 	sudo rm -rf "$BACKUP_APP"
 	exit $install_status

@@ -11,8 +11,10 @@ TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 # Record that QGIS was open so it can be reopened after the install, the way
 # relaunch_application expects.
 quit_app_at_path() {
-  local app_path="$1"
-  local pattern="^${app_path}/Contents/MacOS/"
+  local app_path="${1%/}"
+  # pgrep -f and pkill -f take an extended regular expression, so the dots in
+  # the bundle name would match any character. Escape them.
+  local pattern="^$(printf '%s' "$app_path" | sed 's/[][(){}.^$*+?|\\]/\\&/g')/Contents/MacOS/"
   pgrep -f "$pattern" >/dev/null || return 0
   export APP_WAS_RUNNING_org_qgis_qgis3=1
   echo "Closing $app_path..."
