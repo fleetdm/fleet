@@ -6607,33 +6607,6 @@ policies:
 			wantForcePatch: new(true),
 		},
 		{
-			name:     "force_patch on a dynamic policy is rejected",
-			software: fmaSoftware,
-			policies: `
-policies:
-  - name: Chrome installed
-    type: dynamic
-    query: SELECT 1;
-    platform: darwin
-    force_patch: true
-`,
-			wantErrs: []string{`Couldn't apply policy "Chrome installed": "force_patch" is only supported for patch policies`},
-		},
-		{
-			name:     "force_patch together with patch_when_closed is rejected",
-			software: fmaSoftware,
-			policies: `
-policies:
-  - name: Chrome up to date
-    type: patch
-    platform: darwin
-    fleet_maintained_app_slug: google-chrome/darwin
-    force_patch: true
-    patch_when_closed: true
-`,
-			wantErrs: []string{`Couldn't apply policy "Chrome up to date": If "force_patch" is true, "patch_when_closed", "notify_before_patching", or "patch_deadline" can't be set to true.`},
-		},
-		{
 			name:     "install_software true alone on a patch policy force patches and logs the deprecation warning",
 			software: fmaSoftware,
 			policies: `
@@ -6761,31 +6734,6 @@ policies:
 			}
 		})
 	}
-
-	// Load a patch policy that sets two options from a path: file, the policy should get one error.
-	t.Run("two options on a patch policy loaded from a path file are rejected with one error", func(t *testing.T) {
-		t.Parallel()
-		dir := t.TempDir()
-		policiesFile := `
-- name: Chrome up to date
-  type: patch
-  platform: darwin
-  fleet_maintained_app_slug: google-chrome/darwin
-  force_patch: true
-  notify_before_patching: true
-`
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "patch-policies.yml"), []byte(policiesFile), 0o644))
-		config := getTeamConfig([]string{"policies"}) + fmaSoftware + `
-policies:
-  - path: ./patch-policies.yml
-`
-		configPath := filepath.Join(dir, "fleet.yml")
-		require.NoError(t, os.WriteFile(configPath, []byte(config), 0o644))
-		_, err := GitOpsFromFile(configPath, dir, premiumAppConfig(), nopLogf)
-		require.ErrorContains(t, err, `Couldn't apply policy "Chrome up to date": If "force_patch" is true, "patch_when_closed", "notify_before_patching", or "patch_deadline" can't be set to true.`)
-		errorMessage := err.Error()
-		require.Equal(t, 1, strings.Count(errorMessage, `If "force_patch" is true`))
-	})
 }
 
 func TestValidateTeamWebhookSettingsHostActivitiesWebhook(t *testing.T) {

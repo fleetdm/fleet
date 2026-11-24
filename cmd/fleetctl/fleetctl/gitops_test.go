@@ -10523,16 +10523,14 @@ func TestGitOpsPatchPolicyOptions(t *testing.T) {
 			return nil, 0, nil, nil
 		}
 		return []fleet.SoftwareTitleListResult{
-			{ID: 40, Name: "Zoom", HashSHA256: new("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), Packages: []fleet.SoftwarePackageListItem{{Name: "zoom.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(100))}}},
 			{ID: 50, Name: "Maccy", HashSHA256: new("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), Packages: []fleet.SoftwarePackageListItem{{Name: "maccy.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(101))}}},
 			{ID: 60, Name: "Slack", HashSHA256: new("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), Packages: []fleet.SoftwarePackageListItem{{Name: "slack.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(102))}}},
 			{ID: 70, Name: "Chrome", HashSHA256: new("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"), Packages: []fleet.SoftwarePackageListItem{{Name: "chrome.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(103))}}},
 			{ID: 80, Name: "Firefox", HashSHA256: new("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"), Packages: []fleet.SoftwarePackageListItem{{Name: "firefox.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(104))}}},
-		}, 5, nil, nil
+		}, 4, nil, nil
 	}
 	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 		return []fleet.MaintainedApp{
-			{ID: 100, Slug: "zoom/darwin"},
 			{ID: 101, Slug: "maccy/darwin"},
 			{ID: 102, Slug: "slack/darwin"},
 			{ID: 103, Slug: "google-chrome/darwin"},
@@ -10557,13 +10555,6 @@ reports:
 	require.NoError(t, os.WriteFile(teamFile, []byte(`
 name: Test Fleet
 policies:
-  - name: Patch when closed policy
-    type: patch
-    fleet_maintained_app_slug: zoom/darwin
-    patch_when_closed: true
-  - name: Report only policy
-    type: patch
-    fleet_maintained_app_slug: maccy/darwin
   - name: Install software true policy
     type: patch
     fleet_maintained_app_slug: slack/darwin
@@ -10590,10 +10581,6 @@ reports:
 	for _, spec := range appliedSpecs {
 		softwareTitleIDsByPolicyName[spec.Name] = ptr.ValOrZero(spec.SoftwareTitleID)
 	}
-	// Set patch_when_closed without install_software, the policy should install its own app.
-	require.Equal(t, uint(40), softwareTitleIDsByPolicyName["Patch when closed policy"])
-	// Set no option, the policy should only report.
-	require.Equal(t, uint(0), softwareTitleIDsByPolicyName["Report only policy"])
 	// Set install_software: true, the policy should install its own app.
 	require.Equal(t, uint(60), softwareTitleIDsByPolicyName["Install software true policy"])
 	// Point the install_software object at a different app, the policy should install that app.

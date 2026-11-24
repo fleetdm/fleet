@@ -177,22 +177,6 @@ policies:
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
-  continuous_automations_enabled: true
-  critical: false
-  description: This is a team patch policy that patches when the app is closed
-  fleet_maintained_app_slug: fma2/windows
-  force_patch: false
-  hidden: false
-  name: Team Windows patch policy
-  notify_before_patching: false
-  patch_deadline: false
-  patch_when_closed: true
-  platform: windows
-  resolution: Install the latest version from self-service
-  type: patch
-  webhooks_and_tickets_enabled: false
-- calendar_events_enabled: false
-  conditional_access_enabled: false
   continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy that force patches

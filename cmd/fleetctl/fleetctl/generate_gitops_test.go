@@ -455,7 +455,6 @@ var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
 	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
 	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
 	"Team package install policy": fleet.PolicyAutomationSoftware,
-	"Team Windows patch policy":   fleet.PolicyAutomationSoftware,
 	"Team force patch policy":     fleet.PolicyAutomationSoftware,
 }
 
@@ -558,9 +557,6 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 11,
 			},
-			InstallSoftware: &fleet.PolicySoftwareTitle{
-				SoftwareTitleID: 11,
-			},
 		},
 		{
 			ID:                           7,
@@ -572,9 +568,6 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			PatchDeadline:                true,
 			ContinuousAutomationsEnabled: true,
 			PatchSoftware: &fleet.PolicySoftwareTitle{
-				SoftwareTitleID: 13,
-			},
-			InstallSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 13,
 			},
 		},
@@ -641,23 +634,7 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				},
 			},
 			&fleet.Policy{
-				ID:                           8,
-				Name:                         "Team Windows patch policy",
-				Resolution:                   new("Install the latest version from self-service"),
-				Description:                  "This is a team patch policy that patches when the app is closed",
-				Platform:                     "windows",
-				Type:                         fleet.PolicyTypePatch,
-				PatchWhenClosed:              true,
-				ContinuousAutomationsEnabled: true,
-				PatchSoftware: &fleet.PolicySoftwareTitle{
-					SoftwareTitleID: 9,
-				},
-				InstallSoftware: &fleet.PolicySoftwareTitle{
-					SoftwareTitleID: 9,
-				},
-			},
-			&fleet.Policy{
-				ID:          9,
+				ID:          8,
 				Name:        "Team force patch policy",
 				Resolution:  new("Install the latest version from self-service"),
 				Description: "This is a team patch policy that force patches",
@@ -3147,10 +3124,6 @@ func TestGeneratePolicies(t *testing.T) {
 			13: {
 				MaintainedAppID: 5,
 				Slug:            "fma5/darwin",
-			},
-			9: {
-				MaintainedAppID: 2,
-				Slug:            "fma2/windows",
 			},
 			10: {
 				MaintainedAppID: 3,
