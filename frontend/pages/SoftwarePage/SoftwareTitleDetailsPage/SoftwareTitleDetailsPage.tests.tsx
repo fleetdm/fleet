@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
@@ -49,12 +49,13 @@ const renderPage = (titleId: number) => {
 
 describe("SoftwareTitleDetailsPage", () => {
   beforeEach(() => {
-    jest.spyOn(softwareAPI, "deleteSoftwareInstaller").mockResolvedValue({});
+    jest.spyOn(softwareAPI, "deleteSoftwarePackage").mockResolvedValue({});
+    jest.spyOn(softwareAPI, "deleteAppStoreApp").mockResolvedValue({});
   });
 
   afterEach(() => jest.restoreAllMocks());
 
-  it("deletes the in-house app of an iOS title without sending installer_id", async () => {
+  it("deletes the in-house app of an iOS title by its package id", async () => {
     const inHouseApp = createMockSoftwarePackage({
       installer_id: 10,
       name: "HelloWorld.ipa",
@@ -73,12 +74,7 @@ describe("SoftwareTitleDetailsPage", () => {
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() =>
-      expect(softwareAPI.deleteSoftwareInstaller).toHaveBeenCalledWith(
-        1,
-        3,
-        undefined,
-        undefined
-      )
+      expect(softwareAPI.deleteSoftwarePackage).toHaveBeenCalledWith(1, 3, 10)
     );
   });
 
@@ -101,12 +97,43 @@ describe("SoftwareTitleDetailsPage", () => {
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() =>
-      expect(softwareAPI.deleteSoftwareInstaller).toHaveBeenCalledWith(
-        2,
-        3,
-        20,
-        undefined
-      )
+      expect(softwareAPI.deleteSoftwarePackage).toHaveBeenCalledWith(2, 3, 20)
     );
+  });
+
+  it("doesn't retarget an open edit to another package when the selected one disappears", async () => {
+    const pkg = (id: number, name: string) =>
+      createMockSoftwarePackage({ installer_id: id, name });
+    const getTitle = jest.spyOn(softwareAPI, "getSoftwareTitle");
+    getTitle.mockResolvedValue({
+      software_title: createMockSoftwareTitleDetails({
+        id: 4,
+        source: "apps",
+        packages: [pkg(1, "A.pkg"), pkg(2, "B.pkg"), pkg(3, "C.pkg")],
+      }),
+    });
+    const editSpy = jest
+      .spyOn(softwareAPI, "editSoftwarePackage")
+      .mockResolvedValue({});
+    const { user } = renderPage(4);
+
+    await user.click(await screen.findByText("B.pkg"));
+    await user.click(screen.getByRole("button", { name: "Edit version" }));
+    expect(await screen.findByRole("switch")).toBeInTheDocument();
+
+    // Another admin deletes B; a reconnect refetch replaces the cached title.
+    getTitle.mockResolvedValue({
+      software_title: createMockSoftwareTitleDetails({
+        id: 4,
+        source: "apps",
+        packages: [pkg(1, "A.pkg"), pkg(3, "C.pkg")],
+      }),
+    });
+    act(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+
+    await waitFor(() => expect(screen.queryByRole("switch")).toBeNull());
+    expect(editSpy).not.toHaveBeenCalled();
   });
 });

@@ -194,9 +194,6 @@ export interface IAddAppStoreAppFormData {
 
 export interface IEditAppStoreAppFormData {
   fleet_id: number;
-  /** Target a specific version on a multi-version App Store app title. Omit
-   * on single-version titles for the legacy edit behavior. */
-  version_id?: number;
   /** Rename the version. Must be unique for the title per fleet. */
   name?: string;
   self_service?: boolean;
@@ -588,7 +585,7 @@ export default {
     data,
     orignalPackage,
     softwareId,
-    installerId,
+    packageId,
     teamId,
     timeout,
     onUploadProgress,
@@ -603,9 +600,8 @@ export default {
       | IVersionPinFormData;
     orignalPackage?: ISoftwarePackage;
     softwareId: number;
-    /** Targets one specific package on a multi-package title. Omit on
-     * single-package titles to keep the legacy single-package edit behavior. */
-    installerId?: number;
+    /** The package this edit targets. */
+    packageId: number;
     teamId: number;
     timeout?: number;
     onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
@@ -613,11 +609,9 @@ export default {
     omitPreInstallQuery?: boolean;
     directUpload?: boolean;
   }) => {
-    const { EDIT_SOFTWARE_PACKAGE } = endpoints;
+    const { SOFTWARE_TITLE_PACKAGE } = endpoints;
     const formData = new FormData();
     formData.append("fleet_id", teamId.toString());
-    installerId !== undefined &&
-      formData.append("installer_id", installerId.toString());
 
     if ("configuration" in data) {
       // Handles Edit configuration form (iOS/iPadOS in-house apps)
@@ -656,7 +650,7 @@ export default {
 
     return sendRequestWithProgressAndHeaders({
       method: "PATCH",
-      path: EDIT_SOFTWARE_PACKAGE(softwareId),
+      path: SOFTWARE_TITLE_PACKAGE(softwareId, packageId),
       data: formData,
       customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
@@ -733,34 +727,33 @@ export default {
       auto_update_window_end?: string;
     }
   ) => {
-    const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
+    const { SOFTWARE_TITLE_APP_STORE_APP } = endpoints;
     const body: IEditAppStoreAppFormData = {
       fleet_id: teamId,
-      version_id: versionId,
       ...data,
     };
-    return sendRequest("PATCH", EDIT_SOFTWARE_APP_STORE_APP(softwareId), body);
+    return sendRequest(
+      "PATCH",
+      SOFTWARE_TITLE_APP_STORE_APP(softwareId, versionId),
+      body
+    );
   },
 
   editAppStoreApp: (
     softwareId: number,
     teamId: number,
+    /** The App Store app version this edit targets. */
+    versionId: number,
     formData:
       | ISoftwareVppFormData
       | ISoftwareAndroidFormData
       | ISoftwareDisplayNameFormData
       | ISoftwareConfigurationFormData
-      | ISoftwareAutoUpdateConfigFormData,
-    /** Targets one specific version on a multi-version App Store app title.
-     * Omit on single-version titles for the legacy edit behavior. */
-    versionId?: number
+      | ISoftwareAutoUpdateConfigFormData
   ) => {
-    const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
+    const { SOFTWARE_TITLE_APP_STORE_APP } = endpoints;
 
     const body: IEditAppStoreAppFormData = { fleet_id: teamId };
-    if (versionId !== undefined) {
-      body.version_id = versionId;
-    }
 
     if ("displayName" in formData) {
       // Handles Edit display name form only
@@ -786,7 +779,11 @@ export default {
       handleEditAppStoreAppForm(formData as IEditPackageFormData, body);
     }
 
-    return sendRequest("PATCH", EDIT_SOFTWARE_APP_STORE_APP(softwareId), body);
+    return sendRequest(
+      "PATCH",
+      SOFTWARE_TITLE_APP_STORE_APP(softwareId, versionId),
+      body
+    );
   },
 
   getSoftwareIcon: (softwareId: number, teamId: number) => {
@@ -840,25 +837,28 @@ export default {
     return sendRequest("PUT", path, formData);
   },
 
-  // Endpoint for deleting packages or VPP. Pass `installerId` to delete one
-  // specific package on a multi-package title; pass `versionId` to delete one
-  // specific App Store app version on a multi-version title. Omit both to
-  // keep the legacy single-package / all-versions behavior (deletes the whole
-  // installer slot or every version on the title).
-  deleteSoftwareInstaller: (
+  deleteSoftwarePackage: (
     softwareId: number,
     teamId: number,
-    installerId?: number,
-    versionId?: number
+    packageId: number
   ) => {
-    const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
+    const { SOFTWARE_TITLE_PACKAGE } = endpoints;
     const path = getPathWithQueryParams(
-      SOFTWARE_AVAILABLE_FOR_INSTALL(softwareId),
-      {
-        fleet_id: teamId,
-        installer_id: installerId,
-        version_id: versionId,
-      }
+      SOFTWARE_TITLE_PACKAGE(softwareId, packageId),
+      { fleet_id: teamId }
+    );
+    return sendRequest("DELETE", path);
+  },
+
+  deleteAppStoreApp: (
+    softwareId: number,
+    teamId: number,
+    versionId: number
+  ) => {
+    const { SOFTWARE_TITLE_APP_STORE_APP } = endpoints;
+    const path = getPathWithQueryParams(
+      SOFTWARE_TITLE_APP_STORE_APP(softwareId, versionId),
+      { fleet_id: teamId }
     );
     return sendRequest("DELETE", path);
   },

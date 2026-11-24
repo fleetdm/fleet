@@ -63,13 +63,14 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  /** Per-installer id on a multi-package title. When set, only this
-   * specific package is deleted; otherwise the request deletes the legacy
-   * single-package row (or VPP/FMA installer slot). */
+  /** Package to delete. Takes precedence over `versionId`. */
   installerId?: number;
-  /** Per-version id on a multi-version App Store app title (iOS/iPadOS/
-   * Android). When set, only this specific version is deleted. */
+  /** App Store app version to delete when no `installerId` is set. */
   versionId?: number;
+  /** True when the row being deleted is one of a multi-version title's
+   * versions. Defaults to whether `versionId` is set. A single-version title
+   * still passes `versionId` to name its URL but reads as a title delete. */
+  isVersionDelete?: boolean;
   /** True when the version being deleted is the only remaining version on
    * the title. Last-version delete also tears down the title's custom icon
    * and display name, so the modal surfaces that side-effect. */
@@ -94,6 +95,7 @@ const DeleteSoftwareModal = ({
   teamId,
   installerId,
   versionId,
+  isVersionDelete = versionId !== undefined,
   isLastVersion = false,
   onExit,
   onSuccess,
@@ -104,17 +106,21 @@ const DeleteSoftwareModal = ({
   packageName,
 }: IDeleteSoftwareModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
-  const isVersionDelete = versionId !== undefined;
 
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await softwareAPI.deleteSoftwareInstaller(
-        softwareId,
-        teamId,
-        installerId,
-        versionId
-      );
+      if (installerId !== undefined) {
+        await softwareAPI.deleteSoftwarePackage(
+          softwareId,
+          teamId,
+          installerId
+        );
+      } else if (versionId !== undefined) {
+        await softwareAPI.deleteAppStoreApp(softwareId, teamId, versionId);
+      } else {
+        throw new Error("installerId or versionId is required");
+      }
       notify.success(
         canActivateMultiplePackages && packageName ? (
           <>

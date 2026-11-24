@@ -164,6 +164,9 @@ export interface ISoftwarePackage {
 }
 
 export interface IAppStoreApp {
+  /** Id of the App Store app version this shape was adapted from. Targets the
+   * per-version PATCH and DELETE URLs. */
+  id: number;
   name: string;
   /** Not included in SoftwareTitle software.app_store_app response, hoisted up one level
    * Custom name set per team by admin

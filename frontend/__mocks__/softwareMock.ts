@@ -148,6 +148,7 @@ export const createMockOSVersionsResponse = (
 };
 
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
+  id: 1,
   name: "test app",
   app_store_id: "1",
   created_at: "2020-01-01T00:00:00.000Z",
@@ -170,6 +171,7 @@ export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
 };
 
 const DEFAULT_APP_STORE_APP_ANDROID_MOCK: IAppStoreApp = {
+  id: 1,
   name: "test app",
   display_name: "Test App",
   app_store_id: "com.test.app",
@@ -197,6 +199,7 @@ export const createMockAppStoreAppAndroid = (
 };
 
 const DEFAULT_APP_STORE_APP_IOS_MOCK: IAppStoreApp = {
+  id: 1,
   name: "Zoom",
   display_name: "Zoom Workplace",
   app_store_id: "546505307",

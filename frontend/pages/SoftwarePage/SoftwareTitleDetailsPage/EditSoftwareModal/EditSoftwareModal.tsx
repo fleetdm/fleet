@@ -42,10 +42,6 @@ export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  /** Per-installer id on a multi-package title. When set, the PATCH targets
-   * this specific package; otherwise the request edits the legacy
-   * single-package row. */
-  installerId?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
@@ -66,7 +62,6 @@ interface IEditSoftwareModalProps {
 const EditSoftwareModal = ({
   softwareId,
   teamId,
-  installerId,
   softwareInstaller,
   onExit,
   refetchSoftwareTitle,
@@ -229,7 +224,7 @@ const EditSoftwareModal = ({
         data: formData,
         orignalPackage: softwareInstaller as ISoftwarePackage,
         softwareId,
-        installerId,
+        packageId: (softwareInstaller as ISoftwarePackage).installer_id,
         teamId,
         directUpload: config?.staged_upload_available,
         onUploadProgress: (progressEvent) => {
@@ -309,7 +304,12 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(true);
 
     try {
-      await softwareAPI.editAppStoreApp(softwareId, teamId, formData);
+      await softwareAPI.editAppStoreApp(
+        softwareId,
+        teamId,
+        (softwareInstaller as IAppStoreApp).id,
+        formData
+      );
 
       notify.success(
         <>

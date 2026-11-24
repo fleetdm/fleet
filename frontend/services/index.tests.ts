@@ -104,7 +104,7 @@ describe("direct upload to storage", () => {
   });
 
   it("edit package uploads a replacement file to storage", async () => {
-    const seen = setup("/software/titles/5/package", "patch");
+    const seen = setup("/software/titles/5/packages/9", "patch");
     await softwareAPI.editSoftwarePackage({
       data: {
         software: file,
@@ -113,9 +113,11 @@ describe("direct upload to storage", () => {
       } as never,
       orignalPackage: {} as never,
       softwareId: 5,
+      packageId: 9,
       teamId: 3,
       directUpload: true,
     });
+    expect(seen.form?.has("installer_id")).toBe(false);
     expect(seen.storageAuth).toBeNull();
     expect(seen.form?.get("upload_id")).toBe("up1");
     expect(seen.form?.get("filename")).toBe("a.pkg");

@@ -684,15 +684,17 @@ const EditIconModal = ({
             ? softwareAPI.editSoftwarePackage({
                 data: { displayName: trimmedDisplayName },
                 softwareId,
-                // Multi-package titles require `installer_id` on any edit; display_name
-                // is title-level, so target the first-added package (`software` is
-                // `packages[0]`).
-                installerId: (software as ISoftwarePackage).installer_id,
+                // display_name is title-level, so target the first-added package
+                // (`software` is `packages[0]`).
+                packageId: (software as ISoftwarePackage).installer_id,
                 teamId: teamIdForApi,
               })
-            : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
-                displayName: trimmedDisplayName,
-              }));
+            : softwareAPI.editAppStoreApp(
+                softwareId,
+                teamIdForApi,
+                (software as IAppStoreApp).id,
+                { displayName: trimmedDisplayName }
+              ));
           nameSucceeded = true;
           nameSuccessMessage =
             trimmedDisplayName === "" ? (

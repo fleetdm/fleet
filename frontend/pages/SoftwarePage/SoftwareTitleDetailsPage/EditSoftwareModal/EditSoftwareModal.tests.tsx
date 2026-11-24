@@ -62,13 +62,6 @@ describe("EditSoftwareModal — multi-package title", () => {
     expect(screen.queryByText("Edit software")).not.toBeInTheDocument();
   });
 
-  it("accepts an installerId prop (threaded into the API call on save)", () => {
-    // Smoke test — the prop is optional and exists on the interface. We don't
-    // submit here since that would require asserting against the mocked API
-    // client; the page tests cover the submit path end-to-end.
-    expect(() => renderModal({ installerId: 7 })).not.toThrow();
-  });
-
   // Regression: a patch-when-closed installer must treat the pre-install query
   // as Fleet-managed even when the caller doesn't pass preInstallQueryLocked —
   // the modal derives it from the installer's own patch policy. Otherwise the
@@ -164,7 +157,10 @@ describe("EditSoftwareModal — multi-package title", () => {
   // shape regression.
   it("saves a package self-service-only edit without the cancel-installs confirm modal", async () => {
     const { user } = renderModal({
-      softwareInstaller: createMockSoftwarePackage({ self_service: false }),
+      softwareInstaller: createMockSoftwarePackage({
+        installer_id: 11,
+        self_service: false,
+      }),
     });
 
     await user.click(screen.getByRole("switch"));
@@ -172,14 +168,19 @@ describe("EditSoftwareModal — multi-package title", () => {
 
     expect(screen.queryByText("Save changes?")).not.toBeInTheDocument();
     await waitFor(() => {
-      expect(softwareAPI.editSoftwarePackage).toHaveBeenCalled();
+      expect(softwareAPI.editSoftwarePackage).toHaveBeenCalledWith(
+        expect.objectContaining({ softwareId: 1, packageId: 11, teamId: 1 })
+      );
     });
   });
 
   it("saves a VPP self-service-only edit without the cancel-installs confirm modal", async () => {
     const { user } = renderModal({
       installerType: "app-store",
-      softwareInstaller: createMockAppStoreApp({ self_service: false }),
+      softwareInstaller: createMockAppStoreApp({
+        id: 12,
+        self_service: false,
+      }),
     });
 
     await user.click(screen.getByRole("switch"));
@@ -187,7 +188,12 @@ describe("EditSoftwareModal — multi-package title", () => {
 
     expect(screen.queryByText("Save changes?")).not.toBeInTheDocument();
     await waitFor(() => {
-      expect(softwareAPI.editAppStoreApp).toHaveBeenCalled();
+      expect(softwareAPI.editAppStoreApp).toHaveBeenCalledWith(
+        1,
+        1,
+        12,
+        expect.anything()
+      );
     });
   });
 

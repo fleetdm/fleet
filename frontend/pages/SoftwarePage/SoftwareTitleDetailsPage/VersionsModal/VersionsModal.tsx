@@ -59,11 +59,13 @@ const VersionsModal = ({
 
   const onSave = async (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
+    if (!pkg) return;
     setIsSaving(true);
     try {
       await softwareAPI.editSoftwarePackage({
         data: { pinnedVersion: selectedValue },
         softwareId,
+        packageId: pkg.installer_id,
         teamId,
       });
       notify.success(

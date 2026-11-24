@@ -136,8 +136,10 @@ describe("VersionsModal", () => {
     const editSpy = jest
       .spyOn(softwareAPI, "editSoftwarePackage")
       .mockResolvedValue({} as never);
+    const pkg = { installer_id: 31 };
     const { user, onExit, refetchSoftwareTitle } = renderModal({
       pinned_version: null,
+      ...pkg,
     });
 
     const saveButton = screen.getByRole("button", { name: "Save" });
@@ -152,6 +154,7 @@ describe("VersionsModal", () => {
       expect(editSpy).toHaveBeenCalledWith({
         data: { pinnedVersion: "148.0.1" },
         softwareId: 1,
+        packageId: pkg.installer_id,
         teamId: 1,
       });
     });
