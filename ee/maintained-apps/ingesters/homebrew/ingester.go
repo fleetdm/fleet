@@ -590,6 +590,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		)
 	}
 
+	for _, query := range []*string{&out.Queries.Exists, &out.Queries.Patched, &out.Queries.Open} {
+		filtered, err := excludeDiskImages(*query)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "excluding disk images from queries for cask %s", input.Token)
+		}
+		*query = filtered
+	}
+
 	return out, nil
 }
 

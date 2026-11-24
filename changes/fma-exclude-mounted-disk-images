@@ -1,0 +1,1 @@
+- Fixed macOS patch policies and patch notifications for Fleet-maintained apps and custom packages flagging a host as outdated when an older copy of the app was on a mounted installer disk image (for example, a Google Chrome DMG left open in `/Volumes`).

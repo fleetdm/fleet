@@ -91,7 +91,8 @@ func TestGenerateFromInstallerEscapesQuotes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'x'' UNION SELECT 1 FROM shadow --' "+
-		"AND version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0);", generated.Query)
+		"AND version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0 AND "+
+		patch_policy.MacOSNotOnDiskImage("apps")+");", generated.Query)
 	require.Equal(t, "macOS - "+payload+" up to date", generated.Name)
 
 	generated, err = patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
@@ -110,6 +111,13 @@ func TestGenerateFromInstallerEscapesQuotes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, query, "version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0);")
+}
+
+func TestMacOSNotOnDiskImage(t *testing.T) {
+	require.Equal(t,
+		"NOT EXISTS (SELECT 1 FROM mounts m JOIN block_devices b ON b.name = m.device WHERE b.model = 'Disk Image' AND substr(a.path, 1, length(m.path) + 1) = m.path || '/')",
+		patch_policy.MacOSNotOnDiskImage("a"),
+	)
 }
 
 func TestGenerateOpenQuery(t *testing.T) {
