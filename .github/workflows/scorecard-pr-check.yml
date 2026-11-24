@@ -32,8 +32,8 @@ jobs:
           mkdir -p /tmp/scorecard-install
           curl -sSfL "$SCORECARD_URL" -o /tmp/scorecard-install/scorecard.tar.gz
           tar -xz -C /tmp/scorecard-install -f /tmp/scorecard-install/scorecard.tar.gz
-          chmod +x /tmp/scorecard-install/scorecard/scorecard
-          ln -s /tmp/scorecard-install/scorecard/scorecard /usr/local/bin/scorecard
+          chmod +x /tmp/scorecard-install/scorecard
+          ln -s /tmp/scorecard-install/scorecard /usr/local/bin/scorecard
           scorecard --version
 
       - name: Checkout PR branch
