@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Scorecard
         run: |
-          curl -sSfL https://raw.githubusercontent.com/ossf/scorecard/main/install.sh | sh -s -- -b /usr/local/bin
+          brew install ossf/scorecard/scorecard
           scorecard --version
 
       - name: Checkout PR branch
