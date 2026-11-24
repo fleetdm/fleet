@@ -27,11 +27,12 @@ jobs:
         run: |
           SCORECARD_VERSION=$(curl -s https://api.github.com/repos/ossf/scorecard/releases/latest | grep '"tag_name"' | head -1 | cut -d'"' -f4)
           SCORECARD_URL="https://github.com/ossf/scorecard/releases/download/${SCORECARD_VERSION}/scorecard_${SCORECARD_VERSION#v}_linux_amd64.tar.gz"
-          curl -sSfL "$SCORECARD_URL" -o /tmp/scorecard.tar.gz
-          tar -xz -C /tmp -f /tmp/scorecard.tar.gz
-          find /tmp -maxdepth 2 -name scorecard -type f -exec mv {} /tmp/scorecard \;
-          chmod +x /tmp/scorecard
-          /tmp/scorecard --version
+          mkdir -p /tmp/scorecard-install
+          curl -sSfL "$SCORECARD_URL" -o /tmp/scorecard-install/scorecard.tar.gz
+          tar -xz -C /tmp/scorecard-install -f /tmp/scorecard-install/scorecard.tar.gz
+          chmod +x /tmp/scorecard-install/scorecard/scorecard
+          ln -s /tmp/scorecard-install/scorecard/scorecard /usr/local/bin/scorecard
+          scorecard --version
 
       - name: Checkout PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,7 +41,7 @@ jobs:
 
       - name: Run Scorecard on PR branch
         run: |
-          /tmp/scorecard --repo . --format json > /tmp/scorecard-results/results_pr.sarif 2>&1 || true
+          scorecard --repo . --format json > /tmp/scorecard-results/results_pr.sarif 2>&1 || true
 
       - name: Checkout base branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,7 +51,7 @@ jobs:
 
       - name: Run Scorecard on base branch
         run: |
-          /tmp/scorecard --repo . --format json > /tmp/scorecard-results/results_base.sarif 2>&1 || true
+          scorecard --repo . --format json > /tmp/scorecard-results/results_base.sarif 2>&1 || true
 
       - name: Compare Scorecard results
         id: compare
