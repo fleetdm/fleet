@@ -167,6 +167,7 @@ func TestRecordSCDChanges(t *testing.T) {
 		{"same-hour re-runs", testRecordSCDChangesSameHour},
 		{"datasets are independent", testRecordSCDChangesDatasets},
 		{"first tick unions overlapping history rows and clears leftovers", testRecordSCDChangesStartEdgeCases},
+		{"an entity ID that matches a stored one only without case is rejected", testRecordSCDChangesEntitySpelling},
 		{"random histories replay to every hour", testRecordSCDChangesRandom},
 	}
 	for _, c := range cases {
@@ -260,18 +261,36 @@ func testRecordSCDChangesStartEdgeCases(t *testing.T, tdb *testutils.TestDB, ds 
 	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-A", []uint{1}, h.Add(-3*time.Hour), scdOpenSentinel)
 	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-A", []uint{2}, h.Add(-2*time.Hour), h)
 	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-B", []uint{9}, h, scdOpenSentinel) // opens at h: not live before it
-	// Left by an earlier attempt that failed before writing the state row.
-	require.NoError(t, ds.ensureEntityKeys(t.Context(), "cve", []string{"CVE-Z"}, map[string]uint32{}))
+	// Left by an earlier attempt that failed before writing the state row, or by a global scrub interrupted after
+	// deleting it.
+	zKeys := map[string]uint32{}
+	require.NoError(t, ds.ensureEntityKeys(t.Context(), "cve", []string{"CVE-Z"}, zKeys))
 	_, err := tdb.DB.ExecContext(t.Context(),
-		`INSERT INTO host_scd_current (dataset, entity_key, host_bitmap, encoding_type)
-		 SELECT 'cve', id, ?, ? FROM host_scd_entities WHERE entity_id = 'CVE-Z'`,
-		chart.HostIDsToBlob([]uint{7}).Bytes, chart.EncodingRoaring)
+		`INSERT INTO host_scd_current (dataset, entity_key, host_bitmap, encoding_type) VALUES ('cve', ?, ?, ?)`,
+		zKeys["CVE-Z"], chart.HostIDsToBlob([]uint{7}).Bytes, chart.EncodingRoaring)
+	require.NoError(t, err)
+	_, err = tdb.DB.ExecContext(t.Context(),
+		`INSERT INTO host_scd_changes (dataset, changed_at, seq, changes, encoding_type) VALUES ('cve', ?, 0, ?, ?)`,
+		h.Add(-5*time.Hour), encodeChanges([]entityChange{{key: zKeys["CVE-Z"], added: chart.NewBitmap([]uint{7}), removed: roaring.New()}}),
+		changesEncodingV1)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.RecordSCDChanges(t.Context(), "cve", h, bitmapsOf(hostSets{"CVE-A": {1, 2}, "CVE-B": {9}})))
 
 	require.Equal(t, []changeRec{{at: h, entity: "CVE-B", added: []uint{9}, removed: []uint{}}}, loadChanges(t, tdb, "cve"))
 	require.Equal(t, hostSets{"CVE-A": {1, 2}, "CVE-B": {9}}, loadCurrent(t, tdb, "cve"))
+}
+
+func testRecordSCDChangesEntitySpelling(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	h := time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)
+	collectTick(t, ds, "cve", h, hostSets{"CVE-A": {1}})
+	before := loadChanges(t, tdb, "cve")
+
+	// host_scd_entities matches entity IDs without case, so this resolves to the stored CVE-A, not to its own key.
+	err := ds.RecordSCDChanges(t.Context(), "cve", h.Add(time.Hour), bitmapsOf(hostSets{"CVE-A": {1}, "cve-a": {2}}))
+	require.ErrorContains(t, err, `"cve-a"`)
+	require.Equal(t, before, loadChanges(t, tdb, "cve"))
+	require.Equal(t, hostSets{"CVE-A": {1}}, loadCurrent(t, tdb, "cve"))
 }
 
 func TestDecodeChanges(t *testing.T) {

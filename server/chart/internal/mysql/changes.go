@@ -24,7 +24,8 @@ const changesEncodingV1 uint8 = 1
 // Batch limits for the change storage. vars (not consts) so tests can shrink them.
 var (
 	// scdChangeRowBytes caps the encoded changes in one host_scd_changes row. Reads hold one row at a time, so this
-	// bounds their memory.
+	// bounds their memory. One entity's change is never split, so a row holding a single large change, or a row the
+	// fleet scrub rewrote, can exceed it.
 	scdChangeRowBytes = 1 << 20
 	// scdCurrentWriteBytes caps the host sets written to host_scd_current in one transaction.
 	scdCurrentWriteBytes = 4 << 20
@@ -167,10 +168,11 @@ func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour 
 		}
 	}
 
+	// The current sets are serialized one batch at a time, when written, so only the changes are held serialized.
 	type pending struct {
 		key            uint32
 		added, removed []byte
-		next           []byte // nil: the entity has no hosts now
+		next           *roaring.Bitmap // nil: the entity has no hosts now
 	}
 	var changes []pending
 	diff := func(key uint32) {
@@ -178,14 +180,15 @@ func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour 
 		if cur == nil {
 			cur = roaring.New()
 		}
-		if nxt == nil {
-			nxt = roaring.New()
+		after := nxt
+		if after == nil {
+			after = roaring.New()
 		}
-		added, removed := roaring.AndNot(nxt, cur), roaring.AndNot(cur, nxt)
+		added, removed := roaring.AndNot(after, cur), roaring.AndNot(cur, after)
 		if added.IsEmpty() && removed.IsEmpty() {
 			return
 		}
-		changes = append(changes, pending{key: key, added: bitmapBytes(added), removed: bitmapBytes(removed), next: bitmapBytes(nxt)})
+		changes = append(changes, pending{key: key, added: bitmapBytes(added), removed: bitmapBytes(removed), next: nxt})
 	}
 	for key := range current {
 		diff(key)
@@ -208,17 +211,10 @@ func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour 
 
 	write := func(batch []pending) error {
 		var payload []byte
-		upsertArgs := make([]any, 0, 4*len(batch))
-		var upsertPlaceholders []string
-		var deleteKeys []uint32
-		for _, c := range batch {
+		sets := make([]currentSet, len(batch))
+		for i, c := range batch {
 			payload = appendChange(payload, c.key, c.added, c.removed)
-			if c.next == nil {
-				deleteKeys = append(deleteKeys, c.key)
-				continue
-			}
-			upsertPlaceholders = append(upsertPlaceholders, "(?, ?, ?, ?)")
-			upsertArgs = append(upsertArgs, dataset, c.key, c.next, chart.EncodingRoaring)
+			sets[i] = currentSet{key: c.key, hosts: c.next}
 		}
 		err := platform_mysql.WithRetryTxx(ctx, ds.writer(ctx), func(tx sqlx.ExtContext) error {
 			if _, err := tx.ExecContext(ctx,
@@ -226,25 +222,7 @@ func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour 
 				dataset, hour, seq, payload, changesEncodingV1); err != nil {
 				return ctxerr.Wrap(ctx, err, "insert chart changes")
 			}
-			if len(upsertPlaceholders) > 0 {
-				// Concatenating hardcoded "(?, ?, ?, ?)" placeholder strings, not user input.
-				stmt := `INSERT INTO host_scd_current (dataset, entity_key, host_bitmap, encoding_type) VALUES ` + //nolint:gosec // G202
-					strings.Join(upsertPlaceholders, ", ") +
-					` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`
-				if _, err := tx.ExecContext(ctx, stmt, upsertArgs...); err != nil {
-					return ctxerr.Wrap(ctx, err, "upsert chart current sets")
-				}
-			}
-			if len(deleteKeys) > 0 {
-				stmt, args, err := sqlx.In(`DELETE FROM host_scd_current WHERE dataset = ? AND entity_key IN (?)`, dataset, deleteKeys)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "expand chart current delete args")
-				}
-				if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-					return ctxerr.Wrap(ctx, err, "delete chart current sets")
-				}
-			}
-			return nil
+			return writeCurrentSets(ctx, tx, dataset, sets)
 		}, ds.logger)
 		if err != nil {
 			return err
@@ -257,8 +235,12 @@ func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour 
 	var payloadBytes, currentBytes int
 	for _, c := range changes {
 		size := encodedChangeSize(c.added, c.removed)
+		var nextSize int
+		if c.next != nil {
+			nextSize = int(c.next.GetSerializedSizeInBytes()) //nolint:gosec // G115: a host set's size fits in an int
+		}
 		if len(batch) > 0 && (len(batch) >= scdChangeBatchEntities || payloadBytes+size > scdChangeRowBytes ||
-			currentBytes+len(c.next) > scdCurrentWriteBytes) {
+			currentBytes+nextSize > scdCurrentWriteBytes) {
 			if err := write(batch); err != nil {
 				return err
 			}
@@ -266,15 +248,77 @@ func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour 
 		}
 		batch = append(batch, c)
 		payloadBytes += size
-		currentBytes += len(c.next)
+		currentBytes += nextSize
 	}
 	return write(batch)
 }
 
+// currentSet is one entity's row in host_scd_current. A nil or empty set means the entity has no hosts, so its
+// row is deleted.
+type currentSet struct {
+	key   uint32
+	hosts *roaring.Bitmap
+}
+
+// writeCurrentSets upserts the non-empty sets and deletes the rows of the empty ones, in statements capped by
+// scdChangeBatchEntities and scdCurrentWriteBytes.
+func writeCurrentSets(ctx context.Context, exec sqlx.ExecerContext, dataset string, sets []currentSet) error {
+	var placeholders []string
+	var args []any
+	var size int
+	flush := func() error {
+		if len(placeholders) == 0 {
+			return nil
+		}
+		// Concatenating hardcoded "(?, ?, ?, ?)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_scd_current (dataset, entity_key, host_bitmap, encoding_type) VALUES ` + //nolint:gosec // G202
+			strings.Join(placeholders, ", ") +
+			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`
+		if _, err := exec.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert chart current sets")
+		}
+		placeholders, args, size = placeholders[:0], args[:0], 0
+		return nil
+	}
+	var deleteKeys []uint32
+	for _, s := range sets {
+		if s.hosts == nil || s.hosts.IsEmpty() {
+			deleteKeys = append(deleteKeys, s.key)
+			continue
+		}
+		b := bitmapBytes(s.hosts)
+		if len(placeholders) >= scdChangeBatchEntities || size+len(b) > scdCurrentWriteBytes {
+			if err := flush(); err != nil {
+				return err
+			}
+		}
+		placeholders = append(placeholders, "(?, ?, ?, ?)")
+		args = append(args, dataset, s.key, b, chart.EncodingRoaring)
+		size += len(b)
+	}
+	if err := flush(); err != nil {
+		return err
+	}
+	for i := 0; i < len(deleteKeys); i += scdChangeBatchEntities {
+		stmt, dargs, err := sqlx.In(`DELETE FROM host_scd_current WHERE dataset = ? AND entity_key IN (?)`,
+			dataset, deleteKeys[i:min(i+scdChangeBatchEntities, len(deleteKeys))])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "expand chart current delete args")
+		}
+		if _, err := exec.ExecContext(ctx, stmt, dargs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete chart current sets")
+		}
+	}
+	return nil
+}
+
 // startChanges sets up the change storage for a dataset: it fills host_scd_current with the host_scd_data state
 // just before hour, then records hour as the start of the changes. It is safe to repeat after a failure: it
-// starts by clearing what an earlier attempt left.
+// starts by clearing what an earlier attempt, or a global scrub interrupted after deleting the state row, left.
 func (ds *Datastore) startChanges(ctx context.Context, dataset string, hour time.Time, keys map[string]uint32) (map[uint32]*roaring.Bitmap, error) {
+	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_changes WHERE dataset = ? LIMIT ?`, dataset, scdChangeDeleteBatch); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "clear chart changes")
+	}
 	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_current WHERE dataset = ? LIMIT ?`, dataset, scdCurrentDeleteBatch); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "clear chart current sets")
 	}
@@ -323,39 +367,16 @@ func (ds *Datastore) startChanges(ctx context.Context, dataset string, hour time
 	}
 
 	current := make(map[uint32]*roaring.Bitmap, len(seeded))
-	var placeholders []string
-	var args []any
-	var size int
-	flush := func() error {
-		if len(placeholders) == 0 {
-			return nil
-		}
-		// Concatenating hardcoded "(?, ?, ?, ?)" placeholder strings, not user input.
-		stmt := `INSERT INTO host_scd_current (dataset, entity_key, host_bitmap, encoding_type) VALUES ` + //nolint:gosec // G202
-			strings.Join(placeholders, ", ")
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert chart current sets")
-		}
-		placeholders, args, size = placeholders[:0], args[:0], 0
-		return nil
-	}
+	sets := make([]currentSet, 0, len(seeded))
 	for entityID, rb := range seeded {
 		if rb.IsEmpty() {
 			continue
 		}
 		key := keys[entityID]
 		current[key] = rb
-		b := bitmapBytes(rb)
-		if len(placeholders) >= scdChangeBatchEntities || size+len(b) > scdCurrentWriteBytes {
-			if err := flush(); err != nil {
-				return nil, err
-			}
-		}
-		placeholders = append(placeholders, "(?, ?, ?, ?)")
-		args = append(args, dataset, key, b, chart.EncodingRoaring)
-		size += len(b)
+		sets = append(sets, currentSet{key: key, hosts: rb})
 	}
-	if err := flush(); err != nil {
+	if err := writeCurrentSets(ctx, ds.writer(ctx), dataset, sets); err != nil {
 		return nil, err
 	}
 
@@ -412,6 +433,13 @@ func (ds *Datastore) ensureEntityKeys(ctx context.Context, dataset string, entit
 		}
 		for _, r := range rows {
 			keys[r.EntityID] = r.ID
+		}
+		// The unique key compares entity IDs without case, so another spelling of a stored ID finds that ID's row
+		// instead of getting a key of its own.
+		for _, id := range chunk {
+			if _, ok := keys[id]; !ok {
+				return ctxerr.Errorf(ctx, "chart entity %q matches a stored entity spelled differently", id)
+			}
 		}
 	}
 	return nil
@@ -522,55 +550,15 @@ func (ds *Datastore) scrubSCDChanges(ctx context.Context, dataset string, mask *
 	if err != nil {
 		return err
 	}
-	var deleteKeys []uint32
-	var placeholders []string
-	var args []any
-	var size int
-	flush := func() error {
-		if len(placeholders) == 0 {
-			return nil
-		}
-		// Concatenating hardcoded "(?, ?, ?, ?)" placeholder strings, not user input.
-		stmt := `INSERT INTO host_scd_current (dataset, entity_key, host_bitmap, encoding_type) VALUES ` + //nolint:gosec // G202
-			strings.Join(placeholders, ", ") +
-			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "scrub chart current sets")
-		}
-		placeholders, args, size = placeholders[:0], args[:0], 0
-		return nil
-	}
+	var scrubbed []currentSet
 	for key, rb := range current {
-		if !rb.Intersects(mask) {
-			continue
+		if rb.Intersects(mask) {
+			rb.AndNot(mask)
+			scrubbed = append(scrubbed, currentSet{key: key, hosts: rb})
 		}
-		rb.AndNot(mask)
-		if rb.IsEmpty() {
-			deleteKeys = append(deleteKeys, key)
-			continue
-		}
-		b := bitmapBytes(rb)
-		if len(placeholders) >= scdChangeBatchEntities || size+len(b) > scdCurrentWriteBytes {
-			if err := flush(); err != nil {
-				return err
-			}
-		}
-		placeholders = append(placeholders, "(?, ?, ?, ?)")
-		args = append(args, dataset, key, b, chart.EncodingRoaring)
-		size += len(b)
 	}
-	if err := flush(); err != nil {
-		return err
-	}
-	for i := 0; i < len(deleteKeys); i += scdChangeBatchEntities {
-		stmt, dargs, err := sqlx.In(`DELETE FROM host_scd_current WHERE dataset = ? AND entity_key IN (?)`,
-			dataset, deleteKeys[i:min(i+scdChangeBatchEntities, len(deleteKeys))])
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "expand chart current scrub delete args")
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, dargs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete scrubbed chart current sets")
-		}
+	if err := writeCurrentSets(ctx, ds.writer(ctx), dataset, scrubbed); err != nil {
+		return ctxerr.Wrap(ctx, err, "scrub chart current sets")
 	}
 
 	var lastAt time.Time
