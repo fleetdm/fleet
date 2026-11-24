@@ -35,9 +35,9 @@ failed profiles to affected hosts.
 
 3. To resend a profile to all hosts where installation failed
     - Hover over the **Failed** status row.
-    - Click the **Resend** button to send the install command to all affected hosts. A resend delivers the profile
-      again, but it does not restore the profile's retries: if the resent profile fails, it goes back to **Failed**
-      on that attempt.
+    - Click the **Resend** button to send the install command to all affected hosts. On macOS, iOS, iPadOS, and
+      Windows hosts, a resend also restores the profile's retries, so Fleet retries it up to 3 times again before
+      reporting **Failed**.
 4. To view more information about hosts in a specific status:
     - Click the host count next to the desired status.
     - This takes you to the **Manage hosts** page, filtered by the selected configuration profile and status.
