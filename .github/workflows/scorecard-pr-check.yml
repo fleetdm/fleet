@@ -65,17 +65,13 @@ jobs:
 
             // Check if files exist
             if (!fs.existsSync('/tmp/scorecard-results/results_pr.sarif')) {
-              console.log('Warning: /tmp/scorecard-results/results_pr.sarif not found');
-              core.setOutput('newIssuesCount', 0);
-              core.setOutput('newIssuesJson', JSON.stringify([]));
-              return;
+              console.error('ERROR: /tmp/scorecard-results/results_pr.sarif not found');
+              process.exit(1);
             }
 
             if (!fs.existsSync('/tmp/scorecard-results/results_base.sarif')) {
-              console.log('Warning: /tmp/scorecard-results/results_base.sarif not found');
-              core.setOutput('newIssuesCount', 0);
-              core.setOutput('newIssuesJson', JSON.stringify([]));
-              return;
+              console.error('ERROR: /tmp/scorecard-results/results_base.sarif not found');
+              process.exit(1);
             }
 
             // Parse SARIF results
