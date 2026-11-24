@@ -1470,6 +1470,9 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 }
 
 func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return nil, err
+	}
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }
 
@@ -2061,6 +2064,9 @@ func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName 
 }
 
 func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return nil, err
+	}
 	app, err := svc.androidAPIClient.EnterprisesWebAppsCreate(ctx, enterpriseName, app)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating Android web app")
