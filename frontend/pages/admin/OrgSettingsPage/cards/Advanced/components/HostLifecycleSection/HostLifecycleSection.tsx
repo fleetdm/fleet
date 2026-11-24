@@ -109,7 +109,7 @@ const HostLifecycleSection = ({
                 name="onlyAllowAppleBusinessEnrollment"
                 value={onlyAllowAppleBusinessEnrollment}
                 parseTarget
-                helpText="Only allow Apple (macOS, iOS, iPadOS) hosts to enroll via Apple Business."
+                helpText="Only allow Apple (macOS, iOS, iPadOS) hosts to enroll via Apple Business. MDM features won’t work for manually enrolled hosts."
               >
                 Allow only Apple Business enrollments
               </Checkbox>
