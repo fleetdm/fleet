@@ -119,6 +119,22 @@ describe("EditIconModal", () => {
     expect(screen.getByText("Version")).toBeInTheDocument();
   });
 
+  it("shows only the Fleet preview for tvOS apps", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    const TVOS_PROPS = {
+      ...MOCK_PROPS,
+      previewInfo: {
+        ...MOCK_PROPS.previewInfo,
+        source: "tvos_apps",
+      },
+    };
+    render(<EditIconModal {...TVOS_PROPS} />);
+
+    expect(screen.getByText("Preview")).toBeInTheDocument();
+    expect(screen.queryByText("Self service")).not.toBeInTheDocument();
+    expect(screen.getByText("Version")).toBeInTheDocument();
+  });
+
   it("shows the correct software name and preview info in Fleet card", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<EditIconModal {...MOCK_PROPS} />);

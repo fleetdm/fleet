@@ -164,6 +164,8 @@ const EditIconModal = ({
     previewInfo?.source || ""
   );
   const isAndroidApp = isAndroidSoftwareSource(previewInfo?.source || "");
+  const hasSelfServicePreview =
+    !isAndroidApp && previewInfo?.source !== "tvos_apps";
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
@@ -614,7 +616,7 @@ const EditIconModal = ({
         disabled={gitOpsModeEnabled}
       />
       <h2>Preview</h2>
-      {isAndroidApp ? (
+      {!hasSelfServicePreview ? (
         renderPreviewFleetCard()
       ) : (
         <TabNav>

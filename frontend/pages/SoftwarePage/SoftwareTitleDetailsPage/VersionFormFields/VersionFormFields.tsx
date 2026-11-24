@@ -365,7 +365,10 @@ const VersionFormFields = ({
         <CategoriesSelector
           onSelectCategory={onSelectCategory}
           selectedCategories={formData.categories}
-          onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
+          // The preview shows self-service, which tvOS doesn't have.
+          onClickPreviewEndUserExperience={
+            isAppleTV(platform) ? undefined : onClickPreviewEndUserExperience
+          }
           teamId={teamId}
           label="Category"
           previewButtonLabel="View end user experience"

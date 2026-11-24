@@ -101,6 +101,10 @@ describe("AddVersionModal", () => {
     renderModal({ appStore: tvosApp });
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     expect(screen.getByText("Category")).toBeInTheDocument();
+    // The preview shows self-service, which tvOS doesn't have.
+    expect(
+      screen.queryByRole("button", { name: "View end user experience" })
+    ).not.toBeInTheDocument();
   });
 
   it("hides the Auto updates section on Android titles", () => {

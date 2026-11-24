@@ -126,7 +126,10 @@ const SoftwareFiltersModal = ({
 
   const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
-    if (vulnSoftwareFilterEnabled) {
+    // Hidden filters can still arrive from the URL; applying drops them.
+    const vulnFilterActive =
+      showVulnerabilityFilters && vulnSoftwareFilterEnabled;
+    if (vulnFilterActive) {
       const errors = validateSeverityScores(formData);
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
@@ -136,13 +139,11 @@ const SoftwareFiltersModal = ({
     }
     // A 0-10 range clears the severity filter rather than submitting bounds
     // that narrow nothing — severityFilters comes back empty for it.
-    const { min, max } = vulnSoftwareFilterEnabled
-      ? severityFilters(formData)
-      : {};
+    const { min, max } = vulnFilterActive ? severityFilters(formData) : {};
 
     onSubmit({
-      vulnerable: vulnSoftwareFilterEnabled,
-      exploit: hasKnownExploit || undefined,
+      vulnerable: vulnFilterActive,
+      exploit: (showVulnerabilityFilters && hasKnownExploit) || undefined,
       minCvssScore: min,
       maxCvssScore: max,
       types: selectedTypes,

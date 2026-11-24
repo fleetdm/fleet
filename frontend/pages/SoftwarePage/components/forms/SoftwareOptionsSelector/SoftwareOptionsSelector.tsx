@@ -37,7 +37,8 @@ interface ICategoryOption {
 interface ICategoriesSelector {
   onSelectCategory: ({ name, value }: { name: string; value: boolean }) => void;
   selectedCategories: string[];
-  onClickPreviewEndUserExperience: () => void;
+  /** When omitted, the preview button isn't shown. */
+  onClickPreviewEndUserExperience?: () => void;
   /** When provided, categories are fetched from the self-service categories API
    * for this fleet. When undefined, the hardcoded list is used. */
   teamId?: number;
@@ -166,14 +167,16 @@ export const CategoriesSelector = ({
       label={
         <div className={`${baseClass}__categories-header`}>
           <span>{label}</span>
-          <Button
-            variant="subdued"
-            size="small"
-            onClick={onClickPreviewEndUserExperience}
-            className={`${baseClass}__preview-button`}
-          >
-            {previewButtonLabel}
-          </Button>
+          {onClickPreviewEndUserExperience && (
+            <Button
+              variant="subdued"
+              size="small"
+              onClick={onClickPreviewEndUserExperience}
+              className={`${baseClass}__preview-button`}
+            >
+              {previewButtonLabel}
+            </Button>
+          )}
         </div>
       }
     >

@@ -1033,8 +1033,21 @@ describe("Agent data", () => {
     expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
   });
 
-  it("hides the osquery-sourced vitals for tvOS hosts", () => {
-    render(<Vitals vitalsData={createMockHost({ platform: "tvos" })} />);
+  it("hides the vitals that don't apply to tvOS hosts", () => {
+    render(
+      <Vitals
+        vitalsData={createMockHost({
+          platform: "tvos",
+          batteries: [{ cycle_count: 10, health: "Normal" }],
+          geolocation: {
+            country_iso: "US",
+            city_name: "Minneapolis",
+            geometry: { type: "Point", coordinates: [-93.2, 44.9] },
+          },
+          last_restarted_at: "2023-01-01T00:00:00Z",
+        })}
+      />
+    );
 
     [
       "Agent",
@@ -1043,6 +1056,10 @@ describe("Agent data", () => {
       "Private IP address",
       "Public IP address",
       "MAC address",
+      "Last restarted",
+      "Location",
+      "Battery condition",
+      "Disk space available",
     ].forEach((title) =>
       expect(screen.queryByText(title)).not.toBeInTheDocument()
     );

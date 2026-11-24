@@ -257,6 +257,7 @@ export const buildHostVitals = ({
 
   // Battery condition
   if (
+    !isAppleTVHost &&
     vitalsData.batteries !== null &&
     typeof vitalsData.batteries === "object" &&
     vitalsData.batteries?.[0]?.health !== "Unknown"
@@ -475,7 +476,7 @@ export const buildHostVitals = ({
   const isAdeIDevice =
     isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
 
-  if (isAdeIDevice ? toggleLocationModal : geolocation) {
+  if (!isAppleTVHost && (isAdeIDevice ? toggleLocationModal : geolocation)) {
     const label = isAdeIDevice
       ? "Show location"
       : getCityCountryLocation(geolocation);

@@ -92,6 +92,29 @@ describe("SoftwareFiltersModal component", () => {
     expect(screen.getByRole("button", { name: /Apply/i })).toBeInTheDocument();
   });
 
+  it("drops vulnerability filters on Apply when they are hidden", async () => {
+    const onSubmit = jest.fn();
+    const { user } = setUpModal({
+      showVulnerabilityFilters: false,
+      onSubmit,
+      filters: {
+        vulnerable: true,
+        exploit: true,
+        minCvssScore: 11,
+        maxCvssScore: undefined,
+      },
+    });
+    await user.click(screen.getByRole("button", { name: /Apply/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vulnerable: false,
+        exploit: undefined,
+        minCvssScore: undefined,
+        maxCvssScore: undefined,
+      })
+    );
+  });
+
   it("disables input fields when Vulnerable software is off", async () => {
     const { user } = setUpModal({
       filters: { ...filtersDefault, minCvssScore: 2 },
