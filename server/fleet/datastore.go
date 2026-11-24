@@ -1891,6 +1891,10 @@ type Datastore interface {
 	// other than uuid, or "" if there's none or the device with uuid has a host of its own.
 	GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error)
 
+	// GetAppleAccountDrivenEnrollmentIDTaken reports whether a host other than the account-driven user enrollment's
+	// own would be matched by its enrollment ID.
+	GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error)
+
 	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
 	// Apple host. Returns a NotFound error when no row exists; callers that
 	// need a default should treat NotFound as AccessRights=8191 (all rights).
