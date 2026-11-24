@@ -808,14 +808,21 @@ describe("HostDetailsPage - activity card tab switch", () => {
       (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
     ).toBe(pastCallsBefore);
 
-    // Click Past: past queries refetch (upcoming also refetches for the badge).
+    // Click Past: past queries refetch AND upcoming queries refetch for the
+    // always-visible badge (otherwise switching to Past would leave the
+    // Upcoming count stale).
     const pastCallsBeforePast = (activitiesAPI.getHostPastActivities as jest.Mock)
+      .mock.calls.length;
+    const upcomingCallsBeforePast = (activitiesAPI.getHostUpcomingActivities as jest.Mock)
       .mock.calls.length;
     await user.click(screen.getByRole("tab", { name: /past/i }));
     await waitFor(() => {
       expect(
         (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
       ).toBeGreaterThan(pastCallsBeforePast);
+      expect(
+        (activitiesAPI.getHostUpcomingActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(upcomingCallsBeforePast);
     });
   });
 

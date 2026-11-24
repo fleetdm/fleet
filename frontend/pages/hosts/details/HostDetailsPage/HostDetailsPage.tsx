@@ -2070,7 +2070,9 @@ const HostDetailsPage = ({
                   onHideMDMCommands={() => updateShowMDMCommands(false)}
                   upcomingCount={
                     (upcomingActivities?.count || 0) +
-                    (upcomingMDMCommands?.count || 0)
+                    (canGetMDMCommands
+                      ? upcomingMDMCommands?.count || 0
+                      : 0)
                   }
                   onChangeTab={onChangeActivityTab}
                   onNextPage={() => setActivityPage(activityPage + 1)}
