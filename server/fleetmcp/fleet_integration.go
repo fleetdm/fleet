@@ -893,9 +893,12 @@ type OSVersion struct {
 }
 
 type OSVersionsResult struct {
-	CountsUpdatedAt string      `json:"counts_updated_at,omitempty"`
-	OSVersions      []OSVersion `json:"os_versions"`
-	Truncated       bool        `json:"truncated,omitempty"`
+	// Total is Fleet's count of matching OS versions, which exceeds
+	// len(OSVersions) when Truncated.
+	Total           int
+	CountsUpdatedAt string
+	OSVersions      []OSVersion
+	Truncated       bool
 }
 
 // Max OS version rows fetched. var (not const) so tests can lower it.
@@ -959,8 +962,12 @@ func (fc *FleetClient) ListOSVersions(ctx context.Context, teamName, platform st
 	}
 
 	res := &OSVersionsResult{
+		Total:      result.Count,
 		OSVersions: result.OSVersions,
 		Truncated:  result.Count > len(result.OSVersions),
+	}
+	if res.Truncated {
+		fc.logger.WarnContext(ctx, "OS versions fetch hit hard cap, result truncated; tighten filters or raise fetchOSVersionsHardCap", "cap", fetchOSVersionsHardCap, "total", result.Count)
 	}
 	if res.OSVersions == nil {
 		res.OSVersions = make([]OSVersion, 0)

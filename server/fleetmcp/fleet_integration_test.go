@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func newTestClient(serverURL string) *FleetClient {
@@ -1530,5 +1531,39 @@ func TestListOSVersions_TruncatedAboveCap(t *testing.T) {
 	}
 	if len(res.OSVersions) != 5 || !res.Truncated {
 		t.Errorf("got %d rows truncated=%v, want 5 rows truncated=true", len(res.OSVersions), res.Truncated)
+	}
+}
+
+func TestGetOSVersionsTool_PerPageTrimsRowsNotTotals(t *testing.T) {
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 5, "darwin", &calls)
+	defer srv.Close()
+
+	c := newInProcessMCPClient(t, NewEmbeddedMCPServer(newTestClient(srv.URL)))
+	listToolNames(t, c) // initializes the client
+	res := callTool(t, t.Context(), c, "get_os_versions", map[string]any{"fleet": "💻 Workstations", "platform": "macos", "per_page": "2"})
+	if res.IsError {
+		t.Fatalf("unexpected tool error: %v", res.Content)
+	}
+	var out struct {
+		Total              int         `json:"total"`
+		Returned           int         `json:"returned"`
+		Truncated          bool        `json:"truncated"`
+		HostsWithOSVersion *int        `json:"hosts_with_os_version"`
+		OSVersions         []OSVersion `json:"os_versions"`
+	}
+	text, ok := res.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("unexpected content type %T", res.Content[0])
+	}
+	if err := json.Unmarshal([]byte(text.Text), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out.Total != 5 || out.Returned != 2 || len(out.OSVersions) != 2 || out.Truncated {
+		t.Errorf("got total=%d returned=%d rows=%d truncated=%v, want 5, 2, 2, false", out.Total, out.Returned, len(out.OSVersions), out.Truncated)
+	}
+	// The sum covers all 5 versions (2 hosts each), not just the 2 returned.
+	if out.HostsWithOSVersion == nil || *out.HostsWithOSVersion != 10 {
+		t.Errorf("hosts_with_os_version = %v, want 10", out.HostsWithOSVersion)
 	}
 }
