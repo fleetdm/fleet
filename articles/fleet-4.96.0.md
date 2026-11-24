@@ -33,19 +33,19 @@ GitHub issue: [#57461](https://github.com/fleetdm/fleet/issues/57461)
 
 ### Changes that may require action
 
-- Fleet can now ask the end user to set a passcode during Android zero-touch setup, before they reach the home screen. If you set up zero-touch before Fleet 4.96.0, your configurations in the zero-touch portal use old DPC extras. Hosts still enroll to the right fleet, but the end user isn't asked for a passcode until after setup. To ask for a passcode during setup, update each configuration:
-  1. In Fleet, head to **Settings > Integrations > Mobile device management (MDM)**.
-  2. Under **Android zero-touch**, select **Setup**.
-  3. Pick the fleet.
-  4. Copy the new **DPC extras** JSON.
-  5. In the [Android zero-touch portal](https://enterprise.google.com/android/zero-touch/customers), select **Configurations** and open the configuration for that fleet.
-  6. Replace the **DPC extras** with the JSON you copied, then save the configuration.
-  7. Repeat for each fleet that has a passcode profile.
+- Hardened how fleetd reports the Entra device ID on macOS for Microsoft Entra conditional access. If you use Entra conditional access on macOS, add `com.fleetdm.orbit` to the `AppAllowList` in your Platform SSO configuration profile, and make sure your Macs have fleetd 1.64.0 or later. Fleet doesn't report a Mac's compliance to Intune until the Mac reports its Entra device ID again. Learn how in the [Entra conditional access guide](https://fleetdm.com/guides/entra-conditional-access-integration#deploy-platform-sso-configuration-profile).
+- Changed Android zero-touch enrollment to ask the end user for a passcode during setup. Zero-touch configurations created before this release keep working, but the end user isn't asked for a passcode until after setup. To ask during setup, copy the new DPC extras from **Settings > Integrations > Mobile device management (MDM) > Android zero-touch** into each configuration in the zero-touch portal.
 
-  The old DPC extras keep working, so there's no deadline to update them. Hosts that are already enrolled aren't affected.
-- If you use [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration) on macOS, add `com.fleetdm.orbit` to the `AppAllowList` in your Platform SSO configuration profile, and make sure your Macs have fleetd 1.64.0 or later. This change hardens the security of Entra conditional access. Fleet sometimes makes [breaking changes](https://fleetdm.com/docs/deploying/upgrading-fleet#compatibility) to fix security issues. After you upgrade, each Mac reports its Entra device ID again, and Fleet doesn't report its compliance to Intune until it does. Learn how in the [Entra conditional access guide](https://fleetdm.com/guides/entra-conditional-access-integration#deploy-platform-sso-configuration-profile).
+### IT Admins
 
-TODO
+- Added Google conditional access (Fleet Premium): Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google can block sign-in from hosts Fleet doesn't manage. Connect Google in **Settings > Integrations > Conditional access**, through the REST API, or with GitOps. iOS and iPadOS end users sign in to Google once from the self-service web clip. Android hosts are registered with no sign-in.
+- Added a passcode requirement during Android setup: when a fleet has an Android configuration profile with `passwordPolicies` or `passwordRequirements` and no labels, the end user sets a passcode before reaching the home screen.
+
+### Bug fixes and improvements
+
+- Changed `PUT /api/v1/fleet/hosts/:id/google_device_id` to require Google conditional access to be connected and a company-owned host, and to mark the device as managed in Google. `DELETE` unmarks it.
+- Changed Android configuration profiles with `passwordPolicies` or `passwordRequirements` to reject Fleet variables, custom variables, and custom host vitals.
+- Improved the performance of Apple MDM check-ins for hosts with a long MDM command history.
 
 ## Ready to upgrade?
 
