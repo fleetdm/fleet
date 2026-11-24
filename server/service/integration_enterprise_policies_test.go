@@ -1623,7 +1623,7 @@ func (s *integrationEnterpriseTestSuite) TestCombinedPolicyEndpoints() {
 	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
 	require.NotNil(t, installerID(reportOnly.ID))
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
-		json.RawMessage(`{"patch_when_closed": true, "notify_before_patching": true, "continuous_automations_enabled": true}`), http.StatusBadRequest)
+		json.RawMessage(`{"patch_when_closed": true, "notify_before_patching": true, "continuous_automations_enabled": true}`), http.StatusUnprocessableEntity)
 
 	// With another automation_type, the policy's own app can be sent back and only names the app.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),

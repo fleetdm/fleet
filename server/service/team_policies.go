@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"reflect"
 	"slices"
 	"strconv"
@@ -64,10 +65,18 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	}
 	p.WebhooksAndTicketsEnabled = tp.AutomationType != nil && *tp.AutomationType == fleet.PolicyAutomationWebhookOrTicket
 
-	if err := p.Verify(); err != nil {
+	err = p.Verify()
+	if errors.Is(err, fleet.ErrPolicyPatchOptionsMutuallyExclusive) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(err, http.StatusUnprocessableEntity))
+	}
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
+	}
+	err = checkForcePatch(p.Type, p.ForcePatch, p.PatchWhenClosed || p.NotifyBeforePatching || p.PatchDeadline, p.SoftwareInstallerID != nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check force_patch")
 	}
 	if err := svc.checkNewPolicyAutomations(ctx, &teamID, p); err != nil {
 		return nil, err
@@ -386,10 +395,27 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		PatchWhenClosed:              p.PatchWhenClosed,
 		NotifyBeforePatching:         p.NotifyBeforePatching,
 		PatchDeadline:                p.PatchDeadline,
+		ForcePatch:                   p.ForcePatch,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
 		ProfileUUID:                  p.ProfileUUID,
 	}, nil
+}
+
+func checkForcePatch(policyType string, forcePatch *bool, otherPatchOptionSet bool, installsSoftware bool) error {
+	if forcePatch == nil || policyType != fleet.PolicyTypePatch {
+		return nil
+	}
+	// TODO(JK): confirm this is what we want
+	if *forcePatch && !installsSoftware {
+		return fleet.NewUserMessageError(errors.New(errForcePatchRequiresSoftwareAutomation), http.StatusUnprocessableEntity)
+	}
+	// force_patch isn't stored, so false needs another option to be true or no software automation.
+	// TODO(JK): confirm this is what we want
+	if !*forcePatch && installsSoftware && !otherPatchOptionSet {
+		return fleet.NewUserMessageError(errors.New(errForcePatchFalseRequiresOtherOption), http.StatusUnprocessableEntity)
+	}
+	return nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -755,20 +781,27 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.ContinuousAutomationsEnabled != nil {
 		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
+	forcePatch := ptr.ValOrZero(p.ForcePatch)
 	patchWhenClosed := policy.PatchWhenClosed
+	notifyBeforePatching := policy.NotifyBeforePatching
+	patchDeadline := policy.PatchDeadline
+	// Switch from the policy's current option to force_patch.
+	if forcePatch {
+		patchWhenClosed = false
+		notifyBeforePatching = false
+		patchDeadline = false
+	}
 	if p.PatchWhenClosed != nil {
 		patchWhenClosed = *p.PatchWhenClosed
 	}
-	notifyBeforePatching := policy.NotifyBeforePatching
 	if p.NotifyBeforePatching != nil {
 		notifyBeforePatching = *p.NotifyBeforePatching
 	}
-	patchDeadline := policy.PatchDeadline
 	if p.PatchDeadline != nil {
 		patchDeadline = *p.PatchDeadline
 	}
-	if fleet.PatchOptionsConflict(patchWhenClosed, notifyBeforePatching, patchDeadline) {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error()})
+	if fleet.PatchOptionsConflict(patchWhenClosed, notifyBeforePatching, patchDeadline, forcePatch) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(fleet.ErrPolicyPatchOptionsMutuallyExclusive, http.StatusUnprocessableEntity))
 	}
 	if notifyBeforePatching && policy.Platform != "darwin" {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()})
@@ -866,6 +899,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		}
 	}
 
+	err = checkForcePatch(policy.Type, p.ForcePatch, policy.PatchWhenClosed || policy.NotifyBeforePatching || policy.PatchDeadline,
+		policy.SoftwareInstallerID != nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check force_patch")
+	}
 	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),

@@ -236,6 +236,7 @@ type CreatePolicyRequest struct {
 	PatchWhenClosed              bool              `json:"patch_when_closed" premium:"true"`
 	NotifyBeforePatching         bool              `json:"notify_before_patching" premium:"true"`
 	PatchDeadline                bool              `json:"patch_deadline" premium:"true"`
+	ForcePatch                   *bool             `json:"force_patch" premium:"true"`
 	AutomationType               *PolicyAutomation `json:"automation_type"`
 }
 
