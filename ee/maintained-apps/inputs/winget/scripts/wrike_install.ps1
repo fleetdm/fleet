@@ -15,6 +15,16 @@ $successCodes = @(0, 3010, 1641)
 
 try {
 
+# The MSI fails with 1603 while Wrike is open, because it can't replace the
+# files the app holds. Fleet runs as SYSTEM, outside the user's session, so it
+# can't ask Wrike to close: stop it first. Unsaved changes are lost.
+$running = @(Get-Process -Name "Wrike" -ErrorAction SilentlyContinue)
+foreach ($proc in $running) {
+  Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
+  Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+}
+$running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+
 $installer = New-Object -ComObject "WindowsInstaller.Installer"
 
 foreach ($productCode in @($installer.RelatedProducts($upgradeCode))) {
