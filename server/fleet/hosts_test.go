@@ -282,6 +282,10 @@ func TestPlatformFromHost(t *testing.T) {
 			expPlatform: "linux",
 		},
 		{
+			host:        "chainguard",
+			expPlatform: "linux",
+		},
+		{
 			host:        "darwin",
 			expPlatform: "darwin",
 		},

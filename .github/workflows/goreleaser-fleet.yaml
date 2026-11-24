@@ -15,8 +15,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   goreleaser:
@@ -433,3 +432,97 @@ jobs:
             gh release upload "$TAG_NAME" "$msi" --repo "$GITHUB_REPOSITORY" --clobber
           done
           echo "Upload complete"
+
+  # This job uploads a .intoto.jsonl attestation so that the OpenSSF Scorecard sees that there are attestations.
+  # It should be possible to remove this and still get credit from Scorecard once https://github.com/ossf/scorecard/issues/4080 is resolved.
+  # We don't bother uploading every attestation since the rest are already available from GitHub.
+  upload-attestations:
+    needs: [goreleaser, build-fleetctl-pkg, build-fleetctl-msi, upload-fleetctl-msi]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Get tag
+        id: tag
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Download and upload attestations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${{ steps.tag.outputs.tag_name }}"
+          WORK_DIR=$(mktemp -d)
+          trap "rm -rf $WORK_DIR" EXIT
+
+          cd "$WORK_DIR"
+
+          echo "Processing attestations for release: $TAG_NAME"
+          echo ""
+
+          # Get a list of release assets (prioritize smaller files for speed)
+          ASSETS=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets --jq '.assets[] | select(.size < 10000000) | .name' | head -10)
+
+          if [[ -z "$ASSETS" ]]; then
+            echo "No suitable assets found in release"
+            exit 0
+          fi
+
+          ATTESTATION_FOUND=false
+
+          # Try to download attestation for the first available asset
+          for ASSET in $ASSETS; do
+            echo "Attempting to get attestation for: $ASSET"
+
+            # Download the asset
+            if ! gh release download "$TAG_NAME" --repo "${{ github.repository }}" --pattern "$ASSET" --dir . 2>/dev/null; then
+              echo "  ⊘ Failed to download asset"
+              continue
+            fi
+
+            # Try to get its attestation
+            if gh attestation download "$ASSET" --repo "${{ github.repository }}" 2>/dev/null; then
+              echo "  ✓ Attestation found for $ASSET"
+
+              # Rename to standard .intoto.jsonl format for Scorecard
+              ATTESTATION_FILE=$(ls -1 sha256:*.jsonl 2>/dev/null | head -1)
+              if [[ -n "$ATTESTATION_FILE" ]]; then
+                NEW_NAME="${TAG_NAME#fleet-}.intoto.jsonl"
+                mv "$ATTESTATION_FILE" "$NEW_NAME"
+                echo "  ✓ Renamed to: $NEW_NAME"
+                echo "  ✓ File size: $(du -h "$NEW_NAME" | cut -f1)"
+
+                # Upload to release
+                echo "  Uploading attestation to release..."
+                if gh release upload "$TAG_NAME" "$NEW_NAME" --repo "${{ github.repository }}" --clobber 2>&1 | grep -q "uploaded\|already exists"; then
+                  echo "  ✓ Successfully uploaded attestation"
+                  echo ""
+                  echo "✓ Attestation upload complete"
+                  exit 0
+                else
+                  echo "  ✗ Failed to upload attestation"
+                  exit 1
+                fi
+              fi
+            fi
+
+            # Clean up downloaded asset
+            rm -f "$ASSET"
+          done
+
+          # If we get here, no attestation was found
+          echo ""
+          echo "⚠ Warning: Could not find attestation for any asset in $TAG_NAME"
+          echo "This may be normal if attestations haven't been created yet."
+          exit 0
+

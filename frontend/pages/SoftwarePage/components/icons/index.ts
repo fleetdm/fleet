@@ -491,6 +491,7 @@ import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
+import Herdr from "./png/Herdr.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -1682,6 +1683,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
+  herdr: Herdr,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "11.0.1577",
+      "version": "11.0.1725",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.emclient.mail.client';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.emclient.mail.client' AND version_compare(bundle_short_version, '11.0.1577') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.emclient.mail.client' AND version_compare(bundle_short_version, '11.0.1725') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.emclient.mail.client' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn-dist.emclient.com/dist/v11.0.1577_Mac/setup.pkg",
+      "installer_url": "https://cdn-dist.emclient.com/dist/v11.0.1725_Mac/setup.pkg",
       "install_script_ref": "62df90ad",
       "uninstall_script_ref": "496c8c41",
-      "sha256": "bb8fd986e8cb05d64765296f720b010f17fdced7d20e6b5a654c958456a3b480",
+      "sha256": "822b29bdae34717a313ffda46aa7cecd0462b17327a7fb60e90397016b467e63",
       "default_categories": [
         "Communication"
       ]

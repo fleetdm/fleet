@@ -560,6 +560,48 @@ describe("PolicyAutomationsActivitiesTable", () => {
     expect(screen.getByPlaceholderText("Search hosts")).toBeInTheDocument();
   });
 
+  it("prefills the host search and fetches that host's runs", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+
+    render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+        initialSearchQuery="Anna's MacBook Pro"
+      />
+    );
+
+    expect(await screen.findByPlaceholderText("Search hosts")).toHaveValue(
+      "Anna's MacBook Pro"
+    );
+    expect(policiesAPI.getAutomationActivities).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "Anna's MacBook Pro" })
+    );
+  });
+
+  it("reports search changes", async () => {
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity()], 1)
+    );
+    const onSearchQueryChange = jest.fn();
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+        onSearchQueryChange={onSearchQueryChange}
+      />
+    );
+
+    await user.type(await screen.findByPlaceholderText("Search hosts"), "Anna");
+
+    await waitFor(() =>
+      expect(onSearchQueryChange).toHaveBeenLastCalledWith("Anna")
+    );
+  });
+
   it("renders one row per host for a batch activity sharing an activity id", async () => {
     (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
       mockResponse([
@@ -700,5 +742,57 @@ describe("PolicyAutomationsActivitiesTable", () => {
     await waitFor(() =>
       expect(policiesAPI.reset).toHaveBeenCalledWith(123, 42)
     );
+  });
+
+  it("shows a loading spinner while the next page loads", async () => {
+    const firstPage = Array.from({ length: 50 }, (_, i) =>
+      mockActivity({
+        id: i + 1,
+        host_id: i + 1,
+        host_display_name: `host-${i + 1}`,
+      })
+    );
+    let resolveSecondPage: (
+      response: ReturnType<typeof mockResponse>
+    ) => void = () => undefined;
+    const secondPage = new Promise<ReturnType<typeof mockResponse>>(
+      (resolve) => {
+        resolveSecondPage = resolve;
+      }
+    );
+    jest
+      .mocked(policiesAPI.getAutomationActivities)
+      .mockImplementation(({ page }) =>
+        page === 0
+          ? Promise.resolve({
+              ...mockResponse(firstPage, 51),
+              meta: { has_next_results: true, has_previous_results: false },
+            })
+          : secondPage
+      );
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+      />
+    );
+    expect(await screen.findByText("host-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    // The previous page stays on screen until the next one arrives.
+    expect(await screen.findByTestId("spinner")).toBeInTheDocument();
+    expect(screen.getByText("host-1")).toBeInTheDocument();
+
+    resolveSecondPage(
+      mockResponse(
+        [mockActivity({ id: 51, host_id: 51, host_display_name: "host-51" })],
+        51
+      )
+    );
+    expect(await screen.findByText("host-51")).toBeInTheDocument();
+    expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
   });
 });

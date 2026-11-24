@@ -151,7 +151,7 @@ type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, tea
 
 type GetLabelSpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error)
 
-type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
+type GetLabelSpecFunc func(ctx context.Context, name string, fleetID *uint) (*fleet.LabelSpec, error)
 
 type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.Label, hostIDs []uint, err error)
 
@@ -678,6 +678,8 @@ type CheckMDMAppleEnrollmentWithMinimumOSVersionFunc func(ctx context.Context, m
 type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSessionID string, personal bool) ([]byte, error)
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
+
+type TriggerPolicyMembershipCleanupFunc func(ctx context.Context)
 
 type ResetAutomationFunc func(ctx context.Context, teamIDs []uint, policyIDs []uint) error
 
@@ -1987,6 +1989,9 @@ type Service struct {
 	TriggerCronScheduleFunc        TriggerCronScheduleFunc
 	TriggerCronScheduleFuncInvoked bool
 
+	TriggerPolicyMembershipCleanupFunc        TriggerPolicyMembershipCleanupFunc
+	TriggerPolicyMembershipCleanupFuncInvoked bool
+
 	ResetAutomationFunc        ResetAutomationFunc
 	ResetAutomationFuncInvoked bool
 
@@ -2925,11 +2930,11 @@ func (s *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.Lab
 	return s.GetLabelSpecsFunc(ctx, teamID)
 }
 
-func (s *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+func (s *Service) GetLabelSpec(ctx context.Context, name string, fleetID *uint) (*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecFunc(ctx, name)
+	return s.GetLabelSpecFunc(ctx, name, fleetID)
 }
 
 func (s *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (label *fleet.Label, hostIDs []uint, err error) {
@@ -4771,6 +4776,13 @@ func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {
 	s.TriggerCronScheduleFuncInvoked = true
 	s.mu.Unlock()
 	return s.TriggerCronScheduleFunc(ctx, name)
+}
+
+func (s *Service) TriggerPolicyMembershipCleanup(ctx context.Context) {
+	s.mu.Lock()
+	s.TriggerPolicyMembershipCleanupFuncInvoked = true
+	s.mu.Unlock()
+	s.TriggerPolicyMembershipCleanupFunc(ctx)
 }
 
 func (s *Service) ResetAutomation(ctx context.Context, teamIDs []uint, policyIDs []uint) error {

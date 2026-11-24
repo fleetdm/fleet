@@ -469,6 +469,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
+	svc.TriggerPolicyMembershipCleanup(ctx)
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	if err := svc.NewActivity(
