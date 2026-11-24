@@ -1,0 +1,1 @@
+- Fixed SQL editor syntax highlighting for osquery tables whose names are also column names (for example, `os_version`, `processes`, and `time`), so they now highlight as tables after `FROM` or `JOIN` and can be clicked to open the table schema.
