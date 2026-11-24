@@ -300,9 +300,9 @@ A completed open position entry should look something like this:
 
 ## Hiring a new team member
 
-Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process for all open positions. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
+Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process and coordinating the hiring process for all open positions. This includes scheduling interviews, moving candidates through each stage, keeping hiring managers and interviewers on track, handing candidates off between stages, and creating the 🛸 Why hire document for each candidate. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
 
-To start the interview process, the hiring manager will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the candidate's 🛸 Why hire document as they move through the process. 
+To start the interview process, the Head of People will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the candidate's 🛸 Why hire document as they move through the process. 
 
 > **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
