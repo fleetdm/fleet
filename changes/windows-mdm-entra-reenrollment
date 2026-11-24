@@ -1,0 +1,1 @@
+- Windows hosts enrolled through fleetd now need to be deleted in Fleet before they re-enroll through Microsoft Entra, for example after Windows is reinstalled, unless they're registered in Autopilot or were wiped from Fleet. This already applied to hosts enrolled through Entra.
