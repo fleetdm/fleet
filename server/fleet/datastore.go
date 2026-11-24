@@ -2444,9 +2444,11 @@ type Datastore interface {
 	// been worked out since that profile was last registered, and an empty string if Apple TVs use the same profile.
 	GetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, abmTokenOrgName string) (*string, error)
 
-	// SetMDMAppleSetupAssistantTvOSProfileUUID stores the profile UUID Apple TVs are assigned in place of the
-	// team's custom (or default) setup assistant profile registered with the ABM token.
-	SetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, profileUUID, abmTokenOrgName string) error
+	// SetMDMAppleSetupAssistantTvOSProfileUUID stores the profile UUID Apple TVs are assigned in place of
+	// mainProfileUUID, the team's custom (or default) setup assistant profile registered with the ABM token. It
+	// stores nothing if that profile has been registered again since, because the value was worked out from the
+	// one it replaced.
+	SetMDMAppleSetupAssistantTvOSProfileUUID(ctx context.Context, teamID *uint, custom bool, mainProfileUUID, tvOSProfileUUID, abmTokenOrgName string) error
 
 	// GetMatchingHostSerials receives a list of serial numbers and returns
 	// a map that only contains the serials that have a matching row in the `hosts` table.

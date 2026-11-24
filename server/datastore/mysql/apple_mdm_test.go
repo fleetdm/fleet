@@ -15588,13 +15588,13 @@ func testMDMAppleSetupAssistantTvOSProfileUUID(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 				require.Nil(t, got)
 
-				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "tvos-1", org))
+				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-1", "tvos-1", org))
 				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
 				require.NoError(t, err)
 				require.Equal(t, new("tvos-1"), got)
 
 				// "same profile as everyone else" is distinct from "not worked out yet"
-				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "", org))
+				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-1", "", org))
 				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
 				require.NoError(t, err)
 				require.Equal(t, new(""), got)
@@ -15604,6 +15604,19 @@ func testMDMAppleSetupAssistantTvOSProfileUUID(t *testing.T, ds *Datastore) {
 				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
 				require.NoError(t, err)
 				require.Nil(t, got)
+
+				// a value worked out from the replaced profile isn't stored
+				for _, stale := range []string{"", "tvos-1"} {
+					require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-1", stale, org))
+					got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+					require.NoError(t, err)
+					require.Nil(t, got)
+				}
+
+				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-2", "tvos-2", org))
+				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+				require.NoError(t, err)
+				require.Equal(t, new("tvos-2"), got)
 			})
 		}
 	}
