@@ -9,13 +9,7 @@ Check these before you start:
 - A Smallstep team with Pro features enabled.
 - Windows hosts enrolled in Fleet's MDM, running Windows 10 or later Pro or Enterprise (Windows Home isn't supported).
 - Devices that can reach `smallstep.com`, `api.smallstep.com`, `gateway.smallstep.com`, `control.infra.smallstep.com`, `*.<team-name>.ca.smallstep.com`, `auth.smallstep.com`, `att.smallstep.com`, and `tel.smallstep.com`.
-- A Fleet API token. Use a personal token for testing. For production, create a dedicated API-only user instead:
-
-  ```bash
-  fleetctl user create --name 'Smallstep' --email 'smallstep-api@example.com' --password 'your-secure-password' --api-only
-  ```
-
-  The command prints the new user's API token. The default **Observer** role is enough for Smallstep's device sync.
+- A Fleet API token for an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user). The default **Observer** role is enough for Smallstep's device sync.
 
 ## Create a Smallstep enrollment report in Fleet
 
