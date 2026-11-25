@@ -2207,6 +2207,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "",
 		},
 		{
+			// On Windows the Linear desktop app is a program named "Linear <version>" from
+			// Linear Orbit, Inc. Like the macOS app above, it has no CPE of its own and must not
+			// match linear:linear, the "Linear" WordPress plugin.
+			software: fleet.Software{
+				Name:    "Linear 1.32.8",
+				Source:  "programs",
+				Version: "1.32.8",
+				Vendor:  "Linear Orbit, Inc.",
+			},
+			cpe: "",
+		},
+		{
 			// teamcity-cli installs as "teamcity" via the JetBrains Homebrew tap, but it is a
 			// separate product from the TeamCity CI server and has no CPE of its own, so it must
 			// not inherit the server's vulnerabilities.
