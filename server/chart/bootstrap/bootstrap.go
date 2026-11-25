@@ -43,3 +43,16 @@ func CollectibleCVEs(ctx context.Context, db *sqlx.DB, logger *slog.Logger) ([]s
 	ds := mysql.NewDatastore(&platform_mysql.DBConnections{Primary: db, Replica: db}, logger)
 	return ds.CollectibleCVEs(ctx)
 }
+
+// DevStore is the chart storage the development tools (charts-backfill, charts-collect) write through.
+type DevStore interface {
+	api.DatasetStore
+	// DeleteAllForDataset deletes all of the dataset's chart history, in statements of up to batchSize rows.
+	DeleteAllForDataset(ctx context.Context, dataset string, batchSize int) error
+}
+
+// NewDevStore returns the chart storage on db, for development tools that write chart history without
+// constructing the full bounded context.
+func NewDevStore(db *sqlx.DB, logger *slog.Logger) DevStore {
+	return mysql.NewDatastore(&platform_mysql.DBConnections{Primary: db, Replica: db}, logger)
+}

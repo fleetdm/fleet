@@ -1,8 +1,7 @@
 # charts-backfill
 
-Generates synthetic chart data for development and testing. Writes rows to
-`host_scd_data` using `ON DUPLICATE KEY UPDATE`, so it is safe to re-run.
-All writes use the roaring bitmap encoding (`encoding_type = 1`).
+Generates synthetic chart data for development and testing. All writes use the
+roaring bitmap encoding (`encoding_type = 1`).
 
 ## Usage
 
@@ -24,24 +23,26 @@ go run ./tools/charts-backfill --mysql-dsn "fleet:fleet@tcp(localhost:3306)/flee
 | `--entity-ids` | `""` | Comma-separated entity IDs (e.g. CVE IDs); `""` for non-entity datasets |
 | `--use-tracked-cves` | `false` | For `--dataset cve`, auto-discover entity IDs from the production tracked-CVE query (joins `software_cve` / `operating_system_vulnerabilities` against the curated software matchers; requires vulnerability data to be populated). Overrides `--entity-ids`. |
 | `--host-ids` | all hosts | Comma-separated host IDs to include |
-| `--mysql-dsn` | local dev | MySQL connection string |
+| `--mysql-dsn` | local dev | MySQL connection string; must set `parseTime=true` |
 
 ## Datasets
 
 Backfill mode matches the live collector's sample strategy for each dataset:
 
-- **Accumulate, hourly** (default; `uptime`, `policy`): 24 independent rows
-  per day per entity, each a fresh random sample. `valid_to` is set to one
-  hour past `valid_from`.
+- **Accumulate, hourly** (default; `uptime`, `policy`): 24 independent
+  `host_scd_data` rows per day per entity, each a fresh random sample.
+  `valid_to` is set to one hour past `valid_from`. Written with
+  `ON DUPLICATE KEY UPDATE`, so it is safe to re-run.
 
-- **Snapshot, state-segment** (`cve`): per-entity state-segment rows shaped
-  like real CVE data. Each entity gets an initial host set; for each
-  subsequent day, with ~5% probability the set is *churned* (~10% drop, ~10%
-  add). Each contiguous run of unchanged days collapses to a single row.
-  The final segment per entity leaves `valid_to` at the open sentinel so the
-  live collector compares against it on its next tick instead of inserting
-  over the top. Pair with `--use-tracked-cves` to mirror production CVE
-  selection.
+- **Snapshot, state-segment** (`cve`): per-entity host sets shaped like real
+  CVE data. Each entity gets an initial host set; for each subsequent day,
+  with ~5% probability the set is *churned* (~10% drop, ~10% add). The tool
+  **deletes the dataset's existing chart history**, then records each day's
+  host sets in the change storage through the chart store, the way the live
+  collector records an hour, and completes the history conversion. The live
+  collector then continues from the last day's sets and writes no
+  `host_scd_data` rows for the dataset. Pair with `--use-tracked-cves` to
+  mirror production CVE selection.
 
 Density (fraction of hosts marked active) for the initial sample varies by
 dataset — see `densityRange` in `main.go`. Snapshot churn parameters

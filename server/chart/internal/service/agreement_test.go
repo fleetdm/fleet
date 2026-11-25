@@ -3,7 +3,9 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math/rand/v2"
+	"slices"
 	"testing"
 	"time"
 
@@ -17,15 +19,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// agreementStore answers the host and CVE filters with fixed sets, so the chart reads run on the MySQL store
-// without hosts or vulnerability data, and counts which read answered.
+// agreementStore answers the host and CVE filters with fixed sets, so the chart reads and the collection run on
+// the MySQL store without hosts or vulnerability data, and counts which read answered.
 type agreementStore struct {
 	types.Datastore
 	hosts      []uint
 	entities   []string
-	fullCopies bool // report the change storage as not started
+	collected  map[string]*roaring.Bitmap // what the CVE collection finds
+	fullCopies bool                       // report the change storage as not started
 	replays    int
 	reads      int
+	// beforeRetire, when set, runs once before the first RetireSCDData call.
+	beforeRetire func()
+}
+
+func (s *agreementStore) CollectibleCVEs(context.Context) ([]string, error) {
+	return slices.Collect(maps.Keys(s.collected)), nil
+}
+
+func (s *agreementStore) AffectedHostIDsByCVE(context.Context, []uint, []string) (map[string]*roaring.Bitmap, error) {
+	return s.collected, nil
+}
+
+func (s *agreementStore) RetireSCDData(ctx context.Context, dataset string) (bool, error) {
+	if s.beforeRetire != nil {
+		s.beforeRetire()
+		s.beforeRetire = nil
+	}
+	return s.Datastore.RetireSCDData(ctx, dataset)
 }
 
 func (s *agreementStore) GetHostIDsForFilter(context.Context, *types.HostFilter) ([]uint, error) {
@@ -36,11 +57,11 @@ func (s *agreementStore) ResolveCVEChartEntities(context.Context, types.CVEChart
 	return s.entities, nil
 }
 
-func (s *agreementStore) SCDChangesCoveredFrom(ctx context.Context, dataset string) (time.Time, bool, error) {
+func (s *agreementStore) SCDChangesCoverage(ctx context.Context, dataset string) (types.SCDChangeCoverage, error) {
 	if s.fullCopies {
-		return time.Time{}, false, nil
+		return types.SCDChangeCoverage{}, nil
 	}
-	return s.Datastore.SCDChangesCoveredFrom(ctx, dataset)
+	return s.Datastore.SCDChangesCoverage(ctx, dataset)
 }
 
 func (s *agreementStore) ReplaySCDChanges(ctx context.Context, dataset string, start, end time.Time, size time.Duration, mask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
@@ -197,4 +218,103 @@ func TestGetChartDataCVEAgreement(t *testing.T) {
 	cutoff := time.Now().UTC().AddDate(0, 0, -30).Add(time.Hour)
 	require.NoError(t, ds.CleanupSCDData(t.Context(), 30))
 	requireAgreement(cutoff)
+
+	// Once the history is converted, responses do not depend on the full copies: deleting them changes none.
+	beforeRetire := make([]*api.Response, len(requests))
+	for i, r := range requests {
+		beforeRetire[i], _, _ = get(r, false)
+	}
+	for more := true; more; {
+		var err error
+		more, err = ds.RetireSCDData(t.Context(), api.MetricCVE)
+		require.NoError(t, err)
+	}
+	var cveRows int
+	require.NoError(t, tdb.DB.GetContext(t.Context(), &cveRows, `SELECT COUNT(*) FROM host_scd_data WHERE dataset = ?`, api.MetricCVE))
+	require.Zero(t, cveRows)
+	for i, r := range requests {
+		resp, replays, reads := get(r, false)
+		require.Equal(t, 1, replays, "%s", r)
+		require.Zero(t, reads, "%s", r)
+		require.Equal(t, beforeRetire[i], resp, "%s", r)
+	}
+}
+
+// TestCollectCVERetiresFullCopies runs the vulnerability exposure collection on the MySQL store across the end of
+// the conversion: it writes the full copies until the history is converted, and then deletes them.
+func TestCollectCVERetiresFullCopies(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_service")
+	ds := mysql.NewDatastore(tdb.Conns(), tdb.Logger)
+	ctx := service.PremiumCtx(t)
+
+	countRows := func(dataset string, validFrom *time.Time) int {
+		t.Helper()
+		stmt, args := `SELECT COUNT(*) FROM host_scd_data WHERE dataset = ?`, []any{dataset}
+		if validFrom != nil {
+			stmt, args = stmt+` AND valid_from = ?`, append(args, *validFrom)
+		}
+		var n int
+		require.NoError(t, tdb.DB.GetContext(t.Context(), &n, stmt, args...))
+		return n
+	}
+	sets := func(m map[string][]uint) map[string]*roaring.Bitmap {
+		out := make(map[string]*roaring.Bitmap, len(m))
+		for e, ids := range m {
+			out[e] = chart.NewBitmap(ids)
+		}
+		return out
+	}
+
+	h := time.Now().UTC().Truncate(time.Hour)
+	for i, hour := range []time.Time{h.Add(-72 * time.Hour), h.Add(-30 * time.Hour), h.Add(-5 * time.Hour)} {
+		require.NoError(t, ds.RecordBucketData(t.Context(), api.MetricCVE, hour, time.Hour, api.SampleStrategySnapshot,
+			sets(map[string][]uint{"CVE-A": {1, uint(2 + i)}, "CVE-B": {uint(5 + i)}})))
+	}
+	require.NoError(t, ds.RecordBucketData(t.Context(), "uptime", h, time.Hour, api.SampleStrategyAccumulate,
+		sets(map[string][]uint{"": {1, 2, 3}})))
+
+	store := &agreementStore{Datastore: ds, hosts: []uint{1, 2, 3, 4, 5, 6, 7, 8}, entities: []string{"CVE-A", "CVE-B", "CVE-C"}}
+	svc := service.NewService(&service.AllowAllAuthorizer{}, store, service.GlobalViewer(), nil, tdb.Logger)
+	svc.RegisterDataset(&chart.CVEDataset{})
+	clock := h.Add(30 * time.Minute)
+	service.SetNow(svc, func() time.Time { return clock })
+	getChart := func() *api.Response {
+		t.Helper()
+		resp, err := svc.GetChartData(ctx, api.MetricCVE, api.RequestOpts{Days: 7, Resolution: 1})
+		require.NoError(t, err)
+		return resp
+	}
+
+	// The first collection writes both formats and converts the history.
+	store.collected = sets(map[string][]uint{"CVE-A": {1, 4, 6}, "CVE-C": {8}})
+	require.NoError(t, svc.CollectDatasets(t.Context(), h.Add(10*time.Minute), nil))
+	require.Equal(t, 2, countRows(api.MetricCVE, &h), "the full copies are written until the history is converted")
+	converted, err := ds.SCDHistoryConverted(t.Context(), api.MetricCVE)
+	require.NoError(t, err)
+	require.True(t, converted)
+
+	// The next collection writes only the change storage, then deletes the full copies; the response does not
+	// depend on them.
+	next := h.Add(time.Hour)
+	clock = next.Add(30 * time.Minute)
+	store.collected = sets(map[string][]uint{"CVE-A": {1, 6}, "CVE-B": {2}})
+	var beforeDelete *api.Response
+	store.beforeRetire = func() {
+		require.Zero(t, countRows(api.MetricCVE, &next), "no full copy is written once the history is converted")
+		require.Positive(t, countRows(api.MetricCVE, nil))
+		beforeDelete = getChart()
+	}
+	require.NoError(t, svc.CollectDatasets(t.Context(), next.Add(10*time.Minute), nil))
+	require.NotNil(t, beforeDelete, "the full copies are deleted after the history is converted")
+	require.Zero(t, countRows(api.MetricCVE, nil))
+	require.Equal(t, 1, countRows("uptime", nil), "other datasets keep their rows")
+
+	store.replays, store.reads = 0, 0
+	resp := getChart()
+	require.Equal(t, beforeDelete, resp)
+	require.Equal(t, 1, store.replays)
+	require.Zero(t, store.reads)
+	last := resp.Data[len(resp.Data)-1]
+	require.Equal(t, next, last.Timestamp)
+	require.Equal(t, 3, last.Value, "hosts 1, 2 and 6 after the last collection")
 }

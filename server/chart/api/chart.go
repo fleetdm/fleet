@@ -121,6 +121,16 @@ type DatasetStore interface {
 	// before the change storage started into changes, and reports whether more
 	// remains. Snapshot datasets call it after RecordSCDChanges.
 	ConvertSCDHistory(ctx context.Context, dataset string) (more bool, err error)
+
+	// SCDHistoryConverted reports whether ConvertSCDHistory has converted all of
+	// the dataset's history collected before the change storage started. It is
+	// false while the change storage has not started for the dataset.
+	SCDHistoryConverted(ctx context.Context, dataset string) (bool, error)
+
+	// RetireSCDData deletes one batch of the dataset's host_scd_data rows once
+	// SCDHistoryConverted is true, and reports whether more remain. Before
+	// that it deletes nothing.
+	RetireSCDData(ctx context.Context, dataset string) (more bool, err error)
 }
 
 // ErrChangeStorageBusy is returned by the change storage writers that skip

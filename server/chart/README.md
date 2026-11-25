@@ -34,7 +34,8 @@ collection cron asks each dataset to **collect** the current state: it produces 
 set of host IDs (optionally grouped by an *entity*, e.g. one host-set per CVE) and
 hands them to the datastore as a [roaring bitmap](https://roaringbitmap.org/). The
 datastore folds that observation into a slowly-changing-dimension (SCD) history in
-the `host_scd_data` table.
+the `host_scd_data` table. The `cve` dataset instead keeps each CVE's current host
+set and what changed each hour (the [change storage](#change-storage-cve-only)).
 
 On read, a chart request resolves which hosts the caller may see (a "filter mask"
 bitmap), ORs the SCD history into one host-set per bucket, ANDs each bucket's
@@ -46,6 +47,8 @@ collection cron (cmd/fleet/cron.go)
   └─ Service.CollectDatasets(scope)
        └─ Dataset.Collect()  ──reads hosts──▶ DatasetStore (FindOnlineHostIDs, AffectedHostIDsByCVE, …)
             └─ store.RecordBucketData(strategy, map[entity]*bitmap)  ──writes──▶ host_scd_data
+               (cve: RecordSCDChanges ──writes──▶ change storage; host_scd_data only until
+                its history is converted, then RetireSCDData deletes its rows there)
 
 HTTP GET /api/_version_/fleet/charts/{metric}
   └─ getChartDataEndpoint ─▶ Service.GetChartData()
@@ -92,7 +95,9 @@ implement it in `server/acl/chartacl`. Then wire it through `bootstrap.New`.
 
 ## Data model: SCD type-2 + bitmaps
 
-Charts read everything from one table, `host_scd_data`:
+Every dataset except `cve` is stored in one table, `host_scd_data` (`cve` uses it
+only until its history is converted to the [change
+storage](#change-storage-cve-only)):
 
 ```sql
 CREATE TABLE host_scd_data (
@@ -122,10 +127,12 @@ read path ORs across entities to get a distinct-host union.
 
 ### Change storage (`cve` only)
 
-The `cve` dataset is also recorded in a second form that stores what changed
-instead of a full host set per change. It is written next to `host_scd_data`
-while the read path is moved over. `GetChartData` answers a `cve` request from
-it once it covers the request's window (see [Replay
+The `cve` dataset is recorded in a second form that stores what changed instead
+of a full host set per change. Until the history collected before it is
+converted, it is written next to `host_scd_data`; afterwards `cve` writes only
+the change storage and its `host_scd_data` rows are deleted (see [Retiring the
+full copies](#retiring-the-full-copies-cve)). `GetChartData` answers a `cve`
+request from it once it covers the request's window (see [Replay
 read](#replay-read-change-storage)).
 
 - `host_scd_entities` gives each `(dataset, entity_id)` a small integer key.
@@ -216,7 +223,9 @@ granularity** regardless of the *display* resolution requested at read time.
 > empty input is meaningful — it means "no entities are in the tracked state right
 > now," which must close any still-open rows. Accumulate short-circuits on empty
 > (nothing to merge, no state to reconcile). See the comments in `datasets.go`
-> (`CVEDataset.Collect`) and `data.go` (`RecordBucketData`).
+> (`CVEDataset.Collect`) and `data.go` (`RecordBucketData`). The exception is
+> `cve` once its history is converted: it no longer writes `host_scd_data` at all,
+> and `RecordSCDChanges` gives the same meaning to an empty map.
 
 The read-side aggregation for both strategies lives in `GetSCDData`
 (`internal/mysql/data.go`).
@@ -234,7 +243,8 @@ The read-side aggregation for both strategies lives in `GetSCDData`
 4. `Collect` reads host state through the narrow `DatasetStore` interface
    (`FindOnlineHostIDs`, `AffectedHostIDsByCVE`, `TrackedCriticalCVEs`), builds
    `map[entityID]*roaring.Bitmap`, and calls `store.RecordBucketData(...)` with its
-   strategy.
+   strategy. `CVEDataset.Collect` first asks `SCDHistoryConverted`, and once the
+   history is converted it skips `RecordBucketData`.
 5. `RecordBucketData` dispatches to `recordAccumulate` or `recordSnapshot`, which
    serialize via `BitmapToBlob` and upsert.
 6. `CVEDataset.Collect` then calls `RecordSCDChanges` with the same bitmaps. It
@@ -245,10 +255,12 @@ The read-side aggregation for both strategies lives in `GetSCDData`
    first. The first call for a dataset starts from the `host_scd_data` rows live
    just before the hour, so its changes are true differences from the stored
    history; on a new install every set is written as added.
-7. `CVEDataset.Collect` then converts the history collected before the change
-   storage started, a step at a time, for up to `cveConvertBudget` (5 minutes)
-   per collection and at least one step. See [Converting
-   history](#converting-history-change-storage).
+7. Until the history is converted, `CVEDataset.Collect` then converts the history
+   collected before the change storage started, a step at a time, for up to
+   `cveConvertBudget` (5 minutes) per collection and at least one step. See
+   [Converting history](#converting-history-change-storage). Once it is
+   converted, it deletes the dataset's `host_scd_data` rows instead. See
+   [Retiring the full copies](#retiring-the-full-copies-cve).
 
 ### Converting history (change storage)
 
@@ -271,6 +283,24 @@ change from `changes_from` on.
 - The last step sets `covered_from` to `changes_from - 32 days`.
 - A scrub between two steps is safe because each step reloads its starting
   state from `host_scd_data`, which the scrub has already cleared.
+
+### Retiring the full copies (`cve`)
+
+Once `SCDHistoryConverted` reports the conversion complete (`convert_cursor` has
+reached `changes_from`), nothing reads the `cve` rows in `host_scd_data`:
+`covered_from` is then 32 days before `changes_from`, so replay answers every
+request within retention.
+
+- `CVEDataset.Collect` stops calling `RecordBucketData` for `cve`.
+- It then calls `RetireSCDData` (`internal/mysql/retire.go`), which deletes up to
+  `scdRetireBatch` (1,000) of the dataset's `host_scd_data` rows per call, for up
+  to `cveRetireBudget` (5 minutes) per collection and at least one call.
+  `RetireSCDData` checks the conversion itself and deletes nothing before it
+  completes. Other datasets' rows are not touched.
+- A global scrub deletes the state row, so a dataset enabled again starts over:
+  the change storage starts from what `host_scd_data` holds (nothing after the
+  scrub), the conversion completes on its first step, and the next collection
+  stops writing `host_scd_data` again.
 
 Retention: a separate cleanup cron calls `CleanupData(days)` →
 `CleanupSCDData`, which deletes *closed* rows older than the cutoff in batches.
@@ -296,10 +326,12 @@ Open rows (sentinel `valid_to`) are never deleted. It also deletes
    list → `NewBitmap`. This is memoized per canonicalized filter by `hostFilterCache`
    (60s TTL, singleflight-collapsed). The mask encodes "currently visible hosts,"
    which incidentally drops hosts deleted since the SCD rows were written.
-5. **Aggregate buckets.** For `cve`, when `SCDChangesCoveredFrom` returns a
-   `covered_from` at or before the end of the first bucket, `ReplaySCDChanges`
-   answers the request (see [Replay read](#replay-read-change-storage)). If the
-   lookup fails, the error is logged and the request reads `host_scd_data`.
+5. **Aggregate buckets.** For `cve`, `SCDChangesCoverage` reads the change
+   storage's state. When its history is converted, or `covered_from` is at or
+   before the end of the first bucket, `ReplaySCDChanges` answers the request
+   (see [Replay read](#replay-read-change-storage)). A converted history always
+   replays because its `host_scd_data` rows are deleted, and a failed lookup
+   fails the request rather than reading them.
    Otherwise `GetSCDData` streams the rows overlapping the range one
    at a time and ORs each into one accumulator per bucket it counts for (per
    strategy), so memory is bounded by the bucket count, not the rows read. Each
@@ -327,7 +359,7 @@ list. `GetChartData` uses it for `cve` when `covered_from` is at or before the
 end of the request's first bucket, so every bucket it returns holds the
 history. Before the history collected ahead of the change storage is converted,
 that is only windows that start after `changes_from`; once conversion
-completes, every window within retention.
+completes, it answers every request.
 
 1. Resolve the entity IDs to keys through `host_scd_entities` (an `IN` list up to
    `scdEntityInListMax`, else every key of the dataset filtered in Go).
@@ -376,7 +408,8 @@ which enqueues a worker job *after* the config commit:
   `Service.ScrubDatasetFleet` → resolve the fleets' host IDs into a mask, then
   `ApplyScrubMaskToDataset` walks every row and `BlobANDNOT`s the mask out, then
   does the same to the dataset's current sets and changes under the change
-  storage lock, deleting what is left empty. Both are idempotent.
+  storage lock, deleting what is left empty. Both are idempotent. Once the `cve`
+  rows of `host_scd_data` are retired, only the change storage holds `cve` hosts.
 
 The worker jobs live in `server/worker/chart_scrub.go`. Note the dataset-name
 strings (`"uptime"`, `"cve"`) are mirrored in three places — the `Dataset.Name()`
@@ -488,9 +521,10 @@ mocks elsewhere can crash if an interface method is missing.
 | `internal/mysql/data.go` | SCD read/write: `RecordBucketData`, `GetSCDData`, cleanup, scrub |
 | `internal/mysql/changes.go` | Change storage: `RecordSCDChanges`, its encoding, writer lock, cleanup and scrub |
 | `internal/mysql/convert.go` | Conversion of `host_scd_data` history into changes: `ConvertSCDHistory` |
-| `internal/mysql/replay.go` | Replay read of the change storage: `ReplaySCDChanges`, `SCDChangesCoveredFrom` |
+| `internal/mysql/retire.go` | Deleting `host_scd_data` rows once converted: `SCDHistoryConverted`, `RetireSCDData` |
+| `internal/mysql/replay.go` | Replay read of the change storage: `ReplaySCDChanges`, `SCDChangesCoverage` |
 | `internal/mysql/charts.go` | Host-filter SQL, online-host query, CVE collection + tracked-CVE filter |
-| `bootstrap/bootstrap.go` | `New(...)` — wires the context together |
+| `bootstrap/bootstrap.go` | `New(...)` — wires the context together; `NewDevStore` for the dev tools |
 | `arch_test.go` | Enforces the dependency rules above |
 
 Related code outside this tree:
@@ -507,29 +541,32 @@ Related code outside this tree:
 ## Dev tools: populating chart data
 
 In dev you usually don't have hours of real collection history to chart. Two
-standalone tools under `tools/` write directly to `host_scd_data` so you have
-something to render. Each has its own README with the full flag reference; this is
-the orientation.
+standalone tools under `tools/` write chart history so you have something to
+render: `uptime` straight into `host_scd_data`, and `cve` through the chart store
+(`bootstrap.NewDevStore`), so it lands in the change storage like the live
+collector's. Each has its own README with the full flag reference; this is the
+orientation.
 
 ### `tools/charts-backfill` — synthetic history
 
 Generates **fake but realistically-shaped** history for a dataset. This is the one
 you want for frontend work or eyeballing a chart — point it at your local DB and it
-fabricates days of data in seconds. Safe to re-run (ODKU merge), always writes
-roaring encoding.
+fabricates days of data in seconds. Always writes roaring encoding.
 
 Crucially, it backfills in the mode that **matches the dataset's
 `SampleStrategy`** so the data looks like what production would eventually produce:
 
 - **Accumulate datasets** (uptime) → 24 independent hourly rows per day,
-  each a fresh random sample, each bounded to its single hour.
-- **Snapshot datasets** (cve) → per-entity state-segment rows: most entities get one
-  long open row, a small fraction "flip" on day boundaries to produce closed
-  segments. CVE cardinality follows a long-tail distribution (most CVEs touch a
-  handful of hosts, a few are browser/kernel-wide) so unioning hundreds of entities
-  doesn't saturate at fleet size. The final segment per entity stays open
-  (`valid_to` = sentinel) so the live collector compares against it on its next
-  tick rather than stacking a row on top.
+  each a fresh random sample, each bounded to its single hour. Safe to re-run
+  (ODKU merge).
+- **Snapshot datasets** (cve) → per-entity state segments: most entities keep one
+  host set, a small fraction "flip" on day boundaries. CVE cardinality follows a
+  long-tail distribution (most CVEs touch a handful of hosts, a few are
+  browser/kernel-wide) so unioning hundreds of entities doesn't saturate at fleet
+  size. The tool deletes the dataset's chart history first, records each day's
+  host sets with `RecordSCDChanges`, oldest first, and completes the conversion,
+  so the live collector continues from the last day's sets and writes no
+  `host_scd_data` rows for it.
 
 ```bash
 # 30 days of uptime for all hosts in the local DB:
@@ -561,7 +598,8 @@ The other tool pulls **real** state from a running Fleet instance over the REST 
 (currently uptime + CVE) and writes it into a local DB. It's the out-of-process
 stand-in for the in-server collection cron — designed to run hourly against e.g.
 dogfood. Use this when you want a chart backed by real fleet data rather than
-synthetic noise.
+synthetic noise. Its CVE host sets go through `CVEDataset.Collect`, so they are
+recorded exactly as the in-server collector records them.
 
 ```bash
 go run ./tools/charts-collect --fleet-url https://dogfood.fleetdm.com --fleet-token <token>
@@ -571,8 +609,7 @@ Targets are also configurable via `FLEET_URL` / `FLEET_TOKEN` / `MYSQL_DSN`, and
 the DSN falls back to the standard `FLEET_MYSQL_*` env vars. See
 `tools/charts-collect/README.md`.
 
-> Both tools duplicate a few storage constants (the `9999-12-31` open sentinel,
-> upsert batch size, roaring encoding) because they write `host_scd_data`
-> out-of-process and can't import the internal mysql package. If you change the
-> storage format or those constants in `internal/mysql/data.go`, update the tools to
-> match.
+> The `uptime` writers in both tools duplicate the `host_scd_data` row format
+> (roaring encoding, hour-bounded rows) because they write it out-of-process and
+> can't import the internal mysql package. If you change that format in
+> `internal/mysql/data.go`, update the tools to match.

@@ -5,10 +5,9 @@
 // current-hour accumulate row (dataset='uptime'). Rows are closed at hour
 // boundaries; no cross-bucket collapse.
 // CVE: fetches per-host vulnerability data, builds per-CVE host bitmaps, and
-// reconciles them into host_scd_data (dataset='cve') as snapshot rows.
-// Unchanged CVEs keep their existing open row; changed bitmaps close the prior
-// row at the current hour boundary (UTC) and open a new one; same-hour
-// re-runs overwrite the open row via ODKU.
+// records them the way Fleet's CVE collector does (chart.CVEDataset), so it
+// writes the change storage, converts older history, and stops writing and
+// deletes host_scd_data rows (dataset='cve') once that history is converted.
 //
 // Usage:
 //
@@ -25,33 +24,30 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
+	"maps"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/chart"
+	chartapi "github.com/fleetdm/fleet/v4/server/chart/api"
+	"github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 )
 
-const (
-	perPage = 500
-	// scdUpsertBatch mirrors the constant in server/chart/internal/mysql/data.go —
-	// the collector writes to the same table out-of-process and must keep the
-	// encoding in sync.
-	scdUpsertBatch = 200
-)
-
-// scdOpenSentinel is the end-of-time marker used for valid_to on open snapshot
-// rows. Must match the DEFAULT in the host_scd_data table.
-var scdOpenSentinel = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+const perPage = 500
 
 func main() {
 	fleetURL := flag.String("fleet-url", os.Getenv("FLEET_URL"), "Fleet server URL (or FLEET_URL env var)")
@@ -257,115 +253,31 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 		entityBitmaps[cve] = chart.NewBitmap(hosts)
 	}
 
-	// Snapshot rows are keyed to 1h boundaries (not 24h) so that row transitions
-	// fall on hour marks. This lets tz-offset users' local-day queries resolve
-	// "state at end of my day" to a row boundary observed at or before that
-	// moment, rather than being pulled forward by the artificial UTC-midnight
-	// transition that 24h keying would impose.
 	writeStart := time.Now()
-	bucketStart := time.Now().UTC().Truncate(time.Hour)
-	if err := reconcileSnapshot(db, "cve", entityBitmaps, bucketStart); err != nil {
-		return fmt.Errorf("reconcile SCD: %w", err)
+	store := fetchedCVEStore{
+		DatasetStore: bootstrap.NewDevStore(sqlx.NewDb(db, "mysql"), slog.New(slog.NewTextHandler(os.Stderr, nil))),
+		bitmaps:      entityBitmaps,
 	}
-	log.Printf("  reconciled %d entities in %.1fs", len(entityBitmaps), time.Since(writeStart).Seconds())
+	if err := (&chart.CVEDataset{}).Collect(context.Background(), store, time.Now(), nil); err != nil {
+		return fmt.Errorf("record CVE data: %w", err)
+	}
+	log.Printf("  recorded %d entities in %.1fs", len(entityBitmaps), time.Since(writeStart).Seconds())
 	return nil
 }
 
-// reconcileSnapshot mirrors Datastore.recordSnapshot in
-// server/chart/internal/mysql/data.go.
-func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string]*roaring.Bitmap, bucketStart time.Time) error {
-	rows, err := db.Query(
-		`SELECT entity_id, host_bitmap, encoding_type, valid_from
-		 FROM host_scd_data
-		 WHERE dataset = ? AND valid_to = ?`,
-		dataset, scdOpenSentinel)
-	if err != nil {
-		return fmt.Errorf("fetch open SCD rows: %w", err)
-	}
-	defer rows.Close()
-	type openEntry struct {
-		bitmap    *roaring.Bitmap
-		validFrom time.Time
-	}
-	openByEntity := make(map[string]openEntry)
-	for rows.Next() {
-		var entityID string
-		var bitmapBytes []byte
-		var encoding uint8
-		var validFrom time.Time
-		if err := rows.Scan(&entityID, &bitmapBytes, &encoding, &validFrom); err != nil {
-			return fmt.Errorf("scan open SCD row: %w", err)
-		}
-		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: bitmapBytes, Encoding: encoding})
-		if err != nil {
-			return fmt.Errorf("decode open bitmap for %q: %w", entityID, err)
-		}
-		openByEntity[entityID] = openEntry{bitmap: rb, validFrom: validFrom}
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterate open SCD rows: %w", err)
-	}
+// fetchedCVEStore is the chart storage with the CVE host sets fetched from the API in place of the ones Fleet reads
+// from its own tables.
+type fetchedCVEStore struct {
+	chartapi.DatasetStore
+	bitmaps map[string]*roaring.Bitmap
+}
 
-	var toClose []string
-	type upsertRow struct {
-		entityID string
-		blob     chart.Blob
-	}
-	var toUpsert []upsertRow
+func (s fetchedCVEStore) CollectibleCVEs(context.Context) ([]string, error) {
+	return slices.Collect(maps.Keys(s.bitmaps)), nil
+}
 
-	for entityID, bitmap := range entityBitmaps {
-		existing, hasOpen := openByEntity[entityID]
-		if hasOpen && existing.bitmap.Equals(bitmap) {
-			continue
-		}
-		if hasOpen && existing.validFrom.Before(bucketStart) {
-			toClose = append(toClose, entityID)
-		}
-		toUpsert = append(toUpsert, upsertRow{entityID: entityID, blob: chart.BitmapToBlob(bitmap)})
-	}
-
-	for entityID := range openByEntity {
-		if _, ok := entityBitmaps[entityID]; !ok {
-			toClose = append(toClose, entityID)
-		}
-	}
-
-	if len(toClose) > 0 {
-		placeholders := make([]string, len(toClose))
-		args := []any{bucketStart, dataset, scdOpenSentinel}
-		for i, e := range toClose {
-			placeholders[i] = "?"
-			args = append(args, e)
-		}
-		// Concatenating hardcoded "?" placeholder strings, not user input.
-		stmt := fmt.Sprintf( //nolint:gosec // G202
-			`UPDATE host_scd_data SET valid_to = ?
-			 WHERE dataset = ? AND valid_to = ? AND entity_id IN (%s)`,
-			strings.Join(placeholders, ","))
-		if _, err := db.Exec(stmt, args...); err != nil {
-			return fmt.Errorf("close stale rows: %w", err)
-		}
-	}
-
-	for i := 0; i < len(toUpsert); i += scdUpsertBatch {
-		end := min(i+scdUpsertBatch, len(toUpsert))
-		batch := toUpsert[i:end]
-
-		placeholders := make([]string, len(batch))
-		args := make([]any, 0, len(batch)*5)
-		for j, r := range batch {
-			placeholders[j] = "(?, ?, ?, ?, ?)"
-			args = append(args, dataset, r.entityID, r.blob.Bytes, r.blob.Encoding, bucketStart)
-		}
-		// Concatenating hardcoded "(?,?,?,?,?)" placeholder strings, not user input.
-		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from) VALUES ` + //nolint:gosec // G202
-			strings.Join(placeholders, ", ") +
-			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`
-		if _, err := db.Exec(stmt, args...); err != nil {
-			return fmt.Errorf("upsert rows: %w", err)
-		}
-	}
-	return nil
+func (s fetchedCVEStore) AffectedHostIDsByCVE(context.Context, []uint, []string) (map[string]*roaring.Bitmap, error) {
+	return s.bitmaps, nil
 }
 
 // --- API helpers ---

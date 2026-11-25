@@ -237,7 +237,8 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 }
 
 // readData returns the buckets of a chart request. The cve dataset is replayed from the change storage when it
-// holds the history of every bucket; otherwise, and for the other datasets, the host_scd_data rows are read.
+// holds the history of every bucket, and always once its history is converted, because its host_scd_data rows
+// are then deleted. Otherwise, and for the other datasets, the host_scd_data rows are read.
 func (s *Service) readData(
 	ctx context.Context,
 	dataset api.Dataset,
@@ -248,18 +249,14 @@ func (s *Service) readData(
 ) ([]api.DataPoint, error) {
 	name := dataset.Name()
 	if name == api.MetricCVE {
-		coveredFrom, found, err := s.store.SCDChangesCoveredFrom(ctx, name)
-		switch {
-		case err != nil && ctx.Err() != nil:
+		// Without the coverage the host_scd_data rows may be gone, so a failed lookup does not fall back to them.
+		cov, err := s.store.SCDChangesCoverage(ctx, name)
+		if err != nil {
 			return nil, err
-		case err != nil:
-			if s.logger != nil {
-				s.logger.ErrorContext(ctx, "read chart change coverage, reading the full host sets instead",
-					"dataset", name, "err", ctxerr.Wrap(ctx, err, "read chart change coverage"))
-			}
+		}
 		// Bucket i is labeled with its start, startDate + (i+1)*bucketSize, so the first bucket ends at
 		// startDate + 2*bucketSize.
-		case found && !coveredFrom.After(startDate.Add(2*bucketSize)):
+		if cov.Converted || (cov.Started && !cov.CoveredFrom.After(startDate.Add(2*bucketSize))) {
 			return s.store.ReplaySCDChanges(ctx, name, startDate, endDate, bucketSize, filterMask, entityIDs)
 		}
 	}

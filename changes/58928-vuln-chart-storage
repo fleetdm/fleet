@@ -1,0 +1,1 @@
+- Fleet now stores much less history for the vulnerability exposure chart: once the existing history is converted, it stops keeping a full copy of each CVE's affected hosts for every change and deletes the copies already stored.
