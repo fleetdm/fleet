@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,25 +13,30 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
-// guard decides whether the workload runs. The stop file pauses it (whoever wrote it: this driver, a watcher, a
-// person), and the driver's own wires write that file on a trip. Recovery is by hand: the workload resumes when
-// someone removes the file. Only Fleet's own symptoms trip; database load alone doesn't (it's watched elsewhere and
-// at this population it's high through every vulnerabilities run).
+// guard decides whether the workload runs. The stop marker pauses it (whoever wrote it: this driver, a watcher, a
+// person), and the driver's own wires write it on a trip. Recovery is by hand: the workload resumes when someone
+// removes the marker. Only Fleet's own symptoms trip; database load alone doesn't (it's watched elsewhere and at
+// this population it's high through every vulnerabilities run).
 type guard struct {
-	stopFile string
-	onTrip   string
-	api      *api
-	events   *eventLog
-	logger   *slog.Logger
+	stop      stopMarker // nil: no marker, trips pause until the driver restarts
+	onTrip    string     // shell command run once per trip
+	notifyURL string     // webhook (Slack incoming-webhook shape) told about each trip
+	api       *api
+	events    *eventLog
+	logger    *slog.Logger
 
-	mu       sync.Mutex
-	tripped  string
-	isPaused bool
-	recent   []bool // the last outcomes, true = broken on the server's side
-	hzFails  int
-	hz       []healthzReading // the last two hours, for the healthz.p99 check
+	mu        sync.Mutex
+	tripped   string
+	isPaused  bool
+	markerErr bool   // the last marker read failed (logged once)
+	unmarked  bool   // a trip couldn't write the marker, so only a restart resumes
+	recent    []bool // the last outcomes, true = broken on the server's side
+	hzFails   int
+	hz        []healthzReading // the last two hours, for the healthz.p99 check
 }
 
 type healthzReading struct {
@@ -61,17 +66,32 @@ const (
 	healthzTrip  = 3
 )
 
-// paused reports whether actions should be skipped now, and why. It writes pause and resume events on changes.
-func (g *guard) paused() (bool, string) {
+// paused reports whether actions should be skipped now, and why. It writes pause and resume events on changes. A
+// marker that can't be read keeps the last state.
+func (g *guard) paused(ctx context.Context) (bool, string) {
+	var line string
+	var exists, readOK bool
+	if g.stop != nil {
+		var err error
+		line, exists, err = g.stop.get(ctx)
+		readOK = err == nil
+		g.mu.Lock()
+		if err != nil && !g.markerErr {
+			g.logger.WarnContext(ctx, "can't read the stop marker, keeping the last state", "err", err)
+		}
+		g.markerErr = err != nil
+		g.mu.Unlock()
+	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	reason := ""
-	if g.stopFile != "" {
-		if b, err := os.ReadFile(g.stopFile); err == nil {
-			reason = "stop file: " + strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
-		} else {
-			g.tripped = "" // the file was removed: recovered by hand
-		}
+	switch {
+	case g.stop != nil && !readOK && g.isPaused:
+		return true, "stop marker unreadable, still paused"
+	case exists:
+		reason = "stop file: " + line
+	case g.stop != nil && readOK && !g.unmarked:
+		g.tripped = "" // the marker was removed: recovered by hand
 	}
 	if reason == "" && g.tripped != "" {
 		reason = g.tripped
@@ -151,18 +171,52 @@ func (g *guard) trip(ctx context.Context, reason string) {
 	g.mu.Unlock()
 
 	g.events.write(event{Kind: "trip", Error: reason})
-	g.logger.ErrorContext(ctx, "trip: workload paused until the stop file is removed", "reason", reason, "stop_file", g.stopFile)
-	if g.stopFile != "" {
-		if _, err := os.Stat(g.stopFile); errors.Is(err, fs.ErrNotExist) {
-			line := fmt.Sprintf("%s driver: %s\n", time.Now().UTC().Format("2006-01-02T15:04Z"), reason)
-			if err := os.WriteFile(g.stopFile, []byte(line), 0o644); err != nil { //nolint:gosec // a marker file, not a secret
-				g.logger.ErrorContext(ctx, "write stop file", "err", err)
-			}
+	where := "(none: restart the driver to resume)"
+	if g.stop != nil {
+		where = g.stop.String()
+		line := fmt.Sprintf("%s driver: %s", time.Now().UTC().Format("2006-01-02T15:04Z"), reason)
+		if err := g.stop.create(ctx, line); err != nil {
+			g.logger.ErrorContext(ctx, "write the stop marker; the workload stays paused until the driver restarts", "err", err)
+			g.mu.Lock()
+			g.unmarked = true
+			g.mu.Unlock()
 		}
 	}
+	g.logger.ErrorContext(ctx, "trip: workload paused until the stop marker is removed", "reason", reason, "stop_marker", where)
 	if g.onTrip != "" {
 		go g.runOnTrip(ctx, reason)
 	}
+	if g.notifyURL != "" {
+		go g.notify(ctx, reason, where)
+	}
+}
+
+// notify posts the trip to a webhook that takes {"text": ...} (a Slack incoming webhook).
+func (g *guard) notify(ctx context.Context, reason, where string) {
+	nctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
+	text := fmt.Sprintf("Load-test activity driver tripped on %s: %s. The workload is paused until %s is removed.",
+		g.api.base, reason, where)
+	req, err := http.NewRequestWithContext(nctx, http.MethodPost, g.notifyURL, bytes.NewReader(mustJSON(map[string]string{"text": text})))
+	if err != nil {
+		g.logger.ErrorContext(ctx, "trip notification", "err", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second)).Do(req) //nolint:gosec // the operator's own webhook
+	if err != nil {
+		g.logger.ErrorContext(ctx, "trip notification", "err", err)
+		return
+	}
+	resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		g.logger.ErrorContext(ctx, "trip notification", "status", resp.StatusCode)
+	}
+}
+
+func mustJSON(v any) []byte {
+	b, _ := json.Marshal(v)
+	return b
 }
 
 // runOnTrip runs the operator's command once (evidence capture, a notification), with the reason in its env.

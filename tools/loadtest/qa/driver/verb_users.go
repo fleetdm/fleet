@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -91,12 +93,13 @@ type poolUser struct {
 	Password string `json:"password"`
 }
 
-// ensureUserPool creates the pool's missing users. A pool user whose password the state file doesn't have is
-// deleted and created again: the prefix marks it as the driver's.
+// ensureUserPool creates the pool's missing users. A pool user whose password the driver doesn't know (not in the
+// state file, or the derived one doesn't log in) is deleted and created again: the prefix marks it as the driver's.
 func ensureUserPool(ctx context.Context, e *env) (*userPool, error) {
 	path := filepath.Join(e.stateDir, "users.json")
 	saved := map[string]poolUser{}
 	switch b, err := os.ReadFile(path); {
+	case e.usersSecret != "": // derived passwords: no state file
 	case err == nil:
 		var list []poolUser
 		if err := json.Unmarshal(b, &list); err != nil {
@@ -134,11 +137,25 @@ func ensureUserPool(ctx context.Context, e *env) (*userPool, error) {
 				pool.users = append(pool.users, s)
 				continue
 			}
+			if e.usersSecret != "" {
+				u := poolUser{ID: id, Email: email, Password: derivePassword(e.usersSecret, email)}
+				ok, err := canLogIn(ctx, e, u)
+				if err != nil {
+					return nil, fmt.Errorf("user pool: check %s: %w", email, err)
+				}
+				if ok {
+					pool.users = append(pool.users, u)
+					continue
+				}
+			}
 			if _, err := e.api.do(ctx, http.MethodDelete, fmt.Sprintf("/api/latest/fleet/users/%d", id), nil, nil, nil); err != nil {
 				return nil, fmt.Errorf("user pool: replace %s: %w", email, err)
 			}
 		}
 		pw := newPassword()
+		if e.usersSecret != "" {
+			pw = derivePassword(e.usersSecret, email)
+		}
 		var cr struct {
 			User struct {
 				ID uint `json:"id"`
@@ -155,6 +172,9 @@ func ensureUserPool(ctx context.Context, e *env) (*userPool, error) {
 		pool.users = append(pool.users, u)
 		saved[email] = u
 		created++
+		if e.usersSecret != "" {
+			continue
+		}
 		if err := saveUsers(path, saved); err != nil { // after each user, so a failed run loses no password
 			return nil, err
 		}
@@ -180,6 +200,31 @@ func saveUsers(path string, users map[string]poolUser) error {
 		return fmt.Errorf("user pool state: %w", err)
 	}
 	return os.Rename(tmp, path)
+}
+
+// canLogIn checks a pool user's password with a login (and logs the session out).
+func canLogIn(ctx context.Context, e *env, u poolUser) (bool, error) {
+	var login struct {
+		Token string `json:"token"`
+	}
+	status, err := e.api.doAs(ctx, "", http.MethodPost, "/api/latest/fleet/login", nil,
+		map[string]string{"email": u.Email, "password": u.Password}, &login)
+	switch {
+	case status == http.StatusUnauthorized:
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	_, _ = e.api.doAs(ctx, login.Token, http.MethodPost, "/api/latest/fleet/logout", nil, nil, nil)
+	return true, nil
+}
+
+// derivePassword is the pool password for an email: the same on every run with the same secret, so the driver
+// needs no state where its files don't survive a restart (ECS). It meets Fleet's rules like newPassword.
+func derivePassword(secret, email string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(email))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:18]) + "#7"
 }
 
 // newPassword meets Fleet's rules (12-48 characters with a number and a symbol).

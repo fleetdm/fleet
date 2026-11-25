@@ -129,7 +129,7 @@ func (wl *workload) run(ctx context.Context) {
 		next[i] = nextArrival(wl.rng, next[i], s.rate, s.curve)
 
 		skip := ""
-		if p, why := wl.guard.paused(); p {
+		if p, why := wl.guard.paused(ctx); p {
 			skip = "paused: " + why
 		} else if busy[i].Load() {
 			skip = "previous run still going"

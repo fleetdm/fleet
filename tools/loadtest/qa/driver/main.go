@@ -40,8 +40,10 @@ func run() error {
 		flOnce       = flag.Bool("once", false, "run each selected spec once, in order, and exit")
 		flSeed       = flag.Uint64("seed", 0, "seed for the schedule (default: random)")
 		flEvents     = flag.String("events", "", "also append the event log to this file")
-		flStopFile   = flag.String("stop_file", "", "pause while this file exists; a trip creates it")
+		flStopFile   = flag.String("stop_file", "", "pause while this file (or s3://bucket/key object) exists; a trip creates it")
 		flOnTrip     = flag.String("on_trip", "", "shell command to run once per trip (evidence, a notification); gets DRIVER_TRIP_REASON")
+		flNotifyEnv  = flag.String("notify_url_env", "", "environment variable holding a webhook URL (Slack incoming-webhook shape) to tell about trips")
+		flUsersEnv   = flag.String("users_secret_env", "", "environment variable holding a secret the driver users' passwords are derived from, instead of keeping them in -state_dir")
 		flStateDir   = flag.String("state_dir", "", "where the driver keeps its users' passwords (default: ~/.fleet-driver/<fleet host>)")
 		flUserPrefix = flag.String("user_prefix", "driver-user-", "email prefix of the driver's own password users")
 		flUsers      = flag.Int("users", 20, "number of driver users")
@@ -151,7 +153,22 @@ func run() error {
 		userPrefix: *flUserPrefix, userCount: *flUsers,
 	}
 
-	g := &guard{stopFile: *flStopFile, onTrip: *flOnTrip, api: a, events: events, logger: logger}
+	g := &guard{onTrip: *flOnTrip, api: a, events: events, logger: logger}
+	if *flStopFile != "" {
+		if g.stop, err = newStopMarker(ctx, *flStopFile, *flRegion); err != nil {
+			return err
+		}
+	}
+	if *flUsersEnv != "" {
+		if e.usersSecret = os.Getenv(*flUsersEnv); len(e.usersSecret) < 16 {
+			return fmt.Errorf("-users_secret_env: $%s must hold at least 16 characters", *flUsersEnv)
+		}
+	}
+	if *flNotifyEnv != "" {
+		if g.notifyURL = os.Getenv(*flNotifyEnv); g.notifyURL == "" {
+			return fmt.Errorf("-notify_url_env: $%s is empty", *flNotifyEnv)
+		}
+	}
 	ms := &metricSources{guard: g, api: a}
 	if *flLT != "" {
 		if ms.aws, err = newAWSSources(ctx, *flLT, *flRegion); err != nil {

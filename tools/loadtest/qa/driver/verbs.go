@@ -51,9 +51,10 @@ type env struct {
 	hosts    *hostCache
 	logger   *slog.Logger
 
-	userPrefix string
-	userCount  int
-	usersOnce  sync.Once
-	users      *userPool
-	usersErr   error
+	userPrefix  string
+	userCount   int
+	usersSecret string // derive the pool's passwords from this instead of keeping them in stateDir
+	usersOnce   sync.Once
+	users       *userPool
+	usersErr    error
 }

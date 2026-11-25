@@ -162,7 +162,7 @@ func TestCheckBreachTrips(t *testing.T) {
 	var buf bytes.Buffer
 	events := newEventLog("test", &buf)
 	stop := filepath.Join(t.TempDir(), "STOP")
-	g := &guard{stopFile: stop, events: events, logger: slog.New(slog.DiscardHandler)}
+	g := &guard{stop: &fileMarker{path: stop}, events: events, logger: slog.New(slog.DiscardHandler), api: &api{}}
 	b, err := parseBudget("< 60%")
 	require.NoError(t, err)
 	mc := &metricCheck{checkID: "C-X", metric: "fleet.memory.max", window: 5 * time.Minute, budget: b, breachN: 2, trip: true,
@@ -358,4 +358,26 @@ func TestRunOneBudgetUsesActionTime(t *testing.T) {
 	assert.GreaterOrEqual(t, evs[0].Detail["total_ms"], float64(80))
 	assert.Equal(t, "slow", evs[1].Verdict)
 	assert.GreaterOrEqual(t, evs[1].TookMS, int64(80))
+}
+
+func TestDerivePassword(t *testing.T) {
+	a := derivePassword("0123456789abcdef", "driver-user-001@example.com")
+	assert.Equal(t, a, derivePassword("0123456789abcdef", "driver-user-001@example.com"))
+	assert.NotEqual(t, a, derivePassword("0123456789abcdef", "driver-user-002@example.com"))
+	assert.NotEqual(t, a, derivePassword("0123456789abcdeX", "driver-user-001@example.com"))
+	assert.GreaterOrEqual(t, len(a), 12)
+	assert.LessOrEqual(t, len(a), 48)
+}
+
+func TestFileMarker(t *testing.T) {
+	m := &fileMarker{path: filepath.Join(t.TempDir(), "STOP")}
+	_, ok, err := m.get(t.Context())
+	require.NoError(t, err)
+	assert.False(t, ok)
+	require.NoError(t, m.create(t.Context(), "first"))
+	require.NoError(t, m.create(t.Context(), "second")) // an existing marker keeps its reason
+	line, ok, err := m.get(t.Context())
+	require.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "first", line)
 }
