@@ -118,3 +118,51 @@ func TestProxyQueryParametersAreEncoded(t *testing.T) {
 		})
 	}
 }
+
+func TestProxyTransportErrorMasksSecret(t *testing.T) {
+	const (
+		tenantID = "tenant-id"
+		secret   = "super-secret-value-d41d8cd98f00"
+	)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Close()
+
+	p, err := New(srv.URL, func() (string, error) { return "https://fleet.example.com", nil })
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name string
+		call func() error
+	}{
+		{
+			name: "get",
+			call: func() error {
+				_, err := p.Get(t.Context(), tenantID, secret)
+				return err
+			},
+		},
+		{
+			name: "delete",
+			call: func() error {
+				_, err := p.Delete(t.Context(), tenantID, secret)
+				return err
+			},
+		},
+		{
+			name: "get message status",
+			call: func() error {
+				_, err := p.GetMessageStatus(t.Context(), tenantID, secret, "message-id")
+				return err
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call()
+			require.Error(t, err)
+			require.NotContains(t, err.Error(), secret)
+			require.Contains(t, err.Error(), "fleetServerSecret=MASKED")
+			require.Contains(t, err.Error(), tenantID)
+		})
+	}
+}
