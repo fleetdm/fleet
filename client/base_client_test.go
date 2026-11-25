@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -60,6 +61,35 @@ func TestUrlGeneration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/subpath/prefix/test/path", bc.URL("test/path", "").String())
 		require.Equal(t, "https://test.com/subpath/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
+
+	t.Run("with percent-encoded path segments", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/sub%20path", true, "", "prefix/", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		cases := []struct {
+			name     string
+			reqPath  string
+			expected string
+		}{
+			{"space", "/labels/" + url.PathEscape("All Hosts"), "https://test.com/sub%20path/prefix/labels/All%20Hosts"},
+			{"slash", "/labels/" + url.PathEscape("abc/def"), "https://test.com/sub%20path/prefix/labels/abc%2Fdef"},
+			{"literal percent", "/labels/" + url.PathEscape("abc%2Fdef"), "https://test.com/sub%20path/prefix/labels/abc%252Fdef"},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				require.Equal(t, c.expected, bc.URL(c.reqPath, "").String())
+				requestURL, err := bc.RequestURL(c.reqPath, "raw=query")
+				require.NoError(t, err)
+				require.Equal(t, c.expected+"?raw=query", requestURL)
+			})
+		}
+	})
+
+	t.Run("request URL with invalid escape", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		_, err = bc.RequestURL("/hosts/100%", "")
+		require.ErrorContains(t, err, "invalid request path")
 	})
 }
 
