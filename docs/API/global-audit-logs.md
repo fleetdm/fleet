@@ -3519,23 +3519,6 @@ This activity contains the following fields:
 }
 ```
 
-#### Example (apps are outdated)
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "patch_notification_uuid": "3b1e7d2a-5c4f-4e8b-9a6d-2f0c8e1b7a54",
-  "software_titles": ["Google Chrome"],
-  "status": "success",
-  "policy_ids": [1339],
-  "time_before": null,
-  "install_at": "2026-12-04T22:00:00Z",
-  "script_execution_id": "8d2f4a61-7b3e-4c9a-b5d0-1e6f9a2c3b47",
-  "exit_code": 0
-}
-```
-
 ### uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
