@@ -68,7 +68,10 @@ func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext, s
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting microsoft_compliance_partner_integrations")
 	}
-	secret := fleetcrypto.DecryptOrPassthrough(row.ProxyServerSecret, serverPrivateKey)
+	secret, err := fleetcrypto.DecryptOrPassthrough(row.ProxyServerSecret, serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting proxy server secret")
+	}
 	return &fleet.ConditionalAccessMicrosoftIntegration{
 		TenantID:          row.TenantID,
 		ProxyServerSecret: string(secret),
