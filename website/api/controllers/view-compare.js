@@ -40,20 +40,42 @@ module.exports = {
       { slug: 'jumpcloud-vs-workspace-one-vs-fleet', title: 'Fleet vs. JumpCloud vs. Workspace ONE', description: 'Compare Fleet, JumpCloud, and Workspace ONE as Jamf alternatives for managing macOS, Windows, Linux, and mobile devices.' },
     ];
 
-    let publishedUrls = _.pluck(_.filter(sails.config.builtStaticContent.markdownPages, (page)=>{
+    let publishedComparisonPages = _.filter(sails.config.builtStaticContent.markdownPages, (page)=>{
       return _.startsWith(page.url, '/compare/') && page.meta && page.meta.category === 'comparison';
-    }), 'url');
-    let withUrlIfPublished = (comparisons)=>{
-      return _.filter(_.map(comparisons, (comparison)=>{
-        return _.extend({}, comparison, { url: '/compare/'+comparison.slug });
-      }), (comparison)=>{
-        return _.contains(publishedUrls, comparison.url);
-      });
-    };
+    });
+    let curatedUrls = _.map(headToHeadComparisons.concat(multiVendorComparisons), (comparison)=>{
+      return '/compare/'+comparison.slug;
+    });
+    // Published comparisons without a curated card get one from their own title and description, so new articles show up here without a code change.
+    for (let page of publishedComparisonPages) {
+      if (_.contains(curatedUrls, page.url)) {
+        continue;
+      }
+      let slug = page.url.replace('/compare/', '');
+      let card = { slug, title: page.meta.articleTitle, description: page.meta.description };
+      // Slugs name every tool compared (e.g. "jamf-vs-ninjaone-vs-fleet"), so more than one "-vs-" means more than two tools.
+      if ((slug.match(/-vs-/g) || []).length > 1) {
+        multiVendorComparisons.push(card);
+      } else {
+        headToHeadComparisons.push(card);
+      }
+    }
+
+    let publishedUrls = _.pluck(publishedComparisonPages, 'url');
+    headToHeadComparisons = _.filter(_.map(headToHeadComparisons, (comparison)=>{
+      return _.extend({}, comparison, { url: '/compare/'+comparison.slug });
+    }), (comparison)=>{
+      return _.contains(publishedUrls, comparison.url);
+    });
+    multiVendorComparisons = _.filter(_.map(multiVendorComparisons, (comparison)=>{
+      return _.extend({}, comparison, { url: '/compare/'+comparison.slug });
+    }), (comparison)=>{
+      return _.contains(publishedUrls, comparison.url);
+    });
 
     return {
-      headToHeadComparisons: withUrlIfPublished(headToHeadComparisons),
-      multiVendorComparisons: withUrlIfPublished(multiVendorComparisons),
+      headToHeadComparisons,
+      multiVendorComparisons,
     };
 
   }
