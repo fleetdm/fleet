@@ -16,13 +16,14 @@ import (
 // list of names (SetRemovedNames) and by the Go type the request decodes into: a name is only rejected where that type has no
 // field of that name. That gives the scan three properties without any per-field tags:
 //   - a type that still declares the old name (a surface not renamed yet) keeps accepting it, so surfaces switch over one by one;
-//   - free-form JSON (maps, any, json.RawMessage, types with their own UnmarshalJSON) is never looked into, so a profile or agent
-//     option that happens to contain "team" is not rejected;
+//   - free-form JSON (maps, any, json.RawMessage, types with their own UnmarshalJSON other than optjson wrappers) is never looked
+//     into, so a profile or agent option that happens to contain "team" is not rejected;
 //   - a request type that declares nothing about a removed name needs no change when a new endpoint is added.
 
 type removedNames struct {
 	jsonKeys    map[string]struct{} // lower case, JSON member names match case-insensitively
 	queryParams map[string]struct{} // exact, query parameter names are case-sensitive
+	sortKeys    map[string]struct{} // exact values of the order_key and inherited_order_key parameters
 	// skipPaths are request path segments, such as "/orbit/", whose requests the scan leaves alone.
 	skipPaths []string
 }
@@ -37,10 +38,11 @@ const maxRemovedNamesScanSize = 1 << 20
 var removedNamesList atomic.Pointer[removedNames]
 
 // SetRemovedNames sets the request names the scan rejects.
-func SetRemovedNames(jsonKeys, queryParams, skipPaths []string) {
+func SetRemovedNames(jsonKeys, queryParams, sortKeys, skipPaths []string) {
 	names := &removedNames{
 		jsonKeys:    make(map[string]struct{}, len(jsonKeys)),
 		queryParams: make(map[string]struct{}, len(queryParams)),
+		sortKeys:    make(map[string]struct{}, len(sortKeys)),
 		skipPaths:   skipPaths,
 	}
 	for _, k := range jsonKeys {
@@ -49,7 +51,35 @@ func SetRemovedNames(jsonKeys, queryParams, skipPaths []string) {
 	for _, p := range queryParams {
 		names.queryParams[p] = struct{}{}
 	}
+	for _, k := range sortKeys {
+		names.sortKeys[k] = struct{}{}
+	}
 	removedNamesList.Store(names)
+}
+
+var removedFormFields atomic.Pointer[map[string]struct{}]
+
+// SetRemovedFormFields sets the multipart form field names the scan rejects. Form field names are case-sensitive.
+func SetRemovedFormFields(fields []string) {
+	set := make(map[string]struct{}, len(fields))
+	for _, f := range fields {
+		set[f] = struct{}{}
+	}
+	removedFormFields.Store(&set)
+}
+
+// RejectRemovedFormFields returns a *RemovedKeyError if a parsed multipart form uses a removed field name.
+func RejectRemovedFormFields(values map[string][]string) error {
+	fields := removedFormFields.Load()
+	if fields == nil {
+		return nil
+	}
+	for name := range values {
+		if _, isRemoved := (*fields)[name]; isRemoved {
+			return &RemovedKeyError{Key: name}
+		}
+	}
+	return nil
 }
 
 // SkipsRemovedNamesScan reports whether the request path is one of the skip paths.
@@ -81,6 +111,9 @@ func RejectRemovedJSONKeys(data []byte, t reflect.Type) error {
 }
 
 func scanValue(dec *jsontext.Decoder, t reflect.Type, removed map[string]struct{}) error {
+	if w := indirectType(t); w.Implements(jsonValueWrapperType) {
+		t = reflect.Zero(w).Interface().(jsonValueWrapper).JSONValueType()
+	}
 	opaque := isOpaque(t)
 	t = indirectType(t)
 	switch dec.PeekKind() {
@@ -134,9 +167,14 @@ func scanArray(dec *jsontext.Decoder, elem reflect.Type, removed map[string]stru
 	return err
 }
 
+// jsonValueWrapper is implemented by types such as optjson.Slice that decode themselves only to record whether the value was
+// set, so the scan looks inside the type they wrap.
+type jsonValueWrapper interface{ JSONValueType() reflect.Type }
+
 var (
-	unmarshalerType = reflect.TypeFor[json.Unmarshaler]()
-	jsonFieldsCache sync.Map // reflect.Type → map[string]reflect.Type
+	jsonValueWrapperType = reflect.TypeFor[jsonValueWrapper]()
+	unmarshalerType      = reflect.TypeFor[json.Unmarshaler]()
+	jsonFieldsCache      sync.Map // reflect.Type → map[string]reflect.Type
 )
 
 // isOpaque reports whether t decodes itself, so its members are not struct fields the scan can see.
@@ -184,7 +222,8 @@ func jsonFields(t reflect.Type) map[string]reflect.Type {
 				name = sf.Name
 			}
 			// The scan runs before the rewriter, so a field can arrive under its renameto name too.
-			for _, n := range []string{name, sf.Tag.Get("renameto")} {
+			renamed, _, _ := strings.Cut(sf.Tag.Get("renameto"), ",")
+			for _, n := range []string{name, renamed} {
 				if n != "" {
 					fields[strings.ToLower(n)] = sf.Type
 				}
@@ -199,11 +238,20 @@ func jsonFields(t reflect.Type) map[string]reflect.Type {
 var queryNamesCache sync.Map // reflect.Type → map[string]struct{}
 
 // RejectRemovedQueryParams returns a *RemovedKeyError if the query string uses a removed parameter name that the request type t
-// does not declare in a `query` tag.
+// does not declare in a `query` tag, or sorts by a removed order_key.
 func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	names := removedNamesList.Load()
-	if names == nil || len(names.queryParams) == 0 || len(query) == 0 {
+	if names == nil || len(query) == 0 {
 		return nil
+	}
+	if !sortsByAnyColumn(t) {
+		for _, param := range []string{"order_key", "inherited_order_key"} {
+			for _, value := range query[param] {
+				if _, isRemoved := names.sortKeys[value]; isRemoved {
+					return &RemovedKeyError{Key: value, Param: param}
+				}
+			}
+		}
 	}
 	declared := declaredQueryNames(t)
 	for param := range query {
@@ -215,6 +263,16 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 		}
 	}
 	return nil
+}
+
+// anyColumnSorter is implemented by request types whose order_key names a result column chosen by the user, which may be
+// called team_id.
+type anyColumnSorter interface{ SortsByAnyColumn() }
+
+var anyColumnSorterType = reflect.TypeFor[anyColumnSorter]()
+
+func sortsByAnyColumn(t reflect.Type) bool {
+	return reflect.PointerTo(t).Implements(anyColumnSorterType)
 }
 
 // declaredQueryNames returns the parameters t declares in `query` tags.

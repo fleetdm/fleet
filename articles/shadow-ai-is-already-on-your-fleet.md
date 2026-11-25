@@ -64,11 +64,16 @@ full_paths AS (
   FROM users u
   JOIN path_suffixes p ON 1=1
 ),
+existing AS (
+  SELECT f.path
+  FROM full_paths fp
+  JOIN file f ON f.path = fp.full_path
+),
 config_files AS (
-  SELECT f.path, group_concat(f.line, '') AS contents
-  FROM file_lines f
-  JOIN full_paths fp ON f.path = fp.full_path
-  GROUP BY f.path
+  SELECT fl.path, group_concat(fl.line, '') AS contents
+  FROM existing e
+  JOIN file_lines fl ON fl.path = e.path
+  GROUP BY fl.path
 )
 SELECT cf.path,
        je.key   AS name,

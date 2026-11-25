@@ -126,18 +126,19 @@ env:
   TF_VAR_apple_apns_mock_instance_count: "${{ inputs.mock_apns_server_instance_count }}"
   TF_VAR_enable_websocket_transport: "${{ inputs.websocket_transport }}"
 
-permissions:
-  id-token: write
-  contents: read    # This is required for actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+permissions: {}
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      id-token: write
     name: Deploy Fleet Loadtest Environment
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -1,0 +1,20 @@
+{
+  "name": "TortoiseSVN",
+  "slug": "tortoisesvn/windows",
+  "package_identifier": "TortoiseSVN.TortoiseSVN",
+  "unique_identifier": "TortoiseSVN",
+  "open_process_names": [
+    "TortoiseProc.exe",
+    "TortoiseMerge.exe",
+    "TortoiseIDiff.exe",
+    "TortoiseUDiff.exe",
+    "TortoiseBlame.exe"
+  ],
+  "fuzzy_match_name": true,
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'TortoiseSVN %' AND publisher = 'TortoiseSVN' AND upgrade_code = '{6113DD64-FD87-491A-9D05-0D1749DF7E18}';",
+  "use_display_version_for_patch": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

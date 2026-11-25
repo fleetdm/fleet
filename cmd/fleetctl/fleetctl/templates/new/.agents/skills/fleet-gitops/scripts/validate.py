@@ -40,8 +40,8 @@ CACHE_MAX_AGE = 7 * 24 * 3600
 TOP_LEVEL_KEYS = {"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports",
                   "software", "labels", "custom_host_vitals"}
 DEPRECATED_TOP_LEVEL = {"queries": "reports"}
-MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-migration"
-# Team-related keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
+MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
+# Keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
 REMOVED_KEYS = [
     "team_settings",
     "org_settings.mdm.apple_business[].macos_team",
@@ -49,6 +49,8 @@ REMOVED_KEYS = [
     "org_settings.mdm.apple_business[].ipados_team",
     "org_settings.mdm.apple_business[].byod_team",
     "org_settings.mdm.volume_purchasing_program[].teams",
+    "org_settings.webhook_settings.failing_policies_webhook.policy_ids",
+    "settings.webhook_settings.failing_policies_webhook.policy_ids",
 ]
 KEY_ALIASES = {"apple_business": ("apple_business", "apple_business_manager")}
 POLICY_PLATFORMS = {"darwin", "windows", "linux", "chrome"}
@@ -62,7 +64,10 @@ LABEL_RULES = {
     "software": (("labels_include_any", "labels_include_all", "labels_exclude_any"), False),
     "report": (("labels_include_any", "labels_include_all"), False),
 }
-AUTOMATION_KEYS = ("run_script", "install_software", "resend_configuration_profile", "calendar_events_enabled")
+# A policy can turn on one of these. Keep in sync with checkPolicyAutomationKeys in pkg/spec.
+AUTOMATION_KEYS = ("install_software", "run_script", "resend_configuration_profile", "calendar_events_enabled",
+                   "conditional_access_enabled", "webhooks_and_tickets_enabled")
+PATCH_OPTIONS = ("force_patch", "patch_when_closed", "notify_before_patching", "patch_deadline")
 PATH_KEYS = {"path", "package_path", "apple_setup_assistant", "end_user_license_agreement", "activation"}
 GLOB_CHARS = set("*?[{")
 SCRIPT_EXTS = {".sh", ".ps1", ".py"}
@@ -825,7 +830,7 @@ def check_software(ctx, fs, software):
                 if data is None:
                     continue
                 if isinstance(data, dict):
-                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration")
+                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade")
                     continue
                 pkgs = data if isinstance(data, list) else [data]
                 for pkg in pkgs:
@@ -922,6 +927,19 @@ def check_bool(ctx, src, item, key, what):
         ctx.fail(src, f"{what}: '{key}' must be true or false")
 
 
+# fleetctl gitops replaces $VAR and ${VAR} in YAML values before parsing.
+def is_env_var_placeholder(value):
+    return isinstance(value, str) and re.fullmatch(r"\$\{?[A-Z][A-Z0-9_]*\}?", value) is not None
+
+
+def check_bool_null_or_placeholder(ctx, src, item, key, what):
+    value = item.get(key)
+    # fleetctl gitops reads null as unset.
+    if value is None or isinstance(value, bool) or is_env_var_placeholder(value):
+        return
+    ctx.fail(src, f"{what}: '{key}' must be true or false")
+
+
 def check_categories(ctx, src, item, what):
     c = item.get("categories")
     if c is not None and (not isinstance(c, list) or not all(isinstance(x, str) for x in c)):
@@ -999,8 +1017,11 @@ def check_policies(ctx, fs, policies):
         check_bool(ctx, isrc, item, "critical", what)
         check_label_keys(ctx, isrc, item, what, fs.name, "policy")
         is_patch = item.get("type") == "patch"
-        if "type" in item and not is_patch:
-            ctx.fail(isrc, f"{what}: 'type' must be 'patch' or omitted")
+        if "type" in item and item.get("type") not in ("patch", "dynamic"):
+            ctx.fail(isrc, f"{what}: 'type' must be 'patch', 'dynamic', or omitted")
+        for k in PATCH_OPTIONS:
+            check_bool_null_or_placeholder(ctx, isrc, item, k, what)
+        options = [k for k in PATCH_OPTIONS if item.get(k) is True]
         if is_patch:
             slug = item.get("fleet_maintained_app_slug")
             if not isinstance(slug, str):
@@ -1009,19 +1030,36 @@ def check_policies(ctx, fs, policies):
                 ctx.fail(isrc, f"{what}: {slug} isn't in this fleet's software.fleet_maintained_apps")
             if item.get("query"):
                 ctx.warn(isrc, f"{what}: patch policies generate their own query; 'query' is ignored")
-            if (item.get("patch_when_closed") or item.get("notify_before_patching")) and item.get("install_software") is not True:
-                ctx.fail(isrc, f"{what}: patch_when_closed / notify_before_patching need 'install_software: true', otherwise nothing is ever installed")
-            if item.get("notify_before_patching") and slug and not str(slug).endswith("/darwin"):
+            if len(options) > 1:
+                ctx.fail(isrc, f"{what}: only one of force_patch, patch_when_closed, notify_before_patching, or patch_deadline can be set to true")
+            inst = item.get("install_software")
+            if inst is False:
+                if len(options) == 1:
+                    ctx.fail(isrc, f"{what}: if {options[0]} is true, install_software can't be set to false")
+                ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies")
+            elif inst is not None:
+                if "force_patch" in options:
+                    ctx.fail(isrc, f"{what}: if force_patch is true, install_software can't be set")
+                ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies; use '{options[0] if options else 'force_patch'}' instead")
+            if item.get("notify_before_patching") is True and slug and not str(slug).endswith("/darwin"):
                 ctx.fail(isrc, f"{what}: notify_before_patching is macOS-only")
+            if item.get("patch_deadline") is True and slug and not str(slug).endswith("/darwin"):
+                ctx.fail(isrc, f"{what}: patch_deadline is macOS-only")
         else:
+            if options:
+                ctx.fail(isrc, f"{what}: {options[0]} is only supported for patch policies ('type: patch')")
             platforms = check_platform(ctx, isrc, item, what, POLICY_PLATFORMS, required=True)
             if "query" not in item:
                 ctx.fail(isrc, f"{what}: needs a 'query'")
             else:
                 check_query(ctx, isrc, what, item["query"], platforms, is_policy=True)
-        automations = [k for k in AUTOMATION_KEYS if item.get(k)]
-        if fs.role == "global" and automations:
-            ctx.fail(isrc, f"{what}: {automations} only work on policies in a fleet file, not in default.yml")
+        # A blank profile name means no profile, like a key set to false.
+        automations = [k for k in AUTOMATION_KEYS if (item[k].strip() if isinstance(item.get(k), str) else item.get(k))]
+        if len(automations) > 1:
+            ctx.fail(isrc, f"{what}: a policy can only have one automation, but it sets {', '.join(automations)}")
+        fleet_only = [k for k in automations if k != "webhooks_and_tickets_enabled"]
+        if fs.role == "global" and fleet_only:
+            ctx.fail(isrc, f"{what}: {fleet_only} only work on policies in a fleet file, not in default.yml")
         rs = item.get("run_script")
         if rs is not None:
             if not isinstance(rs, dict) or not isinstance(rs.get("path"), str):
@@ -1195,15 +1233,16 @@ def run_checks(ctx):
             ctx.fail(src, "top level must be a mapping")
             continue
         check_removed_keys(ctx, src, data)
-        org_ref = data.get("org_settings")
-        org_path = org_ref.get("path") if isinstance(org_ref, dict) else None
-        if isinstance(org_path, str) and org_path.startswith("$"):
-            ctx.info(src, f"org_settings: path {org_path} is an environment variable; not resolved, removed-key checks skipped")
-        elif isinstance(org_path, str):
-            org_file = Path(src).parent / org_path
-            org_data = load_yaml_file(ctx, org_file) if org_file.is_file() else None
-            if isinstance(org_data, dict):
-                check_removed_keys(ctx, org_file, {"org_settings": org_data})
+        for settings_key in ("org_settings", "settings"):
+            ref = data.get(settings_key)
+            ref_path = ref.get("path") if isinstance(ref, dict) else None
+            if isinstance(ref_path, str) and ref_path.startswith("$"):
+                ctx.info(src, f"{settings_key}: path {ref_path} is an environment variable; not resolved, removed-key checks skipped")
+            elif isinstance(ref_path, str):
+                ref_file = Path(src).parent / ref_path
+                ref_data = load_yaml_file(ctx, ref_file) if ref_file.is_file() else None
+                if isinstance(ref_data, dict):
+                    check_removed_keys(ctx, ref_file, {settings_key: ref_data})
         for k in list(data):
             if k in DEPRECATED_TOP_LEVEL:
                 ctx.warn(src, f"'{k}' is deprecated; use '{DEPRECATED_TOP_LEVEL[k]}'")

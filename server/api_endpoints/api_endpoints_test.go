@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,8 +25,8 @@ func TestValidateAPIEndpoints(t *testing.T) {
 	}
 	apiEndpoints = endpoints
 
-	routerWithEndpoints := func(endpoints []fleet.APIEndpoint) *mux.Router {
-		r := mux.NewRouter()
+	routerWithEndpoints := func(endpoints []fleet.APIEndpoint) *endpointer.Router {
+		r := endpointer.NewRouter()
 		ep := &endpointer.CommonEndpointer[any]{Router: r, Versions: []string{"v1"}}
 		for _, e := range endpoints {
 			ep.HandleHTTPHandler(e.Path, http.NotFoundHandler(), e.Method)
@@ -46,18 +45,18 @@ func TestValidateAPIEndpoints(t *testing.T) {
 	})
 
 	t.Run("no routes registered returns error listing all missing", func(t *testing.T) {
-		err := Validate(mux.NewRouter())
+		err := Validate(endpointer.NewRouter())
 		require.ErrorContains(t, err, "the following API endpoints are unknown")
 	})
 
 	t.Run("non-mux handler returns error", func(t *testing.T) {
 		err := Validate(http.NewServeMux())
-		require.ErrorContains(t, err, "expected *mux.Router")
+		require.ErrorContains(t, err, "expected *endpointer.Router")
 	})
 
 	t.Run("empty endpoint list always passes", func(t *testing.T) {
 		apiEndpoints = nil
-		err := Validate(mux.NewRouter())
+		err := Validate(endpointer.NewRouter())
 		require.NoError(t, err)
 	})
 }
@@ -167,6 +166,11 @@ func TestCatalogHasNoRemovedPaths(t *testing.T) {
 		catalog[e.Fingerprint()] = struct{}{}
 	}
 
+	// A fingerprint ignores variable names, so it can't tell these removed paths from the live route with the same shape.
+	sameShapeAsLiveRoute := map[string]struct{}{
+		"DELETE /api/_version_/fleet/reports/{name}": {}, // DELETE /reports/{id}
+	}
+
 	allMethods := []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
 	removedPaths := removednames.Filter(removednames.KindPath, removednames.ScopeRequest)
 	require.NotEmpty(t, removedPaths)
@@ -176,6 +180,9 @@ func TestCatalogHasNoRemovedPaths(t *testing.T) {
 			methods = []string{entry.Context}
 		}
 		for _, method := range methods {
+			if _, ok := sameShapeAsLiveRoute[method+" "+entry.Old]; ok {
+				continue
+			}
 			_, listed := catalog[fleet.NewAPIEndpointFromTpl(method, entry.Old).Fingerprint()]
 			assert.False(t, listed, "api_endpoints.yml lists %s %s, which was removed", method, entry.Old)
 		}

@@ -10,11 +10,12 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,7 +107,7 @@ type CreateScriptRequest struct {
 func (CreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded CreateScriptRequest
 
-	err := multipartform.Parse(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit
 	if err != nil {
 		return nil, &BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -114,7 +115,7 @@ func (CreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (
 		}
 	}
 
-	val := r.MultipartForm.Value["fleet_id"]
+	val := r.Form["fleet_id"]
 	if len(val) > 0 {
 		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {
@@ -244,7 +245,7 @@ func (r UpdateScriptResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type GetHostScriptDetailsRequest struct {
-	HostID      uint        `url:"id"`
+	Identifier  string      `url:"id"`
 	ListOptions ListOptions `url:"list_options"`
 }
 
@@ -381,9 +382,19 @@ type UnlockHostRequest struct {
 type UnlockHostResponse struct {
 	HostID        *uint               `json:"host_id,omitempty"`
 	UnlockPIN     string              `json:"unlock_pin,omitempty"`
+	LockedAt      *time.Time          `json:"locked_at,omitempty"`
 	DeviceStatus  DeviceStatus        `json:"device_status,omitempty"`
 	PendingAction PendingDeviceAction `json:"pending_action,omitempty"`
 	Err           error               `json:"error,omitempty"`
+}
+
+// HostUnlockResult is the result of a successful UnlockHost call.
+type HostUnlockResult struct {
+	UnlockPIN string
+	// LockedAt is when the device acknowledged the lock. Android only.
+	LockedAt      *time.Time
+	DeviceStatus  DeviceStatus
+	PendingAction PendingDeviceAction
 }
 
 func (r UnlockHostResponse) Error() error { return r.Err }
@@ -393,8 +404,7 @@ func (r UnlockHostResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type WipeHostRequest struct {
-	HostID   uint `url:"id"`
-	Metadata *MDMWipeMetadata
+	HostID uint `url:"id"`
 }
 
 func (req *WipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
@@ -402,9 +412,8 @@ func (req *WipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.V
 		return nil
 	}
 
-	decoder := json.NewDecoder(io.LimitReader(r, 100*1024))
-	metadata := MDMWipeMetadata{}
-	if err := decoder.Decode(&metadata); err != nil {
+	var body map[string]json.RawMessage
+	if err := json.NewDecoder(io.LimitReader(r, 100*1024)).Decode(&body); err != nil {
 		if err == io.EOF {
 			// OK ... body is optional
 			return nil
@@ -414,7 +423,14 @@ func (req *WipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.V
 			InternalErr: err,
 		}
 	}
-	req.Metadata = &metadata
+	// Rejected rather than ignored, so a caller that asked for doWipe doesn't silently get doWipeProtected. Matched
+	// case-insensitively like the struct field it replaces.
+	removed := removednames.WipeHostWindowsParam
+	for key := range body {
+		if strings.EqualFold(key, removed.Old) {
+			return NewInvalidArgumentError(removed.Old, removed.Message())
+		}
+	}
 
 	return nil
 }
@@ -426,6 +442,22 @@ type WipeHostResponse struct {
 }
 
 func (r WipeHostResponse) Error() error { return r.Err }
+
+////////////////////////////////////////////////////////////////////////////////
+// Reset host
+////////////////////////////////////////////////////////////////////////////////
+
+type ResetHostRequest struct {
+	HostID uint `url:"id"`
+}
+
+type ResetHostResponse struct {
+	Err           error               `json:"error,omitempty"`
+	DeviceStatus  DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction PendingDeviceAction `json:"pending_action,omitempty"`
+}
+
+func (r ResetHostResponse) Error() error { return r.Err }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Clear passcode

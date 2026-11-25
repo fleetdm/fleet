@@ -1,0 +1,1 @@
+- Disabled the "Allow only Apple Business enrollments" setting in **Settings > Organization settings > Advanced** until Apple MDM is turned on and Apple Business is connected, with a tooltip that links to both pages.

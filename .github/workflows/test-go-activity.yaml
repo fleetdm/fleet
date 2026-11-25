@@ -39,8 +39,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
@@ -48,6 +47,8 @@ jobs:
   # make sure to update supported versions docs when MySQL versions change
   # ──────────────────────────────────────────────────────────────────────────
   test-go-activity:
+    permissions:
+      contents: read
     strategy:
       matrix:
         mysql: ["mysql:8.0.44", "mysql:9.5.0"]
@@ -67,6 +68,8 @@ jobs:
   # Tests the same suite against older/intermediate versions.
   # ──────────────────────────────────────────────────────────────────────────
   test-go-activity-extended-mysql:
+    permissions:
+      contents: read
     if: github.event_name == 'schedule'
     strategy:
       matrix:
@@ -84,13 +87,15 @@ jobs:
 
   # We upload all backend coverage in one step so that we're less likely to end up with a partial coverage report.
   upload-coverage:
+    permissions:
+      contents: read
     needs: [test-go-activity, test-go-activity-extended-mysql]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -117,7 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

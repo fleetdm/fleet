@@ -108,6 +108,11 @@ Upload the following configuration profile:
         <dict>
             <key>AuthenticationMethod</key>
             <string>UserSecureEnclaveKey</string>
+            <key>ExtensionData</key>
+            <dict>
+                <key>AppAllowList</key>
+                <string>com.fleetdm.orbit</string>
+            </dict>
             <key>ExtensionIdentifier</key>
             <string>com.microsoft.CompanyPortalMac.ssoextension</string>
             <key>PayloadDisplayName</key>
@@ -168,6 +173,8 @@ Upload the following configuration profile:
 
 If you're using another MDM solution, add the same configuration profile and target only macOS hosts with Company Portal installed.
 
+The `AppAllowList` entry lets fleetd ask Entra for a token that proves the host's Entra device ID. Without it, Fleet doesn't report the host's compliance to Intune. If your profile already has an `AppAllowList`, add `com.fleetdm.orbit` to it, separated by a comma.
+
 > `UserSecureEnclaveKey` will be mandatory starting in Q3 2025. See [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage)
 
 ## Step 5: Add Fleet policies
@@ -196,6 +203,15 @@ If Fleet can't connect to Entra:
 
 To see the underlying error, check the Fleet server logs for `setup is not done`, or the `setup_error` field in the `POST /api/latest/fleet/conditional-access/microsoft/confirm` response. If it keeps failing, [reach out to support](https://fleetdm.com/support).
 
+### Fleet doesn't report a Mac's compliance to Intune
+
+Fleet reports a Mac's compliance only after fleetd sends the Mac's Entra device ID. Check that:
+
+- The Mac has fleetd 1.64.0 or later.
+- The Platform SSO profile from [step 4](#step-4-deploy-company-portal-and-the-platform-sso-configuration-profile) allows `com.fleetdm.orbit` in `AppAllowList`.
+- The end user is signed in to Platform SSO.
+- No other host in Fleet has the same Entra device ID. An Entra device ID can belong to only one host. If you re-enrolled the device as a new host, delete the old host in Fleet.
+
 ## Disable
 
 If you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).
@@ -213,6 +229,8 @@ After following the authentication steps, the user might hit the following messa
 ![Entra ID Platform SSO refetch needed](../website/assets/images/articles/entra-platform-sso-refetch-needed-431x351@2x.png)
 
 On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
+
+Fleet also updates Intune on its own once it has verified the host's Entra device ID, which can take up to 10 minutes after the user registers with Platform SSO. If the user still can't log in after refetching, they should wait a few minutes and try again.
 
 ### Windows
 
@@ -266,8 +284,8 @@ settings:
   integrations:
     conditional_access_enabled: true
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
     - labels_include_all:
       - Company Portal installed
       path: ../lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig

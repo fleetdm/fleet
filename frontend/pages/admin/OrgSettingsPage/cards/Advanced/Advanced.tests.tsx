@@ -13,15 +13,19 @@ const renderAdvanced = (
     gitOpsModeEnabled?: boolean;
     tier?: string;
     mcpDisabled?: boolean;
+    aiSessionsDisabled?: boolean;
+    mdm?: Partial<ReturnType<typeof createMockConfig>["mdm"]>;
   } = {}
 ) => {
   const baseConfig = createMockConfig();
   const config = {
     ...baseConfig,
     license: { ...baseConfig.license, tier: overrides.tier ?? "premium" },
+    mdm: { ...baseConfig.mdm, ...overrides.mdm },
     server_settings: {
       ...baseConfig.server_settings,
       mcp_disabled: overrides.mcpDisabled ?? false,
+      ai_sessions_disabled: overrides.aiSessionsDisabled ?? false,
     },
     features: {
       ...baseConfig.features,
@@ -34,7 +38,7 @@ const renderAdvanced = (
   const render = createCustomRenderer({
     context: {
       app: {
-        isPremiumTier: true,
+        isPremiumTier: (overrides.tier ?? "premium") === "premium",
         config: {
           ...config,
           gitops: {
@@ -159,6 +163,42 @@ describe("Advanced settings — Host lifecycle", () => {
   });
 });
 
+describe("Advanced settings — Allow only Apple Business enrollments", () => {
+  const getCheckbox = () =>
+    screen.getByLabelText(/Allow only Apple Business enrollments/);
+
+  it("is enabled when Apple MDM is on and Apple Business is connected", () => {
+    renderAdvanced();
+
+    expect(getCheckbox()).toBeEnabled();
+  });
+
+  it("is disabled with a tooltip when Apple Business isn't connected", async () => {
+    const { user } = renderAdvanced({
+      mdm: { apple_business_enabled_and_configured: false },
+    });
+
+    expect(getCheckbox()).toBeDisabled();
+
+    await user.hover(screen.getByText("Allow only Apple Business enrollments"));
+
+    expect(await screen.findByText(/to use this feature/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Apple MDM" })).toHaveAttribute(
+      "href",
+      "/settings/integrations/mdm/apple"
+    );
+    expect(
+      screen.getByRole("link", { name: "Apple Business" })
+    ).toHaveAttribute("href", "/settings/integrations/mdm/ab");
+  });
+
+  it("is disabled when Apple MDM is off", () => {
+    renderAdvanced({ mdm: { enabled_and_configured: false } });
+
+    expect(getCheckbox()).toBeDisabled();
+  });
+});
+
 describe("Advanced settings — Features", () => {
   it("disables the Profile validation checkbox in GitOps mode", () => {
     renderAdvanced({ gitOpsModeEnabled: true });
@@ -202,5 +242,35 @@ describe("Advanced settings — MCP server", () => {
   it("hides the MCP server checkbox on Fleet Free", () => {
     renderAdvanced({ tier: "free" });
     expect(screen.queryByLabelText(/MCP server/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Advanced settings — AI sessions", () => {
+  it("shows the Store host AI sessions checkbox checked by default on Premium", () => {
+    renderAdvanced();
+    expect(screen.getByLabelText(/Store host AI sessions/)).toBeChecked();
+  });
+
+  it("sends ai_sessions_disabled true after unchecking it", async () => {
+    const { user, handleSubmit } = renderAdvanced();
+    await user.click(
+      screen.getByRole("checkbox", { name: "disableAISessions" })
+    );
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    expect(
+      handleSubmit.mock.calls[0][0].server_settings.ai_sessions_disabled
+    ).toBe(true);
+  });
+
+  it("starts unchecked when AI sessions are disabled in config", () => {
+    renderAdvanced({ aiSessionsDisabled: true });
+    expect(screen.getByLabelText(/Store host AI sessions/)).not.toBeChecked();
+  });
+
+  it("hides the Store host AI sessions checkbox on Fleet Free", () => {
+    renderAdvanced({ tier: "free" });
+    expect(
+      screen.queryByLabelText(/Store host AI sessions/)
+    ).not.toBeInTheDocument();
   });
 });

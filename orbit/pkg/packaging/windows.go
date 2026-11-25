@@ -222,6 +222,11 @@ func BuildMSI(opt Options) (string, error) {
 		if err = checkWine(wineChecked); err != nil {
 			return "", err
 		}
+	} else if !opt.NativeTooling {
+		// Without this, a stopped or still-starting Docker only surfaces as "heat failed".
+		if err := checkDockerAvailable(); err != nil {
+			return "", fmt.Errorf("Docker isn't running. Building a Windows (.msi) package requires Docker. If Docker Desktop is still starting, wait until it's running, then try again: %w", err)
+		}
 	}
 	if err := wix.Heat(tmpDir, opt.NativeTooling, absWixDir); err != nil {
 		return "", fmt.Errorf("package root files: %w", err)
@@ -416,7 +421,7 @@ func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.Ver
 		},
 		StringFileInfo: goversioninfo.StringFileInfo{
 			Comments:         "Fleet osquery",
-			CompanyName:      "Fleet Device Management (fleetdm.com)",
+			CompanyName:      constant.AgentPublisher,
 			FileDescription:  "Fleet osquery installer",
 			FileVersion:      version,
 			InternalName:     "",

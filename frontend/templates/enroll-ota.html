@@ -173,6 +173,11 @@
         margin-top: 8px;
       }
 
+      .qr-subtext--expiry {
+        font-size: 13px;
+        text-align: center;
+      }
+
       .qr-container .qr-code:not(:first-child) {
         margin-top: 24px;
       }
@@ -404,6 +409,7 @@
             </p>
             <div class="qr-container">
               <canvas class="qr-code"></canvas>
+              <p class="qr-subtext qr-subtext--expiry">Valid for 1 hour</p>
             </div>
           </li>
           <li>
@@ -415,7 +421,7 @@
             </p>
           </li>
         </ol>
-        <p>QR code invalid? Refresh the page.</p>
+        <p>QR code not working? Refresh the page.</p>
       </section>
     </template>
 

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -316,16 +317,17 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 	// The setup experience membership is the source of truth in the setup
 	// experience tables, exposed via the setup experience endpoint.
 	setupSoftwareByTitleID := make(map[uint]struct{})
+	setupAppsByName := make(map[string]struct{})
 	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
 	}
 	for _, sw := range setupSoftware {
-		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+		if len(sw.Packages) > 0 && sw.Packages[0].InstallDuringSetup != nil && *sw.Packages[0].InstallDuringSetup {
 			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
 		if len(sw.AppStoreApps) > 0 && sw.AppStoreApps[0].InstallDuringSetup != nil && *sw.AppStoreApps[0].InstallDuringSetup {
-			setupSoftwareByTitleID[sw.ID] = struct{}{}
+			setupAppsByName[fleet.VPPAppID{AdamID: sw.AppStoreApps[0].AppStoreID, Platform: sw.AppStoreApps[0].Platform}.String()] = struct{}{}
 		}
 	}
 
@@ -363,8 +365,8 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		}
 
 		switch {
-		case detail.SoftwarePackage != nil:
-			pkg := detail.SoftwarePackage
+		case len(detail.Packages) > 0:
+			pkg := detail.Packages[0]
 			if pkg.FleetMaintainedAppID != nil {
 				slug, err := resolveFMASlug(*pkg.FleetMaintainedAppID)
 				if err != nil {
@@ -393,16 +395,20 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 			})
 		case len(detail.AppStoreApps) > 0:
 			app := detail.AppStoreApps[0]
+			var installDuringSetup optjson.Bool
+			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
+				installDuringSetup = optjson.SetBool(true)
+			}
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
-				AppStoreID:         app.AppStoreID,
+				AppStoreID:         app.AdamID,
 				Platform:           string(app.Platform),
-				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
+				InstallDuringSetup: installDuringSetup,
 			}
 			// Output one object instead of a versions array when the app only has one version
-			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+			if len(detail.AppStoreApps) > 1 || app.VersionName != fleet.DefaultAppStoreAppVersionName {
 				for _, version := range detail.AppStoreApps {
 					appStoreAppSpec.Versions = append(appStoreAppSpec.Versions, fleet.TeamSpecAppStoreAppVersion{
-						Name:             version.Name,
+						Name:             version.VersionName,
 						SelfService:      version.SelfService,
 						LabelsIncludeAny: scopeLabelNames(version.LabelsIncludeAny),
 						LabelsExcludeAny: scopeLabelNames(version.LabelsExcludeAny),
@@ -546,7 +552,7 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 	teamNameOut := teamName
 	if teamName == "" {
-		teamNameOut = "All teams"
+		teamNameOut = "All fleets"
 	}
 
 	return []string{
@@ -622,10 +628,10 @@ func getReportsCommand() *cli.Command {
 					var notFoundErr service.NotFoundErr
 					if errors.As(err, &notFoundErr) {
 						// Do not error out, just inform the user and 'gracefully' exit.
-						fmt.Println("Team not found.")
+						fmt.Println("Fleet not found.")
 						return nil
 					}
-					return fmt.Errorf("get team: %w", err)
+					return fmt.Errorf("get fleet: %w", err)
 				}
 				teamName = team.Name
 			}
@@ -694,7 +700,7 @@ func getReportsCommand() *cli.Command {
 					// Default to printing as a table
 					rows := [][]string{}
 
-					columns := []string{"name", "description", "query", "team", "schedule"}
+					columns := []string{"name", "description", "query", "fleet", "schedule"}
 					for _, query := range queries {
 						rows = append(rows, queryToTableRow(query, teamName))
 					}
@@ -757,7 +763,7 @@ func getLabelsCommand() *cli.Command {
 			debugFlag(),
 			&cli.UintFlag{
 				Name:  fleetFlagName,
-				Usage: "Return labels specific to this fleet ID; default global labels only when viewing multiple labels",
+				Usage: "Return labels specific to this fleet ID; default global labels only when viewing multiple labels. With a label name, look the name up among the global labels and this fleet's labels",
 				Value: 0,
 			},
 		},
@@ -805,13 +811,16 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
-			} else if c.Uint(fleetFlagName) != 0 {
-				return errors.New("cannot provide both a fleet ID and a label name")
 			}
 
 			// Label name was specified
-			label, err := client.GetLabel(name)
+			fleetID := ptr.UintOrNilIfZero(c.Uint(fleetFlagName))
+			label, err := client.GetLabel(name, fleetID)
 			if err != nil {
+				var sce kithttp.StatusCoder
+				if fleetID == nil && errors.As(err, &sce) && sce.StatusCode() == http.StatusConflict {
+					return fmt.Errorf("To get one fleet's label, run `fleetctl get label --%s <fleet ID> %q`: %w", fleetFlagName, name, err)
+				}
 				return err
 			}
 
@@ -1162,7 +1171,7 @@ func getUserRolesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "user_roles",
 		Aliases: []string{"user_role", "ur"},
-		Usage:   "List global and team roles for users",
+		Usage:   "List global and fleet roles for users",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
@@ -1236,14 +1245,14 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 func getTeamsJSONFlag() cli.Flag {
 	return &cli.BoolFlag{
 		Name:  jsonFlagName,
-		Usage: "Output all team information in JSON format",
+		Usage: "Output all fleet information in JSON format",
 	}
 }
 
 func getTeamsYAMLFlag() cli.Flag {
 	return &cli.BoolFlag{
 		Name:  yamlFlagName,
-		Usage: "Output team configuration in yaml format. Intended for use with \"fleetctl apply -f\"",
+		Usage: "Output fleet configuration in yaml format. Intended for use with \"fleetctl apply -f\"",
 	}
 }
 
@@ -1278,11 +1287,11 @@ func getFleetsCommand() *cli.Command {
 
 			teams, err := client.ListTeams(queryStr)
 			if err != nil {
-				return fmt.Errorf("could not list teams: %w", err)
+				return fmt.Errorf("could not list fleets: %w", err)
 			}
 
 			if len(teams) == 0 {
-				log(c, "No teams found")
+				log(c, "No fleets found")
 				return nil
 			}
 

@@ -38,8 +38,6 @@ env:
   TF_VAR_slack_p1_webhook: ${{ secrets.SLACK_HELP_P1_RAW_WEBHOOK_URL }}
   TF_VAR_slack_p2_webhook: ${{ secrets.SLACK_G_HELP_P2_WEBHOOK_URL }}
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
-  TF_VAR_elastic_url: ${{ secrets.ELASTIC_APM_SERVER_URL }}
-  TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
   TF_VAR_geolite2_license: ${{ secrets.MAXMIND_LICENSE }}
   TF_VAR_dogfood_sidecar_enroll_secret: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
   TF_VAR_otel_bearer_token: ${{ secrets.DOGFOOD_SIGNOZ_OTEL_BEARER_TOKEN }}
@@ -48,17 +46,18 @@ env:
   TF_VAR_cloudfront_private_key: ${{ secrets.CLOUDFRONT_SIGNING_PRIVATE_KEY }}
   TF_VAR_entra_api_key: ${{ secrets.DOGFOOD_FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY }}
 
-permissions:
-  id-token: write
-  contents: read    # This is required for actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+permissions: {}
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      id-token: write
     name: Deploy Fleet Dogfood Environment
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -113,7 +112,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{globalProfile}), http.StatusNoContent)
 
 	// enable FileVault
-	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"apple_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
 
 	s.enableABM("fleet_ade_test")
 
@@ -183,7 +182,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 			TeamID:                nil,
 			CustomProfileIdent:    "I1",
 			ManualAgentInstall:    true,
-			BootstrapPackage:      true,
 		})
 	})
 }
@@ -281,7 +279,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	// add a setup experience script to run for this team
 	extraArgs := map[string][]string{
-		"team_id": {fmt.Sprintf("%d", tm.ID)},
+		"fleet_id": {fmt.Sprintf("%d", tm.ID)},
 	}
 	body, headers := generateNewScriptMultipartRequest(t,
 		"script.sh", []byte(`echo "hello"`), s.token, extraArgs)
@@ -333,7 +331,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			TeamID:                &tm.ID,
 			CustomProfileIdent:    "I2",
 			ManualAgentInstall:    true,
-			BootstrapPackage:      true,
 		})
 	})
 }
@@ -417,7 +414,6 @@ type DEPEnrollTestOpts struct {
 	UseOldFleetdFlow                  bool
 	ManualAgentInstall                bool
 	EnrollmentProfileFromDEPUsingPost bool
-	BootstrapPackage                  bool
 }
 
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
@@ -437,44 +433,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 	if opts.TeamID != nil {
 		payload["fleet_id"] = *opts.TeamID
-		if opts.BootstrapPackage {
-			team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
-			require.NoError(t, err)
-
-			team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-			_, err = s.ds.SaveTeam(ctx, team)
-			require.NoError(t, err)
-		}
-	} else if opts.BootstrapPackage {
-		ac, err := s.ds.AppConfig(ctx)
-		require.NoError(t, err)
-
-		ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-		err = s.ds.SaveAppConfig(ctx, ac)
-		require.NoError(t, err)
 	}
 
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	t.Cleanup(func() {
 		// Get back to the default state.
-		if opts.BootstrapPackage {
-			if opts.TeamID != nil {
-				team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
-				require.NoError(t, err)
-
-				team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
-				_, err = s.ds.SaveTeam(ctx, team)
-				require.NoError(t, err)
-			} else {
-				ac, err := s.ds.AppConfig(ctx)
-				require.NoError(t, err)
-
-				ac.MDM.MacOSSetup.BootstrapPackage = optjson.String{}
-				err = s.ds.SaveAppConfig(ctx, ac)
-				require.NoError(t, err)
-			}
-		}
-
 		payload["apple_enable_release_device_manually"] = false
 		payload["macos_manual_agent_install"] = false
 		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
@@ -1033,6 +996,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
 	expectAssignProfileResponseThrottled := ""     // set to device serial when testing the throttled profile assignment flow
 	expectAssignProfileResponseNotAccessible := "" // set to device serial when testing the not accessible profile assignment flow
+	throttledRetryAfterSeconds := 0                // sent by Apple along with throttled devices
+	var assignProfileProtocolVersions []string
 
 	s.enableABM(t.Name())
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1061,6 +1026,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			var prof profileAssignmentReq
 			require.NoError(t, json.Unmarshal(b, &prof))
 			profileAssignmentReqs = append(profileAssignmentReqs, prof)
+			assignProfileProtocolVersions = append(assignProfileProtocolVersions, r.Header.Get("X-Server-Protocol-Version"))
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
 			resp.Devices = make(map[string]string, len(prof.Devices))
@@ -1072,6 +1038,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseFailed)
 				case expectAssignProfileResponseThrottled:
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseThrottled)
+					resp.RetryAfterSeconds = throttledRetryAfterSeconds
 				default:
 					resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
 				}
@@ -1735,6 +1702,55 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// list hosts shows pending (because MDM detail query hasn't been reported) but dep profile
 	// error has been cleared
 	checkListHostDEPError(serial, "Pending", false)
+
+	// Apple asks to wait 2 hours: the retry happens then, not after the fixed cooldown
+	serial = uuid.NewString()
+	devices = []godep.Device{
+		{SerialNumber: serial, Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+	expectAssignProfileResponseThrottled = serial
+	throttledRetryAfterSeconds = 7200
+	profileAssignmentReqs = []profileAssignmentReq{}
+	assignProfileProtocolVersions = nil
+	s.runDEPSchedule()
+	checkAssignProfileRequests(serial, nil)
+	for _, v := range assignProfileProtocolVersions {
+		require.Equal(t, "10", v)
+	}
+	profUUID = profileAssignmentReqs[0].ProfileUUID
+	checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, nil, expectNoJobID)
+	h = checkListHostDEPError(serial, "Pending", true)
+	var depAssignmentResp getHostDEPAssignmentResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", h.ID), nil, http.StatusOK, &depAssignmentResp)
+	require.NotNil(t, depAssignmentResp.HostDEPAssignment.ThrottledRetryAfter)
+	require.WithinDuration(t, time.Now().Add(2*time.Hour), *depAssignmentResp.HostDEPAssignment.ThrottledRetryAfter, time.Minute)
+
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runIntegrationsSchedule()
+	require.Empty(t, profileAssignmentReqs)
+	checkNoJobsPending()
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET
+			response_updated_at = DATE_SUB(response_updated_at, INTERVAL 121 MINUTE),
+			throttled_retry_after = DATE_SUB(throttled_retry_after, INTERVAL 121 MINUTE)
+			WHERE host_id = ?`, h.ID)
+		return err
+	})
+	s.runIntegrationsSchedule()
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseThrottled, nil, nil)
+	require.NotZero(t, d.RetryJobID)
+
+	expectAssignProfileResponseThrottled = ""
+	throttledRetryAfterSeconds = 0
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runIntegrationsSchedule()
+	checkAssignProfileRequests(serial, nil)
+	checkHostCooldown(serial, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess, nil, expectNoJobID)
+	checkNoJobsPending()
+	depAssignmentResp = getHostDEPAssignmentResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/dep_assignment", h.ID), nil, http.StatusOK, &depAssignmentResp)
+	require.Nil(t, depAssignmentResp.HostDEPAssignment.ThrottledRetryAfter)
 
 	// run with devices that already have valid and invalid profiles
 	// assigned, we shouldn't re-assign the valid ones.

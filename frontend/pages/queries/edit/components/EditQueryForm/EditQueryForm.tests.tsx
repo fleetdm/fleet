@@ -179,7 +179,7 @@ describe("EditQueryForm - component", () => {
     expect(screen.getByText("Enter a report name")).toBeInTheDocument();
   });
 
-  it("does not show a syntax error on mount for an invalid-SQL stored query", async () => {
+  it("shows a syntax error on load for an invalid-SQL stored query", async () => {
     const invalidSQL = "SELEKT * FROM bogus";
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -240,11 +240,78 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    // Give the former debounce window plenty of time to NOT fire.
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    // The stored query is validated as soon as it loads.
     expect(
-      screen.queryByText(/Syntax error\. Please review before saving\./)
-    ).not.toBeInTheDocument();
+      await screen.findByText(/Please review before saving\./)
+    ).toBeInTheDocument();
+  });
+
+  it("shows a syntax error on load in the read-only editor for an observer+", async () => {
+    const invalidSQL = "SELEKT * FROM bogus";
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        query: {
+          lastEditedQueryId: mockQuery.id,
+          lastEditedQueryName: mockQuery.name,
+          lastEditedQueryDescription: mockQuery.description,
+          lastEditedQueryBody: invalidSQL,
+          lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+          lastEditedQueryFrequency: mockQuery.interval,
+          lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+          lastEditedQueryPlatforms: mockQuery.platform,
+          lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+          lastEditedQueryLoggingType: mockQuery.logging,
+          setLastEditedQueryName: jest.fn(),
+          setLastEditedQueryDescription: jest.fn(),
+          setLastEditedQueryBody: jest.fn(),
+          setLastEditedQueryObserverCanRun: jest.fn(),
+          setLastEditedQueryFrequency: jest.fn(),
+          setLastEditedQueryAutomationsEnabled: jest.fn(),
+          setLastEditedQueryPlatforms: jest.fn(),
+          setLastEditedQueryMinOsqueryVersion: jest.fn(),
+          setLastEditedQueryLoggingType: jest.fn(),
+        },
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: true,
+          isObserverPlus: true,
+          isGlobalAdmin: false,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    render(
+      <EditQueryForm
+        router={mockRouter}
+        location={mockLocation}
+        queryIdForEdit={1}
+        apiTeamIdForQuery={1}
+        showOpenSchemaActionText
+        storedQuery={createMockQuery({ query: invalidSQL })}
+        isStoredQueryLoading={false}
+        isQuerySaving={false}
+        isQueryUpdating={false}
+        onSubmitNewQuery={jest.fn()}
+        onOsqueryTableSelect={jest.fn()}
+        onUpdate={jest.fn()}
+        onOpenSchemaSidebar={jest.fn()}
+        renderLiveQueryWarning={jest.fn()}
+        backendValidators={{}}
+        showConfirmSaveChangesModal={false}
+        setShowConfirmSaveChangesModal={jest.fn()}
+      />
+    );
+
+    // The stored query is validated as soon as it loads.
+    expect(
+      await screen.findByText(/Please review before saving\./)
+    ).toBeInTheDocument();
   });
 
   it("caps the report name input at 255 characters in edit mode", () => {
@@ -418,7 +485,7 @@ describe("EditQueryForm - component", () => {
           config: createMockConfig({
             server_settings: {
               ...createMockConfig().server_settings,
-              live_query_disabled: true, // Live query disabled
+              live_reporting_disabled: true, // Live reports disabled
             },
           }),
         },

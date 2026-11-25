@@ -193,6 +193,9 @@ Learn more about [conditional access](https://fleetdm.com/guides/conditional-acc
 | Route | Reason |
 |---|---|
 | `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through fleetdm.com. |
+| `fleetdm.com/api/v1/google-conditional-access*` | [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration). Connect and disconnect your Fleet server. The end user's Google sign-in on iPhones and iPads goes through fleetdm.com. |
+| `oauth2.googleapis.com` | Google conditional access. Sign in to Google with your service account. |
+| `cloudidentity.googleapis.com` | Google conditional access. Find devices in Google and mark them as managed. |
 
 ### Vulnerability processing
 
@@ -617,6 +620,10 @@ Fleet exposes a basic health check at the `/healthz` endpoint. This is the inter
 The `/healthz` endpoint will return an `HTTP 200` status if the server is running and has healthy connections to MySQL and Redis. If there are any problems, the endpoint will return an `HTTP 500` status. Details about failing checks are logged in the Fleet server logs.
 
 Individual checks can be run by providing the `check` URL parameter (e.x., `/healthz?check=mysql` or `/healthz?check=redis`).
+
+The MySQL check confirms that the primary database is reachable and isn't in read-only mode (for example, after an Aurora failover). If a read replica is configured, it also confirms that the replica is reachable. The check uses its own connection to each database, so it passes even when requests are using every connection in the pool. It fails if MySQL doesn't answer within 3 seconds. Each Fleet server opens 1 extra MySQL connection for this check (2 with a read replica), in addition to `FLEET_MYSQL_MAX_OPEN_CONNS`.
+
+Because the check doesn't share connections with requests, it doesn't detect a server whose connection pool stays full. Under heavy load, this keeps the load balancer from replacing a server that's still working through requests. If the pool never frees up, for example because of a bug, the server keeps passing the health check while its requests time out. To catch this, alert on request errors and response times, as described in [Alerting](#alerting).
 
 ### Metrics
 

@@ -42,8 +42,7 @@ on:
         description: 'Slack webhook for notifying on scheduled (cron) run failures.'
         required: false
 
-permissions:
-  contents: read
+permissions: {}
 
 defaults:
   run:
@@ -52,6 +51,8 @@ defaults:
 
 jobs:
   test:
+    permissions:
+      contents: read
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
@@ -64,7 +65,7 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 

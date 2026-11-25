@@ -35,8 +35,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
@@ -49,13 +48,15 @@ env:
 
 jobs:
   check-for-fleetd-component-updates:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       date_dir: ${{ steps.check-for-fleetd-component-updates.outputs.date_dir }}
       update_needed: ${{ steps.check-for-fleetd-component-updates.outputs.update_needed }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -129,6 +130,8 @@ jobs:
           path: latest-tuf-meta.json
 
   update-fleetd-base-pkg:
+    permissions:
+      contents: read
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: macos-latest
@@ -139,7 +142,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -242,7 +245,7 @@ jobs:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -273,7 +276,6 @@ jobs:
     needs: build-fleetd-base-msi
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
-      contents: read
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
@@ -288,6 +290,8 @@ jobs:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   update-fleetd-base-msi:
+    permissions:
+      contents: read
     needs: [code-sign-windows, check-for-fleetd-component-updates]
     runs-on: ubuntu-latest
     outputs:
@@ -296,7 +300,7 @@ jobs:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -330,13 +334,15 @@ jobs:
           filenames: stable/fleetd-base.msi,${{ env.FULL_DATE_DIR }}/fleetd-base.msi
 
   update-meta-files:
+    permissions:
+      contents: read
     needs: [check-for-fleetd-component-updates, update-fleetd-base-pkg, update-fleetd-base-msi]
     runs-on: ubuntu-latest
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

@@ -728,11 +728,27 @@ func TestGetDetailQueries(t *testing.T) {
 
 	// the Entra join user query is premium only
 	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	queriesPremium := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, nil, Integrations{}, nil)
+	withToolCalls := config.FleetConfig{Osquery: config.OsqueryConfig{AISessionMaxToolCalls: fleet.DefaultHostAISessionMaxEvents}}
+	queriesPremium := GetDetailQueries(premiumCtx, withToolCalls, nil, nil, Integrations{}, nil)
 	premiumQueries := append([]string{}, baseQueries...)
-	premiumQueries = append(premiumQueries, "entra_join_user_windows")
+	premiumQueries = append(premiumQueries, "entra_join_user_windows", "ai_agent_sessions", "ai_agent_session_events")
 	require.Len(t, queriesPremium, len(premiumQueries))
 	sortedKeysCompare(t, queriesPremium, premiumQueries)
+
+	// collecting AI sessions can be turned off in the org settings
+	aiSessionsOff := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{AISessionsDisabled: true}}
+	queriesPremiumNoAISessions := GetDetailQueries(premiumCtx, withToolCalls, aiSessionsOff, nil, Integrations{}, nil)
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_sessions")
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_session_events")
+	require.Contains(t, queriesPremiumNoAISessions, "entra_join_user_windows")
+	queriesPremiumAISessions := GetDetailQueries(premiumCtx, withToolCalls, &fleet.AppConfig{}, nil, Integrations{}, nil)
+	require.Contains(t, queriesPremiumAISessions, "ai_agent_sessions")
+	require.Contains(t, queriesPremiumAISessions, "ai_agent_session_events")
+
+	// with no tool calls to store, only the sessions are collected
+	queriesPremiumNoToolCalls := GetDetailQueries(premiumCtx, config.FleetConfig{}, &fleet.AppConfig{}, nil, Integrations{}, nil)
+	require.Contains(t, queriesPremiumNoToolCalls, "ai_agent_sessions")
+	require.NotContains(t, queriesPremiumNoToolCalls, "ai_agent_session_events")
 
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
@@ -951,8 +967,8 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
-	// Omarchy reports its own platform and a versioned BUILD_ID. Unlike the OS
-	// inventory row, the host keeps the distro name and its real version.
+	// Omarchy reports its own platform and a versioned BUILD_ID, which the host
+	// keeps as its version.
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "omarchy-host",
@@ -1998,6 +2014,26 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 		{
 			data: []map[string]string{
 				{
+					"name":           "Zorin OS",
+					"version":        "18.1",
+					"major":          "18",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.14.0-37-generic",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Zorin OS",
+				Version:       "18.1",
+				Arch:          "x86_64",
+				KernelVersion: "6.14.0-37-generic",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
 					"name":           "CentOS Linux",
 					"version":        "CentOS Linux release 7.9.2009 (Core)",
 					"major":          "7",
@@ -2098,7 +2134,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 		{
 			// CachyOS is an Arch-based rolling-release distribution. It reports a
 			// date-based VERSION_ID (parsed into major/minor/patch) but BUILD_ID=rolling,
-			// so it should aggregate onto the "Arch Linux" row with a "rolling" version.
+			// so it gets its own row with a "rolling" version.
 			data: []map[string]string{
 				{
 					"name":           "CachyOS Linux",
@@ -2112,16 +2148,15 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				},
 			},
 			expected: fleet.OperatingSystem{
-				Name:          "Arch Linux",
+				Name:          "CachyOS Linux",
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-2-cachyos",
 			},
 		},
 		{
-			// Omarchy is an Arch-based rolling-release distribution. Unlike CachyOS it
-			// reports a versioned BUILD_ID rather than "rolling", so it should still
-			// aggregate onto the "Arch Linux" row with a "rolling" version.
+			// Omarchy is an Arch-based distribution. Unlike CachyOS it reports a
+			// versioned BUILD_ID rather than "rolling", so its row has that version.
 			data: []map[string]string{
 				{
 					"name":           "Omarchy",
@@ -2135,8 +2170,8 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				},
 			},
 			expected: fleet.OperatingSystem{
-				Name:          "Arch Linux",
-				Version:       "rolling",
+				Name:          "Omarchy",
+				Version:       "4.0.0",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-arch1-1",
 			},
@@ -2893,6 +2928,110 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+
+	// composefs (bootc): "/" is an overlay with no row, and the root filesystem is at /sysroot.
+	for _, tc := range []struct {
+		name     string
+		rows     []map[string]string
+		expected bool
+	}{
+		{
+			name: "composefs, encrypted /sysroot",
+			rows: []map[string]string{
+				{"path": "/sysroot", "encrypted": "1"},
+				{"path": "/var", "encrypted": "1"},
+				{"path": "/boot", "encrypted": "0"},
+			},
+			expected: true,
+		},
+		{
+			name:     "composefs, unencrypted /sysroot",
+			rows:     []map[string]string{{"path": "/sysroot", "encrypted": "0"}},
+			expected: false,
+		},
+		{
+			name: "an unencrypted / wins over /sysroot",
+			rows: []map[string]string{
+				{"path": "/", "encrypted": "0"},
+				{"path": "/sysroot", "encrypted": "1"},
+			},
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var got *bool
+			ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
+				got = &encrypted
+				return nil
+			}
+			err := directIngestDiskEncryptionLinux(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tc.rows)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, tc.expected, *got)
+		})
+	}
+}
+
+// TestDiskSpaceUnixRootFilesystem runs disk_space_unix against sqlite, which osquery embeds, to check
+// which mount it reports: "/", unless "/" is a composefs overlay and the root filesystem is at /sysroot.
+func TestDiskSpaceUnixRootFilesystem(t *testing.T) {
+	query := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["disk_space_unix"].Query
+
+	type mount struct {
+		path, typ, device                   string
+		blocks, blocksAvailable, blocksSize int64
+	}
+	for _, tc := range []struct {
+		name          string
+		mounts        []mount
+		expectedTotal string
+	}{
+		{
+			name:          "ext4 /",
+			mounts:        []mount{{"/", "ext4", "/dev/sda2", 25_000_000, 10_000_000, 4096}},
+			expectedTotal: "102.4",
+		},
+		{
+			name: "composefs / with the root filesystem at /sysroot",
+			mounts: []mount{
+				{"/", "overlay", "composefs:abc", 2_500, 0, 4096},
+				{"/sysroot", "ext4", "/dev/mapper/root", 10_000_000, 8_000_000, 4096},
+			},
+			expectedTotal: "40.96",
+		},
+		{
+			name:          "overlay / with no /sysroot, as in a container",
+			mounts:        []mount{{"/", "overlay", "overlay", 25_000_000, 10_000_000, 4096}},
+			expectedTotal: "102.4",
+		},
+		{
+			name: "ext4 / wins over /sysroot",
+			mounts: []mount{
+				{"/", "ext4", "/dev/sda2", 25_000_000, 10_000_000, 4096},
+				{"/sysroot", "ext4", "/dev/sdb1", 10_000_000, 8_000_000, 4096},
+			},
+			expectedTotal: "102.4",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := sql.Open("sqlite3", ":memory:")
+			require.NoError(t, err)
+			defer db.Close()
+
+			_, err = db.Exec(`CREATE TABLE mounts (path TEXT, type TEXT, device TEXT, blocks INTEGER, blocks_available INTEGER, blocks_size INTEGER)`)
+			require.NoError(t, err)
+			for _, m := range tc.mounts {
+				_, err = db.Exec(`INSERT INTO mounts VALUES (?, ?, ?, ?, ?, ?)`, m.path, m.typ, m.device, m.blocks, m.blocksAvailable, m.blocksSize)
+				require.NoError(t, err)
+			}
+
+			var percentAvailable, gigsAvailable, gigsTotal string
+			var gigsAll sql.NullString
+			require.NoError(t, db.QueryRow(query).Scan(&percentAvailable, &gigsAvailable, &gigsTotal, &gigsAll))
+			require.Equal(t, tc.expectedTotal, gigsTotal)
+		})
+	}
 }
 
 func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {

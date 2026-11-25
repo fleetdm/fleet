@@ -34,6 +34,23 @@ module.exports = {
       let latestReportFromThisInstance = _.find(statisticsReportedByFleetInstance[id], {id: lastReportIdForThisInstance});
       latestStatisticsForEachInstance.push(latestReportFromThisInstance);
     }
+
+    // Save the number of AI-generated configuration profiles to the platform record for the profile generator usage page.
+    // Fleet servers report cumulative counts, so add up the latest report from each Fleet instance.
+    let numAiGeneratedProfilesAllTime = _.sum(latestStatisticsForEachInstance, (report)=>{
+      // Snapshots saved before Fleet servers reported these counts will not have them.
+      return (report.numAppleAiGeneratedProfiles || 0) + (report.numWindowsAiGeneratedProfiles || 0) + (report.numAndroidAiGeneratedProfiles || 0);
+    });
+    let platformRecords = await Platform.find();
+    if (platformRecords.length !== 1) {
+      // Log instead of throwing so that a platform record problem doesn't stop the metrics from being sent to Datadog.
+      sails.log.warn(`Consistency violation: Expected exactly one platform record when saving AI-generated configuration profile stats, but found ${platformRecords.length}. The stats were not saved.`);
+    } else {
+      await Platform.updateOne({id: platformRecords[0].id}).set({
+        numAiGeneratedProfilesAllTime,
+        aiGeneratedProfileStatsLastUpdatedAt: Date.now(),
+      });
+    }
     // Get a filtered array of metrics reported by Fleet Premium instances
     let latestPremiumUsageStatistics = _.filter(latestStatisticsForEachInstance, {licenseTier: 'premium'});
     // Group reports by organization name.

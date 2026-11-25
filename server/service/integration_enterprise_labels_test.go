@@ -80,9 +80,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.LabelNameInUseByFleetsErrMsg)
 
 	// A fleet's resources resolve the shared name to that fleet's label.
-	var tpResp fleet.TeamPolicyResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team2.ID), fleet.TeamPolicyRequest{
-		Name: t.Name() + "_policy", Query: "select 1", LabelsIncludeAny: []string{shared, globalName},
+	var tpResp fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.CreatePolicyRequest{
+		TeamID: &team2.ID, Name: t.Name() + "_policy", Query: "select 1", LabelsIncludeAny: []string{shared, globalName},
 	}, http.StatusOK, &tpResp)
 	require.Len(t, tpResp.Policy.LabelsIncludeAny, 2)
 	gotIDs := []uint{tpResp.Policy.LabelsIncludeAny[0].LabelID, tpResp.Policy.LabelsIncludeAny[1].LabelID}
@@ -95,6 +95,41 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 		Specs: []*fleet.PolicySpec{{Name: t.Name() + "_global_policy", Query: "select 1", LabelsIncludeAny: []string{shared}}},
 	}, http.StatusConflict)
 	require.Contains(t, extractServerErrorText(res.Body), "More than one fleet has a label named")
+
+	// A fleet ID narrows the name to the global labels and that fleet's labels.
+	specPath := func(name string) string { return "/api/latest/fleet/spec/labels/" + url.PathEscape(name) }
+	for _, tc := range []struct {
+		name        string
+		fleetID     uint
+		wantLabelID uint
+	}{
+		{shared, team1.ID, team1Label.ID},
+		{shared, team2.ID, team2Label.ID},
+		{globalName, team2.ID, createResp.Label.ID},
+		{globalName, 0, createResp.Label.ID},
+	} {
+		var specResp fleet.GetLabelSpecResponse
+		s.DoJSON("GET", specPath(tc.name), nil, http.StatusOK, &specResp, "fleet_id", fmt.Sprint(tc.fleetID))
+		require.Equal(t, tc.wantLabelID, specResp.Spec.ID, "%s on fleet %d", tc.name, tc.fleetID)
+	}
+	s.Do("GET", specPath(shared), nil, http.StatusNotFound, "fleet_id", "0")
+
+	func() {
+		fleetAdmin := &fleet.User{
+			Name:  t.Name() + "_fleet_admin",
+			Email: uuid.NewString() + "@example.com",
+			Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}},
+		}
+		require.NoError(t, fleetAdmin.SetPassword(test.GoodPassword, 10, 10))
+		fleetAdmin, err = s.ds.NewUser(ctx, fleetAdmin)
+		require.NoError(t, err)
+		s.token = s.getTestToken(fleetAdmin.Email, test.GoodPassword)
+		defer func() { s.token = s.getTestAdminToken() }()
+		var fleetAdminSpecResp fleet.GetLabelSpecResponse
+		s.DoJSON("GET", specPath(shared), nil, http.StatusOK, &fleetAdminSpecResp, "fleet_id", fmt.Sprint(team1.ID))
+		require.Equal(t, team1Label.ID, fleetAdminSpecResp.Spec.ID)
+		s.Do("GET", specPath(shared), nil, http.StatusForbidden, "fleet_id", fmt.Sprint(team2.ID))
+	}()
 
 	// Moving the name to global from one fleet doesn't set aside another fleet's label.
 	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
@@ -147,7 +182,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNamesLiveReport() {
 			ranOn = args.Get(2).([]uint)
 		})
 		var resp createDistributedQueryCampaignResponse
-		s.DoJSON("POST", "/api/latest/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierRequest{
+		s.DoJSON("POST", "/api/latest/fleet/reports/run_by_identifiers", createDistributedQueryCampaignByIdentifierRequest{
 			QuerySQL: "SELECT 1",
 			Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: []string{shared}},
 		}, http.StatusOK, &resp)

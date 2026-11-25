@@ -359,8 +359,7 @@ const ManageHostsPage = ({
   // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus =
-    queryParams?.apple_settings ?? queryParams?.macos_settings;
+  const macSettingsStatus = queryParams?.apple_settings;
   const softwareVersionId =
     queryParams?.software_version_id !== undefined
       ? parseInt(queryParams.software_version_id, 10)
@@ -407,7 +406,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
@@ -934,6 +933,10 @@ const ManageHostsPage = ({
     ) {
       // Match the legacy `software_id` too so the one-frame overlap before the
       // software_id → software_version_id redirect doesn't stash a stale URL.
+      // Clear any earlier list's path so hosts opened from here don't return to it.
+      if (filteredHostsPath) {
+        setFilteredHostsPath("");
+      }
       return;
     }
     const path = location.pathname + location.search;

@@ -71,7 +71,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.12 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
-	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -85,8 +84,8 @@ require (
 	github.com/micromdm/micromdm v1.9.0 // indirect
 	github.com/micromdm/nanolib v0.2.0 // indirect
 	github.com/micromdm/plist v0.4.0 // indirect
-	github.com/nats-io/nats.go v1.49.0 // indirect
-	github.com/nats-io/nkeys v0.4.15 // indirect
+	github.com/nats-io/nats.go v1.51.0 // indirect
+	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nukosuke/go-zendesk v0.13.1 // indirect
 	github.com/oschwald/geoip2-golang v1.8.0 // indirect

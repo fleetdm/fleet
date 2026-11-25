@@ -24,7 +24,6 @@ import (
 
 var mdmConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"profile_uuid": "profile_uuid",
-	"team_id":      "team_id",
 	"fleet_id":     "team_id",
 	"name":         "name",
 	"platform":     "platform",
@@ -265,8 +264,8 @@ WHERE ` + whereTeam
 			// TODO: how should we handle this unexpected case?
 			ds.logger.DebugContext(
 				ctx, "list mdm commands: multiple hosts found for identifier",
-				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
-				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
+				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s fleet: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
+				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s fleet: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
 			)
 		}
 		byUUID[h.UUID] = h
@@ -2408,8 +2407,8 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 
 	// update the status to NULL to trigger resending on the next cron run
 	setRetries := ""
-	if table == "host_mdm_apple_profiles" {
-		// A resend starts a new retry budget for verification.
+	if table == "host_mdm_apple_profiles" || table == "host_mdm_windows_profiles" {
+		// A resend starts a new retry budget. Declaration and Android rows have no retries.
 		setRetries = ", retries = 0"
 	}
 	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE host_uuid = ? AND %s = ?`, table, setRetries, column)
@@ -2713,8 +2712,8 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 
 	// update the status to NULL to trigger resending on the next cron run
 	setRetries := ""
-	if table == "host_mdm_apple_profiles" {
-		// A resend starts a new retry budget for verification.
+	if table == "host_mdm_apple_profiles" || table == "host_mdm_windows_profiles" {
+		// A resend starts a new retry budget. Declaration and Android rows have no retries.
 		setRetries = ", retries = 0"
 	}
 	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE %s = ? AND status = ?`, table, setRetries, column)

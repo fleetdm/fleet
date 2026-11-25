@@ -47,6 +47,21 @@ useQuery(
 - Build query strings with `buildQueryStringFromParams()` from `frontend/utilities/url/`
 - Build full paths with `getPathWithQueryParams(path, params)` — auto-filters undefined/null values
 
+## Read after write
+Never follow a write with a `GET` to learn what the write did. The `GET` can be answered by a read replica, or by another server instance's cache (app config is cached per instance for 1 second), and return the state from before the write: a success toast over a page that hasn't changed.
+
+- Update state from the write's response: `setConfig(await configAPI.update(changes))`, or `queryClient.setQueryData(key, response)` in a mutation's `onSuccess`.
+- When the result is known without a response (a delete, a toggle), set it locally.
+- If the endpoint doesn't return the state the UI needs, change the endpoint to return it, read on the primary (`ctxdb.RequirePrimary(ctx, true)`), instead of adding a follow-up `GET`.
+- Invalidating queries after a mutation (see React Query) is for data the response doesn't describe, like a paginated list the new row belongs to. It is not a way to read back what was just written.
+- Exception: after a failed write that may have partly applied, a reload is fine as a best effort. The error carries no state, and a stale answer only leaves the page as it was.
+
+Anti-pattern:
+```ts
+await teamsAPI.update(changes, teamId);
+const { team } = await teamsAPI.load(teamId); // may predate the write
+```
+
 ## Permission Checking
 Use helpers from `frontend/utilities/permissions/permissions.ts`:
 - Global roles: `permissions.isGlobalAdmin(user)`, `isGlobalMaintainer(user)`, `isOnGlobalTeam(user)`
@@ -153,6 +168,9 @@ Editing inside already-gated code (adding a field to a premium-only form, fixing
 ## Terminology
 - "Teams" are now called "fleets" in the product. Code still uses `team_id`, `useTeamIdParam`, `permissions.isTeamAdmin`, etc. — don't rename existing APIs, but use "fleet" in new user-facing strings and comments.
 - "Queries" are now called "reports." The word "query" now refers solely to a SQL query. Code still uses `useQuery`, `queryKey`, etc. for React Query — that's unrelated to the product terminology change.
+- "Self-service" (adjective, modifies a noun) takes a hyphen; "self service" (noun) doesn't. Product-wide decision.
+  - Adjective: "self-service categories", "self-service software", "Self-service tab"
+  - Noun: "install from self service", "Fleet Desktop > Self service", "(self service)", standalone labels like Chip/Tab/Toggle text
 
 ## Command palette
 If you edit `frontend/router/paths.ts` or `frontend/router/index.tsx`, add a new MDM connector / singleton config, add a new global create / automation / settings action, or add a new picker action, load the `command-palette` skill before finishing — these changes almost always need a matching entry under `frontend/components/CommandPalette/groups/`. The palette is for navigation and global actions — not per-entity (row-level) operations, bulk-select actions, or per-view UI toggles.

@@ -25,8 +25,7 @@ on:
           - warn
           - error
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Detect which apps changed and shard them on a cheap Linux runner. The
@@ -35,13 +34,15 @@ jobs:
   # runner just to discover there is nothing to do. Large PRs are split into
   # shards that validate in parallel.
   detect-changed-apps:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       has_darwin_apps: ${{ steps.partition.outputs.has_apps }}
       matrix: ${{ steps.partition.outputs.matrix }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -93,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

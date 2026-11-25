@@ -4,7 +4,9 @@ import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import type { IAdvancedSectionProps } from "../../Advanced";
@@ -16,6 +18,7 @@ const HostLifecycleSection = ({
   onInputChange,
   formData,
   formErrors = {},
+  appConfig,
 }: IAdvancedSectionProps) => {
   const {
     enableHostExpiry,
@@ -23,6 +26,10 @@ const HostLifecycleSection = ({
     requireHardwareAttestation,
     onlyAllowAppleBusinessEnrollment,
   } = formData;
+
+  const isAppleBusinessSetUp =
+    !!appConfig?.mdm.enabled_and_configured &&
+    !!appConfig?.mdm.apple_business_enabled_and_configured;
 
   return (
     <SettingsSection title="Host lifecycle">
@@ -103,16 +110,42 @@ const HostLifecycleSection = ({
           <GitOpsModeTooltipWrapper
             position="left"
             renderChildren={(disableChildren) => (
-              <Checkbox
-                disabled={disableChildren}
-                onChange={onInputChange}
-                name="onlyAllowAppleBusinessEnrollment"
-                value={onlyAllowAppleBusinessEnrollment}
-                parseTarget
-                helpText="Only allow Apple (macOS, iOS, iPadOS) hosts to enroll via Apple Business."
+              <TooltipWrapper
+                tipContent={
+                  <span>
+                    Turn on{" "}
+                    <CustomLink
+                      url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
+                      text="Apple MDM"
+                      variant="tooltip-link"
+                    />{" "}
+                    and connect to{" "}
+                    <CustomLink
+                      url={PATHS.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER}
+                      text="Apple Business"
+                      variant="tooltip-link"
+                    />{" "}
+                    to use this feature.
+                  </span>
+                }
+                disableTooltip={disableChildren || isAppleBusinessSetUp}
+                position="left"
+                tipOffset={8}
+                showArrow
+                underline={false}
+                anchorChildSelector="[role='checkbox']"
               >
-                Allow only Apple Business enrollments
-              </Checkbox>
+                <Checkbox
+                  disabled={disableChildren || !isAppleBusinessSetUp}
+                  onChange={onInputChange}
+                  name="onlyAllowAppleBusinessEnrollment"
+                  value={onlyAllowAppleBusinessEnrollment}
+                  parseTarget
+                  helpText="Only allow Apple (macOS, iOS, iPadOS) hosts to enroll via Apple Business."
+                >
+                  Allow only Apple Business enrollments
+                </Checkbox>
+              </TooltipWrapper>
             )}
           />
         </>

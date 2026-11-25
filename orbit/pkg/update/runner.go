@@ -397,7 +397,7 @@ func (r *Runner) updateTarget(target string) error {
 		return fmt.Errorf("symlink current: %w", err)
 	}
 
-	// oVC == 1 if upgrading or -1 if downgrading, 0 if the same version
+	// oVC == 1 if downgrading or -1 if upgrading, 0 if the same version
 	if oVC != nil && *oVC != 0 && runtime.GOOS == "windows" {
 		if err := updateUninstallFleetdRegistryVersion(newVersion); err != nil {
 			return fmt.Errorf("update orbit version in Windows registry: %w", err)

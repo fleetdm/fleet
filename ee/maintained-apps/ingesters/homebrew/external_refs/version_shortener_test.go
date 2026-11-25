@@ -51,7 +51,6 @@ func TestMakeVersionShortenerKeep2(t *testing.T) {
 		{name: "microsoft auto update", version: "4.82.26020434", slug: "microsoft-auto-update", expected: "4.82"},
 		{name: "opera", version: "129.0.5823.28", slug: "opera", expected: "129.0"},
 		{name: "twingate", version: "2026.29.22575", slug: "twingate", expected: "2026.29"},
-		{name: "microsoft 365 copilot", version: "1.2608.0301", slug: "microsoft-365-copilot", expected: "1.2608"},
 		{name: "numi", version: "3.35.743", slug: "numi", expected: "3.35"},
 		{name: "origami studio", version: "231.0.0.0.0", slug: "origami-studio", expected: "231.0"},
 		{name: "sqlpro hotfix", version: "2026.301.2", slug: "sqlpro-for-sqlite", expected: "2026.301"},
@@ -178,31 +177,6 @@ func TestRaspberryPiImagerVersionTransformer(t *testing.T) {
 	}
 }
 
-func TestMySQLWorkbenchVersionTransformer(t *testing.T) {
-	tcs := []struct {
-		name     string
-		version  string
-		expected string
-		wantErr  bool
-	}{
-		{name: "empty version", version: "", wantErr: true},
-		{name: "normal version", version: "8.0.46", expected: "8.0.46.CE"},
-	}
-
-	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
-			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "mysql-workbench"}
-			result, err := MySQLWorkbenchVersionTransformer(app)
-			if tc.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, result.Version)
-		})
-	}
-}
-
 func TestLensVersionTransformer(t *testing.T) {
 	tcs := []struct {
 		name     string
@@ -245,6 +219,61 @@ func TestShottrVersionTransformer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "shottr"}
 			result, err := ShottrVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestUTMVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "rebuild suffix", version: "5.0.9-2", expected: "5.0.9"},
+		{name: "no suffix", version: "5.0.9", expected: "5.0.9"},
+		{name: "non-numeric suffix kept", version: "5.1.0-beta", expected: "5.1.0-beta"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "utm/darwin"}
+			result, err := UTMVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
+func TestHoppscotchVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "zero revision", version: "26.11.0-0", expected: "26.11.0"},
+		{name: "non-zero revision", version: "26.10.1-2", expected: "26.10.1"},
+		{name: "no revision", version: "26.11.0", expected: "26.11.0"},
+		{name: "non-numeric suffix kept", version: "26.11.0-beta", expected: "26.11.0-beta"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "hoppscotch/darwin"}
+			result, err := HoppscotchVersionTransformer(app)
 			if tc.wantErr {
 				require.Error(t, err)
 				return

@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
+import { omit } from "lodash";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -31,7 +32,7 @@ import {
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 import { mapAutomationRows } from "pages/policies/components";
-import { getTicketOrWebhookInfo } from "pages/policies/helpers";
+import { getTicketOrWebhookState } from "pages/policies/helpers";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import PATHS from "router/paths";
 import policiesAPI from "services/entities/policies";
@@ -44,7 +45,6 @@ import { addGravatarUrlToResource } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
 
 import PolicyAutomationsActivitiesTable from "../components/PolicyAutomationsActivitiesTable";
-import PolicyAutomationsModal from "../components/PolicyAutomationsModal";
 import PolicyLabelModal, {
   IPolicyLabelModalProps,
 } from "../components/PolicyLabelModal";
@@ -60,7 +60,9 @@ interface IPolicyDetailsPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string };
+    query: { fleet_id?: string; query?: string };
+    /** Set when opened from a host's policy. */
+    state?: { hostSearch?: string };
   };
 }
 
@@ -91,10 +93,10 @@ export const getLabelModalData = (policy: IPolicy): ILabelModalData => {
   let excludeScopeLabel: string | undefined;
   if (policy.labels_exclude_any?.length) {
     excludeLabels = policy.labels_exclude_any;
-    excludeScopeLabel = "exclude any";
+    excludeScopeLabel = "don’t have any";
   } else if (policy.labels_exclude_all?.length) {
     excludeLabels = policy.labels_exclude_all;
-    excludeScopeLabel = "exclude all";
+    excludeScopeLabel = "don’t have all";
   }
 
   return { includeLabels, includeScopeLabel, excludeLabels, excludeScopeLabel };
@@ -139,7 +141,6 @@ const PolicyDetailsPage = ({
 
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
-  const [showAutomationsModal, setShowAutomationsModal] = useState(false);
 
   if (policyId === null || isNaN(policyId)) {
     router.push(PATHS.MANAGE_POLICIES);
@@ -176,10 +177,7 @@ const PolicyDetailsPage = ({
 
   const labelModalData = storedPolicy ? getLabelModalData(storedPolicy) : null;
 
-  const {
-    state: ticketOrWebhookState,
-    policyIds: currentAutomatedPolicies,
-  } = getTicketOrWebhookInfo(
+  const ticketOrWebhookState = getTicketOrWebhookState(
     storedPolicy?.fleet_id == null ? config ?? undefined : teamData?.fleet
   );
   const otherAutomationType: OtherAutomationType | undefined =
@@ -215,7 +213,39 @@ const PolicyDetailsPage = ({
     isGlobalTechnician ||
     isTeamTechnician;
 
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
+
+  // Captured on mount: a fleet redirect (e.g. dropping fleet_id on Free tier)
+  // replaces the location and loses its state. The host's name only filters
+  // the runs of a policy with an automation; a policy without one has none.
+  const [hostSearch, setHostSearch] = useState(location.state?.hostSearch);
+  const searchQuery =
+    location.query.query ??
+    (storedPolicy?.automation_type ? hostSearch : undefined);
+
+  // The URL's query always matches the runs search, so the page can be shared
+  // or reloaded with the same filter.
+  const replaceSearchQuery = useCallback(
+    (query?: string) => {
+      const rest = omit(location.query, "query");
+      router.replace({
+        pathname: location.pathname,
+        query: query ? { ...rest, query } : rest,
+      });
+    },
+    [router, location.pathname, location.query]
+  );
+
+  // Once the policy is known, moves the host's name from navigation state into
+  // the URL (or drops it), so a reload doesn't depend on the state.
+  useEffect(() => {
+    // isRouteOk: a cached policy can be present before a fleet redirect lands.
+    if (isRouteOk && storedPolicy && hostSearch !== undefined) {
+      replaceSearchQuery(searchQuery);
+      // Applied once, so clearing the search doesn't bring the host back.
+      setHostSearch(undefined);
+    }
+  }, [isRouteOk, storedPolicy, hostSearch, searchQuery, replaceSearchQuery]);
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,
@@ -318,59 +348,61 @@ const PolicyDetailsPage = ({
     );
   };
 
-  const openAutomationsModal = () => setShowAutomationsModal(true);
+  const renderAutomation = () => {
+    const [automation] = storedPolicy
+      ? mapAutomationRows(storedPolicy, otherAutomationType)
+      : [];
+    if (!storedPolicy || !automation) {
+      return (
+        <DataSet
+          className={`${baseClass}__automations`}
+          title="Automation"
+          value={DEFAULT_EMPTY_CELL_VALUE}
+        />
+      );
+    }
 
-  const renderAutomations = () => {
-    const emptyState = (
-      <DataSet
-        className={`${baseClass}__automations`}
-        title="Automations"
-        value={DEFAULT_EMPTY_CELL_VALUE}
-      />
-    );
+    const isScriptGraphic =
+      automation.graphicName === "file-sh" ||
+      automation.graphicName === "file-ps1" ||
+      automation.graphicName === "file-configuration-profile";
+    // Continuous automations only change how software and script automations
+    // run.
+    const isContinuous =
+      !!storedPolicy.continuous_automations_enabled &&
+      (storedPolicy.automation_type === "software" ||
+        storedPolicy.automation_type === "script");
 
-    if (!storedPolicy) return emptyState;
-
-    const automations = mapAutomationRows(
-      storedPolicy,
-      currentAutomatedPolicies,
-      otherAutomationType
-    );
-    if (!automations.length) return emptyState;
-
-    const firstAutomation = automations[0];
     return (
       <DataSet
-        className={`${baseClass}__automations${
-          automations.length > 1 ? ` ${baseClass}__automations--multi` : ""
-        }`}
-        title="Automations"
+        className={`${baseClass}__automations`}
+        title="Automation"
         value={
           <>
-            {firstAutomation.isSoftware ? (
+            {automation.isSoftware ? (
               <SoftwareIcon
-                name={firstAutomation.iconName ?? firstAutomation.name}
-                url={firstAutomation.iconUrl}
+                name={automation.iconName ?? automation.name}
+                url={automation.iconUrl}
                 size="small"
               />
             ) : (
-              firstAutomation.graphicName && (
+              automation.graphicName && (
                 <Graphic
-                  name={firstAutomation.graphicName}
-                  className={
-                    firstAutomation.graphicName === "file-sh" ||
-                    firstAutomation.graphicName === "file-ps1" ||
-                    firstAutomation.graphicName === "file-configuration-profile"
-                      ? "scale-40-24"
-                      : ""
-                  }
+                  name={automation.graphicName}
+                  className={isScriptGraphic ? "scale-40-24" : ""}
                 />
               )
             )}
-            <TruncatedTextList
-              items={automations.map((a) => a.name)}
-              onClick={openAutomationsModal}
-            />
+            <span className={`${baseClass}__automation-name`}>
+              {automation.name}
+            </span>
+            {isContinuous && (
+              <span className={`${baseClass}__automation-continuous`}>
+                <TooltipWrapper tipContent="Runs every time Fleet receives a failing response, not only on a host's first failure.">
+                  Continuous
+                </TooltipWrapper>
+              </span>
+            )}
           </>
         }
       />
@@ -395,8 +427,10 @@ const PolicyDetailsPage = ({
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."
+                      position="top"
                       showArrow
                       underline={false}
+                      fixedPositionStrategy
                     >
                       <Icon
                         className="critical-policy-icon"
@@ -460,7 +494,7 @@ const PolicyDetailsPage = ({
                 {renderFleetName()}
                 {renderPlatforms()}
                 {renderLabels()}
-                {renderAutomations()}
+                {renderAutomation()}
                 {renderAuthor()}
               </div>
               {renderResolution()}
@@ -481,7 +515,8 @@ const PolicyDetailsPage = ({
       {!isLoading && !apiError && storedPolicy && (
         <PolicyAutomationsActivitiesTable
           policy={storedPolicy}
-          currentAutomatedPolicies={currentAutomatedPolicies}
+          initialSearchQuery={searchQuery}
+          onSearchQueryChange={replaceSearchQuery}
           otherAutomationType={otherAutomationType}
           canResetPolicy={canEditPolicy}
         />
@@ -500,14 +535,6 @@ const PolicyDetailsPage = ({
           excludeScopeLabel={labelModalData.excludeScopeLabel}
           getLabelPath={canEditLabels ? PATHS.LABEL_EDIT : undefined}
           onClose={() => setShowLabelModal(false)}
-        />
-      )}
-      {showAutomationsModal && storedPolicy && (
-        <PolicyAutomationsModal
-          storedPolicy={storedPolicy}
-          currentAutomatedPolicies={currentAutomatedPolicies}
-          otherAutomationType={otherAutomationType}
-          onClose={() => setShowAutomationsModal(false)}
         />
       )}
     </MainContent>

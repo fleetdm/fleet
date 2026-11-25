@@ -3,8 +3,7 @@ name: Docker cleanup (branch deletion)
 on:
   delete:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   cleanup:
@@ -26,7 +25,7 @@ jobs:
         env:
           TAG: ${{ steps.sanitize.outputs.TAG }}
         run: |
-          if [[ "$TAG" == "main" || "$TAG" == rc-minor-* || "$TAG" == rc-patch-* ]]; then
+          if [[ "$TAG" == "main" || "$TAG" == rc-major-* || "$TAG" == rc-minor-* || "$TAG" == rc-patch-* ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "Skipping cleanup for protected branch tag: $TAG"
           else

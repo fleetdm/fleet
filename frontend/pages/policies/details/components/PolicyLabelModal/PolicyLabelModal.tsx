@@ -49,7 +49,7 @@ const PolicyLabelModal = ({
           <LabelList
             labels={excludeLabels}
             scopeLabel={excludeScopeLabel}
-            description="Policy excludes hosts that"
+            description="Policy targets hosts that"
             getLabelPath={getLabelPath}
           />
         )}

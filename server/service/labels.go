@@ -691,7 +691,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			return fleet.NewUserMessageError(
 				ctxerr.New(
 					ctx,
-					"When applying team label specs, provide the team label by URL query string parameter rather than within the JSON request body",
+					"When applying fleet label specs, provide the fleet label by URL query string parameter rather than within the JSON request body",
 				), http.StatusUnprocessableEntity)
 		}
 		spec.TeamID = teamID
@@ -968,17 +968,21 @@ func (svc *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.L
 ////////////////////////////////////////////////////////////////////////////////
 
 func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getGenericSpecRequest)
-	spec, err := svc.GetLabelSpec(ctx, req.Name)
+	req := request.(*fleet.GetLabelSpecRequest)
+	spec, err := svc.GetLabelSpec(ctx, req.Name, req.FleetID)
 	if err != nil {
 		return fleet.GetLabelSpecResponse{Err: err}, nil
 	}
 	return fleet.GetLabelSpecResponse{Spec: spec}, nil
 }
 
-func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+func (svc *Service) GetLabelSpec(ctx context.Context, name string, fleetID *uint) (*fleet.LabelSpec, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{TeamID: fleetID}, fleet.ActionRead); err != nil {
 		return nil, err
+	}
+
+	if !license.IsPremium(ctx) && fleetID != nil && *fleetID > 0 {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -986,7 +990,7 @@ func (svc *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.Label
 		return nil, fleet.ErrNoContext
 	}
 
-	return svc.ds.GetLabelSpec(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true}, name)
+	return svc.ds.GetLabelSpec(ctx, fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: fleetID}, name)
 }
 
 func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, labelNames []string) (map[string]fleet.LabelIdent, error) {

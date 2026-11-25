@@ -733,10 +733,10 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 
 	addDeclaration := func(identifier string, teamID uint, labelNames []string) string {
 		fields := map[string][]string{
-			"labels": labelNames,
+			"labels_include_all": labelNames,
 		}
 		if teamID > 0 {
-			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+			fields["fleet_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 		body, headers := generateNewProfileMultipartRequest(
 			t, identifier+".json", declarationForTest(identifier), s.token, fields,

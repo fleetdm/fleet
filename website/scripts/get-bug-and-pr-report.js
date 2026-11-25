@@ -36,7 +36,6 @@ module.exports = {
     let daysSinceUnprioritizedBugsWereOpened = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
-    let commitToMergeTimesInDays = [];
 
     let allPublicOpenPrs = [];
     let publicPrsMergedInThePastThreeWeeks = [];
@@ -76,7 +75,7 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // If we received less results than we requested, we've reached the last page of the results.
           return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 30000);
+        });
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
@@ -141,7 +140,7 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // Stop when we've received results from the third page.
           return pageNumberForPaginatedResults === 3;
-        }, 30000);
+        });
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
@@ -200,28 +199,6 @@ module.exports = {
           return pageNumberForPaginatedResults === 3;
         });
 
-
-        // To get the timestamp of the first commit for each pull request, we'll need to send a request to the commits API endpoint.
-        await sails.helpers.flow.simultaneouslyForEach(publicPrsMergedInThePastThreeWeeks, async (pullRequest)=>{
-          // Create a date object from the PR's merged_at timestamp.
-          let pullRequestMergedOn = new Date(pullRequest.merged_at);
-
-          // Get commits on this PR.
-          // [?] https://docs.github.com/en/rest/commits/commits#list-commits
-          let commitsOnThisPullRequest = await sails.helpers.http.get(pullRequest.commits_url, {}, baseHeaders).retry();
-          if(commitsOnThisPullRequest.length === 0) {
-            sails.log.warn(`A pull request #${pullRequest.number} (${pullRequest.html_url}) was found that has no commits. This PR will be not counted in the commit to merge time metric.`);
-            return;
-          }
-          // Create a new Date from the timestamp of the first commit on this pull request.
-          let firstCommitAt = new Date(commitsOnThisPullRequest[0].commit.author.date); // https://docs.github.com/en/rest/commits/commits#list-commits--code-samples
-          // Get the amount of time this issue has been open in milliseconds.
-          let timeFromCommitToMergeInMS = pullRequestMergedOn - firstCommitAt;
-          // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array.
-          let timeFromFirstCommitInDays = timeFromCommitToMergeInMS / ONE_DAY_IN_MILLISECONDS;
-          commitToMergeTimesInDays.push(timeFromFirstCommitInDays);
-        });
-
       },
       //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██████╗ ███████╗
       //  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║    ██╔══██╗██╔══██╗██╔════╝
@@ -252,7 +229,7 @@ module.exports = {
           allPublicOpenPrs = allPublicOpenPrs.concat(pullRequests);
           // If we received less results than we requested, we've reached the last page of the results.
           return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 30000);
+        });
 
         for (let pullRequest of allPublicOpenPrs) {
           // Create a date object from the PR's created_at timestamp.
@@ -359,6 +336,17 @@ module.exports = {
     ${kpiResults.join(',')}
 
     Note: Copy the values above, then paste into Google KPI sheet and select "Split text to columns" to split the values into separate columns.
+
+    JSON for automation:
+    ---------------------------
+    ${JSON.stringify({
+    prOpenTimeDays: averageDaysContributorPullRequestsAreOpenFor,
+    bugOpenTimeDays: averageNumberOfDaysBugsAreOpenFor,
+    bugsOpen32DaysOrOlder: allBugs32DaysOrOlder.length,
+    newCustomerReportedBugs: allBugsReportedByCustomersInPastWeek.length,
+    newBugs: allBugsCreatedInPastWeek.length,
+    bugsClosed: allBugsClosedInPastWeek.length,
+  })}
 
     Pull requests:
     ---------------------------

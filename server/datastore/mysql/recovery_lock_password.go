@@ -136,6 +136,9 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 		INSERT INTO host_recovery_key_passwords (host_uuid, pending_encrypted_password, status, operation_type, pending_set_command_uuid)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
+			-- Must come before deleted = 0: MySQL applies assignments left to right. A retried
+			-- rotation keeps it so the prior password stays readable; a re-enrollment drops it.
+			verify_command_uuid = IF(deleted = 1, NULL, verify_command_uuid),
 			pending_encrypted_password = VALUES(pending_encrypted_password),
 			status = VALUES(status),
 			operation_type = VALUES(operation_type),
@@ -143,7 +146,6 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 			deleted = 0,
 			auto_rotate_at = NULL,
 			set_command_uuid = NULL,
-			verify_command_uuid = NULL,
 			pending_set_command_uuid = VALUES(pending_set_command_uuid),
 			pending_verify_command_uuid = NULL
 	`
@@ -159,8 +161,26 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 	})
 }
 
+// viewableRecoveryLockPasswordExpr is the password an admin can view, shared by the lookup and the
+// availability flag so they agree. Once the device accepts a Set, its password is shown even before the
+// verify comes back. Otherwise the stored password is shown if Fleet verified it on the current
+// enrollment: verify_command_uuid is only set by a passing verify and is cleared on re-enrollment.
+// The pending_encrypted_password guard sends the last-known-password verify, which clears it, to the
+// stored password.
+//
+//nolint:gosec // sql query, not a credential
+const viewableRecoveryLockPasswordExpr = `
+	CASE
+		WHEN status <=> 'verifying' AND operation_type = 'install' AND pending_encrypted_password IS NOT NULL
+			THEN pending_encrypted_password
+		WHEN status <=> 'verified' OR verify_command_uuid IS NOT NULL THEN encrypted_password
+	END`
+
 func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-	const stmt = `SELECT encrypted_password, status, updated_at, auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`
+	stmt := `
+		SELECT ` + viewableRecoveryLockPasswordExpr + ` AS encrypted_password, status, updated_at, auto_rotate_at
+		FROM host_recovery_key_passwords
+		WHERE host_uuid = ? AND deleted = 0`
 
 	var row struct {
 		EncryptedPassword []byte                   `db:"encrypted_password"`
@@ -195,12 +215,12 @@ func (ds *Datastore) GetHostRecoveryLockPassword(ctx context.Context, hostUUID s
 }
 
 func (ds *Datastore) GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
-	const stmt = `
+	stmt := `
 		SELECT
 			status,
 			operation_type,
 			COALESCE(error_message, '') AS detail,
-			(encrypted_password IS NOT NULL AND status <=> 'verified') AS password_available
+			(` + viewableRecoveryLockPasswordExpr + `) IS NOT NULL AS password_available
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ? AND deleted = 0`
 
@@ -340,7 +360,6 @@ func (ds *Datastore) SetRecoveryLockVerified(ctx context.Context, hostUUID strin
 			pending_set_command_uuid = NULL,
 			pending_verify_command_uuid = NULL,
 			error_message = NULL,
-			auto_rotate_at = NULL,
 			retry = 0
 		WHERE host_uuid = ?
 		  AND pending_verify_command_uuid = ?
@@ -382,7 +401,8 @@ func (ds *Datastore) SetRecoveryLockFailed(ctx context.Context, hostUUID, comman
 		    error_message = ?,
 			pending_encrypted_password = NULL,
 			pending_set_command_uuid = NULL,
-			pending_verify_command_uuid = NULL
+			pending_verify_command_uuid = NULL,
+			auto_rotate_at = NULL
 		WHERE host_uuid = ?
 		  AND (pending_set_command_uuid = ? OR pending_verify_command_uuid = ?)
 		  AND deleted = 0

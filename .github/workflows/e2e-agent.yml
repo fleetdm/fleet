@@ -31,9 +31,7 @@ on:
     paths:
       - '.github/workflows/e2e-agent.yml'
 
-permissions:
-  contents: read
-  actions: read
+permissions: {}
 
 # Each cron schedule gets its own concurrency group. workflow_dispatch and pull_request also get their own.
 concurrency:
@@ -59,7 +57,7 @@ jobs:
       address: ${{ steps.gen.outputs.address }}
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -70,12 +68,14 @@ jobs:
         echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
 
   run-server:
+    permissions:
+      actions: read
     timeout-minutes: 240
     runs-on: ubuntu-8core
     needs: gen
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -187,7 +187,7 @@ jobs:
      token: ${{ steps.login.outputs.token }}
    steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -249,6 +249,9 @@ jobs:
         echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
   fleetd-macos:
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 10
     strategy:
       matrix:
@@ -371,7 +374,7 @@ jobs:
     needs: [gen, login]
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
       with:
         egress-policy: audit
 
@@ -443,7 +446,8 @@ jobs:
         echo "Checking if osqueryd is running..."
         pgrep -x osqueryd || (echo "ERROR: osqueryd is not running" && exit 1)
         echo "Checking if orbit is running..."
-        pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
+        # With a Fleet 5 server, orbit renames its process to fleet.
+        pgrep -x fleet || pgrep -x orbit || (echo "ERROR: orbit is not running" && exit 1)
         # Don't check for Fleet Desktop as it doesn't run in the windowless CI environment.
         echo "All processes are running."
 
@@ -457,6 +461,9 @@ jobs:
         sudo apt remove fleet-osquery -y
 
   fleetd-windows:
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 10
     strategy:
       matrix:

@@ -30,7 +30,7 @@ This is the _single source of truth_ for Fleet's strategy, positioning, past, an
 
 Every month, Fleet holds a company-wide meeting called the "All hands". 
 
-All team members should attend the "All hands" every month.  "All hands" meetings are recorded. To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
+All team members should attend the "All hands" every month.  "All hands" meetings are recorded. To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within 1 business day. 
 
 
 ### E-group 
@@ -53,7 +53,7 @@ Everyone can contribute at Fleet.  But to get something done, work directly with
 | Revenue                              | <sup><sub>_See [🐋 SVP of Global Sales](https://fleetdm.com/handbook/sales#team)_</sup></sub>
 | Pricing                              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand design & illustrations         | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Website                              | <sup><sub>_See [🕸️ #g-website group](https://fleetdm.com/handbook/company/product-groups#website-group)_
+| Website                              | <sup><sub>_See [🕸️ First impressions group](https://fleetdm.com/handbook/company/product-groups#first-impressions)_
 | Product marketing (PMM)              | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Brand strategy                       | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Public relations                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
@@ -80,12 +80,12 @@ Everyone can contribute at Fleet.  But to get something done, work directly with
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Design system for the [Fleet product](https://www.figma.com/files/project/15701210) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_</sup></sub>
+| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ (interim)</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Product introduction docs            | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Product reference docs               | <sup><sub>_[Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Product reference docs               | <sup><sub>_[Noah Talerman](https://fleetdm.com/handbook/product-design#team) (interim)_</sup></sub>
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
@@ -344,6 +344,16 @@ Chats under the enterprise account are covered by Anthropic's commercial terms a
 
 Questions? Ask in #help-it.
 
+##### Requesting more Claude tokens
+
+Token limits are per user. If you hit your limit, or expect a heavy workload, post in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) and include:
+
+- What you're working on and why it matters.
+- Roughly how many tokens you expect to need, and for how long.
+- What you've already tried to reduce token use, such as choosing a lighter model or narrowing the scope of the work.
+
+The [IT team](https://fleetdm.com/handbook/it) reviews the request, then raises your token limit or follows up with ideas for reducing token use. A team member responds within one business day. If your request is urgent, mention a [team member](https://fleetdm.com/handbook/it#team) in #help-it. For new tools or licenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) instead.
+
 
 ### Integrated AI tools
 
@@ -411,7 +421,7 @@ These guidelines will evolve as AI tools and our use of them mature.
 
 ## Fleetdm.com
 
-Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a #g-first-impressions request](https://github.com/fleetdm/fleet/issues/new?labels=%23g-first-impressions&template=first-impressions-request.md) on the [#g-first-impressions kanban board](https://github.com/orgs/fleetdm/projects/105). 
+Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a feature request](https://github.com/fleetdm/fleet/issues/new?labels=%23g-first-impressions&template=feature-request.md) on the [#g-first-impressions kanban board](https://github.com/orgs/fleetdm/projects/105). 
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 

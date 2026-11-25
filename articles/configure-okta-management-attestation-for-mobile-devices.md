@@ -20,13 +20,15 @@ Check these before you start:
 ### Create the platform in Okta
 
 1. In the Admin Console, go to **Security > Device integrations**.
-2. Click the **Endpoint management** tab.
-3. Click **Add platform**.
-4. Select **iOS**, then click **Next**.
-5. Generate a new secret key or enter a custom one that meets the minimum requirements. Save the key securely to use later in Fleet.
-6. For **Device management provider**, enter Fleet Device Management.
+2. Click the **Management attestation** tab.
+3. Click **Create app hint**.
+4. For the platform, select **iOS**.
+5. Under **Secret key**, select **Use new secret key** to have Okta generate one, or **Use existing secret key** to enter your own. Copy the **Secret key value** and save it securely to use later in Fleet.
+6. For **Device management provider**, enter `Fleet`. Okta limits this field to 20 characters.
 7. For **Enrollment link**, enter `https://<your-fleet-url>/enroll?enroll_secret=<your-enrollment-token>&byod=true`, replacing the values with your own.
-8. Select **Yes, trust this app hint for Management Attestation now**, then click **Save**.
+8. Under **Trust this app hint for management attestation?**, select **Yes, trust this app hint for Management Attestation now**, then click **Save**.
+
+> **Note:** Some Okta orgs still use the older layout. There, click the **Endpoint management** tab, click **Add platform**, select **iOS**, and click **Next** before you configure the secret key.
 
 > **Warning:** The secret key value is shown only once. If you generate a new secret key later, update your Fleet app configuration with the new key or attestation will fail.
 
@@ -50,7 +52,7 @@ Okta Verify uses managed app configuration to pass the secret key that marks the
 </dict>
 ```
 
-> **Note:** Fleet recommends storing the secret key as a `$FLEET_SECRET_*` variable instead of pasting it in plain text. See [secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
+> **Note:** Fleet recommends storing the secret key as a `$FLEET_SECRET_*` variable instead of pasting it in plain text. See [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
 Other keys for configuring Okta Verify are available depending on your enrollment type. See Okta's [managed app configurations for iOS](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-ios.htm). If the app configuration changes, Fleet will automatically redeploy the application.
 
@@ -83,7 +85,7 @@ In Fleet, use the following configuration payload for Okta Verify:
 }
 ```
 
-Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Fleet variables](https://fleetdm.com/guides/fleet-variables).
+Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 ## Considerations when deploying to iOS
 
@@ -92,8 +94,8 @@ Other keys are available for the Android payload. See Okta's [managed app config
 
 ## Further reading
 
-- [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
-- [Fleet variables](https://fleetdm.com/guides/fleet-variables)
+- [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
+- [Variables](https://fleetdm.com/guides/fleet-variables)
 - [Install App Store apps](https://fleetdm.com/guides/install-app-store-apps)
 
 <meta name="articleTitle" value="Configure Okta management attestation for mobile devices with Fleet">

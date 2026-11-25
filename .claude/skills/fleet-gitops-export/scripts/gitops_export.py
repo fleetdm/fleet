@@ -15,11 +15,12 @@ Connection flags (any command): --fleetctl PATH, --config FILE, --context NAME.
 They're remembered for the directory after the first command.
 
 Read-only against Fleet: every call is a GET through `fleetctl api`, and the
-only `fleetctl gitops` run is a --dry-run. Work files (the plan, downloaded
-artifacts, validation results) go in an owner-only temp folder outside the
-repo, printed by each command (--work picks another one; pass it to every
-command). None of them hold secret values, but they do hold copies of
-profiles and scripts; `clean` deletes the folder.
+only `fleetctl gitops` run is a --dry-run. Outside the Fleet repository,
+`export` also downloads Fleet's default package scripts from GitHub. Work
+files (the plan, downloaded artifacts, validation results) go in an owner-only
+temp folder outside the repo, printed by each command (--work picks another
+one; pass it to every command). None of them hold secret values, but they do
+hold copies of profiles and scripts; `clean` deletes the folder.
 
 Values Fleet can't return (FLEET_SECRET_* variables, masked tokens) come from
 the repo's .env, or --env-file, and then the environment. Nothing prints them.
@@ -42,6 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import fleet_defaults  # noqa: E402
 from checks import Checker  # noqa: E402
 from collect import Collector  # noqa: E402
 from fleet_api import API, Fleetctl, FleetctlError  # noqa: E402
@@ -112,6 +114,24 @@ def dry_run_env_file(args, target: Path) -> Path | None:
         return p
     p = target / ".env"
     return p if p.is_file() else None
+
+
+def load_default_scripts(work: Path, refresh: bool) -> str | None:
+    """Read Fleet's default package scripts for this run. Returns why they couldn't be read, if they couldn't.
+
+    `export` saves what it read, so `validate` compares the repo against the same scripts.
+    """
+    saved = work / "default_scripts.json"
+    if not refresh and saved.exists():
+        fleet_defaults.use(json.loads(saved.read_text(encoding="utf-8"))["scripts"])
+        return None
+    try:
+        (scripts, source), problem = fleet_defaults.read_defaults(), None
+    except (OSError, ValueError) as e:
+        scripts, source, problem = {}, fleet_defaults.SOURCE_URL, str(e)
+    fleet_defaults.use(scripts)
+    saved.write_text(json.dumps({"source": source, "scripts": scripts}, indent=2), encoding="utf-8")
+    return problem
 
 
 def parse_version(v: str):
@@ -259,7 +279,13 @@ def cmd_export(args) -> int:
     if blobs.exists():
         shutil.rmtree(blobs)
     keep = [s.strip() for s in (args.keep_fma_scripts or "").split(",") if s.strip()]
+    problem = load_default_scripts(work, refresh=True)
     plan = Planner(snap, layout, work, keep_fma_scripts=keep).build()
+    if problem:
+        plan["notes"].append({"level": "warn", "scope": "Global", "item": "custom packages", "message": (
+            f"Fleet's default install and uninstall scripts couldn't be read from {fleet_defaults.SOURCE_URL} ({problem}), so packages "
+            "that use them got them written as custom scripts, which pins them. Allow access to that address and run export again "
+            "to leave them out")})
     (work / "plan.json").write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8")
     (work / "plan.sha256").write_text(file_sha(work / "plan.json"), encoding="utf-8")
     if edited:
@@ -296,6 +322,7 @@ def cmd_validate(args) -> int:
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
     (work / "validation.json").unlink(missing_ok=True)
     env_file = None if args.no_dry_run else dry_run_env_file(args, target)
+    load_default_scripts(work, refresh=False)
     ch = Checker(target, plan)
     try:
         ch.run_validator(offline=args.offline)

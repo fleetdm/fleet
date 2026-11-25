@@ -45,6 +45,8 @@ export interface IInputFieldProps {
   /** Use in conjunction with type "password" and enableCopy to see eye icon to view */
   enableShowSecret?: boolean;
   enableCopy?: boolean;
+  /** Shows a button that opens the field's value (a URL) in a new tab. Not supported on textareas. */
+  enableOpenInNewTab?: boolean;
   /**
    * Whether 1Password should skip this field.
    * Defaults to `true` because most Fleet inputs are not credential fields.
@@ -85,6 +87,7 @@ const InputField = ({
   helpText = "",
   enableShowSecret = false,
   enableCopy = false,
+  enableOpenInNewTab = false,
   disableResize = false,
   ignore1password = true,
   step,
@@ -124,6 +127,11 @@ const InputField = ({
 
   const copyText = typeof value === "string" ? value : String(value ?? "");
 
+  const onOpenInNewTab = (evt: React.MouseEvent) => {
+    evt.preventDefault();
+    window.open(copyText, "_blank", "noopener,noreferrer");
+  };
+
   // Copy button for textarea (positioned absolutely above textarea)
   const renderTextareaCopyButton = () => {
     return (
@@ -147,6 +155,15 @@ const InputField = ({
             // Clears the 8px gap to the field so the badge sits inside it,
             // away from the field's border.
             tooltipOffset={18}
+          />
+        )}
+        {enableOpenInNewTab && (
+          <Button
+            variant="secondary"
+            className={`${baseClass}__action-button`}
+            onClick={onOpenInNewTab}
+            ariaLabel="Open in new tab"
+            icon="external-link"
           />
         )}
         {enableShowSecret && (
@@ -186,7 +203,7 @@ const InputField = ({
     labelTooltipPosition,
   };
 
-  const hasActionButtons = enableCopy || enableShowSecret;
+  const hasActionButtons = enableCopy || enableOpenInNewTab || enableShowSecret;
 
   if (type === "textarea") {
     const textareaContainerClasses = classnames(

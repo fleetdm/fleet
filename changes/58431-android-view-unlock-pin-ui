@@ -1,0 +1,2 @@
+- Added a **View unlock PIN** action and modal for Android hosts, and the `viewed_host_unlock_pin` activity in the global and host activity feeds.
+- Updated the Lock modal copy for Android (BYOD and company-owned), and updated the Lock and Unlock modal copy for macOS, iOS/iPadOS, Windows, and Linux.

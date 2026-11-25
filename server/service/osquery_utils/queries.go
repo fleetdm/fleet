@@ -474,12 +474,15 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"disk_space_unix": {
 		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
+		// On composefs (bootc) hosts "/" is a read-only overlay reporting the metadata image's size;
+		// the root filesystem is at /sysroot.
 		Query: fmt.Sprintf(`
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
 					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts %s GROUP BY device)) AS gigs_all_disk_space
-		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
+		FROM mounts WHERE path IN ('/', '/sysroot')
+		ORDER BY CASE WHEN path = '/' AND type != 'overlay' THEN 0 WHEN path = '/sysroot' THEN 1 ELSE 2 END LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskSpace,
 	},
@@ -2302,9 +2305,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
-	// Some Arch-based distributions are recorded as "Arch Linux" in the OS inventory. The host keeps its own name and
-	// version in hosts.os_version (the os_version detail query), which the host API returns.
-	name, forceRollingVersion := fleet.InventoryOSName(rows[0]["name"])
+	// Arch Linux ARM is recorded as "Arch Linux" in the OS inventory. The host keeps its own name and version in
+	// hosts.os_version (the os_version detail query), which the host API returns.
+	name := fleet.InventoryOSName(rows[0]["name"])
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -2317,9 +2320,6 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)
-	if forceRollingVersion {
-		hostOS.Version = "rolling"
-	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
@@ -2332,9 +2332,10 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 func parseOSVersion(name string, version string, major string, minor string, patch string, build string, extra string) string {
 	var osVersion string
 	switch {
-	case strings.Contains(strings.ToLower(name), "ubuntu"):
+	case strings.Contains(strings.ToLower(name), "ubuntu"), strings.Contains(strings.ToLower(name), "zorin"):
 		// Ubuntu takes a different approach to updating patch IDs so we instead use
-		// the version string provided after removing the code name.
+		// the version string provided after removing the code name. Zorin OS keeps
+		// VERSION_ID at the major version, so major/minor/patch would read N.0.0.
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
 	case strings.Contains(strings.ToLower(name), "chrome"):
@@ -3467,13 +3468,19 @@ func directIngestMunkiInfo(ctx context.Context, logger *slog.Logger, host *fleet
 }
 
 func directIngestDiskEncryptionLinux(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	encrypted := false
+	// On composefs (bootc) hosts "/" is an overlay with no block device, so it has no row; the root
+	// filesystem is at /sysroot.
+	var hasRoot, rootEncrypted, sysrootEncrypted bool
 	for _, row := range rows {
-		if row["path"] == "/" && row["encrypted"] == "1" {
-			encrypted = true
-			break
+		switch row["path"] {
+		case "/":
+			hasRoot = true
+			rootEncrypted = rootEncrypted || row["encrypted"] == "1"
+		case "/sysroot":
+			sysrootEncrypted = sysrootEncrypted || row["encrypted"] == "1"
 		}
 	}
+	encrypted := rootEncrypted || (!hasRoot && sysrootEncrypted)
 
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
 }
@@ -3554,7 +3561,7 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (fleet/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
 			"host", host.Hostname)
@@ -3686,7 +3693,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
 	if !IsDiskEncryptionEscrowEnabledForHost(ctx, logger, ds, host) {
-		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host fleet/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
 			"host", host.Hostname)
@@ -3970,7 +3977,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
 	}
 	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
-		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
+		"host_id", hostID, "fleet_id", *teamID, "fleet_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
 }
 
@@ -4435,9 +4442,16 @@ func GetDetailQueries(
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
-	// IdP host vitals are a premium feature.
+	// IdP host vitals and AI agent sessions are premium features.
 	if license.IsPremium(ctx) {
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
+		if appConfig == nil || !appConfig.ServerSettings.AISessionsDisabled {
+			generatedMap["ai_agent_sessions"] = aiAgentSessions
+			if fleetConfig.Osquery.AISessionMaxToolCalls > 0 {
+				generatedMap["ai_agent_session_events"] = aiAgentSessionEventsQuery(
+					fleetConfig.Osquery.AISessionMaxToolCalls, fleetConfig.Osquery.AISessionMaxToolCallsPerRefresh)
+			}
+		}
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

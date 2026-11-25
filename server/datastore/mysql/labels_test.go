@@ -93,6 +93,8 @@ func TestLabels(t *testing.T) {
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"RecordLabelQueryExecutionsQueryErrorKeepsMembership", testRecordLabelQueryExecutionsQueryErrorKeepsMembership},
 		{"DeleteLabel", testDeleteLabel},
+		{"DeleteLabelMembership", testDeleteLabelMembership},
+		{"CleanupOrphanedLabelMembership", testCleanupOrphanedLabelMembership},
 		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
@@ -1616,6 +1618,156 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	require.True(t, fleet.IsForeignKey(err))
 }
 
+func testDeleteLabelMembership(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	adminFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	prevBatchSize := labelMembershipDeleteBatchSize
+	labelMembershipDeleteBatchSize = 2
+	t.Cleanup(func() { labelMembershipDeleteBatchSize = prevBatchSize })
+
+	var hosts []*fleet.Host
+	for i := range 5 {
+		name := fmt.Sprintf("delete-membership-%d", i)
+		hosts = append(hosts, test.NewHost(t, ds, name, "", name, name, time.Now()))
+	}
+
+	newLabelWithAllHosts := func(name string) *fleet.Label {
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: name, Query: "SELECT 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic})
+		require.NoError(t, err)
+		for _, h := range hosts {
+			require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+		}
+		return label
+	}
+	membershipCount := func(labelID uint) int {
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`, labelID)
+		})
+		return count
+	}
+
+	deleted := newLabelWithAllHosts("delete-membership-deleted")
+	kept := newLabelWithAllHosts("delete-membership-kept")
+	require.Equal(t, len(hosts), membershipCount(deleted.ID))
+
+	require.NoError(t, ds.DeleteLabel(ctx, deleted.ID))
+
+	require.Eventually(t, func() bool { return membershipCount(deleted.ID) == 0 }, 10*time.Second, 50*time.Millisecond)
+	assert.Equal(t, len(hosts), membershipCount(kept.ID))
+
+	_, _, err := ds.Label(ctx, deleted.ID, adminFilter)
+	require.True(t, fleet.IsNotFound(err))
+	labels, err := ds.ListLabels(ctx, adminFilter, fleet.ListOptions{}, true)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	assert.Equal(t, kept.ID, labels[0].ID)
+	assert.Equal(t, len(hosts), labels[0].HostCount)
+	for _, h := range hosts {
+		hostLabels, err := ds.ListLabelsForHost(ctx, h.ID)
+		require.NoError(t, err)
+		require.Len(t, hostLabels, 1)
+		assert.Equal(t, kept.ID, hostLabels[0].ID)
+	}
+
+	// A delete that fails, here on the software installer's foreign key, keeps the label's membership.
+	user := test.NewUser(t, ds, "delete-membership-user", "delete-membership@example.com", false)
+	installerFile, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installerFile,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           "foo",
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO software_installer_labels (software_installer_id, label_id) VALUES (?, ?)`, installerID, kept.ID)
+		return err
+	})
+	err = ds.DeleteLabel(ctx, kept.ID)
+	require.True(t, fleet.IsForeignKey(err))
+	assert.Equal(t, len(hosts), membershipCount(kept.ID))
+}
+
+func testCleanupOrphanedLabelMembership(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	prevBatchSize := labelMembershipDeleteBatchSize
+	labelMembershipDeleteBatchSize = 2
+	t.Cleanup(func() { labelMembershipDeleteBatchSize = prevBatchSize })
+
+	var hosts []*fleet.Host
+	for i := range 5 {
+		name := fmt.Sprintf("orphaned-membership-%d", i)
+		hosts = append(hosts, test.NewHost(t, ds, name, "", name, name, time.Now()))
+	}
+	newLabelWithAllHosts := func(name string) *fleet.Label {
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: name, Query: "SELECT 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic})
+		require.NoError(t, err)
+		for _, h := range hosts {
+			require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+		}
+		return label
+	}
+	membershipCount := func(labelID uint) int {
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`, labelID)
+		})
+		return count
+	}
+
+	kept := newLabelWithAllHosts("orphaned-membership-kept")
+
+	t.Run("nothing to clean up", func(t *testing.T) {
+		require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
+		assert.Equal(t, len(hosts), membershipCount(kept.ID))
+	})
+
+	t.Run("label deletion interrupted after its first batch", func(t *testing.T) {
+		interrupted := newLabelWithAllHosts("orphaned-membership-interrupted")
+		neverStarted := newLabelWithAllHosts("orphaned-membership-never-started")
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `DELETE FROM labels WHERE id IN (?, ?)`, interrupted.ID, neverStarted.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ? ORDER BY host_id LIMIT ?`,
+				interrupted.ID, labelMembershipDeleteBatchSize)
+			return err
+		})
+		// One batch was removed before the interruption, so the rest of the label's rows are orphaned.
+		require.Equal(t, len(hosts)-labelMembershipDeleteBatchSize, membershipCount(interrupted.ID))
+		// The interruption came before this label's cleanup began, so all of its rows are orphaned.
+		require.Equal(t, len(hosts), membershipCount(neverStarted.ID))
+
+		require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
+
+		assert.Zero(t, membershipCount(interrupted.ID))
+		assert.Zero(t, membershipCount(neverStarted.ID))
+		assert.Equal(t, len(hosts), membershipCount(kept.ID))
+	})
+
+	t.Run("host reports a label after its deletion", func(t *testing.T) {
+		deleted := newLabelWithAllHosts("orphaned-membership-reported-late")
+		require.NoError(t, ds.DeleteLabel(ctx, deleted.ID))
+		require.Eventually(t, func() bool { return membershipCount(deleted.ID) == 0 }, 10*time.Second, 50*time.Millisecond)
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{deleted.ID: new(true)}, time.Now(), false))
+		require.Equal(t, 1, membershipCount(deleted.ID))
+
+		require.NoError(t, ds.CleanupOrphanedLabelMembership(ctx))
+
+		assert.Zero(t, membershipCount(deleted.ID))
+		assert.Equal(t, len(hosts), membershipCount(kept.ID))
+	})
+}
+
 func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
 	test.AddAllHostsLabel(t, db)
 
@@ -1833,11 +1985,15 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	q := test.NewQuery(t, ds, nil, "query1", "select 1", 0, true)
 	q2 := test.NewQuery(t, ds, nil, "query2", "select 1", 0, true)
 	p, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
+		Name:        q.Name,
+		Query:       q.Query,
+		Description: q.Description,
 	})
 	require.NoError(t, err)
 	p2, err := ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+		Name:        q2.Name,
+		Query:       q2.Query,
+		Description: q2.Description,
 	})
 	require.NoError(t, err)
 
@@ -2685,17 +2841,17 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	// Adding a team2 host to a team1 label should fail
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostTeam2.ID}, filter)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+	require.ErrorIs(t, err, errLabelMismatchHostTeam)
 
 	// Adding a no-team host to a team1 label should fail
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostNoTeam.ID}, filter)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+	require.ErrorIs(t, err, errLabelMismatchHostTeam)
 
 	// Adding mixed hosts (team1 + team2) to a team1 label should fail
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostTeam1.ID, hostTeam2.ID}, filter)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+	require.ErrorIs(t, err, errLabelMismatchHostTeam)
 
 	// Global label can have hosts from any team
 	globalMembershipLabel, err := ds.NewLabel(ctx, &fleet.Label{
@@ -4424,7 +4580,7 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 		"label_membership_type",
 		"author_id",
 		"criteria",
-		"team_id",
+		"fleet_id",
 		"host_count",
 	} {
 		t.Run("order_"+key, func(t *testing.T) {
@@ -4435,8 +4591,10 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
-		require.Error(t, err)
+		for _, key := range []string{"l.id; SELECT 1", "team_id"} {
+			_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key}, false)
+			require.Error(t, err)
+		}
 	})
 
 	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {

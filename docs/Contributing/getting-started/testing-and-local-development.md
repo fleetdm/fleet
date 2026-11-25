@@ -835,7 +835,7 @@ FLEET_NATS_NKEY_FILE="nkey-cred-file.txt" \
 
 ## Telemetry
 
-You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
+You can configure the server to record and report trace data using OpenTelemetry and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
 
 Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/tools/telemetry/README.md) for instructions.
 

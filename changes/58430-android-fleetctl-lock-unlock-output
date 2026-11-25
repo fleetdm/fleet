@@ -1,0 +1,1 @@
+- Updated `fleetctl mdm lock` output for Android hosts to point at `fleetctl mdm unlock`, and `fleetctl mdm unlock` now prints the unlock PIN and the time the Android host was locked.

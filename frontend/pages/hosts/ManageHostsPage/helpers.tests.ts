@@ -21,10 +21,8 @@ describe("STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS", () => {
   it.each([
     "os_settings=pending",
     "apple_settings=failing",
-    "macos_settings=latest",
     "os_settings_disk_encryption=verified",
     "macos_bootstrap_package=failed",
-    "bootstrap_package=pending",
     "software_status=failed",
   ])("drops %s when switching to All fleets", (filter) => {
     expect(

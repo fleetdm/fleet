@@ -11,8 +11,7 @@ defaults:
     shell: bash
 
 # Least-privilege default; jobs that build attestations grant id-token/attestations at the job level.
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   set-version:
@@ -39,7 +38,7 @@ jobs:
       attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -108,11 +107,13 @@ jobs:
           path: desktop.app.tar.gz
 
   desktop-windows:
+    permissions:
+      contents: read
     needs: set-version
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -143,7 +144,6 @@ jobs:
     needs: desktop-windows
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
-      contents: read
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
@@ -158,11 +158,13 @@ jobs:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   desktop-windows-arm64:
+    permissions:
+      contents: read
     needs: set-version
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -193,7 +195,6 @@ jobs:
     needs: desktop-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
-      contents: read
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
@@ -217,7 +218,7 @@ jobs:
       attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 
@@ -259,7 +260,7 @@ jobs:
       attestations: write # required for attest-build-provenance
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
 

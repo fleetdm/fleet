@@ -19,6 +19,8 @@ The best practice on macOS is to also deploy the [Fleet Desktop app](https://fle
 1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app) and select **Automatic**. Fleet creates a policy that installs the app on Macs that don't have it, and reinstalls it if an end user deletes it.
 2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
 
+> If your Fleet deployment requires [mTLS client certificates](https://fleetdm.com/guides/fleetd-mtls), Fleet hasn't confirmed yet that the Fleet Desktop app can load the **My device** page. Fleet is testing this in Fleet 5.3 ([#55448](https://github.com/fleetdm/fleet/issues/55448)).
+
 ## Update Fleet Desktop
 
 Fleet automatically updates the Fleet Desktop menu bar icon on macOS and the system tray item on Windows and Linux. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
@@ -45,11 +47,11 @@ The server uses this token to authenticate requests that give host information. 
 
 Successfully brute-forcing this UUID is about [as likely as you getting hit by a meteorite this year](https://pkg.go.dev/github.com/google/uuid#NewRandom).
 
-**Rate limiting**
+### Rate limiting
 
 To prevent brute-forcing attempts, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 1000 **consecutive** invalid UUIDs in a one-minute interval, Fleet will ban requests from such IP for one minute (fail requests with HTTP error code 429). This rate limit algorithm is used to support deployments of Fleet where all hosts are behind the same NAT (all hosts mapped to the same IP).
 
-**Token rotation**
+### Token rotation
 
 ```
 ℹ️  In Fleet v4.22.0, token rotation for Fleet Desktop was introduced.
@@ -64,9 +66,11 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
-**Single Sign-On (SSO)**
+### Single sign-on (SSO)
 
 Fleet can be configured to require an end user to authenticate via SSO to view the "My Device" page. 
+
+> Signing in to the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin) with a hardware security key, like a YubiKey, is [coming soon](https://github.com/fleetdm/fleet/issues/59495).
 
 To require SSO to view the "My Device" page, click on your profile in the top right and select **Settings**.
 On the settings page, go to **Organization Settings > Fleet Desktop > End user authentication**.
