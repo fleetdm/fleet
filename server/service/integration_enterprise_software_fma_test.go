@@ -3106,6 +3106,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			TeamID:                       &teamID,
 			Type:                         new("patch"),
 			SoftwareTitleID:              &titleID,
+			AutomationType:               new(fleet.PolicyAutomationSoftware),
 			NotifyBeforePatching:         true,
 			ContinuousAutomationsEnabled: true,
 		}, http.StatusOK, &policyResp)
@@ -3212,7 +3213,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			return fmt.Sprintf("/api/latest/fleet/policies/%d", policyID)
 		}
 		optionsConflictMsg := `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`
-		requiresSoftwareMsg := `If "force_patch" is true, "automation_type" must be "software".`
+		requiresSoftwareMsg := `If "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" is true, "automation_type" must be "software".`
+		requiresOptionMsg := `If "automation_type" is "software", one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" must be true.`
 
 		// create a patch policy with force_patch and patch_when_closed, the request should fail with 422
 		res := s.Do("POST", "/api/latest/fleet/policies", map[string]any{
@@ -3260,24 +3262,47 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Contains(t, errMsg, `"All fleets" policy cannot have force_patch`)
 		res.Body.Close()
 
-		// create a patch policy with the software automation and no option, force_patch should be true
+		// create a patch policy with the software automation and no patch option, the request should fail with 422
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":          teamID,
+			"type":              "patch",
+			"software_title_id": titleID,
+			"automation_type":   "software",
+		}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresOptionMsg)
+		res.Body.Close()
+
+		// create a patch policy with force_patch and no automation_type, the request should fail with 422
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":          teamID,
+			"type":              "patch",
+			"software_title_id": titleID,
+			"force_patch":       true,
+		}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresSoftwareMsg)
+		res.Body.Close()
+
+		// create a patch policy with patch_when_closed and no automation_type, the request should fail with 422
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":                       teamID,
+			"type":                           "patch",
+			"software_title_id":              titleID,
+			"patch_when_closed":              true,
+			"continuous_automations_enabled": true,
+		}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresSoftwareMsg)
+		res.Body.Close()
+
+		// create a patch policy with the software automation and force_patch, force_patch should be true
 		policyResp := fleet.CreatePolicyResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/policies", map[string]any{
 			"fleet_id":          teamID,
 			"type":              "patch",
 			"software_title_id": titleID,
 			"automation_type":   "software",
-		}, http.StatusOK, &policyResp)
-		require.True(t, policyResp.Policy.ForcePatch)
-		_, err = s.ds.DeleteTeamPolicies(ctx, teamID, []uint{policyResp.Policy.ID})
-		require.NoError(t, err)
-
-		// create a patch policy with force_patch and no automation_type, the software automation should be turned on
-		policyResp = fleet.CreatePolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/policies", map[string]any{
-			"fleet_id":          teamID,
-			"type":              "patch",
-			"software_title_id": titleID,
 			"force_patch":       true,
 		}, http.StatusOK, &policyResp)
 		policyID := policyResp.Policy.ID
@@ -3337,6 +3362,19 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			http.StatusUnprocessableEntity)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, requiresSoftwareMsg)
+		res.Body.Close()
+
+		// update the policy with patch_when_closed and automation_type null, the request should fail with 422
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true, "automation_type": nil},
+			http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresSoftwareMsg)
+		res.Body.Close()
+
+		// update the policy with automation_type software and no patch option, the request should fail with 422
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"automation_type": "software"}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresOptionMsg)
 		res.Body.Close()
 
 		// update the policy without the software automation to force_patch, the software automation should be turned on

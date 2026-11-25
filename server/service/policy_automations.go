@@ -285,15 +285,17 @@ func normalizePatchPolicyCreate(tp *fleet.NewTeamPolicyPayload) error {
 		return nil
 	}
 
-	// Set automation_type to "software" because force_patch installs the patch through the software automation.
-	if tp.ForcePatch {
-		if tp.AutomationType != nil && *tp.AutomationType != fleet.PolicyAutomationSoftware {
-			return fleet.NewUserMessageError(errors.New(errForcePatchRequiresSoftwareAutomation), http.StatusUnprocessableEntity)
+	patching := tp.AutomationType != nil && *tp.AutomationType == fleet.PolicyAutomationSoftware
+
+	// Patch options install the patch through the software automation, so each one requires the other.
+	if tp.ForcePatch || tp.PatchWhenClosed || tp.NotifyBeforePatching || tp.PatchDeadline {
+		if !patching {
+			return fleet.NewUserMessageError(errors.New(errPatchOptionsRequireSoftwareAutomation), http.StatusUnprocessableEntity)
 		}
-		tp.AutomationType = new(fleet.PolicyAutomationSoftware)
+	} else if patching {
+		return fleet.NewUserMessageError(errors.New(errSoftwareAutomationRequiresPatchOption), http.StatusUnprocessableEntity)
 	}
 
-	patching := tp.AutomationType != nil && *tp.AutomationType == fleet.PolicyAutomationSoftware
 	titleSet := tp.SoftwareTitleID != nil && *tp.SoftwareTitleID != 0
 	switch {
 	case tp.PatchSoftwareTitleID == nil && titleSet:
@@ -322,15 +324,29 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 		return &fleet.BadRequestError{Message: "a patch policy's software_title_id can't be changed"}
 	}
 
-	// Set automation_type to "software" because force_patch installs the patch through the software automation.
-	if ptr.ValOrZero(p.ForcePatch) {
-		if p.AutomationType.Set && p.AutomationType.Value != fleet.PolicyAutomationSoftware {
-			return fleet.NewUserMessageError(errors.New(errForcePatchRequiresSoftwareAutomation), http.StatusUnprocessableEntity)
-		}
+	forcePatch := ptr.ValOrZero(p.ForcePatch)
+	patchWhenClosed := ptr.ValOrZero(p.PatchWhenClosed)
+	notifyBeforePatching := ptr.ValOrZero(p.NotifyBeforePatching)
+	patchDeadline := ptr.ValOrZero(p.PatchDeadline)
+
+	// Set automation_type to "software" when force_patch is sent without automation_type.
+	if forcePatch && !p.AutomationType.Set {
 		p.AutomationType = optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware}
 	}
 
 	patching := p.AutomationType.Valid && p.AutomationType.Value == fleet.PolicyAutomationSoftware
+
+	// Patch options install the patch through the software automation, so each one requires the other.
+	if p.AutomationType.Set {
+		if forcePatch || patchWhenClosed || notifyBeforePatching || patchDeadline {
+			if !patching {
+				return fleet.NewUserMessageError(errors.New(errPatchOptionsRequireSoftwareAutomation), http.StatusUnprocessableEntity)
+			}
+		} else if patching {
+			return fleet.NewUserMessageError(errors.New(errSoftwareAutomationRequiresPatchOption), http.StatusUnprocessableEntity)
+		}
+	}
+
 	switch {
 	case patching && !titleSet:
 		p.SoftwareTitleID = optjson.Any[uint]{Set: true, Valid: true, Value: *policy.PatchSoftwareTitleID}

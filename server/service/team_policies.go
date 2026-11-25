@@ -40,12 +40,12 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	if err := checkAutomationTypeLicense(ctx, tp.AutomationType); err != nil {
 		return nil, err
 	}
-	if err := normalizePatchPolicyCreate(&tp); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "patch policy fields")
-	}
 	// Check the patch options against each other before the checks for each option.
 	if fleet.PatchOptionsConflict(tp.PatchWhenClosed, tp.NotifyBeforePatching, tp.PatchDeadline, tp.ForcePatch) {
 		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(fleet.ErrPolicyPatchOptionsMutuallyExclusive, http.StatusUnprocessableEntity))
+	}
+	if err := normalizePatchPolicyCreate(&tp); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "patch policy fields")
 	}
 	if tp.AutomationType != nil {
 		if err := checkAutomationTypeCompanions(tp.AutomationType, policyAutomationCompanions{

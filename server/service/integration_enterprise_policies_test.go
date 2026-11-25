@@ -1618,7 +1618,7 @@ func (s *integrationEnterpriseTestSuite) TestCombinedPolicyEndpoints() {
 	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
 		json.RawMessage(fmt.Sprintf(`{"automation_type": "software", "software_title_id": %d}`, titleID+1000)), http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), "can't be changed")
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID), json.RawMessage(`{"automation_type": "software"}`),
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID), json.RawMessage(`{"automation_type": "software", "force_patch": true}`),
 		http.StatusOK, &modResp)
 	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
 	require.NotNil(t, installerID(reportOnly.ID))
@@ -1639,14 +1639,14 @@ func (s *integrationEnterpriseTestSuite) TestCombinedPolicyEndpoints() {
 		json.RawMessage(fmt.Sprintf(`{"automation_type": null, "software_title_id": %d}`, titleID+1000)), http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), "can't be changed")
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", reportOnly.ID),
-		json.RawMessage(fmt.Sprintf(`{"automation_type": "software", "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
+		json.RawMessage(fmt.Sprintf(`{"automation_type": "software", "force_patch": true, "software_title_id": %d}`, titleID)), http.StatusOK, &modResp)
 	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
 	require.NotNil(t, installerID(reportOnly.ID))
 
 	// Created with automation_type "software", it patches right away.
 	_, err = s.ds.DeleteTeamPolicies(ctx, team.ID, []uint{reportOnly.ID})
 	require.NoError(t, err)
-	patching := create("latest", fmt.Sprintf(`{"type": "patch", "fleet_id": %d, "software_title_id": %d, "automation_type": "software"}`,
+	patching := create("latest", fmt.Sprintf(`{"type": "patch", "fleet_id": %d, "software_title_id": %d, "automation_type": "software", "force_patch": true}`,
 		team.ID, titleID), http.StatusOK)
 	require.Equal(t, fleet.PolicyAutomationSoftware, *patching.AutomationType)
 	require.NotNil(t, installerID(patching.ID))
