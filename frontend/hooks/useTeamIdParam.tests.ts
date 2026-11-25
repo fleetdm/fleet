@@ -1,4 +1,6 @@
-import { preferredOrLowestIdFleet } from "./useTeamIdParam";
+import createMockUser from "__mocks__/userMock";
+
+import { getDefaultTeam, preferredOrLowestIdFleet } from "./useTeamIdParam";
 
 describe("preferredOrLowestIdFleet", () => {
   it('returns "Workstations" when present', () => {
@@ -60,5 +62,26 @@ describe("preferredOrLowestIdFleet", () => {
 
   it("returns undefined for an empty array", () => {
     expect(preferredOrLowestIdFleet([])).toBeUndefined();
+  });
+});
+
+describe("getDefaultTeam", () => {
+  it("picks the lowest-ID admin fleet, not the alphabetically first one", () => {
+    // Sorted by name, as getUserTeams returns them.
+    const fleets = [
+      { id: 310, name: "Alpha", role: "admin" as const },
+      { id: 5, name: "Beta", role: "maintainer" as const },
+      { id: 12, name: "Zeta", role: "admin" as const },
+    ];
+    const currentUser = createMockUser({ global_role: null, fleets });
+    expect(
+      getDefaultTeam({
+        currentUser,
+        userTeams: fleets,
+        includeAllTeams: false,
+        includeNoTeam: false,
+        isPrimoMode: false,
+      })?.id
+    ).toBe(12);
   });
 });
