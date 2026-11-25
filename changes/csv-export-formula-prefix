@@ -1,0 +1,1 @@
+- Updated report and policy result CSV exports in the UI to prefix values that start with `=`, `+`, `-`, or `@` with `'` so spreadsheets display them as text, matching the hosts CSV export.
