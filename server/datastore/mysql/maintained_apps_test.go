@@ -59,6 +59,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAReconcileIndependentOfCatalogSync", testWindowsFMAReconcileIndependentOfCatalogSync},
 		{"WindowsFMACuratedRuleOnIngest", testWindowsFMACuratedRuleOnIngest},
 		{"WindowsFMACuratedRuleReconcile", testWindowsFMACuratedRuleReconcile},
+		{"WindowsFMACuratedRuleMergeLateSoftware", testWindowsFMACuratedRuleMergeLateSoftware},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ReconcileSoftwareNamesBatched", testReconcileSoftwareNamesBatched},
@@ -3069,4 +3070,52 @@ func testWindowsFMACuratedRuleReconcile(t *testing.T, ds *Datastore) {
 	require.Equal(t, "RealVNC Viewer 9.0", titleNameForSoftware(t, ds, "RealVNC Viewer 9.0"))
 	require.Equal(t, "RealVNC Viewer 8.5.0", titleNameForSoftware(t, ds, "RealVNC Viewer 8.5.0"))
 	require.Equal(t, 1, titlesNamed("Python 3.13.15 (64-bit)"), "a title with no software can't be tested against a rule")
+}
+
+// testWindowsFMACuratedRuleMergeLateSoftware: a curated rule decides from the software
+// rows the reconcile pass read, so a row ingestion attaches to the title after that
+// read isn't moved with them, and the title stays for the next pass to judge.
+func testWindowsFMACuratedRuleMergeLateSoftware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "RealVNC Viewer 8.6.2", Version: "8.6.2", Vendor: "RealVNC", Source: "programs"},
+	})
+	require.NoError(t, err)
+	staleTitleID := titleIDForSoftware(t, ds, "RealVNC Viewer 8.6.2")
+
+	vncID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "RealVNC Connect Viewer", "RealVNC Connect Viewer", "vnc-viewer/windows", realVNCPatchQuery)
+	apps, err := ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	stale, err := ds.staleWindowsTitlesByDestination(ctx, apps)
+	require.NoError(t, err)
+	require.Len(t, stale, 1)
+
+	// Another publisher's program lands on the title between the read and the merge.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO software (name, version, source, vendor, title_id, checksum)
+			VALUES ('RealVNC Viewer 8.6.2', '8.6.2', 'programs', 'Someone Else', ?, UNHEX(MD5('late')))`, staleTitleID)
+		return err
+	})
+	for destinationID, merge := range stale {
+		require.NoError(t, ds.mergeWindowsFMATitle(ctx, destinationID, merge))
+	}
+
+	titleIDByVendor := func(vendor string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT title_id FROM software WHERE name = 'RealVNC Viewer 8.6.2' AND vendor = ?`, vendor)
+		})
+		return id
+	}
+	require.Equal(t, vncID, titleIDByVendor("RealVNC"))
+	require.Equal(t, staleTitleID, titleIDByVendor("Someone Else"))
+	require.Equal(t, staleTitleID, titleIDForTitleNamed(t, ds, "RealVNC Viewer 8.6.2"), "the title keeps its unchecked row")
+
+	// The next pass leaves it: the rule rejects that row and no prefix matches.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, staleTitleID, titleIDByVendor("Someone Else"))
 }
