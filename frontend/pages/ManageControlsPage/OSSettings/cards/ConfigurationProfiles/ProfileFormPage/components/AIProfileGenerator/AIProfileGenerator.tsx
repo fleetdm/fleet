@@ -55,7 +55,7 @@ const PLATFORM_OPTIONS: {
   label: string;
   value: AutofillConfigProfilePlatform;
 }[] = [
-  { label: "Apple (macOS, iOS, iPadOS)", value: "apple" },
+  { label: "Apple (macOS, iOS, iPadOS, tvOS)", value: "apple" },
   { label: "Windows", value: "windows" },
 ];
 
