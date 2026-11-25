@@ -6794,7 +6794,7 @@ func TestGitOpsWarnsOnDeletedWindowsProfiles(t *testing.T) {
 				listedTeamID *uint
 			)
 			ds.ListMDMConfigProfilesFunc = func(
-				ctx context.Context, teamID *uint, opt fleet.ListOptions,
+				ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions,
 			) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 				mu.Lock()
 				listedTeamID = teamID
@@ -6893,7 +6893,7 @@ func TestGitOpsWarnsOnDeletedWindowsProfilesFreeTier(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
 	}
 	ds.ListMDMConfigProfilesFunc = func(
-		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+		ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions,
 	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return []*fleet.MDMConfigProfilePayload{{ProfileUUID: "wgone", Name: "gone", Platform: "windows"}}, &fleet.PaginationMetadata{}, nil
 	}
@@ -10346,7 +10346,7 @@ func TestGitOpsPolicyResendConfigurationProfile(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 	ds.ListMDMConfigProfilesFunc = func(
-		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+		ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions,
 	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return []*fleet.MDMConfigProfilePayload{
 			{ProfileUUID: macProfileUUID, TeamID: teamID, Name: macProfileName, Platform: "darwin"},

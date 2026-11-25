@@ -1,0 +1,25 @@
+.config-profiles-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: $pad-small;
+
+  &__dropdowns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-small;
+  }
+
+  &__type {
+    width: 150px;
+  }
+
+  &__label {
+    width: 200px;
+  }
+
+  &__search {
+    width: 250px;
+  }
+}

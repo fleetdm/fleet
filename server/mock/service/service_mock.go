@@ -733,7 +733,7 @@ type AutofillConfigProfileContentFunc func(ctx context.Context, instructions str
 
 type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService *bool, hidden *bool) error
 
-type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
+type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, assumeProfileValidation *bool, noCache bool) error
 
@@ -4967,11 +4967,11 @@ func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string
 	return s.UpdateMDMConfigProfileFunc(ctx, profileUUID, profileName, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation, description, selfService, hidden)
 }
 
-func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListMDMConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
+	return s.ListMDMConfigProfilesFunc(ctx, teamID, labelID, opt)
 }
 
 func (s *Service) BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, assumeProfileValidation *bool, noCache bool) error {

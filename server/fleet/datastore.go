@@ -2890,7 +2890,7 @@ type Datastore interface {
 
 	// ListMDMConfigProfiles returns a paginated list of configuration profiles
 	// corresponding to the criteria.
-	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
+	ListMDMConfigProfiles(ctx context.Context, teamID *uint, labelID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
 
 	// ResendHostMDMProfile updates the host's profile status to NULL thereby triggering the profile
 	// to be resent upon the next cron run.

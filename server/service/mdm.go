@@ -3778,6 +3778,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 
 type listMDMConfigProfilesRequest struct {
 	TeamID      *uint             `query:"fleet_id,optional"`
+	LabelID     *uint             `query:"label_id,optional"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -3792,7 +3793,7 @@ func (r listMDMConfigProfilesResponse) Error() error { return r.Err }
 func listMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listMDMConfigProfilesRequest)
 
-	profs, meta, err := svc.ListMDMConfigProfiles(ctx, req.TeamID, req.ListOptions)
+	profs, meta, err := svc.ListMDMConfigProfiles(ctx, req.TeamID, req.LabelID, req.ListOptions)
 	if err != nil {
 		return &listMDMConfigProfilesResponse{Err: err}, nil
 	}
@@ -3805,7 +3806,7 @@ func listMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc
 	return &res, nil
 }
 
-func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
@@ -3822,12 +3823,10 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 	// custom ordering is not supported, always by name
 	opt.OrderKey = "name"
 	opt.OrderDirection = fleet.OrderAscending
-	// no matching query support
-	opt.MatchQuery = ""
 	// always include metadata for profiles
 	opt.IncludeMetadata = true
 
-	return svc.ds.ListMDMConfigProfiles(ctx, teamID, opt)
+	return svc.ds.ListMDMConfigProfiles(ctx, teamID, labelID, opt)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

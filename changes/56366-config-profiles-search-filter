@@ -1,0 +1,1 @@
+- Added search by name and a label filter to the configuration profiles list (Controls > OS settings > Configuration profiles), and `query` and `label_id` parameters to `GET /api/v1/fleet/configuration_profiles`.

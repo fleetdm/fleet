@@ -32,6 +32,8 @@ export interface IGetProfilesApiParams {
   page?: number;
   per_page?: number;
   fleet_id?: number;
+  query?: string;
+  label_id?: number;
 }
 
 export interface IMdmProfilesResponse {

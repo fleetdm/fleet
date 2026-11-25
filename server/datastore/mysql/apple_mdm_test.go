@@ -12593,7 +12593,7 @@ func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datast
 		_, err := ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
 		require.NoError(t, err)
 		declNameToDeclarations := make(map[string]*fleet.MDMConfigProfilePayload)
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		for _, prof := range profs {
 			declNameToDeclarations[prof.Name] = prof
@@ -12666,7 +12666,7 @@ func testBatchSetMDMAppleDeclarationsCaseChange(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// Read back and capture the declaration UUID.
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 1)
 		origUUID := profs[0].ProfileUUID
@@ -12700,7 +12700,7 @@ func testBatchSetMDMAppleDeclarationsCaseChange(t *testing.T, ds *Datastore) {
 
 		// Sub-test 1: case change preserves declaration UUID and updates name.
 		t.Run("preserves declaration UUID", func(t *testing.T) {
-			profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+			profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, nil, fleet.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, profs, 1, "expected exactly 1 declaration, got %d (duplicate created)", len(profs))
 			require.Equal(t, origUUID, profs[0].ProfileUUID, "declaration UUID should not change on name case change")
@@ -13216,7 +13216,7 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, stored.ActivationUUID)
 
 	// It comes back on the list endpoint, base64 is applied at the JSON layer.
-	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	var found bool
 	for _, p := range profs {

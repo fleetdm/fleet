@@ -1299,7 +1299,7 @@ type Service interface {
 	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService, hidden *bool) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
-	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
+	ListMDMConfigProfiles(ctx context.Context, teamID *uint, labelID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
 
 	// BatchSetMDMProfiles replaces the custom Windows/macOS/Android profiles for a specified
 	// team or for hosts with no team.

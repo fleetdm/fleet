@@ -697,7 +697,7 @@ reports:
 	ejbcaRequests := len(fakeEJBCA.Requests())
 	require.NotZero(t, ejbcaRequests)
 
-	profiles, _, err := s.DS.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
+	profiles, _, err := s.DS.ListMDMConfigProfiles(context.Background(), nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, profiles, 1)
 
@@ -1166,14 +1166,14 @@ settings:
 	require.NoError(t, err)
 
 	// the custom setting is scoped by the label for no team
-	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
 	require.Len(t, profs[0].LabelsIncludeAny, 1)
 	require.Equal(t, "Label1", profs[0].LabelsIncludeAny[0].LabelName)
 
 	// the custom setting is scoped by the label for team
-	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
 	require.Len(t, profs[0].LabelsIncludeAll, 1)
@@ -1190,12 +1190,12 @@ settings:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
 
 	// the custom setting is not scoped by label anymore
-	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
 	require.Len(t, profs[0].LabelsIncludeAny, 0)
 
-	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
 	require.Len(t, profs[0].LabelsIncludeAll, 0)
@@ -1254,7 +1254,7 @@ agent_options:
 		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile}))
 	}
 	profileLabelFleet := func(teamID uint) *uint {
-		profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &teamID, fleet.ListOptions{})
+		profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &teamID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 1)
 		require.Len(t, profs[0].LabelsIncludeAny, 1)
@@ -1345,7 +1345,7 @@ settings:
 	}
 
 	flags := func(teamID uint) map[string][2]bool {
-		profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &teamID, fleet.ListOptions{})
+		profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &teamID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		got := make(map[string][2]bool, len(profs))
 		for _, p := range profs {
@@ -1367,7 +1367,7 @@ settings:
 
 	// A host has the hidden profile installed, so flipping it to self-service seeds its opt-in.
 	hostUUID := uuid.NewString()
-	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	var hiddenUUID string
 	for _, p := range profs {
@@ -6211,7 +6211,7 @@ reports:
 	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
 
 	// Retrieve the stored declaration by listing profiles and matching on identifier.
-	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	var declUUID string
 	for _, p := range profs {

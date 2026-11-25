@@ -1618,7 +1618,7 @@ type ListMDMWindowsConfigProfilesByNameFunc func(ctx context.Context, name strin
 
 type GetHostMDMWindowsProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error)
 
-type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
+type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
@@ -12202,11 +12202,11 @@ func (s *DataStore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID stri
 	return s.GetHostMDMWindowsProfilesFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListMDMConfigProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListMDMConfigProfilesFunc(ctx, teamID, opt)
+	return s.ListMDMConfigProfilesFunc(ctx, teamID, labelID, opt)
 }
 
 func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error {

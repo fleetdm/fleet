@@ -1297,7 +1297,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// both profile tables are empty
-	profs, meta, err := ds.ListMDMConfigProfiles(ctx, nil, opts)
+	profs, meta, err := ds.ListMDMConfigProfiles(ctx, nil, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, profs, 0)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
@@ -1311,12 +1311,12 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// still returns no result
-	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, profs, 0)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
-	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, opts)
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, profs, 0)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
@@ -1338,12 +1338,12 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// still returns no result
-	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, profs, 0)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
-	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, opts)
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, profs, 0)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
@@ -1359,14 +1359,14 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get global profiles returns the mac one
-	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, nil, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
 	require.Equal(t, profA.Name, profs[0].Name)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
 	// get team profiles returns the Windows one
-	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, opts)
+	profs, meta, err = ds.ListMDMConfigProfiles(ctx, &team.ID, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
 	require.Equal(t, profB.Name, profs[0].Name)
@@ -1691,7 +1691,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			profs, meta, err := ds.ListMDMConfigProfiles(ctx, c.tmID, c.opts)
+			profs, meta, err := ds.ListMDMConfigProfiles(ctx, c.tmID, nil, c.opts)
 			require.NoError(t, err)
 			require.Len(t, profs, len(c.wantNames))
 
@@ -1720,8 +1720,51 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		})
 	}
 
+	t.Run("filters by query and label", func(t *testing.T) {
+		excludeLbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-filter", Query: "select 1"})
+		require.NoError(t, err)
+		// A global DDM declaration sharing label 9 with Android profile G.
+		_, err = ds.NewMDMAppleDeclaration(ctx, declForTest("Z", "Z", "Z", labels[9], excludeLbl), nil)
+		require.NoError(t, err)
+
+		filterCases := []struct {
+			desc      string
+			tmID      *uint
+			labelID   *uint
+			opts      fleet.ListOptions
+			wantNames []string
+			wantMeta  fleet.PaginationMetadata
+		}{
+			{"query matches name", nil, nil, fleet.ListOptions{MatchQuery: "c"}, []string{"C"}, fleet.PaginationMetadata{}},
+			{"query no match", nil, nil, fleet.ListOptions{MatchQuery: "nope"}, []string{}, fleet.PaginationMetadata{}},
+			{"query wrong fleet", &team.ID, nil, fleet.ListOptions{MatchQuery: "C"}, []string{}, fleet.PaginationMetadata{}},
+			{"apple label", nil, &labels[0].ID, fleet.ListOptions{}, []string{"C"}, fleet.PaginationMetadata{}},
+			{"windows label", nil, &labels[5].ID, fleet.ListOptions{}, []string{"E"}, fleet.PaginationMetadata{}},
+			{"android and declaration label", nil, &labels[9].ID, fleet.ListOptions{}, []string{"G", "Z"}, fleet.PaginationMetadata{}},
+			{"exclude label", nil, &excludeLbl.ID, fleet.ListOptions{}, []string{"Z"}, fleet.PaginationMetadata{}},
+			{"label wrong fleet", &team.ID, &labels[0].ID, fleet.ListOptions{}, []string{}, fleet.PaginationMetadata{}},
+			{"label and query", &team.ID, &labels[6].ID, fleet.ListOptions{MatchQuery: "F"}, []string{"F"}, fleet.PaginationMetadata{}},
+			{"label and non-matching query", &team.ID, &labels[6].ID, fleet.ListOptions{MatchQuery: "R"}, []string{}, fleet.PaginationMetadata{}},
+			{"label paginated", nil, &labels[9].ID, fleet.ListOptions{PerPage: 1}, []string{"G"}, fleet.PaginationMetadata{HasNextResults: true}},
+		}
+		for _, c := range filterCases {
+			t.Run(c.desc, func(t *testing.T) {
+				c.opts.OrderKey = "name"
+				c.opts.IncludeMetadata = true
+				profs, meta, err := ds.ListMDMConfigProfiles(ctx, c.tmID, c.labelID, c.opts)
+				require.NoError(t, err)
+				got := make([]string, 0, len(profs))
+				for _, p := range profs {
+					got = append(got, p.Name)
+				}
+				require.Equal(t, c.wantNames, got)
+				require.Equal(t, c.wantMeta, *meta)
+			})
+		}
+	})
+
 	t.Run("rejects_unknown_order_key", func(t *testing.T) {
-		_, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		_, _, err := ds.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{OrderKey: "h.node_key"})
 		require.Error(t, err)
 	})
 }
@@ -1796,7 +1839,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "apple desc", byIdent.Description)
 
-	listed, _, err := ds.ListMDMConfigProfiles(ctx, nil, opts)
+	listed, _, err := ds.ListMDMConfigProfiles(ctx, nil, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, listed, 4)
 	descByName := make(map[string]string, len(listed))
@@ -1957,7 +2000,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 		[]*fleet.MDMAppleDeclaration{bDecl}, []*fleet.MDMAndroidConfigProfile{bAndroid}, nil)
 	require.NoError(t, err)
 
-	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, listed, 4)
 	descByName = make(map[string]string, len(listed))
@@ -1981,7 +2024,7 @@ func testMDMConfigProfilesDescription(t *testing.T, ds *Datastore) {
 		[]*fleet.MDMAppleDeclaration{bDecl}, []*fleet.MDMAndroidConfigProfile{bAndroid}, nil)
 	require.NoError(t, err)
 
-	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, opts)
+	listed, _, err = ds.ListMDMConfigProfiles(ctx, nil, nil, opts)
 	require.NoError(t, err)
 	require.Len(t, listed, 4)
 	for _, p := range listed {
@@ -2172,7 +2215,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		assert.False(t, updates.WindowsConfigProfile)
 		assert.False(t, updates.AppleDeclaration)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 2)
 
@@ -2251,7 +2294,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			},
 		)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
@@ -2347,7 +2390,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			},
 		)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
@@ -2426,7 +2469,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			},
 		)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
@@ -2474,7 +2517,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		assert.False(t, updates.WindowsConfigProfile)
 		assert.False(t, updates.AppleDeclaration)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
@@ -2648,7 +2691,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			},
 		)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 15)
 
@@ -4607,7 +4650,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	getProfs := func(teamID *uint) []*fleet.MDMConfigProfilePayload {
 		// TODO(roberto): the docs says that you can pass a comma separated
 		// list of columns to OrderKey, but that doesn't seem to work
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, nil, fleet.ListOptions{})
 		require.NoError(t, err)
 		sort.Slice(profs, func(i, j int) bool {
 			l, r := profs[i], profs[j]
@@ -5145,12 +5188,12 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 
 	// collect the profiles in a lookup table by name
 	profNameToProf := make(map[string]*fleet.MDMConfigProfilePayload)
-	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, prof := range profs {
 		profNameToProf[prof.Name] = prof
 	}
-	profs, _, err = ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	profs, _, err = ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, prof := range profs {
 		profNameToProf[prof.Name] = prof
@@ -5424,7 +5467,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 
 	// collect the profiles in a lookup table by name
 	profNameToProf := make(map[string]*fleet.MDMConfigProfilePayload)
-	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, prof := range profs {
 		profNameToProf[prof.Name] = prof
@@ -5678,7 +5721,7 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Collect profile UUIDs.
-	profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profs, 2)
 	profUUIDs := make([]string, len(profs))
@@ -5726,7 +5769,7 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Config profiles should be gone.
-	teamProfs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	teamProfs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamProfs, 0)
 
