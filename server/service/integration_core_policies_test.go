@@ -859,27 +859,6 @@ func (s *integrationTestSuite) TestTeamPolicyResendConfigProfileRequiresPremium(
 	}, http.StatusOK)
 }
 
-func (s *integrationTestSuite) TestTeamPolicyForcePatchRequiresPremium() {
-	t := s.T()
-	ctx := t.Context()
-
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
-	require.NoError(t, err)
-
-	// create a policy with force_patch on Fleet Free, the request should fail with the premium error
-	res := s.Do("POST", "/api/latest/fleet/policies",
-		json.RawMessage(fmt.Sprintf(`{"fleet_id": %d, "name": "premium force patch", "query": "SELECT 1;", "force_patch": true}`, team.ID)),
-		http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), "option force_patch requires a premium license")
-
-	// update a policy with force_patch false on Fleet Free, the request should fail with the premium error
-	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: "premium force patch update", Query: "SELECT 1;"})
-	require.NoError(t, err)
-	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", pol.ID),
-		json.RawMessage(`{"force_patch": false}`), http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), "option force_patch requires a premium license")
-}
-
 func (s *integrationTestSuite) TestTeamPolicyHiddenRequiresPremium() {
 	t := s.T()
 	ctx := t.Context()
@@ -1001,4 +980,25 @@ func (s *integrationTestSuite) TestCombinedPolicyEndpointsFree() {
 	s.Do("GET", "/api/latest/fleet/policies/count", nil, http.StatusPaymentRequired, "fleet_id", "0")
 	s.Do("POST", "/api/latest/fleet/policies", json.RawMessage(fmt.Sprintf(`{"name": %q, "query": "SELECT 1", "fleet_id": 0}`, t.Name()+" x")),
 		http.StatusPaymentRequired)
+}
+
+func (s *integrationTestSuite) TestTeamPolicyForcePatchRequiresPremium() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// create a policy with force_patch on Fleet Free, the request should fail with the premium error
+	res := s.Do("POST", "/api/latest/fleet/policies",
+		json.RawMessage(fmt.Sprintf(`{"fleet_id": %d, "name": "premium force patch", "query": "SELECT 1;", "force_patch": true}`, team.ID)),
+		http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "option force_patch requires a premium license")
+
+	// update a policy with force_patch false on Fleet Free, the request should fail with the premium error
+	pol, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: "premium force patch update", Query: "SELECT 1;"})
+	require.NoError(t, err)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", pol.ID),
+		json.RawMessage(`{"force_patch": false}`), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "option force_patch requires a premium license")
 }

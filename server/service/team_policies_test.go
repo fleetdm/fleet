@@ -223,6 +223,7 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 				Name:                 "macOS - App up to date",
 				Type:                 fleet.PolicyTypePatch,
 				PatchSoftwareTitleID: new(patchSoftwareTitleID),
+				SoftwareInstallerID:  new(uint(1)),
 			},
 		}
 	}
@@ -250,6 +251,9 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		}
 		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			return &fleet.Team{ID: id, Name: "team1"}, nil
+		}
+		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{InstallerID: id, TitleID: new(patchSoftwareTitleID), SoftwareTitle: "App"}, nil
 		}
 		return ds
 	}
@@ -696,6 +700,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			Platform:             "darwin",
 			Type:                 fleet.PolicyTypePatch,
 			PatchSoftwareTitleID: new(patchSoftwareTitleID),
+			SoftwareInstallerID:  new(uint(1)),
 		}
 	}
 
@@ -727,6 +732,9 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 		}
 		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			return &fleet.Team{ID: id, Name: "team1"}, nil
+		}
+		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{InstallerID: id, TitleID: new(patchSoftwareTitleID), SoftwareTitle: "App"}, nil
 		}
 		return ds
 	}

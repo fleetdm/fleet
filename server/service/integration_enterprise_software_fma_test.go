@@ -3346,13 +3346,6 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, requiresSoftwareMsg)
 		res.Body.Close()
-
-		// update the policy without the software automation to force_patch, the software automation should be turned on
-		modResp = fleet.ModifyPolicyResponse{}
-		s.DoJSON("PATCH", policyPath(policyID), map[string]any{"force_patch": true}, http.StatusOK, &modResp)
-		require.True(t, modResp.Policy.ForcePatch)
-		require.NotNil(t, modResp.Policy.AutomationType)
-		require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
 	})
 }
 
@@ -4097,4 +4090,24 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicyOptionsRequireSoftwareAu
 	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": false, "automation_type": nil}, http.StatusOK, &modResp)
 	require.Nil(t, modResp.Policy.AutomationType)
 	require.False(t, modResp.Policy.ForcePatch)
+
+	// update the policy without the software automation to force_patch, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"force_patch": true}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresSoftwareMsg)
+	res.Body.Close()
+
+	// update the policy without the software automation to patch_when_closed, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"patch_when_closed": true}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresSoftwareMsg)
+	res.Body.Close()
+
+	// update the policy without the software automation to force_patch and automation_type software, force_patch should be true
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": true, "automation_type": "software"}, http.StatusOK, &modResp)
+	require.NotNil(t, modResp.Policy.AutomationType)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
+	require.True(t, modResp.Policy.ForcePatch)
+	require.False(t, modResp.Policy.PatchWhenClosed)
 }

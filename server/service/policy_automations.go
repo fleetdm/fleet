@@ -329,11 +329,6 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 	notifyBeforePatching := ptr.ValOrZero(p.NotifyBeforePatching)
 	patchDeadline := ptr.ValOrZero(p.PatchDeadline)
 
-	// Set automation_type to "software" when force_patch is sent without automation_type.
-	if forcePatch && !p.AutomationType.Set {
-		p.AutomationType = optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware}
-	}
-
 	patching := p.AutomationType.Valid && p.AutomationType.Value == fleet.PolicyAutomationSoftware
 
 	// Patch options install the patch through the software automation, so each one requires the other.
@@ -344,6 +339,13 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 			}
 		} else if patching {
 			return fleet.NewUserMessageError(errors.New(errSoftwareAutomationRequiresPatchOption), http.StatusUnprocessableEntity)
+		}
+	}
+
+	// Without automation_type in the request, check the patch options against the policy's current automation.
+	if !p.AutomationType.Set && policy.SoftwareInstallerID == nil {
+		if forcePatch || patchWhenClosed || notifyBeforePatching || patchDeadline {
+			return fleet.NewUserMessageError(errors.New(errPatchOptionsRequireSoftwareAutomation), http.StatusUnprocessableEntity)
 		}
 	}
 
