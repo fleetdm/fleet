@@ -44,6 +44,8 @@ function Warn { param([string]$Msg) Write-Host "  [WARN]  $Msg" -ForegroundColor
 function Fail { param([string]$Msg) Write-Host "  [FAIL]  $Msg" -ForegroundColor Red;    Add-Content -Path $Summary -Value "  [FAIL]  $Msg" }
 function Info { param([string]$Msg) Write-Host "  [INFO]  $Msg";                          Add-Content -Path $Summary -Value "  [INFO]  $Msg" }
 function Log  { param([string]$Msg) Write-Host $Msg;                                      Add-Content -Path $Summary -Value $Msg }
+# Detail lines go to summary.txt only, so the console shows just the status lines.
+function Detail { param([string]$Msg) Add-Content -Path $Summary -Value $Msg }
 
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
 if (-not $IsAdmin) {
@@ -204,7 +206,8 @@ Log "-- 4. Service configuration (redacted) ------------------------"
 if ($SvcCim -and $SvcCim.PathName) {
   # Redact anything that looks like a secret/token/key/password in the service args
   $Redacted = $SvcCim.PathName -replace '(?i)(--[\w-]*(?:secret|password|token|key)[\w-]*[= ])(?:"[^"]*"|\S+)', '$1<redacted>'
-  Log "    $Redacted"
+  Detail "    $Redacted"
+  Ok "Collected service configuration (redacted, in summary.txt)"
 } else {
   Fail "Could not read service ImagePath/arguments"
   $OverallExit = 1
@@ -212,9 +215,9 @@ if ($SvcCim -and $SvcCim.PathName) {
 # fleetd is configured through the service's per-service Environment (REG_MULTI_SZ) value
 $SvcEnv = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Fleet osquery' -Name Environment -ErrorAction SilentlyContinue).Environment
 if ($SvcEnv) {
-  Log "    Environment:"
+  Detail "    Environment:"
   foreach ($Entry in $SvcEnv) {
-    Log ("      " + ($Entry -replace '(?i)^(ORBIT_(?!\w*_PATH=)\w*(?:SECRET|PASSWORD|TOKEN|KEY)\w*=).*', '$1<redacted>'))
+    Detail ("      " + ($Entry -replace '(?i)^(ORBIT_(?!\w*_PATH=)\w*(?:SECRET|PASSWORD|TOKEN|KEY)\w*=).*', '$1<redacted>'))
   }
 } else {
   Info "No per-service Environment value (legacy install configured via ImagePath arguments)"
@@ -228,7 +231,7 @@ Log "-- 5. Orbit version --------------------------------------------"
 if ($OrbitExe) {
   try {
     $OrbitVersion = & $OrbitExe.FullName version 2>&1 | Out-String
-    Info $OrbitVersion.Trim()
+    Info ($OrbitVersion.Trim() -split "`r?`n")[0]
     Add-Content -Path $Summary -Value $OrbitVersion
   } catch {
     Warn "Failed to run 'orbit.exe version': $_"
@@ -456,7 +459,7 @@ Log "============================================================"
 if ($OverallExit -eq 0) {
   Log " Result: ALL CHECKS PASSED"
 } else {
-  Log " Result: ONE OR MORE CHECKS FAILED -- review summary above"
+  Log " Result: ONE OR MORE CHECKS FAILED -- details in summary.txt in the archive"
 }
 Log "============================================================"
 

@@ -41,7 +41,9 @@ ok()   { status "[OK]"   "${GREEN}"  "$*"; }
 warn() { status "[WARN]" "${YELLOW}" "$*"; }
 fail() { status "[FAIL]" "${RED}"    "$*"; }
 info() { status "[INFO]" ""          "$*"; }
-indent() { sed 's/^/    /' | tee -a "${SUMMARY}"; }
+# Detail lines (PIDs, paths, command output) go to summary.txt only, so the
+# console shows just the status lines.
+indent() { sed 's/^/    /' >> "${SUMMARY}"; }
 
 # /etc/default/orbit read the way systemd's EnvironmentFile reads it, never
 # sourced: backslash continuations joined, KEY=value lines only, surrounding
@@ -165,7 +167,7 @@ for pid in $(pgrep -x osqueryd 2>/dev/null || true); do
   [[ -z "${exe}" || "${exe}" == /opt/orbit/bin/osqueryd/* ]] || OTHER_OSQUERYD="${OTHER_OSQUERYD} ${pid}"
 done
 if [[ -n "${OTHER_OSQUERYD// /}" ]]; then
-  warn "osqueryd running from outside /opt/orbit (another osquery install?):"
+  warn "osqueryd running from outside /opt/orbit (another osquery install?), PIDs in summary.txt"
   show_pids "${OTHER_OSQUERYD}"
 fi
 
@@ -239,6 +241,7 @@ if [[ -f /etc/default/orbit ]]; then
       if (name ~ /SECRET|PASSWORD|TOKEN|KEY/ && name !~ /_PATH$/) print substr($0, 1, index($0, "=")) "<redacted>"
       else print
     }' | indent
+  info "Orbit environment recorded in summary.txt (secrets redacted)"
   ORBIT_FLEET_URL=$(orbit_env ORBIT_FLEET_URL)
   FLEET_CERT=$(orbit_env ORBIT_FLEET_CERTIFICATE)
   FLEET_INSECURE=$(orbit_env ORBIT_INSECURE)
@@ -270,7 +273,9 @@ log "── 5. Orbit version ─────────────────
 # Call the real binary rather than the PATH symlink, so a missing symlink
 # doesn't hide the version.
 if [[ -x /opt/orbit/bin/orbit/orbit ]]; then
-  /opt/orbit/bin/orbit/orbit version 2>/dev/null | indent
+  ORBIT_VERSION=$(/opt/orbit/bin/orbit/orbit version 2>/dev/null || echo "unknown")
+  info "$(echo "${ORBIT_VERSION}" | head -1)"
+  echo "${ORBIT_VERSION}" | indent
 else
   warn "orbit binary not found at /opt/orbit/bin/orbit/orbit"
 fi
@@ -395,8 +400,8 @@ fi
 FAILED_UNITS=$(systemctl --failed --no-legend 2>/dev/null || true)
 echo "${FAILED_UNITS}" > "${WORK_DIR}/logs/system_events/systemd_failed_units.log"
 if [[ -n "${FAILED_UNITS}" ]]; then
-  warn "systemd reports failed units:"
-  echo "${FAILED_UNITS}" | tee -a "${SUMMARY}" | sed 's/^/    /'
+  warn "$(printf '%s\n' "${FAILED_UNITS}" | grep -c .) failed systemd unit(s), listed in summary.txt"
+  echo "${FAILED_UNITS}" | indent
 else
   ok "No failed systemd units"
 fi
@@ -434,7 +439,7 @@ log "============================================================"
 if [[ ${OVERALL_EXIT} -eq 0 ]]; then
   log " Result: ALL CHECKS PASSED"
 else
-  log " Result: ONE OR MORE CHECKS FAILED — review summary above"
+  log " Result: ONE OR MORE CHECKS FAILED — details in summary.txt in the archive"
 fi
 log "============================================================"
 

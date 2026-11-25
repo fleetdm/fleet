@@ -68,7 +68,9 @@ warn() { status "[WARN]" "${YELLOW}" "$*"; }
 fail() { status "[FAIL]" "${RED}"    "$*"; }
 info() { status "[INFO]" ""          "$*"; }
 # Indented multi-line output (every line indented, not just the first).
-indent() { sed 's/^/    /' | tee -a "${SUMMARY}"; }
+# Detail lines (PIDs, paths, command output) go to summary.txt only, so the
+# console shows just the status lines.
+indent() { sed 's/^/    /' >> "${SUMMARY}"; }
 # orbit reads booleans with Go's strconv.ParseBool: 1, t, true in any case.
 # (tr, not ${1,,}: macOS ships bash 3.2.)
 is_true() { case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in 1|t|true) return 0 ;; esac; return 1; }
@@ -210,7 +212,7 @@ for pid in $(pgrep -x osqueryd 2>/dev/null || true); do
   esac
 done
 if [[ -n "${OTHER_OSQUERYD// /}" ]]; then
-  warn "osqueryd running from outside ${ORBIT_ROOT} (another osquery install?):"
+  warn "osqueryd running from outside ${ORBIT_ROOT} (another osquery install?), PIDs in summary.txt"
   show_pids "${OTHER_OSQUERYD}"
 fi
 
@@ -303,6 +305,7 @@ out "── 5. Orbit version ─────────────────
 # doesn't hide the version.
 if [[ -x "${ORBIT_BIN}" ]]; then
   ORBIT_VERSION=$("${ORBIT_BIN}" version 2>/dev/null || echo "unknown")
+  info "$(echo "${ORBIT_VERSION}" | head -1)"
   echo "${ORBIT_VERSION}" | indent
 else
   warn "orbit binary not found at ${ORBIT_BIN}"
@@ -327,8 +330,7 @@ if [[ -z "${FLEETD_PKGS}" && -f "${LAUNCH_DAEMON_PLIST}" ]]; then
   FLEETD_PKGS=$(pkgutil --file-info "${LAUNCH_DAEMON_PLIST}" 2>/dev/null | sed -n 's/^pkgid: //p' || true)
 fi
 if [[ -n "${FLEETD_PKGS}" ]]; then
-  ok "fleetd package receipt(s) found:"
-  echo "${FLEETD_PKGS}" | indent
+  ok "fleetd package receipt(s) found: $(printf '%s\n' "${FLEETD_PKGS}" | paste -sd, - | sed 's/,/, /g')"
   while read -r pkg; do
     pkgutil --pkg-info "${pkg}" >> "${INSTALL_DIR}/pkg_receipts.txt" 2>&1 || true
   done <<< "${FLEETD_PKGS}"
@@ -351,7 +353,7 @@ for f in /var/log/install.log /var/log/install.log.*; do
 done
 INSTALL_LOG_LINES=$(wc -l < "${INSTALL_DIR}/install_log_fleet.log" | tr -d ' ')
 if [[ "${INSTALL_LOG_LINES}" -gt 0 ]]; then
-  info "${INSTALL_LOG_LINES} line(s) mentioning fleet/orbit in /var/log/install.log* (last 20 below, all in logs/install/install_log_fleet.log)"
+  info "${INSTALL_LOG_LINES} line(s) mentioning fleet/orbit in /var/log/install.log* (last 20 in summary.txt, all in logs/install/install_log_fleet.log)"
   tail -20 "${INSTALL_DIR}/install_log_fleet.log" | indent
 else
   warn "No mention of fleet/orbit in /var/log/install.log*: the installer never ran for fleetd (or the log has rotated away)"
@@ -516,7 +518,7 @@ fi
 FAILED_JOBS=$(launchctl list | awk 'NR>1 && $2 != "0" && $2 != "-" && ($3 ~ /fleetdm/ || ($2 != "-9" && $2 != "-15")) {print}' || true)
 echo "${FAILED_JOBS}" > "${SYSEV_DIR}/launchd_failed_jobs.log"
 if [[ -n "${FAILED_JOBS}" ]]; then
-  warn "launchd reports jobs with non-zero last exit status:"
+  warn "$(printf '%s\n' "${FAILED_JOBS}" | grep -c .) launchd job(s) with a non-zero last exit status, listed in summary.txt"
   echo "${FAILED_JOBS}" | indent
 else
   ok "No launchd jobs with a non-zero last exit status"
@@ -557,7 +559,7 @@ out "============================================================"
 if [[ ${OVERALL_EXIT} -eq 0 ]]; then
   out " Result: ALL CHECKS PASSED"
 else
-  out " Result: ONE OR MORE CHECKS FAILED — review summary above"
+  out " Result: ONE OR MORE CHECKS FAILED — details in summary.txt in the archive"
 fi
 out "============================================================"
 
