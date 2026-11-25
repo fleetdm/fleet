@@ -2742,8 +2742,9 @@ func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, prof
 }
 
 // cancelWindowsHostInstallsForDeletedMDMProfiles does the cheap, request-path-safe host_mdm_windows_profiles cleanup when config
-// profiles are deleted. In a single statement it removes the rows the cron does not need to act on: already-resolved removes
-// (operation_type=remove, status verified/failed/verifying) and never-sent installs (operation_type=install, status IS NULL).
+// profiles are deleted. It drops the install commands still queued for hosts that haven't fetched them, then in a single statement
+// removes the rows the cron does not need to act on: already-resolved removes (operation_type=remove, status verified/failed/verifying)
+// and never-sent installs (operation_type=install, status IS NULL).
 // Everything else (sent installs, pending removes) is left for the profile-manager cron, which classifies the surviving rows as
 // removes (current-not-desired) and generates the <Delete> commands asynchronously in its bounded batches.
 // It returns the host UUIDs that had rows for the deleted profiles. The per-host profile status rollup is NOT refreshed here.
@@ -2772,6 +2773,39 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	}
 	if err := sqlx.SelectContext(ctx, tx, &affectedHostUUIDs, selHostsStmt, selHostsArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting affected hosts for deleted profiles")
+	}
+
+	// Drop the install commands of these profiles that are still queued and unacknowledged. The cron sets a host's row to pending
+	// when it queues the install, so a host that hasn't checked in since (an offline laptop) still has the command in its queue, and
+	// would apply the deleted profile when it comes back. The host rows stay pending installs, so the cron still sends a <Delete> in
+	// case the command was already on its way to the host. Scoped to each host's own queue row, because the hosts of a profile without
+	// Fleet variables share one command.
+	const queuedInstallsWhere = `
+		FROM windows_mdm_command_queue wmcq
+		JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+		JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = mwe.host_uuid AND hmwp.command_uuid = wmcq.command_uuid
+		WHERE hmwp.profile_uuid IN (?) AND hmwp.operation_type = ? AND hmwp.status = ? AND wmcq.acked_at IS NULL`
+	var queuedEnrollmentIDs []uint
+	selQueuedStmt, selQueuedArgs, err := sqlx.In(`SELECT DISTINCT wmcq.enrollment_id`+queuedInstallsWhere,
+		profileUUIDs, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building IN for queued installs of deleted profiles")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &queuedEnrollmentIDs, selQueuedStmt, selQueuedArgs...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting enrollments with queued installs of deleted profiles")
+	}
+	if len(queuedEnrollmentIDs) > 0 {
+		delQueuedStmt, delQueuedArgs, err := sqlx.In(`DELETE wmcq`+queuedInstallsWhere,
+			profileUUIDs, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building IN for dequeuing installs of deleted profiles")
+		}
+		if _, err := tx.ExecContext(ctx, delQueuedStmt, delQueuedArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "dequeuing installs of deleted profiles")
+		}
+		if err := ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, queuedEnrollmentIDs); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "recompute has_pending_commands after dequeuing installs of deleted profiles")
+		}
 	}
 
 	delStmt, delArgs, err := sqlx.In(`
