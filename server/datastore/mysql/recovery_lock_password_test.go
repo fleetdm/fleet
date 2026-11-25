@@ -1139,6 +1139,9 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		pw := apple_mdm.GenerateRecoveryLockPassword()
 		err = ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
 		require.NoError(t, err)
+		pending, err = ds.GetPendingRecoveryLock(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, pending.SetsNewPassword, "first set")
 		markRecoveryLockVerified(t, ds, host.UUID)
 
 		pending, err = ds.GetPendingRecoveryLock(ctx, host.UUID)
@@ -1146,6 +1149,7 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		require.NotNil(t, pending)
 		assert.Equal(t, fleet.MDMOperationTypeInstall, pending.OperationType)
 		assert.True(t, pending.HasCurrentPassword)
+		assert.False(t, pending.SetsNewPassword, "nothing pending once verified")
 
 		// Claim for clear - changes to remove type
 		team.Config.MDM.EnableRecoveryLockPassword = false
@@ -1405,6 +1409,7 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotNil(t, pending)
 		assert.NotNil(t, pending.PendingSetCommandUUID)
+		assert.False(t, pending.SetsNewPassword, "a rotation isn't a set")
 	})
 
 	t.Run("InitiateRecoveryLockRotation rejects if already pending", func(t *testing.T) {
@@ -1909,6 +1914,23 @@ func testRecoveryLockResetOnMDMReEnrollment(t *testing.T, ds *Datastore) {
 		require.NotNil(t, row)
 		assert.True(t, row.Deleted)
 		assert.True(t, row.HasPassword, "encrypted_password preserved for diagnostics")
+
+		// The set after re-enrollment keeps the last known password as current, and is still a set.
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: apple_mdm.GenerateRecoveryLockPassword()}}))
+		pending, err := ds.GetPendingRecoveryLock(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pending)
+		assert.True(t, pending.HasCurrentPassword)
+		assert.True(t, pending.SetsNewPassword)
+
+		// Re-staging the current password (the upgrade repair of a failed rotation) confirms nothing new.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_recovery_key_passwords SET pending_encrypted_password = encrypted_password WHERE host_uuid = ?`, host.UUID)
+			return err
+		})
+		pending, err = ds.GetPendingRecoveryLock(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.False(t, pending.SetsNewPassword)
 	})
 
 	t.Run("soft-deletes stuck-pending install row (ClearQueue scenario)", func(t *testing.T) {

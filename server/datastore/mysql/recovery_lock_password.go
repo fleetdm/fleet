@@ -815,6 +815,10 @@ func (ds *Datastore) GetPendingRecoveryLock(ctx context.Context, hostUUID string
 			pending_set_command_uuid, pending_verify_command_uuid,
 			operation_type,
 			encrypted_password IS NOT NULL AS has_current_password,
+			-- SetHostsRecoveryLockPasswords clears verify_command_uuid; a rotation keeps the previous verify's. The
+			-- upgrade repair of a failed rotation re-stages the current password, which isn't new.
+			(verify_command_uuid IS NULL AND pending_encrypted_password IS NOT NULL
+				AND (encrypted_password IS NULL OR pending_encrypted_password <> encrypted_password)) AS sets_new_password,
 			retry
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ?

@@ -621,13 +621,15 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 	// so it can inspect what was enqueued.
 	commander, _ := newRecoveryLockTestCommander(t)
 
-	// pendingFn mocks GetPendingRecoveryLock for a host awaiting the VerifyRecoveryLock result.
+	// pendingFn mocks GetPendingRecoveryLock for a host awaiting the VerifyRecoveryLock result. Without a
+	// current password the install is a first set; with one, a rotation.
 	pendingFn := func(op fleet.MDMOperationType, hasCurrentPassword bool, retries int) func(context.Context, string) (*fleet.HostRecoveryLockPending, error) {
 		return func(_ context.Context, _ string) (*fleet.HostRecoveryLockPending, error) {
 			return &fleet.HostRecoveryLockPending{
 				PendingVerifyCommandUUID: new(verifyCmdUUID),
 				OperationType:            op,
 				HasCurrentPassword:       hasCurrentPassword,
+				SetsNewPassword:          op == fleet.MDMOperationTypeInstall && !hasCurrentPassword,
 				Retries:                  retries,
 			}, nil
 		}
@@ -706,8 +708,7 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 
 	t.Run("acknowledged rotation sets verified without activity", func(t *testing.T) {
 		ds := new(mock.DataStore)
-		// A host that already had a password is a rotation; its activity is logged at
-		// rotation enqueue time, not here.
+		// A rotation's activity is logged at rotation enqueue time, not here.
 		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, true, 0)
 
 		var verifiedCalled bool
@@ -727,6 +728,33 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.True(t, verifiedCalled)
+	})
+
+	t.Run("acknowledged set after re-enrollment logs activity", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		// Re-enrollment keeps the last known password as current, but this is still a set.
+		ds.GetPendingRecoveryLockFunc = func(_ context.Context, _ string) (*fleet.HostRecoveryLockPending, error) {
+			return &fleet.HostRecoveryLockPending{
+				PendingVerifyCommandUUID: new(verifyCmdUUID),
+				OperationType:            fleet.MDMOperationTypeInstall,
+				HasCurrentPassword:       true,
+				SetsNewPassword:          true,
+			}, nil
+		}
+		ds.SetRecoveryLockVerifiedFunc = func(_ context.Context, _, _ string) error { return nil }
+		ds.HostLiteByIdentifierFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, Hostname: "Test Host"}, nil
+		}
+
+		var activityCalled bool
+		newActivityFn := func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+			_, activityCalled = activity.(fleet.ActivityTypeSetHostRecoveryLockPassword)
+			return nil
+		}
+
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, newActivityFn)
+		require.NoError(t, handler(ctx, newResult(fleet.MDMAppleStatusAcknowledged, nil)))
+		assert.True(t, activityCalled)
 	})
 
 	t.Run("acknowledged clear deletes password", func(t *testing.T) {

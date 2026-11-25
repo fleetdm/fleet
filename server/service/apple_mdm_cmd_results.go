@@ -696,9 +696,8 @@ func NewVerifyRecoveryLockResultsHandler(
 			return nil
 		}
 
-		// Log a set activity if this was an install operation and the host did not have a current password therefore it wasn't rotated
-		// rotation activity logs happen at rotation enqueuement
-		if !pending.HasCurrentPassword && pending.OperationType == fleet.MDMOperationTypeInstall {
+		// Rotations aren't new passwords here: they log their activity when they're enqueued.
+		if pending.SetsNewPassword && pending.OperationType == fleet.MDMOperationTypeInstall {
 
 			host, err := ds.HostLiteByIdentifier(ctx, results.HostUUID())
 			if err != nil || host == nil {

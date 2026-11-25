@@ -618,6 +618,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Verify activity was created for user-triggered rotation
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeRotatedHostRecoveryLockPassword{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+		// The rotation was logged when it was enqueued, not again as a set.
+		assert.Equal(t, 1, s.countHostActivitiesOfType(host.ID, fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName()))
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
@@ -1048,6 +1050,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Verify auto-rotation activity was created (Fleet-initiated, uses same activity type as manual rotation)
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeRotatedHostRecoveryLockPassword{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+		assert.Equal(t, 1, s.countHostActivitiesOfType(host.ID, fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName()))
 
 		// Disable recovery lock password
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
@@ -1069,6 +1072,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		// Run cron → pending, then complete the set + verify handshake → verified.
 		runRecoveryLockCron(t)
 		originalCmdUUID := ackSetThenVerify(t, mdmClient).CommandUUID
+		require.Equal(t, 1, s.countHostActivitiesOfType(host.ID, fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName()))
 
 		// Host detail API reports verified.
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
@@ -1116,6 +1120,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.NotEmpty(t, getPasswordResp.RecoveryLockPassword.Password)
 		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password,
 			"a new password must be generated after re-enrollment; the original is no longer on the device")
+		// Not a rotation, so nothing logged it when it was enqueued.
+		assert.Equal(t, 2, s.countHostActivitiesOfType(host.ID, fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName()))
 
 		// Disable recovery lock password.
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
@@ -1285,10 +1291,13 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		host, mdmClient := createAppleSiliconHost(t)
 		knownPassword, verifyCmd := mismatchAfterReenroll(t, host, mdmClient)
+		setActivities := s.countHostActivitiesOfType(host.ID, fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName())
 
 		// The device confirms it still has that password.
 		_, err := mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
 		require.NoError(t, err)
+		// The password didn't change, so nothing new was set.
+		assert.Equal(t, setActivities, s.countHostActivitiesOfType(host.ID, fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName()))
 
 		rlpStatus := getHostRecoveryLockStatus(host.ID)
 		require.NotNil(t, rlpStatus.Status)
