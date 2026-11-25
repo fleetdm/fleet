@@ -1561,7 +1561,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailGlobalRead)
 
 			// test authz list config profiles (team 1)
-			_, _, err = svc.ListMDMConfigProfiles(ctx, ptr.Uint(1), nil, fleet.ListOptions{})
+			_, _, err = svc.ListMDMConfigProfiles(ctx, new(uint(1)), nil, fleet.ListOptions{})
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
