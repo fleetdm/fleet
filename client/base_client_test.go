@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -60,6 +61,40 @@ func TestUrlGeneration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "https://test.com/subpath/prefix/test/path", bc.URL("test/path", "").String())
 		require.Equal(t, "https://test.com/subpath/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
+
+	t.Run("with characters that need escaping", func(t *testing.T) {
+		cases := []struct {
+			name     string
+			prefix   string
+			reqPath  string
+			expected string
+		}{
+			{"space in name", "prefix/", "/labels/" + url.PathEscape("All Hosts"), "https://test.com/a%20b/prefix/labels/All%20Hosts"},
+			{"slash in name", "prefix/", "/labels/" + url.PathEscape("abc/def"), "https://test.com/a%20b/prefix/labels/abc%2Fdef"},
+			{"percent in name", "prefix/", "/labels/" + url.PathEscape("abc%2Fdef"), "https://test.com/a%20b/prefix/labels/abc%252Fdef"},
+			{"percent in prefix", "/100%", "test/path", "https://test.com/a%20b/100%25/test/path"},
+			{"escape sequence in prefix", "/abc%2Fdef/", "test/path", "https://test.com/a%20b/abc%252Fdef/test/path"},
+			{"space in prefix", "my prefix/", "test/path", "https://test.com/a%20b/my%20prefix/test/path"},
+			{"trailing slash in path", "prefix/", "/api/v1/fleet/scripts/", "https://test.com/a%20b/prefix/api/v1/fleet/scripts"},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				bc, err := NewBaseClient("https://test.com/a%20b", true, "", c.prefix, nil, fleet.CapabilityMap{}, nil)
+				require.NoError(t, err)
+				require.Equal(t, c.expected, bc.URL(c.reqPath, "").String())
+				requestURL, err := bc.RequestURL(c.reqPath, "raw=query")
+				require.NoError(t, err)
+				require.Equal(t, c.expected+"?raw=query", requestURL)
+			})
+		}
+	})
+
+	t.Run("request URL with invalid escape", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		_, err = bc.RequestURL("/hosts/100%", "")
+		require.ErrorContains(t, err, "invalid request path")
 	})
 }
 
