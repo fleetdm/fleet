@@ -6128,6 +6128,13 @@
     },
     {
       "name": "Nessus Agent",
+      "slug": "nessus-agent/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tenablesecurity.NessusAgent.Preferences",
+      "description": "Nessus Agent is a lightweight agent that performs local vulnerability and compliance scans and reports the results to Tenable Nessus Manager or Tenable Vulnerability Management."
+    },
+    {
+      "name": "Nessus Agent",
       "slug": "nessus-agent/windows",
       "platform": "windows",
       "unique_identifier": "Nessus Agent (x64)",

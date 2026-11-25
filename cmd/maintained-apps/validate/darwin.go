@@ -72,6 +72,11 @@ func removeAppQuarantine(appPath string) (bool, error) {
 // matches com.openai.codex. The new /Applications entry can't be used: it can
 // be a companion app, or missing when the app installs elsewhere.
 func assessGatekeeper(ctx context.Context, appLogger *slog.Logger, bundleIdentifier, existsQuery string) error {
+	if bundleIdentifier == nessusAgentIdentifier {
+		appLogger.InfoContext(ctx, "Nessus Agent installs no app bundle - skipping Gatekeeper assessment")
+		return nil
+	}
+
 	// The WHERE clause comes from the manifest, so it isn't run through
 	// validateSqlInput.
 	var query string
@@ -268,6 +273,11 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 
 const patchedQueryFixHint = "Compare the Found app lines above with the version. The patched query compares osquery's raw bundle_short_version, shown as \"osquery:\" when ingestion rewrites it. Another copy with the same bundle identifier at an older version (a nested helper, an updater's backup) needs its path excluded in a per-token query in ee/maintained-apps/ingesters/homebrew/ingester.go, as Syncovery and Docker Desktop do. A bundle_short_version that's a shorter form of the version, or in another format, needs a transformer in ee/maintained-apps/ingesters/homebrew/external_refs, or a per-token patched query that compares bundle_version if it carries the version."
 
+const (
+	nessusAgentIdentifier = "com.tenablesecurity.NessusAgent.Preferences"
+	nessusAgentDaemonPath = "/Library/NessusAgent/run/sbin/nessusd"
+)
+
 // appExists reports whether the app is installed at the expected version. It
 // logs every row it finds, so a failing patched query can be traced to the copy
 // that fails it. The second value is always empty because the app is always
@@ -284,6 +294,25 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 	}
 	if err := validateSqlInput(appPath); err != nil {
 		return false, "", fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
+	}
+
+	if uniqueAppIdentifier == nessusAgentIdentifier {
+		// Nessus Agent installs a daemon and a preference pane, no .app, so it
+		// never shows up in apps. Nothing on disk carries its version either.
+		output, err := runOsqueryi(execTimeout, "SELECT path FROM file WHERE path = '"+nessusAgentDaemonPath+"';")
+		if err != nil {
+			return false, "", fmt.Errorf("executing osquery command: %w", err)
+		}
+		var rows []struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(output, &rows); err != nil {
+			return false, "", fmt.Errorf("parsing osquery JSON output: %w", err)
+		}
+		if len(rows) > 0 {
+			logger.InfoContext(ctx, fmt.Sprintf("Found Nessus Agent daemon at %s", rows[0].Path))
+		}
+		return len(rows) > 0, "", nil
 	}
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
