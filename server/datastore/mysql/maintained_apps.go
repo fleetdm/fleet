@@ -408,7 +408,7 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	}
 	var undecided []undecidedTitle
 	for _, c := range candidates {
-		normalized := normalizeSoftwareNameForMatch(c.Name)
+		normalized := normalizeForMatch(c.Name)
 		match, prefixLen, ok := matcher.matchPrefix(normalized)
 		switch {
 		case matcher.ruleMayDecide(normalized, prefixLen):

@@ -1188,6 +1188,15 @@ func normalizeForCollation(s string) string {
 	return result.String()
 }
 
+// normalizeForMatch lowercases and strips the Unicode format and control characters
+// that MySQL's utf8mb4_unicode_ci collation ignores. Names go through it so a Go-side
+// comparison agrees with the collation the software_titles unique index uses; the
+// curated-rule publisher and version values do too, so every field of a rule compares
+// the same way.
+func normalizeForMatch(s string) string {
+	return strings.ToLower(normalizeForCollation(s))
+}
+
 // UniqueSoftwareTitleStr creates a unique string representation of the software title.
 // Returns lowercase and normalized to ensure matching that is consistent with MySQL's
 // utf8mb4_unicode_ci collation, which is case-insensitive and ignores certain Unicode
@@ -1195,7 +1204,7 @@ func normalizeForCollation(s string) string {
 func UniqueSoftwareTitleStr(values ...string) string {
 	normalized := make([]string, len(values))
 	for i, v := range values {
-		normalized[i] = strings.ToLower(normalizeForCollation(v))
+		normalized[i] = normalizeForMatch(v)
 	}
 	return strings.Join(normalized, fleet.SoftwareFieldSeparator)
 }
@@ -1297,7 +1306,7 @@ func newWindowsFMAMatcher(fmas []fleet.MaintainedApp) *windowsFMAMatcher {
 		}
 		title := windowsFMATitle{titleName: f.TitleName, titleID: *f.TitleID}
 		for _, p := range prefixes {
-			m.prefixes = append(m.prefixes, windowsFMAPrefix{prefix: normalizeSoftwareNameForMatch(p), windowsFMATitle: title})
+			m.prefixes = append(m.prefixes, windowsFMAPrefix{prefix: normalizeForMatch(p), windowsFMATitle: title})
 		}
 		if rule, ok := newWindowsFMARule(f.PatchQuery, title); ok {
 			m.rules = append(m.rules, rule)
@@ -1332,7 +1341,7 @@ func newWindowsFMARule(patchQuery string, title windowsFMATitle) (windowsFMARule
 		for _, c := range clause {
 			values := make([]string, 0, len(c.Values))
 			for _, v := range c.Values {
-				v = normalizeSoftwareNameForMatch(v)
+				v = normalizeForMatch(v)
 				// A value of only wildcards, or an empty one, pins nothing.
 				pins = pins && strings.ContainsFunc(v, func(r rune) bool { return r != '%' && r != '_' })
 				values = append(values, v)
@@ -1484,28 +1493,22 @@ func windowsFMALike(s, pattern string) bool {
 	return pi == len(pattern)
 }
 
-// normalizeSoftwareNameForMatch lowercases and strips the Unicode format and control
-// characters that MySQL's utf8mb4_unicode_ci collation ignores, so a Go-side name
-// comparison agrees with the collation the software_titles unique index uses.
-func normalizeSoftwareNameForMatch(s string) string {
-	return strings.ToLower(normalizeForCollation(s))
-}
-
 // match returns the software title a reported Windows program belongs to, or false
 // when it matches no Fleet-maintained app.
 //
 // The name-prefix rule decides, except where exactly one app's curated rule accepts
-// the program and that rule is at least as specific as the prefix that matched. That
-// lets a rule claim names the prefix rule misses or gives to a sibling ("Mozilla
-// Firefox 141.0 ESR" belongs to Firefox ESR, not Firefox), without letting a loose
-// rule ("Zoom Workplace%") take a name from a more specific prefix ("Zoom Workplace
-// (ARM64)"). When several apps' rules accept, the prefix result stands.
+// the program and that rule is at least as specific as the prefix that matched.
+// When several apps' rules accept, the prefix result stands.
 func (m *windowsFMAMatcher) match(name, vendor, version string) (windowsFMATitle, bool) {
-	normalized := normalizeSoftwareNameForMatch(name)
+	normalized := normalizeForMatch(name)
 	prefixMatch, prefixLen, prefixOK := m.matchPrefix(normalized)
 
-	ruleMatch, literalLen, ruleOK := m.matchRules(normalized,
-		normalizeSoftwareNameForMatch(vendor), normalizeSoftwareNameForMatch(version))
+	ruleMatch, literalLen, ruleOK := m.matchRules(
+		normalized,
+		normalizeForMatch(vendor),
+		normalizeForMatch(version),
+	)
+
 	// A rule whose matching name patterns all start with a wildcard pins no name text,
 	// and the reconcile pass can't narrow by it, so it never takes a name.
 	if ruleOK && literalLen > 0 && literalLen >= prefixLen {
@@ -1751,12 +1754,6 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				} else if sw.Source == "programs" && (sw.UpgradeCode == nil || *sw.UpgradeCode == "") {
 					// Use the canonical FMA name so versioned program names collapse
 					// onto the single title the FMA installer owns.
-					//
-					// Only when there is no upgrade code. software_titles.unique_identifier
-					// resolves to upgrade_code ahead of name, so renaming a program that
-					// reports one would create a second title under the canonical name with
-					// a different unique_identifier: a duplicate in the UI, and still not the
-					// title the installer owns. Those programs already match by upgrade code.
 					if match, ok := windowsMatcher().match(sw.Name, sw.Vendor, sw.Version); ok {
 						newTitleName = match.titleName
 					}
@@ -1800,7 +1797,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					}
 					key := titleKey{
 						// adjust for matching MySQL collation
-						name:         strings.ToLower(normalizeForCollation(title.Name)),
+						name:         normalizeForMatch(title.Name),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
@@ -2150,7 +2147,8 @@ func correctStoredEpochsDB(ctx context.Context, tx sqlx.ExtContext, deleted, ins
 	if len(toSet) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(toSet)/2), ",")
 		stmt := fmt.Sprintf(
-			`INSERT INTO software_metadata (software_id, epoch) VALUES %s ON DUPLICATE KEY UPDATE epoch = VALUES(epoch)`, values)
+			`INSERT INTO software_metadata (software_id, epoch) VALUES %s ON DUPLICATE KEY UPDATE epoch = VALUES(epoch)`, values,
+		)
 		if _, err := tx.ExecContext(ctx, stmt, toSet...); err != nil {
 			return ctxerr.Wrap(ctx, err, "correct stored epochs")
 		}

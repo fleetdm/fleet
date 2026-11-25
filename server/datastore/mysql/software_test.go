@@ -13609,7 +13609,7 @@ func TestWindowsFMARuleMayDecide(t *testing.T) {
 		{"Mozilla Thunderbird 140.0", false},
 	}
 	for _, c := range cases {
-		normalized := normalizeSoftwareNameForMatch(c.name)
+		normalized := normalizeForMatch(c.name)
 		_, prefixLen, _ := m.matchPrefix(normalized)
 		require.Equal(t, c.want, m.ruleMayDecide(normalized, prefixLen), c.name)
 	}
