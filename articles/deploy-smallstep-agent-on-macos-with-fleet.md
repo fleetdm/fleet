@@ -50,11 +50,12 @@ Smallstep generates a configuration profile that bundles your root and intermedi
 
 The profile deploys to devices at their next MDM check-in.
 
-## Deploy the Smallstep agent with Fleet software
+## Deploy the Smallstep agent with Fleet-maintained apps
 
-1. Download the [latest macOS package](https://packages.smallstep.com/stable/darwin/step-agent_latest.pkg). Earlier versions are available at [releases.smallstep.com](https://releases.smallstep.com).
-2. In Fleet, go to **Software**, select **Add software > Custom package**, and upload the package.
-3. Scope the install to your macOS hosts.
+1. In Fleet, go to **Software**, select **Add software**, open the **Fleet-maintained** tab, and add **Smallstep Agent**.
+2. Scope the install to your macOS hosts.
+
+Fleet keeps the Fleet-maintained **Smallstep Agent** package up to date, so you don't need to track new agent releases yourself. See [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) for how patching and automatic installs work.
 
 The agent picks up the configuration from the profile Fleet already deployed and uses it to register the device with Smallstep.
 
