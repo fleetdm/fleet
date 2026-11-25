@@ -1,0 +1,1 @@
+- Made `fleet_url.txt` in the orbit root directory world-readable so Fleet Desktop for macOS can read the Fleet URL after the fleetd configuration profile is removed (e.g. MDM turned off).

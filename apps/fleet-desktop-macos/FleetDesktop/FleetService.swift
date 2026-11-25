@@ -100,9 +100,14 @@ final class FleetService {
     /// that aren't MDM-enrolled are configured.
     private static let orbitLaunchdPlistPath = "/Library/LaunchDaemons/com.fleetdm.orbit.plist"
 
+    /// File where orbit keeps the URL from the fleetd configuration profile, so
+    /// it's still available after the profile is removed (e.g. MDM turned off).
+    private let fleetURLFile: String
+
     init() {
         let root = ProcessInfo.processInfo.environment["ORBIT_ROOT_DIR"] ?? "/opt/orbit"
         self.tokenFile = "\(root)/identifier"
+        self.fleetURLFile = "\(root)/fleet_url.txt"
     }
 
     deinit {
@@ -704,8 +709,9 @@ final class FleetService {
     }
 
     /// Reads the Fleet URL from the managed preferences profile, falling back
-    /// to the orbit launchd plist on Macs that aren't MDM-enrolled. These are
-    /// the same sources orbit itself starts from.
+    /// to the orbit launchd plist on Macs that aren't MDM-enrolled, then to the
+    /// URL orbit saved from a since-removed profile. These are the same sources
+    /// orbit itself starts from.
     private func readFleetURL() -> FleetURLConfig? {
         if let plist = NSDictionary(contentsOfFile: Self.managedPrefsPlistPath),
            let url = Self.normalizedFleetURL(plist["FleetURL"]) {
@@ -715,6 +721,9 @@ final class FleetService {
            let env = plist["EnvironmentVariables"] as? [String: Any],
            let url = Self.normalizedFleetURL(env["ORBIT_FLEET_URL"]) {
             return FleetURLConfig(url: url, source: "ORBIT_FLEET_URL in \(Self.orbitLaunchdPlistPath)")
+        }
+        if let url = Self.normalizedFleetURL(readFileTrimmed(path: fleetURLFile)) {
+            return FleetURLConfig(url: url, source: fleetURLFile)
         }
         return nil
     }

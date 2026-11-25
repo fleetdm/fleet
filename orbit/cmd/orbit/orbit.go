@@ -706,7 +706,8 @@ func orbitAction(c *cli.Context) error {
 
 			// If we didn't find the configuration values, try to read them from the stored files.
 			// First, get Fleet URL
-			b, err := os.ReadFile(path.Join(c.String("root-dir"), constant.FleetURLFileName))
+			fleetURLPath := path.Join(c.String("root-dir"), constant.FleetURLFileName)
+			b, err := os.ReadFile(fleetURLPath)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
 					return fmt.Errorf("read fleet URL file: %w", err)
@@ -715,6 +716,11 @@ func orbitAction(c *cli.Context) error {
 				fleetURL := strings.TrimSpace(string(b))
 				if err = c.Set("fleet-url", fleetURL); err != nil {
 					return fmt.Errorf("set fleet URL from file: %w", err)
+				}
+				// Older orbit versions wrote this file as 0600, and it's never rewritten once
+				// the profile is gone, so fix it here so Fleet Desktop can read it.
+				if err := os.Chmod(fleetURLPath, constant.DefaultWorldReadableFileMode); err != nil {
+					log.Error().Err(err).Msg("make fleet URL file world-readable")
 				}
 			}
 			// Now, get enroll secret. During initial ABM/profile bootstrap the local
@@ -2805,17 +2811,21 @@ func (f *capabilitiesChecker) Interrupt(err error) {
 // intentionally kept separate to prevent issues since the writes happen at two
 // completely different circumstances.
 func writeSecret(enrollSecret string, orbitRoot string) error {
-	return writeOrbitFile(enrollSecret, orbitRoot, constant.OsqueryEnrollSecretFileName)
+	return writeOrbitFile(enrollSecret, orbitRoot, constant.OsqueryEnrollSecretFileName, constant.DefaultFileMode)
 }
 
-func writeOrbitFile(contents string, orbitRoot string, fileName string) error {
+func writeOrbitFile(contents string, orbitRoot string, fileName string, mode os.FileMode) error {
 	filePath := filepath.Join(orbitRoot, fileName)
 	if err := secure.MkdirAll(filepath.Dir(filePath), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, []byte(contents), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(filePath, []byte(contents), mode); err != nil {
 		return fmt.Errorf("write file: %w", err)
+	}
+	// os.WriteFile only applies mode when creating the file.
+	if err := os.Chmod(filePath, mode); err != nil {
+		return fmt.Errorf("chmod file: %w", err)
 	}
 
 	return nil
@@ -2823,8 +2833,10 @@ func writeOrbitFile(contents string, orbitRoot string, fileName string) error {
 
 // writeFleetURL writes the Fleet URL to the designated file. This is needed in case the
 // Fleet URL originally came from a config profile, which was subsequently removed.
+// The file is world-readable so Fleet Desktop can read it; the URL is already
+// world-readable in the profile and the orbit launchd plist.
 func writeFleetURL(contents string, orbitRoot string) error {
-	return writeOrbitFile(contents, orbitRoot, constant.FleetURLFileName)
+	return writeOrbitFile(contents, orbitRoot, constant.FleetURLFileName, constant.DefaultWorldReadableFileMode)
 }
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
