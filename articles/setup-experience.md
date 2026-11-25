@@ -264,6 +264,12 @@ To see the end user experience on iOS/iPadOS, check out the [iOS video](https://
 
 Fleet retries failed installs automatically. Learn more in [Software install retries](#software-install-retries). Before you add App Store (VPP) apps or Python (`.py`) packages, see [App Store (VPP) apps in setup experience](#app-store-vpp-apps-in-setup-experience) and [Python (.py) packages on macOS](#python-py-packages-on-macos). If a host gets stuck, see [Host stuck during setup experience](#host-stuck-during-setup-experience).
 
+### Android apps that end users can't uninstall
+
+By default, end users can uninstall Android apps after they're installed during setup experience. To prevent this, check **Options > Required** when you add the app in **Software > Add software > App store**, or when you add or edit one of the app's versions. Learn more in the [app store apps guide](https://fleetdm.com/guides/install-app-store-apps#google-play-android).
+
+**Required** applies on company-owned hosts and in the work profile on personally-owned hosts. On personally-owned hosts, the end user can still remove the whole work profile.
+
 ### Stop setup on failed software installs
 
 For macOS hosts, you can configure the setup experience to stop if any software item fails to install:

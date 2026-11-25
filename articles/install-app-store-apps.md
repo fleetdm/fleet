@@ -38,7 +38,11 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-4. Optionally, use the **Target** option to limit which hosts can install the app. Choose **Custom**, then include or exclude hosts with specific labels.
+4. Optionally, check **Options > Required** so end users can't uninstall the app after it's installed during [setup experience](https://fleetdm.com/guides/setup-experience#install-software). **Required** only applies once you add the app to setup experience.
+
+5. Optionally, use the **Target** option to limit which hosts can install the app. Choose **Custom**, then include or exclude hosts with specific labels.
+
+If you check **Required** for an app that's already in setup experience, hosts that already got it can't uninstall it anymore, and it's reinstalled on hosts where the end user removed it. If you uncheck it, the app stays on hosts and end users can uninstall it.
 
 > Dynamic (query) labels don't apply to Android hosts: including one targets no Android hosts, and excluding one has no effect. Use manual or host vitals labels to target Android apps.
 
@@ -161,6 +165,8 @@ If Fleet can't fill in a variable for a host, what happens depends on the platfo
 Fleet supports adding multiple instances of each app, so that each can have its own configuration, automatic update schedule, label scoping, categories and self-service flag. 
 
 Hosts that install the app or already have it installed will get the configuration of the version they're scoped to by labels. If a host is scoped to multiple versions, Fleet installs the version that was added first.
+
+During setup experience, Fleet installs the version that was added first. For Android apps, that version's **Required** option decides whether end users can uninstall the app.
 
 ### Add a version
 
