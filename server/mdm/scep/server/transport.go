@@ -88,31 +88,39 @@ func identifierLoggingFinalizer(logger *kitlogadapter.Logger, rootPath string) k
 	}
 }
 
-func maskedRequestURI(r *http.Request, rootPath string) string {
-	uri := r.RequestURI
-	if uri == "" {
-		uri = r.URL.RequestURI()
+// SplitIdentifier splits a SCEP proxy identifier ("hostUUID,profileUUID,caName[,fourth]") taken from the decoded path.
+// It unescapes the value once more, so a double-encoded comma separates fields too.
+func SplitIdentifier(identifier string) ([]string, error) {
+	parsed, err := url.PathUnescape(identifier)
+	if err != nil {
+		return nil, err
 	}
-	// Split the way the service does: it unescapes the already-decoded path value again, so a double-encoded comma
-	// separates fields too.
-	identifier := r.PathValue("identifier")
-	if parsed, err := url.PathUnescape(identifier); err == nil {
-		identifier = parsed
-	}
-	fields := strings.SplitN(identifier, ",", 4)
-	if len(fields) < 4 {
-		return uri
-	}
-	fields[3] = "REDACTED"
+	return strings.Split(parsed, ","), nil
+}
 
-	path := rootPath + url.PathEscape(strings.Join(fields, ","))
+func maskedRequestURI(r *http.Request, rootPath string) string {
+	identifier := r.PathValue("identifier")
+	fields, err := SplitIdentifier(identifier)
+	if err != nil {
+		// The service rejects this identifier, so masking on a plain split only errs toward masking more.
+		fields = strings.Split(identifier, ",")
+	}
+	if len(fields) < 4 {
+		return r.RequestURI
+	}
+	masked := strings.Join(fields[:3], ",") + ",REDACTED"
+
+	var suffix string
 	if strings.HasSuffix(r.Pattern, pkiclientSuffix) {
-		path += pkiclientSuffix
+		suffix = pkiclientSuffix
 	}
-	if r.URL.RawQuery != "" {
-		path += "?" + r.URL.RawQuery
+	u := url.URL{
+		Path:       rootPath + masked + suffix,
+		RawPath:    rootPath + url.PathEscape(masked) + suffix,
+		RawQuery:   r.URL.RawQuery,
+		ForceQuery: r.URL.ForceQuery,
 	}
-	return path
+	return u.RequestURI()
 }
 
 // EncodeSCEPRequest encodes a SCEP HTTP Request. Used by the client.

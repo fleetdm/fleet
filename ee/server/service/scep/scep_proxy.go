@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -342,11 +341,10 @@ func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, 
 // ("hostUUID,profileUUID,caName,challenge"). It intentionally does no validation beyond the two leading fields; full
 // validation lives in validateIdentifier.
 func parseHostAndProfileFromSCEPIdentifier(identifier string) (hostUUID, profileUUID string, ok bool) {
-	parsed, err := url.PathUnescape(identifier)
+	parts, err := scepserver.SplitIdentifier(identifier)
 	if err != nil {
 		return "", "", false
 	}
-	parts := strings.Split(parsed, ",")
 	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 		return "", "", false
 	}
@@ -389,12 +387,11 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		return "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	parsedID, err := url.PathUnescape(identifier)
+	parsedIDs, err := scepserver.SplitIdentifier(identifier)
 	if err != nil {
 		// Should never happen since the identifier comes in as a path variable
 		return "", ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
 	}
-	parsedIDs := strings.Split(parsedID, ",")
 	if len(parsedIDs) < 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
 		// Return error that implements kithttp.StatusCoder interface
 		return "", &scepserver.BadRequestError{Message: "invalid identifier in URL path"}

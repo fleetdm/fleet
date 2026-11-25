@@ -498,6 +498,8 @@ func TestHTTPHandlerWithIdentifierAccessLog(t *testing.T) {
 			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
 		{"fields after the fourth", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret + "%2C" + secret,
 			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
+		{"fourth field the second unescape rejects", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret + "%25zz",
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
 		{"three fields with escaped commas", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2CNDES",
 			"/mdm/scep/proxy/host%2Cprofile%2CNDES"},
 		{"three fields with literal commas", http.MethodGet, "/mdm/scep/proxy/host,profile,NDES/pkiclient.exe",
