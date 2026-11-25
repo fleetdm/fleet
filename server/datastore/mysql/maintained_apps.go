@@ -297,6 +297,11 @@ type windowsFMAMerge struct {
 	// never saw, stays behind with its title.
 	byRule      []uint
 	softwareIDs []uint
+
+	// Names for the merge log, so a wrong merge can be traced to the tier that made it.
+	destinationName  string
+	byNameTitleNames []string
+	byRuleTitleNames []string
 }
 
 func (m *windowsFMAMerge) titleIDs() []uint {
@@ -385,14 +390,16 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 		}
 		merge := staleByDestination[match.titleID]
 		if merge == nil {
-			merge = &windowsFMAMerge{}
+			merge = &windowsFMAMerge{destinationName: match.titleName}
 			staleByDestination[match.titleID] = merge
 		}
 		if rows == nil {
 			merge.byName = append(merge.byName, titleID)
+			merge.byNameTitleNames = append(merge.byNameTitleNames, name)
 			return
 		}
 		merge.byRule = append(merge.byRule, titleID)
+		merge.byRuleTitleNames = append(merge.byRuleTitleNames, name)
 		for _, r := range rows {
 			merge.softwareIDs = append(merge.softwareIDs, r.id)
 		}
@@ -613,8 +620,11 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 	if ds.logger != nil {
 		ds.logger.InfoContext(ctx, "merged Windows software titles into the title owned by a Fleet-maintained app installer",
 			"destination_title_id", destinationID,
+			"destination_title_name", merge.destinationName,
 			"merged_title_ids", staleIDs,
 			"merged_count", len(staleIDs),
+			"merged_by_name", merge.byNameTitleNames,
+			"merged_by_curated_rule", merge.byRuleTitleNames,
 		)
 	}
 
