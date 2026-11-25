@@ -346,29 +346,10 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 		}
 	}
 
-	// Without automation_type in the request, check the patch options against the policy's current automation.
+	// Return an error when the request turns on a patch option and the policy's current automation isn't software.
 	if !p.AutomationType.Set && policy.SoftwareInstallerID == nil {
 		if forcePatch || patchWhenClosed || notifyBeforePatching || patchDeadline {
 			return fleet.NewUserMessageError(errors.New(errPatchOptionsRequireSoftwareAutomation), http.StatusUnprocessableEntity)
-		}
-	}
-
-	// Return an error when force_patch is turned off and the software automation has no other patch option to use.
-	if p.ForcePatch != nil && !*p.ForcePatch && !p.AutomationType.Set && policy.SoftwareInstallerID != nil {
-		patchWhenClosedAfter := policy.PatchWhenClosed
-		if p.PatchWhenClosed != nil {
-			patchWhenClosedAfter = *p.PatchWhenClosed
-		}
-		notifyBeforePatchingAfter := policy.NotifyBeforePatching
-		if p.NotifyBeforePatching != nil {
-			notifyBeforePatchingAfter = *p.NotifyBeforePatching
-		}
-		patchDeadlineAfter := policy.PatchDeadline
-		if p.PatchDeadline != nil {
-			patchDeadlineAfter = *p.PatchDeadline
-		}
-		if !patchWhenClosedAfter && !notifyBeforePatchingAfter && !patchDeadlineAfter {
-			return fleet.NewUserMessageError(errors.New(errForcePatchOffRequiresPatchOption), http.StatusUnprocessableEntity)
 		}
 	}
 

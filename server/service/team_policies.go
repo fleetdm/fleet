@@ -783,6 +783,14 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if fleet.PatchOptionsConflict(patchWhenClosed, notifyBeforePatching, patchDeadline, forcePatch) {
 		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(fleet.ErrPolicyPatchOptionsMutuallyExclusive, http.StatusUnprocessableEntity))
 	}
+	// Return an error when the request turns off the patch policy's option and leaves the software
+	// automation with none. force_patch isn't stored, so a policy without a stored option is on force_patch.
+	if policy.Type == fleet.PolicyTypePatch && policy.SoftwareInstallerID != nil && !p.AutomationType.Set &&
+		!forcePatch && !patchWhenClosed && !notifyBeforePatching && !patchDeadline {
+		if p.ForcePatch != nil || policy.PatchWhenClosed || policy.NotifyBeforePatching || policy.PatchDeadline {
+			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errors.New(errSoftwareAutomationRequiresPatchOption), http.StatusUnprocessableEntity))
+		}
+	}
 	if notifyBeforePatching && policy.Platform != "darwin" {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()})
 	}

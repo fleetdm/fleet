@@ -1011,19 +1011,34 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			name           string
 			payload        fleet.ModifyPolicyPayload
 			wantContinuous bool
+			wantErr        string
 		}{
 			{
 				name:           "continuous omitted keeps the stored value",
-				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false)},
+				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false), ForcePatch: new(true)},
 				wantContinuous: true,
 			},
 			{
 				name: "explicit false is honored once the flag is off",
 				payload: fleet.ModifyPolicyPayload{
 					NotifyBeforePatching:         new(false),
+					ForcePatch:                   new(true),
 					ContinuousAutomationsEnabled: new(false),
 				},
 				wantContinuous: false,
+			},
+			{
+				name:    "notify_before_patching false without another patch option returns an error",
+				payload: fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false)},
+				wantErr: `If "automation_type" is "software", one of`,
+			},
+			{
+				name: "notify_before_patching false and continuous false without another patch option returns an error",
+				payload: fleet.ModifyPolicyPayload{
+					NotifyBeforePatching:         new(false),
+					ContinuousAutomationsEnabled: new(false),
+				},
+				wantErr: `If "automation_type" is "software", one of`,
 			},
 		}
 
@@ -1047,6 +1062,11 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			}
 
 			_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, c.payload)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr, c.name)
+				assert.Nil(t, saved, c.name)
+				continue
+			}
 			require.NoError(t, err, c.name)
 			require.NotNil(t, saved, c.name)
 			assert.False(t, saved.NotifyBeforePatching, c.name)
