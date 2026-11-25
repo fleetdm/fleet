@@ -357,11 +357,11 @@ AND %s`
 		}
 	}
 
-	// In-house apps (.ipa) install during setup on iOS/iPadOS only. Deliberately
+	// In-house apps (.ipa) install during setup on iOS, iPadOS and tvOS only. Deliberately
 	// no in_house_app_labels join: labels don't apply during setup (see the
 	// comment on the INSERT below), and a freshly-enrolled host has no computed
 	// label membership yet anyway.
-	if fleetPlatform == "ios" || fleetPlatform == "ipados" {
+	if fleet.IsAppleMDMOnlyPlatform(fleetPlatform) {
 		inHouseSelect := `
 SELECT
 	? AS host_uuid,
@@ -667,8 +667,8 @@ VALUES %s`
 			}
 		}
 
-		// Select requested in-house apps; setup experience only supports them on iOS/iPadOS.
-		if platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+		// Select requested in-house apps; setup experience only supports them on iOS, iPadOS and tvOS.
+		if fleet.IsAppleMDMOnlyPlatform(platform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &inHouseIDPlatforms, stmtSelectInHouseAppIDs, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting in-house app IDs using title IDs")
@@ -742,7 +742,7 @@ VALUES %s`
 			}
 		}
 
-		if platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
+		if fleet.IsAppleMDMOnlyPlatform(platform) {
 			if _, err := tx.ExecContext(ctx, stmtUnsetInHouseApps, platform, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unsetting in-house apps")
 			}

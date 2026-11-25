@@ -3626,6 +3626,7 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		name      string
 		input     []string
 		extension string
+		platform  string
 		want      []string
 		wantErr   string
 	}{
@@ -3648,13 +3649,17 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "ipa ipados", input: []string{"ipados"}, extension: "ipa", want: []string{"ipados"}},
 		{name: "ipa both platforms", input: []string{"ios", "ipados"}, extension: "ipa", want: []string{"ios", "ipados"}},
 		{name: "ipa darwin rejected", input: []string{"darwin"}, extension: "ipa", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .ipa package`},
+		{name: "ios ipa tvos rejected", input: []string{"tvos"}, extension: "ipa", platform: "ios", wantErr: `platform "tvos" is not a valid "setup_experience_platform" value for a .ipa package (allowed: ios, ipados)`},
+		{name: "tvos ipa tvos", input: []string{"tvos"}, extension: "ipa", platform: "tvos", want: []string{"tvos"}},
+		{name: "tvos ipa ios rejected", input: []string{"ios"}, extension: "ipa", platform: "tvos", wantErr: `platform "ios" is not a valid "setup_experience_platform" value for a .ipa package (allowed: tvos)`},
+		{name: "tvos ipa ipados rejected", input: []string{"tvos", "ipados"}, extension: "ipa", platform: "tvos", wantErr: `platform "ipados" is not a valid "setup_experience_platform" value for a .ipa package (allowed: tvos)`},
 		{name: "ps1 unsupported entirely", input: []string{"darwin"}, extension: "ps1", wantErr: `setup_experience_platform is not supported for a .ps1 package`},
 		{name: "exe unsupported entirely", input: []string{"windows"}, extension: "exe", wantErr: `setup_experience_platform is not supported for a .exe package`},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got, err := normalizeSetupExperiencePlatforms(c.input, c.extension)
+			got, err := normalizeSetupExperiencePlatforms(c.input, c.extension, c.platform)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.wantErr)
@@ -3684,11 +3689,15 @@ func TestSetupExperiencePlatformsForBareIPABoolean(t *testing.T) {
 	cases := []struct {
 		name           string
 		extension      string
+		platform       string
 		setupPlatforms *[]string
 		installFlag    *bool
 		want           *[]string
 	}{
-		{name: "bare true on ipa pins to ios", extension: "ipa", installFlag: new(true), want: &[]string{"ios"}},
+		{name: "bare true on ipa pins to ios", extension: "ipa", platform: "ios", installFlag: new(true), want: &[]string{"ios"}},
+		{name: "bare true on the ipados row pins to ios", extension: "ipa", platform: "ipados", installFlag: new(true), want: &[]string{"ios"}},
+		{name: "bare true on a tvos ipa pins to tvos", extension: "ipa", platform: "tvos", installFlag: new(true), want: &[]string{"tvos"}},
+		{name: "bare false on a tvos ipa passes through", extension: "ipa", platform: "tvos", installFlag: new(false), want: nil},
 		{name: "explicit list wins over boolean", extension: "ipa", setupPlatforms: explicit, installFlag: new(true), want: explicit},
 		{name: "bare false passes through", extension: "ipa", installFlag: new(false), want: nil},
 		{name: "nothing set passes through", extension: "ipa", want: nil},
@@ -3697,7 +3706,7 @@ func TestSetupExperiencePlatformsForBareIPABoolean(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := setupExperiencePlatformsForBareIPABoolean(c.extension, c.setupPlatforms, c.installFlag)
+			got := setupExperiencePlatformsForBareIPABoolean(c.extension, c.platform, c.setupPlatforms, c.installFlag)
 			if c.want == nil {
 				require.Nil(t, got)
 				return

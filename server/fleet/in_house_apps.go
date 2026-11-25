@@ -20,7 +20,10 @@ type InHouseAppInstallTokenMetadata struct {
 }
 
 type InHouseAppPayload struct {
-	TeamID          *uint
+	TeamID *uint
+	// Platform is the platform the archive was built for. An iOS app is added for iOS and iPadOS; a tvOS app is
+	// added for tvOS only.
+	Platform        string
 	Title           string // app name
 	Filename        string
 	BundleID        string
@@ -29,6 +32,14 @@ type InHouseAppPayload struct {
 	CategoryIDs     []uint
 	Version         string
 	SelfService     bool
-	// Configuration is the managed app configuration as raw XML bytes (iOS / iPadOS only).
+	// Configuration is the managed app configuration as raw XML bytes.
 	Configuration []byte
+}
+
+// InHouseAppPlatforms returns the platforms an in-house app built for installerPlatform is added for.
+func InHouseAppPlatforms(installerPlatform string) []InstallableDevicePlatform {
+	if installerPlatform == string(TVOSPlatform) {
+		return []InstallableDevicePlatform{TVOSPlatform}
+	}
+	return []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform}
 }

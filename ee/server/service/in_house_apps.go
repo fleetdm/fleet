@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -51,6 +52,9 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	selfService := existingInstaller.SelfService
 	if payload.SelfService != nil {
 		selfService = *payload.SelfService
+		if err := validateSelfServiceSupported(fleet.InstallableDevicePlatform(existingInstaller.Platform), selfService); err != nil {
+			return nil, err
+		}
 	}
 	// Carry the stored display name on every edit so edits that don't touch
 	// it still record the current override, instead of emitting an empty
@@ -86,6 +90,12 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 			return nil, &fleet.BadRequestError{
 				Message:     "The selected package is for a different file type.",
 				InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
+			}
+		}
+
+		if !slices.Contains(fleet.InHouseAppPlatforms(payloadForNewInstallerFile.Platform), fleet.InstallableDevicePlatform(existingInstaller.Platform)) {
+			return nil, &fleet.BadRequestError{
+				Message: "The selected package is for a different platform.",
 			}
 		}
 
@@ -182,7 +192,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	}
 	updatedInstaller.Status = &fleet.SoftwareInstallerStatusSummary{Installed: st.Installed, PendingInstall: st.Pending, FailedInstall: st.Failed}
 
-	// Wrap iOS / iPadOS plist as a JSON string for the response.
+	// Wrap the plist as a JSON string for the response.
 	if len(updatedInstaller.Configuration) > 0 {
 		wrapped, err := json.Marshal(string(updatedInstaller.Configuration))
 		if err != nil {

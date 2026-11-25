@@ -4271,6 +4271,125 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitlesOmitSoftwarePackage()
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestInHouseAppTvOS() {
+	t := s.T()
+	ctx := t.Context()
+
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	type row struct {
+		TitleID  uint   `db:"title_id"`
+		Platform string `db:"platform"`
+		Source   string `db:"source"`
+	}
+	rows := func(filename string) []row {
+		var got []row
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got, `
+				SELECT iha.title_id, iha.platform, st.source
+				FROM in_house_apps iha JOIN software_titles st ON st.id = iha.title_id
+				WHERE iha.global_or_team_id = ? AND iha.filename = ? ORDER BY iha.platform`, teamID, filename)
+		})
+		return got
+	}
+
+	const selfServiceMsg = "Self-service isn't available for tvOS. Apple TVs have no end user interface to install from."
+
+	// self-service is refused, and nothing is added
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		TeamID: &teamID, Filename: "tvos_test.ipa", SelfService: true,
+	}, http.StatusUnprocessableEntity, selfServiceMsg)
+	require.Empty(t, rows("tvos_test.ipa"))
+
+	// a tvOS .ipa adds one tvOS title
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "tvos_test.ipa"}, http.StatusOK, "")
+	tvRows := rows("tvos_test.ipa")
+	require.Len(t, tvRows, 1)
+	require.Equal(t, "tvos", tvRows[0].Platform)
+	require.Equal(t, "tvos_apps", tvRows[0].Source)
+	titleID := tvRows[0].TitleID
+
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"fleet_id", fmt.Sprint(teamID))
+	require.Equal(t, "tvos_test", titleResp.SoftwareTitle.Name)
+	require.Equal(t, "tvos_apps", titleResp.SoftwareTitle.Source)
+	require.Len(t, titleResp.SoftwareTitle.Packages, 1)
+	require.Equal(t, "tvos", titleResp.SoftwareTitle.Packages[0].Platform)
+	require.False(t, titleResp.SoftwareTitle.Packages[0].SelfService)
+
+	// it can't be added twice
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "tvos_test.ipa"}, http.StatusConflict, "already exists")
+
+	// self-service can't be turned on afterwards
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"fleet_id":     {fmt.Sprint(teamID)},
+		"self_service": {"true"},
+	})
+	res := s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(),
+		http.StatusUnprocessableEntity, headers)
+	require.Contains(t, extractServerErrorText(res.Body), selfServiceMsg)
+
+	// an iOS .ipa can't replace it
+	iosIPA, err := os.ReadFile(filepath.Join("testdata", "software-installers", "ipa_test.ipa"))
+	require.NoError(t, err)
+	body, headers = generateMultipartRequest(t, "software", "ipa_test.ipa", iosIPA, s.token, map[string][]string{
+		"fleet_id": {fmt.Sprint(teamID)},
+	})
+	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(),
+		http.StatusBadRequest, headers)
+	require.Contains(t, extractServerErrorText(res.Body), "The selected package is for a different platform.")
+
+	// an iOS .ipa still adds an iOS and an iPadOS title, and nothing for tvOS. It has the same bundle identifier
+	// as the tvOS one.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ipa_test.ipa"}, http.StatusOK, "")
+	iosRows := rows("ipa_test.ipa")
+	require.Len(t, iosRows, 2)
+	require.Equal(t, []string{"ios", "ipados"}, []string{iosRows[0].Platform, iosRows[1].Platform})
+	require.Equal(t, []string{"ios_apps", "ipados_apps"}, []string{iosRows[0].Source, iosRows[1].Source})
+	require.Len(t, rows("tvos_test.ipa"), 1)
+
+	// the tvOS app is listed for tvOS in setup experience, the iOS one isn't
+	var setupResp getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", nil, http.StatusOK, &setupResp,
+		"fleet_id", fmt.Sprint(teamID), "platform", "tvos")
+	require.Len(t, setupResp.SoftwareTitles, 1)
+	require.Equal(t, titleID, setupResp.SoftwareTitles[0].ID)
+
+	// neither app can be installed on a host of the other's platform
+	newHost := func(platform string) *fleet.Host {
+		host, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			UUID:            uuid.NewString(),
+			HardwareSerial:  uuid.NewString(),
+			Hostname:        t.Name() + platform,
+			Platform:        platform,
+			TeamID:          &teamID,
+		})
+		require.NoError(t, err)
+		return host
+	}
+	const wrongPlatformMsg = "Couldn't install. This software isn't available for this host's platform."
+	for _, c := range []struct {
+		hostPlatform string
+		titleID      uint
+	}{
+		{"tvos", iosRows[0].TitleID},
+		{"tvos", iosRows[1].TitleID},
+		{"ios", titleID},
+		{"ipados", titleID},
+	} {
+		host := newHost(c.hostPlatform)
+		res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, c.titleID), nil, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), wrongPlatformMsg)
+	}
+}
+
 func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 	t := s.T()
 	ctx := context.Background()

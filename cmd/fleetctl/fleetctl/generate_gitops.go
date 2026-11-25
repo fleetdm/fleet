@@ -2257,9 +2257,19 @@ func (r *fmaSlugResolver) resolve(fmaID uint) (string, error) {
 	return r.byID[fmaID], nil
 }
 
+// inHouseAppKey identifies the .ipa an in-house app title came from. An iOS
+// .ipa has an iOS and an iPadOS title. A tvOS .ipa is a different archive with
+// one title, and it can have the same filename as the iOS one.
+func inHouseAppKey(filename, platform string) string {
+	if platform == string(fleet.TVOSPlatform) {
+		return filename + "\x00" + platform
+	}
+	return filename
+}
+
 // isDuplicateInHouseApp returns true if this in-house app (.ipa) has already
-// been seen, tracking by filename. In-house apps generate two software titles
-// (one for iOS, one for iPadOS) so we deduplicate them.
+// been seen. An iOS in-house app generates two software titles (one for iOS,
+// one for iPadOS) so we deduplicate them.
 func isDuplicateInHouseApp(sw fleet.SoftwareTitleListResult, seen map[string]struct{}) bool {
 	if len(sw.Packages) == 0 {
 		return false
@@ -2267,10 +2277,11 @@ func isDuplicateInHouseApp(sw fleet.SoftwareTitleListResult, seen map[string]str
 	if filepath.Ext(sw.Packages[0].Name) != ".ipa" {
 		return false
 	}
-	if _, ok := seen[sw.Packages[0].Name]; ok {
+	key := inHouseAppKey(sw.Packages[0].Name, sw.Packages[0].Platform)
+	if _, ok := seen[key]; ok {
 		return true
 	}
-	seen[sw.Packages[0].Name] = struct{}{}
+	seen[key] = struct{}{}
 	return false
 }
 
@@ -2429,14 +2440,15 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		return nil, err
 	}
 	// Each .ipa produces one title per platform but is deduplicated to a single
-	// YAML entry below, so collect its selections keyed by filename and emit
+	// YAML entry below, so collect its selections keyed by archive and emit
 	// them as setup_experience_platform instead of the setup_experience boolean.
 	inHouseSetupPlatformsByFilename := make(map[string][]string)
 	for _, software := range setupSoftware {
 		if len(software.Packages) > 0 && software.Packages[0].InstallDuringSetup != nil && *software.Packages[0].InstallDuringSetup {
 			pkg := software.Packages[0]
 			if filepath.Ext(pkg.Name) == ".ipa" {
-				inHouseSetupPlatformsByFilename[pkg.Name] = append(inHouseSetupPlatformsByFilename[pkg.Name], pkg.Platform)
+				key := inHouseAppKey(pkg.Name, pkg.Platform)
+				inHouseSetupPlatformsByFilename[key] = append(inHouseSetupPlatformsByFilename[key], pkg.Platform)
 			} else {
 				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 			}
@@ -2834,7 +2846,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			// Never set together with the cross-selection emission above: .ipa
 			// titles can't be cross-selected because the setup experience listing
 			// excludes them for any non-mobile target platform.
-			if inHousePlatforms, ok := inHouseSetupPlatformsByFilename[sp.Name]; ok && len(inHousePlatforms) > 0 {
+			if inHousePlatforms, ok := inHouseSetupPlatformsByFilename[inHouseAppKey(sp.Name, sp.Platform)]; ok && len(inHousePlatforms) > 0 {
 				slices.Sort(inHousePlatforms)
 				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
 			}

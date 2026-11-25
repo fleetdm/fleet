@@ -92,8 +92,11 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
-	// Validate iOS/iPadOS managed app configuration up-front. For non-.ipa extensions, silently drop.
+	// Validate the managed app configuration up-front. For non-.ipa extensions, silently drop.
 	if payload.Extension == "ipa" {
+		if err := validateSelfServiceSupported(fleet.InstallableDevicePlatform(payload.Platform), payload.SelfService); err != nil {
+			return nil, err
+		}
 		if len(payload.Configuration) > 0 {
 			if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
 				return nil, err
@@ -230,7 +233,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		if err != nil {
 			return nil, err
 		}
-		// Wrap iOS / iPadOS plist as a JSON string for the response.
+		// Wrap the plist as a JSON string for the response.
 		if len(addedInstaller.Configuration) > 0 {
 			wrapped, err := json.Marshal(string(addedInstaller.Configuration))
 			if err != nil {
@@ -1827,6 +1830,14 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		}
 
 		if iha != nil {
+			// An iOS archive runs on iPhones and iPads, and a tvOS archive on
+			// Apple TVs. The title alone doesn't say which host it's for.
+			if !slices.Contains(fleet.InHouseAppPlatforms(iha.Platform), fleet.InstallableDevicePlatform(platform)) {
+				return &fleet.BadRequestError{
+					Message: "Couldn't install. This software isn't available for this host's platform.",
+				}
+			}
+
 			scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, hostID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "checking label scoping during in-house app install attempt")
@@ -2578,13 +2589,17 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 
 // setupExperiencePlatformsForBareIPABoolean resolves the bare setup_experience
 // boolean for an .ipa into the explicit platform list it stands for: true
-// means iOS only, the documented default. The boolean must not stay attached
-// to the base payload directly because on a hash-matched re-apply the base
-// payload is whichever of the app's two platform rows the lookup returned
-// first. An explicit setup_experience_platform list, false, or a non-.ipa
-// package passes through unchanged.
-func setupExperiencePlatformsForBareIPABoolean(extension string, setupPlatforms *[]string, installDuringSetup *bool) *[]string {
+// means iOS only for an iOS app, the documented default, and tvOS for a tvOS
+// app. The boolean must not stay attached to the base payload directly
+// because on a hash-matched re-apply the base payload is whichever of an iOS
+// app's two platform rows the lookup returned first. An explicit
+// setup_experience_platform list, false, or a non-.ipa package passes through
+// unchanged.
+func setupExperiencePlatformsForBareIPABoolean(extension, platform string, setupPlatforms *[]string, installDuringSetup *bool) *[]string {
 	if extension == "ipa" && setupPlatforms == nil && installDuringSetup != nil && *installDuringSetup {
+		if platform == string(fleet.TVOSPlatform) {
+			return &[]string{string(fleet.TVOSPlatform)}
+		}
 		return &[]string{string(fleet.IOSPlatform)}
 	}
 	return setupPlatforms
@@ -2612,8 +2627,8 @@ func installDuringSetupForFannedOutPlatform(setupPlatforms *[]string, baseInstal
 // is not accepted — only canonical tokens ("darwin", "linux"), consistent with
 // the query/policy `platform` field. Returns an error on the first
 // incompatible entry; empty input is legal.
-func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]string, error) {
-	allowed := fleet.AllowedSetupExperiencePlatformsForExtension(extension)
+func normalizeSetupExperiencePlatforms(platforms []string, extension, installerPlatform string) ([]string, error) {
+	allowed := fleet.AllowedSetupExperiencePlatforms(extension, installerPlatform)
 	allowedSet := make(map[string]struct{}, len(allowed))
 	for _, a := range allowed {
 		allowedSet[a] = struct{}{}
@@ -2804,15 +2819,15 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "determining platform from extension")
 	}
+	// An .ipa's extension doesn't say whether it's an iOS or a tvOS app.
+	if len(meta.Platforms) > 0 {
+		platform = string(meta.Platforms[0])
+	}
 	payload.Platform = platform
 
 	switch {
 	case payload.Extension == "ipa":
-		if payload.Platform == "ipados" {
-			payload.Source = "ipados_apps"
-		} else {
-			payload.Source = "ios_apps"
-		}
+		payload.Source = fleet.AppleSoftwareSourceForPlatform(payload.Platform)
 	case payload.BundleIdentifier != "":
 		payload.Source = "apps"
 	default:
@@ -4050,9 +4065,11 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// Managed app configuration is only supported for iOS / iPadOS in-house apps.
+			// Managed app configuration is only supported for in-house apps.
 			if installer.Extension != "ipa" {
 				installer.Configuration = nil
+			} else if err := validateSelfServiceSupported(fleet.InstallableDevicePlatform(installer.Platform), installer.SelfService); err != nil {
+				return fmt.Errorf("Couldn't edit software. %s: %w", installer.Filename, err)
 			}
 
 			switch {
@@ -4088,12 +4105,13 @@ func (svc *Service) softwareBatchUpload(
 				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`)
 			}
 
-			// The bare setup_experience boolean on an .ipa defaults to iOS (see
-			// yaml-files.md). Pin it to an explicit platform list so the
-			// selection doesn't ride on whichever of the app's two rows the
-			// hash lookup happened to return as the base payload.
+			// The bare setup_experience boolean on an .ipa defaults to iOS for an
+			// iOS app and means tvOS for a tvOS app (see yaml-files.md). Pin it to
+			// an explicit platform list so the selection doesn't ride on
+			// whichever of an iOS app's two rows the hash lookup happened to
+			// return as the base payload.
 			installer.SetupExperiencePlatforms = setupExperiencePlatformsForBareIPABoolean(
-				installer.Extension, installer.SetupExperiencePlatforms, installer.InstallDuringSetup)
+				installer.Extension, installer.Platform, installer.SetupExperiencePlatforms, installer.InstallDuringSetup)
 
 			// Canonicalize and reject platforms incompatible with the
 			// installer's extension before the batch reaches the datastore.
@@ -4101,7 +4119,7 @@ func (svc *Service) softwareBatchUpload(
 			// experience state — including the native platform, which
 			// overrides whatever setup_experience said on the same payload.
 			if installer.SetupExperiencePlatforms != nil {
-				normalized, err := normalizeSetupExperiencePlatforms(*installer.SetupExperiencePlatforms, installer.Extension)
+				normalized, err := normalizeSetupExperiencePlatforms(*installer.SetupExperiencePlatforms, installer.Extension, installer.Platform)
 				if err != nil {
 					return fmt.Errorf("Couldn't edit software. %s: %s", installer.Filename, err.Error())
 				}
@@ -4157,18 +4175,22 @@ func (svc *Service) softwareBatchUpload(
 				installer.Title = installer.Filename
 			}
 
-			// if this is an .ipa and there is no extra installer, create it here
+			// An iOS .ipa also adds the app for the other of iOS and iPadOS, so
+			// create that installer here if it isn't there. A tvOS .ipa is tvOS only.
 			if installer.Extension == "ipa" && len(extraInstallers) == 0 {
-				extraPayload := *installer
+				var otherPlatform fleet.InstallableDevicePlatform
 				switch installer.Platform {
 				case string(fleet.IOSPlatform):
-					extraPayload.Platform = string(fleet.IPadOSPlatform)
-					extraPayload.Source = "ipados_apps"
+					otherPlatform = fleet.IPadOSPlatform
 				case string(fleet.IPadOSPlatform):
-					extraPayload.Platform = string(fleet.IOSPlatform)
-					extraPayload.Source = "ios_apps"
+					otherPlatform = fleet.IOSPlatform
 				}
-				extraInstallers = append(extraInstallers, &extraPayload)
+				if otherPlatform != "" {
+					extraPayload := *installer
+					extraPayload.Platform = string(otherPlatform)
+					extraPayload.Source = fleet.AppleSoftwareSourceForPlatform(string(otherPlatform))
+					extraInstallers = append(extraInstallers, &extraPayload)
+				}
 			}
 			if installer.Extension == "ipa" {
 				// Derive the per-platform selection for every fanned-out payload —

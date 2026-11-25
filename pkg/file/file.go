@@ -40,6 +40,9 @@ type InstallerMetadata struct {
 	Extension        string
 	PackageIDs       []string
 	UpgradeCode      string
+	// Platforms is set when the extension doesn't decide the platform: an .ipa
+	// is either an iOS and iPadOS app or a tvOS app.
+	Platforms []fleet.InstallableDevicePlatform
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the

@@ -1957,9 +1957,8 @@ WHERE
 	}
 
 	// Bulk-fetch managed configurations for the in-house apps being installed.
-	// In-house Configuration is iOS/iPadOS-only; the builder drops it for
-	// macOS hosts anyway, but in_house_apps are always Apple-mobile so we just
-	// fetch unconditionally.
+	// The builder drops Configuration for macOS hosts, but in_house_apps are
+	// always for iOS, iPadOS or tvOS, so we just fetch unconditionally.
 	ids := make([]uint, 0, len(pending))
 	for _, p := range pending {
 		ids = append(ids, p.InHouseAppID)

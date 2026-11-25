@@ -894,7 +894,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 		return "windows", nil
 	case "pkg":
 		return "darwin", nil
-	case "ipa": // TODO(JVE): what about iPads? Can we get the platforms from the Info.plist file?
+	case "ipa": // the default; the archive's Info.plist decides between iOS and tvOS
 		return "ios", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
@@ -919,17 +919,21 @@ func CanonicalPlatform(p string) string {
 	return p
 }
 
-// AllowedSetupExperiencePlatformsForExtension returns the canonical platform
-// names that may appear in a package's setup_experience_platform field. Both
-// the native platform and any supported non-native targets are allowed —
-// listing the native platform is the declarative equivalent of
-// setup_experience: true.
-func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
+// AllowedSetupExperiencePlatforms returns the canonical platform names that
+// may appear in a package's setup_experience_platform field. Both the native
+// platform and any supported non-native targets are allowed — listing the
+// native platform is the declarative equivalent of setup_experience: true.
+// installerPlatform only matters for an .ipa, which is an iOS and iPadOS app
+// or a tvOS app.
+func AllowedSetupExperiencePlatforms(ext, installerPlatform string) []string {
 	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
 	switch ext {
 	case "sh", "py":
 		return []string{"darwin", "linux"}
 	case "ipa":
+		if installerPlatform == string(TVOSPlatform) {
+			return []string{"tvos"}
+		}
 		return []string{"ios", "ipados"}
 	default:
 		return nil
