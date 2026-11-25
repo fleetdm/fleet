@@ -83,7 +83,6 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
 	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/hillu/go-ntdll v0.0.0-20220801201350-0d23f057ef1f
@@ -91,7 +90,6 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/klauspost/compress v1.19.2
-	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
 	github.com/macadmins/osquery-extension v1.5.4
 	github.com/manifoldco/promptui v0.9.0
@@ -308,7 +306,6 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/dsig v1.0.0 // indirect
 	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
