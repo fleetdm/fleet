@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -3760,66 +3759,89 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		}
 	}
 
-	var buf bytes.Buffer
-	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
-		logging.WithErr(ctx, err)
-		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
-		return
+	out := &hostsReportCSVWriter{w: w, columns: r.Columns}
+	if err := gocsv.MarshalCSV(r.Hosts, out); err != nil {
+		switch {
+		case out.csv != nil:
+			// The response has already started, so the error can't be sent.
+			logging.WithErr(ctx, err)
+		case errors.As(err, new(*fleet.BadRequestError)):
+			encodeError(ctx, err, w)
+		default:
+			logging.WithErr(ctx, err)
+			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+		}
 	}
+}
 
-	// read back the CSV to reorder and (optionally) filter columns
-	recs, err := csv.NewReader(&buf).ReadAll()
-	if err != nil {
-		logging.WithErr(ctx, err)
-		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
-		return
+// hostsReportCSVWriter receives every column gocsv marshals and writes only the requested ones, in
+// order, straight to the response, instead of buffering the whole CSV and parsing it back.
+type hostsReportCSVWriter struct {
+	w       http.ResponseWriter
+	columns []string
+	csv     *csv.Writer
+	pick    []int
+	row     []string
+}
+
+func (cw *hostsReportCSVWriter) Write(record []string) error {
+	if cw.csv == nil {
+		pick, err := hostsReportColumnIndexes(record, cw.columns)
+		if err != nil {
+			return err
+		}
+		cw.pick, cw.row = pick, make([]string, len(pick))
+		cw.w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
+		cw.w.Header().Set("Content-Type", "text/csv")
+		cw.w.Header().Set("X-Content-Type-Options", "nosniff")
+		cw.w.WriteHeader(http.StatusOK)
+		cw.csv = csv.NewWriter(cw.w)
 	}
+	for i, ix := range cw.pick {
+		cell := record[ix]
+		// The report used to be parsed back with encoding/csv, which turns CRLF inside a field into LF.
+		if strings.Contains(cell, "\r\n") {
+			cell = strings.ReplaceAll(cell, "\r\n", "\n")
+		}
+		cw.row[i] = sanitizeCSVFormula(cell)
+	}
+	return cw.csv.Write(cw.row)
+}
 
-	returnAll := len(r.Columns) == 0
+func (cw *hostsReportCSVWriter) Flush() {
+	if cw.csv != nil {
+		cw.csv.Flush()
+	}
+}
 
-	var outRows [][]string
-	if returnAll {
+func (cw *hostsReportCSVWriter) Error() error {
+	if cw.csv == nil {
+		return nil
+	}
+	return cw.csv.Error()
+}
+
+// hostsReportColumnIndexes returns the header positions of the requested columns, or of every
+// column in its documented order when none are requested.
+func hostsReportColumnIndexes(header, columns []string) ([]int, error) {
+	byName := make(map[string]int, len(header))
+	for i, name := range header {
+		byName[name] = i
+	}
+	if len(columns) == 0 {
+		recs := [][]string{slices.Clone(header)}
 		applyCSVColumnPlacements(recs)
-		outRows = recs
-	} else if len(recs) > 0 {
-		// map the header names to their field index
-		hdrs := make(map[string]int, len(recs[0]))
-		for i, hdr := range recs[0] {
-			hdrs[hdr] = i
-		}
-
-		outRows = make([][]string, len(recs))
-		for i, rec := range recs {
-			for _, col := range r.Columns {
-				colIx, ok := hdrs[col]
-				if !ok {
-					// invalid column name - it would be nice to catch this in the
-					// endpoint before processing the results, but it would require
-					// duplicating the list of columns from the Host's struct tags to a
-					// map and keep this in sync, for what is essentially a programmer
-					// mistake that should be caught and corrected early.
-					encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
-					return
-				}
-				outRows[i] = append(outRows[i], rec[colIx])
-			}
-		}
+		columns = recs[0]
 	}
-
-	for _, row := range outRows {
-		for i, cell := range row {
-			row[i] = sanitizeCSVFormula(cell)
+	pick := make([]int, 0, len(columns))
+	for _, col := range columns {
+		ix, ok := byName[col]
+		if !ok {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}
 		}
+		pick = append(pick, ix)
 	}
-
-	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
-	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(http.StatusOK)
-
-	if err := csv.NewWriter(w).WriteAll(outRows); err != nil {
-		logging.WithErr(ctx, err)
-	}
+	return pick, nil
 }
 
 // sanitizeCSVFormula neutralizes values that spreadsheet applications would
@@ -3939,6 +3961,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		// enable device_mapping retrieval, as no column means all columns
 		req.Opts.DeviceMapping = true
 	}
+	req.Opts.ReportColumns = cols
 
 	var (
 		hosts []*fleet.Host

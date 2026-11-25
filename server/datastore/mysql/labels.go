@@ -1346,108 +1346,35 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		return nil, ctxerr.Wrap(ctx, err, "confirming label existence")
 	}
 
-	queryFmt := `
-    SELECT
-      h.id,
-      h.osquery_host_id,
-      h.created_at,
-      h.updated_at,
-      h.detail_updated_at,
-      h.node_key,
-      h.hostname,
-      h.uuid,
-      h.platform,
-      h.osquery_version,
-      h.os_version,
-      h.build,
-      h.platform_like,
-      h.code_name,
-      h.uptime,
-      h.memory,
-      h.cpu_type,
-      h.cpu_subtype,
-      h.cpu_brand,
-      h.cpu_physical_cores,
-      h.cpu_logical_cores,
-      h.hardware_vendor,
-      h.hardware_model,
-      h.hardware_version,
-      h.hardware_serial,
-      h.computer_name,
-      h.primary_ip_id,
-      h.distributed_interval,
-      h.logger_tls_period,
-      h.config_tls_refresh,
-      h.primary_ip,
-      h.primary_mac,
-      h.label_updated_at,
-      h.last_enrolled_at,
-      h.refetch_requested,
-      h.refetch_critical_queries_until,
-      h.team_id,
-      h.policy_updated_at,
-      h.public_ip,
-      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      COALESCE(hst.seen_time, h.created_at) as seen_time,
-      nstm.seen_time AS last_mdm_checked_in_at,
-      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-      h.last_restarted_at,
-      h.timezone,
-      hoi.version AS orbit_version,
-      hoi.desktop_version AS fleet_desktop_version,
-      (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name,` + hostOSSelect + `
-      %s
-      %s
-			%s
-    FROM label_membership lm
-    JOIN hosts h ON (lm.host_id = h.id)
-    LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
-    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-    LEFT JOIN host_disks hd ON (h.id=hd.host_id)
-    LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)` + hostOSJoin + `
-    %s
-    %s
-		%s
-`
-	failingIssuesSelect := `,
-		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
-		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
-		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
-	`
-	failingIssuesJoin := `LEFT JOIN host_issues ON h.id = host_issues.host_id`
-
-	if opt.DisableIssues {
-		failingIssuesSelect = ""
-		failingIssuesJoin = ""
+	fields := hostReportFields(opt.ReportColumns)
+	query := "\n    SELECT" + strings.TrimPrefix(selectHostFields(hostsInLabelSelect, fields), ",")
+	if !opt.DisableIssues {
+		query += selectHostFields(hostIssuesSelect, fields)
 	}
-
-	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
-	SELECT
-		host_id,
-		CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
-	FROM
-		host_emails
-	GROUP BY
-		host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
-	if !opt.DeviceMapping {
-		deviceMappingJoin = ""
-	}
-
-	var deviceMappingSelect string
-	if opt.DeviceMapping {
-		deviceMappingSelect = `,
+	if opt.DeviceMapping && fields.want("device_mapping") {
+		query += `,
 	COALESCE(dm.device_mapping, 'null') as device_mapping`
 	}
-
-	query := fmt.Sprintf(
-		queryFmt, hostMDMSelect, failingIssuesSelect, deviceMappingSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin,
-	)
+	query += `
+    FROM label_membership lm
+    JOIN hosts h ON (lm.host_id = h.id)` + hostInLabelSeenTimesJoin + hostMobileMDMSeenTimeJoin + hostInLabelUpdatesJoin +
+		hostInLabelDisksJoin + hostInLabelOrbitInfoJoin + hostOSJoin + `
+    ` + hostMDMJoin
+	if !opt.DisableIssues {
+		query += `
+    ` + hostIssuesJoin
+	}
+	if opt.DeviceMapping {
+		query += hostInLabelDeviceMappingJoin()
+	}
+	query += "\n"
 
 	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "applying label query filters")
+	}
+	if fields != nil {
+		query = dropUnusedHostJoins(query, hostsInLabelOptionalJoins)
 	}
 
 	hosts := []*fleet.Host{}

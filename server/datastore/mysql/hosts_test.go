@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/gocarina/gocsv"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -210,6 +212,7 @@ func TestHosts(t *testing.T) {
 		{"ListHostsLiteByIDs", testHostsListHostsLiteByIDs},
 		{"ListHostsWithPagination", testListHostsWithPagination},
 		{"ListHostsSortedPagesMatchFullList", testListHostsSortedPagesMatchFullList},
+		{"ListHostsReportColumns", testListHostsReportColumns},
 		{"HostHealth", testHostHealth},
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
@@ -13832,9 +13835,14 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostCount, count)
 }
 
-// A sorted page is built from a page of host IDs; it must match the same slice of the
-// full sorted list, which PerPage 0 still loads with a single query.
-func testListHostsSortedPagesMatchFullList(t *testing.T, ds *Datastore) {
+type hostListFilterCase struct {
+	name   string
+	filter fleet.TeamFilter
+	opt    fleet.HostListOptions
+}
+
+// newHostListFilterCases creates hosts with data for every host list filter and returns a case per filter.
+func newHostListFilterCases(t *testing.T, ds *Datastore) []hostListFilterCase {
 	ctx := t.Context()
 
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -13948,11 +13956,7 @@ func testListHostsSortedPagesMatchFullList(t *testing.T, ds *Datastore) {
 	admin := fleet.TeamFilter{User: test.UserAdmin}
 	observer := fleet.TeamFilter{User: &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}}}, IncludeObserver: true}
 	depFailed := fleet.DEPAssignProfileResponseFailed
-	cases := []struct {
-		name   string
-		filter fleet.TeamFilter
-		opt    fleet.HostListOptions
-	}{
+	return []hostListFilterCase{
 		{"none", admin, fleet.HostListOptions{}},
 		{"fleet", admin, fleet.HostListOptions{TeamFilter: &team1.ID}},
 		{"no fleet", admin, fleet.HostListOptions{TeamFilter: new(uint(0))}},
@@ -13992,6 +13996,13 @@ func testListHostsSortedPagesMatchFullList(t *testing.T, ds *Datastore) {
 			AdditionalFilters: []string{"foo"}, PolicyIDFilter: &pol.ID, PolicyResponseFilter: new(true),
 		}},
 	}
+}
+
+// A sorted page is built from a page of host IDs; it must match the same slice of the
+// full sorted list, which PerPage 0 still loads with a single query.
+func testListHostsSortedPagesMatchFullList(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	cases := newHostListFilterCases(t, ds)
 	cursors := map[string]string{"hostname": "host-10", "display_name": "Mac 2", "computer_name": "Mac 2"}
 	const perPage = 5
 	for _, c := range cases {
@@ -14031,6 +14042,87 @@ func testListHostsSortedPagesMatchFullList(t *testing.T, ds *Datastore) {
 			require.True(t, nonEmpty, "the filter should match some hosts")
 		})
 	}
+}
+
+// The report loads only the fields its columns need and drops the joins nothing references; every
+// column must still match a full load, with every filter and sort key.
+func testListHostsReportColumns(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	cases := newHostListFilterCases(t, ds)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "report", Query: "select 1"})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO label_membership (label_id, host_id) SELECT ?, id FROM hosts WHERE id % 3 != 1`, label.ID)
+		return err
+	})
+
+	listers := map[string]func(fleet.TeamFilter, fleet.HostListOptions) ([]*fleet.Host, error){
+		"hosts": func(f fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return ds.ListHosts(ctx, f, opt)
+		},
+		"label": func(f fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return ds.ListHostsInLabel(ctx, f, label.ID, opt)
+		},
+	}
+	for _, c := range cases {
+		for listName, list := range listers {
+			t.Run(listName+" "+c.name, func(t *testing.T) {
+				opt := c.opt
+				opt.ListOptions = fleet.ListOptions{OrderKey: "display_name", TestSecondaryOrderKey: "id"}
+				all, err := list(c.filter, opt)
+				if err != nil {
+					return // the filter doesn't apply to this list
+				}
+				want := hostsReportRows(t, all)
+				for i, col := range want[0] {
+					opt.ReportColumns = []string{col}
+					got, err := list(c.filter, opt)
+					require.NoError(t, err, col)
+					require.Equal(t, reportColumn(want, i), reportColumn(hostsReportRows(t, got), i), col)
+				}
+
+				for _, key := range slices.Sorted(maps.Keys(hostAllowedOrderKeys)) {
+					for _, dir := range []fleet.OrderDirection{fleet.OrderAscending, fleet.OrderDescending} {
+						opt.ListOptions = fleet.ListOptions{OrderKey: key, OrderDirection: dir, TestSecondaryOrderKey: "id"}
+						opt.ReportColumns = nil
+						all, err := list(c.filter, opt)
+						if err != nil {
+							continue
+						}
+						opt.ReportColumns = []string{"hostname"}
+						got, err := list(c.filter, opt)
+						require.NoError(t, err, "%s %s", key, dir)
+						require.Equal(t, hostIDs(all), hostIDs(got), "%s %s", key, dir)
+					}
+				}
+			})
+		}
+	}
+}
+
+// hostsReportRows renders hosts the way the report does, with the raw device mapping in its column.
+func hostsReportRows(t *testing.T, hosts []*fleet.Host) [][]string {
+	resps := make([]*fleet.HostResponse, 0, len(hosts))
+	for _, h := range hosts {
+		hr := fleet.HostResponseForHostCheap(h)
+		if h.DeviceMapping != nil {
+			hr.CSVDeviceMapping = string(*h.DeviceMapping)
+		}
+		resps = append(resps, hr)
+	}
+	out, err := gocsv.MarshalString(resps)
+	require.NoError(t, err)
+	rows, err := csv.NewReader(strings.NewReader(out)).ReadAll()
+	require.NoError(t, err)
+	return rows
+}
+
+func reportColumn(rows [][]string, i int) []string {
+	col := make([]string, 0, len(rows))
+	for _, row := range rows {
+		col = append(col, row[i])
+	}
+	return col
 }
 
 func testHostHealth(t *testing.T, ds *Datastore) {

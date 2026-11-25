@@ -325,6 +325,9 @@ type HostListOptions struct {
 	// DEPAssignProfileResponseFilter filters hosts by their exact DEP profile
 	// assignment response value (SUCCESS, FAILED, THROTTLED, NOT_ACCESSIBLE).
 	DEPAssignProfileResponseFilter *DEPAssignProfileResponseStatus
+
+	// ReportColumns, when set, loads only what these hosts report (CSV) columns need.
+	ReportColumns []string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?

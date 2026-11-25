@@ -728,12 +728,12 @@ func omitUnknownLinuxDiskEncryption(host *fleet.Host) {
 // hostOSSelect and hostOSJoin load the host's operating_systems row into Host.OSName and Host.OSVersionOnly, the
 // values the os_name and os_version host filters match. Only loaders whose host reaches the API need them.
 const (
-	hostOSSelect = `
-  COALESCE(os.name, '') AS os_name,
-  COALESCE(os.version, '') AS os_version_only`
-	hostOSJoin = `
-  LEFT JOIN host_operating_system hos ON hos.host_id = h.id
-  LEFT JOIN operating_systems os ON os.id = hos.os_id`
+	hostOSNameSelect    = "\n  COALESCE(os.name, '') AS os_name"
+	hostOSVersionSelect = "\n  COALESCE(os.version, '') AS os_version_only"
+	hostOSSelect        = hostOSNameSelect + "," + hostOSVersionSelect
+	hostOSInventoryJoin = "\n  LEFT JOIN host_operating_system hos ON hos.host_id = h.id"
+	hostOSRowJoin       = "\n  LEFT JOIN operating_systems os ON os.id = hos.os_id"
+	hostOSJoin          = hostOSInventoryJoin + hostOSRowJoin
 )
 
 // setHostAPIOS turns the OS inventory row loaded by hostOSSelect into the os_name and os_version the API returns.
@@ -986,7 +986,9 @@ const hostMDMSelect = `,
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
-const hostMDMJoin = `
+const hostMDMJoin = hostMDMDataJoin + hostDiskEncryptionJoin + hostDEPAssignmentsJoin + "\n"
+
+const hostMDMDataJoin = `
   LEFT JOIN (
 	SELECT
 	  hm.is_server,
@@ -1002,10 +1004,12 @@ const hostMDMJoin = `
 	FROM
 	  host_mdm hm
 	  LEFT JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
-  ) hmdm ON hmdm.host_id = h.id
-  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
-  LEFT JOIN host_dep_assignments hdep ON hdep.host_id = h.id
-  `
+  ) hmdm ON hmdm.host_id = h.id`
+
+const (
+	hostDiskEncryptionJoin = "\n  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id"
+	hostDEPAssignmentsJoin = "\n  LEFT JOIN host_dep_assignments hdep ON hdep.host_id = h.id" //nolint:gosec // G101 false positive
+)
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
 	var hostsByOS []struct {
@@ -1037,66 +1041,10 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 }
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	sql := `SELECT
-    h.id,
-    h.osquery_host_id,
-    h.created_at,
-    h.updated_at,
-    h.detail_updated_at,
-    h.node_key,
-    h.hostname,
-    h.uuid,
-    h.platform,
-    h.osquery_version,
-    h.os_version,
-    h.build,
-    h.platform_like,
-    h.code_name,
-    h.uptime,
-    h.memory,
-    h.cpu_type,
-    h.cpu_subtype,
-    h.cpu_brand,
-    h.cpu_physical_cores,
-    h.cpu_logical_cores,
-    h.hardware_vendor,
-    h.hardware_model,
-    h.hardware_version,
-    h.hardware_serial,
-    h.computer_name,
-    h.primary_ip_id,
-    h.distributed_interval,
-    h.logger_tls_period,
-    h.config_tls_refresh,
-    h.primary_ip,
-    h.primary_mac,
-    h.label_updated_at,
-    h.last_enrolled_at,
-    h.refetch_requested,
-    h.refetch_critical_queries_until,
-    h.team_id,
-    h.policy_updated_at,
-    h.public_ip,
-    h.orbit_node_key,
-    COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-    COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-    COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-    hd.gigs_all_disk_space,
-    hd.encrypted as disk_encryption_enabled,
-    COALESCE(hst.seen_time, h.created_at) AS seen_time,
-    nstm.seen_time AS last_mdm_checked_in_at,
-    t.name AS team_name,
-    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-    h.last_restarted_at,
-    h.timezone,
-    hoi.version AS orbit_version,
-    hoi.desktop_version AS fleet_desktop_version,
-    had.group_tag AS group_tag,` + hostOSSelect + `
-	`
+	fields := hostReportFields(opt.ReportColumns)
+	sql := "SELECT" + strings.TrimPrefix(selectHostFields(hostListSelect, fields), ",")
 
-	sql += hostMDMSelect
-
-	if opt.DeviceMapping {
+	if opt.DeviceMapping && fields.want("device_mapping") {
 		// Use a correlated subquery in the SELECT list (rather than a derived-table
 		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
 		// for the rows actually returned by the outer query, each as an indexed lookup on
@@ -1114,12 +1062,9 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 
 	if !opt.DisableIssues {
-		sql += `,
-		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
-		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
-		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
-		`
+		sql += selectHostFields(hostIssuesSelect, fields)
 	}
+	sql += "\n"
 
 	var params []interface{}
 
@@ -1146,6 +1091,9 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, hostFilterList)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts: apply host filters")
+	}
+	if fields != nil {
+		sql = dropUnusedHostJoins(sql, hostListOptionalJoins)
 	}
 
 	hosts := []*fleet.Host{}
@@ -1263,13 +1211,16 @@ const (
 	hostFilterList
 )
 
-const hostListJoins = `
-    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-    LEFT JOIN teams t ON (h.team_id = t.id)
-    LEFT JOIN host_disks hd ON hd.host_id = h.id
-    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
-    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL`
+const (
+	hostSeenTimesJoin = "\n    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)"
+	hostUpdatesJoin   = "\n    LEFT JOIN host_updates hu ON (h.id = hu.host_id)"
+	hostTeamsJoin     = "\n    LEFT JOIN teams t ON (h.team_id = t.id)"
+	hostDisksJoin     = "\n    LEFT JOIN host_disks hd ON hd.host_id = h.id"
+	hostOrbitInfoJoin = "\n    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id"
+	hostAutopilotJoin = "\n    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL"
+	hostListJoins     = hostSeenTimesJoin + hostUpdatesJoin + hostTeamsJoin + hostDisksJoin + hostOrbitInfoJoin + hostAutopilotJoin
+	hostIssuesJoin    = `LEFT JOIN host_issues ON h.id = host_issues.host_id`
+)
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 // applyHostFilters splices the WHERE clause and its associated joins onto sqlStmt.
@@ -1420,7 +1371,7 @@ func (ds *Datastore) applyHostFilters(
 
 	failingPoliciesJoin := ""
 	if !opt.DisableIssues {
-		failingPoliciesJoin = `LEFT JOIN host_issues ON h.id = host_issues.host_id`
+		failingPoliciesJoin = hostIssuesJoin
 	}
 
 	operatingSystemJoin := ""
@@ -1773,9 +1724,11 @@ const hostMDMSeenTimeJoin = `
 // state, so a checked-out device with a fresh detail_updated_at still reads
 // online for up to MobileOnlineWindow after checkout. See Host.mobileStatus
 // for the Go mirror.
-const hostMobileMDMSeenTimeJoin = `
-	LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')
-	LEFT JOIN nano_seen_times nstm ON nstm.id = nesm.id`
+const (
+	hostMobileMDMEnrollmentJoin = "\n\tLEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')"
+	hostMobileMDMSeenJoin       = "\n\tLEFT JOIN nano_seen_times nstm ON nstm.id = nesm.id"
+	hostMobileMDMSeenTimeJoin   = hostMobileMDMEnrollmentJoin + hostMobileMDMSeenJoin
+)
 
 // hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
 // seen_time and the MDM seen time, then detail_updated_at (treating the Never sentinel as null),
