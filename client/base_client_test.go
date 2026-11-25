@@ -76,6 +76,7 @@ func TestUrlGeneration(t *testing.T) {
 			{"percent in prefix", "/100%", "test/path", "https://test.com/a%20b/100%25/test/path"},
 			{"escape sequence in prefix", "/abc%2Fdef/", "test/path", "https://test.com/a%20b/abc%252Fdef/test/path"},
 			{"space in prefix", "my prefix/", "test/path", "https://test.com/a%20b/my%20prefix/test/path"},
+			{"trailing slash in path", "prefix/", "/api/v1/fleet/scripts/", "https://test.com/a%20b/prefix/api/v1/fleet/scripts"},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {

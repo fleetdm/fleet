@@ -130,7 +130,7 @@ func (bc *BaseClient) URL(reqPath, rawQuery string) *url.URL {
 	//
 	// URLPrefix is configured unescaped, unlike reqPath, so escape it (keeping its "/" separators) before joining.
 	escapedPrefix := (&url.URL{Path: bc.URLPrefix}).EscapedPath()
-	u := bc.BaseURL.JoinPath(escapedPrefix, reqPath)
+	u := bc.BaseURL.JoinPath(escapedPrefix, strings.TrimRight(reqPath, "/"))
 	u.RawQuery = rawQuery
 	return u
 }
