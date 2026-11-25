@@ -83,13 +83,23 @@ $denied = '*S-1-5-32-545,*S-1-5-32-546'
 try {
     $current = Get-DenyLogonRights
 
-    if (-not (Test-Path $stateKey)) { New-Item -Path $stateKey -Force | Out-Null }
-    # Don't overwrite the saved values if the host is locked twice.
+    # Remember which enabled local accounts we disable, so unlock only re-enables
+    # those and not accounts that were already disabled (such as the built-in
+    # Administrator and Guest).
+    $accountsToDisable = @(Get-LocalUser -ErrorAction Stop | Where-Object { $_.Enabled -eq $true })
+
+    # Save everything before changing anything, so a failed save leaves the host
+    # untouched instead of locked with nothing to restore.
+    if (-not (Test-Path $stateKey)) { New-Item -Path $stateKey -Force -ErrorAction Stop | Out-Null }
     $saved = Get-ItemProperty -Path $stateKey -ErrorAction SilentlyContinue
-    if ($null -eq $saved.DenyInteractive) {
-        New-ItemProperty -Path $stateKey -Name DenyInteractive -Value $current['SeDenyInteractiveLogonRight'] -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $stateKey -Name DenyRemote -Value $current['SeDenyRemoteInteractiveLogonRight'] -PropertyType String -Force | Out-Null
+    # Don't overwrite the saved values if the host is locked twice.
+    if ($null -eq $saved.DenyInteractive -or $null -eq $saved.DenyRemote) {
+        New-ItemProperty -Path $stateKey -Name DenyInteractive -Value $current['SeDenyInteractiveLogonRight'] -PropertyType String -Force -ErrorAction Stop | Out-Null
+        New-ItemProperty -Path $stateKey -Name DenyRemote -Value $current['SeDenyRemoteInteractiveLogonRight'] -PropertyType String -Force -ErrorAction Stop | Out-Null
     }
+    # Merge with any earlier record so locking twice doesn't forget accounts.
+    $sids = @(@($saved.DisabledAccounts) + ($accountsToDisable | ForEach-Object { $_.SID.Value }) | Where-Object { $_ } | Select-Object -Unique)
+    New-ItemProperty -Path $stateKey -Name DisabledAccounts -Value $sids -PropertyType MultiString -Force -ErrorAction Stop | Out-Null
 
     Set-DenyLogonRights -Values @{ SeDenyInteractiveLogonRight = $denied; SeDenyRemoteInteractiveLogonRight = $denied }
     Write-Host "Logon denied for the Users and Guests groups."
@@ -100,16 +110,6 @@ try {
 
 # The deny-logon policy above likely makes the next two steps redundant. They
 # are kept as extra protection.
-
-# Disable all enabled local user accounts. Remember which ones, so unlock only
-# re-enables those and not accounts that were already disabled (such as the
-# built-in Administrator and Guest).
-$accountsToDisable = @(Get-LocalUser | Where-Object { $_.Enabled -eq $true })
-
-# Merge with any earlier record so locking twice doesn't forget accounts.
-$previous = @((Get-ItemProperty -Path $stateKey -Name DisabledAccounts -ErrorAction SilentlyContinue).DisabledAccounts)
-$sids = @($previous + ($accountsToDisable | ForEach-Object { $_.SID.Value }) | Where-Object { $_ } | Select-Object -Unique)
-New-ItemProperty -Path $stateKey -Name DisabledAccounts -Value $sids -PropertyType MultiString -Force | Out-Null
 
 foreach ($account in $accountsToDisable) {
     Disable-LocalUser -SID $account.SID
