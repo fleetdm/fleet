@@ -267,6 +267,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	ctx := license.NewContext(context.Background(), lic)
 
 	cronSchedulesService := fleet.NewCronSchedules()
+	RegisterImmediatePolicyMembershipCleanup(cronSchedulesService, ds)
 
 	var eh *errorstore.Handler
 	if len(opts) > 0 {

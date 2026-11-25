@@ -4321,6 +4321,20 @@
       "description": "Homerow is a keyboard shortcuts for every button on your screen."
     },
     {
+      "name": "Hoppscotch",
+      "slug": "hoppscotch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.hoppscotch.desktop",
+      "description": "Hoppscotch is an open source API development and testing client."
+    },
+    {
+      "name": "Hoppscotch",
+      "slug": "hoppscotch/windows",
+      "platform": "windows",
+      "unique_identifier": "Hoppscotch",
+      "description": "Hoppscotch is an open source API development and testing client."
+    },
+    {
       "name": "Hot",
       "slug": "hot/darwin",
       "platform": "darwin",

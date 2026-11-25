@@ -256,6 +256,9 @@ type Datastore interface {
 	// manual membership is replaced with exactly those hosts.
 	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	DeleteLabel(ctx context.Context, id uint) error
+	// CleanupOrphanedLabelMembership deletes label_membership rows of labels that no longer exist: the ones an
+	// interrupted label deletion left behind, and the ones hosts reported after the label was deleted.
+	CleanupOrphanedLabelMembership(ctx context.Context) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	// LabelMembershipHostIDs returns every host_id row in label_membership for
@@ -1144,8 +1147,9 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
-	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
-	// and resets automation retry attempts, identical to a query-change side-effect.
+	// ResetPolicy clears pass/fail results: deletes policy_stats, resets automation retry attempts, and requests the
+	// removal of all policy_membership rows, which the policy_membership_cleanup schedule does. Identical to a
+	// query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
 	// ResetPolicyForHost clears a single host's pass/fail result for the policy and
 	// resets its automation retry attempts atomically, then refreshes the policy's counts
@@ -1284,7 +1288,10 @@ type Datastore interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
+	// CleanupPolicyMembership removes the results of hosts that policies updated in the last 24 hours no longer target.
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// CleanupPendingPolicyMembership runs the policy result cleanups that policy changes requested.
+	CleanupPendingPolicyMembership(ctx context.Context) error
 	// IsPolicyFailing checks if a policy is currently failing for a given host.
 	IsPolicyFailing(ctx context.Context, policyID, hostID uint) (bool, error)
 	// CountHostSoftwareInstallAttempts counts how many install attempts exist for a specific
@@ -2995,16 +3002,17 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
-	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, using the same eligibility
-	// rules as the batched reconciler's host listing. Returns (nil, nil) when the host doesn't exist or isn't eligible.
+	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, selecting the same host row
+	// as the batched reconciler's host listing when several hosts share the UUID. Returns (nil, nil) when the host doesn't exist or
+	// isn't eligible.
 	GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*WindowsHostReconcileInfo, error)
 
 	// ListWindowsProfilesForReconcileByTeam is the per-host variant of the reconcile snapshot's profile loader: it loads only
 	// profiles for the host's team (team_id=0 is its own "no team" scope).
 	ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*WindowsProfileForReconcile, error)
 
-	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
-	// host UUID.
+	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, keyed by
+	// each UUID as given, whatever letter case the rows were stored with.
 	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
 
 	// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.

@@ -444,7 +444,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			desc:       "windows profiles",
 			selectStmt: customHostVitalResendWindowsProfilesSelectStmt,
 			updateStmt: `UPDATE host_mdm_windows_profiles
-				SET status = NULL, detail = NULL, command_uuid = ''
+				SET status = NULL, detail = NULL, command_uuid = '', retries = 0
 				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
 			isWindows: true,
 		},

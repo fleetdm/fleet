@@ -332,8 +332,9 @@ type Service interface {
 	// GetLabelSpecs returns either all labels a user can see (no team ID), global labels only (team ID 0),
 	// or team-specific labels
 	GetLabelSpecs(ctx context.Context, teamID *uint) ([]*LabelSpec, error)
-	// GetLabelSpec gets the spec for the label with the given name.
-	GetLabelSpec(ctx context.Context, name string) (*LabelSpec, error)
+	// GetLabelSpec gets the spec for the label with the given name. A non-nil fleetID limits the lookup to the
+	// global labels and that fleet's labels.
+	GetLabelSpec(ctx context.Context, name string, fleetID *uint) (*LabelSpec, error)
 
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, hostIDs []uint, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*LabelWithTeamName, []uint, error)
@@ -1186,6 +1187,10 @@ type Service interface {
 
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
 	TriggerCronSchedule(ctx context.Context, name string) error
+
+	// TriggerPolicyMembershipCleanup starts the cleanup of the policy results that a policy change invalidated. It
+	// is for internal use after such a change, so it does no authorization, and only logs a failure.
+	TriggerPolicyMembershipCleanup(ctx context.Context)
 
 	// ResetAutomation sets the policies and all policies of the listed teams to fire again
 	// for all hosts that are already marked as failing.

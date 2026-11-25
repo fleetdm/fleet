@@ -22,6 +22,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"eclipse-temurin-jre-21/windows":   {TemurinMSIVersion},
 	"firefox@esr/windows":              {FirefoxESRVersionShortener},
 	"geany/windows":                    {GeanyVersionShortener},
+	"hoppscotch/windows":               {HoppscotchVersionShortener},
 	"megasync/windows":                 {MEGAsyncVersionShortener},
 	"sublime-text/windows":             {SublimeTextFileVersion},
 	"telegram/windows":                 {TelegramVersionShortener},

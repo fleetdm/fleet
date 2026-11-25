@@ -2407,8 +2407,8 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 
 	// update the status to NULL to trigger resending on the next cron run
 	setRetries := ""
-	if table == "host_mdm_apple_profiles" {
-		// A resend starts a new retry budget for verification.
+	if table == "host_mdm_apple_profiles" || table == "host_mdm_windows_profiles" {
+		// A resend starts a new retry budget. Declaration and Android rows have no retries.
 		setRetries = ", retries = 0"
 	}
 	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE host_uuid = ? AND %s = ?`, table, setRetries, column)
@@ -2712,8 +2712,8 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 
 	// update the status to NULL to trigger resending on the next cron run
 	setRetries := ""
-	if table == "host_mdm_apple_profiles" {
-		// A resend starts a new retry budget for verification.
+	if table == "host_mdm_apple_profiles" || table == "host_mdm_windows_profiles" {
+		// A resend starts a new retry budget. Declaration and Android rows have no retries.
 		setRetries = ", retries = 0"
 	}
 	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE %s = ? AND status = ?`, table, setRetries, column)

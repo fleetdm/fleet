@@ -1,0 +1,1 @@
+- Fixed Zorin OS hosts reporting their OS version as `<major>.0.0` (e.g. "Zorin OS 18.0.0") instead of the actual point release (e.g. "Zorin OS 18.1").

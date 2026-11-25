@@ -1165,12 +1165,11 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	}
 
 	// The Entra device ID signed into the token is the only proof of which device is enrolling, since the request names
-	// its device only by a device-reported hardware ID. Without it the enrollment still proceeds, but cannot replace an
-	// enrollment that is bound to this id. Logged here rather than in authBinarySecurityToken so that each enrollment
-	// logs it once.
+	// its device only by a device-reported hardware ID. Without it the enrollment still proceeds, but cannot replace a
+	// host's enrollment. Logged here rather than in authBinarySecurityToken so that each enrollment logs it once.
 	if authToken.IsAzureJWTToken() && entraDeviceID == "" {
-		svc.logger.ErrorContext(ctx, "Entra access token has no deviceid claim, so Fleet cannot protect this Windows MDM enrollment "+
-			"from being replaced by another device. Add deviceid as an optional access token claim in the manifest of the "+
+		svc.logger.WarnContext(ctx, "Entra access token has no deviceid claim, so Fleet cannot verify which device this Windows MDM "+
+			"enrollment comes from. Add deviceid as an optional access token claim in the manifest of the "+
 			"Microsoft Entra MDM app registration",
 			"user_id", userID,
 		)
@@ -2754,7 +2753,19 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		if hostLoaded {
 			return cachedHost, nil
 		}
-		host, err := svc.ds.HostLiteByIdentifier(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
+		// Hosts rows can share the device's UUID. Use the row the profile reconciler manages, so the release reads the same
+		// fleet's setup software and settings as the profiles the device gets, and fall back when the reconciler has none.
+		primaryCtx := ctxdb.RequirePrimary(ctx, true)
+		reconciled, err := svc.ds.GetWindowsMDMHostForReconcile(primaryCtx, device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "lookup reconciled host for ESP")
+		}
+		var host *fleet.HostLite
+		if reconciled != nil {
+			host, err = svc.ds.HostLiteByID(primaryCtx, reconciled.HostID)
+		} else {
+			host, err = svc.ds.HostLiteByIdentifier(primaryCtx, device.HostUUID)
+		}
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP")
 		}
@@ -3406,13 +3417,11 @@ func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Cont
 	if byHardwareID != nil && byDeviceID.ID == byHardwareID.ID {
 		return keptEntraDeviceID, nil
 	}
-	keptByDeviceID, err := svc.checkWindowsMDMEnrollmentOwner(ctx, byDeviceID, "device ID", "mdm_device_id", deviceID, hostUUID,
-		entraDeviceID)
-	if err != nil {
+	// Only the hardware ID's enrollment carries its Entra device ID over: osquery links every enrollment holding a device ID to
+	// the host that reports it, including one another device created with that device ID.
+	if _, err := svc.checkWindowsMDMEnrollmentOwner(ctx, byDeviceID, "device ID", "mdm_device_id", deviceID, hostUUID,
+		entraDeviceID); err != nil {
 		return "", err
-	}
-	if keptEntraDeviceID == "" {
-		keptEntraDeviceID = keptByDeviceID
 	}
 	return keptEntraDeviceID, nil
 }
@@ -3448,8 +3457,8 @@ func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing
 	boundEntraDeviceID := existing.EntraDeviceID
 	if hostUUID == "" {
 		// Enrollments made through fleetd, or before Fleet stored the Entra device ID, fall back to the Entra device ID that
-		// Autopilot registered for their host. Enrollments with neither cannot be checked.
-		if boundEntraDeviceID == "" && entraDeviceID != "" && existingHost != nil {
+		// Autopilot registered for their host.
+		if boundEntraDeviceID == "" && existingHost != nil {
 			autopilotDevice, err := svc.ds.GetHostAutopilotDevice(ctx, existingHost.ID)
 			switch {
 			case err == nil:
@@ -3458,7 +3467,11 @@ func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing
 				return "", ctxerr.Wrap(ctx, err, "get Autopilot record of existing enrollment's host")
 			}
 		}
-		if boundEntraDeviceID == "" || strings.EqualFold(boundEntraDeviceID, entraDeviceID) {
+		if boundEntraDeviceID != "" && strings.EqualFold(boundEntraDeviceID, entraDeviceID) {
+			return "", nil
+		}
+		// An unlinked enrollment with no Entra device has nothing to check against, and no host depends on it.
+		if boundEntraDeviceID == "" && existing.HostUUID == "" {
 			return "", nil
 		}
 	}
@@ -3481,6 +3494,18 @@ func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing
 			"refusing windows MDM enrollment with a "+idName+" enrolled to another host; delete the other host if it is stale",
 			idKey, id,
 			"enrolling_host_uuid", hostUUID,
+			"existing_host_uuid", existing.HostUUID,
+		)
+		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
+	}
+
+	if boundEntraDeviceID == "" {
+		// Only an Entra device ID can show that an Entra enrollment comes from the host's device, and this host has none.
+		svc.logger.WarnContext(ctx,
+			"refusing windows MDM enrollment with a "+idName+" enrolled to another host that is not bound to an Entra device; "+
+				"delete the other host if it is stale",
+			idKey, id,
+			"enrolling_entra_device_id", entraDeviceID,
 			"existing_host_uuid", existing.HostUUID,
 		)
 		return "", ctxerr.New(ctx, idName+" is enrolled to another host")

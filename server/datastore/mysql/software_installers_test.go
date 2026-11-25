@@ -7731,6 +7731,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 
 	// A non-nil pin is authoritative: it upserts the pin row.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("^1")}, v1ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	require.Equal(t, v1ID, activeID())
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
@@ -7770,6 +7771,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
 	// The query changed on the flip, so the policy's stale results were cleared.
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	membership, stats = policyResultCounts()
 	require.Zero(t, membership, "version flip must clear stale policy membership")
 	require.Zero(t, stats, "version flip must clear stale policy stats")
@@ -7867,6 +7869,7 @@ func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
 	refresh(installerID, "1.0", "echo install", bundleVersionQuery)
 	require.Equal(t, bundleVersionQuery, installerPatchQuery(installerID))
 	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	membership, stats := policyResultCounts(teamPolicy.ID)
 	require.Zero(t, membership, "a changed query must clear stale policy membership")
 	require.Zero(t, stats, "a changed query must clear stale policy stats")
@@ -7891,6 +7894,7 @@ func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
 	require.Equal(t, upperCaseQuery, policyQuery(teamPolicy.ID))
 	refresh(installerID, "1.0", "echo install v2", bundleVersionQuery)
 	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 
 	// A row that has moved to another version isn't refreshed, so the policy isn't either.
 	recordResults()

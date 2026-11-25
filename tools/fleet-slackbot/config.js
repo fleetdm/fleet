@@ -14,7 +14,7 @@ const config = {
   },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,
-    model: process.env.ANTHROPIC_MODEL || "claude-opus-4-6",
+    model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5",
     maxToolCalls: parseInt(process.env.MAX_TOOL_CALLS || "100", 10),
   },
   webhook: {

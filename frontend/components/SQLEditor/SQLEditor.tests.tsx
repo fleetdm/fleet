@@ -55,3 +55,39 @@ describe("SQLEditor autocomplete", () => {
     expect(captions).toContain("idrops");
   });
 });
+
+// Renders SQL with table tokens as [name] and column tokens as {name}, using the fleet mode registered by importing SQLEditor.
+const markHighlights = (sql: string): string => {
+  const tokenizer = new (ace.require("ace/mode/fleet").Mode)().getTokenizer();
+  let state: string | string[] = "start";
+  return sql
+    .split("\n")
+    .map((line) => {
+      const result = tokenizer.getLineTokens(line, state);
+      state = result.state;
+      return result.tokens
+        .map(({ type, value }: Ace.Token) => {
+          if (type === "osquery-token") return `[${value}]`;
+          if (type === "osquery-column") return `{${value}}`;
+          return value;
+        })
+        .join("");
+    })
+    .join("\n");
+};
+
+describe("SQLEditor syntax highlighting", () => {
+  // os_version, processes, and time are each both a table and a column name.
+  it.each([
+    "SELECT 1 FROM [os_version] WHERE {major} >= 13",
+    "SELECT {time}, {pid} FROM [processes] JOIN [time] WHERE {os_version} > 0",
+    "SELECT {name} FROM [processes] proc_alias, [os_version] AS os_alias WHERE {uptime} = 1",
+    "SELECT * FROM [users] u LEFT JOIN [processes] ON u.{uid} = {pid}",
+    "select * from main.[os_version]",
+    "SELECT * FROM [OS_VERSION] JOIN [Processes] WHERE {PID} > 0",
+    "SELECT 1 FROM (\n  SELECT count({time}) FROM [uptime]\n) sub_alias, [os_version] JOIN [processes] WHERE {time} > 0",
+    "SELECT 1 FROM /* comment */\n  [os_version] JOIN -- comment\n\n[processes] JOIN   \n  [time]",
+  ])("highlights %s", (markedSql) => {
+    expect(markHighlights(markedSql.replace(/[[\]{}]/g, ""))).toBe(markedSql);
+  });
+});

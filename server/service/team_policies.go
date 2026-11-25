@@ -167,6 +167,11 @@ func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy
 	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
+	// Set force_patch from the installer and other options, since install_software is deprecated.
+	if policy.Type == fleet.PolicyTypePatch && policy.InstallSoftware != nil &&
+		!policy.PatchWhenClosed && !policy.NotifyBeforePatching && !policy.PatchDeadline {
+		policy.ForcePatch = true
+	}
 	return nil
 }
 
@@ -787,10 +792,6 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	policy.PatchWhenClosed = patchWhenClosed
 	policy.NotifyBeforePatching = notifyBeforePatching
 	policy.PatchDeadline = patchDeadline
-	if removeStats {
-		policy.FailingHostCount = 0
-		policy.PassingHostCount = 0
-	}
 	// A chosen package without a title has nothing to resolve against (the software block below
 	// only runs when the title is set), so reject it rather than silently ignore the choice.
 	if !p.SoftwareTitleID.Set && p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
@@ -854,10 +855,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	// provided fields switch scope and clear the others. Sending none of them (all nil) leaves
 	// labels untouched.
 	if p.LabelsIncludeAny != nil || p.LabelsIncludeAll != nil || p.LabelsExcludeAny != nil || p.LabelsExcludeAll != nil {
+		labelsBefore := policyLabelScopes(policy)
 		policy.LabelsIncludeAny = fleet.LabelNamesToIdents(p.LabelsIncludeAny)
 		policy.LabelsIncludeAll = fleet.LabelNamesToIdents(p.LabelsIncludeAll)
 		policy.LabelsExcludeAny = fleet.LabelNamesToIdents(p.LabelsExcludeAny)
 		policy.LabelsExcludeAll = fleet.LabelNamesToIdents(p.LabelsExcludeAll)
+		// A label change leaves stale counts too, like a platform change.
+		if !maps.Equal(labelsBefore, policyLabelScopes(policy)) {
+			removeStats = true
+		}
 	}
 
 	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {
@@ -889,10 +895,16 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
+	if removeStats {
+		policy.FailingHostCount = 0
+		policy.PassingHostCount = 0
+		policy.HostCountUpdatedAt = nil
+	}
 	err = svc.ds.SavePolicy(ctx, policy, removeAllMemberships, removeStats)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
+	svc.TriggerPolicyMembershipCleanup(ctx)
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
@@ -1043,4 +1055,25 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	// At this point we assume *softwareTitle.Packages[0].TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.
 	return new(softwareTitle.Packages[0].InstallerID), nil, nil
+}
+
+type policyLabelScope struct {
+	scope string
+	name  string
+}
+
+// policyLabelScopes returns the policy's labels with their scope, to compare label scopes regardless of order.
+func policyLabelScopes(p *fleet.Policy) map[policyLabelScope]struct{} {
+	scopes := make(map[policyLabelScope]struct{})
+	for scope, labels := range map[string][]fleet.LabelIdent{
+		"include_any": p.LabelsIncludeAny,
+		"include_all": p.LabelsIncludeAll,
+		"exclude_any": p.LabelsExcludeAny,
+		"exclude_all": p.LabelsExcludeAll,
+	} {
+		for _, label := range labels {
+			scopes[policyLabelScope{scope: scope, name: label.LabelName}] = struct{}{}
+		}
+	}
+	return scopes
 }
