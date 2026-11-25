@@ -617,77 +617,77 @@ func TestReplaceCertificateVariables(t *testing.T) {
 	}
 
 	t.Run("HOST_UUID", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_UUID", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_UUID", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "CN=host-uuid-123", result)
 	})
 
 	t.Run("HOST_HARDWARE_SERIAL", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "CN=SERIAL-456", result)
 	})
 
 	t.Run("HOST_PLATFORM", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "O=$FLEET_VAR_HOST_PLATFORM", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "O=$FLEET_VAR_HOST_PLATFORM", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "O=android", result)
 	})
 
 	t.Run("HOST_END_USER_IDP_USERNAME", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "CN=jane@example.com", result)
 	})
 
 	t.Run("HOST_END_USER_IDP_USERNAME_LOCAL_PART", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "CN=jane", result)
 	})
 
 	t.Run("HOST_END_USER_IDP_GROUPS", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		// Comma between groups is escaped so it's not mistaken for a DN separator.
 		require.Equal(t, `OU=admins\,devs`, result)
 	})
 
 	t.Run("HOST_END_USER_IDP_DEPARTMENT", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "OU=Engineering", result)
 	})
 
 	t.Run("HOST_END_USER_IDP_FULL_NAME", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "CN=Jane Doe", result)
 	})
 
 	t.Run("HOST_END_USER_IDP_EXTERNAL_ID", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "UID=00u1abcd2EFGH3ijk4x7", result)
 	})
 
 	t.Run("multiple variables in one string", func(t *testing.T) {
 		input := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME,O=$FLEET_VAR_HOST_PLATFORM,OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"
-		result, err := svc.replaceCertificateVariables(t.Context(), input, host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), input, host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "CN=jane@example.com,O=android,OU=Engineering", result)
 	})
 
 	t.Run("endUsersMemo is populated on first call and reused", func(t *testing.T) {
 		var memo []fleet.HostEndUser
-		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME", host, &memo)
+		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME", host, &memo, escapeDNValue)
 		require.NoError(t, err)
 		require.NotNil(t, memo)
 		require.Len(t, memo, 1)
 
 		// Second call reuses the memo without hitting the datastore again.
 		ds.ScimUserByHostIDFuncInvoked = false
-		_, err = svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", host, &memo)
+		_, err = svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", host, &memo, escapeDNValue)
 		require.NoError(t, err)
 		require.False(t, ds.ScimUserByHostIDFuncInvoked)
 	})
@@ -696,7 +696,7 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			return nil, &notFoundError{}
 		}
-		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME", host, nil)
+		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME", host, nil, escapeDNValue)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "does not have an IDP user")
 	})
@@ -705,7 +705,7 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{UserName: "jane@example.com"}, nil
 		}
-		_, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil)
+		_, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil, escapeDNValue)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "does not have IDP groups")
 	})
@@ -714,7 +714,7 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{UserName: "jane@example.com"}, nil
 		}
-		_, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil)
+		_, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil, escapeDNValue)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "does not have an IDP department")
 	})
@@ -723,7 +723,7 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{UserName: "jane@example.com"}, nil
 		}
-		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", host, nil)
+		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", host, nil, escapeDNValue)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "does not have an IDP full name")
 	})
@@ -732,19 +732,19 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 			return &fleet.ScimUser{UserName: "jane@example.com"}, nil
 		}
-		_, err := svc.replaceCertificateVariables(t.Context(), "UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", host, nil)
+		_, err := svc.replaceCertificateVariables(t.Context(), "UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", host, nil, escapeDNValue)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "does not have an IDP external ID")
 	})
 
 	t.Run("no variables returns input unchanged", func(t *testing.T) {
-		result, err := svc.replaceCertificateVariables(t.Context(), "CN=static-value", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "CN=static-value", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "CN=static-value", result)
 	})
 
 	t.Run("unsupported variable returns error", func(t *testing.T) {
-		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_NDES_SCEP_CHALLENGE", host, nil)
+		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_NDES_SCEP_CHALLENGE", host, nil, escapeDNValue)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported Fleet variable")
 	})
@@ -758,7 +758,7 @@ func TestReplaceCertificateVariables(t *testing.T) {
 			}, nil
 		}
 		result, err := svc.replaceCertificateVariables(t.Context(),
-			"UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID,OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil)
+			"UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID,OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, "UID=tenant$1,OU=R$1D", result)
 	})
@@ -777,13 +777,78 @@ func TestReplaceCertificateVariables(t *testing.T) {
 				},
 			}, nil
 		}
-		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil)
+		result, err := svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, `OU=Sales\, Marketing \+ Ops`, result)
 
-		result, err = svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil)
+		result, err = svc.replaceCertificateVariables(t.Context(), "OU=$FLEET_VAR_HOST_END_USER_IDP_GROUPS", host, nil, escapeDNValue)
 		require.NoError(t, err)
 		require.Equal(t, `OU=group\<A\>\,group\"B\"`, result)
+	})
+
+	t.Run("subject alternative name values stay in their entry", func(t *testing.T) {
+		cases := []struct {
+			name     string
+			user     fleet.ScimUser
+			template string
+			want     string
+		}{
+			{
+				name:     "username",
+				user:     fleet.ScimUser{UserName: "me@example.com,DNS=vpn.example.com"},
+				template: "EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+				want:     "EMAIL=me@example.com%2CDNS=vpn.example.com",
+			},
+			{
+				name:     "username local part",
+				user:     fleet.ScimUser{UserName: "bob,UPN=administrator@example.com"},
+				template: "UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART@corp.example",
+				want:     "UPN=bob%2CUPN=administrator@corp.example",
+			},
+			{
+				name:     "full name",
+				user:     fleet.ScimUser{UserName: "bob@example.com", GivenName: new("Bob,UPN=administrator")},
+				template: "UPN=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME@corp.example",
+				want:     "UPN=Bob%2CUPN=administrator@corp.example",
+			},
+			{
+				name:     "department",
+				user:     fleet.ScimUser{UserName: "bob@example.com", Department: new("Sales,DNS=vpn.example.com")},
+				template: "URI=https://example.com/$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT, DNS=wifi.example.com",
+				want:     "URI=https://example.com/Sales%2CDNS=vpn.example.com, DNS=wifi.example.com",
+			},
+			{
+				name:     "external ID",
+				user:     fleet.ScimUser{UserName: "bob@example.com", ExternalID: new("00u1,DNS=vpn.example.com")},
+				template: "URI=https://example.com/$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID",
+				want:     "URI=https://example.com/00u1%2CDNS=vpn.example.com",
+			},
+			{
+				name: "groups",
+				user: fleet.ScimUser{
+					UserName: "bob@example.com",
+					Groups:   []fleet.ScimUserGroup{{DisplayName: "admins"}, {DisplayName: "devs"}},
+				},
+				template: "URI=https://example.com/$FLEET_VAR_HOST_END_USER_IDP_GROUPS",
+				want:     "URI=https://example.com/admins%2Cdevs",
+			},
+			{
+				name:     "no distinguished name escaping",
+				user:     fleet.ScimUser{UserName: `jane+phone"x"@example.com`},
+				template: "UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+				want:     `UPN=jane+phone"x"@example.com`,
+			},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return &tc.user, nil
+				}
+				result, err := svc.replaceCertificateVariables(t.Context(), tc.template, host, nil, escapeSANValue)
+				require.NoError(t, err)
+				require.Equal(t, tc.want, result)
+			})
+		}
 	})
 }
 
