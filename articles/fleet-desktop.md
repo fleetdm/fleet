@@ -21,6 +21,15 @@ The best practice on macOS is to also deploy the [Fleet Desktop app](https://fle
 
 > If your Fleet deployment requires [mTLS client certificates](https://fleetdm.com/guides/fleetd-mtls), Fleet hasn't confirmed yet that the Fleet Desktop app can load the **My device** page. Fleet is testing this in Fleet 5.3 ([#55448](https://github.com/fleetdm/fleet/issues/55448)).
 
+#### "Fleet server URL not found"
+
+The Fleet Desktop app reads your Fleet server URL from the fleetd configuration profile, or, on Macs that aren't enrolled in MDM, from the fleetd package built with `--fleet-url`. If you turn off MDM on a Mac that was enrolled, Fleet removes the configuration profile and the app shows "Fleet server URL not found." fleetd keeps running and the host stays online in Fleet.
+
+To fix it, do one of the following:
+
+- Turn MDM back on for the Mac.
+- Reinstall fleetd from a package built with [`fleetctl package --fleet-url`](https://fleetdm.com/guides/enroll-hosts#cli). Use the same flags you used for the original package (for example, `--enable-scripts`). To do this remotely, add the package as a [custom package](https://fleetdm.com/guides/deploy-software-packages) and install it on the host.
+
 ## Update Fleet Desktop
 
 Fleet automatically updates the Fleet Desktop menu bar icon on macOS and the system tray item on Windows and Linux. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
