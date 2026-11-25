@@ -20,6 +20,8 @@ import {
   IHostSoftwareWithUiStatus,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
+  isAppleMdmOnlySoftware,
+  isAppleMdmOnlySoftwareSource,
 } from "interfaces/software";
 
 import {
@@ -85,7 +87,7 @@ export const getActionButtonState = ({
 }: IGetActionButtonStateProps): IActionButtonState => {
   // Determine platform and management method
   const platform = softwarePackage?.platform || "";
-  const isIpaOrAppStore = ["ipados", "ios"].includes(platform) || !!appStoreApp;
+  const isIpaOrAppStore = isAppleMdmOnlySoftware(platform) || !!appStoreApp;
 
   // Pending states take priority
   const isPending = ["pending_install", "pending_uninstall"].includes(
@@ -289,9 +291,7 @@ export const HostInstallerActionCell = ({
   const uninstallScriptAvailable =
     !sourceMayLackUninstallScript || !!pkg?.has_uninstall_script;
 
-  const isIpaPackage =
-    (software.source === "ios_apps" || software.source === "ipados_apps") &&
-    !!pkg;
+  const isIpaPackage = isAppleMdmOnlySoftwareSource(software.source) && !!pkg;
 
   const canUninstallSoftware =
     !app_store_app &&

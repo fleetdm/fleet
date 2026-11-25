@@ -17,6 +17,7 @@ import {
   SoftwareUninstallStatus,
   IAppLastInstall,
   SCRIPT_PACKAGE_SOURCES,
+  isAppleMdmOnlySoftwareSource,
 } from "interfaces/software";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import { Colors } from "styles/var/colors";
@@ -452,7 +453,7 @@ const InstallStatusCell = ({
       return;
     }
     // TODO: Is this the best way to check for IPA installer?
-    if (software.source === "ios_apps" || software.source === "ipados_apps") {
+    if (isAppleMdmOnlySoftwareSource(software.source)) {
       onShowIpaInstallDetails(software);
     } else {
       // Default also includes Android Play Store installs (isAndroidAppStoreApp)
