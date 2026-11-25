@@ -2536,7 +2536,7 @@ func testInHouseAppsTvOS(t *testing.T, ds *Datastore) {
 	test.CreateInsertGlobalVPPToken(t, ds)
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "foo", BundleIdentifier: "com.foo",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.TVOSPlatform}},
+		AdamID: "1", Platform: fleet.TVOSPlatform,
 	}, &team2.ID, nil)
 	require.NoError(t, err)
 
