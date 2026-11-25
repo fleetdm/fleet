@@ -6302,6 +6302,10 @@ software:
 		wantCA *bool
 		// wantDeadline, when set, asserts the resulting PatchDeadline on the single policy.
 		wantDeadline *bool
+		// wantForcePatch, when set, asserts the resulting ForcePatch on the single policy.
+		wantForcePatch *bool
+		// wantLog, when set, is a message the parser must log.
+		wantLog string
 	}{
 		{
 			name:     "patch_when_closed with continuous_automations omitted auto-sets it true",
@@ -6438,7 +6442,7 @@ policies:
     patch_when_closed: true
     notify_before_patching: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			// The dry run skips the policy apply, so without this check only a real apply rejects it.
@@ -6545,7 +6549,7 @@ policies:
     patch_when_closed: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline together with notify_before_patching is rejected",
@@ -6559,7 +6563,7 @@ policies:
     notify_before_patching: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline on a Windows Fleet-maintained app is rejected",
@@ -6588,6 +6592,111 @@ policies:
 			wantCA:       new(false),
 			wantDeadline: new(false),
 		},
+		{
+			name:     "force_patch on a patch policy applies and leaves continuous_automations off",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    force_patch: true
+`,
+			wantCA:         new(false),
+			wantForcePatch: new(true),
+		},
+		{
+			name:     "install_software true alone on a patch policy force patches and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+`,
+			wantCA:         new(false),
+			wantForcePatch: new(true),
+			wantLog:        `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`,
+		},
+		{
+			name:     "install_software object alone on a patch policy force patches and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software:
+      fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantForcePatch: new(true),
+			wantLog:        `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`,
+		},
+		{
+			name:     "install_software true with patch_when_closed patches when closed and the warning names patch_when_closed",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+    patch_when_closed: true
+`,
+			wantCA:         new(true),
+			wantForcePatch: new(false),
+			wantLog:        `[!] The "policies.install_software" key is deprecated. Use "policies.patch_when_closed" instead.`,
+		},
+		{
+			name:     "install_software true together with force_patch is rejected and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+    force_patch: true
+`,
+			wantErrs: []string{`Couldn't apply policy "Chrome up to date": If "force_patch" is true, "install_software" can't be set.`},
+			wantLog:  `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`,
+		},
+		{
+			name:     "install_software false together with notify_before_patching is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: false
+    notify_before_patching: true
+`,
+			wantErrs:     []string{`Couldn't apply policy "Chrome up to date": If "notify_before_patching" is true, "install_software" can't be set to false.`},
+			unwantedErrs: []string{"fleet-5-upgrade"},
+		},
+		{
+			name:     "install_software false alone on a patch policy applies as report only and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: false
+`,
+			wantCA:         new(false),
+			wantForcePatch: new(false),
+			wantLog:        "[!] The \"policies.install_software\" key is deprecated.\n",
+		},
 	}
 
 	for _, tc := range tests {
@@ -6595,7 +6704,14 @@ policies:
 			t.Parallel()
 			config := getTeamConfig([]string{"policies"}) + tc.software + tc.policies
 			path, basePath := createTempFile(t, "", config)
-			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			var logs strings.Builder
+			logFn := func(format string, a ...any) {
+				logs.WriteString(fmt.Sprintf(format, a...))
+			}
+			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn)
+			if tc.wantLog != "" {
+				assert.Contains(t, logs.String(), tc.wantLog)
+			}
 			if len(tc.wantErrs) > 0 {
 				for _, want := range tc.wantErrs {
 					require.ErrorContains(t, err, want)
@@ -6612,6 +6728,9 @@ policies:
 			}
 			if tc.wantDeadline != nil {
 				assert.Equal(t, *tc.wantDeadline, g.Policies[0].PatchDeadline)
+			}
+			if tc.wantForcePatch != nil {
+				assert.Equal(t, *tc.wantForcePatch, g.Policies[0].ForcePatch)
 			}
 		})
 	}

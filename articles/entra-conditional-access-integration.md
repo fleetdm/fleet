@@ -203,6 +203,15 @@ If Fleet can't connect to Entra:
 
 To see the underlying error, check the Fleet server logs for `setup is not done`, or the `setup_error` field in the `POST /api/latest/fleet/conditional-access/microsoft/confirm` response. If it keeps failing, [reach out to support](https://fleetdm.com/support).
 
+### Fleet doesn't report a Mac's compliance to Intune
+
+Fleet reports a Mac's compliance only after fleetd sends the Mac's Entra device ID. Check that:
+
+- The Mac has fleetd 1.64.0 or later.
+- The Platform SSO profile from [step 4](#step-4-deploy-company-portal-and-the-platform-sso-configuration-profile) allows `com.fleetdm.orbit` in `AppAllowList`.
+- The end user is signed in to Platform SSO.
+- No other host in Fleet has the same Entra device ID. An Entra device ID can belong to only one host. If you re-enrolled the device as a new host, delete the old host in Fleet.
+
 ## Disable
 
 If you want to unblock all end users, you can disable conditional access by heading to Entra and turning off the ["Conditional Access" Entra policies](#step-6-add-entra-policies).

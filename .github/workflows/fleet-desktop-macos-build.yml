@@ -64,8 +64,7 @@ defaults:
     shell: bash
     working-directory: apps/fleet-desktop-macos
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   # Fleet's Developer ID certificate identities (SHA-1). Same team as the rest
@@ -77,6 +76,8 @@ env:
 
 jobs:
   build:
+    permissions:
+      contents: read
     name: Build, sign, and notarize Fleet Desktop (macOS)
     runs-on: macos-latest
     steps:

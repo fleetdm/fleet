@@ -10464,3 +10464,127 @@ policies:
 	require.ErrorContains(t, err, `"hidden" and "conditional_access_enabled" cannot both be set`)
 	require.Empty(t, appliedSpecs)
 }
+
+func TestGitOpsPatchPolicyOptions(t *testing.T) {
+	var appliedSpecs []*fleet.PolicySpec
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	}
+	setupDefaultTeamConfigMocks(ds)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Fleet" {
+			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedSpecs = specs
+		return nil
+	}
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		if opt.TeamID == nil || *opt.TeamID != 1 {
+			return nil, 0, nil, nil
+		}
+		return []fleet.SoftwareTitleListResult{
+			{ID: 50, Name: "Maccy", HashSHA256: new("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), Packages: []fleet.SoftwarePackageListItem{{Name: "maccy.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(101))}}},
+			{ID: 60, Name: "Slack", HashSHA256: new("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"), Packages: []fleet.SoftwarePackageListItem{{Name: "slack.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(102))}}},
+			{ID: 70, Name: "Chrome", HashSHA256: new("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"), Packages: []fleet.SoftwarePackageListItem{{Name: "chrome.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(103))}}},
+			{ID: 80, Name: "Firefox", HashSHA256: new("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"), Packages: []fleet.SoftwarePackageListItem{{Name: "firefox.pkg", Platform: "darwin", FleetMaintainedAppID: new(uint(104))}}},
+		}, 4, nil, nil
+	}
+	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+		return []fleet.MaintainedApp{
+			{ID: 101, Slug: "maccy/darwin"},
+			{ID: 102, Slug: "slack/darwin"},
+			{ID: 103, Slug: "google-chrome/darwin"},
+			{ID: 104, Slug: "firefox/darwin"},
+		}, nil, nil
+	}
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+controls:
+policies:
+agent_options:
+reports:
+`), 0o644))
+	teamFile := filepath.Join(tmpDir, "test-team.yml")
+	require.NoError(t, os.WriteFile(teamFile, []byte(`
+name: Test Fleet
+policies:
+  - name: Install software true policy
+    type: patch
+    fleet_maintained_app_slug: slack/darwin
+    install_software: true
+  - name: Install software other app policy
+    type: patch
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software:
+      fleet_maintained_app_slug: maccy/darwin
+  - name: Force patch policy
+    type: patch
+    fleet_maintained_app_slug: firefox/darwin
+    force_patch: true
+agent_options:
+reports:
+`), 0o644))
+
+	output, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile})
+	require.NoError(t, err)
+	outputText := output.String()
+	require.Contains(t, outputText, `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`)
+
+	softwareTitleIDsByPolicyName := make(map[string]uint, len(appliedSpecs))
+	for _, spec := range appliedSpecs {
+		softwareTitleIDsByPolicyName[spec.Name] = ptr.ValOrZero(spec.SoftwareTitleID)
+	}
+	// Set install_software: true, the policy should install its own app.
+	require.Equal(t, uint(60), softwareTitleIDsByPolicyName["Install software true policy"])
+	// Point the install_software object at a different app, the policy should install that app.
+	require.Equal(t, uint(50), softwareTitleIDsByPolicyName["Install software other app policy"])
+	// Set force_patch, the policy should install its own app.
+	require.Equal(t, uint(80), softwareTitleIDsByPolicyName["Force patch policy"])
+}

@@ -455,6 +455,7 @@ var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
 	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
 	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
 	"Team package install policy": fleet.PolicyAutomationSoftware,
+	"Team force patch policy":     fleet.PolicyAutomationSoftware,
 }
 
 func (c MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
@@ -630,6 +631,21 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
+				},
+			},
+			&fleet.Policy{
+				ID:          8,
+				Name:        "Team force patch policy",
+				Resolution:  new("Install the latest version from self-service"),
+				Description: "This is a team patch policy that force patches",
+				Platform:    "windows",
+				Type:        fleet.PolicyTypePatch,
+				ForcePatch:  true,
+				PatchSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 10,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 10,
 				},
 			},
 		)
@@ -3108,6 +3124,10 @@ func TestGeneratePolicies(t *testing.T) {
 			13: {
 				MaintainedAppID: 5,
 				Slug:            "fma5/darwin",
+			},
+			10: {
+				MaintainedAppID: 3,
+				Slug:            "fma3/windows",
 			},
 		},
 		ScriptList: map[uint]string{
