@@ -40,6 +40,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesOverflow", testListSoftwareTitlesOverflow},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
+		{"ListSoftwareTitlesVulnerabilityFiltersFleetScoped", testListSoftwareTitlesVulnerabilityFiltersFleetScoped},
 		{"ListSoftwareTitlesTypeFilter", testListSoftwareTitlesTypeFilter},
 		{"ListSoftwareTitlesAIToolFilter", testListSoftwareTitlesAIToolFilter},
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
@@ -2149,6 +2150,110 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 				return
 			}
 			assertTitles(t, titles, tt.expectedTitles)
+		})
+	}
+}
+
+// A title installed in several fleets must only match vulnerability filters
+// in a fleet's view through versions installed in that fleet.
+func testListSoftwareTitlesVulnerabilityFiltersFleetScoped(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	fleetA, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet A"})
+	require.NoError(t, err)
+	fleetB, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet B"})
+	require.NoError(t, err)
+
+	hostA := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
+	hostB := test.NewHost(t, ds, "hostB", "", "hostBkey", "hostBuuid", time.Now())
+	hostNoFleet := test.NewHost(t, ds, "hostNoFleet", "", "hostNoFleetkey", "hostNoFleetuuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetA.ID, []uint{hostA.ID})))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleetB.ID, []uint{hostB.ID})))
+
+	// chrome is vulnerable only in fleet B, firefox only on the "No fleet"
+	// host, and safari in fleet A.
+	hostSoftware := map[uint][]fleet.Software{
+		hostA.ID: {
+			{Name: "chrome", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.chrome"},
+			{Name: "firefox", Version: "2.0", Source: "apps", BundleIdentifier: "com.example.firefox"},
+			{Name: "safari", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.safari"},
+		},
+		hostB.ID: {
+			{Name: "chrome", Version: "2.0", Source: "apps", BundleIdentifier: "com.example.chrome"},
+		},
+		hostNoFleet.ID: {
+			{Name: "firefox", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.firefox"},
+		},
+	}
+	softwareIDs := make(map[string]uint)
+	for hostID, software := range hostSoftware {
+		res, err := ds.UpdateHostSoftware(ctx, hostID, software)
+		require.NoError(t, err)
+		for _, s := range res.Inserted {
+			softwareIDs[s.Name+"@"+s.Version] = s.ID
+		}
+	}
+
+	vulns := map[string]string{
+		"chrome@2.0":  "CVE-2024-0001",
+		"firefox@1.0": "CVE-2024-0002",
+		"safari@1.0":  "CVE-2024-0003",
+	}
+	for sw, cve := range vulns {
+		require.NotZero(t, softwareIDs[sw], sw)
+		_, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: softwareIDs[sw], CVE: cve}, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	globalAdmin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	observerA := &fleet.User{Teams: []fleet.UserTeam{{ID: fleetA.ID, Role: fleet.RoleObserver}}}
+	noFleetID := uint(0)
+
+	cases := []struct {
+		name     string
+		user     *fleet.User
+		opts     fleet.SoftwareTitleListOptions
+		expected []string
+	}{
+		{
+			name:     "fleet A vulnerable",
+			user:     observerA,
+			opts:     fleet.SoftwareTitleListOptions{TeamID: &fleetA.ID, VulnerableOnly: true},
+			expected: []string{"safari"},
+		},
+		{
+			name:     "fleet A search for CVE outside the fleet",
+			user:     observerA,
+			opts:     fleet.SoftwareTitleListOptions{TeamID: &fleetA.ID, ListOptions: fleet.ListOptions{MatchQuery: "CVE-2024-0001"}},
+			expected: nil,
+		},
+		{
+			name:     "fleet A search by name for title vulnerable outside the fleet",
+			user:     observerA,
+			opts:     fleet.SoftwareTitleListOptions{TeamID: &fleetA.ID, ListOptions: fleet.ListOptions{MatchQuery: "chrome"}},
+			expected: []string{"chrome"},
+		},
+		{
+			name:     "no fleet vulnerable",
+			user:     globalAdmin,
+			opts:     fleet.SoftwareTitleListOptions{TeamID: &noFleetID, VulnerableOnly: true},
+			expected: []string{"firefox"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			titles, count, _, err := ds.ListSoftwareTitles(ctx, c.opts, fleet.TeamFilter{User: c.user})
+			require.NoError(t, err)
+			names := make([]string, 0, len(titles))
+			for _, title := range titles {
+				names = append(names, title.Name)
+			}
+			require.ElementsMatch(t, c.expected, names)
+			require.Equal(t, len(c.expected), count)
 		})
 	}
 }
