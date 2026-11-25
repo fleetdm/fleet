@@ -223,6 +223,9 @@ func (r *profileReconciler) syncFleetDefaultPolicy(ctx context.Context, teamID u
 // other AMAPI error is returned, so the worker retries instead of moving the device to a policy that may lack
 // the passcode.
 func (svc *Service) PrepareHostPolicy(ctx context.Context, enterpriseName, hostUUID string, teamID uint) error {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return err
+	}
 	profiles, err := svc.fleetDS.ListAndroidFleetDefaultPolicyProfiles(ctx, &teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list android fleet default policy profiles")
