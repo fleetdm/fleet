@@ -739,6 +739,20 @@ describe("Card vitals cap", () => {
     expect(rendered).not.toContain("zz vital e");
   });
 
+  it("renders a custom vital value in a truncating tooltip, like the other long vitals", () => {
+    const longValue = "ASSET-2026-HQ-FLOOR3-RACK12-SLOT07-SN-C02ZK4XYMD6M";
+    const { container } = renderCard("darwin", {
+      customHostVitals: [
+        { custom_host_vital_id: 1, name: "Asset tag", value: longValue },
+      ],
+    });
+
+    const customVital = container.querySelector(
+      ".vitals-card__custom-vital .tooltip-truncated-text__text-value"
+    );
+    expect(customVital).toHaveTextContent(longValue);
+  });
+
   it("does not cap a surface without a 'View all' button, which would strand the hidden vitals", () => {
     const { container } = renderCard("ios", {
       customHostVitals: makeCustomVitals(10),
