@@ -2329,9 +2329,10 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 func parseOSVersion(name string, version string, major string, minor string, patch string, build string, extra string) string {
 	var osVersion string
 	switch {
-	case strings.Contains(strings.ToLower(name), "ubuntu"):
+	case strings.Contains(strings.ToLower(name), "ubuntu"), strings.Contains(strings.ToLower(name), "zorin"):
 		// Ubuntu takes a different approach to updating patch IDs so we instead use
-		// the version string provided after removing the code name.
+		// the version string provided after removing the code name. Zorin OS keeps
+		// VERSION_ID at the major version, so major/minor/patch would read N.0.0.
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
 	case strings.Contains(strings.ToLower(name), "chrome"):
