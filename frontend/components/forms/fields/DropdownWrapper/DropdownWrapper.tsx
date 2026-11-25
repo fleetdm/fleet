@@ -142,10 +142,10 @@ export interface IDropdownWrapper {
 export const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  // The option under the pointer or keyboard focus gets the stronger shade, so
-  // it stands out from the selected option, which is also shown in bold.
-  if (state.isFocused) return COLORS["ui-fleet-black-10"];
-  if (state.isSelected) return COLORS["ui-fleet-black-5"];
+  // Per the design system, hovered and selected options share one shade; bold
+  // text marks the selected one. A separate selected shade made it jump when the
+  // pointer entered the menu, since react-select focuses the selected option.
+  if (state.isFocused || state.isSelected) return COLORS["ui-fleet-black-5"];
   return "transparent";
 };
 
@@ -330,13 +330,13 @@ export const generateCustomDropdownStyles = (
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-fleet-black-10"],
+          : COLORS["ui-fleet-black-5"],
         cursor: state.isDisabled ? "not-allowed" : "pointer",
       },
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-fleet-black-10"],
+          : COLORS["ui-fleet-black-5"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],

@@ -6,6 +6,7 @@ import { COLORS } from "styles/var/colors";
 
 import DropdownWrapper, {
   CustomOptionType,
+  generateCustomDropdownStyles,
   getOptionBackgroundColor,
 } from "./DropdownWrapper";
 
@@ -156,29 +157,20 @@ describe("DropdownWrapper Component", () => {
     ).not.toBeInTheDocument();
   });
 
-  describe("option background", () => {
+  describe("option states", () => {
     const optionState = (state: { isFocused: boolean; isSelected: boolean }) =>
       state as Parameters<typeof getOptionBackgroundColor>[0];
 
-    test("gives the hovered option a stronger shade than the selected one", () => {
-      expect(
-        getOptionBackgroundColor(
-          optionState({ isFocused: true, isSelected: false })
+    test("hovered and selected options share the design system shade", () => {
+      [
+        { isFocused: true, isSelected: false },
+        { isFocused: false, isSelected: true },
+        { isFocused: true, isSelected: true },
+      ].forEach((state) =>
+        expect(getOptionBackgroundColor(optionState(state))).toBe(
+          COLORS["ui-fleet-black-5"]
         )
-      ).toBe(COLORS["ui-fleet-black-10"]);
-      expect(
-        getOptionBackgroundColor(
-          optionState({ isFocused: false, isSelected: true })
-        )
-      ).toBe(COLORS["ui-fleet-black-5"]);
-    });
-
-    test("keeps the hover shade on a selected option under the pointer", () => {
-      expect(
-        getOptionBackgroundColor(
-          optionState({ isFocused: true, isSelected: true })
-        )
-      ).toBe(COLORS["ui-fleet-black-10"]);
+      );
     });
 
     test("leaves other options transparent", () => {
@@ -187,6 +179,15 @@ describe("DropdownWrapper Component", () => {
           optionState({ isFocused: false, isSelected: false })
         )
       ).toBe("transparent");
+    });
+
+    test("marks only the selected option in bold", () => {
+      const optionStyles = generateCustomDropdownStyles().option;
+      const fontWeight = (state: { isFocused: boolean; isSelected: boolean }) =>
+        optionStyles?.({}, optionState(state))?.fontWeight;
+
+      expect(fontWeight({ isFocused: false, isSelected: true })).toBe("600");
+      expect(fontWeight({ isFocused: true, isSelected: false })).toBe("normal");
     });
   });
 });
