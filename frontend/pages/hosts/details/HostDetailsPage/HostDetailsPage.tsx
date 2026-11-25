@@ -323,6 +323,13 @@ const HostDetailsPage = ({
     isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
 
+  // The host list the user came from, so leaving this page keeps their fleet and filters
+  const hostsListPath =
+    filteredHostsPath ||
+    getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+      fleet_id: location.query.fleet_id,
+    });
+
   const handlePageError = useErrorHandler();
 
   if (!hostIdFromURL) {
@@ -1051,7 +1058,7 @@ const HostDetailsPage = ({
         queryClient.removeQueries([{ scope: "hosts" }]);
         queryClient.removeQueries([{ scope: "hosts_count" }]);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
-        router.push(PATHS.MANAGE_HOSTS);
+        router.push(hostsListPath);
       } catch (error) {
         console.log(error);
         notify.error(`Host "${host.display_name}" could not be deleted.`, {
@@ -1973,15 +1980,7 @@ const HostDetailsPage = ({
         <>
           {!mainContentConfig.renderedBanner && hostDetailsBanner}
           <div className={`${baseClass}__header-links`}>
-            <BackButton
-              text="Back to all hosts"
-              path={
-                filteredHostsPath ||
-                getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-                  fleet_id: location.query.fleet_id,
-                })
-              }
-            />
+            <BackButton text="Back to all hosts" path={hostsListPath} />
           </div>
           <div className={`${baseClass}__header-summary`}>
             <HostHeader
@@ -2313,12 +2312,7 @@ const HostDetailsPage = ({
               onExit={() => setShowReleaseFromABModal(false)}
               onRelease={() => {
                 if (host.mdm.enrollment_status === "Pending") {
-                  router.push(
-                    filteredHostsPath ||
-                      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-                        fleet_id: location.query.fleet_id,
-                      })
-                  );
+                  router.push(hostsListPath);
                   return;
                 }
                 refetchHostDetails();
