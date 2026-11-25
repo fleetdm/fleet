@@ -781,7 +781,7 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs 
 
 // DeleteLabel deletes a fleet.Label
 func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var name string
 		// Locked so that of two concurrent deletes of a label, only one succeeds.
 		if err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM labels WHERE id = ? FOR UPDATE`, labelID); err != nil {
@@ -803,7 +803,7 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
 			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
 		}
 
-		if err := ds.deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
+		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
 			if isMySQLForeignKey(err) {
 				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
 			}
@@ -811,20 +811,21 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	ds.deleteLabelMembership(ctx, []uint{labelID})
+	return nil
 }
 
 // labelMembershipDeleteBatchSize is a var so tests can exercise multiple batches. Tests that change it must not run
 // in parallel.
 var labelMembershipDeleteBatchSize = 5000
 
-// deleteLabelsInTx deletes the labels' label_membership rows only after tx commits, in short batches: deleting them in
-// tx would lock every member row until commit and stall hosts' label result writes fleet-wide.
-func (ds *Datastore) deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) error {
-	wtx, ok := tx.(common_mysql.WrappedExtContext)
-	if !ok {
-		return ctxerr.New(ctx, "deleting labels requires a transaction that supports commit hooks")
-	}
-
+// deleteLabelsInTx leaves the labels' label_membership rows in place: deleting them in tx would lock every member row
+// until commit and stall hosts' label result writes fleet-wide. Callers call deleteLabelMembership once tx
+// commits, not before, so a rolled-back deletion keeps its members.
+func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) error {
 	query, args, err := sqlx.In(`DELETE FROM labels WHERE id IN (?)`, labelIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for labels")
@@ -832,19 +833,19 @@ func (ds *Datastore) deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, l
 	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete label")
 	}
-
-	wtx.AddOnCommitHook(func() { ds.deleteMembershipOfDeletedLabels(ctx, labelIDs) })
 	return nil
 }
 
-func (ds *Datastore) deleteMembershipOfDeletedLabels(ctx context.Context, labelIDs []uint) {
-	// The labels are already gone, so a client disconnect must not leave their rows behind.
+// deleteLabelMembership runs in the background so the delete request doesn't wait on a large label's cleanup.
+// If the process exits first, CleanupOrphanedLabelMembership removes what's left.
+func (ds *Datastore) deleteLabelMembership(ctx context.Context, labelIDs []uint) {
 	ctx = context.WithoutCancel(ctx)
-	if err := ds.deleteLabelMembershipInBatches(ctx, labelIDs); err != nil {
-		// Logged only: the labels' deletion is already committed. CleanupOrphanedLabelMembership removes what's left.
-		ds.logger.ErrorContext(ctx, "deleting membership of deleted labels", "label_ids", labelIDs, "err", err)
-		ctxerr.Handle(ctx, err)
-	}
+	go func() {
+		if err := ds.deleteLabelMembershipInBatches(ctx, labelIDs); err != nil {
+			ds.logger.ErrorContext(ctx, "deleting membership of deleted labels", "label_ids", labelIDs, "err", err)
+			ctxerr.Handle(ctx, err)
+		}
+	}()
 }
 
 func (ds *Datastore) deleteLabelMembershipInBatches(ctx context.Context, labelIDs []uint) error {

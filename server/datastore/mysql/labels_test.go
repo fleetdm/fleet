@@ -1654,7 +1654,7 @@ func testDeleteLabelMembership(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.DeleteLabel(ctx, deleted.ID))
 
-	assert.Zero(t, membershipCount(deleted.ID))
+	require.Eventually(t, func() bool { return membershipCount(deleted.ID) == 0 }, 10*time.Second, 50*time.Millisecond)
 	assert.Equal(t, len(hosts), membershipCount(kept.ID))
 
 	_, _, err := ds.Label(ctx, deleted.ID, adminFilter)
@@ -1757,7 +1757,7 @@ func testCleanupOrphanedLabelMembership(t *testing.T, ds *Datastore) {
 	t.Run("host reports a label after its deletion", func(t *testing.T) {
 		deleted := newLabelWithAllHosts("orphaned-membership-reported-late")
 		require.NoError(t, ds.DeleteLabel(ctx, deleted.ID))
-		require.Zero(t, membershipCount(deleted.ID))
+		require.Eventually(t, func() bool { return membershipCount(deleted.ID) == 0 }, 10*time.Second, 50*time.Millisecond)
 		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{deleted.ID: new(true)}, time.Now(), false))
 		require.Equal(t, 1, membershipCount(deleted.ID))
 

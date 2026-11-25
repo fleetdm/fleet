@@ -359,11 +359,13 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.Empty(t, hostLabels)
 
 			// ListLabelsForHost joins labels, so check the membership rows themselves.
-			var membershipCount int
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(t.Context(), q, &membershipCount, `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`, teamLabel.ID)
-			})
-			assert.Zero(t, membershipCount)
+			require.Eventually(t, func() bool {
+				var membershipCount int
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					return sqlx.GetContext(t.Context(), q, &membershipCount, `SELECT COUNT(*) FROM label_membership WHERE label_id = ?`, teamLabel.ID)
+				})
+				return membershipCount == 0
+			}, 10*time.Second, 50*time.Millisecond)
 		})
 	}
 }
