@@ -79,6 +79,7 @@ function Set-DenyLogonRights {
 }
 
 $stateKey = "HKLM:\SOFTWARE\Fleet\WindowsLock"
+$signInKey = "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions"
 $denied = '*S-1-5-32-545,*S-1-5-32-546'
 try {
     $current = Get-DenyLogonRights
@@ -96,6 +97,13 @@ try {
     if ($null -eq $saved.DenyInteractive -or $null -eq $saved.DenyRemote) {
         New-ItemProperty -Path $stateKey -Name DenyInteractive -Value $current['SeDenyInteractiveLogonRight'] -PropertyType String -Force -ErrorAction Stop | Out-Null
         New-ItemProperty -Path $stateKey -Name DenyRemote -Value $current['SeDenyRemoteInteractiveLogonRight'] -PropertyType String -Force -ErrorAction Stop | Out-Null
+    }
+    # An empty string means the value didn't exist before the lock.
+    if ($null -eq $saved.SignInOptions) {
+        $originalSignIn = (Get-ItemProperty -Path $signInKey -Name 'value' -ErrorAction SilentlyContinue).value
+        # 3 is what this script sets, so it's left over from an earlier lock. Save the default instead.
+        if ($originalSignIn -eq 3) { $originalSignIn = 1 }
+        New-ItemProperty -Path $stateKey -Name SignInOptions -Value "$originalSignIn" -PropertyType String -Force -ErrorAction Stop | Out-Null
     }
     # Merge with any earlier record so locking twice doesn't forget accounts.
     $sids = @(@($saved.DisabledAccounts) + ($accountsToDisable | ForEach-Object { $_.SID.Value }) | Where-Object { $_ } | Select-Object -Unique)
@@ -117,7 +125,7 @@ foreach ($account in $accountsToDisable) {
 }
 
 # Disable additional AD logins
-New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions" -Name 'value' -Value 3 -PropertyType DWORD -Force
+New-ItemProperty -Path $signInKey -Name 'value' -Value 3 -PropertyType DWORD -Force
 
 Write-Host "All users have been logged out and their accounts disabled."
 Write-Host "Logging in with other Microsoft accounts has been disabled"

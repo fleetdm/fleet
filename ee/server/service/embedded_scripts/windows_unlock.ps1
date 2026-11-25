@@ -50,6 +50,23 @@ function Enable-Accounts {
     $ok
 }
 
+$signInKey = "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions"
+
+# Put the sign-in options value back. 1 is the default ("allowed"); 0 means
+# "not allowed" and grays out Settings > Accounts > Sign-in options. Pass $null
+# to use the default, or an empty string to remove the value.
+function Restore-SignInOptions {
+    param($Original)
+
+    if ($Original -eq '') {
+        Remove-ItemProperty -Path $signInKey -Name 'value' -ErrorAction Stop
+    } else {
+        $value = if ($null -eq $Original) { 1 } else { [int]$Original }
+        New-ItemProperty -Path $signInKey -Name 'value' -Value $value -PropertyType DWORD -Force -ErrorAction Stop | Out-Null
+    }
+    Write-Host "Restored sign-in options."
+}
+
 # Restore what windows_lock.ps1 saved: the two deny-logon policies and the
 # local accounts it disabled. The saved record is only deleted once everything
 # is restored, so a failed unlock can be retried.
@@ -81,6 +98,14 @@ if (Test-Path $stateKey) {
         $restored = $false
     }
 
+    # Locks from before this value was saved have none, so use the default.
+    try {
+        Restore-SignInOptions -Original $saved.SignInOptions
+    } catch {
+        Write-Host "Could not restore sign-in options: $($_.Exception.Message)"
+        $restored = $false
+    }
+
     if ($restored) { Remove-Item -Path $stateKey -Recurse -Force }
 } else {
     # Locked by an older version of windows_lock.ps1, which didn't change the
@@ -98,11 +123,14 @@ if (Test-Path $stateKey) {
             $restored = $false
         }
     }
-}
 
-# Re-enable additional AD logins. 1 is the default ("allowed"); 0 means "not
-# allowed" and grays out Settings > Accounts > Sign-in options.
-New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions" -Name 'value' -Value 1 -PropertyType DWORD -Force
+    try {
+        Restore-SignInOptions -Original $null
+    } catch {
+        Write-Host "Could not restore sign-in options: $($_.Exception.Message)"
+        $restored = $false
+    }
+}
 
 if (-not $restored) {
     Write-Host "Unlock was incomplete. Run it again to retry."
