@@ -12,11 +12,10 @@
 package find_cmd
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -91,56 +90,54 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	if perm != "" {
 		args = append(args, "-perm", perm)
 	}
+	// NUL-terminated output, because file names can contain newlines but never NUL.
+	args = append(args, "-print0")
 
+	var stdout bytes.Buffer
+	stderr := &cappedBuffer{limit: maxStderrBytes}
 	cmd := exec.Command("/usr/bin/find", args...)
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("create stdout pipe: %w", err)
-	}
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, fmt.Errorf("create stderr pipe: %w", err)
-	}
+	cmd.Stdout = &stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("command start failed: %w", err)
 	}
-
-	var outDirs []string
-	reader := bufio.NewReader(stdoutPipe)
-	line, err := reader.ReadString('\n')
-	for err == nil {
-		line = strings.TrimSuffix(line, "\n")
-		if line == "" {
-			continue
-		}
-		outDirs = append(outDirs, line)
-		line, err = reader.ReadString('\n')
-	}
-	if err != io.EOF {
-		return nil, fmt.Errorf("unexpected error: %w", err)
-	}
-
-	stderr, err := io.ReadAll(stderrPipe)
-	if err != nil {
-		log.Debug().Err(err).Msg("failed to read find stderr")
-	}
-
 	if err := cmd.Wait(); err != nil {
 		// We ignore error as these could be of the form:
 		// 'find: /System/Volumes/Data/Library/Caches/com.apple.aned: Operation not permitted'
 		// which are files unaccessible even for root.
-		log.Debug().Err(err).Bytes("stderr", stderr).Msg("find failed")
+		log.Debug().Err(err).Bytes("stderr", stderr.buf).Msg("find failed")
 	}
 
-	rows := make([]map[string]string, 0, len(outDirs))
-	for _, outDir := range outDirs {
+	rows := []map[string]string{}
+	for {
+		// No NUL terminator means find died mid-write; drop the partial path.
+		path, err := stdout.ReadString(0)
+		if err != nil {
+			break
+		}
 		rows = append(rows, map[string]string{
 			"directory": directory,
 			"perm":      perm,
 			"type":      findType,
-			"path":      outDir,
+			"path":      strings.TrimSuffix(path, "\x00"),
 		})
 	}
 	return rows, nil
+}
+
+// maxStderrBytes caps how much of find's stderr is kept for the debug log; scans
+// without Full Disk Access can print an error for every protected directory.
+const maxStderrBytes = 4096
+
+// cappedBuffer keeps the first limit bytes and discards the rest. Writes never
+// fail, so exec keeps draining the pipe and find never blocks on stderr.
+type cappedBuffer struct {
+	buf   []byte
+	limit int
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	b.buf = append(b.buf, p[:min(len(p), b.limit-len(b.buf))]...)
+	return len(p), nil
 }
