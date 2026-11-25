@@ -1,4 +1,9 @@
 .script-batch-hosts-table {
+  // Size the host name to its text, not the whole cell, so "View host details" stays in the cell.
+  .data-table-block .data-table tbody td .w400 {
+    min-width: auto;
+  }
+
   .host-name-cell {
     display: flex;
     align-items: center;

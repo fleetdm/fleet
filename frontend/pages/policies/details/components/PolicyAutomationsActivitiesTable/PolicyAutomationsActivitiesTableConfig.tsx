@@ -63,6 +63,8 @@ const generateColumnConfigs = (
       }
       return (
         <LinkCell
+          className="w400"
+          tooltipTruncate
           value={host_display_name}
           path={PATHS.HOST_DETAILS(host_id)}
           customOnClick={(e) => e.stopPropagation()}

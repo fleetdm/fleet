@@ -23,6 +23,9 @@ import PolicyAutomationsActivitiesTable from "./PolicyAutomationsActivitiesTable
 
 jest.mock("services/entities/policies");
 
+// Host cells also render their text in a hidden truncation tooltip.
+const CELL_TEXT = { selector: ".data-table__tooltip-truncated-text" };
+
 const mockPolicy: IPolicy = {
   id: 123,
   name: "Test policy",
@@ -542,6 +545,10 @@ describe("PolicyAutomationsActivitiesTable", () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("renders the header, run count, and a host link", async () => {
     (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
       mockResponse([mockActivity()], 1)
@@ -555,9 +562,37 @@ describe("PolicyAutomationsActivitiesTable", () => {
     );
 
     expect(screen.getByText("Automation runs")).toBeInTheDocument();
-    expect(await screen.findByText("Anna's MacBook Pro")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Anna's MacBook Pro", CELL_TEXT)
+    ).toBeInTheDocument();
     expect(screen.getByText("1 run")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search hosts")).toBeInTheDocument();
+  });
+
+  it("shows the full host name in a tooltip when it is truncated", async () => {
+    const longHostName = `DESKTOP-${"0123456789ABCDEF".repeat(8)}`;
+    // jsdom has no layout, so report a text box narrower than its content.
+    jest
+      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+      .mockReturnValue(352);
+    jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity({ host_display_name: longHostName })], 1)
+    );
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+      />
+    );
+
+    await user.hover(await screen.findByText(longHostName, CELL_TEXT));
+    expect(
+      await screen.findByText(longHostName, {
+        selector: ".truncated-tooltip.show",
+      })
+    ).toBeVisible();
   });
 
   it("prefills the host search and fetches that host's runs", async () => {
@@ -630,8 +665,10 @@ describe("PolicyAutomationsActivitiesTable", () => {
     );
 
     // Both (activity, host) rows must render even though they share id 41.
-    expect(await screen.findByText("batch-host-a")).toBeInTheDocument();
-    expect(screen.getByText("batch-host-b")).toBeInTheDocument();
+    expect(
+      await screen.findByText("batch-host-a", CELL_TEXT)
+    ).toBeInTheDocument();
+    expect(screen.getByText("batch-host-b", CELL_TEXT)).toBeInTheDocument();
     expect(screen.getByText("2 runs")).toBeInTheDocument();
   });
 
@@ -646,7 +683,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
         canResetPolicy={false}
       />
     );
-    await screen.findByText("Anna's MacBook Pro");
+    await screen.findByText("Anna's MacBook Pro", CELL_TEXT);
     expect(
       screen.queryByRole("button", { name: /reset policy/i })
     ).not.toBeInTheDocument();
@@ -777,14 +814,14 @@ describe("PolicyAutomationsActivitiesTable", () => {
         canResetPolicy={false}
       />
     );
-    expect(await screen.findByText("host-1")).toBeInTheDocument();
+    expect(await screen.findByText("host-1", CELL_TEXT)).toBeInTheDocument();
     expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     // The previous page stays on screen until the next one arrives.
     expect(await screen.findByTestId("spinner")).toBeInTheDocument();
-    expect(screen.getByText("host-1")).toBeInTheDocument();
+    expect(screen.getByText("host-1", CELL_TEXT)).toBeInTheDocument();
 
     resolveSecondPage(
       mockResponse(
@@ -792,7 +829,7 @@ describe("PolicyAutomationsActivitiesTable", () => {
         51
       )
     );
-    expect(await screen.findByText("host-51")).toBeInTheDocument();
+    expect(await screen.findByText("host-51", CELL_TEXT)).toBeInTheDocument();
     expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
   });
 });

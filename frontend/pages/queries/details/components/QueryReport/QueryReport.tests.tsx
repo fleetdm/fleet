@@ -17,6 +17,10 @@ const tableProps = {
 };
 
 describe("QueryReport", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("Renders cell data normally when not longer than 300 chars", () => {
     const [isClipped, queryReport] = [
       false,
@@ -194,6 +198,42 @@ describe("QueryReport", () => {
         sortDirection: "desc",
       });
     });
+  });
+
+  it("Shows the full host name in a tooltip when it is truncated", async () => {
+    const longHostName = `DESKTOP-${"0123456789ABCDEF".repeat(8)}`;
+    // jsdom has no layout, so report a text box narrower than its content.
+    jest
+      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+      .mockReturnValue(352);
+    jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
+    const queryReport = {
+      report_id: 1,
+      results: [
+        {
+          host_id: 1,
+          host_name: longHostName,
+          last_fetched: "2021-01-01",
+          columns: { col1: "value1" },
+        },
+      ],
+      report_clipped: false,
+      count: 1,
+    };
+    const { user } = renderWithSetup(
+      <QueryReport queryId={1} {...tableProps} queryReport={queryReport} />
+    );
+
+    await user.hover(
+      screen.getByText(longHostName, {
+        selector: ".data-table__tooltip-truncated-text",
+      })
+    );
+    expect(
+      await screen.findByText(longHostName, {
+        selector: ".truncated-tooltip.show",
+      })
+    ).toBeVisible();
   });
 
   it("Exports every result with columns from the full export, not the page", async () => {
