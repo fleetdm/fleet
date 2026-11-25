@@ -697,7 +697,8 @@ func NewVerifyRecoveryLockResultsHandler(
 		}
 
 		// Rotations aren't new passwords here: they log their activity when they're enqueued.
-		if pending.SetsNewPassword && pending.OperationType == fleet.MDMOperationTypeInstall {
+		if rlResult.CmdStatus() == fleet.MDMAppleStatusAcknowledged && pending.SetsNewPassword &&
+			pending.OperationType == fleet.MDMOperationTypeInstall {
 
 			host, err := ds.HostLiteByIdentifier(ctx, results.HostUUID())
 			if err != nil || host == nil {

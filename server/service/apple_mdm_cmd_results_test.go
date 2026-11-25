@@ -730,6 +730,20 @@ func TestVerifyRecoveryLockResultsHandler(t *testing.T) {
 		assert.True(t, verifiedCalled)
 	})
 
+	t.Run("deferred verify logs nothing", func(t *testing.T) {
+		ds := new(mock.DataStore)
+		ds.GetPendingRecoveryLockFunc = pendingFn(fleet.MDMOperationTypeInstall, false, 0)
+
+		newActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			t.Fatal("activity should not be created before the device confirms")
+			return nil
+		}
+
+		handler := NewVerifyRecoveryLockResultsHandler(ds, logger, commander, newActivityFn)
+		require.NoError(t, handler(ctx, newResult(fleet.MDMAppleStatusNotNow, nil)))
+		assert.False(t, ds.SetRecoveryLockVerifiedFuncInvoked)
+	})
+
 	t.Run("acknowledged set after re-enrollment logs activity", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		// Re-enrollment keeps the last known password as current, but this is still a set.

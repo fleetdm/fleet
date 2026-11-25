@@ -1412,6 +1412,17 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 		assert.False(t, pending.SetsNewPassword, "a rotation isn't a set")
 	})
 
+	t.Run("a retry of a live row isn't a set", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "retry-live-host", "retryliveuuid")
+
+		// The cron re-stages a live row after a transient error, e.g. on a rotation.
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: apple_mdm.GenerateRecoveryLockPassword()}}))
+		pending, err := ds.GetPendingRecoveryLock(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, pending)
+		assert.False(t, pending.SetsNewPassword)
+	})
+
 	t.Run("InitiateRecoveryLockRotation rejects if already pending", func(t *testing.T) {
 		host := setupHostWithVerifiedPassword(t, "double-rotate-host", "doublerotuuid")
 

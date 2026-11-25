@@ -1061,6 +1061,69 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 	// =========================================================================
 	// Test: MDM re-enrollment invalidates the stored recovery lock password
 	// =========================================================================
+	setActivity := fleet.ActivityTypeSetHostRecoveryLockPassword{}.ActivityName()
+
+	t.Run("a rotation retried after a transient error isn't logged as a set", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+		require.Equal(t, 1, s.countHostActivitiesOfType(host.ID, setActivity))
+
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+		rotateCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, rotateCmd)
+		require.Equal(t, "SetRecoveryLock", rotateCmd.Command.RequestType)
+		_, err = mdmClient.Err(rotateCmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "TestDomain", USEnglishDescription: "transient"}})
+		require.NoError(t, err)
+
+		// The cron resends the rotation, and the device takes it this time.
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+
+		assert.Equal(t, 1, s.countHostActivitiesOfType(host.ID, setActivity))
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	t.Run("a deferred verify isn't logged until the device confirms", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd)
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd)
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+
+		_, err = mdmClient.NotNow(verifyCmd.CommandUUID)
+		require.NoError(t, err)
+		assert.Zero(t, s.countHostActivitiesOfType(host.ID, setActivity))
+
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+		assert.Equal(t, 1, s.countHostActivitiesOfType(host.ID, setActivity))
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
 	t.Run("re-enrollment soft-deletes stored password and cron re-SETs", func(t *testing.T) {
 		// Enable recovery lock password.
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
