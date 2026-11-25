@@ -3,6 +3,7 @@ import React, { useCallback, useState, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -318,22 +319,38 @@ const InstallSoftwareForm = ({
               tipOffset={6}
               position="left"
               renderChildren={(disableChildren) => (
-                <Checkbox
-                  disabled={disableChildren || !isWindowsMdmEnabled}
-                  value={requireAllSoftwareWindows}
-                  onChange={handleChangeRequireAllWindows}
+                <TooltipWrapper
+                  tipContent={
+                    <span>
+                      Turn on{" "}
+                      <CustomLink
+                        url={PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS}
+                        text="Windows MDM"
+                        variant="tooltip-link"
+                      />{" "}
+                      to use this feature.
+                    </span>
+                  }
+                  disableTooltip={disableChildren || isWindowsMdmEnabled}
+                  position="left"
+                  tipOffset={8}
+                  showArrow
+                  underline={false}
+                  anchorChildSelector="[role='checkbox']"
                 >
-                  <TooltipWrapper
-                    tipContent={
-                      isWindowsMdmEnabled
-                        ? "For hosts that automatically enroll, if any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
-                        : "Turn on Windows MDM to use this option."
-                    }
-                    disableTooltip={disableChildren}
+                  <Checkbox
+                    disabled={disableChildren || !isWindowsMdmEnabled}
+                    value={requireAllSoftwareWindows}
+                    onChange={handleChangeRequireAllWindows}
                   >
-                    Cancel setup if software fails
-                  </TooltipWrapper>
-                </Checkbox>
+                    <TooltipWrapper
+                      tipContent="For hosts that automatically enroll, if any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                      disableTooltip={disableChildren || !isWindowsMdmEnabled}
+                    >
+                      Cancel setup if software fails
+                    </TooltipWrapper>
+                  </Checkbox>
+                </TooltipWrapper>
               )}
             />
           </div>

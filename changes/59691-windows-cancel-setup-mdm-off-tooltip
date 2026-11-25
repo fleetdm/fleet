@@ -1,0 +1,1 @@
+- Updated the disabled "Cancel setup if software fails" checkbox in **Controls > Setup experience > Install software > Windows** to show a tooltip that links to Windows MDM settings when Windows MDM is off, matching other disabled settings.
