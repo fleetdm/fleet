@@ -53,6 +53,7 @@ HTTP GET /api/_version_/fleet/charts/{metric}
        ├─ authz.Authorize()                 → fail closed
        ├─ GetHostIDsForFilter() → mask      → cached per filter (hostFilterCache)
        └─ GetSCDData(...) ORs rows per bucket, AND mask, popcount ─▶ []DataPoint
+          (cve: ReplaySCDChanges(...) once the change storage covers the window)
 ```
 
 ## Package layout
@@ -123,8 +124,9 @@ read path ORs across entities to get a distinct-host union.
 
 The `cve` dataset is also recorded in a second form that stores what changed
 instead of a full host set per change. It is written next to `host_scd_data`
-while the read path is moved over. `ReplaySCDChanges` reads it (see [Replay
-read](#replay-read-change-storage)), but no request uses it yet.
+while the read path is moved over. `GetChartData` answers a `cve` request from
+it once it covers the request's window (see [Replay
+read](#replay-read-change-storage)).
 
 - `host_scd_entities` gives each `(dataset, entity_id)` a small integer key.
 - `host_scd_current` holds each entity's host set now, keyed by `(dataset,
@@ -294,7 +296,11 @@ Open rows (sentinel `valid_to`) are never deleted. It also deletes
    list → `NewBitmap`. This is memoized per canonicalized filter by `hostFilterCache`
    (60s TTL, singleflight-collapsed). The mask encodes "currently visible hosts,"
    which incidentally drops hosts deleted since the SCD rows were written.
-5. **Aggregate buckets.** `GetSCDData` streams the rows overlapping the range one
+5. **Aggregate buckets.** For `cve`, when `SCDChangesCoveredFrom` returns a
+   `covered_from` at or before the end of the first bucket, `ReplaySCDChanges`
+   answers the request (see [Replay read](#replay-read-change-storage)). If the
+   lookup fails, the error is logged and the request reads `host_scd_data`.
+   Otherwise `GetSCDData` streams the rows overlapping the range one
    at a time and ORs each into one accumulator per bucket it counts for (per
    strategy), so memory is bounded by the bucket count, not the rows read. Each
    accumulator is then AND-ed with the mask → `popcount` → one `DataPoint`. Zero
@@ -305,7 +311,7 @@ Open rows (sentinel `valid_to`) are never deleted. It also deletes
    resolution label, applied filters, and the data points.
 
 The storage work of steps 4 and 5, including resolving the CVE filters to entity
-IDs, runs under a 30-second deadline (`chartRequestTimeout`). When it fires the
+IDs and either read, runs under a 30-second deadline (`chartRequestTimeout`). When it fires the
 request returns a 422 asking the user to narrow the filters.
 
 Bucket boundaries are aligned to the client's local time via `tz_offset`
@@ -317,7 +323,11 @@ day.
 `ReplaySCDChanges` (`internal/mysql/replay.go`) answers a snapshot request from
 the change storage and returns what `GetSCDData` returns for the same history,
 with the same labels and the same `nil`/empty meaning of the mask and the entity
-list. It is not wired into `GetChartData` yet.
+list. `GetChartData` uses it for `cve` when `covered_from` is at or before the
+end of the request's first bucket, so every bucket it returns holds the
+history. Before the history collected ahead of the change storage is converted,
+that is only windows that start after `changes_from`; once conversion
+completes, every window within retention.
 
 1. Resolve the entity IDs to keys through `host_scd_entities` (an `IN` list up to
    `scdEntityInListMax`, else every key of the dataset filtered in Go).
@@ -478,7 +488,7 @@ mocks elsewhere can crash if an interface method is missing.
 | `internal/mysql/data.go` | SCD read/write: `RecordBucketData`, `GetSCDData`, cleanup, scrub |
 | `internal/mysql/changes.go` | Change storage: `RecordSCDChanges`, its encoding, writer lock, cleanup and scrub |
 | `internal/mysql/convert.go` | Conversion of `host_scd_data` history into changes: `ConvertSCDHistory` |
-| `internal/mysql/replay.go` | Replay read of the change storage: `ReplaySCDChanges` |
+| `internal/mysql/replay.go` | Replay read of the change storage: `ReplaySCDChanges`, `SCDChangesCoveredFrom` |
 | `internal/mysql/charts.go` | Host-filter SQL, online-host query, CVE collection + tracked-CVE filter |
 | `bootstrap/bootstrap.go` | `New(...)` — wires the context together |
 | `arch_test.go` | Enforces the dependency rules above |

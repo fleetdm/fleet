@@ -1,0 +1,1 @@
+- Fixed the vulnerability exposure chart failing to load on instances with many hosts. After an upgrade, views that reach back before the upgrade load once Fleet has converted the chart history it already stored, which takes a few hourly collections on large instances.

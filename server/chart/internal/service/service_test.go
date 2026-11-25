@@ -106,6 +106,8 @@ type mockDatastore struct {
 	recordSCDChangesFn      func(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error
 	recordSCDChangesInvoked bool
 	convertSCDHistoryFn     func(ctx context.Context, dataset string) (bool, error)
+	replaySCDChangesFn      func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error)
+	coveredFromFn           func(ctx context.Context, dataset string) (time.Time, bool, error)
 	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
 	hostIDsInFleetsFn       func(ctx context.Context, fleetIDs []uint) ([]uint, error)
 	applyScrubMaskFn        func(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error
@@ -173,7 +175,17 @@ func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDat
 }
 
 func (m *mockDatastore) ReplaySCDChanges(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
+	if m.replaySCDChangesFn != nil {
+		return m.replaySCDChangesFn(ctx, dataset, startDate, endDate, bucketSize, filterMask, entityIDs)
+	}
 	return nil, nil
+}
+
+func (m *mockDatastore) SCDChangesCoveredFrom(ctx context.Context, dataset string) (time.Time, bool, error) {
+	if m.coveredFromFn != nil {
+		return m.coveredFromFn(ctx, dataset)
+	}
+	return time.Time{}, false, nil
 }
 
 func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
@@ -879,7 +891,7 @@ func TestGetChartDataTimeout(t *testing.T) {
 	}
 
 	t.Run("deadline returns 422 at each storage call", func(t *testing.T) {
-		for _, stage := range []string{"host filter", "resolve CVEs", "SCD data"} {
+		for _, stage := range []string{"host filter", "resolve CVEs", "SCD data", "coverage lookup", "replay"} {
 			t.Run(stage, func(t *testing.T) {
 				ds := &mockDatastore{}
 				switch stage {
@@ -895,6 +907,17 @@ func TestGetChartDataTimeout(t *testing.T) {
 					}
 				case "SCD data":
 					ds.getSCDDataFunc = blockUntilDone
+				case "coverage lookup":
+					ds.coveredFromFn = func(ctx context.Context, _ string) (time.Time, bool, error) {
+						<-ctx.Done()
+						return time.Time{}, false, ctx.Err()
+					}
+				case "replay":
+					ds.coveredFromFn = func(context.Context, string) (time.Time, bool, error) { return time.Time{}, true, nil }
+					ds.replaySCDChangesFn = func(ctx context.Context, _ string, _, _ time.Time, _ time.Duration, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
+						<-ctx.Done()
+						return nil, ctx.Err()
+					}
 				}
 				svc := newCVEService(ds)
 				svc.requestTimeout = 50 * time.Millisecond
@@ -964,6 +987,100 @@ func TestGetChartDataTimeout(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled)
 		var msgErr *platform_http.UserMessageError
 		require.NotErrorAs(t, err, &msgErr)
+	})
+}
+
+func TestGetChartDataCVEReadPath(t *testing.T) {
+	now := time.Date(2026, 11, 24, 15, 20, 0, 0, time.UTC)
+	start, end := computeBucketRange(now, 3*time.Hour, 7, 0)
+	firstBucketEnd := start.Add(2 * 3 * time.Hour)
+	mask := []uint{2, 4}
+	entities := []string{"CVE-1", "CVE-2"}
+
+	cases := []struct {
+		name        string
+		coveredFrom time.Time
+		found       bool
+		lookupErr   error
+		wantReplay  bool
+	}{
+		{name: "change storage not started", found: false},
+		{name: "covered before the first bucket ends", coveredFrom: firstBucketEnd.Add(-24 * time.Hour), found: true, wantReplay: true},
+		{name: "covered from the first bucket's end", coveredFrom: firstBucketEnd, found: true, wantReplay: true},
+		{name: "covered from after the first bucket's end", coveredFrom: firstBucketEnd.Add(time.Hour), found: true},
+		{name: "lookup fails", lookupErr: errors.New("boom")},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var replayed, read bool
+			ds := &mockDatastore{}
+			ds.getHostIDsForFilterFunc = func(context.Context, *types.HostFilter) ([]uint, error) { return mask, nil }
+			ds.resolveCVEEntitiesFn = func(context.Context, types.CVEChartFilter) ([]string, error) { return entities, nil }
+			ds.coveredFromFn = func(_ context.Context, dataset string) (time.Time, bool, error) {
+				require.Equal(t, api.MetricCVE, dataset)
+				return c.coveredFrom, c.found, c.lookupErr
+			}
+			points := []api.DataPoint{{Timestamp: start.Add(3 * time.Hour), Value: 1}}
+			ds.replaySCDChangesFn = func(_ context.Context, dataset string, gotStart, gotEnd time.Time, size time.Duration, gotMask *roaring.Bitmap, gotEntities []string) ([]api.DataPoint, error) {
+				replayed = true
+				require.Equal(t, api.MetricCVE, dataset)
+				require.Equal(t, start, gotStart)
+				require.Equal(t, end, gotEnd)
+				require.Equal(t, 3*time.Hour, size)
+				require.Equal(t, mask, chart.BitmapToHostIDs(gotMask))
+				require.Equal(t, entities, gotEntities)
+				return points, nil
+			}
+			ds.getSCDDataFunc = func(_ context.Context, _ string, gotStart, gotEnd time.Time, _ time.Duration, strategy api.SampleStrategy, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
+				read = true
+				require.Equal(t, start, gotStart)
+				require.Equal(t, end, gotEnd)
+				require.Equal(t, api.SampleStrategySnapshot, strategy)
+				return points, nil
+			}
+			svc := newCVEService(ds)
+			svc.now = func() time.Time { return now }
+
+			resp, err := svc.GetChartData(premiumCtx(t), api.MetricCVE, api.RequestOpts{Days: 7})
+			require.NoError(t, err)
+			require.Equal(t, points, resp.Data)
+			require.Equal(t, c.wantReplay, replayed)
+			require.Equal(t, !c.wantReplay, read)
+		})
+	}
+
+	t.Run("replay error is returned without falling back", func(t *testing.T) {
+		replayErr := errors.New("boom")
+		ds := &mockDatastore{}
+		ds.coveredFromFn = func(context.Context, string) (time.Time, bool, error) { return time.Time{}, true, nil }
+		ds.replaySCDChangesFn = func(context.Context, string, time.Time, time.Time, time.Duration, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
+			return nil, replayErr
+		}
+		ds.getSCDDataFunc = func(context.Context, string, time.Time, time.Time, time.Duration, api.SampleStrategy, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
+			return nil, errors.New("read the full copies after a replay error")
+		}
+		_, err := newCVEService(ds).GetChartData(premiumCtx(t), api.MetricCVE, api.RequestOpts{Days: 7})
+		require.ErrorIs(t, err, replayErr)
+	})
+
+	t.Run("uptime does not use the change storage", func(t *testing.T) {
+		ds := &mockDatastore{}
+		ds.coveredFromFn = func(context.Context, string) (time.Time, bool, error) {
+			return time.Time{}, false, errors.New("coverage looked up for uptime")
+		}
+		ds.replaySCDChangesFn = func(context.Context, string, time.Time, time.Time, time.Duration, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
+			return nil, errors.New("replay used for uptime")
+		}
+		var read bool
+		ds.getSCDDataFunc = func(context.Context, string, time.Time, time.Time, time.Duration, api.SampleStrategy, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
+			read = true
+			return nil, nil
+		}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+		require.NoError(t, err)
+		require.True(t, read)
 	})
 }
 
