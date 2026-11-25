@@ -110,6 +110,7 @@ import Atext from "./png/Atext.png";
 import Audacity from "./png/Audacity.png";
 import AudioHijack from "./png/AudioHijack.png";
 import Audiveris from "./png/Audiveris.png";
+import AutoHotkey from "./png/AutoHotkey.png";
 import Autopsy from "./png/Autopsy.png";
 import AvastSecureBrowser from "./png/AvastSecureBrowser.png";
 import AviatrixVpnClient from "./png/AviatrixVpnClient.png";
@@ -129,6 +130,7 @@ import Badgeify from "./png/Badgeify.png";
 import BalenaEtcher from "./png/BalenaEtcher.png";
 import BalsamiqWireframes from "./png/BalsamiqWireframes.png";
 import BambuStudio from "./png/BambuStudio.png";
+import Bandicam from "./png/Bandicam.png";
 import Bandiview from "./png/Bandiview.png";
 import Bartender from "./png/Bartender.png";
 import Batfi from "./png/Batfi.png";
@@ -187,6 +189,8 @@ import Captain from "./png/Captain.png";
 import Capto from "./png/Capto.png";
 import CarbonCopyCloner from "./png/CarbonCopyCloner.png";
 import Cardhop from "./png/Cardhop.png";
+import CatoClient from "./png/CatoClient.png";
+import CatoEnterpriseBrowser from "./png/CatoEnterpriseBrowser.png";
 import Cavalry from "./png/Cavalry.png";
 import CertifyTheWeb from "./png/CertifyTheWeb.png";
 import Chalk from "./png/Chalk.png";
@@ -487,6 +491,7 @@ import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
+import Herdr from "./png/Herdr.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -497,6 +502,7 @@ import HiveApp from "./png/HiveApp.png";
 import HomeAssistant from "./png/HomeAssistant.png";
 import Homebrew from "./png/Homebrew.png";
 import Homerow from "./png/Homerow.png";
+import Hoppscotch from "./png/Hoppscotch.png";
 import Hot from "./png/Hot.png";
 import Houdahspot from "./png/Houdahspot.png";
 import HpEasyAdmin from "./png/HpEasyAdmin.png";
@@ -551,6 +557,7 @@ import Joplin from "./png/Joplin.png";
 import JordanbairdIce from "./png/JordanbairdIce.png";
 import JuliaApp from "./png/JuliaApp.png";
 import JumpDesktop from "./png/JumpDesktop.png";
+import K6 from "./png/K6.png";
 import Kaleidoscope from "./png/Kaleidoscope.png";
 import Kap from "./png/Kap.png";
 import Kdenlive from "./png/Kdenlive.png";
@@ -804,6 +811,7 @@ import Popchar from "./png/Popchar.png";
 import Popclip from "./png/Popclip.png";
 import Popsql from "./png/Popsql.png";
 import Portfolioperformance from "./png/Portfolioperformance.png";
+import Positron from "./png/Positron.png";
 import PostgresApp from "./png/PostgresApp.png";
 import Postgresql15 from "./png/Postgresql15.png";
 import Postgresql16 from "./png/Postgresql16.png";
@@ -1276,6 +1284,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   audacity: Audacity,
   "audio hijack": AudioHijack,
   audiveris: Audiveris,
+  autohotkey: AutoHotkey,
   autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
@@ -1297,6 +1306,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   balenaetcher: BalenaEtcher,
   "balsamiq wireframes": BalsamiqWireframes,
   "bambu studio": BambuStudio,
+  bandicam: Bandicam,
   bandiview: Bandiview,
   bartender: Bartender,
   batfi: Batfi,
@@ -1358,6 +1368,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   capto: Capto,
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
+  "cato browser": CatoEnterpriseBrowser,
+  "cato client": CatoClient,
+  "cato enterprise browser": CatoEnterpriseBrowser,
   cavalry: Cavalry,
   "certify the web": CertifyTheWeb,
   chalk: Chalk,
@@ -1671,6 +1684,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
+  herdr: Herdr,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,
@@ -1681,6 +1695,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "home assistant": HomeAssistant,
   homebrew: Homebrew,
   homerow: Homerow,
+  hoppscotch: Hoppscotch,
   hot: Hot,
   houdahspot: Houdahspot,
   "hp easy admin": HpEasyAdmin,
@@ -1737,6 +1752,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   joplin: Joplin,
   julia: JuliaApp,
   "jump desktop": JumpDesktop,
+  k6: K6,
   kaleidoscope: Kaleidoscope,
   kap: Kap,
   kdenlive: Kdenlive,
@@ -2007,6 +2023,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   popclip: Popclip,
   popsql: Popsql,
   "portfolio performance": Portfolioperformance,
+  positron: Positron,
   postgres: PostgresApp,
   "postgresql 15": Postgresql15,
   "postgresql 16": Postgresql16,

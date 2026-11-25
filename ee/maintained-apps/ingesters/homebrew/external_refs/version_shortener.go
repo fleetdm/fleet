@@ -33,7 +33,6 @@ var (
 	MicrosoftAutoUpdateVersionShortener = makeVersionShortener(2) // "4.82.26020434" → "4.82"
 	OperaVersionShortener               = makeVersionShortener(2) // "129.0.5823.28" → "129.0"
 	TwingateVersionShortener            = makeVersionShortener(2) // "2026.29.22575" → "2026.29"
-	Microsoft365CopilotVersionShortener = makeVersionShortener(2) // "1.2608.0301" → "1.2608"
 	CitrixWorkspaceVersionShortener     = makeVersionShortener(3) // "25.11.1.42" → "25.11.1"
 	ElgatoStreamDeckVersionShortener    = makeVersionShortener(3) // "7.3.1.22604" → "7.3.1"
 	FileMakerProVersionShortener        = makeVersionShortener(3) // "22.0.5.500" → "22.0.5"
@@ -226,6 +225,25 @@ func UTMVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_app
 		return app, errors.New("empty version for UTM")
 	}
 	if m := utmRebuildSuffixPattern.FindStringSubmatch(app.Version); m != nil {
+		app.Version = m[1]
+	}
+	return app, nil
+}
+
+// hoppscotchReleaseRevisionPattern matches a Hoppscotch cask version with a
+// release revision (e.g. "26.11.0-0", from the "v26.11.0-0" release tag).
+var hoppscotchReleaseRevisionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)-\d+$`)
+
+// HoppscotchVersionTransformer strips the release revision Hoppscotch's cask
+// version carries (e.g. "26.11.0-0" → "26.11.0"). The app's
+// CFBundleShortVersionString omits it, so without this osquery's version_compare
+// treats the installed "26.11.0" as older than "26.11.0-0", breaking patch
+// policy detection.
+func HoppscotchVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Hoppscotch")
+	}
+	if m := hoppscotchReleaseRevisionPattern.FindStringSubmatch(app.Version); m != nil {
 		app.Version = m[1]
 	}
 	return app, nil

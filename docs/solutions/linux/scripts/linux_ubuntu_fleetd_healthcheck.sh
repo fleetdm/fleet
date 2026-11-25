@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fleetd_healthcheck_ubuntu.sh
+# linux_ubuntu_fleetd_healthcheck.sh
 #
 # Checks the health of all fleetd components on Ubuntu and collects logs into
 # a timestamped archive for support/troubleshooting.
@@ -23,14 +23,41 @@
 #
 # Must be run as root.
 
-set -euo pipefail
+# No `set -e`: a diagnostic script should keep going and report as much as it
+# can, rather than abort on the first unexpected non-zero exit.
+set -uo pipefail
 
-# ── Colour helpers ─────────────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-ok()   { echo -e "  ${GREEN}[OK]${NC}    $*"; }
-warn() { echo -e "  ${YELLOW}[WARN]${NC}  $*"; }
-fail() { echo -e "  ${RED}[FAIL]${NC}  $*"; }
-info() { echo -e "  [INFO]  $*"; }
+# ── Output helpers ─────────────────────────────────────────────────────────────
+# Colour only when writing to a terminal, so pasted/redirected output stays clean.
+if [[ -t 1 ]]; then
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+else
+  RED=''; GREEN=''; YELLOW=''; NC=''
+fi
+# Every line shown to the user also goes to summary.txt (without colour codes).
+status() { printf "  ${2}%-6s${NC}  %s\n" "$1" "$3"; printf "  %-6s  %s\n" "$1" "$3" >> "${SUMMARY}"; }
+log()  { printf '%s\n' "$*"; printf '%s\n' "$*" >> "${SUMMARY}"; }
+ok()   { status "[OK]"   "${GREEN}"  "$*"; }
+warn() { status "[WARN]" "${YELLOW}" "$*"; }
+fail() { status "[FAIL]" "${RED}"    "$*"; }
+info() { status "[INFO]" ""          "$*"; }
+# Detail lines (PIDs, paths, command output) go to summary.txt only, so the
+# console shows just the status lines.
+indent() { sed 's/^/    /' >> "${SUMMARY}"; }
+
+# /etc/default/orbit read the way systemd's EnvironmentFile reads it, never
+# sourced: backslash continuations joined, KEY=value lines only, surrounding
+# quotes removed. orbit_env prints one variable's value (the last one wins).
+ENV_FILE=/etc/default/orbit
+orbit_env_lines() {
+  [[ -f "${ENV_FILE}" ]] || return 0
+  awk '{ if (sub(/\\$/, "")) { buf = buf $0; next } print buf $0; buf = "" } END { if (buf != "") print buf }' "${ENV_FILE}" \
+    | sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=[[:space:]]*(.*)$/\2=\3/p' \
+    | sed -E "s/^([^=]*)=\"(.*)\"[[:space:]]*\$/\\1=\\2/; s/^([^=]*)='(.*)'[[:space:]]*\$/\\1=\\2/"
+}
+orbit_env() { orbit_env_lines | sed -n "s/^$1=//p" | tail -1; }
+# orbit reads booleans with Go's strconv.ParseBool: 1, t, true in any case.
+is_true() { [[ "${1,,}" =~ ^(1|t|true)$ ]]; }
 
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root." >&2
@@ -42,11 +69,14 @@ LOOKBACK_HOURS="${LOOKBACK_HOURS:-72}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 HOSTNAME_SAFE=$(hostname | tr '.' '_')
 ARCHIVE_NAME="fleetd_healthcheck_${HOSTNAME_SAFE}_${TIMESTAMP}"
-WORK_DIR=$(mktemp -d "/tmp/${ARCHIVE_NAME}.XXXXXX")
+# Without a work dir every path below would resolve under /, and this runs
+# as root, so stop here rather than collect best-effort.
+WORK_DIR=$(mktemp -d "/tmp/${ARCHIVE_NAME}.XXXXXX") && [[ -n "${WORK_DIR}" ]] || {
+  echo "Cannot create a work directory under /tmp (full or read-only?). Exiting." >&2
+  exit 1
+}
 SUMMARY="${WORK_DIR}/summary.txt"
 OVERALL_EXIT=0
-
-log() { echo "$*" | tee -a "${SUMMARY}"; }
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 log "============================================================"
@@ -86,32 +116,67 @@ echo "${SYSTEMD_STATUS}" >> "${SUMMARY}"
 log ""
 log "── 2. Processes ────────────────────────────────────────────"
 
+# PID and executable only: command lines can be long, and a manually started
+# orbit can carry --enroll-secret.
+show_pids() {
+  local pid
+  for pid in $1; do
+    printf '%s %s\n' "${pid}" "$(readlink "/proc/${pid}/exe" 2>/dev/null)"
+  done | indent
+}
+
+# PIDs from pgrep whose executable (not just command line) starts with $2. An
+# editor with a file under /opt/orbit open would otherwise count as running.
+pids_with_exe() {
+  local pid exe out=""
+  for pid in $1; do
+    exe=$(readlink "/proc/${pid}/exe" 2>/dev/null) || continue
+    [[ "${exe}" == "$2"* ]] && out="${out} ${pid}"
+  done
+  echo "${out# }"
+}
+
 check_process() {
   local label="$1"
-  local pattern="$2"
-  local result
-  result=$(pgrep -af "${pattern}" 2>/dev/null || true)
-  if [[ -n "${result}" ]]; then
+  local prefix="$2"
+  local pids
+  pids=$(pids_with_exe "$(pgrep -f "${prefix}" 2>/dev/null || true)" "${prefix}")
+  if [[ -n "${pids}" ]]; then
     ok "${label} is running"
-    echo "    ${result}" | tee -a "${SUMMARY}"
+    show_pids "${pids}"
   else
-    fail "${label} is NOT running (pattern: ${pattern})"
+    fail "${label} is NOT running (no process running from ${prefix})"
     OVERALL_EXIT=1
   fi
 }
 
 # orbit binary path is /opt/orbit/bin/orbit/orbit
 # Source: linux_shared.go ExecStart=/opt/orbit/bin/orbit/orbit
-check_process "orbit"        "/opt/orbit/bin/orbit/orbit"
+# After an auto-update, orbit can run from bin/orbit/<platform>/<channel>/orbit,
+# so match the folder rather than the bin/orbit/orbit launcher path.
+check_process "orbit"        "/opt/orbit/bin/orbit/"
 
-# osqueryd is spawned by orbit; match the binary name
-check_process "osqueryd"     "osqueryd"
+# Match orbit's own osqueryd only: another osquery install must not count as
+# fleetd being healthy.
+check_process "osqueryd (fleetd)" "/opt/orbit/bin/osqueryd/"
+
+# Classify by executable path; skip a process that exited before the lookup.
+OTHER_OSQUERYD=""
+for pid in $(pgrep -x osqueryd 2>/dev/null || true); do
+  exe=$(readlink "/proc/${pid}/exe" 2>/dev/null) || continue
+  [[ -z "${exe}" || "${exe}" == /opt/orbit/bin/osqueryd/* ]] || OTHER_OSQUERYD="${OTHER_OSQUERYD} ${pid}"
+done
+if [[ -n "${OTHER_OSQUERYD// /}" ]]; then
+  warn "osqueryd running from outside /opt/orbit (another osquery install?), PIDs in summary.txt"
+  show_pids "${OTHER_OSQUERYD}"
+fi
 
 # fleet-desktop: only present if package was built with --fleet-desktop
 # Source: constant.DesktopAppExecName = "fleet-desktop"
-if pgrep -af "fleet-desktop" >/dev/null 2>&1; then
+DESKTOP_PIDS=$(pids_with_exe "$(pgrep -f "fleet-desktop" 2>/dev/null || true)" "/opt/orbit/bin/desktop/")
+if [[ -n "${DESKTOP_PIDS}" ]]; then
   ok "fleet-desktop is running"
-  pgrep -af "fleet-desktop" | tee -a "${SUMMARY}" | sed 's/^/    /'
+  show_pids "${DESKTOP_PIDS}"
 else
   warn "fleet-desktop is NOT running (expected if not packaged with --fleet-desktop)"
 fi
@@ -137,8 +202,22 @@ check_file "orbit binary"        "/opt/orbit/bin/orbit/orbit"
 check_file "orbit symlink"       "/usr/local/bin/orbit"
 check_file "osquery pidfile"     "/opt/orbit/osquery.pid"
 check_file "env file"            "/etc/default/orbit"
-check_file "orbit node key"      "/opt/orbit/secret-orbit-node-key.txt"
-check_file "enroll secret"       "/opt/orbit/secret.txt"
+# The .deb/.rpm put the enroll secret in /etc/default/orbit (ORBIT_ENROLL_SECRET),
+# not in a file. Once orbit has a node key, it doesn't need the secret.
+SECRET_PATH=$(orbit_env ORBIT_ENROLL_SECRET_PATH)
+ENROLLED=0; [[ -s /opt/orbit/secret-orbit-node-key.txt ]] && ENROLLED=1
+if [[ -n "$(orbit_env ORBIT_ENROLL_SECRET)" ]]; then
+  ok "enroll secret is configured (ORBIT_ENROLL_SECRET in /etc/default/orbit)"
+elif [[ -n "${SECRET_PATH}" && -r "${SECRET_PATH}" && -s "${SECRET_PATH}" ]]; then
+  ok "enroll secret is configured (${SECRET_PATH})"
+elif [[ -z "${SECRET_PATH}" && -s /opt/orbit/secret.txt ]]; then
+  ok "enroll secret is configured (/opt/orbit/secret.txt)"
+elif [[ "${ENROLLED}" -eq 1 ]]; then
+  info "enroll secret not found${SECRET_PATH:+ at ${SECRET_PATH}} (not needed: orbit is already enrolled)"
+else
+  fail "enroll secret not found${SECRET_PATH:+ at ${SECRET_PATH}} and orbit is not enrolled: check ORBIT_ENROLL_SECRET in /etc/default/orbit"
+  OVERALL_EXIT=1
+fi
 
 # Report orbit node key presence without printing value
 if [[ -s "/opt/orbit/secret-orbit-node-key.txt" ]]; then
@@ -154,10 +233,33 @@ fi
 log ""
 log "── 4. Orbit environment (/etc/default/orbit) ───────────────"
 if [[ -f /etc/default/orbit ]]; then
-  # Print contents but redact any secrets
-  awk 'BEGIN { IGNORECASE=1 } !/secret|password|token|key/' /etc/default/orbit \
-    | tee -a "${SUMMARY}" \
-    | sed 's/^/    /'
+  # Print parsed KEY=value pairs only (never raw lines, so a continued value
+  # can't slip past), with secret-looking values redacted. Uppercase before
+  # matching: IGNORECASE is gawk-only, and Ubuntu's default awk (mawk) ignores it.
+  orbit_env_lines | awk '{
+      name = toupper(substr($0, 1, index($0, "=") - 1))
+      if (name ~ /SECRET|PASSWORD|TOKEN|KEY/ && name !~ /_PATH$/) print substr($0, 1, index($0, "=")) "<redacted>"
+      else print
+    }' | indent
+  info "Orbit environment recorded in summary.txt (secrets redacted)"
+  ORBIT_FLEET_URL=$(orbit_env ORBIT_FLEET_URL)
+  FLEET_CERT=$(orbit_env ORBIT_FLEET_CERTIFICATE)
+  FLEET_INSECURE=$(orbit_env ORBIT_INSECURE)
+  if [[ -n "${ORBIT_FLEET_URL}" ]]; then
+    # Probe the server the way orbit connects: https:// when no scheme is given,
+    # the package's own CA file when set, and no verification when insecure.
+    [[ "${ORBIT_FLEET_URL}" == http* ]] || ORBIT_FLEET_URL="https://${ORBIT_FLEET_URL}"
+    CURL_TLS=()
+    [[ -n "${FLEET_CERT}" && -f "${FLEET_CERT}" ]] && CURL_TLS+=(--cacert "${FLEET_CERT}")
+    is_true "${FLEET_INSECURE}" && CURL_TLS+=(-k)
+    HTTP_CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "${CURL_TLS[@]+"${CURL_TLS[@]}"}" "${ORBIT_FLEET_URL%/}/healthz" 2>"${WORK_DIR}/curl_error.txt" || true)
+    if [[ "${HTTP_CODE}" =~ ^[1-5][0-9][0-9]$ ]]; then
+      ok "Fleet server reachable: ${ORBIT_FLEET_URL} (HTTP ${HTTP_CODE} from /healthz)"
+    else
+      fail "Cannot reach Fleet server ${ORBIT_FLEET_URL}: $(head -1 "${WORK_DIR}/curl_error.txt")"
+      OVERALL_EXIT=1
+    fi
+  fi
 else
   fail "/etc/default/orbit not found"
   OVERALL_EXIT=1
@@ -168,12 +270,20 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 log ""
 log "── 5. Orbit version ────────────────────────────────────────"
-if command -v orbit >/dev/null 2>&1; then
-  ORBIT_VERSION=$(orbit version 2>/dev/null || echo "unknown")
-  info "${ORBIT_VERSION}"
-  echo "${ORBIT_VERSION}" >> "${SUMMARY}"
+# Call the real binary rather than the PATH symlink, so a missing symlink
+# doesn't hide the version.
+if [[ -x /opt/orbit/bin/orbit/orbit ]]; then
+  ORBIT_VERSION=$(/opt/orbit/bin/orbit/orbit version 2>/dev/null || echo "unknown")
+  info "$(echo "${ORBIT_VERSION}" | head -1)"
+  echo "${ORBIT_VERSION}" | indent
 else
-  warn "orbit not found on PATH (/usr/local/bin/orbit missing or not in PATH)"
+  warn "orbit binary not found at /opt/orbit/bin/orbit/orbit"
+fi
+# Package manager's view of the install (deb or rpm)
+if command -v dpkg-query >/dev/null 2>&1; then
+  dpkg-query -W -f='${Package} ${Version} ${Status}\n' 2>/dev/null | grep -i -E 'fleet|orbit' | indent
+elif command -v rpm >/dev/null 2>&1; then
+  rpm -qa 2>/dev/null | grep -i -E 'fleet|orbit' | indent
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -186,14 +296,21 @@ collect_log() {
   local label="$1"
   local src="$2"
   local dest_dir="$3"
+  # A log can rotate between the check and the copy, so report copy failures.
   if [[ -f "${src}" ]]; then
     mkdir -p "${dest_dir}"
-    cp "${src}" "${dest_dir}/"
-    ok "Collected ${label}: ${src}"
+    if cp "${src}" "${dest_dir}/" 2>/dev/null; then
+      ok "Collected ${label}: ${src}"
+    else
+      warn "Failed to copy ${label}: ${src}"
+    fi
   elif [[ -d "${src}" ]]; then
     mkdir -p "${dest_dir}"
-    cp -r "${src}/." "${dest_dir}/"
-    ok "Collected ${label} directory: ${src}"
+    if cp -r "${src}/." "${dest_dir}/" 2>/dev/null; then
+      ok "Collected ${label} directory: ${src}"
+    else
+      warn "Collected ${label} directory only partly (some files failed to copy): ${src}"
+    fi
   else
     warn "${label} not found at ${src} (skipping)"
   fi
@@ -224,9 +341,14 @@ fi
 # syslog fallback — orbit/osqueryd stderr goes to syslog on Debian/Ubuntu
 for syslog_path in /var/log/syslog /var/log/messages; do
   if [[ -f "${syslog_path}" ]]; then
+    # grep exits 1 for no matches, 2 when it can't read the file.
     grep -i "orbit\|osquery\|fleet" "${syslog_path}" \
-      > "${WORK_DIR}/logs/syslog_orbit_grep.log" 2>/dev/null || true
-    ok "Grepped syslog for orbit/osquery/fleet: ${syslog_path}"
+      > "${WORK_DIR}/logs/syslog_orbit_grep.log" 2>/dev/null
+    if [[ $? -le 1 ]]; then
+      ok "Grepped syslog for orbit/osquery/fleet: ${syslog_path}"
+    else
+      warn "Could not read ${syslog_path}"
+    fi
     break
   fi
 done
@@ -248,7 +370,11 @@ SINCE_TS=$(date -d "-${LOOKBACK_HOURS} hours" '+%Y-%m-%d %H:%M:%S')
 if command -v last >/dev/null 2>&1; then
   last -x reboot shutdown -F 2>/dev/null | head -20 \
     > "${WORK_DIR}/logs/system_events/reboots.log" || true
-  ok "Collected reboot/shutdown history"
+  if [[ -s "${WORK_DIR}/logs/system_events/reboots.log" ]]; then
+    ok "Collected reboot/shutdown history"
+  else
+    warn "No reboot/shutdown history from \`last\`"
+  fi
 fi
 
 # Package installs/upgrades/removals (dpkg.log lines are ISO-timestamped,
@@ -256,28 +382,34 @@ fi
 if [[ -f /var/log/dpkg.log ]]; then
   awk -v since="${SINCE_TS}" '$0 >= since' /var/log/dpkg.log \
     > "${WORK_DIR}/logs/system_events/dpkg_recent.log" || true
+  # grep -c prints 0 *and* exits 1 on no match, so `|| echo 0` would yield "0\n0".
   RECENT_PKG_COUNT=$(grep -cE ' (install|upgrade|remove|purge) ' \
-    "${WORK_DIR}/logs/system_events/dpkg_recent.log" 2>/dev/null || echo 0)
-  if [[ "${RECENT_PKG_COUNT}" -gt 0 ]]; then
+    "${WORK_DIR}/logs/system_events/dpkg_recent.log" 2>/dev/null || true)
+  if [[ "${RECENT_PKG_COUNT:-0}" -gt 0 ]]; then
     warn "${RECENT_PKG_COUNT} package install/upgrade/remove event(s) in last ${LOOKBACK_HOURS}h"
   else
     ok "No package install/upgrade/remove events in last ${LOOKBACK_HOURS}h"
   fi
+elif command -v rpm >/dev/null 2>&1; then
+  # RHEL/Fedora: no dpkg.log; list packages by install time instead
+  rpm -qa --last 2>/dev/null | head -50 > "${WORK_DIR}/logs/system_events/rpm_recent.log" || true
+  ok "Collected recent rpm installs (rpm_recent.log)"
 fi
 
 # Currently-failed systemd units (unrelated failures often explain "it stopped working")
 FAILED_UNITS=$(systemctl --failed --no-legend 2>/dev/null || true)
 echo "${FAILED_UNITS}" > "${WORK_DIR}/logs/system_events/systemd_failed_units.log"
 if [[ -n "${FAILED_UNITS}" ]]; then
-  warn "systemd reports failed units:"
-  echo "${FAILED_UNITS}" | tee -a "${SUMMARY}" | sed 's/^/    /'
+  warn "$(printf '%s\n' "${FAILED_UNITS}" | grep -c .) failed systemd unit(s), listed in summary.txt"
+  echo "${FAILED_UNITS}" | indent
 else
   ok "No failed systemd units"
 fi
 
 # Journal errors (priority err and above) in the window
 if command -v journalctl >/dev/null 2>&1; then
-  journalctl -p 3 --since "${LOOKBACK_HOURS} hours ago" --no-pager \
+  # -q drops "-- No entries --", which would otherwise count as one error line
+  journalctl -q -p 3 --since "${LOOKBACK_HOURS} hours ago" --no-pager \
     > "${WORK_DIR}/logs/system_events/journal_errors.log" 2>&1 || true
   JOURNAL_ERR_COUNT=$(wc -l < "${WORK_DIR}/logs/system_events/journal_errors.log" 2>/dev/null || echo 0)
   if [[ "${JOURNAL_ERR_COUNT}" -gt 0 ]]; then
@@ -296,28 +428,33 @@ if command -v journalctl >/dev/null 2>&1; then
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 8. PACKAGE THE ARCHIVE
+# FINAL RESULT AND ARCHIVE
 # ══════════════════════════════════════════════════════════════════════════════
-log ""
-log "── 8. Packaging archive ────────────────────────────────────"
-
+# The result is written before archiving so summary.txt in the archive is
+# complete, and nothing writes to WORK_DIR after it's removed.
 ARCHIVE_PATH="/tmp/${ARCHIVE_NAME}.tar.gz"
-tar -czf "${ARCHIVE_PATH}" -C "$(dirname "${WORK_DIR}")" "$(basename "${WORK_DIR}")"
-rm -rf "${WORK_DIR}"
 
-info "Archive created: ${ARCHIVE_PATH}"
 log ""
-
-# ══════════════════════════════════════════════════════════════════════════════
-# FINAL RESULT
-# ══════════════════════════════════════════════════════════════════════════════
 log "============================================================"
 if [[ ${OVERALL_EXIT} -eq 0 ]]; then
   log " Result: ALL CHECKS PASSED"
 else
-  log " Result: ONE OR MORE CHECKS FAILED — review summary above"
+  log " Result: ONE OR MORE CHECKS FAILED — details in summary.txt in the archive"
 fi
-log " Archive: ${ARCHIVE_PATH}"
 log "============================================================"
+
+if tar -czf "${ARCHIVE_PATH}" -C "$(dirname "${WORK_DIR}")" "$(basename "${WORK_DIR}")"; then
+  rm -rf "${WORK_DIR}"
+  # Logs can contain usernames, URLs, and emails: keep the archive private to
+  # the admin who ran the script rather than world-readable in /tmp.
+  chmod 600 "${ARCHIVE_PATH}"
+  [[ -n "${SUDO_USER:-}" ]] && chown "${SUDO_USER}" "${ARCHIVE_PATH}" 2>/dev/null
+  echo " Archive: ${ARCHIVE_PATH}"
+  echo " Send this file to Fleet support."
+else
+  echo " Archive creation failed; diagnostic data kept at: ${WORK_DIR}" >&2
+  OVERALL_EXIT=1
+fi
+echo "============================================================"
 
 exit ${OVERALL_EXIT}

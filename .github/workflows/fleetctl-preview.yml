@@ -18,8 +18,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.

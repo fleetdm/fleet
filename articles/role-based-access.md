@@ -98,6 +98,7 @@ The tables in this guide summarize what each role can do. To see more granular A
 | Turn off MDM for specific hosts                                                                                                            |          |            |            | ✅         | ✅    |         |
 | Configure Microsoft Entra conditional access integration                                                                                   |          |            |            |            | ✅    |         |
 | Add Microsoft Entra tenant                                                                                                                 |          |            |            |            | ✅    |         |
+| Configure Google conditional access integration                                                                                            |          |            |            |            | ✅    | ✅      |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Create, edit, and delete custom variables                                                                                                  |          |            |            | ✅         | ✅    | ✅      |
 | Use custom variables in scripts, software, and configuration profiles                                                                      |          |            |            | ✅         | ✅    | ✅      |

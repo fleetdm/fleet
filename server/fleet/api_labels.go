@@ -157,6 +157,11 @@ func (r GetLabelSpecsResponse) Error() error { return r.Err }
 // Get Label Spec
 ////////////////////////////////////////////////////////////////////////////////
 
+type GetLabelSpecRequest struct {
+	Name    string `url:"name"`
+	FleetID *uint  `query:"fleet_id,optional"`
+}
+
 type GetLabelSpecResponse struct {
 	Spec *LabelSpec `json:"specs,omitempty"`
 	Err  error      `json:"error,omitempty"`

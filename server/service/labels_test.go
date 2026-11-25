@@ -291,6 +291,9 @@ func TestLabelsAuth(t *testing.T) {
 							_, err = svc.GetLabelSpecs(ctx2, tc.label.TeamID)
 							require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
+							_, err = svc.GetLabelSpec(ctx2, "abc", tc.label.TeamID)
+							require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
 							_, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
 							require.ErrorIs(t, err, fleet.ErrMissingLicense)
 
@@ -313,6 +316,9 @@ func TestLabelsAuth(t *testing.T) {
 					_, err = svc.GetLabelSpecs(ctx2, tc.label.TeamID)
 					checkAuthErr(t, tc.shouldFailRead, err)
 
+					_, err = svc.GetLabelSpec(ctx2, "abc", tc.label.TeamID)
+					checkAuthErr(t, tc.shouldFailRead, err)
+
 					_, err = svc.ListLabels(ctx2, fleet.ListOptions{}, tc.label.TeamID, true)
 					checkAuthErr(t, tc.shouldFailRead, err)
 
@@ -325,7 +331,7 @@ func TestLabelsAuth(t *testing.T) {
 			}
 
 			// filtering is done in the data store for these; NOT enforcing premium license checks here
-			_, err = svc.GetLabelSpec(ctx, "abc")
+			_, err = svc.GetLabelSpec(ctx, "abc", nil)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.ListHostsInLabel(ctx, 1, fleet.HostListOptions{})

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.3.0.1",
+      "version": "2026.3.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider' AND version_compare(bundle_short_version, '2026.3.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rider' AND version_compare(bundle_short_version, '2026.3.0.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.rider' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2026.3.0.1-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/rider/JetBrains.Rider-2026.3.0.2-aarch64.dmg",
       "install_script_ref": "93bc4c47",
       "uninstall_script_ref": "9f57d176",
-      "sha256": "16ec16fc16a2cbaf32102086adf7f26182574d81ebed6dfc775ac3767ca8e5ab",
+      "sha256": "09c41ce0f3aa5dc3df7fd14cc002f2a73e0490e5c85f869ad7292de44e093bbc",
       "default_categories": [
         "Developer tools"
       ]

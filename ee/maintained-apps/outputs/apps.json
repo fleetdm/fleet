@@ -821,6 +821,13 @@
       "description": "Audiveris is an open-source optical music recognition application that converts sheet music images into digital MusicXML scores."
     },
     {
+      "name": "AutoHotkey",
+      "slug": "autohotkey/windows",
+      "platform": "windows",
+      "unique_identifier": "AutoHotkey",
+      "description": "AutoHotkey is a scripting language for automating tasks and creating hotkeys on Windows."
+    },
+    {
       "name": "Autopsy",
       "slug": "autopsy/windows",
       "platform": "windows",
@@ -973,6 +980,20 @@
       "platform": "darwin",
       "unique_identifier": "com.bambulab.bambu-studio",
       "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bambu Studio",
+      "slug": "bambu-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Bambu Studio",
+      "description": "Bambu Studio is a 3D model slicing application for 3D printers, maintained by Bambu Lab."
+    },
+    {
+      "name": "Bandicam",
+      "slug": "bandicam/windows",
+      "platform": "windows",
+      "unique_identifier": "Bandicam",
+      "description": "Bandicam is a screen recorder for capturing the screen, games, and video devices."
     },
     {
       "name": "BandiView",
@@ -1519,6 +1540,20 @@
       "platform": "darwin",
       "unique_identifier": "com.flexibits.cardhop.mac",
       "description": "Cardhop is a contacts manager."
+    },
+    {
+      "name": "Cato Client",
+      "slug": "cato-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Cato Client",
+      "description": "Cato Client is a zero trust network access (ZTNA) and VPN client that connects devices to the Cato SASE Cloud."
+    },
+    {
+      "name": "Cato Enterprise Browser",
+      "slug": "cato-enterprise-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Cato Browser",
+      "description": "Cato Enterprise Browser is a Chromium-based browser that secures access to business applications through the Cato SASE Cloud."
     },
     {
       "name": "Cavalry",
@@ -3939,7 +3974,7 @@
       "name": "GoldenDict-ng",
       "slug": "goldendict-ng/windows",
       "platform": "windows",
-      "unique_identifier": "GoldenDict-ng",
+      "unique_identifier": "goldendict-ng",
       "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
     },
     {
@@ -4209,6 +4244,13 @@
       "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
     },
     {
+      "name": "Herdr",
+      "slug": "herdr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.herdr.app",
+      "description": "Herdr is a desktop app for running terminals and coding agents."
+    },
+    {
       "name": "Hex Fiend",
       "slug": "hex-fiend/darwin",
       "platform": "darwin",
@@ -4277,6 +4319,20 @@
       "platform": "darwin",
       "unique_identifier": "com.superultra.Homerow",
       "description": "Homerow is a keyboard shortcuts for every button on your screen."
+    },
+    {
+      "name": "Hoppscotch",
+      "slug": "hoppscotch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.hoppscotch.desktop",
+      "description": "Hoppscotch is an open source API development and testing client."
+    },
+    {
+      "name": "Hoppscotch",
+      "slug": "hoppscotch/windows",
+      "platform": "windows",
+      "unique_identifier": "Hoppscotch",
+      "description": "Hoppscotch is an open source API development and testing client."
     },
     {
       "name": "Hot",
@@ -4741,6 +4797,13 @@
       "description": "Jump Desktop is a remote desktop application."
     },
     {
+      "name": "k6",
+      "slug": "k6/windows",
+      "platform": "windows",
+      "unique_identifier": "k6",
+      "description": "k6 is an open-source load testing tool for developers, with tests written in JavaScript."
+    },
+    {
       "name": "Kaleidoscope",
       "slug": "kaleidoscope/darwin",
       "platform": "darwin",
@@ -4870,7 +4933,7 @@
       "name": "Kiro CLI",
       "slug": "kiro-cli/darwin",
       "platform": "darwin",
-      "unique_identifier": "dev.kiro.cli",
+      "unique_identifier": "com.amazon.codewhisperer",
       "description": "Kiro CLI is an AI-powered productivity tool for the command-line."
     },
     {
@@ -6974,6 +7037,13 @@
       "description": "Portfolio Performance is a tool to calculate the overall performance of an investment portfolio."
     },
     {
+      "name": "Positron",
+      "slug": "positron/windows",
+      "platform": "windows",
+      "unique_identifier": "Positron",
+      "description": "Positron is a data science IDE for working with Python and R."
+    },
+    {
       "name": "Postgres",
       "slug": "postgres-app/darwin",
       "platform": "darwin",
@@ -7026,7 +7096,7 @@
       "name": "Postman",
       "slug": "postman/windows",
       "platform": "windows",
-      "unique_identifier": "Postman x64 11.75.4",
+      "unique_identifier": "Postman x64",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
@@ -9182,7 +9252,7 @@
       "name": "Transmission",
       "slug": "transmission/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.m0k.transmission.LSSharedFileList",
+      "unique_identifier": "org.m0k.transmission",
       "description": "Transmission is an open-source BitTorrent client."
     },
     {

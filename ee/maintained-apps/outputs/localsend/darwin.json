@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.18.2",
+      "version": "1.19.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.localsend.localsendApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.localsend.localsendApp' AND version_compare(bundle_short_version, '1.18.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.localsend.localsendApp' AND version_compare(bundle_short_version, '1.19.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.localsend.localsendApp' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/localsend/localsend/releases/download/v1.18.2/LocalSend-1.18.2.dmg",
+      "installer_url": "https://github.com/localsend/localsend/releases/download/v1.19.0/LocalSend-1.19.0.dmg",
       "install_script_ref": "b48b3544",
       "uninstall_script_ref": "3004c2ae",
-      "sha256": "126860d56f6f49b11845f601aac51de27a49b16d2b48102415da91e0e37e5155",
+      "sha256": "5645789cc976298b893267c025f0945d8673baed3bb302a201eb8b96991e43d4",
       "default_categories": [
         "Productivity"
       ]

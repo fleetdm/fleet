@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
+import { omit } from "lodash";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
@@ -59,7 +60,9 @@ interface IPolicyDetailsPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string };
+    query: { fleet_id?: string; query?: string };
+    /** Set when opened from a host's policy. */
+    state?: { hostSearch?: string };
   };
 }
 
@@ -211,6 +214,38 @@ const PolicyDetailsPage = ({
     isTeamTechnician;
 
   const disabledLiveQuery = config?.server_settings.live_reporting_disabled;
+
+  // Captured on mount: a fleet redirect (e.g. dropping fleet_id on Free tier)
+  // replaces the location and loses its state. The host's name only filters
+  // the runs of a policy with an automation; a policy without one has none.
+  const [hostSearch, setHostSearch] = useState(location.state?.hostSearch);
+  const searchQuery =
+    location.query.query ??
+    (storedPolicy?.automation_type ? hostSearch : undefined);
+
+  // The URL's query always matches the runs search, so the page can be shared
+  // or reloaded with the same filter.
+  const replaceSearchQuery = useCallback(
+    (query?: string) => {
+      const rest = omit(location.query, "query");
+      router.replace({
+        pathname: location.pathname,
+        query: query ? { ...rest, query } : rest,
+      });
+    },
+    [router, location.pathname, location.query]
+  );
+
+  // Once the policy is known, moves the host's name from navigation state into
+  // the URL (or drops it), so a reload doesn't depend on the state.
+  useEffect(() => {
+    // isRouteOk: a cached policy can be present before a fleet redirect lands.
+    if (isRouteOk && storedPolicy && hostSearch !== undefined) {
+      replaceSearchQuery(searchQuery);
+      // Applied once, so clearing the search doesn't bring the host back.
+      setHostSearch(undefined);
+    }
+  }, [isRouteOk, storedPolicy, hostSearch, searchQuery, replaceSearchQuery]);
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,
@@ -392,8 +427,10 @@ const PolicyDetailsPage = ({
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."
+                      position="top"
                       showArrow
                       underline={false}
+                      fixedPositionStrategy
                     >
                       <Icon
                         className="critical-policy-icon"
@@ -478,6 +515,8 @@ const PolicyDetailsPage = ({
       {!isLoading && !apiError && storedPolicy && (
         <PolicyAutomationsActivitiesTable
           policy={storedPolicy}
+          initialSearchQuery={searchQuery}
+          onSearchQueryChange={replaceSearchQuery}
           otherAutomationType={otherAutomationType}
           canResetPolicy={canEditPolicy}
         />

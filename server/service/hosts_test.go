@@ -173,7 +173,6 @@ func setupHostDetailsMDMAppleDiskEncryptionMocks(ds *mock.Store) {
 	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
-
 }
 
 func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
@@ -1236,7 +1235,6 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
@@ -4866,12 +4864,16 @@ func TestHostEncryptionKey(t *testing.T) {
 			{"marked key in a fleet without Windows disk encryption", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "fleet"},
 			{"marked key while Windows MDM is off", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "windows mdm"},
 			{"marked key on a host not enrolled in Fleet MDM", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "not enrolled"},
-			{"archived legacy key when the current one is unreadable",
+			{
+				"archived legacy key when the current one is unreadable",
 				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
-				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, "", ""},
-			{"archived key on the server private key",
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, "", "",
+			},
+			{
+				"archived key on the server private key",
 				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
-				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, "", ""},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, "", "",
+			},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
@@ -7450,178 +7452,6 @@ func TestListHostsDeviceStatusAndPendingAction(t *testing.T) {
 		// Failed script should show unlocked
 		require.NotNil(t, hosts[1].MDM)
 		require.Equal(t, string(fleet.DeviceStatusUnlocked), *hosts[1].MDM.DeviceStatus)
-	})
-}
-
-func TestGetHostRecoveryLockPassword(t *testing.T) {
-	t.Run("rejects non-darwin platform", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		windowsHost := &fleet.Host{
-			ID:       1,
-			Platform: "windows",
-			UUID:     "windows-uuid",
-			CPUType:  "x86_64",
-		}
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return windowsHost, nil
-		}
-
-		userCtx := test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.GetHostRecoveryLockPassword(userCtx, 1)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "recovery lock is only available on Apple Silicon macOS hosts")
-	})
-
-	t.Run("rejects darwin host with non-ARM CPU", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil)
-
-		intelMacHost := &fleet.Host{
-			ID:       2,
-			Platform: "darwin",
-			UUID:     "intel-mac-uuid",
-			CPUType:  "x86_64",
-		}
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return intelMacHost, nil
-		}
-
-		userCtx := test.UserContext(ctx, test.UserAdmin)
-		_, err := svc.GetHostRecoveryLockPassword(userCtx, 2)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "recovery lock is only available on Apple Silicon macOS hosts")
-	})
-
-	t.Run("accepts darwin host with ARM CPU", func(t *testing.T) {
-		ds := new(mock.Store)
-		opts := &TestServerOpts{}
-		svc, ctx := newTestService(t, ds, nil, nil, opts)
-
-		appleSiliconHost := &fleet.Host{
-			ID:       3,
-			Platform: "darwin",
-			UUID:     "apple-silicon-uuid",
-			CPUType:  "arm64e",
-		}
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return appleSiliconHost, nil
-		}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{
-				MDM: fleet.MDM{
-					EnabledAndConfigured: true,
-				},
-			}, nil
-		}
-		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-			return &fleet.HostRecoveryLockPassword{
-				Password: new("test-password"),
-				Status:   &fleet.MDMDeliveryVerified,
-			}, nil
-		}
-		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
-			return time.Now().Add(1 * time.Hour), nil
-		}
-		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
-			return nil
-		}
-
-		userCtx := test.UserContext(ctx, test.UserAdmin)
-		password, err := svc.GetHostRecoveryLockPassword(userCtx, 3)
-		require.NoError(t, err)
-		require.NotNil(t, password.Password)
-		assert.Equal(t, "test-password", *password.Password)
-	})
-
-	t.Run("calls MarkRecoveryLockPasswordViewed and sets auto_rotate_at", func(t *testing.T) {
-		ds := new(mock.Store)
-		opts := &TestServerOpts{}
-		svc, ctx := newTestService(t, ds, nil, nil, opts)
-
-		appleSiliconHost := &fleet.Host{
-			ID:       4,
-			Platform: "darwin",
-			UUID:     "apple-silicon-uuid-4",
-			CPUType:  "arm64e",
-		}
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return appleSiliconHost, nil
-		}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{
-				MDM: fleet.MDM{
-					EnabledAndConfigured: true,
-				},
-			}, nil
-		}
-		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-			return &fleet.HostRecoveryLockPassword{
-				Password: new("test-password-4"),
-				Status:   &fleet.MDMDeliveryVerified,
-			}, nil
-		}
-		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
-			return nil
-		}
-
-		expectedRotateAt := time.Now().Add(1 * time.Hour)
-		markViewedCalled := false
-		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
-			markViewedCalled = true
-			assert.Equal(t, "apple-silicon-uuid-4", hostUUID)
-			return expectedRotateAt, nil
-		}
-
-		userCtx := test.UserContext(ctx, test.UserAdmin)
-		password, err := svc.GetHostRecoveryLockPassword(userCtx, 4)
-		require.NoError(t, err)
-		require.NotNil(t, password.Password)
-		assert.Equal(t, "test-password-4", *password.Password)
-		assert.True(t, markViewedCalled, "MarkRecoveryLockPasswordViewed should be called")
-		require.NotNil(t, password.AutoRotateAt)
-		assert.WithinDuration(t, expectedRotateAt, *password.AutoRotateAt, 1*time.Second)
-	})
-
-	t.Run("fails if MarkRecoveryLockPasswordViewed fails", func(t *testing.T) {
-		ds := new(mock.Store)
-		opts := &TestServerOpts{}
-		svc, ctx := newTestService(t, ds, nil, nil, opts)
-
-		appleSiliconHost := &fleet.Host{
-			ID:       5,
-			Platform: "darwin",
-			UUID:     "apple-silicon-uuid-5",
-			CPUType:  "arm64e",
-		}
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return appleSiliconHost, nil
-		}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{
-				MDM: fleet.MDM{
-					EnabledAndConfigured: true,
-				},
-			}, nil
-		}
-		ds.GetHostRecoveryLockPasswordFunc = func(ctx context.Context, hostUUID string) (*fleet.HostRecoveryLockPassword, error) {
-			return &fleet.HostRecoveryLockPassword{
-				Password: new("test-password-5"),
-				Status:   &fleet.MDMDeliveryVerified,
-			}, nil
-		}
-		ds.MarkRecoveryLockPasswordViewedFunc = func(ctx context.Context, hostUUID string) (time.Time, error) {
-			return time.Time{}, errors.New("database error")
-		}
-
-		userCtx := test.UserContext(ctx, test.UserAdmin)
-		// Should fail because rotation scheduling failed - password must not be
-		// returned unless rotation is successfully scheduled
-		password, err := svc.GetHostRecoveryLockPassword(userCtx, 5)
-		require.Error(t, err)
-		assert.Nil(t, password)
-		assert.Contains(t, err.Error(), "mark recovery lock password viewed")
 	})
 }
 

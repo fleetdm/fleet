@@ -1,0 +1,11 @@
+{
+  "name": "Cato Client",
+  "slug": "cato-client/windows",
+  "package_identifier": "CatoNetworks.CatoClient",
+  "unique_identifier": "Cato Client",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "open_process_names": ["CatoClient.exe"],
+  "default_categories": ["Security"]
+}

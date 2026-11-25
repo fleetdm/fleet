@@ -8,6 +8,8 @@
 
 Fleet 4.94.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.94.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
+> **Note:** After upgrading, `fleetctl gitops` fails if a label's `name` or `description` is longer than 255 characters. This includes dry runs. The error looks like this: `label "<name>" description may not exceed 255 characters`. The limit isn't new, but GitOps didn't check it before Fleet 4.94.0. To fix it, shorten each name and description to 255 characters or fewer. Shortening a description doesn't re-create the label or change its hosts. Changing a name in GitOps re-creates the label, so [rename it in the UI first](https://fleetdm.com/docs/configuration/yaml-files#labels). [Reach out to Fleet](https://fleetdm.com/support) if you need help.
+
 ## Highlights
 
 - [Configuration profile editor with names and descriptions](#configuration-profile-editor-with-names-and-descriptions)

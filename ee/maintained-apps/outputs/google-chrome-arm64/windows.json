@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "158.0.8127.37",
+      "version": "158.0.8127.89",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC' AND version_compare(version, '158.0.8127.37') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC' AND version_compare(version, '158.0.8127.89') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chrome.exe');"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise_arm64.msi",

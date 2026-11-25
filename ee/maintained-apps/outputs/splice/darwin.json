@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.4.14",
+      "version": "5.4.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.splice.Splice';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.splice.Splice' AND version_compare(bundle_short_version, '5.4.14') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.splice.Splice' AND version_compare(bundle_short_version, '5.4.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.splice.Splice' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop.splice.com/conveyor/stable/splice-5.4.14-mac-aarch64.zip",
+      "installer_url": "https://desktop.splice.com/conveyor/stable/splice-5.4.15-mac-aarch64.zip",
       "install_script_ref": "d7c27f7f",
       "uninstall_script_ref": "6c0770e9",
-      "sha256": "3e6986f0d6b55a7e07763ee15efcd50adab22261199efb50aefbc811b15c4970",
+      "sha256": "5db0176f7d0c10167c88143c023081e3e337ef06e5204edeb6f6b65190549e03",
       "default_categories": [
         "Productivity"
       ]

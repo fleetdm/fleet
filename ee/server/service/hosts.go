@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -847,6 +848,87 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	}
 
 	return nil
+}
+
+func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*fleet.HostRecoveryLockPassword, error) {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Permissions to read recovery lock passwords are exactly the same
+	// as the ones required to read hosts.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	// Recovery lock is only supported on Apple Silicon macOS hosts
+	if host.Platform != "darwin" || !strings.Contains(strings.ToLower(host.CPUType), "arm") {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "recovery lock is only available on Apple Silicon macOS hosts"), "check host platform and cpu type")
+	}
+
+	// Check that MDM is enabled
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil, fleet.ErrMDMNotConfigured
+	}
+
+	password, err := svc.ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host recovery lock password")
+	}
+
+	// we want to in most cases return the known password if applied on the device, even if another is in-flight.
+	// the only scenario we don't want to return one, is when we don't have a password set at all (initial set in flight)
+	if password.Password == nil {
+		password.AutoRotateAt = nil
+		return password, nil
+	}
+
+	// Create activity first. If this fails, we return an error before scheduling
+	// rotation, ensuring we don't rotate passwords that were never returned to the user.
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeReadHostRecoveryLockPassword{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for read host recovery lock password")
+	}
+
+	// early return before auto rotation, if the password is not verified or verifying, as we only rotate verified/verifying passwords.
+	if password.Status == nil || (*password.Status != fleet.MDMDeliveryVerified && *password.Status != fleet.MDMDeliveryVerifying) {
+		return password, nil
+	}
+
+	// Schedule auto-rotation by marking the password as viewed.
+	// This sets auto_rotate_at to 1 hour from now.
+	rotateAt, err := svc.ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
+	}
+	if !rotateAt.IsZero() {
+		password.AutoRotateAt = &rotateAt
+	} else {
+		// Rotation does not apply to this row's current state (e.g., it's
+		// pending removal). Discard any stale auto_rotate_at loaded from the
+		// DB — auto-rotation is gated on operation_type='install' and won't
+		// actually fire, so reporting a rotation time would mislead the UI.
+		password.AutoRotateAt = nil
+	}
+
+	return password, nil
 }
 
 func (svc *Service) RotateDiskEncryptionKey(ctx context.Context, hostID uint) error {

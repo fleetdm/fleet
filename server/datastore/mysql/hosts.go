@@ -1263,6 +1263,14 @@ const (
 	hostFilterList
 )
 
+const hostListJoins = `
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN teams t ON (h.team_id = t.id)
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
+    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL`
+
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 // applyHostFilters splices the WHERE clause and its associated joins onto sqlStmt.
 func (ds *Datastore) applyHostFilters(
@@ -1273,6 +1281,15 @@ func (ds *Datastore) applyHostFilters(
 	}
 	// prior to returning, params will be appended in the following order: selectParams, joinParams, whereParams
 	var whereParams, joinParams []interface{}
+
+	// A sorted query builds the SELECT for every matching host before LIMIT applies, so for a
+	// sorted page, select the page's host IDs first and build the columns only for those rows.
+	// PerPage 0 (e.g. CSV export) wants every host and keeps the single query.
+	pageIDsFirst := mode == hostFilterList && opt.ListOptions.OrderKey != "" && opt.ListOptions.PerPage > 0
+	selectStmt := sqlStmt
+	if pageIDsFirst {
+		sqlStmt = "SELECT h.id "
+	}
 
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
 	if opt.PolicyIDFilter == nil {
@@ -1490,13 +1507,7 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	sqlStmt += fmt.Sprintf(
-		`FROM hosts h
-    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-    LEFT JOIN teams t ON (h.team_id = t.id)
-    LEFT JOIN host_disks hd ON hd.host_id = h.id
-    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
-    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+		`FROM hosts h`+hostListJoins+`
     %s
     %s
     %s
@@ -1584,6 +1595,18 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams, err = appendListOptionsWithCursorToSQLSecure(sqlStmt, whereParams, &opt.ListOptions, hostAllowedOrderKeys)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
+
+	if pageIDsFirst {
+		// Only the joins the SELECT and ORDER BY use; each has at most one row per host.
+		sqlStmt = selectStmt + `FROM (` + sqlStmt + `) page_hosts JOIN hosts h ON h.id = page_hosts.id` +
+			hostListJoins + hostMDMJoin + failingPoliciesJoin + hostOSJoin + displayNameJoin + hostMobileMDMSeenTimeJoin
+		outerOpts := opt.ListOptions
+		outerOpts.Page, outerOpts.After = 0, ""
+		sqlStmt, _, err = appendListOptionsWithCursorToSQLSecure(sqlStmt, nil, &outerOpts, hostAllowedOrderKeys)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "apply list options to page")
+		}
 	}
 
 	params := selectParams
@@ -7491,31 +7514,35 @@ SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE 
 	return count, nil
 }
 
-// numHostsFleetMDMEnrolledDB returns the number of macOS and Windows hosts that are currently enrolled in Fleet's own
+// numHostsFleetMDMEnrolledDB returns the number of macOS, Windows, iOS, and iPadOS hosts that are currently enrolled in Fleet's own
 // MDM. It excludes hosts enrolled in a third-party MDM, server hosts (host_mdm.is_server = 1), and hosts that are not
 // currently enrolled (host_mdm.enrolled = 0, which includes ABM-pending and unenrolled hosts).
-func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, err error) {
+func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, ios int, ipados int, err error) {
 	var counts struct {
 		MacOS   int `db:"macos"`
 		Windows int `db:"windows"`
+		IOS     int `db:"ios"`
+		IpadOS  int `db:"ipados"`
 	}
 	const stmt = `
 SELECT
 	COALESCE(SUM(CASE WHEN h.platform = 'darwin' THEN 1 ELSE 0 END), 0) AS macos,
-	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows
+	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows,
+	COALESCE(SUM(CASE WHEN h.platform = 'ios' THEN 1 ELSE 0 END), 0) AS ios,
+	COALESCE(SUM(CASE WHEN h.platform = 'ipados' THEN 1 ELSE 0 END), 0) AS ipados
 FROM host_mdm hm
 	JOIN hosts h ON h.id = hm.host_id
 	JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
 WHERE hm.enrolled = 1
 	AND NOT COALESCE(hm.is_server, false)
 	AND mdms.name = ?
-	AND h.platform IN ('darwin', 'windows')
+	AND h.platform IN ('darwin', 'windows', 'ios', 'ipados')
 	`
 	if err := sqlx.GetContext(ctx, db, &counts, stmt, fleet.WellKnownMDMFleet); err != nil {
-		return 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 
-	return counts.MacOS, counts.Windows, nil
+	return counts.MacOS, counts.Windows, counts.IOS, counts.IpadOS, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.40.2",
+      "version": "1.40.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro' AND version_compare(bundle_short_version, '1.40.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.apphousekitchen.aldente-pro' AND version_compare(bundle_short_version, '1.40.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.apphousekitchen.aldente-pro' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://apphousekitchen.com/aldente/AlDente1.40.2.dmg",
+      "installer_url": "https://apphousekitchen.com/aldente/AlDente1.40.3.dmg",
       "install_script_ref": "33db050a",
       "uninstall_script_ref": "2a814bde",
-      "sha256": "663b5425c743228962a019ec7ff0ca917f4802a1da79d6cb4a4c6009638bc3dd",
+      "sha256": "47ef3b30415a049173ca564ec4d34bcedf22806934e613d1f9bf0723c88d7cdb",
       "default_categories": [
         "Utilities"
       ]
