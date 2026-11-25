@@ -207,6 +207,9 @@ parasails.registerPage('contact', {
     },
 
     clickSwitchForms: function(form) {
+      if(this.syncing){
+        return;
+      }
       if(this.me){
         this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
       } else {
