@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>PayloadDescription</key>
-			<string>Grants full disk access to fleetd (orbit and Fleet, stable and edge)</string>
+			<string>Grants full disk access to fleetd</string>
 			<key>PayloadDisplayName</key>
 			<string>Privacy Preferences Policy Control</string>
 			<key>PayloadIdentifier</key>
