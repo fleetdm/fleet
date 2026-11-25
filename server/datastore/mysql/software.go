@@ -15,9 +15,11 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -90,24 +92,25 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 // collapsing titles; a var so tests can shorten it further.
 var windowsFMAMatchesCacheTTL = 30 * time.Second
 
-// getWindowsFMAMatchesCached returns the Windows FMAs to match reported program names
-// against, from a short-lived in-process cache. The returned slice is shared and must
-// not be mutated. See the field comments on Datastore for why this is TTL-only.
-func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.MaintainedApp, error) {
+// getWindowsFMAMatcherCached returns the matcher built from the Windows FMAs that
+// reported program names are matched against, from a short-lived in-process cache. See
+// the field comments on Datastore for why this is TTL-only.
+func (ds *Datastore) getWindowsFMAMatcherCached(ctx context.Context) (*windowsFMAMatcher, error) {
 	ds.windowsFMAMatchesMu.RLock()
-	names, expiry := ds.windowsFMAMatches, ds.windowsFMAMatchesExpiry
+	matcher, expiry := ds.windowsFMAMatcher, ds.windowsFMAMatchesExpiry
 	ds.windowsFMAMatchesMu.RUnlock()
 	if time.Now().Before(expiry) {
-		return names, nil
+		return matcher, nil
 	}
 
-	result, err, _ := ds.windowsFMAMatchesSF.Do("windowsFMANames", func() (any, error) {
-		fresh, err := ds.GetWindowsFMAMatches(ctx)
+	result, err, _ := ds.windowsFMAMatchesSF.Do("windowsFMAMatcher", func() (any, error) {
+		fmas, err := ds.GetWindowsFMAMatches(ctx)
 		if err != nil {
 			return nil, err
 		}
+		fresh := newWindowsFMAMatcher(fmas)
 		ds.windowsFMAMatchesMu.Lock()
-		ds.windowsFMAMatches = fresh
+		ds.windowsFMAMatcher = fresh
 		ds.windowsFMAMatchesExpiry = time.Now().Add(windowsFMAMatchesCacheTTL)
 		ds.windowsFMAMatchesMu.Unlock()
 		return fresh, nil
@@ -115,7 +118,7 @@ func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.Ma
 	if err != nil {
 		return nil, err
 	}
-	fresh, _ := result.([]fleet.MaintainedApp)
+	fresh, _ := result.(*windowsFMAMatcher)
 	return fresh, nil
 }
 
@@ -124,7 +127,7 @@ func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.Ma
 func (ds *Datastore) clearWindowsFMAMatchesCache() {
 	ds.windowsFMAMatchesMu.Lock()
 	defer ds.windowsFMAMatchesMu.Unlock()
-	ds.windowsFMAMatches = nil
+	ds.windowsFMAMatcher = nil
 	ds.windowsFMAMatchesExpiry = time.Time{}
 }
 
@@ -1258,6 +1261,12 @@ func longestCommonPrefix(strs []string) string {
 	}
 }
 
+// windowsFMATitle is the software title a matched Windows program belongs to.
+type windowsFMATitle struct {
+	titleName string
+	titleID   uint
+}
+
 // windowsFMAPrefix is one candidate program-name prefix, normalized for comparison,
 // paired with the software title it resolves to.
 //
@@ -1268,28 +1277,211 @@ func longestCommonPrefix(strs []string) string {
 // title no installer owns, leaving the uninstall action hidden and the reconcile pass
 // unable to repair it.
 type windowsFMAPrefix struct {
-	prefix    string
-	titleName string
-	titleID   uint
+	prefix string
+	windowsFMATitle
 }
 
-// windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
-// once per ingestion batch so the per-software-row match stays allocation-free.
-func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
-	prefixes := make([]windowsFMAPrefix, 0, len(fmas)*3)
+// windowsFMAMatcher holds the match candidates of every added Windows FMA. Built once
+// per cache refresh so per-row matching never reparses a patch query.
+type windowsFMAMatcher struct {
+	prefixes []windowsFMAPrefix
+	rules    []windowsFMARule
+}
+
+func newWindowsFMAMatcher(fmas []fleet.MaintainedApp) *windowsFMAMatcher {
+	m := &windowsFMAMatcher{prefixes: make([]windowsFMAPrefix, 0, len(fmas)*3)}
 	for _, f := range fmas {
-		if f.TitleID == nil {
+		prefixes := f.WinMatchPrefixes()
+		if f.TitleID == nil || len(prefixes) == 0 {
 			continue
 		}
-		for _, p := range f.WinMatchPrefixes() {
-			prefixes = append(prefixes, windowsFMAPrefix{
-				prefix:    normalizeSoftwareNameForMatch(p),
-				titleName: f.TitleName,
-				titleID:   *f.TitleID,
-			})
+		title := windowsFMATitle{titleName: f.TitleName, titleID: *f.TitleID}
+		for _, p := range prefixes {
+			m.prefixes = append(m.prefixes, windowsFMAPrefix{prefix: normalizeSoftwareNameForMatch(p), windowsFMATitle: title})
+		}
+		if rule, ok := newWindowsFMARule(f.PatchQuery, title); ok {
+			m.rules = append(m.rules, rule)
 		}
 	}
-	return prefixes
+	return m
+}
+
+// windowsFMARule is an app's curated programs rule, read back from its installer's
+// patch query, with every literal normalized for comparison. All clauses must hold;
+// a clause holds when any of its conditions does. The parser only groups name
+// conditions, so every condition in a clause tests the same column.
+type windowsFMARule struct {
+	clauses [][]patch_policy.ProgramsCondition
+	windowsFMATitle
+}
+
+// newWindowsFMARule returns false for a patch query the parser doesn't understand,
+// and for a rule that doesn't pin both a name and a publisher: those were written to
+// detect an install, and without both they are too loose to decide identity.
+func newWindowsFMARule(patchQuery string, title windowsFMATitle) (windowsFMARule, bool) {
+	parsed, ok := patch_policy.ParseWindowsProgramsRule(patchQuery)
+	if !ok {
+		return windowsFMARule{}, false
+	}
+
+	rule := windowsFMARule{windowsFMATitle: title}
+	var hasName, hasPublisher bool
+	for _, clause := range parsed.Clauses {
+		conds := make([]patch_policy.ProgramsCondition, 0, len(clause))
+		pins := true
+		for _, c := range clause {
+			values := make([]string, 0, len(c.Values))
+			for _, v := range c.Values {
+				v = normalizeSoftwareNameForMatch(v)
+				// A value of only wildcards, or an empty one, pins nothing.
+				pins = pins && strings.ContainsFunc(v, func(r rune) bool { return r != '%' && r != '_' })
+				values = append(values, v)
+			}
+			c.Values = values
+			conds = append(conds, c)
+			pins = pins && c.Op != patch_policy.OpNotLike
+		}
+		if pins {
+			switch clause[0].Column {
+			case patch_policy.ProgramsName:
+				hasName = true
+			case patch_policy.ProgramsPublisher:
+				hasPublisher = true
+			}
+		}
+		rule.clauses = append(rule.clauses, conds)
+	}
+	return rule, hasName && hasPublisher
+}
+
+// acceptsName reports whether the rule's name clauses accept a normalized name. It
+// also returns the length of the longest literal text a matching name condition
+// starts with, which is how specific the match is.
+func (r *windowsFMARule) acceptsName(name string) (int, bool) {
+	var literal int
+	for _, clause := range r.clauses {
+		if clause[0].Column != patch_policy.ProgramsName {
+			continue
+		}
+		n, ok := windowsFMAClauseHolds(clause, name)
+		if !ok {
+			return 0, false
+		}
+		literal = max(literal, n)
+	}
+	return literal, true
+}
+
+// accepts is acceptsName plus the rule's publisher and version clauses.
+func (r *windowsFMARule) accepts(name, vendor, version string) (int, bool) {
+	literal, ok := r.acceptsName(name)
+	if !ok {
+		return 0, false
+	}
+	for _, clause := range r.clauses {
+		var value string
+		switch clause[0].Column {
+		case patch_policy.ProgramsPublisher:
+			value = vendor
+		case patch_policy.ProgramsVersion:
+			value = version
+		default:
+			continue
+		}
+		if _, ok := windowsFMAClauseHolds(clause, value); !ok {
+			return 0, false
+		}
+	}
+	return literal, true
+}
+
+// windowsFMAClauseHolds reports whether any condition of the clause holds, and the
+// longest literal text the holding positive conditions matched on.
+func windowsFMAClauseHolds(clause []patch_policy.ProgramsCondition, s string) (int, bool) {
+	var literal int
+	held := false
+	for i := range clause {
+		if n, ok := windowsFMAConditionHolds(&clause[i], s); ok {
+			held = true
+			literal = max(literal, n)
+		}
+	}
+	return literal, held
+}
+
+// windowsFMAConditionHolds evaluates the condition, returning the length of the
+// literal text it matched on: the whole value for an equality, the text before the
+// first wildcard for LIKE, and nothing for NOT LIKE.
+func windowsFMAConditionHolds(c *patch_policy.ProgramsCondition, s string) (int, bool) {
+	if c.Trim {
+		s = strings.Trim(s, " ")
+	}
+	switch c.Op {
+	case patch_policy.OpEqual:
+		for _, v := range c.Values {
+			if s == v {
+				return len(v), true
+			}
+		}
+	case patch_policy.OpLike:
+		if windowsFMALike(s, c.Values[0]) {
+			return len(likeLiteralPrefix(c.Values[0])), true
+		}
+	case patch_policy.OpNotLike:
+		return 0, !windowsFMALike(s, c.Values[0])
+	}
+	return 0, false
+}
+
+// likeLiteralPrefix returns the text a LIKE pattern starts with, before any wildcard.
+func likeLiteralPrefix(pattern string) string {
+	if i := strings.IndexAny(pattern, "%_"); i >= 0 {
+		return pattern[:i]
+	}
+	return pattern
+}
+
+// windowsFMALike reports whether s matches a SQL LIKE pattern, with osquery (SQLite)
+// semantics: % matches any run of characters, _ exactly one, and there is no escape
+// character. Callers normalize both sides, which makes it case-insensitive.
+func windowsFMALike(s, pattern string) bool {
+	si, pi := 0, 0
+	// Where the most recent % sits in the pattern, and where in s it stopped absorbing.
+	// On a mismatch, that % absorbs one more character and matching resumes after it.
+	starP, starS := -1, 0
+	for si < len(s) {
+		if pi < len(pattern) {
+			switch pattern[pi] {
+			case '%':
+				starP, starS = pi, si
+				pi++
+				continue
+			case '_':
+				_, n := utf8.DecodeRuneInString(s[si:])
+				si += n
+				pi++
+				continue
+			default:
+				pr, pn := utf8.DecodeRuneInString(pattern[pi:])
+				sr, sn := utf8.DecodeRuneInString(s[si:])
+				if pr == sr {
+					si += sn
+					pi += pn
+					continue
+				}
+			}
+		}
+		if starP < 0 {
+			return false
+		}
+		_, n := utf8.DecodeRuneInString(s[starS:])
+		starS += n
+		si, pi = starS, starP+1
+	}
+	for pi < len(pattern) && pattern[pi] == '%' {
+		pi++
+	}
+	return pi == len(pattern)
 }
 
 // normalizeSoftwareNameForMatch lowercases and strips the Unicode format and control
@@ -1299,8 +1491,94 @@ func normalizeSoftwareNameForMatch(s string) string {
 	return strings.ToLower(normalizeForCollation(s))
 }
 
-// matchWindowsFMATitle returns the software title a reported Windows program name
-// belongs to, or false when it matches no Fleet-maintained app.
+// match returns the software title a reported Windows program belongs to, or false
+// when it matches no Fleet-maintained app.
+//
+// The name-prefix rule decides, except where exactly one app's curated rule accepts
+// the program and that rule is at least as specific as the prefix that matched. That
+// lets a rule claim names the prefix rule misses or gives to a sibling ("Mozilla
+// Firefox 141.0 ESR" belongs to Firefox ESR, not Firefox), without letting a loose
+// rule ("Zoom Workplace%") take a name from a more specific prefix ("Zoom Workplace
+// (ARM64)"). When several apps' rules accept, the prefix result stands.
+func (m *windowsFMAMatcher) match(name, vendor, version string) (windowsFMATitle, bool) {
+	normalized := normalizeSoftwareNameForMatch(name)
+	prefixMatch, prefixLen, prefixOK := m.matchPrefix(normalized)
+
+	ruleMatch, literalLen, ruleOK := m.matchRules(normalized,
+		normalizeSoftwareNameForMatch(vendor), normalizeSoftwareNameForMatch(version))
+	// A rule whose matching name patterns all start with a wildcard pins no name text,
+	// and the reconcile pass can't narrow by it, so it never takes a name.
+	if ruleOK && literalLen > 0 && literalLen >= prefixLen {
+		return ruleMatch, true
+	}
+	return prefixMatch, prefixOK
+}
+
+// ruleMayDecide reports whether, for some publisher and version, a curated rule could
+// override the name-prefix result for a normalized name, given the length of the
+// prefix that matched it. When it can't, match gives the prefix result whatever the
+// publisher and version are.
+func (m *windowsFMAMatcher) ruleMayDecide(normalized string, prefixLen int) bool {
+	for i := range m.rules {
+		if n, ok := m.rules[i].acceptsName(normalized); ok && n > 0 && n >= prefixLen {
+			return true
+		}
+	}
+	return false
+}
+
+// ruleNamePatterns returns, deduplicated, what the positive name conditions of the
+// curated rules can match: exact names, and the literal text LIKE patterns start with.
+// Lowercased, which MySQL's case-insensitive collation doesn't mind.
+func (m *windowsFMAMatcher) ruleNamePatterns() (exact, prefixes []string) {
+	exactSet, prefixSet := make(map[string]struct{}), make(map[string]struct{})
+	for _, r := range m.rules {
+		for _, clause := range r.clauses {
+			for _, c := range clause {
+				if c.Column != patch_policy.ProgramsName || c.Op == patch_policy.OpNotLike {
+					continue
+				}
+				for _, v := range c.Values {
+					switch {
+					// TRIM(name) = 'x' also accepts a name with trailing spaces.
+					case c.Op == patch_policy.OpEqual && !c.Trim:
+						exactSet[v] = struct{}{}
+					case c.Op == patch_policy.OpEqual:
+						prefixSet[v] = struct{}{}
+					case likeLiteralPrefix(v) != "":
+						prefixSet[likeLiteralPrefix(v)] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+	return slices.Sorted(maps.Keys(exactSet)), slices.Sorted(maps.Keys(prefixSet))
+}
+
+// matchRules returns the one title whose curated rules accept the program, and the
+// longest literal those rules matched on. Rules of different titles accepting is no
+// match.
+func (m *windowsFMAMatcher) matchRules(name, vendor, version string) (windowsFMATitle, int, bool) {
+	var found windowsFMATitle
+	var literalLen int
+	matched := false
+	for i := range m.rules {
+		r := &m.rules[i]
+		n, ok := r.accepts(name, vendor, version)
+		if !ok {
+			continue
+		}
+		if matched && r.titleID != found.titleID {
+			return windowsFMATitle{}, 0, false
+		}
+		found, matched = r.windowsFMATitle, true
+		literalLen = max(literalLen, n)
+	}
+	return found, literalLen, matched
+}
+
+// matchPrefix applies the name-prefix rule to a normalized name. It also returns the
+// length of the longest matching prefix, even when the match is ambiguous.
 //
 // A candidate matches when the reported name equals it or begins with
 // "<candidate> " — the trailing space is what keeps "Zoombie 5.0" away from the
@@ -1309,13 +1587,11 @@ func normalizeSoftwareNameForMatch(s string) string {
 // no match: there is no principled winner, and merging into the wrong app is worse
 // than leaving the title alone. This mirrors the rule the darwin reconcile passes
 // apply to a bundle identifier shared by more than one FMA.
-func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAPrefix, bool) {
-	normalized := normalizeSoftwareNameForMatch(name)
-
-	var best windowsFMAPrefix
+func (m *windowsFMAMatcher) matchPrefix(normalized string) (windowsFMATitle, int, bool) {
+	var best windowsFMATitle
 	var bestLen int
 	ambiguous := false
-	for _, p := range prefixes {
+	for _, p := range m.prefixes {
 		if len(p.prefix) < bestLen {
 			continue
 		}
@@ -1324,16 +1600,16 @@ func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAP
 		}
 		switch {
 		case len(p.prefix) > bestLen:
-			best, bestLen, ambiguous = p, len(p.prefix), false
+			best, bestLen, ambiguous = p.windowsFMATitle, len(p.prefix), false
 		case p.titleID != best.titleID:
 			ambiguous = true
 		}
 	}
 
 	if ambiguous || bestLen == 0 {
-		return windowsFMAPrefix{}, false
+		return windowsFMATitle{}, bestLen, false
 	}
-	return best, true
+	return best, bestLen, true
 }
 
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
@@ -1426,14 +1702,13 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	// collapses versioned program names onto the canonical FMA title. Read through a
 	// short-lived cache: this runs on every host software update that reports something
 	// new, which a fleet-wide rollout makes simultaneous across hosts.
-	winFMANames, winFMAErr := ds.getWindowsFMAMatchesCached(ctx)
+	winFMAMatcher, winFMAErr := ds.getWindowsFMAMatcherCached(ctx)
 	if winFMAErr != nil {
 		if ds.logger != nil {
 			ds.logger.WarnContext(ctx, "failed to get Windows FMA matches", "err", winFMAErr)
 		}
-		winFMANames = nil
+		winFMAMatcher = &windowsFMAMatcher{}
 	}
-	winFMAPrefixes := windowsFMAPrefixes(winFMANames)
 
 	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
@@ -1473,7 +1748,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					// reports one would create a second title under the canonical name with
 					// a different unique_identifier: a duplicate in the UI, and still not the
 					// title the installer owns. Those programs already match by upgrade code.
-					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok {
+					if match, ok := winFMAMatcher.match(sw.Name, sw.Vendor, sw.Version); ok {
 						newTitleName = match.titleName
 					}
 				}

@@ -1,0 +1,1 @@
+- Fixed Windows software not grouping under a Fleet-maintained app's software title when the installed program's name doesn't start with the app's name followed by a space (for example, Python 3.13, .NET Runtime 8, or Firefox ESR). Fleet now also uses the app's own detection rule (name, publisher, and version) to group these programs.
