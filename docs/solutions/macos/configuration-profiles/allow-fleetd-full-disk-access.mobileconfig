@@ -84,7 +84,7 @@
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
-	<string>Grants full disk access to fleetd (orbit and Fleet, stable and edge)</string>
+	<string>Grants full disk access to fleetd</string>
 	<key>PayloadDisplayName</key>
 	<string>Allow fleetd Full Disk Access</string>
 	<key>PayloadIdentifier</key>
