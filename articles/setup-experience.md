@@ -46,6 +46,8 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 When **Require IdP authentication** is turned on for a fleet, Fleet only accepts automatic enrollments (ADE) where the end user signs in with your IdP. Fleet rejects enrollments that present the fleet's static enrollment token instead. Apple TVs (tvOS) are the exception: an Apple TV assigned to Fleet in Apple Business enrolls with the static enrollment token.
 
+> If an Apple TV was assigned to Fleet in Apple Business before you upgraded to Fleet 5.1, Fleet rejects its enrollment in a fleet that requires IdP authentication. Before you reset or re-enroll the Apple TV, transfer it to a fleet that doesn't require IdP authentication. You only need to do this once. Afterward, you can transfer it back or turn on **Require IdP authentication** for that fleet. If its enrollment is rejected first, the Apple TV stays stuck in Setup Assistant, and reassigning it in Apple Business doesn't fix it.
+
 The static enrollment token is the token in the automatic enrollment (ADE) profile URL that Fleet uses for fleets without Require IdP authentication. When IdP authentication is required, the end user instead gets a one-time enrollment URL after signing in with your IdP. Hosts that are already enrolled aren't affected.
 
 This can happen when:
