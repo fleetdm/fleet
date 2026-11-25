@@ -41,9 +41,13 @@ describe("getSharedDeleteHostTarget", () => {
     ).toMatchObject({ platform: "ubuntu" });
   });
 
-  it("treats iOS and iPadOS as one group", () => {
+  it("treats iOS, iPadOS, and tvOS as one group", () => {
     expect(
-      getSharedDeleteHostTarget([host(1, "ios"), host(2, "ipados")])
+      getSharedDeleteHostTarget([
+        host(1, "ios"),
+        host(2, "ipados"),
+        host(3, "tvos"),
+      ])
     ).toMatchObject({ platform: "ios" });
   });
 

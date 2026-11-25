@@ -50,8 +50,8 @@ const displayIncompatibilityText = (err: Error) => {
 const tipContent = (
   <>
     Estimated compatibility based on the tables <br />
-    used in the query. Reports are not supported <br />
-    on iPhones, iPads, and Android hosts.
+    used in the query. Reports are not supported on <br />
+    iPhones, iPads, Apple TVs, and Android hosts.
   </>
 );
 
