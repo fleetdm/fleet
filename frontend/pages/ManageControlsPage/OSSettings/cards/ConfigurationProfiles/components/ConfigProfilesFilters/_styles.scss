@@ -1,22 +1,19 @@
 .config-profiles-filters {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  gap: $pad-small;
+  gap: $gap-table-elements;
 
-  &__dropdowns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: $pad-small;
-  }
-
+  // Fits "All types" plus the filter icon and chevron. The label dropdown's
+  // width is set inline from its longest option.
   &__type {
     width: 150px;
   }
 
+  &__type,
   &__label {
-    width: 200px;
+    flex-shrink: 0;
   }
 
   &__search {

@@ -12,6 +12,22 @@ const baseClass = "config-profiles-filters";
 
 const ALL_LABELS_VALUE = "all";
 
+// Sizes the label dropdown to its longest option at 13px, plus room for the
+// filter icon, chevron, and padding, so names don't truncate.
+const AVG_CHAR_WIDTH_PX = 7.5;
+const DROPDOWN_CHROME_WIDTH_PX = 72;
+const MIN_LABEL_DROPDOWN_WIDTH_PX = 150;
+const MAX_LABEL_DROPDOWN_WIDTH_PX = 320;
+
+const getLabelDropdownWidth = (labelNames: string[]) => {
+  const longest = Math.max(...labelNames.map((name) => name.length));
+  const width = longest * AVG_CHAR_WIDTH_PX + DROPDOWN_CHROME_WIDTH_PX;
+  return Math.min(
+    MAX_LABEL_DROPDOWN_WIDTH_PX,
+    Math.max(MIN_LABEL_DROPDOWN_WIDTH_PX, Math.ceil(width))
+  );
+};
+
 export type ConfigProfilesTypeFilter = "all" | "profile" | "asset";
 
 const TYPE_FILTER_OPTIONS: CustomOptionType[] = [
@@ -58,6 +74,10 @@ const ConfigProfilesFilters = ({
     })),
   ];
 
+  const labelDropdownWidth = getLabelDropdownWidth(
+    labelOptions.map((option) => String(option.label))
+  );
+
   const onTypeChange = (option: SingleValue<CustomOptionType>) => {
     if (!option) return;
     onTypeFilterChange(option.value as ConfigProfilesTypeFilter);
@@ -72,18 +92,21 @@ const ConfigProfilesFilters = ({
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__dropdowns`}>
-        {showTypeFilter && (
-          <DropdownWrapper
-            name="config-profiles-type-filter"
-            ariaLabel="Filter by type"
-            options={TYPE_FILTER_OPTIONS}
-            value={typeFilter}
-            onChange={onTypeChange}
-            variant="table-filter"
-            className={`${baseClass}__type`}
-          />
-        )}
+      {showTypeFilter && (
+        <DropdownWrapper
+          name="config-profiles-type-filter"
+          ariaLabel="Filter by type"
+          options={TYPE_FILTER_OPTIONS}
+          value={typeFilter}
+          onChange={onTypeChange}
+          variant="table-filter"
+          className={`${baseClass}__type`}
+        />
+      )}
+      <div
+        className={`${baseClass}__label`}
+        style={{ width: labelDropdownWidth }}
+      >
         <DropdownWrapper
           name="config-profiles-label-filter"
           ariaLabel="Filter by label"
@@ -91,9 +114,6 @@ const ConfigProfilesFilters = ({
           value={labelId === undefined ? ALL_LABELS_VALUE : String(labelId)}
           onChange={onLabelChange}
           variant="table-filter"
-          isSearchable
-          nowrapMenu
-          className={`${baseClass}__label`}
         />
       </div>
       <div className={`${baseClass}__search`}>
