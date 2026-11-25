@@ -206,17 +206,10 @@ parasails.registerPage('contact', {
       await this.forceRender();
     },
 
-    clickGetADemoAtBottom: function() {
-      // Switching forms mid-submission would unmount the pending form before it can reset `syncing`.
-      if(this.syncing) {
+    clickSwitchForms: function(form) {
+      if(this.syncing){
         return;
       }
-      if(this.formToDisplay !== 'talk-to-us') {
-        this.clickSwitchForms('talk-to-us');
-      }
-      window.scrollTo({top: 0, behavior: 'smooth'});
-    },
-    clickSwitchForms: function(form) {
       if(this.me){
         this.formData = _.clone(this.formDataToPrefillForLoggedInUsers);
       } else {
