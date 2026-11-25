@@ -441,9 +441,13 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	// we may need to cancel the rest of the setup experience.
 	if updated && err == nil && status == fleet.SetupExperienceStatusFailure {
 		// Look up the host by UUID to get its platform and team.
-		host, getHostUUIDErr := ds.HostByIdentifier(ctx, hostUUID)
+		hostID, getHostUUIDErr := ds.HostIDBySetupExperienceUUID(ctx, hostUUID)
 		if getHostUUIDErr != nil {
 			return updated, fmt.Errorf("getting host by UUID: %w", getHostUUIDErr)
+		}
+		host, getHostErr := ds.Host(ctx, hostID)
+		if getHostErr != nil {
+			return updated, fmt.Errorf("getting host: %w", getHostErr)
 		}
 		cancelErr := maybeCancelPendingSetupExperienceSteps(ctx, ds, host, newActivityFn)
 		if cancelErr != nil {

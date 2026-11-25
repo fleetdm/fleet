@@ -6,6 +6,52 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Preflight reports what a mock needs before it can start. Starting without
+ * these fails a moment later: the mock exits when it can't reach Redis, and
+ * `go run` fails without the package or with the port taken.
+ */
+export class Preflight {
+    /**
+     * HasSource is false when repo (server 1's clone, which the mock runs
+     * from) is unset or predates cmd/apple-apns-mock.
+     */
+    "has_source": boolean;
+
+    /**
+     * RedisUp is true when the server's Redis answers PING.
+     */
+    "redis_up": boolean;
+
+    /**
+     * PortFree is true when nothing listens on the mock's port.
+     */
+    "port_free": boolean;
+
+    /** Creates a new Preflight instance. */
+    constructor($$source: Partial<Preflight> = {}) {
+        if (!("has_source" in $$source)) {
+            this["has_source"] = false;
+        }
+        if (!("redis_up" in $$source)) {
+            this["redis_up"] = false;
+        }
+        if (!("port_free" in $$source)) {
+            this["port_free"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Preflight instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Preflight {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Preflight($$parsedSource as Partial<Preflight>);
+    }
+}
+
+/**
  * Status is what the Server and osquery-perf tabs show for one mock.
  */
 export class Status {

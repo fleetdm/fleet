@@ -35,6 +35,7 @@ type BoolOr[T any] struct {
 	Bool    bool
 	Other   T
 	IsOther bool
+	Set     bool
 }
 
 func (s BoolOr[T]) MarshalJSON() ([]byte, error) {
@@ -45,6 +46,7 @@ func (s BoolOr[T]) MarshalJSON() ([]byte, error) {
 }
 
 func (s *BoolOr[T]) UnmarshalJSON(data []byte) error {
+	s.Set = true
 	if bytes.Equal(data, []byte(`true`)) || bytes.Equal(data, []byte(`false`)) {
 		s.IsOther = false
 		return json.Unmarshal(data, &s.Bool)

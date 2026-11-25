@@ -1,0 +1,14 @@
+{
+  "name": "Bandicam",
+  "slug": "bandicam/windows",
+  "package_identifier": "BandicamCompany.Bandicam",
+  "unique_identifier": "Bandicam",
+  "program_publisher": "Bandicam.com",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/bandicam_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/bandicam_uninstall.ps1",
+  "open_process_names": ["bdcam.exe", "bdfix.exe"],
+  "default_categories": ["Productivity"]
+}

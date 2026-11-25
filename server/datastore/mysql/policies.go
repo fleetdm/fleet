@@ -80,14 +80,6 @@ var policySearchColumns = []string{"p.name"}
 // not use t.Parallel().
 var policyMembershipDeleteBatchSize = 500
 
-// policyCleanupArgs holds the arguments needed to run cleanupPolicy
-type policyCleanupArgs struct {
-	policyID                         uint
-	platform                         string
-	shouldRemoveAllPolicyMemberships bool
-	removePolicyStats                bool
-}
-
 // policyLabelScope is one label a policy is scoped to, used to detect label scope changes in ApplyPolicySpecs.
 type policyLabelScope struct {
 	LabelName  string
@@ -135,15 +127,6 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	}
 	if args.ProfileUUID != nil {
 		return nil, ctxerr.Wrap(ctx, errProfileUUIDOnGlobalPolicy, "create policy")
-	}
-	if args.QueryID != nil {
-		q, err := query(ctx, db, *args.QueryID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
-		}
-		args.Name = q.Name
-		args.Query = q.Query
-		args.Description = q.Description
 	}
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
@@ -394,56 +377,42 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 	return &policy, nil
 }
 
-// ResetPolicy clears a policy's pass/fail results: it wipes all policy_membership
-// rows and policy_stats rows for the policy and resets automation retry attempts.
-// This is the same cleanup performed when a policy's query is modified.
+// ResetPolicy clears a policy's pass/fail results: it resets automation retry attempts and
+// policy_stats, and requests the removal of all of the policy's policy_membership rows. This is
+// the same cleanup performed when a policy's query is modified.
 func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := resetPolicyAutomationAttempts(ctx, tx, policyID); err != nil {
 			return ctxerr.Wrap(ctx, err, "reset policy automation attempts")
 		}
-		return markPolicyNeedsFullMembershipCleanup(ctx, tx, policyID)
+		return requestPolicyMembershipCleanup(ctx, tx, policyID, true, true)
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "resetting policy")
 	}
-
-	// removeAllMemberships=true, removePolicyStats=true; platform is unused
-	// when removing all memberships, so "" is fine.
-	if err := ds.cleanupPolicyAfterCommit(ctx, policyID, "", true, true); err != nil {
-		return ctxerr.Wrap(ctx, err, "resetting policy")
-	}
 	return nil
 }
 
-// markPolicyNeedsFullMembershipCleanup must be called inside the caller's transaction,
-// so an interrupted cleanup is still retried by the policy_membership cron.
-func markPolicyNeedsFullMembershipCleanup(ctx context.Context, db sqlx.ExecerContext, policyID uint) error {
-	if _, err := db.ExecContext(ctx,
-		`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`, policyID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "setting needs_full_membership_cleanup flag")
+// requestPolicyMembershipCleanup marks the policy for the policy_membership_cleanup schedule, which removes all of its
+// results (removeAll) or only those of hosts it no longer targets. It must run in the transaction that changes the
+// policy, so the request can't be lost.
+//
+// The cleanup runs after the request returns, because at scale it takes about a minute per policy. Until then, removing
+// policy_stats makes the policy's counts read as not yet run.
+func requestPolicyMembershipCleanup(ctx context.Context, tx sqlx.ExecerContext, policyID uint, removeAll, removeStats bool) error {
+	// Always bumping updated_at lets the hourly policy_membership reconcile see a label-only
+	// change, which doesn't otherwise update the policies row.
+	stmt := `UPDATE policies SET needs_partial_membership_cleanup = 1, membership_cleanup_generation = membership_cleanup_generation + 1,
+		updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	if removeAll {
+		stmt = `UPDATE policies SET needs_full_membership_cleanup = 1, membership_cleanup_generation = membership_cleanup_generation + 1,
+			updated_at = CURRENT_TIMESTAMP WHERE id = ?`
 	}
-	return nil
-}
-
-// cleanupPolicyAfterCommit runs the membership cleanup in autocommit, so its row locks
-// last one statement instead of accumulating until a transaction commits. Held longer,
-// they stall policy and software install result ingestion fleet-wide.
-func (ds *Datastore) cleanupPolicyAfterCommit(
-	ctx context.Context, policyID uint, platform string,
-	shouldRemoveAllPolicyMemberships bool, removePolicyStats bool,
-) error {
-	db := ds.writer(ctx)
-	if err := cleanupPolicy(
-		ctx, db, db, policyID, platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
-	); err != nil {
-		return err
+	if _, err := tx.ExecContext(ctx, stmt, policyID); err != nil {
+		return ctxerr.Wrap(ctx, err, "request policy membership cleanup")
 	}
-	if shouldRemoveAllPolicyMemberships {
-		if _, err := db.ExecContext(ctx,
-			`UPDATE policies SET needs_full_membership_cleanup = 0 WHERE id = ?`, policyID,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "clearing needs_full_membership_cleanup flag")
+	if removeStats {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete policy stats")
 		}
 	}
 	return nil
@@ -458,20 +427,17 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return savePolicy(ctx, tx, p, shouldRemoveAllPolicyMemberships)
+		if err := savePolicy(ctx, tx, p); err != nil {
+			return err
+		}
+		return requestPolicyMembershipCleanup(ctx, tx, p.ID, shouldRemoveAllPolicyMemberships, removePolicyStats)
 	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating policy")
-	}
-
-	if err := ds.cleanupPolicyAfterCommit(
-		ctx, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats,
-	); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
 	return nil
 }
 
-func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
+func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy) error {
 	if p.TeamID == nil && p.SoftwareInstallerID != nil {
 		return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "save policy")
 	}
@@ -534,10 +500,6 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, p *fleet.Policy, should
 	// Reset attempt numbers for script/software policy automations
 	if err := resetPolicyAutomationAttempts(ctx, db, p.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "resetting policy automation attempts")
-	}
-
-	if shouldRemoveAllPolicyMemberships {
-		return markPolicyNeedsFullMembershipCleanup(ctx, db, p.ID)
 	}
 	return nil
 }
@@ -728,36 +690,6 @@ func assertProfileTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamI
 		})
 	}
 
-	return nil
-}
-
-func cleanupPolicy(
-	ctx context.Context, queryerContext sqlx.QueryerContext, dbWriter *sqlx.DB, policyID uint, policyPlatform string,
-	shouldRemoveAllPolicyMemberships bool,
-	removePolicyStats bool, logger *slog.Logger,
-) error {
-	var err error
-
-	if shouldRemoveAllPolicyMemberships {
-		err = cleanupPolicyMembershipForPolicy(ctx, queryerContext, dbWriter, policyID, logger)
-	} else {
-		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, queryerContext, dbWriter, policyID, policyPlatform, logger)
-	}
-	if err != nil {
-		return err
-	}
-
-	if removePolicyStats {
-		// delete all policy stats for the policy
-		fn := func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
-			return err
-		}
-		// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
-		if err := common_mysql.WithRetryTxx(ctx, dbWriter, fn, logger); err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup policy stats")
-		}
-	}
 	return nil
 }
 
@@ -1750,15 +1682,6 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 }
 
 func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
-	if args.QueryID != nil {
-		q, err := query(ctx, db, *args.QueryID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
-		}
-		args.Name = q.Name
-		args.Query = q.Query
-		args.Description = q.Description
-	}
 	// Check team exists.
 	if teamID > 0 {
 		var ok bool
@@ -2001,7 +1924,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		teamID, ok := teamNameToID[spec.Team]
 		if !ok {
 			if spec.Team != "" {
-				if spec.Team == "No team" {
+				if fleet.IsUnassignedFleetName(spec.Team) {
 					teamID = ptr.Uint(0)
 				} else {
 					var tmID uint
@@ -2142,12 +2065,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		ResendWindowsProfileUUID     *string `db:"resend_windows_profile_uuid"`
 		Hidden                       bool    `db:"hidden"`
 		WebhooksAndTicketsEnabled    bool    `db:"webhooks_and_tickets_enabled"`
-		NeedsFullMembershipCleanup   bool    `db:"needs_full_membership_cleanup"`
 	}
 	const policyLiteColumns = `name, query, description, author_id, resolution, platforms, critical, calendar_events_enabled,
 		software_installer_id, vpp_apps_teams_id, script_id, conditional_access_enabled, type, patch_software_title_id,
 		continuous_automations_enabled, patch_when_closed, notify_before_patching, patch_deadline, resend_apple_profile_uuid,
-		resend_windows_profile_uuid, hidden, webhooks_and_tickets_enabled, needs_full_membership_cleanup`
+		resend_windows_profile_uuid, hidden, webhooks_and_tickets_enabled`
 	teamIDToPoliciesByName := make(map[*uint]map[string]policyLite, len(teamIDToPolicies))
 	teamIDToPolicyLabelsByName := make(map[*uint]map[string]map[policyLabelScope]struct{}, len(teamIDToPolicies))
 	for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -2211,11 +2133,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 	}
 
-	var pendingCleanups []policyCleanupArgs
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Reset on retry so we don't accumulate duplicate cleanup entries.
-		pendingCleanups = pendingCleanups[:0]
-
 		query := fmt.Sprintf(
 			`
 		INSERT INTO policies (
@@ -2388,7 +2306,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// Upserting identical values still X-locks the row until commit, which stalls every host write that
 				// references the policy, so an unchanged spec issues no locking statement.
 				labelsChanged := !maps.Equal(teamIDToPolicyLabelsByName[teamID][spec.Name], policySpecLabelScopes(spec))
-				if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok && !labelsChanged && !prev.NeedsFullMembershipCleanup &&
+				if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok && !labelsChanged &&
 					prev.Query == spec.Query &&
 					prev.Description == spec.Description &&
 					ptr.Equal(prev.AuthorID, &authorID) &&
@@ -2445,6 +2363,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// Get the last inserted ID -- this will be 0 if it was an update.
 				var lastID int64
 				lastID, _ = res.LastInsertId()
+				// With CLIENT_FOUND_ROWS, an update affects 2 rows, or 1 with a last insert ID of 0 when nothing changed.
+				affected, _ := res.RowsAffected()
+				inserted := lastID != 0 && affected == 1
 
 				// Track what kind of cleanup is needed.
 				var (
@@ -2506,13 +2427,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				}
 				policyID := uint(lastID) //nolint:gosec // dismiss G115
 
-				// If a previous cleanup was interrupted (e.g. server crash between
-				// transaction commit and cleanup completion), re-trigger cleanup on any GitOps retry,
-				// even if the policy itself didn't change this run.
-				if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok && prev.NeedsFullMembershipCleanup {
-					shouldRemoveAllPolicyMemberships = true
-				}
-
 				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
 					PolicyData: fleet.PolicyData{
 						ID:               policyID,
@@ -2527,58 +2441,27 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					return ctxerr.Wrap(ctx, err, "exec policies update labels")
 				}
 
-				// Only clean up membership when the policy or its labels changed.
-				_, prevFound := teamIDToPoliciesByName[teamID][spec.Name]
-				needsCleanup := !prevFound || policyRowChanged || shouldRemoveAllPolicyMemberships || labelsChanged
-
-				// Mark this policy for cleanup, so that the policy cleanup cron job can pick it up
-				// in case we fail and don't retry
-				if shouldRemoveAllPolicyMemberships {
-					if _, err := tx.ExecContext(ctx,
-						`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`,
-						policyID); err != nil {
-						return ctxerr.Wrap(ctx, err, "setting needs_full_membership_cleanup flag")
-					}
-				}
 				if shouldUpdatePatchPolicyName {
 					if _, err := tx.ExecContext(ctx, `UPDATE policies SET name = ?, checksum = `+policiesChecksumComputedColumn()+` WHERE id = ?`, spec.Name, policyID); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting name for patch policy")
 					}
 				}
-				// Defer cleanup outside the transaction to avoid long-held row locks on
-				// policy_membership.
-				if needsCleanup {
-					pendingCleanups = append(pendingCleanups, policyCleanupArgs{
-						policyID:                         policyID,
-						platform:                         spec.Platform,
-						shouldRemoveAllPolicyMemberships: shouldRemoveAllPolicyMemberships,
-						removePolicyStats:                removePolicyStats,
-					})
+
+				// Only clean up membership when an existing policy or its labels changed. One not found by name
+				// may still exist, as a patch policy found by its software title.
+				_, prevFound := teamIDToPoliciesByName[teamID][spec.Name]
+				if !inserted && (!prevFound || policyRowChanged || shouldRemoveAllPolicyMemberships || labelsChanged) {
+					// A label change leaves stale counts too, like a platform change.
+					if err := requestPolicyMembershipCleanup(ctx, tx, policyID, shouldRemoveAllPolicyMemberships,
+						removePolicyStats || labelsChanged); err != nil {
+						return err
+					}
 				}
 			}
 		}
 		return nil
 	})
-	if err != nil {
-		// It's OK to return 'early' if err, since the policy cleanup
-		// cron job can pick up any remnants
-		return err
-	}
-
-	// Run cleanup after labels are updated so the cleanup function can
-	// query the current label criteria from the database.
-	for _, args := range pendingCleanups {
-		if err := ds.cleanupPolicyAfterCommit(
-			ctx,
-			args.policyID,
-			args.platform,
-			args.shouldRemoveAllPolicyMemberships,
-			args.removePolicyStats,
-		); err != nil {
-			return err
-		}
-	}
-	return nil
+	return err
 }
 
 func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
@@ -2918,7 +2801,8 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	const (
 		recentlyUpdatedPoliciesInterval = 24 * time.Hour
 
-		// Using `p.created_at < p.updated.at` to ignore newly created.
+		// Using `p.created_at < p.updated.at` to ignore newly created. Policies with a pending
+		// cleanup are left to CleanupPendingPolicyMembership.
 		updatedPoliciesStmt = `
 			SELECT
 				p.id,
@@ -2927,7 +2811,8 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 				policies p
 			WHERE
 				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
-				p.created_at < p.updated_at`
+				p.created_at < p.updated_at AND
+				` + policyHasNoPendingMembershipCleanup
 	)
 
 	var pols []*fleet.Policy
@@ -2940,27 +2825,91 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, pol.Platform)
 		}
 	}
-
-	// We perform a policies clean when running gitops outside the apply transaction, the following is a 'fail-safe'
-	// in case the cleanup process couldn't complete due to server crashes or other unexpected events.
-	var fullCleanupPolIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &fullCleanupPolIDs,
-		`SELECT id FROM policies WHERE needs_full_membership_cleanup = 1`,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "select policies needing full membership cleanup")
-	}
-	for _, polID := range fullCleanupPolIDs {
-		if err := cleanupPolicyMembershipForPolicy(ctx, ds.reader(ctx), ds.writer(ctx), polID, ds.logger); err != nil {
-			return ctxerr.Wrapf(ctx, err, "full membership cleanup for policy %d", polID)
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx,
-			`UPDATE policies SET needs_full_membership_cleanup = 0 WHERE id = ?`, polID,
-		); err != nil {
-			return ctxerr.Wrapf(ctx, err, "clear full membership cleanup flag for policy %d", polID)
-		}
-	}
-
 	return nil
+}
+
+// CleanupPendingPolicyMembership runs the membership cleanups requested by policy changes (see
+// requestPolicyMembershipCleanup), until none are left. A policy whose cleanup fails is retried on
+// the next run, and doesn't stop the others.
+func (ds *Datastore) CleanupPendingPolicyMembership(ctx context.Context) error {
+	// The primary, because the schedule is triggered right after a request commits, which a lagging replica may not show yet.
+	db := ds.writer(ctx)
+	failed := make(map[uint]struct{})
+	var errs []error
+	for {
+		if err := ctx.Err(); err != nil {
+			errs = append(errs, ctxerr.Wrap(ctx, err, "cleanup pending policy membership"))
+			return errors.Join(errs...)
+		}
+
+		var pendingIDs []uint
+		if err := sqlx.SelectContext(ctx, db, &pendingIDs, `
+			SELECT id FROM policies WHERE needs_full_membership_cleanup = 1 OR needs_partial_membership_cleanup = 1 ORDER BY id`,
+		); err != nil {
+			errs = append(errs, ctxerr.Wrap(ctx, err, "select policies with pending membership cleanup"))
+			return errors.Join(errs...)
+		}
+
+		// Passes repeat so requests made during one don't wait for the next run.
+		var cleaned int
+		for _, id := range pendingIDs {
+			if _, ok := failed[id]; ok {
+				continue
+			}
+			cleaned++
+
+			// Read right before the cleanup, so it uses the policy's current scope even if it changed earlier in this pass.
+			var p struct {
+				ID         uint   `db:"id"`
+				Platforms  string `db:"platforms"`
+				RemoveAll  bool   `db:"needs_full_membership_cleanup"`
+				Generation uint   `db:"membership_cleanup_generation"`
+			}
+			err := sqlx.GetContext(ctx, db, &p, `
+				SELECT id, platforms, needs_full_membership_cleanup, membership_cleanup_generation
+				FROM policies
+				WHERE id = ? AND (needs_full_membership_cleanup = 1 OR needs_partial_membership_cleanup = 1)`, id)
+			if errors.Is(err, sql.ErrNoRows) {
+				continue // deleted, or a run on another server already cleaned it
+			}
+			switch {
+			case err != nil:
+				err = ctxerr.Wrap(ctx, err, "select policy with pending membership cleanup")
+			case p.RemoveAll:
+				err = cleanupPolicyMembershipForPolicy(ctx, db, db, p.ID, ds.logger)
+			default:
+				err = cleanupPolicyMembershipOnPolicyUpdate(ctx, db, db, p.ID, p.Platforms, ds.logger)
+			}
+			if err == nil {
+				// A full cleanup also covers a pending partial one. A request made during this cleanup changed the
+				// generation, so its flags stay set and the next pass runs it, since this cleanup may have already
+				// passed hosts that reported results afterwards.
+				_, err = db.ExecContext(ctx, `
+					UPDATE policies
+					SET needs_full_membership_cleanup = 0, needs_partial_membership_cleanup = 0, updated_at = updated_at
+					WHERE id = ? AND membership_cleanup_generation = ?`, p.ID, p.Generation)
+			}
+			if err != nil {
+				// Skip a failed policy for the rest of this run, so it doesn't stop the others or repeat every pass, but
+				// remember its error for the run's result. Its flags stay set, so the next run retries it.
+				failed[id] = struct{}{}
+				errs = append(errs, ctxerr.Wrapf(ctx, err, "cleanup pending membership for policy %d", id))
+				continue
+			}
+			// The results left by a partial cleanup are still valid, so their counts come back now instead of at the next
+			// hourly aggregation. A full cleanup leaves none, and counts of zero would read as "0 hosts" instead of not yet
+			// run. It writes nothing while a newer request keeps the flags set, and a failure only leaves the counts to the
+			// aggregation.
+			if !p.RemoveAll {
+				if err := ds.refreshPolicyCounts(ctx, p.ID); err != nil {
+					ds.logger.ErrorContext(ctx, "refresh policy counts after membership cleanup", "policy_id", p.ID, "err", err)
+				}
+			}
+		}
+		if cleaned == 0 {
+			return errors.Join(errs...)
+		}
+	}
 }
 
 // PolicyViolationDays is a structure used for aggregate counts of policy violation days.
@@ -3026,61 +2975,6 @@ func (ds *Datastore) FilterWebhooksAndTicketsPolicies(ctx context.Context, polic
 	return policies, nil
 }
 
-func (ds *Datastore) WebhooksAndTicketsPolicyIDs(ctx context.Context, teamID *uint) ([]uint, error) {
-	query := `SELECT id FROM policies WHERE team_id IS NULL AND webhooks_and_tickets_enabled = 1 ORDER BY id`
-	var args []any
-	if teamID != nil {
-		query = `SELECT id FROM policies WHERE team_id = ? AND webhooks_and_tickets_enabled = 1 ORDER BY id`
-		args = append(args, *teamID)
-	}
-	var ids []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list webhooks and tickets policy IDs")
-	}
-	return ids, nil
-}
-
-func (ds *Datastore) WebhooksAndTicketsPolicyIDsByTeam(ctx context.Context, teamIDs []uint) (map[uint][]uint, error) {
-	if len(teamIDs) == 0 {
-		return nil, nil
-	}
-	query, args, err := sqlx.In(`SELECT id, team_id FROM policies WHERE team_id IN (?) AND webhooks_and_tickets_enabled = 1 ORDER BY id`, teamIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build webhooks and tickets policy IDs by team query")
-	}
-	var policies []fleet.PolicyIDAndTeam
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list webhooks and tickets policy IDs by team")
-	}
-	byTeam := make(map[uint][]uint, len(teamIDs))
-	for _, p := range policies {
-		byTeam[*p.TeamID] = append(byTeam[*p.TeamID], p.ID)
-	}
-	return byTeam, nil
-}
-
-func (ds *Datastore) PoliciesWithOtherAutomations(ctx context.Context, teamID *uint, policyIDs []uint) ([]*fleet.Policy, error) {
-	if len(policyIDs) == 0 {
-		return nil, nil
-	}
-	stmt, args := `SELECT `+policyCols+` FROM policies p WHERE p.team_id IS NULL AND p.id IN (?) AND p.webhooks_and_tickets_enabled = 0`,
-		[]any{policyIDs}
-	if teamID != nil {
-		stmt, args = `SELECT `+policyCols+` FROM policies p WHERE p.team_id = ? AND p.id IN (?) AND p.webhooks_and_tickets_enabled = 0`,
-			[]any{*teamID, policyIDs}
-	}
-	query, args, err := sqlx.In(stmt, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build policies with other automations query")
-	}
-	var policies []*fleet.Policy
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies with other automations")
-	}
-	// Which columns count as an automation is decided in one place, Automations.
-	return slices.DeleteFunc(policies, func(p *fleet.Policy) bool { return len(p.Automations()) == 0 }), nil
-}
-
 func (ds *Datastore) WebhooksAndTicketsByPolicyName(ctx context.Context, teamID *uint, names []string) (map[string]bool, error) {
 	if len(names) == 0 {
 		return nil, nil
@@ -3132,40 +3026,6 @@ func (ds *Datastore) WebhooksAndTicketsByPatchPolicySlug(ctx context.Context, te
 		bySlug[r.Slug] = r.Enabled
 	}
 	return bySlug, nil
-}
-
-func (ds *Datastore) SetWebhooksAndTicketsPolicies(ctx context.Context, teamID *uint, policyIDs []uint) error {
-	scopeWhere, scopeArgs := "team_id IS NULL", []any{}
-	if teamID != nil {
-		scopeWhere, scopeArgs = "team_id = ?", []any{*teamID}
-	}
-	// IDs from other scopes or of deleted policies match nothing, as they did in policy_ids. Only rows
-	// whose flag changes are written.
-	clearStmt, clearArgs := `UPDATE policies SET webhooks_and_tickets_enabled = 0 WHERE `+scopeWhere+` AND webhooks_and_tickets_enabled = 1`, scopeArgs
-	if len(policyIDs) > 0 {
-		var err error
-		clearStmt, clearArgs, err = sqlx.In(clearStmt+` AND id NOT IN (?)`, append(slices.Clone(scopeArgs), policyIDs)...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build clear webhooks and tickets policies query")
-		}
-	}
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, clearStmt, clearArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear webhooks and tickets policies")
-		}
-		if len(policyIDs) == 0 {
-			return nil
-		}
-		setStmt, setArgs, err := sqlx.In(`UPDATE policies SET webhooks_and_tickets_enabled = 1 WHERE `+scopeWhere+
-			` AND webhooks_and_tickets_enabled = 0 AND id IN (?)`, append(slices.Clone(scopeArgs), policyIDs)...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build set webhooks and tickets policies query")
-		}
-		if _, err := tx.ExecContext(ctx, setStmt, setArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "set webhooks and tickets policies")
-		}
-		return nil
-	})
 }
 
 // OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
@@ -3408,11 +3268,16 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	return updatePolicyCounts(ctx, db, nil)
 }
 
+// policyHasNoPendingMembershipCleanup leaves a policy's counts alone until its requested membership
+// cleanup is done, so they aren't rebuilt from results that are about to be deleted.
+const policyHasNoPendingMembershipCleanup = `p.needs_full_membership_cleanup = 0 AND p.needs_partial_membership_cleanup = 0`
+
 // updateInheritedGlobalPolicyCounts refreshes the per-team ("inherited") and "No team"
 // policy_stats rows of one global policy.
 func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID uint) error {
 	type policyStat struct {
 		PolicyID         uint `db:"policy_id"`
+		Generation       uint `db:"generation"`
 		InheritedTeamID  uint `db:"inherited_team_id"`
 		PassingHostCount uint `db:"passing_host_count"`
 		FailingHostCount uint `db:"failing_host_count"`
@@ -3420,6 +3285,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 	var policyStats []policyStat
 	selectStmt := `SELECT
 		p.id as policy_id,
+		p.membership_cleanup_generation AS generation,
 		t.id AS inherited_team_id,
 		(
 			SELECT COUNT(*)
@@ -3435,7 +3301,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 		) AS failing_host_count
 	FROM policies p
 	CROSS JOIN teams t
-	WHERE p.team_id IS NULL AND p.id = ?
+	WHERE p.team_id IS NULL AND p.id = ? AND ` + policyHasNoPendingMembershipCleanup + `
 	GROUP BY t.id, p.id`
 	err := sqlx.SelectContext(ctx, db, &policyStats, selectStmt, policyID)
 	if err != nil {
@@ -3451,6 +3317,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 
 	noTeamStmt := `SELECT
 		p.id as policy_id,
+		p.membership_cleanup_generation AS generation,
 		0 AS inherited_team_id, -- 0 means "No team"
 		(
 			SELECT COUNT(*)
@@ -3465,7 +3332,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 			WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id IS NULL
 		) AS failing_host_count
 	FROM policies p
-	WHERE p.team_id IS NULL AND p.id = ?`
+	WHERE p.team_id IS NULL AND p.id = ? AND ` + policyHasNoPendingMembershipCleanup
 	var noTeamPolicyStats []policyStat
 	err = sqlx.SelectContext(ctx, db, &noTeamPolicyStats, noTeamStmt, policyID)
 	if err != nil {
@@ -3479,14 +3346,27 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 		return ctxerr.Wrap(ctx, err, "select policy counts for inherited global policies for 'no team' policies")
 	}
 	policyStats = append(policyStats, noTeamPolicyStats...)
+	if len(policyStats) == 0 {
+		return nil
+	}
 
+	// Joining policies skips writing counts when a cleanup was requested after the SELECTs above, since every request
+	// changes the generation, even one whose cleanup already finished.
 	insertStmt := `INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
-	VALUES (:policy_id, :inherited_team_id, :passing_host_count, :failing_host_count)
+	SELECT p.id, v.inherited_team_id, v.passing_host_count, v.failing_host_count
+	FROM (VALUES %s) AS v (policy_id, generation, inherited_team_id, passing_host_count, failing_host_count)
+	JOIN policies p ON p.id = v.policy_id AND p.membership_cleanup_generation = v.generation
 	ON DUPLICATE KEY UPDATE
 		updated_at = NOW(),
 		passing_host_count = VALUES(passing_host_count),
 		failing_host_count = VALUES(failing_host_count)`
-	_, err = sqlx.NamedExecContext(ctx, db, insertStmt, policyStats)
+	rows := make([]string, 0, len(policyStats))
+	args := make([]any, 0, len(policyStats)*5)
+	for _, ps := range policyStats {
+		rows = append(rows, "ROW(?, ?, ?, ?, ?)")
+		args = append(args, ps.PolicyID, ps.Generation, ps.InheritedTeamID, ps.PassingHostCount, ps.FailingHostCount)
+	}
+	_, err = db.ExecContext(ctx, fmt.Sprintf(insertStmt, strings.Join(rows, ",")), args...)
 	if err != nil {
 		// INSERT may fail due to rare race conditions. We log and proceed.
 		ds.logger.ErrorContext(ctx,
@@ -3502,6 +3382,7 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint) error {
 	type policyStat struct {
 		PolicyID         uint `db:"policy_id"`
+		Generation       uint `db:"generation"`
 		PassingHostCount uint `db:"passing_host_count"`
 		FailingHostCount uint `db:"failing_host_count"`
 	}
@@ -3512,18 +3393,19 @@ func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint)
 	selectStmt := `
 		SELECT
 			p.id AS policy_id,
+			p.membership_cleanup_generation AS generation,
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0) AS passing_host_count,
 			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
-		%s
+		WHERE ` + policyHasNoPendingMembershipCleanup + ` %s
 		GROUP BY p.id`
 	var (
 		where string
 		args  []any
 	)
 	if policyID != nil {
-		where = "WHERE p.id = ?"
+		where = "AND p.id = ?"
 		args = append(args, *policyID)
 	}
 	var stats []policyStat
@@ -3532,23 +3414,24 @@ func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint)
 	}
 
 	// Joining policies skips any policy deleted since the SELECT, which would otherwise
-	// fail the whole batch on the policy_stats foreign key.
+	// fail the whole batch on the policy_stats foreign key, and any with a cleanup requested since,
+	// which changed its generation even if that cleanup already finished.
 	const upsertStmt = `
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
 		SELECT p.id, NULL, -- using NULL to represent global scope
 			v.passing_host_count, v.failing_host_count
-		FROM (VALUES %s) AS v (policy_id, passing_host_count, failing_host_count)
-		JOIN policies p ON p.id = v.policy_id
+		FROM (VALUES %s) AS v (policy_id, generation, passing_host_count, failing_host_count)
+		JOIN policies p ON p.id = v.policy_id AND p.membership_cleanup_generation = v.generation
 		ON DUPLICATE KEY UPDATE
 			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count)`
 	for batch := range slices.Chunk(stats, 1000) {
 		rows := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*3)
+		args := make([]any, 0, len(batch)*4)
 		for _, s := range batch {
-			rows = append(rows, "ROW(?, ?, ?)")
-			args = append(args, s.PolicyID, s.PassingHostCount, s.FailingHostCount)
+			rows = append(rows, "ROW(?, ?, ?, ?)")
+			args = append(args, s.PolicyID, s.Generation, s.PassingHostCount, s.FailingHostCount)
 		}
 		if _, err := db.ExecContext(ctx, fmt.Sprintf(upsertStmt, strings.Join(rows, ",")), args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host policy counts for global and team policies")
@@ -3932,18 +3815,13 @@ func (ds *Datastore) syncPatchPolicyQuery(ctx context.Context, policyID uint) er
 			return ctxerr.Wrap(ctx, err, "reset patch policy automation attempts")
 		}
 		changed = true
-		return markPolicyNeedsFullMembershipCleanup(ctx, tx, policyID)
+		return requestPolicyMembershipCleanup(ctx, tx, policyID, true, true)
 	}); err != nil {
 		return ctxerr.Wrapf(ctx, err, "syncing patch policy %d query", policyID)
 	}
-	if !changed {
-		return nil
-	}
-
-	ds.logger.InfoContext(ctx, "regenerated patch policy query, clearing its results",
-		"policy_id", policyID, "software_title", src.SoftwareTitle, "old_query", src.PolicyQuery, "new_query", query)
-	if err := ds.cleanupPolicyAfterCommit(ctx, policyID, "", true, true); err != nil {
-		return ctxerr.Wrapf(ctx, err, "clearing patch policy %d results", policyID)
+	if changed {
+		ds.logger.InfoContext(ctx, "regenerated patch policy query, requested cleanup of its results",
+			"policy_id", policyID, "software_title", src.SoftwareTitle, "old_query", src.PolicyQuery, "new_query", query)
 	}
 	return nil
 }

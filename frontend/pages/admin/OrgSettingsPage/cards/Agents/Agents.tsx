@@ -82,7 +82,7 @@ const Agents = ({
     }
 
     // Formatting of API not UI and allows empty agent options
-    const formDataToSubmit: any = agentOptions
+    const formDataToSubmit: any = agentOptions?.trim()
       ? {
           agent_options: yaml.load(agentOptions),
         }

@@ -36,6 +36,7 @@ parasails.registerComponent('docsNavAndSearch', {
       <div purpose="nav-link-container" class="d-flex align-items-center">
         <div purpose="docs-links" class="d-flex flex-row">
           <a :class="[currentSection === 'docs' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/docs" style="text-decoration: none; text-decoration-line: none;">Get started</a>
+          <a :class="[currentSection === 'integrations' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/integrations" style="text-decoration: none; text-decoration-line: none;">Integrations</a>
           <a :class="[currentSection === 'software' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/software-catalog" style="text-decoration: none; text-decoration-line: none;">Apps</a>
           <a :class="[currentSection === 'software-inventory' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/software-inventory" style="text-decoration: none; text-decoration-line: none;">Software inventory</a>
           <a :class="[currentSection === 'controls' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/mdm-commands" style="text-decoration: none; text-decoration-line: none;">Controls</a>
@@ -110,6 +111,23 @@ parasails.registerComponent('docsNavAndSearch', {
           },
         },
       });
+    }
+    // When the links row is scrolled sideways because it doesn't fit, make sure the current section's link is visible.
+    // This waits for the page to finish loading, since the row's width can still change while the page renders.
+    let linkContainer = this.$el.querySelector('[purpose="nav-link-container"]');
+    let activeLink = this.$el.querySelector('[purpose="docs-top-nav-menu-link"].active');
+    if (linkContainer && activeLink) {
+      let scrollActiveLinkIntoView = ()=>{
+        let overflowPastRightEdge = activeLink.getBoundingClientRect().right - linkContainer.getBoundingClientRect().right;
+        if (overflowPastRightEdge > 0) {
+          linkContainer.scrollLeft += overflowPastRightEdge;
+        }
+      };
+      if (document.readyState === 'complete') {
+        scrollActiveLinkIntoView();
+      } else {
+        window.addEventListener('load', scrollActiveLinkIntoView, { once: true });
+      }
     }
   },
   beforeDestroy: function() {

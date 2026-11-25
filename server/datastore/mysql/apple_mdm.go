@@ -1257,30 +1257,6 @@ ON DUPLICATE KEY UPDATE
 	}, nil
 }
 
-func (ds *Datastore) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	var enrollmentProfiles []*fleet.MDMAppleEnrollmentProfile
-	if err := sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&enrollmentProfiles,
-		`
-SELECT
-    id,
-    token,
-    type,
-    dep_profile,
-    created_at,
-    updated_at
-FROM
-    mdm_apple_enrollment_profiles
-ORDER BY created_at DESC
-`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list enrollment profiles")
-	}
-	return enrollmentProfiles, nil
-}
-
 func (ds *Datastore) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 	var enrollment fleet.MDMAppleEnrollmentProfile
 	if err := sqlx.GetContext(
@@ -1508,29 +1484,6 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
-	var devices []fleet.MDMAppleDevice
-	if err := sqlx.SelectContext(
-		ctx,
-		ds.writer(ctx),
-		&devices,
-		`
-SELECT
-    d.id,
-    d.serial_number,
-    e.enabled
-FROM
-    nano_devices d
-    JOIN nano_enrollments e ON d.id = e.device_id
-WHERE
-    type = "Device"
-`,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list devices")
-	}
-	return devices, nil
-}
-
 func (ds *Datastore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -1574,6 +1527,17 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
+		if personalType == fleet.PersonalEnrollmentTypeAccountDriven {
+			taken, err := accountDrivenEnrollmentIDTaken(ctx, tx, mdmHost.UUID)
+			if err != nil {
+				return err
+			}
+			if taken {
+				logger.InfoContext(ctx, "refusing MDM check-in: enrollment ID matches another host", "enrollment_id", mdmHost.UUID)
+				return ctxerr.Wrap(ctx, errAccountDrivenEnrollmentIDTaken())
+			}
+		}
+
 		// A host matched by the self-reported serial gets its UUID rewritten by updateMDMAppleHostDB, so the serial
 		// mustn't be enrolled under another UUID. Hosts can share a serial, and the match picks the lowest ID, so
 		// every host with the serial is checked, not just the matched one.
@@ -1600,6 +1564,30 @@ func errSerialEnrolledUnderAnotherUUID() error {
 	return &fleet.ConflictError{
 		Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
 	}
+}
+
+func errAccountDrivenEnrollmentIDTaken() error {
+	return &fleet.ConflictError{Message: "This enrollment ID belongs to another host."}
+}
+
+func (ds *Datastore) GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error) {
+	return accountDrivenEnrollmentIDTaken(ctx, ds.writer(ctx), enrollmentID)
+}
+
+// accountDrivenEnrollmentIDTaken reports whether the device-chosen enrollment ID matches (by osquery_host_id, like
+// matchHostDuringEnrollment) a host that isn't the enrollment's own earlier one, e.g. another device's hardware UUID.
+// An account-driven enrollment's host always has its enrollment ID as both UUID and serial (see
+// lifecycle.resetApple), which a real device's host never does.
+func accountDrivenEnrollmentIDTaken(ctx context.Context, q sqlx.QueryerContext, enrollmentID string) (bool, error) {
+	var taken bool
+	if err := sqlx.GetContext(ctx, q, &taken, `
+		SELECT EXISTS(SELECT 1 FROM hosts h WHERE h.osquery_host_id = ?
+ 			AND NOT (h.uuid = ? AND h.hardware_serial = ? AND EXISTS (
+ 				SELECT 1 FROM host_mdm hm WHERE hm.host_id = h.id AND hm.personal_enrollment_type = 'account_driven')))`,
+		enrollmentID, enrollmentID, enrollmentID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking for another host with the enrollment ID")
+	}
+	return taken, nil
 }
 
 func (ds *Datastore) GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error) {
@@ -2525,6 +2513,13 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "deleting one-time enroll secrets for host")
 		}
 
+		// Only mobile hosts can register with Google conditional access.
+		if fleet.IsMobilePlatform(host.Platform) {
+			if err := queueGoogleConditionalAccessUnmarkDB(ctx, tx, []string{uuid}); err != nil {
+				return err
+			}
+		}
+
 		// clear up the MDM-dependent upcoming activities as it won't be able
 		// to process them anymore
 		if err := ds.ClearMDMUpcomingActivitiesDB(ctx, tx, uuid); err != nil {
@@ -2602,7 +2597,7 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
 		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed,
-		       profile_uuid, assign_profile_response, response_updated_at, hardware_serial
+		       profile_uuid, assign_profile_response, response_updated_at, throttled_retry_after, hardware_serial
 		FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -4709,21 +4704,31 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 		}
 	}
 
+	// Without a wait from Apple, throttled hosts fall back to depThrottledCooldownPeriod.
+	var throttledRetryAfterSeconds *int64
+	if payload.RetryAfterSeconds > 0 {
+		throttledRetryAfterSeconds = new(min(int64(payload.RetryAfterSeconds), int64(depThrottledMaxRetryAfter.Seconds())))
+		if int64(payload.RetryAfterSeconds) > *throttledRetryAfterSeconds {
+			ds.logger.WarnContext(ctx, "capping Apple's retry_after_seconds for throttled profile assignments",
+				"retry_after_seconds", payload.RetryAfterSeconds, "capped_to", *throttledRetryAfterSeconds)
+		}
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success,
-			string(fleet.DEPAssignProfileResponseSuccess), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseSuccess), abmTokenID, nil); err != nil {
 			return err
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible,
-			string(fleet.DEPAssignProfileResponseNotAccessible), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseNotAccessible), abmTokenID, nil); err != nil {
 			return err
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed,
-			string(fleet.DEPAssignProfileResponseFailed), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseFailed), abmTokenID, nil); err != nil {
 			return err
 		}
 		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, throttled,
-			string(fleet.DEPAssignProfileResponseThrottled), abmTokenID); err != nil {
+			string(fleet.DEPAssignProfileResponseThrottled), abmTokenID, throttledRetryAfterSeconds); err != nil {
 			return err
 		}
 		return nil
@@ -4731,7 +4736,7 @@ func (ds *Datastore) updateHostDEPAssignProfileResponses(ctx context.Context, pa
 }
 
 func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, profileUUID string, serials []string,
-	status string, abmTokenID *uint,
+	status string, abmTokenID *uint, retryAfterSeconds *int64,
 ) error {
 	if len(serials) == 0 {
 		return nil
@@ -4751,6 +4756,7 @@ SET
 	profile_uuid = ?,
 	assign_profile_response = ?,
 	response_updated_at = CURRENT_TIMESTAMP,
+	throttled_retry_after = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? SECOND),
 	retry_job_id = 0
 WHERE
 	hosts.hardware_serial IN (?)
@@ -4758,9 +4764,9 @@ WHERE
 	var args []interface{}
 	var err error
 	if abmTokenID != nil {
-		stmt, args, err = sqlx.In(stmt, abmTokenID, profileUUID, status, serials)
+		stmt, args, err = sqlx.In(stmt, abmTokenID, profileUUID, status, retryAfterSeconds, serials)
 	} else {
-		stmt, args, err = sqlx.In(stmt, profileUUID, status, serials)
+		stmt, args, err = sqlx.In(stmt, profileUUID, status, retryAfterSeconds, serials)
 	}
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
@@ -4771,8 +4777,11 @@ WHERE
 	}
 
 	n, _ := res.RowsAffected()
-	logger.InfoContext(ctx, "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n,
-		"serials", fmt.Sprintf("%s", serials), "abm_token_id", abmTokenID)
+	attrs := []any{"profile_uuid", profileUUID, "status", status, "devices", n, "serials", fmt.Sprintf("%s", serials), "abm_token_id", abmTokenID}
+	if retryAfterSeconds != nil {
+		attrs = append(attrs, "retry_after_seconds", *retryAfterSeconds)
+	}
+	logger.InfoContext(ctx, "update host dep assign profile responses", attrs...)
 
 	return nil
 }
@@ -4781,6 +4790,9 @@ WHERE
 const (
 	depFailedCooldownPeriod    = 1 * time.Hour // TODO: Make this a test config option?
 	depThrottledCooldownPeriod = 24 * time.Hour
+	// depThrottledMaxRetryAfter caps Apple's retry_after_seconds so that a bad value can't keep a
+	// host from being assigned for longer than this.
+	depThrottledMaxRetryAfter = 7 * 24 * time.Hour
 )
 
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerialsByOrgName map[string][]string, serialsByOrgName map[string][]string, err error) {
@@ -4791,7 +4803,7 @@ func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Contex
 	stmt := `
 SELECT
 	CASE WHEN (assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0)) OR
-	(assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0)) THEN
+	(assign_profile_response = ? AND (COALESCE(throttled_retry_after, DATE_ADD(response_updated_at, INTERVAL ? SECOND)) > NOW() OR retry_job_id != 0)) THEN
 		'skip'
 	ELSE
 		'assign'
@@ -4865,7 +4877,7 @@ WHERE
 ) OR (assign_profile_response = ?
 	AND(retry_job_id = 0 OR j.state = ?)
 	AND(response_updated_at IS NULL
-		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND)))
+		OR COALESCE(throttled_retry_after, DATE_ADD(response_updated_at, INTERVAL ? SECOND)) <= NOW()))
 ORDER BY response_updated_at ASC
 LIMIT ?`
 
@@ -6827,7 +6839,8 @@ LIMIT ?`
 	}
 	args := []any{refetchTypes}
 	for _, platform := range []string{"ios", "ipados"} {
-		args = append(args,
+		args = append(
+			args,
 			refetchTypes, len(refetchTypes), platform, limit,
 			refetchTypes, len(refetchTypes), platform, int(interval.Seconds()), limit,
 		)
@@ -7040,7 +7053,7 @@ LEFT OUTER JOIN
 
 	`
 
-	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.DisplayNameNoTeam})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
 	}
@@ -7166,7 +7179,7 @@ LEFT OUTER JOIN
 %s
 	`
 
-	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.TeamNameNoTeam})
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"no_team": fleet.DisplayNameNoTeam})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list ABM tokens query from named args")
 	}

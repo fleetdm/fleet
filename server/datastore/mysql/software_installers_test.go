@@ -1134,6 +1134,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.WithinDuration(t, beforeInstallRequest, res.CreatedAt, time.Minute)
 			createdAt := res.CreatedAt
 			require.WithinDuration(t, beforeInstallRequest, *res.UpdatedAt, time.Minute)
+			require.Equal(t, &teamID, res.HostTeamID)
 
 			beforeInstallResult := time.Now()
 			_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1146,6 +1147,13 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				PostInstallScriptOutput:   tc.postInstallScriptOutput,
 			}, nil)
 			require.NoError(t, err)
+
+			// the host's fleet is read with the result, not kept from when the install was queued
+			require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
+			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
+			require.NoError(t, err)
+			require.Nil(t, res.HostTeamID)
+			require.Equal(t, &teamID, res.InstallerGlobalOrTeamID)
 
 			// edit installer to ensure host software install is unaffected
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -7723,6 +7731,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 
 	// A non-nil pin is authoritative: it upserts the pin row.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("^1")}, v1ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	require.Equal(t, v1ID, activeID())
 	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
 	require.NoError(t, err)
@@ -7762,6 +7771,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
 	// The query changed on the flip, so the policy's stale results were cleared.
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	membership, stats = policyResultCounts()
 	require.Zero(t, membership, "version flip must clear stale policy membership")
 	require.Zero(t, stats, "version flip must clear stale policy stats")
@@ -7859,6 +7869,7 @@ func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
 	refresh(installerID, "1.0", "echo install", bundleVersionQuery)
 	require.Equal(t, bundleVersionQuery, installerPatchQuery(installerID))
 	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 	membership, stats := policyResultCounts(teamPolicy.ID)
 	require.Zero(t, membership, "a changed query must clear stale policy membership")
 	require.Zero(t, stats, "a changed query must clear stale policy stats")
@@ -7883,6 +7894,7 @@ func testUpdateInstallerScriptsAndQueries(t *testing.T, ds *Datastore) {
 	require.Equal(t, upperCaseQuery, policyQuery(teamPolicy.ID))
 	refresh(installerID, "1.0", "echo install v2", bundleVersionQuery)
 	require.Equal(t, bundleVersionQuery, policyQuery(teamPolicy.ID))
+	require.NoError(t, ds.CleanupPendingPolicyMembership(ctx))
 
 	// A row that has moved to another version isn't refreshed, so the policy isn't either.
 	recordResults()

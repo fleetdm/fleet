@@ -1,3 +1,5 @@
+import { IConditionalAccessGoogleStatus } from "interfaces/config";
+import { IGlobalGoogleConditionalAccessIntegration } from "interfaces/integration";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -12,6 +14,13 @@ export interface IConditionalAccessWindowsProfilesResponse {
   scep_profile: string;
   browser_profile: string;
 }
+export interface IGoogleConditionalAccessFormData {
+  customer_id: string;
+  admin_email: string;
+  service_account_key: Record<string, unknown>;
+}
+export type IGoogleConditionalAccessResponse = IGlobalGoogleConditionalAccessIntegration &
+  IConditionalAccessGoogleStatus;
 
 const conditionalAccessService = {
   triggerMicrosoftConditionalAccess: (
@@ -26,6 +35,19 @@ const conditionalAccessService = {
   },
   deleteMicrosoftConditionalAccess: () => {
     return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
+  },
+  connectGoogleConditionalAccess: (
+    formData: IGoogleConditionalAccessFormData
+  ): Promise<IGoogleConditionalAccessResponse> => {
+    return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_GOOGLE, formData);
+  },
+  updateGoogleConditionalAccess: (
+    formData: Partial<IGoogleConditionalAccessFormData>
+  ): Promise<IGoogleConditionalAccessResponse> => {
+    return sendRequest("PATCH", endpoints.CONDITIONAL_ACCESS_GOOGLE, formData);
+  },
+  deleteGoogleConditionalAccess: () => {
+    return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_GOOGLE);
   },
   getIdpAppleProfile: (): Promise<string> => {
     return sendRequest(

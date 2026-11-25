@@ -4,15 +4,13 @@ on:
   issues:
     types: [opened]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   tag-unreleased-bug:
     if: contains(github.event.issue.labels.*.name, 'bug')
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       issues: write
     steps:
       - name: Harden Runner

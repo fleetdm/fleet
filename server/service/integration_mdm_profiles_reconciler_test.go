@@ -1110,13 +1110,18 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationResendConfigurationProfile
 	// A policy that resends the profile when it fails, plus one with no profile attached, to
 	// confirm only the former triggers a resend.
 	newPolicy := func(name string, profileUUID *string) *fleet.Policy {
-		var resp fleet.TeamPolicyResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", tm.ID), fleet.TeamPolicyRequest{
+		req := fleet.CreatePolicyRequest{
+			TeamID:      &tm.ID,
 			Name:        name,
 			Query:       "SELECT 1;",
 			Platform:    "darwin",
 			ProfileUUID: profileUUID,
-		}, http.StatusOK, &resp)
+		}
+		if profileUUID != nil {
+			req.AutomationType = new(fleet.PolicyAutomationConfigurationProfile)
+		}
+		var resp fleet.CreatePolicyResponse
+		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusOK, &resp)
 		require.NotNil(t, resp.Policy)
 		return resp.Policy
 	}

@@ -27,8 +27,7 @@ env:
   OSQUERY_VERSION: 5.24.1
 
 # Least-privilege default; each build job grants id-token/attestations at the job level.
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   generate-macos:

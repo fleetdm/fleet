@@ -123,8 +123,6 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		WebhookSettings: fleet.WebhookSettings{
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable: true,
-				// Policy 3 is listed but has the automation off, and the list is no longer read.
-				PolicyIDs: []uint{1, 2, 3},
 			},
 		},
 		Integrations: fleet.Integrations{

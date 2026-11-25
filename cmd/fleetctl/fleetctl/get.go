@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -762,7 +763,7 @@ func getLabelsCommand() *cli.Command {
 			debugFlag(),
 			&cli.UintFlag{
 				Name:  fleetFlagName,
-				Usage: "Return labels specific to this fleet ID; default global labels only when viewing multiple labels",
+				Usage: "Return labels specific to this fleet ID; default global labels only when viewing multiple labels. With a label name, look the name up among the global labels and this fleet's labels",
 				Value: 0,
 			},
 		},
@@ -810,13 +811,16 @@ func getLabelsCommand() *cli.Command {
 				printTable(c, columns, data)
 
 				return nil
-			} else if c.Uint(fleetFlagName) != 0 {
-				return errors.New("cannot provide both a fleet ID and a label name")
 			}
 
 			// Label name was specified
-			label, err := client.GetLabel(name)
+			fleetID := ptr.UintOrNilIfZero(c.Uint(fleetFlagName))
+			label, err := client.GetLabel(name, fleetID)
 			if err != nil {
+				var sce kithttp.StatusCoder
+				if fleetID == nil && errors.As(err, &sce) && sce.StatusCode() == http.StatusConflict {
+					return fmt.Errorf("To get one fleet's label, run `fleetctl get label --%s <fleet ID> %q`: %w", fleetFlagName, name, err)
+				}
 				return err
 			}
 

@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
@@ -65,7 +65,11 @@ type Software struct {
 type teamToProcess struct {
 	ID   *uint
 	Team *fleet.Team
+	// FileName names both fleets/<FileName>.yml and lib/<FileName>/.
+	FileName string
 }
+
+const unassignedFileName = "unassigned"
 
 type generateGitopsClient interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
@@ -447,8 +451,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			return ErrGeneric
 		}
 		noTeam = teamToProcess{
-			ID:   ptr.Uint(0),
-			Team: noTeamData,
+			ID:       new(uint(0)),
+			Team:     noTeamData,
+			FileName: unassignedFileName,
 		}
 	}
 
@@ -464,16 +469,25 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting fleets: %s\n", err)
 			return ErrGeneric
 		}
+		// Assigned from every fleet, so a single-fleet export writes the same
+		// file as a full export.
+		fileNames := fleetFileNames(teams)
 		// If a specific team is requested, find it.
-		if cmd.CLI.String(fleetFlagName) != "" {
-			transformedSelectedName := generateFilename(cmd.CLI.String(fleetFlagName))
-			for _, team := range teams {
-				if transformedSelectedName == generateFilename(team.Name) {
-					teamsToProcess = []teamToProcess{{
-						ID:   &team.ID,
-						Team: &team,
-					}}
-				}
+		if selected := cmd.CLI.String(fleetFlagName); selected != "" {
+			i := slices.IndexFunc(teams, func(t fleet.Team) bool { return t.Name == selected })
+			if i < 0 {
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return strings.EqualFold(t.Name, selected) })
+			}
+			if i < 0 {
+				selectedFileName := generateFilename(selected)
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return fileNames[t.ID] == selectedFileName })
+			}
+			if i >= 0 {
+				teamsToProcess = []teamToProcess{{
+					ID:       &teams[i].ID,
+					Team:     &teams[i],
+					FileName: fileNames[teams[i].ID],
+				}}
 			}
 			if len(teamsToProcess) == 0 {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Fleet %s not found\n", cmd.CLI.String(fleetFlagName))
@@ -484,8 +498,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			teamsToProcess = make([]teamToProcess, len(teams)+2)
 			for i, team := range teams {
 				teamsToProcess[i] = teamToProcess{
-					ID:   &team.ID,
-					Team: &team,
+					ID:       &team.ID,
+					Team:     &team,
+					FileName: fileNames[team.ID],
 				}
 			}
 			teamsToProcess[len(teams)] = noTeam
@@ -508,7 +523,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			if team.ID == 0 {
 				displayName = "Unassigned"
 			}
-			teamFileName = generateFilename(displayName)
+			teamFileName = teamToProcess.FileName
 			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": displayName,
@@ -660,10 +675,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		case "":
 			fileName = "default.yml"
 		case "unassigned":
-			fileName = "fleets/unassigned.yml"
+			fileName = "fleets/" + unassignedFileName + ".yml"
 		default:
-			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
-			fileName = "fleets/" + teamFileName + ".yml"
+			// Free ignores --fleet and exports only default.yml.
+			fileName = "fleets/" + generateFilename(cmd.CLI.String(fleetFlagName)) + ".yml"
+			if teamsToProcess[0].ID != nil {
+				fileName = "fleets/" + teamsToProcess[0].FileName + ".yml"
+			}
 		}
 
 		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
@@ -836,6 +854,34 @@ func uniqueFilename(fileName string, taken map[string]bool) string {
 	return candidate
 }
 
+// fleetFileNames gives each fleet a distinct file name, since distinct names can
+// sanitize alike ("Mac/Win" and "Macawin"). The lowest ID keeps the sanitized
+// name, so a newer fleet is the one numbered. No fleet can take Unassigned's
+// file or no-team.yml, which fleetctl gitops rejects.
+func fleetFileNames(teams []fleet.Team) map[uint]string {
+	order := make([]int, len(teams))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortFunc(order, func(a, b int) int { return cmp.Compare(teams[a].ID, teams[b].ID) })
+	taken := map[string]bool{unassignedFileName + ".yml": true, "no-team.yml": true}
+	names := make(map[uint]string, len(teams))
+	// Sanitized names go first, so a numbered name ("macawin-2") can't take the
+	// file of a fleet that sanitizes to it ("Macawin-2").
+	for _, i := range order {
+		if fileName := generateFilename(teams[i].Name) + ".yml"; !taken[fileName] {
+			taken[fileName] = true
+			names[teams[i].ID] = strings.TrimSuffix(fileName, ".yml")
+		}
+	}
+	for _, i := range order {
+		if _, ok := names[teams[i].ID]; !ok {
+			names[teams[i].ID] = strings.TrimSuffix(uniqueFilename(generateFilename(teams[i].Name)+".yml", taken), ".yml")
+		}
+	}
+	return names
+}
+
 func scriptExtensionForPlatform(platform string) string {
 	if platform == "windows" {
 		return ".ps1"
@@ -869,7 +915,7 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(cmd.AppConfig.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(cmd.AppConfig.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -1061,10 +1107,11 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
 
-		// Google Workspace IdP is a premium-only integration, so omit it from the
-		// generated free-tier GitOps so the example stays valid on reapply.
+		// Google Workspace IdP and Google conditional access are premium-only integrations,
+		// so omit them from the generated free-tier GitOps so the example stays valid on reapply.
 		if !cmd.AppConfig.License.IsPremium() {
 			delete(result, "google_workspace")
+			delete(result, "google_conditional_access")
 		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
@@ -1120,6 +1167,16 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					})
 				}
 			}
+		}
+	}
+	// The key is never exportable, so even insecure mode only gets a placeholder.
+	if gca, ok := result["google_conditional_access"].(map[string]any); ok {
+		if _, ok := gca["api_key_json"]; ok {
+			gca["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google service account key JSON here")
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.google_conditional_access.api_key_json",
+			})
 		}
 	}
 
@@ -1518,7 +1575,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	// For "No Team" (team ID 0), only include webhook settings
 	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
 	// See https://github.com/fleetdm/fleet/issues/20287
-	webhookSettings, err := webhookSettingsWithoutPolicyIDs(team.Config.WebhookSettings)
+	webhookSettings, err := webhookSettingsMap(team.Config.WebhookSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -2057,13 +2114,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
 			policySpec[jsonFieldName(t, "NotifyBeforePatching")] = policy.NotifyBeforePatching
 			policySpec[jsonFieldName(t, "PatchDeadline")] = policy.PatchDeadline
+			policySpec[jsonFieldName(t, "ForcePatch")] = policy.ForcePatch
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
 		}
 
 		// Handle software automation.
-		if policy.InstallSoftware != nil {
+		if policy.InstallSoftware != nil && policy.Type != fleet.PolicyTypePatch {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
 				switch {
 				case software.MaintainedAppID != 0 && software.Slug != "":
@@ -2121,12 +2179,8 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	return result, nil
 }
 
-// webhookSettingsWithoutPolicyIDs serializes the given webhook settings struct
-// to a map and removes the failing_policies_webhook.policy_ids key (since
-// those are now represented as webhooks_and_tickets_enabled on individual
-// policies).
-// TODO(#58577): remove with policy_ids.
-func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error) {
+// webhookSettingsMap serializes the given webhook settings struct to a map.
+func webhookSettingsMap(webhookSettings any) (map[string]any, error) {
 	b, err := json.Marshal(webhookSettings)
 	if err != nil {
 		return nil, fmt.Errorf("marshal webhook settings: %w", err)
@@ -2134,9 +2188,6 @@ func webhookSettingsWithoutPolicyIDs(webhookSettings any) (map[string]any, error
 	var m map[string]any
 	if err := json.Unmarshal(b, &m); err != nil {
 		return nil, fmt.Errorf("unmarshal webhook settings: %w", err)
-	}
-	if fpw, ok := m["failing_policies_webhook"].(map[string]any); ok {
-		delete(fpw, "policy_ids")
 	}
 	return m, nil
 }

@@ -1,0 +1,12 @@
+.hidden-policy-badge {
+  display: flex;
+  align-items: center;
+
+  // The TooltipWrapper's inner element holds both the icon and an sr-only
+  // span; without flex it baseline-aligns them in a text line box and the
+  // icon sits above center.
+  .component__tooltip-wrapper__element {
+    display: flex;
+    align-items: center;
+  }
+}

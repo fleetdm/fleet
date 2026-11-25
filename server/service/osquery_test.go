@@ -6933,7 +6933,7 @@ func TestProcessVPPForNewlyFailingPoliciesExpiredTokenFailsOnlyItsApp(t *testing
 		},
 		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			if *vppApp.VPPTokenID == expiredTokID {
-				return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+				return "", fleet.NewUserMessageError(errors.New(`Couldn't install. VPP token "Expired" is expired. Please renew it and try again.`), http.StatusUnprocessableEntity)
 			}
 			installedTokenIDs = append(installedTokenIDs, *vppApp.VPPTokenID)
 			return "command-uuid", nil

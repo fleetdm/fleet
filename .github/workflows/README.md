@@ -50,6 +50,31 @@ pull request. This is especially useful when changes are pushed to a pull reques
 Manually triggered workflows, workflows that run on a schedule, and workflows triggered by pushes to
 `main` are unaffected.
 
+## Security
+
+When adding, modifying, or reviewing GitHub Actions, follow these practices:
+
+### Pinned Actions
+
+Pin external actions to a full commit SHA and include the version as a comment:
+```yaml
+- uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+```
+
+### Token Permissions
+
+Set workflow permissions to none by default, then grant each job only the permissions it needs:
+
+```yaml
+permissions: {}
+
+jobs:
+  my-job:
+    permissions:
+      contents: read
+      security-events: write
+```
+
 ## Go fuzz testing
 
 The [Go fuzz workflow](./test-go-fuzz.yml) runs native Go fuzz tests without databases, credentials, or live devices.

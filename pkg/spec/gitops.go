@@ -613,11 +613,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	case teamOk:
 		multiError = parseName(teamRaw, result, filePath, multiError)
 		// Report both removed names in one run.
-		if result.IsNoTeam() {
+		removedName := result.TeamName != nil && strings.EqualFold(*result.TeamName, fleet.ReservedNameNoTeam)
+		if removedName {
 			multiError = multierror.Append(multiError, removedNameError(removednames.KindYAMLValue, "name: No team"))
 		}
 		switch {
-		case removedFile || result.IsNoTeam():
+		case removedFile || removedName:
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
@@ -626,8 +627,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
 			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam():
-			// The rest of the processing uses the internal name "No team" for unassigned hosts.
-			result.TeamName = ptr.String(noTeam)
+			result.TeamName = new(unassignedTeamName)
 			// For No Team, we allow settings but only process webhook_settings from it
 			if settingsOk {
 				multiError = parseNoTeamSettings(settingsRaw, result, filePath, multiError)
@@ -738,7 +738,7 @@ func (g *GitOps) IsGlobal() bool {
 }
 
 func (g *GitOps) IsNoTeam() bool {
-	return g.TeamName != nil && strings.EqualFold(*g.TeamName, noTeam)
+	return g.IsUnassignedTeam()
 }
 
 func (g *GitOps) IsUnassignedTeam() bool {
@@ -752,10 +752,7 @@ func (g *GitOps) CoercedTeamName() string {
 	return *g.TeamName
 }
 
-const (
-	noTeam             = "No team"
-	unassignedTeamName = "Unassigned"
-)
+const unassignedTeamName = "Unassigned"
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, filePath string, logFn Logf, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop fleet.BaseItem
@@ -2324,6 +2321,47 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
+			var patchOptions []string
+			if item.ForcePatch {
+				patchOptions = append(patchOptions, "force_patch")
+			}
+			if item.PatchWhenClosed {
+				patchOptions = append(patchOptions, "patch_when_closed")
+			}
+			if item.NotifyBeforePatching {
+				patchOptions = append(patchOptions, "notify_before_patching")
+			}
+			if item.PatchDeadline {
+				patchOptions = append(patchOptions, "patch_deadline")
+			}
+			switch {
+			case item.InstallSoftware.Bool || item.InstallSoftware.Other != nil:
+				if item.ForcePatch {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: If "force_patch" is true, "install_software" can't be set.`,
+						item.Name,
+					))
+				}
+				// Without another option, install_software true or an object means force_patch.
+				if len(patchOptions) == 0 {
+					item.ForcePatch = true
+					patchOptions = []string{"force_patch"}
+				}
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logFn("[!] The \"policies.install_software\" key is deprecated. Use \"policies.%s\" instead.\n", patchOptions[0])
+				}
+			case item.InstallSoftware.Set && !item.InstallSoftware.IsOther:
+				// Reject install_software false together with an option, since false turns patching off.
+				if len(patchOptions) == 1 {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: If %q is true, "install_software" can't be set to false.`,
+						item.Name, patchOptions[0],
+					))
+				}
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logFn("[!] The \"policies.install_software\" key is deprecated.\n")
+				}
+			}
 			if item.PatchWhenClosed || item.NotifyBeforePatching || item.PatchDeadline {
 				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.
 				if slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {
@@ -2448,7 +2486,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 		}
 	}
 	if !scriptOnTeamFound {
-		if *teamName == noTeam {
+		if *teamName == unassignedTeamName {
 			return fmt.Errorf("policy script %s was not defined in controls in %s", scriptPath, filepath.Base(parentFilePath))
 		}
 		return fmt.Errorf("policy script %s was not defined in controls for %s", scriptPath, *teamName)

@@ -1,0 +1,11 @@
+{
+  "name": "k6",
+  "slug": "k6/windows",
+  "package_identifier": "GrafanaLabs.k6",
+  "unique_identifier": "k6",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/k6_install.ps1",
+  "default_categories": ["Developer tools"]
+}

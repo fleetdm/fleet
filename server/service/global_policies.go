@@ -25,30 +25,6 @@ import (
 // Add
 /////////////////////////////////////////////////////////////////////////////////
 
-func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.GlobalPolicyRequest)
-	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:          req.QueryID,
-		Query:            req.Query,
-		Name:             req.Name,
-		Description:      req.Description,
-		Resolution:       req.Resolution,
-		Platform:         req.Platform,
-		Critical:         req.Critical,
-		Hidden:           req.Hidden,
-		LabelsIncludeAny: req.LabelsIncludeAny,
-		LabelsIncludeAll: req.LabelsIncludeAll,
-		LabelsExcludeAny: req.LabelsExcludeAny,
-		LabelsExcludeAll: req.LabelsExcludeAll,
-		Type:             fleet.PolicyTypeDynamic,
-		AutomationType:   req.AutomationType,
-	})
-	if err != nil {
-		return fleet.GlobalPolicyResponse{Err: err}, nil
-	}
-	return fleet.GlobalPolicyResponse{Policy: resp}, nil
-}
-
 func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -75,16 +51,6 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	if err := svc.checkNewPolicyAutomations(ctx, nil, p); err != nil {
 		return nil, err
-	}
-
-	if p.QueryID != nil {
-		query, err := svc.ds.Query(ctx, *p.QueryID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get query for policy")
-		}
-		if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
-			return nil, err
-		}
 	}
 
 	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
@@ -120,15 +86,6 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 /////////////////////////////////////////////////////////////////////////////////
 // List
 /////////////////////////////////////////////////////////////////////////////////
-
-func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.ListGlobalPoliciesRequest)
-	resp, err := svc.ListGlobalPolicies(ctx, req.Opts, req.Platform)
-	if err != nil {
-		return fleet.ListGlobalPoliciesResponse{Err: err}, nil
-	}
-	return fleet.ListGlobalPoliciesResponse{Policies: resp}, nil
-}
 
 func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
@@ -167,17 +124,7 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string, p
 // Delete
 /////////////////////////////////////////////////////////////////////////////////
 
-func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.DeleteGlobalPoliciesRequest)
-	resp, err := svc.DeleteGlobalPolicies(ctx, req.IDs)
-	if err != nil {
-		return fleet.DeleteGlobalPoliciesResponse{Err: err}, nil
-	}
-	return fleet.DeleteGlobalPoliciesResponse{Deleted: resp}, nil
-}
-
 // DeleteGlobalPolicies deletes the given policies from the database.
-// It also deletes the given ids from the failing policies webhook configuration.
 func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -198,9 +145,6 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 				fleet.ActionWrite,
 			)
 		}
-	}
-	if err := svc.removeGlobalPoliciesFromWebhookConfig(ctx, ids); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "removing global policies from webhook config")
 	}
 	deletedIDs, err := svc.ds.DeleteGlobalPolicies(ctx, ids)
 	if err != nil {
@@ -227,34 +171,6 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	return ids, nil
 }
 
-func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, ids []uint) error {
-	ac, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	idSet := make(map[uint]struct{})
-	for _, id := range ids {
-		idSet[id] = struct{}{}
-	}
-	n := 0
-	policyIDs := ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs
-	origLen := len(policyIDs)
-	for i := range policyIDs {
-		if _, ok := idSet[policyIDs[i]]; !ok {
-			policyIDs[n] = policyIDs[i]
-			n++
-		}
-	}
-	if n == origLen {
-		return nil
-	}
-	ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = policyIDs[:n]
-	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
-		return err
-	}
-	return nil
-}
-
 /////////////////////////////////////////////////////////////////////////////////
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
@@ -271,15 +187,6 @@ const (
 	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errPatchDeadlineRequiresContinuousAutomations        = "If \"patch_deadline\" is true, \"continuous_automations_enabled\" can't be set to false."
 )
-
-func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.ModifyGlobalPolicyRequest)
-	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
-	if err != nil {
-		return fleet.ModifyGlobalPolicyResponse{Err: err}, nil
-	}
-	return fleet.ModifyGlobalPolicyResponse{Policy: resp}, nil
-}
 
 func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	return svc.modifyPolicy(ctx, nil, id, p)
@@ -399,7 +306,15 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 	checkGlobalPolicyAuth := false
 	teamIDsByName := make(map[string]uint)
 	for _, policy := range policies {
-		if policy.Team != "" && policy.Team != "No team" {
+		if reason, removed := removedFleetName(policy.Team, false); removed {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, fleet.NewInvalidArgumentError("specs.fleet", reason)
+		}
+		// One spelling, so that the duplicate check and the datastore's grouping by fleet name treat any letter case as one fleet.
+		if fleet.IsUnassignedFleetName(policy.Team) {
+			policy.Team = fleet.DisplayNameNoTeam
+		}
+		if policy.Team != "" && policy.Team != fleet.DisplayNameNoTeam {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
 				// This is so that the proper HTTP status code is returned
@@ -554,6 +469,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
+	svc.TriggerPolicyMembershipCleanup(ctx)
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	if err := svc.NewActivity(

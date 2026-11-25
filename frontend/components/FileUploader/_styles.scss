@@ -32,7 +32,7 @@
   }
 
   &__error {
-    border-color: $core-vibrant-red;
+    border-color: $ui-error;
   }
 
   &__drag-active {
@@ -47,7 +47,7 @@
   }
 
   &__internal-error {
-    color: $core-vibrant-red;
+    color: $ui-error;
   }
 
   &__graphics {

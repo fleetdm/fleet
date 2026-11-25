@@ -97,8 +97,11 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint)
 		}
 		activityHostID = &host.ID
 		activityHostName = new(host.DisplayName())
-	} else if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset policy")
+	} else {
+		if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset policy")
+		}
+		svc.TriggerPolicyMembershipCleanup(ctx)
 	}
 
 	var activityTeamID *int64
@@ -291,26 +294,28 @@ func createPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (
 	req := request.(*fleet.CreatePolicyRequest)
 	policy, err := svc.NewPolicy(ctx, *req)
 	if err != nil {
-		return fleet.GlobalPolicyResponse{Err: err}, nil
+		return fleet.CreatePolicyResponse{Err: err}, nil
 	}
-	return fleet.GlobalPolicyResponse{Policy: policy}, nil
+	return fleet.CreatePolicyResponse{Policy: policy}, nil
 }
 
 func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest) (*fleet.Policy, error) {
+	if err := checkCreateCompanions(req); err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "check automation fields")
+	}
 	if req.TeamID != nil {
 		if !license.IsPremium(ctx) {
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.ErrMissingLicense
 		}
 		return svc.NewTeamPolicy(ctx, *req.TeamID, fleet.NewTeamPolicyPayload{
-			QueryID:                      req.QueryID,
 			Name:                         req.Name,
 			Query:                        req.Query,
 			Description:                  req.Description,
 			Resolution:                   req.Resolution,
 			Platform:                     req.Platform,
 			Critical:                     req.Critical,
-			CalendarEventsEnabled:        req.CalendarEventsEnabled,
 			SoftwareTitleID:              req.SoftwareTitleID,
 			SoftwareInstallerID:          req.SoftwareInstallerID,
 			ScriptID:                     req.ScriptID,
@@ -318,11 +323,9 @@ func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest
 			LabelsIncludeAll:             req.LabelsIncludeAll,
 			LabelsExcludeAny:             req.LabelsExcludeAny,
 			LabelsExcludeAll:             req.LabelsExcludeAll,
-			ConditionalAccessEnabled:     req.ConditionalAccessEnabled,
 			Hidden:                       req.Hidden,
 			ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
 			Type:                         req.Type,
-			PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
 			PatchWhenClosed:              req.PatchWhenClosed,
 			NotifyBeforePatching:         req.NotifyBeforePatching,
 			PatchDeadline:                req.PatchDeadline,
@@ -345,22 +348,19 @@ func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest
 		return nil, ctxerr.Wrap(ctx, err, "check All fleets policy")
 	}
 	return svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:                  req.QueryID,
-		Query:                    req.Query,
-		Name:                     req.Name,
-		Description:              req.Description,
-		Resolution:               req.Resolution,
-		Platform:                 req.Platform,
-		Critical:                 req.Critical,
-		Hidden:                   req.Hidden,
-		LabelsIncludeAny:         req.LabelsIncludeAny,
-		LabelsIncludeAll:         req.LabelsIncludeAll,
-		LabelsExcludeAny:         req.LabelsExcludeAny,
-		LabelsExcludeAll:         req.LabelsExcludeAll,
-		CalendarEventsEnabled:    req.CalendarEventsEnabled,
-		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
-		Type:                     fleet.PolicyTypeDynamic,
-		AutomationType:           req.AutomationType,
+		Query:            req.Query,
+		Name:             req.Name,
+		Description:      req.Description,
+		Resolution:       req.Resolution,
+		Platform:         req.Platform,
+		Critical:         req.Critical,
+		Hidden:           req.Hidden,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
+		LabelsExcludeAny: req.LabelsExcludeAny,
+		LabelsExcludeAll: req.LabelsExcludeAll,
+		Type:             fleet.PolicyTypeDynamic,
+		AutomationType:   req.AutomationType,
 	})
 }
 
@@ -377,7 +377,7 @@ func checkAllFleetsPolicyRequest(req fleet.CreatePolicyRequest) error {
 		{req.SoftwareInstallerID != nil && *req.SoftwareInstallerID != 0, errPolicyAllFleetsForSoftwarePackage},
 		{req.ContinuousAutomationsEnabled, errPolicyAllFleetsForContinuousAutomations},
 		{req.PatchWhenClosed || req.NotifyBeforePatching || req.PatchDeadline, errPolicyAllFleetsForPatchOptions},
-		{(req.Type != nil && *req.Type == fleet.PolicyTypePatch) || req.PatchSoftwareTitleID != nil,
+		{req.Type != nil && *req.Type == fleet.PolicyTypePatch,
 			`"All fleets" policy cannot be a patch policy`},
 	} {
 		if f.set {
@@ -402,6 +402,14 @@ func (svc *Service) ModifyPolicy(ctx context.Context, id uint, p fleet.ModifyPol
 	if err != nil {
 		svc.authz.SkipAuthorization(ctx)
 		return nil, err
+	}
+	if !p.AutomationType.Set {
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{TeamID: policy.TeamID}, fleet.ActionWrite); err != nil {
+			return nil, err
+		}
+		if err := checkUpdateCompanions(policy, p); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check automation fields")
+		}
 	}
 	return svc.modifyPolicy(ctx, policy.TeamID, id, p)
 }

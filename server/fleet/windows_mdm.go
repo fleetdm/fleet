@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -726,41 +725,20 @@ func (p *WindowsProfileForReconcile) HasBrokenLabel() bool {
 	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
 }
 
-// MDMWindowsWipeType specifies what type of remote wipe we want
-// to perform.
-type MDMWindowsWipeType int
-
+// RemoteWipe CSP nodes Fleet sends. A power cycle can't interrupt doWipeProtected, so Wipe (lost or stolen hosts) uses
+// it. doWipePersistProvisionedData keeps provisioning packages, so Reset can bring back a host that was set up with one.
 const (
-	MDMWindowsWipeTypeDoWipe MDMWindowsWipeType = iota
-	MDMWindowsWipeTypeDoWipeProtected
+	WindowsRemoteWipeProtected              = "doWipeProtected"
+	WindowsRemoteWipePersistProvisionedData = "doWipePersistProvisionedData"
 )
 
-var wipeTypeVariants = map[MDMWindowsWipeType]string{
-	MDMWindowsWipeTypeDoWipe:          "doWipe",
-	MDMWindowsWipeTypeDoWipeProtected: "doWipeProtected",
-}
+// WindowsResetRestartWindow is how long a Windows host can still open an MDM session after acknowledging a reset, before it
+// restarts to reset. A session on the same enrollment after this window means the reset was interrupted and rolled back.
+// Hosts without on-demand sync check in every minute, so it leaves room for a slow restart; a rollback is reported later.
+const WindowsResetRestartWindow = 10 * time.Minute
 
-func (wt *MDMWindowsWipeType) String() string {
-	if wt == nil {
-		return "<nil>"
-	}
-	return wipeTypeVariants[*wt]
-}
-
-func (wt *MDMWindowsWipeType) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
-		return err
-	}
-	for k, v := range wipeTypeVariants {
-		if v == s {
-			*wt = k
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid WipeType: %s", s)
-}
-
-type MDMWindowsWipeMetadata struct {
-	WipeType MDMWindowsWipeType `json:"wipe_type"`
+// WindowsRemoteWipeLocURI is the LocURI Fleet executes for a RemoteWipe CSP node. It is also the command's request type
+// when its status is loaded, which is how a reset is told apart from a wipe.
+func WindowsRemoteWipeLocURI(node string) string {
+	return "./Device" + syncml.FleetRemoteWipeTargetLocURI + "/" + node
 }

@@ -1166,15 +1166,15 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					require.ErrorContains(t, err, removedNoTeamFileMessage(t))
 					require.ErrorContains(t, err, removedNoTeamNameMessage(t))
 
-					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
+					// 'Unassigned' team in unassigned.yml should work.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: Unassigned\n"
 					unassignedPath1, unassignedBasePath1 := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					gitops, err = GitOpsFromFile(unassignedPath1, unassignedBasePath1, nil, nopLogf)
 					assert.NoError(t, err)
 					assert.NotNil(t, gitops)
-					assert.True(t, gitops.IsNoTeam(), "unassigned.yml should be treated as no-team after coercion")
-					assert.Equal(t, "No team", *gitops.TeamName)
+					assert.True(t, gitops.IsNoTeam(), "unassigned.yml should be treated as no-team")
+					assert.Equal(t, "Unassigned", *gitops.TeamName)
 
 					// 'Unassigned' team with wrong filename should fail.
 					config = getConfig([]string{"name", "settings"})
@@ -2515,7 +2515,7 @@ func TestMultiPackageFieldPlacement(t *testing.T) {
 		_, err := setup(t, "", fmt.Sprintf(`hash_sha256: %s
 self_service: true
 `, hashA))
-		expectedErr := `The single package format in "software/pkgs.yml" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		expectedErr := `The single package format in "software/pkgs.yml" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 		require.ErrorContains(t, err, expectedErr)
 	})
 
@@ -4464,7 +4464,7 @@ software:
 					"  windows_enabled_and_configured: true\n  windows_migration_enabled: false\n"+
 					"  setup_experience:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
 				want: []string{
-					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					// the path names the parent by its current name, not the file's alias
 					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
 					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
@@ -4536,7 +4536,7 @@ software:
 				name: "org_settings report server settings", file: "default.yml",
 				config: scriptsDisabledFile("    live_query_disabled: false\n    query_reports_disabled: true\n    Query_Report_Cap: 2000\n"),
 				want: []string{
-					`The "org_settings.server_settings.live_query_disabled" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.server_settings.live_query_disabled" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					`The "org_settings.server_settings.query_reports_disabled" key is not available anymore.`,
 					`The "org_settings.server_settings.query_report_cap" key is not available anymore.`,
 				},
@@ -4557,7 +4557,7 @@ software:
 				name: "org_settings org_info logo URLs", file: "default.yml",
 				config: orgInfoFile("    org_logo_url: https://example.com/dark.png\n    org_logo_url_light_background: https://example.com/light.png\n"),
 				want: []string{
-					`The "org_settings.org_info.org_logo_url" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.org_info.org_logo_url" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					`The "org_settings.org_info.org_logo_url_light_background" key is not available anymore.`,
 				},
 			},
@@ -4591,7 +4591,7 @@ software:
 					"  windows_settings:\n    custom_settings:\n      - path: ./a.xml\n"+
 					"  android_settings:\n    Custom_Settings:\n      - path: ./a.json\n", ""),
 				want: []string{
-					`The "controls.macos_settings" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "controls.macos_settings" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`,
 					`The "controls.windows_settings.custom_settings" key is not available anymore.`,
 					`The "controls.android_settings.custom_settings" key is not available anymore.`,
 				},
@@ -4675,7 +4675,7 @@ software:
 				result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn)
 				require.NoError(t, err)
 				require.Contains(t, logMessages, `[!] in "`+warningFile+`": The "org_settings.server_settings.scripts_disabled" key is not available anymore. `+
-					"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration\n")
+					"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade\n")
 
 				// read the parsed org settings, the removed key should be dropped and the rest kept
 				serverSettings, ok := result.OrgSettings["server_settings"].(map[string]any)
@@ -5603,7 +5603,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
-		expectedErr := fmt.Sprintf(`install_software.package_path: The single package format in %q is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`, path)
+		expectedErr := fmt.Sprintf(`install_software.package_path: The single package format in %q is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`, path)
 		assert.Equal(t, expectedErr, errs[0].Error())
 	})
 
@@ -6302,6 +6302,10 @@ software:
 		wantCA *bool
 		// wantDeadline, when set, asserts the resulting PatchDeadline on the single policy.
 		wantDeadline *bool
+		// wantForcePatch, when set, asserts the resulting ForcePatch on the single policy.
+		wantForcePatch *bool
+		// wantLog, when set, is a message the parser must log.
+		wantLog string
 	}{
 		{
 			name:     "patch_when_closed with continuous_automations omitted auto-sets it true",
@@ -6438,7 +6442,7 @@ policies:
     patch_when_closed: true
     notify_before_patching: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			// The dry run skips the policy apply, so without this check only a real apply rejects it.
@@ -6545,7 +6549,7 @@ policies:
     patch_when_closed: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline together with notify_before_patching is rejected",
@@ -6559,7 +6563,7 @@ policies:
     notify_before_patching: true
     patch_deadline: true
 `,
-			wantErrs: []string{`Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
+			wantErrs: []string{`Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`},
 		},
 		{
 			name:     "patch_deadline on a Windows Fleet-maintained app is rejected",
@@ -6588,6 +6592,111 @@ policies:
 			wantCA:       new(false),
 			wantDeadline: new(false),
 		},
+		{
+			name:     "force_patch on a patch policy applies and leaves continuous_automations off",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    force_patch: true
+`,
+			wantCA:         new(false),
+			wantForcePatch: new(true),
+		},
+		{
+			name:     "install_software true alone on a patch policy force patches and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+`,
+			wantCA:         new(false),
+			wantForcePatch: new(true),
+			wantLog:        `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`,
+		},
+		{
+			name:     "install_software object alone on a patch policy force patches and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software:
+      fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantForcePatch: new(true),
+			wantLog:        `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`,
+		},
+		{
+			name:     "install_software true with patch_when_closed patches when closed and the warning names patch_when_closed",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+    patch_when_closed: true
+`,
+			wantCA:         new(true),
+			wantForcePatch: new(false),
+			wantLog:        `[!] The "policies.install_software" key is deprecated. Use "policies.patch_when_closed" instead.`,
+		},
+		{
+			name:     "install_software true together with force_patch is rejected and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: true
+    force_patch: true
+`,
+			wantErrs: []string{`Couldn't apply policy "Chrome up to date": If "force_patch" is true, "install_software" can't be set.`},
+			wantLog:  `[!] The "policies.install_software" key is deprecated. Use "policies.force_patch" instead.`,
+		},
+		{
+			name:     "install_software false together with notify_before_patching is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: false
+    notify_before_patching: true
+`,
+			wantErrs:     []string{`Couldn't apply policy "Chrome up to date": If "notify_before_patching" is true, "install_software" can't be set to false.`},
+			unwantedErrs: []string{"fleet-5-upgrade"},
+		},
+		{
+			name:     "install_software false alone on a patch policy applies as report only and logs the deprecation warning",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    install_software: false
+`,
+			wantCA:         new(false),
+			wantForcePatch: new(false),
+			wantLog:        "[!] The \"policies.install_software\" key is deprecated.\n",
+		},
 	}
 
 	for _, tc := range tests {
@@ -6595,7 +6704,14 @@ policies:
 			t.Parallel()
 			config := getTeamConfig([]string{"policies"}) + tc.software + tc.policies
 			path, basePath := createTempFile(t, "", config)
-			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			var logs strings.Builder
+			logFn := func(format string, a ...any) {
+				logs.WriteString(fmt.Sprintf(format, a...))
+			}
+			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn)
+			if tc.wantLog != "" {
+				assert.Contains(t, logs.String(), tc.wantLog)
+			}
 			if len(tc.wantErrs) > 0 {
 				for _, want := range tc.wantErrs {
 					require.ErrorContains(t, err, want)
@@ -6612,6 +6728,9 @@ policies:
 			}
 			if tc.wantDeadline != nil {
 				assert.Equal(t, *tc.wantDeadline, g.Policies[0].PatchDeadline)
+			}
+			if tc.wantForcePatch != nil {
+				assert.Equal(t, *tc.wantForcePatch, g.Policies[0].ForcePatch)
 			}
 		})
 	}

@@ -40,7 +40,7 @@ CACHE_MAX_AGE = 7 * 24 * 3600
 TOP_LEVEL_KEYS = {"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports",
                   "software", "labels", "custom_host_vitals"}
 DEPRECATED_TOP_LEVEL = {"queries": "reports"}
-MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-migration"
+MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-upgrade"
 # Keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
 REMOVED_KEYS = [
     "team_settings",
@@ -67,6 +67,7 @@ LABEL_RULES = {
 # A policy can turn on one of these. Keep in sync with checkPolicyAutomationKeys in pkg/spec.
 AUTOMATION_KEYS = ("install_software", "run_script", "resend_configuration_profile", "calendar_events_enabled",
                    "conditional_access_enabled", "webhooks_and_tickets_enabled")
+PATCH_OPTIONS = ("force_patch", "patch_when_closed", "notify_before_patching", "patch_deadline")
 PATH_KEYS = {"path", "package_path", "apple_setup_assistant", "end_user_license_agreement", "activation"}
 GLOB_CHARS = set("*?[{")
 SCRIPT_EXTS = {".sh", ".ps1", ".py"}
@@ -829,7 +830,7 @@ def check_software(ctx, fs, software):
                 if data is None:
                     continue
                 if isinstance(data, dict):
-                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration")
+                    ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade")
                     continue
                 pkgs = data if isinstance(data, list) else [data]
                 for pkg in pkgs:
@@ -926,6 +927,19 @@ def check_bool(ctx, src, item, key, what):
         ctx.fail(src, f"{what}: '{key}' must be true or false")
 
 
+# fleetctl gitops replaces $VAR and ${VAR} in YAML values before parsing.
+def is_env_var_placeholder(value):
+    return isinstance(value, str) and re.fullmatch(r"\$\{?[A-Z][A-Z0-9_]*\}?", value) is not None
+
+
+def check_bool_null_or_placeholder(ctx, src, item, key, what):
+    value = item.get(key)
+    # fleetctl gitops reads null as unset.
+    if value is None or isinstance(value, bool) or is_env_var_placeholder(value):
+        return
+    ctx.fail(src, f"{what}: '{key}' must be true or false")
+
+
 def check_categories(ctx, src, item, what):
     c = item.get("categories")
     if c is not None and (not isinstance(c, list) or not all(isinstance(x, str) for x in c)):
@@ -1003,8 +1017,11 @@ def check_policies(ctx, fs, policies):
         check_bool(ctx, isrc, item, "critical", what)
         check_label_keys(ctx, isrc, item, what, fs.name, "policy")
         is_patch = item.get("type") == "patch"
-        if "type" in item and not is_patch:
-            ctx.fail(isrc, f"{what}: 'type' must be 'patch' or omitted")
+        if "type" in item and item.get("type") not in ("patch", "dynamic"):
+            ctx.fail(isrc, f"{what}: 'type' must be 'patch', 'dynamic', or omitted")
+        for k in PATCH_OPTIONS:
+            check_bool_null_or_placeholder(ctx, isrc, item, k, what)
+        options = [k for k in PATCH_OPTIONS if item.get(k) is True]
         if is_patch:
             slug = item.get("fleet_maintained_app_slug")
             if not isinstance(slug, str):
@@ -1013,11 +1030,24 @@ def check_policies(ctx, fs, policies):
                 ctx.fail(isrc, f"{what}: {slug} isn't in this fleet's software.fleet_maintained_apps")
             if item.get("query"):
                 ctx.warn(isrc, f"{what}: patch policies generate their own query; 'query' is ignored")
-            if (item.get("patch_when_closed") or item.get("notify_before_patching")) and item.get("install_software") is not True:
-                ctx.fail(isrc, f"{what}: patch_when_closed / notify_before_patching need 'install_software: true', otherwise nothing is ever installed")
-            if item.get("notify_before_patching") and slug and not str(slug).endswith("/darwin"):
+            if len(options) > 1:
+                ctx.fail(isrc, f"{what}: only one of force_patch, patch_when_closed, notify_before_patching, or patch_deadline can be set to true")
+            inst = item.get("install_software")
+            if inst is False:
+                if len(options) == 1:
+                    ctx.fail(isrc, f"{what}: if {options[0]} is true, install_software can't be set to false")
+                ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies")
+            elif inst is not None:
+                if "force_patch" in options:
+                    ctx.fail(isrc, f"{what}: if force_patch is true, install_software can't be set")
+                ctx.warn(isrc, f"{what}: 'install_software' is deprecated on patch policies; use '{options[0] if options else 'force_patch'}' instead")
+            if item.get("notify_before_patching") is True and slug and not str(slug).endswith("/darwin"):
                 ctx.fail(isrc, f"{what}: notify_before_patching is macOS-only")
+            if item.get("patch_deadline") is True and slug and not str(slug).endswith("/darwin"):
+                ctx.fail(isrc, f"{what}: patch_deadline is macOS-only")
         else:
+            if options:
+                ctx.fail(isrc, f"{what}: {options[0]} is only supported for patch policies ('type: patch')")
             platforms = check_platform(ctx, isrc, item, what, POLICY_PLATFORMS, required=True)
             if "query" not in item:
                 ctx.fail(isrc, f"{what}: needs a 'query'")

@@ -556,7 +556,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusBadRequest, &countResp, "software_title_id", fmt.Sprint(fooTitleID), "software_version_id", fmt.Sprint(fooV1ID))
 
 	removedSoftwareIDMessage := `The "software_id" parameter is not available anymore. ` +
-		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	allHostsLabelIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	labelHostsPath := fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabelIDs["All Hosts"])
@@ -583,7 +583,9 @@ func (s *integrationTestSuite) TestListHosts() {
 	defer s.cleanupQuery(q.ID)
 	globalPolicy0, err := s.ds.NewGlobalPolicy(
 		context.Background(), &user1.ID, fleet.PolicyPayload{
-			QueryID: &q.ID,
+			Name:        q.Name,
+			Query:       q.Query,
+			Description: q.Description,
 		},
 	)
 	require.NoError(t, err)
@@ -1577,8 +1579,6 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 		{name: "serial", identifier: target.HardwareSerial, wantHostID: target.ID},
 		{name: "uuid", identifier: target.UUID, wantHostID: target.ID},
 		{name: "hostname", identifier: target.Hostname, wantHostID: target.ID},
-		{name: "osquery host id", identifier: *target.OsqueryHostID, wantHostID: target.ID},
-		{name: "node key", identifier: *target.NodeKey, wantHostID: target.ID},
 		{name: "numeric hostname that is not an id", identifier: unusedHostID, wantHostID: numericHostname.ID},
 		{name: "id with leading zeros", identifier: fmt.Sprintf("000%d", target.ID), wantHostID: target.ID},
 		{name: "serial with leading zeros that is not an id", identifier: leadingZerosSerial, wantHostID: leadingZeros.ID},
@@ -1592,11 +1592,125 @@ func (s *integrationTestSuite) TestGetHostByIDOrIdentifier() {
 	}
 
 	t.Run("not found", func(t *testing.T) {
+		s.Do("GET", "/api/latest/fleet/hosts/"+*target.OsqueryHostID, nil, http.StatusNotFound)
+		s.Do("GET", "/api/latest/fleet/hosts/"+*target.NodeKey, nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/no-such-host", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/4294967294", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/%20", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/%E2%80%8B", nil, http.StatusNotFound)
 		s.Do("GET", "/api/latest/fleet/hosts/99999999999999999999", nil, http.StatusNotFound)
+	})
+}
+
+func (s *integrationTestSuite) TestHostEndpointsAcceptIdentifiers() {
+	t := s.T()
+	ctx := t.Context()
+
+	newHost := func(name string, mutate func(*fleet.Host)) *fleet.Host {
+		host := &fleet.Host{
+			Hostname:        "endpoint-identifier-hostname-" + name,
+			OsqueryHostID:   new("endpoint-identifier-osquery-" + name),
+			NodeKey:         new("endpoint-identifier-nodekey-" + name),
+			UUID:            "endpoint-identifier-uuid-" + name,
+			Platform:        "darwin",
+			HardwareSerial:  "endpoint-identifier-serial-" + name,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			// Offline, so a live report returns right away instead of waiting for the host.
+			SeenTime: time.Now().Add(-time.Hour),
+		}
+		if mutate != nil {
+			mutate(host)
+		}
+		created, err := s.ds.NewHost(ctx, host)
+		require.NoError(t, err)
+		return created
+	}
+	target := newHost("target", nil)
+
+	admin := s.users[TestAdminUserEmail]
+	report, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:     t.Name(),
+		Query:    "SELECT 1",
+		AuthorID: &admin.ID,
+		Saved:    true,
+		Logging:  fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+
+	// Error responses carry a random uuid, so compare everything else.
+	responseFor := func(t *testing.T, path string, wantStatus int) map[string]any {
+		var body map[string]any
+		s.DoJSON("GET", path, nil, wantStatus, &body)
+		delete(body, "uuid")
+		return body
+	}
+
+	endpoints := []struct {
+		path string
+		// wantStatus is not 200 for the endpoints that need something this host doesn't have (MDM, a premium license); they must still
+		// resolve the host the same way.
+		wantStatus int
+		// unknownHostStatus overrides the 404 for an endpoint whose middleware answers before it looks up the host.
+		unknownHostStatus int
+	}{
+		{path: "/api/latest/fleet/hosts/%s/health", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/mdm", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/macadmins", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/software", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/encryption_key", wantStatus: http.StatusBadRequest},
+		{path: "/api/latest/fleet/hosts/%s/recovery_lock_password", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/certificates", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/configuration_profiles", wantStatus: http.StatusBadRequest, unknownHostStatus: http.StatusBadRequest},
+		{path: "/api/latest/fleet/hosts/%s/activities", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/activities/upcoming", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/managed_account_password", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/reports", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/reports/" + fmt.Sprint(report.ID), wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/scripts", wantStatus: http.StatusOK},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions/1", wantStatus: http.StatusPaymentRequired},
+		{path: "/api/latest/fleet/hosts/%s/ai_sessions/1/events", wantStatus: http.StatusPaymentRequired},
+	}
+	identifiers := map[string]string{"serial": target.HardwareSerial, "uuid": target.UUID, "hostname": target.Hostname}
+	for _, endpoint := range endpoints {
+		t.Run(endpoint.path, func(t *testing.T) {
+			byID := responseFor(t, fmt.Sprintf(endpoint.path, fmt.Sprint(target.ID)), endpoint.wantStatus)
+			for name, identifier := range identifiers {
+				require.Equal(t, byID, responseFor(t, fmt.Sprintf(endpoint.path, identifier), endpoint.wantStatus), name)
+			}
+			unknownHostStatus := http.StatusNotFound
+			if endpoint.unknownHostStatus != 0 {
+				unknownHostStatus = endpoint.unknownHostStatus
+			}
+			s.Do("GET", fmt.Sprintf(endpoint.path, "no-such-host"), nil, unknownHostStatus)
+		})
+	}
+
+	t.Run("live report", func(t *testing.T) {
+		for _, identifier := range []string{fmt.Sprint(target.ID), target.HardwareSerial, target.UUID, target.Hostname} {
+			var resp runLiveQueryOnHostResponse
+			s.DoJSON("POST", "/api/latest/fleet/hosts/"+identifier+"/query", runLiveQueryOnHostRequest{Query: "SELECT 1"}, http.StatusOK, &resp)
+			require.Equal(t, target.ID, resp.HostID, identifier)
+			require.Equal(t, fleet.StatusOffline, resp.Status, identifier)
+		}
+		s.Do("POST", "/api/latest/fleet/hosts/no-such-host/query", runLiveQueryOnHostRequest{Query: "SELECT 1"}, http.StatusBadRequest)
+	})
+
+	t.Run("newest host wins on a shared serial", func(t *testing.T) {
+		const sharedSerial = "endpoint-identifier-shared-serial"
+		newHost("stale-duplicate", func(h *fleet.Host) { h.HardwareSerial = sharedSerial })
+		newest := newHost("newest-duplicate", func(h *fleet.Host) { h.HardwareSerial = sharedSerial })
+
+		var hostResp getHostResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/"+sharedSerial, nil, http.StatusOK, &hostResp)
+		require.Equal(t, newest.ID, hostResp.Host.ID)
+	})
+
+	t.Run("device url only takes a host ID", func(t *testing.T) {
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", target.ID), nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts/"+target.HardwareSerial+"/device_url", nil, http.StatusNotFound)
 	})
 }
 
@@ -2428,6 +2542,7 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
 }
+
 func (s *integrationTestSuite) TestAndroidHostRefetchNotSupported() {
 	t := s.T()
 
