@@ -15,7 +15,7 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 	encrypted, err := Encrypt(plaintext, testKey)
 	require.NoError(t, err)
 	assert.NotEqual(t, plaintext, encrypted, "encrypted should differ from plaintext")
-	assert.Equal(t, byte(encryptionVersion), encrypted[0], "first byte should be the version prefix")
+	assert.Equal(t, encryptionVersion, encrypted[0], "first byte should be the version prefix")
 
 	decrypted, err := Decrypt(encrypted, testKey)
 	require.NoError(t, err)

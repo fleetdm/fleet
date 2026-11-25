@@ -71,7 +71,7 @@ func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.
 	// Lazy backfill: if the value was legacy cleartext, encrypt and save it
 	// so existing customers get their secrets encrypted on first read after upgrade.
 	if len(row.ProxyServerSecret) > 0 && row.ProxyServerSecret[0] != 0x01 && ds.serverPrivateKey != "" {
-		if encrypted, err := fleetcrypto.Encrypt([]byte(secret), ds.serverPrivateKey); err == nil {
+		if encrypted, err := fleetcrypto.Encrypt(secret, ds.serverPrivateKey); err == nil {
 			_, _ = ds.writer(ctx).ExecContext(ctx,
 				`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
 				encrypted, row.TenantID,
