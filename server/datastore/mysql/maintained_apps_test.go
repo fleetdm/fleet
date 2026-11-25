@@ -2220,6 +2220,19 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 	// The rows' rules can differ when the catalog rule changed; the newest one wins.
 	require.Equal(t, newRule, names[0].PatchQuery)
 
+	// A catalog refresh rewrites a row's rule in place, leaving its upload time alone.
+	// The refreshed rule wins even though the row was uploaded first.
+	const refreshedRule = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola Inc' AND version_compare(version, '1.0.0') < 0);"
+	var noTeamInstallerID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &noTeamInstallerID, `SELECT id FROM software_installers WHERE global_or_team_id = 0`)
+	})
+	require.NoError(t, ds.UpdateInstallerScriptsAndQueries(ctx, noTeamInstallerID, "1.0.0", "echo install", "echo uninstall", refreshedRule, ""))
+	names, err = ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	require.Equal(t, refreshedRule, names[0].PatchQuery)
+
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
 	})

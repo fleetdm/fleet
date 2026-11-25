@@ -824,7 +824,8 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 	// checks it and would otherwise return nothing for every row.
 	//
 	// The installer rows (per team, per cached version) carry the same rule unless the
-	// catalog changed it, so the newest active row's is the current one.
+	// catalog changed it, so the most recently written active row's is the current one.
+	// Not uploaded_at: a catalog refresh rewrites patch_query in place without moving it.
 	query := `
 		SELECT fma.name, fma.unique_identifier, fma.platform,
 			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name,
@@ -832,7 +833,7 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 				SELECT latest.patch_query
 				FROM software_installers latest
 				WHERE latest.fleet_maintained_app_id = fma.id AND latest.is_active = 1
-				ORDER BY latest.uploaded_at DESC, latest.id DESC
+				ORDER BY latest.updated_at DESC, latest.id DESC
 				LIMIT 1
 			), '') AS patch_query
 		FROM fleet_maintained_apps fma
