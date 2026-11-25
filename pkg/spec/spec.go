@@ -384,6 +384,14 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 		}
 	}
 
+	// The escaping hint uses the form the source used, $var or ${var}.
+	literalRef := func(env string, startPos int) string {
+		if startPos+1 < len(s) && s[startPos+1] == '{' {
+			return "${" + env + "}"
+		}
+		return "$" + env
+	}
+
 	var err *multierror.Error
 	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		switch {
@@ -391,6 +399,8 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			return "$" + strings.TrimPrefix(env, preventEscapingPrefix), true
 		case strings.HasPrefix(strings.ToUpper(env), fleet.ServerVarPrefix):
 			// Don't expand fleet vars -- they will be expanded on the server
+			return "", false
+		case fleet.IsBarePrefix(s, env, fleet.ServerSecretPrefix, endPos):
 			return "", false
 		case strings.HasPrefix(env, fleet.ServerSecretPrefix):
 			switch secretMode {
@@ -415,8 +425,9 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 						return "", false
 					}
 				}
-				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
-					fleet.ServerSecretPrefix, env))
+				ref := literalRef(env, startPos)
+				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q; if you intended the literal string %s then please escape it as \\%s.",
+					fleet.ServerSecretPrefix, env, ref, ref))
 				return "", false
 			default:
 				// Leave as-is for server to handle
@@ -434,11 +445,7 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 		v, ok := lookupEnv(env)
 		if !ok {
-			// If the source used ${var} braced syntax, the hint should reflect that.
-			ref := "$" + env
-			if startPos+1 < len(s) && s[startPos+1] == '{' {
-				ref = "${" + env + "}"
-			}
+			ref := literalRef(env, startPos)
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set; if you intended the literal string %s then please escape it as \\%s.",
 				env, ref, ref))
 			return "", false
@@ -496,7 +503,7 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
-		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
+		if strings.HasPrefix(env, fleet.ServerSecretPrefix) && !fleet.IsBarePrefix(s, env, fleet.ServerSecretPrefix, endPos) {
 			// lookup the secret and save it, but don't replace
 			v, ok := lookupEnv(env)
 			if !ok {

@@ -130,6 +130,7 @@ $FLEET_VAR_XX $HOSTNAME ${SOMETHING_ELSE}
 	validSecret := `
 This document contains a valid ${FLEET_SECRET_VALID}.
 Another $FLEET_SECRET_ALSO_VALID.
+Set $FLEET_SECRET_ in CI.
 `
 
 	invalidSecret := `
@@ -167,6 +168,10 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets, validSecret, invalidSecret})
 	require.ErrorContains(t, err, "$FLEET_SECRET_INVALID")
 	require.ErrorContains(t, err, "$FLEET_SECRET_ALSO_INVALID")
+
+	// Not a bare prefix: a variable follows it.
+	err = ds.ValidateEmbeddedSecrets(ctx, []string{"$FLEET_SECRET_$X"})
+	require.ErrorContains(t, err, `"$FLEET_SECRET_" missing`)
 }
 
 func testExpandEmbeddedSecrets(t *testing.T, ds *Datastore) {
@@ -178,10 +183,12 @@ $FLEET_VAR_XX $HOSTNAME ${SOMETHING_ELSE}
 	validSecret := `
 This document contains a valid ${FLEET_SECRET_VALID}.
 Another $FLEET_SECRET_ALSO_VALID.
+Set $FLEET_SECRET_ in CI.
 `
 	validSecretExpanded := `
 This document contains a valid testValue1.
 Another testValue2.
+Set $FLEET_SECRET_ in CI.
 `
 
 	invalidSecret := `

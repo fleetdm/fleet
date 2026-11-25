@@ -2113,6 +2113,7 @@ func (s *integrationMDMTestSuite) TestAppleDeclarationIdentifierCantHoldSecretVa
 func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 	// A string setting: schema validation checks the expanded secret value.
 	tmpl := `
+<!-- Set $FLEET_SECRET_ in CI. -->
 <Replace>
     <Item>
         <Meta>

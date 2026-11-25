@@ -206,6 +206,21 @@ func TestExpandEnv(t *testing.T) {
 			"<Add>test&amp;123</Add>",
 			nil,
 		},
+		{map[string]string{}, `# set $FLEET_SECRET_ in CI`, `# set $FLEET_SECRET_ in CI`, nil},
+		{map[string]string{}, `# uses \$FLEET_SECRET_A`, `# uses $FLEET_SECRET_A`, nil},
+		{
+			map[string]string{"FLEET_SECRET_A": "1"},
+			`# uses $FLEET_SECRET_A and ${FLEET_SECRET_B}`, ``,
+			checkMultiErrors(t,
+				`environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_A"; if you intended the literal string $FLEET_SECRET_A then please escape it as \$FLEET_SECRET_A.`,
+				`environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_B"; if you intended the literal string ${FLEET_SECRET_B} then please escape it as \${FLEET_SECRET_B}.`,
+			),
+		},
+		{
+			map[string]string{"foo": "1"},
+			`$FLEET_SECRET_$foo`, ``,
+			checkMultiErrors(t, `environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_"; if you intended the literal string $FLEET_SECRET_ then please escape it as \$FLEET_SECRET_.`),
+		},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
@@ -239,6 +254,18 @@ func TestLookupEnvSecrets(t *testing.T) {
 			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
 		},
 		{map[string]string{"FLEET_SECRET_foo": "test&123"}, `<Add>$FLEET_SECRET_foo</Add>`, map[string]string{"FLEET_SECRET_foo": "test&123"}, nil},
+		{
+			map[string]string{"FLEET_SECRET_foo": "1"},
+			"<!-- Set $FLEET_SECRET_ in CI. -->\n<Data>$FLEET_SECRET_foo</Data>",
+			map[string]string{"FLEET_SECRET_foo": "1"},
+			nil,
+		},
+		{
+			map[string]string{"foo": "1"},
+			`$FLEET_SECRET_$foo`,
+			map[string]string{},
+			checkMultiErrors(t, "environment variable \"FLEET_SECRET_\" not set"),
+		},
 	} {
 		// save the current env before clearing it.
 		testutils.SaveEnv(t)
@@ -267,7 +294,8 @@ func TestExpandEnvBytesIncludingSecrets(t *testing.T) {
 	input := []byte(`API Key: $FLEET_SECRET_API_KEY
 Normal: $NORMAL_VAR  
 Fleet Var: $FLEET_VAR_HOST
-Missing: $FLEET_SECRET_MISSING`)
+Missing: $FLEET_SECRET_MISSING
+Bare: $FLEET_SECRET_ in CI`)
 
 	result, err := ExpandEnvBytesIncludingSecrets(input)
 	require.NoError(t, err)
@@ -275,7 +303,8 @@ Missing: $FLEET_SECRET_MISSING`)
 	expected := `API Key: secret123
 Normal: normalvalue  
 Fleet Var: $FLEET_VAR_HOST
-Missing: $FLEET_SECRET_MISSING`
+Missing: $FLEET_SECRET_MISSING
+Bare: $FLEET_SECRET_ in CI`
 
 	assert.Equal(t, expected, string(result))
 
@@ -327,10 +356,10 @@ func TestExpandEnvJSONDocument(t *testing.T) {
 	t.Run("FLEET_SECRET_ left as placeholder when ignored", func(t *testing.T) {
 		os.Clearenv()
 		t.Setenv("FLEET_SECRET_PWD", `whatever`)
-		input := []byte(`{"pwd":"$FLEET_SECRET_PWD"}`)
+		input := []byte(`{"pwd":"$FLEET_SECRET_PWD","note":"set $FLEET_SECRET_ in CI"}`)
 		got, err := ExpandEnvBytesIgnoreSecrets(input)
 		require.NoError(t, err)
-		assert.JSONEq(t, `{"pwd":"$FLEET_SECRET_PWD"}`, string(got))
+		assert.JSONEq(t, `{"pwd":"$FLEET_SECRET_PWD","note":"set $FLEET_SECRET_ in CI"}`, string(got))
 	})
 
 	t.Run("FLEET_VAR_ left for server regardless of format", func(t *testing.T) {

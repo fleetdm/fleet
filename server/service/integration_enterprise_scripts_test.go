@@ -1078,6 +1078,14 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
 
+	// a bare $FLEET_SECRET_ in a comment names no secret
+	body, headers = generateNewScriptMultipartRequest(t,
+		"bare-prefix.sh", []byte("# Set $FLEET_SECRET_ in CI.\necho \"hello\""), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+	var barePrefixResp fleet.CreateScriptResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&barePrefixResp))
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", barePrefixResp.ScriptID), nil, http.StatusNoContent)
+
 	// file name is not a supported script type
 	body, headers = generateNewScriptMultipartRequest(t,
 		"not_sh.txt", []byte(`echo "hello"`), s.token, nil)
