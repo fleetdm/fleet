@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Row } from "react-table";
 
 import Button from "components/buttons/Button";
@@ -72,6 +72,8 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
     ? undefined
     : props.onManagePolicies;
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
     // Remove view all hosts link
@@ -93,11 +95,21 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
     [togglePolicyDetailsModal]
   );
 
+  const filteredPolicies = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return policies;
+    }
+    return policies.filter((policy) =>
+      policy.name.toLowerCase().includes(query)
+    );
+  }, [policies, searchQuery]);
+
   // Memoize the table data so its reference stays stable across re-renders
   // that don't change the policies.
   const tableData = useMemo(
-    () => generatePolicyDataSet(policies, !!conditionalAccessEnabled),
-    [policies, conditionalAccessEnabled]
+    () => generatePolicyDataSet(filteredPolicies, !!conditionalAccessEnabled),
+    [filteredPolicies, conditionalAccessEnabled]
   );
 
   const renderBanner = () => {
@@ -192,25 +204,35 @@ const Policies = (props: IPoliciesProps): JSX.Element => {
           isLoading={isLoading}
           defaultSortHeader="status"
           resultsTitle="policies"
-          emptyComponent={() => (
-            <EmptyState
-              header="No policies checked"
-              info={`Select Refetch to load the latest data from ${target}${manageClause}`}
-              primaryButton={
-                canManagePolicies ? (
-                  <Button onClick={onManagePolicies} type="button">
-                    Manage policies
-                  </Button>
-                ) : undefined
-              }
-            />
-          )}
+          emptyComponent={() =>
+            searchQuery ? (
+              <EmptyState header="No items match the current search criteria" />
+            ) : (
+              <EmptyState
+                header="No policies checked"
+                info={`Select Refetch to load the latest data from ${target}${manageClause}`}
+                primaryButton={
+                  canManagePolicies ? (
+                    <Button onClick={onManagePolicies} type="button">
+                      Manage policies
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )
+          }
           showMarkAllPages={false}
           isAllPagesSelected={false}
           renderCount={() => (
-            <TableCount name="policies" count={policies.length} />
+            <TableCount name="policies" count={filteredPolicies.length} />
           )}
           customControl={renderShowHiddenToggle}
+          inputPlaceHolder="Search by name"
+          // Matches Controls: My device doesn't get search.
+          searchable={!deviceUser}
+          searchQuery={searchQuery}
+          onQueryChange={(data) => setSearchQuery(data.searchQuery)}
+          isClientSideFilter
           disableMultiRowSelect // Removes hover/click state
           isClientSidePagination
           onClickRow={onClickRow}
