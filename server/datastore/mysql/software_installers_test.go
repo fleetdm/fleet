@@ -6870,6 +6870,51 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 			return ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/msi")
 		})
 	})
+
+	t.Run("replacing the package clears the ETag", func(t *testing.T) {
+		var row struct {
+			ID      uint   `db:"id"`
+			TitleID uint   `db:"title_id"`
+			URL     string `db:"url"`
+			ETag    string `db:"http_etag"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT id, title_id, url, http_etag FROM software_installers WHERE team_id = ? AND http_etag IS NOT NULL AND is_active = 1 LIMIT 1`, team1.ID)
+		})
+		url := row.URL
+		update := func(file *fleet.TempFileReader, storageID string) {
+			require.NoError(t, ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+				InstallerID:     row.ID,
+				TitleID:         row.TitleID,
+				TeamID:          &team1.ID,
+				UserID:          user.ID,
+				InstallerFile:   file,
+				StorageID:       storageID,
+				Filename:        "app.pkg",
+				Version:         "1.0",
+				InstallScript:   new(string),
+				PreInstallQuery: new(string),
+				SelfService:     new(false),
+				UninstallScript: new(string),
+			}))
+		}
+
+		// Editing metadata keeps the ETag.
+		update(nil, "hash1")
+		existing, err := ds.GetInstallerByTeamAndURL(ctx, &team1.ID, url)
+		require.NoError(t, err)
+		require.NotNil(t, existing.HTTPETag)
+		assert.Equal(t, row.ETag, *existing.HTTPETag)
+
+		// A new file keeps the URL but drops the ETag.
+		update(&fleet.TempFileReader{}, "replaced_hash")
+		existing, err = ds.GetInstallerByTeamAndURL(ctx, &team1.ID, url)
+		require.NoError(t, err)
+		require.NotNil(t, existing)
+		assert.Equal(t, "replaced_hash", existing.StorageID)
+		assert.Nil(t, existing.HTTPETag)
+	})
 }
 
 func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
