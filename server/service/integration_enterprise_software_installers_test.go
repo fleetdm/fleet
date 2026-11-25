@@ -3108,12 +3108,17 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 		return resp
 	}
 
-	// PATCH A by URL; a stray installer_id naming B is ignored.
+	// PATCH A by URL; a stray installer_id naming B is ignored. B starts unselected so a write to B shows.
+	patchPkg(pkgURL(titleID, installerB), team.ID, map[string][]string{"self_service": {"false"}}, http.StatusOK)
 	urlPatch := patchPkg(pkgURL(titleID, installerA), team.ID,
 		map[string][]string{"self_service": {"true"}, "installer_id": {fmt.Sprint(installerB)}}, http.StatusOK)
 	require.NotNil(t, urlPatch.SoftwareInstaller)
 	require.Equal(t, installerA, urlPatch.SoftwareInstaller.InstallerID)
 	require.True(t, urlPatch.SoftwareInstaller.SelfService)
+	title = getTitle()
+	require.Len(t, title.Packages, 2)
+	require.True(t, title.Packages[0].SelfService)
+	require.False(t, title.Packages[1].SelfService)
 	// A malformed installer_id is ignored on the new URL and rejected on the old one.
 	patchPkg(pkgURL(titleID, installerA), team.ID, map[string][]string{"installer_id": {"bad"}}, http.StatusOK)
 	patchPkg(fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), team.ID,
