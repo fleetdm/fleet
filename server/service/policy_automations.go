@@ -347,6 +347,25 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 		}
 	}
 
+	// Return an error when force_patch is turned off and the software automation has no other patch option to use.
+	if p.ForcePatch != nil && !*p.ForcePatch && !p.AutomationType.Set && policy.SoftwareInstallerID != nil {
+		patchWhenClosedAfter := policy.PatchWhenClosed
+		if p.PatchWhenClosed != nil {
+			patchWhenClosedAfter = *p.PatchWhenClosed
+		}
+		notifyBeforePatchingAfter := policy.NotifyBeforePatching
+		if p.NotifyBeforePatching != nil {
+			notifyBeforePatchingAfter = *p.NotifyBeforePatching
+		}
+		patchDeadlineAfter := policy.PatchDeadline
+		if p.PatchDeadline != nil {
+			patchDeadlineAfter = *p.PatchDeadline
+		}
+		if !patchWhenClosedAfter && !notifyBeforePatchingAfter && !patchDeadlineAfter {
+			return fleet.NewUserMessageError(errors.New(errForcePatchOffRequiresPatchOption), http.StatusUnprocessableEntity)
+		}
+	}
+
 	switch {
 	case patching && !titleSet:
 		p.SoftwareTitleID = optjson.Any[uint]{Set: true, Valid: true, Value: *policy.PatchSoftwareTitleID}
