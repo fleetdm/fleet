@@ -1887,3 +1887,187 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		}
 	})
 }
+
+// TestWindowsProfileDeletedWhileQueued checks that a profile deleted while its install is still queued for hosts that haven't
+// checked in (offline laptops, say) never reaches those hosts when they come back.
+func (s *integrationMDMTestSuite) TestWindowsProfileDeletedWhileQueued() {
+	t := s.T()
+	ctx := context.Background()
+
+	const (
+		locURI      = "./Device/Vendor/MSFT/Policy/Config/Test/DeletedWhileQueued"
+		otherLocURI = "./Device/Vendor/MSFT/Policy/Config/Test/OtherQueued"
+	)
+	newProfile := func(name, loc, data string) fleet.MDMProfileBatchPayload {
+		return fleet.MDMProfileBatchPayload{
+			Name:     name,
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: loc, Data: data}}),
+		}
+	}
+	setProfiles := func(profiles ...fleet.MDMProfileBatchPayload) {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: append([]fleet.MDMProfileBatchPayload{}, profiles...)},
+			http.StatusNoContent)
+	}
+
+	host1, device1 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host2, device2 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	hostProfileStatus := func(t *testing.T, host *fleet.Host, name string) fleet.MDMDeliveryStatus {
+		profs, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range profs {
+			if p.Name == name {
+				require.NotNil(t, p.Status)
+				return *p.Status
+			}
+		}
+		t.Fatalf("host %s has no row for profile %s", host.UUID, name)
+		return ""
+	}
+
+	// queueInstalls runs the profile cron without the devices checking in, so the installs are queued but not delivered. It checks
+	// that each named profile's install is queued for each host, and returns the profiles' UUIDs by name.
+	queueInstalls := func(t *testing.T, hosts []*fleet.Host, names ...string) map[string]string {
+		s.awaitTriggerProfileSchedule(t)
+		uuids := make(map[string]string, len(names))
+		for _, host := range hosts {
+			for _, name := range names {
+				var row struct {
+					ProfileUUID string `db:"profile_uuid"`
+					Queued      bool   `db:"queued"`
+				}
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					return sqlx.GetContext(ctx, q, &row, `
+						SELECT hmwp.profile_uuid, EXISTS (
+							SELECT 1 FROM windows_mdm_command_queue wmcq
+							JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+							WHERE mwe.host_uuid = hmwp.host_uuid AND wmcq.command_uuid = hmwp.command_uuid AND wmcq.acked_at IS NULL
+						) AS queued
+						FROM host_mdm_windows_profiles hmwp
+						WHERE hmwp.host_uuid = ? AND hmwp.profile_name = ? AND hmwp.operation_type = ? AND hmwp.status = ?`,
+						host.UUID, name, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+				})
+				require.True(t, row.Queued, "the install of %s should be queued for host %s", name, host.UUID)
+				uuids[name] = row.ProfileUUID
+			}
+		}
+		return uuids
+	}
+
+	hasPendingCommands := func(t *testing.T, host *fleet.Host) bool {
+		state, err := s.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
+		require.NoError(t, err)
+		return state.HasPendingCommands
+	}
+
+	// syncDevice runs the profile cron, then has the device check in and acknowledge everything it gets. It returns what the
+	// device was told to set and to delete, as "LocURI=value" and LocURI.
+	syncDevice := func(t *testing.T, device *mdmtest.TestWindowsMDMClient) (set, deleted []string) {
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			switch c.Verb {
+			case "Atomic":
+				for _, nested := range c.Cmd.ReplaceCommands {
+					set = append(set, nested.GetTargetURI()+"="+nested.GetTargetData())
+				}
+				for _, nested := range c.Cmd.AddCommands {
+					set = append(set, nested.GetTargetURI()+"="+nested.GetTargetData())
+				}
+			case "Replace", "Add":
+				set = append(set, c.Cmd.GetTargetURI()+"="+c.Cmd.GetTargetData())
+			case "Delete":
+				deleted = append(deleted, c.Cmd.GetTargetURI())
+			}
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  new(c.Cmd.CmdID.Value),
+				Cmd:     new(c.Verb),
+				Data:    new(syncml.CmdStatusOK),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = device.SendResponse()
+		require.NoError(t, err)
+		return set, deleted
+	}
+
+	cleanup := func() {
+		setProfiles()
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			for _, host := range []*fleet.Host{host1, host2} {
+				if _, err := q.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, host.UUID); err != nil {
+					return err
+				}
+				if _, err := q.ExecContext(ctx, `
+					DELETE wmcq FROM windows_mdm_command_queue wmcq
+					JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+					WHERE mwe.host_uuid = ?`, host.UUID); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+
+	t.Run("deleted from the profiles page", func(t *testing.T) {
+		t.Cleanup(cleanup)
+
+		// Both hosts are offline with two profiles queued. Only one of them is deleted.
+		setProfiles(newProfile("Queued", locURI, "1"), newProfile("Other", otherLocURI, "1"))
+		uuids := queueInstalls(t, []*fleet.Host{host1, host2}, "Queued", "Other")
+		s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+uuids["Queued"], nil, http.StatusOK)
+
+		for _, device := range []*mdmtest.TestWindowsMDMClient{device1, device2} {
+			set, deleted := syncDevice(t, device)
+			assert.Equal(t, []string{otherLocURI + "=1"}, set, "the device got the install of a profile deleted before it checked in")
+			assert.Equal(t, []string{locURI}, deleted)
+		}
+		for _, host := range []*fleet.Host{host1, host2} {
+			assert.Equal(t, fleet.MDMDeliveryVerified, hostProfileStatus(t, host, "Other"))
+		}
+
+		set, deleted := syncDevice(t, device1)
+		assert.Empty(t, set)
+		assert.Empty(t, deleted)
+	})
+
+	t.Run("removed by a batch set", func(t *testing.T) {
+		t.Cleanup(cleanup)
+
+		setProfiles(newProfile("Queued", locURI, "1"))
+		queueInstalls(t, []*fleet.Host{host1}, "Queued")
+		require.True(t, hasPendingCommands(t, host1))
+		setProfiles()
+		// Nothing is left for the host to fetch until the cron queues the <Delete>.
+		assert.False(t, hasPendingCommands(t, host1), "the host is still told it has commands to fetch")
+
+		set, deleted := syncDevice(t, device1)
+		assert.Empty(t, set, "the device got the install of a profile removed before it checked in")
+		assert.Equal(t, []string{locURI}, deleted)
+	})
+
+	t.Run("deleted while another profile sets the same setting", func(t *testing.T) {
+		t.Cleanup(cleanup)
+
+		// "Kept" sets the value to 2 and is delivered.
+		setProfiles(newProfile("Kept", locURI, "2"))
+		set, _ := syncDevice(t, device1)
+		require.Equal(t, []string{locURI + "=2"}, set)
+
+		// "Queued" sets the same value to 1, but is removed before the device checks in. Fleet sends no <Delete> because
+		// "Kept" still sets that value.
+		setProfiles(newProfile("Kept", locURI, "2"), newProfile("Queued", locURI, "1"))
+		queueInstalls(t, []*fleet.Host{host1}, "Queued")
+		setProfiles(newProfile("Kept", locURI, "2"))
+
+		set, deleted := syncDevice(t, device1)
+		assert.Empty(t, set, "the device got the install of a profile removed before it checked in, overwriting another profile's value")
+		assert.Empty(t, deleted)
+		assert.Equal(t, fleet.MDMDeliveryVerified, hostProfileStatus(t, host1, "Kept"))
+	})
+}
