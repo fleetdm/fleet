@@ -1698,16 +1698,25 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		fmaNames = nil
 	}
 
-	// Windows has no bundle identifier, so a name-prefix match is the join key that
-	// collapses versioned program names onto the canonical FMA title. Read through a
+	// Windows has no bundle identifier, so versioned program names are collapsed onto
+	// the canonical FMA title by name prefix, or by the app's curated programs rule
+	// (name, publisher and version) where that is more specific. Read through a
 	// short-lived cache: this runs on every host software update that reports something
-	// new, which a fleet-wide rollout makes simultaneous across hosts.
-	winFMAMatcher, winFMAErr := ds.getWindowsFMAMatcherCached(ctx)
-	if winFMAErr != nil {
-		if ds.logger != nil {
-			ds.logger.WarnContext(ctx, "failed to get Windows FMA matches", "err", winFMAErr)
+	// new, which a fleet-wide rollout makes simultaneous across hosts. Fetched on first
+	// use: only a new Windows program without an upgrade code needs it.
+	var winFMAMatcher *windowsFMAMatcher
+	windowsMatcher := func() *windowsFMAMatcher {
+		if winFMAMatcher == nil {
+			m, err := ds.getWindowsFMAMatcherCached(ctx)
+			if err != nil {
+				if ds.logger != nil {
+					ds.logger.WarnContext(ctx, "failed to get Windows FMA matches", "err", err)
+				}
+				m = &windowsFMAMatcher{}
+			}
+			winFMAMatcher = m
 		}
-		winFMAMatcher = &windowsFMAMatcher{}
+		return winFMAMatcher
 	}
 
 	// Process in smaller batches to reduce lock time
@@ -1748,7 +1757,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					// reports one would create a second title under the canonical name with
 					// a different unique_identifier: a duplicate in the UI, and still not the
 					// title the installer owns. Those programs already match by upgrade code.
-					if match, ok := winFMAMatcher.match(sw.Name, sw.Vendor, sw.Version); ok {
+					if match, ok := windowsMatcher().match(sw.Name, sw.Vendor, sw.Version); ok {
 						newTitleName = match.titleName
 					}
 				}
