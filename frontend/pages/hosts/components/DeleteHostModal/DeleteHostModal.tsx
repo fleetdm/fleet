@@ -8,7 +8,7 @@ import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
-  isIPadOrIPhone,
+  isAppleMdmOnlyPlatform,
   isLinuxLike,
   isMacOS,
   isWindows,
@@ -139,7 +139,7 @@ const DeleteHostModal = ({
     if (!platform) {
       return null;
     }
-    if (isIPadOrIPhone(platform) || isAndroid(platform)) {
+    if (isAppleMdmOnlyPlatform(platform) || isAndroid(platform)) {
       const action = getMobileReEnrollAction(
         platform,
         !!isMdmEnrolledInFleet,
@@ -201,8 +201,8 @@ const DeleteHostModal = ({
             agent is uninstalled. {learnMoreLink}
           </li>
           <li>
-            iOS, iPadOS, and personal Android hosts will re-enroll unless you
-            unenroll them first. Company-owned Android hosts will re-enroll
+            iOS, iPadOS, tvOS, and personal Android hosts will re-enroll unless
+            you unenroll them first. Company-owned Android hosts will re-enroll
             unless you wipe them first.
           </li>
         </ul>

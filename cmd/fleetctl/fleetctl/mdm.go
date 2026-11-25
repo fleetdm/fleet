@@ -40,7 +40,7 @@ func mdmRunCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "run-command",
 		Aliases: []string{"run_command"},
-		Usage:   "Run a custom MDM command on Apple (macOS, iOS, iPadOS), Windows, and Android hosts.",
+		Usage:   "Run a custom MDM command on Apple (macOS, iOS, iPadOS, tvOS), Windows, and Android hosts.",
 		Flags: []cli.Flag{
 			contextFlag(),
 			debugFlag(),

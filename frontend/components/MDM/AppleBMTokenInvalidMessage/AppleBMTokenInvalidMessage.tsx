@@ -26,9 +26,9 @@ const AppleBMTokenInvalidMessage = ({
   return (
     <InfoBanner className={baseClass} color="yellow">
       Your Apple Business (AB) {isPlural ? "tokens" : "token"} for{" "}
-      {orgNameList(orgNames)} {isPlural ? "are" : "is"} invalid. macOS, iOS, and
-      iPadOS hosts won’t automatically enroll into Fleet. Users with the admin
-      role in Fleet can renew the {isPlural ? "tokens" : "token"}.
+      {orgNameList(orgNames)} {isPlural ? "are" : "is"} invalid. macOS, iOS,
+      iPadOS, and tvOS hosts won’t automatically enroll into Fleet. Users with
+      the admin role in Fleet can renew the {isPlural ? "tokens" : "token"}.
     </InfoBanner>
   );
 };
