@@ -260,7 +260,7 @@ Fleet deployed the WebSocket migration across its entire managed cloud fleet in 
 | Round 3 | October 15 | 12 | Large | Zero |
 | **Total** | **2 weeks** | **170+** | **All sizes** | **Zero** |
 
-The incremental rollout strategy (smallest instances first, largest last) meant that any issues would surface on lower-impact instances before reaching the largest customer deployments. The automatic fallback to polling provided an additional safety net. In practice, neither was needed: the deployment was uneventful across all 170+ instances.
+The incremental rollout strategy (smallest instances first, largest last) meant that any issues would surface on lower-impact instances before reaching the largest customer deployments. The automatic fallback to polling provided an additional safety net. In practice, neither was needed: the deployment was uneventful across all 170+ instances. As of this writing, the migration has been running in production for over two months with zero customer-reported issues.
 
 ### Projected savings
 
@@ -273,6 +273,14 @@ The incremental rollout strategy (smallest instances first, largest last) meant 
 `[TO BE FILLED: Actual measured savings after full rollout]`
 
 `[TO BE FILLED: Before/after comparison of dogfood instance costs]`
+
+### Lessons from production
+
+After full deployment, Fleet discovered that hosts started by automation (servers provisioned at the same time) synchronized their ETag cache expiry. When thousands of cache entries expired in the same second, the resulting burst overwhelmed Redis connection pools - a classic thundering herd.
+
+The fix was straightforward: add random jitter to the cache TTL (a base duration plus a random offset), so expirations spread across a window instead of clustering at a single point. The fix shipped within two weeks of detection.
+
+This is exactly the kind of issue that only surfaces at scale in production, not in load testing, because load test hosts do not share the same enrollment timestamp. It reinforced that the automatic polling fallback was the right design choice: during the Redis burst, affected hosts fell back to polling transparently and recovered without intervention.
 
 ### Internal (dogfood) baseline
 
@@ -294,6 +302,8 @@ Three properties made this possible:
 1. **Open-source transparency**: Customers and the community can inspect the implementation, verify the security model, and contribute improvements. There is no black box.
 2. **Graceful degradation**: The automatic fallback to polling meant the migration was zero-risk for every customer. The worst case was always "it works exactly like before."
 3. **Incremental deployment**: Rolling out to 170+ instances in size order, over two weeks, with continuous monitoring, turned a potentially high-risk infrastructure change into a routine deployment.
+
+WebSocket transport ships as the default in Fleet's next major release and has been running in production across all managed cloud instances for over two months.
 
 This is phase 1. Configuration-level ETag coverage and the rollout of osquery 5.24 will multiply the savings further as every enrolled device benefits from both optimizations simultaneously.
 
