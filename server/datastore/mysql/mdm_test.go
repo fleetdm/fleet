@@ -455,7 +455,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		},
 	)
 	require.Error(t, err)
-	require.ErrorContains(t, err, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
+	require.ErrorContains(t, err, `"command_status" filter is only available for macOS, iOS, iPadOS, tvOS, and Android hosts`)
 	require.Nil(t, cmds)
 	require.Nil(t, total)
 
@@ -4509,6 +4509,26 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	requireConnected(t, byodIpadH, true)
+
+	// An Apple TV enrolls over MDM like any other Apple device. Leaving tvos out
+	// of the platform switch makes every MDM-gated action (wipe, install, MDM
+	// commands) report the host as not enrolled.
+	tvOSH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "tvos-test",
+		OsqueryHostID: new("osquery-tvos"),
+		NodeKey:       new("node-key-tvos"),
+		UUID:          uuid.NewString(),
+		Platform:      "tvos",
+	})
+	require.NoError(t, err)
+
+	requireConnected(t, tvOSH, false)
+
+	nanoEnroll(t, ds, tvOSH, false)
+	err = ds.SetOrUpdateMDMData(ctx, tvOSH.ID, false, true, "http://foo.com", false, "foo", "", fleet.PersonalEnrollmentTypeNone)
+	require.NoError(t, err)
+
+	requireConnected(t, tvOSH, true)
 
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "windows-test",

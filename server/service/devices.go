@@ -229,9 +229,9 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
-	// Scrub sensitive data from the host response for iOS and iPadOS devices
+	// Scrub sensitive data from the host response for MDM-only Apple devices
 	if authzCtx, ok := authz.FromContext(ctx); ok && authzCtx.AuthnMethod() == authz.AuthnDeviceURL {
-		if host.Platform == "ios" || host.Platform == "ipados" {
+		if fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 			resp.HardwareSerial = ""
 			resp.UUID = ""
 			resp.PrimaryMac = ""

@@ -96,7 +96,7 @@ func TestResolveUserChannelDeliveries(t *testing.T) {
 			require.Empty(t, send)
 			require.Empty(t, toDelete)
 			require.Len(t, failed, 1)
-			require.Contains(t, failed[0].detail, "isn't available on iOS and iPadOS")
+			require.Contains(t, failed[0].detail, "isn't available on iOS, iPadOS, and tvOS")
 			require.Equal(t, fleet.MDMDeliveryFailed, *rows["h4"].Status)
 		}
 	})

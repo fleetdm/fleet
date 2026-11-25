@@ -803,6 +803,16 @@ type HostDEPAssignment struct {
 	ThrottledRetryAfter *time.Time `db:"throttled_retry_after" json:"throttled_retry_after"`
 	// HardwareSerial is omitted from JSON to avoid overpopulating old responses.
 	HardwareSerial string `db:"hardware_serial" json:"-"`
+	// DeviceFamily is the device_family Apple Business reported for the device, nil if Fleet hasn't recorded it.
+	DeviceFamily *string `db:"device_family" json:"-"`
+}
+
+// DEPDeviceFamilyAppleTV is the device_family Apple Business reports for Apple TVs.
+const DEPDeviceFamilyAppleTV = "AppleTV"
+
+// IsAppleTV reports whether Apple Business reported the device as an Apple TV.
+func (h *HostDEPAssignment) IsAppleTV() bool {
+	return h != nil && h.DeviceFamily != nil && *h.DeviceFamily == DEPDeviceFamilyAppleTV
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -1622,8 +1632,8 @@ func IsPrefixedIdentifier(modelIdentifier string, prefix string) (bool, string, 
 }
 
 // IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
-// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
-// devices like AppleTV will return an error.
+// belongs to one of the non-Mac Apple platforms Fleet manages (iPhone, iPod, iPad, AppleTV), it
+// returns false with no error; unrecognized identifiers return an error.
 func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
 	isMac, family, major, err := IsMacIdentifier(modelIdentifier)
 	if err != nil {
@@ -1682,6 +1692,19 @@ func IsA11ChipDevice(modelIdentifier string) (bool, error) {
 	}
 
 	return major >= threshold, nil
+}
+
+// appleTVAttestationMajorThreshold is the model identifier major version of the first Apple TV that supports hardware
+// attestation: AppleTV11,1 (Apple TV 4K, 2nd generation).
+const appleTVAttestationMajorThreshold = 11
+
+// IsAttestationCapableAppleTV reports whether the model identifier is an Apple TV that supports hardware attestation.
+func IsAttestationCapableAppleTV(modelIdentifier string) (bool, error) {
+	isAppleTV, _, major, err := IsPrefixedIdentifier(modelIdentifier, "AppleTV")
+	if err != nil {
+		return false, err
+	}
+	return isAppleTV && major >= appleTVAttestationMajorThreshold, nil
 }
 
 // MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account

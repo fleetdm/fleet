@@ -1200,7 +1200,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryFailed,
-				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts.",
+				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS, iPadOS, and tvOS hosts.",
 				Scope:             fleet.PayloadScopeUser,
 			},
 		}, copies)
@@ -1481,7 +1481,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryFailed,
-				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts.",
+				Detail:            "This setting couldn't be enforced because the user channel isn't available on iOS, iPadOS, and tvOS hosts.",
 				Scope:             fleet.PayloadScopeUser,
 			},
 		}, copies)

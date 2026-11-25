@@ -1,0 +1,5 @@
+- Added support for Apple TV (tvOS) hosts: automatic enrollment through Apple Business with a tvOS default fleet, configuration profiles and declarations (DDM), OS updates, App Store (VPP) apps including during setup experience, host name templates, wipe, and turning off MDM.
+- Apple TVs enroll without end user authentication, including in fleets that require it, because tvOS can't complete it during Setup Assistant.
+- "tvOS" is now a reserved label name. During the upgrade, an existing label named "tvOS" is renamed to "tvOS 2".
+- App Store apps listed in GitOps or a batch API request without a `platform` are now also added for tvOS when the app supports it, unless `self_service` is on.
+- Fixed assigning default fleets to an Apple Business token when the token's organization name contains accented characters in a different Unicode form than the request.

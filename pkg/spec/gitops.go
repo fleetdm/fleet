@@ -203,6 +203,7 @@ type GitOpsControls struct {
 	MacOSUpdates   any                     `json:"macos_updates"`
 	IOSUpdates     any                     `json:"ios_updates"`
 	IPadOSUpdates  any                     `json:"ipados_updates"`
+	TvOSUpdates    any                     `json:"tvos_updates"`
 	MacOSSettings  any                     `json:"apple_settings" removedkey:"macos_settings"`
 	MacOSSetup     *fleet.GitOpsMacOSSetup `json:"setup_experience" removedkey:"macos_setup"`
 	MacOSMigration any                     `json:"macos_migration"`
@@ -235,7 +236,7 @@ type GitOpsControls struct {
 
 func (c GitOpsControls) Set() bool {
 	return c.MacOSUpdates != nil || c.IOSUpdates != nil ||
-		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
+		c.IPadOSUpdates != nil || c.TvOSUpdates != nil || c.MacOSSettings != nil ||
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
@@ -1636,7 +1637,8 @@ func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
 	macOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.MacOSUpdates)
 	iOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IOSUpdates)
 	iPadOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IPadOSUpdates)
-	if macOSConfigured || iOSConfigured || iPadOSConfigured {
+	tvOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.TvOSUpdates)
+	if macOSConfigured || iOSConfigured || iPadOSConfigured || tvOSConfigured {
 		macOSSettings, _ := controls.MacOSSettings.(fleet.GitOpsMacOSSettings)
 		for _, profile := range macOSSettings.CustomSettings {
 			contains, err := profileFileContains(profile.Path, apple_mdm.DeclarationTypeSoftwareUpdate)

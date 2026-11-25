@@ -119,6 +119,16 @@ func TestHostStatusMobile(t *testing.T) {
 			want: StatusOffline,
 		},
 		{
+			name: "tvos online via a recent MDM check-in",
+			h:    Host{Platform: "tvos", LabelUpdatedAt: neverTS, LastMDMCheckedInAt: &recent},
+			want: StatusOnline,
+		},
+		{
+			name: "tvos ignores SeenTime",
+			h:    Host{Platform: "tvos", LabelUpdatedAt: neverTS, SeenTime: recent},
+			want: StatusOffline,
+		},
+		{
 			name: "ipados ignores SeenTime (host_seen_times is osquery-only, coalesced with created_at at load)",
 			h:    Host{Platform: "ipados", LabelUpdatedAt: neverTS, SeenTime: recent},
 			want: StatusOffline,
@@ -713,6 +723,36 @@ func TestHostMDMHostNameSettingJSON(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, string(b), `"host_name":{"status":"failed","detail":"boom"}`)
+}
+
+func TestApplePlatformPredicates(t *testing.T) {
+	for _, tc := range []struct {
+		platform      string
+		apple         bool
+		mobile        bool
+		appleTV       bool
+		mdmOnly       bool
+		supportsOsq   bool
+		fleetPlatform string
+	}{
+		{platform: "darwin", apple: true, supportsOsq: true, fleetPlatform: "darwin"},
+		{platform: "ios", apple: true, mobile: true, mdmOnly: true, fleetPlatform: "ios"},
+		{platform: "ipados", apple: true, mobile: true, mdmOnly: true, fleetPlatform: "ipados"},
+		{platform: "tvos", apple: true, appleTV: true, mdmOnly: true, fleetPlatform: "tvos"},
+		{platform: "android", supportsOsq: false, fleetPlatform: "android"},
+		{platform: "windows", supportsOsq: true, fleetPlatform: "windows"},
+		{platform: "ubuntu", supportsOsq: true, fleetPlatform: "linux"},
+		{platform: "watchos", supportsOsq: true},
+	} {
+		t.Run(tc.platform, func(t *testing.T) {
+			assert.Equal(t, tc.apple, IsApplePlatform(tc.platform), "IsApplePlatform")
+			assert.Equal(t, tc.mobile, IsAppleMobilePlatform(tc.platform), "IsAppleMobilePlatform")
+			assert.Equal(t, tc.appleTV, IsAppleTVPlatform(tc.platform), "IsAppleTVPlatform")
+			assert.Equal(t, tc.mdmOnly, IsAppleMDMOnlyPlatform(tc.platform), "IsAppleMDMOnlyPlatform")
+			assert.Equal(t, tc.supportsOsq, PlatformSupportsOsquery(tc.platform), "PlatformSupportsOsquery")
+			assert.Equal(t, tc.fleetPlatform, PlatformFromHost(tc.platform), "PlatformFromHost")
+		})
+	}
 }
 
 func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {

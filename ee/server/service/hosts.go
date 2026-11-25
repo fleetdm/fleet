@@ -126,6 +126,12 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			)
 		}
 
+	case "tvos":
+		// Apple TV has neither DeviceLock nor lost mode, so there is nothing to
+		// send. Reject explicitly rather than falling through to the generic
+		// "unsupported platform" error.
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fleet.CantLockTvOSHostsMessage))
+
 	case "android":
 		// Lock is supported for BYO and COBO. The Android Service.LockAndroidHost call enforces
 		// that the host is enrolled (svc.ds.AndroidHostLiteByHostUUID -> NotFound otherwise).
@@ -223,6 +229,10 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnl
 	case "darwin", "ios", "ipados":
 		// all good, no need to check if MDM enrolled, will validate later that it
 		// is currently locked.
+
+	case "tvos":
+		// Apple TVs are never lockable, so there is nothing to unlock.
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fleet.CantUnlockTvOSHostsMessage))
 
 	case "windows", "linux":
 		// on Windows and Linux, a script is used to unlock the host so scripts must
@@ -324,7 +334,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// uses scripts, not MDM.
 	var requireMDM bool
 	switch host.FleetPlatform() {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		if host.MDM.EnrollmentStatus != nil && fleet.IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
 			return &fleet.BadRequestError{
 				Message: fleet.CantWipePersonalHostsMessage,
@@ -663,7 +673,7 @@ func (svc *Service) enqueueWipeHostRequest(
 	}
 
 	switch wipeStatus.HostFleetPlatform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		wipeCommandUUID := uuid.NewString()
 		if err := svc.mdmAppleCommander.EraseDevice(ctx, host, wipeCommandUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for darwin")

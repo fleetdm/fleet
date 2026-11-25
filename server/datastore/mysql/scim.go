@@ -2440,7 +2440,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 	var androidAppTeamIDs []uint
 	var appleAppTeamIDs []uint
 	for _, app := range affectedApps {
-		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
+		if app.Platform.SupportsManagedAppConfiguration() {
 			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
 			continue
 		}

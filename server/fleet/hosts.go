@@ -1448,7 +1448,7 @@ func mustParseNeverTimestamp() time.Time {
 //
 // NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 func (h *Host) Status(now time.Time) HostStatus {
-	if IsMobilePlatform(h.Platform) {
+	if IsMobilePlatform(h.Platform) || IsAppleTVPlatform(h.Platform) {
 		return h.mobileStatus(now)
 	}
 
@@ -1531,7 +1531,7 @@ func (h *Host) SupportsOsquery() bool {
 
 // PlatformSupportsOsquery returns whether osquery is supported on this platform.
 func PlatformSupportsOsquery(platform string) bool {
-	return platform != "ios" && platform != "ipados" && platform != "android"
+	return platform != "ios" && platform != "ipados" && platform != "tvos" && platform != "android"
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
@@ -1617,7 +1617,7 @@ func IsLinux(hostPlatform string) bool {
 }
 
 func IsApplePlatform(hostPlatform string) bool {
-	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
+	return hostPlatform == "darwin" || IsAppleMDMOnlyPlatform(hostPlatform)
 }
 
 func IsMacOSPlatform(hostPlatform string) bool {
@@ -1627,6 +1627,17 @@ func IsMacOSPlatform(hostPlatform string) bool {
 // Return true if the platform is either iOS or iPadOS
 func IsAppleMobilePlatform(hostPlatform string) bool {
 	return hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
+func IsAppleTVPlatform(hostPlatform string) bool {
+	return hostPlatform == "tvos"
+}
+
+// IsAppleMDMOnlyPlatform reports whether Fleet manages the platform exclusively over MDM (no osquery/fleetd): iOS,
+// iPadOS or tvOS. IsAppleMobilePlatform stays narrow for what Apple TV lacks: passcodes, lost mode, location and
+// battery.
+func IsAppleMDMOnlyPlatform(hostPlatform string) bool {
+	return IsAppleMobilePlatform(hostPlatform) || IsAppleTVPlatform(hostPlatform)
 }
 
 func IsAndroidPlatform(hostPlatform string) bool {
@@ -1668,6 +1679,7 @@ func PlatformFromHost(hostPlatform string) string {
 		hostPlatform == "chrome",
 		hostPlatform == "ios",
 		hostPlatform == "ipados",
+		hostPlatform == "tvos",
 		hostPlatform == "android":
 		return hostPlatform
 	default:

@@ -27,6 +27,23 @@ const windowsFreshEnrollmentWindow = 5 * time.Minute
 // table to be aliased as `p`.
 const setupExperienceGatingPolicyClause = `p.type != '` + fleet.PolicyTypePatch + `'`
 
+// setupExperienceStoreOnlyPlatform reports whether a platform's setup-experience
+// software comes exclusively from an app store (VPP or Google Play). These
+// platforms have no uploaded-installer path.
+func setupExperienceStoreOnlyPlatform(platform string) bool {
+	switch platform {
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform), string(fleet.TVOSPlatform), string(fleet.AndroidPlatform):
+		return true
+	}
+	return false
+}
+
+// setupExperienceSupportsStoreApps reports whether a platform can have store
+// apps in its setup experience at all. macOS additionally supports installers.
+func setupExperienceSupportsStoreApps(platform string) bool {
+	return platform == string(fleet.MacOSPlatform) || setupExperienceStoreOnlyPlatform(platform)
+}
+
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
 	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, false)
 }
@@ -65,7 +82,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		hostPlatformLike = hostPlatform
 	}
 
-	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
+	if hostPlatformLike != "darwin" && !fleet.IsAppleMDMOnlyPlatform(hostPlatformLike) {
 		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
 		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
 		// Orbit version that didn't support setup experience to one that does.
@@ -198,8 +215,8 @@ WHERE host_uuid = ? AND %s`
 	var softwareUnionParts []string
 	var softwareArgs []any
 
-	includeSoftwareInstallers := fleetPlatform != "ios" && fleetPlatform != "ipados"
-	includeVPPApps := fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados"
+	includeSoftwareInstallers := !setupExperienceStoreOnlyPlatform(fleetPlatform)
+	includeVPPApps := fleetPlatform == "darwin" || fleet.IsAppleMDMOnlyPlatform(fleetPlatform)
 
 	if includeSoftwareInstallers {
 		installerSelect := `
@@ -454,7 +471,7 @@ WHERE global_or_team_id = ?`
 		}
 
 		// Set setup experience on Apple hosts only if they have something configured.
-		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
+		if fleetPlatform == "darwin" || fleet.IsAppleMDMOnlyPlatform(fleetPlatform) {
 			if totalInsertions > 0 {
 				if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
@@ -475,13 +492,14 @@ func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platf
 	case string(fleet.MacOSPlatform),
 		string(fleet.IOSPlatform),
 		string(fleet.IPadOSPlatform),
+		string(fleet.TVOSPlatform),
 		string(fleet.AndroidPlatform),
 		"windows",
 		"linux":
 		// ok, valid platform
 	default:
-		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
-			platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.AndroidPlatform)
+		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
+			platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform, fleet.AndroidPlatform)
 	}
 
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
@@ -524,7 +542,7 @@ WHERE
 	vat.global_or_team_id = ?
 AND
 	st.id IN (%s)
-AND va.platform IN ('darwin', 'ios', 'ipados', 'android')
+AND va.platform IN ('darwin', 'ios', 'ipados', 'tvos', 'android')
 `, titleIDQuestionMarks)
 
 	stmtSelectInHouseAppIDs := fmt.Sprintf(`
@@ -605,7 +623,7 @@ VALUES %s`
 		}
 
 		// Select requested software installers
-		if platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) && platform != string(fleet.AndroidPlatform) {
+		if !setupExperienceStoreOnlyPlatform(platform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
@@ -630,8 +648,7 @@ VALUES %s`
 		}
 
 		// Select requested VPP apps
-		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) ||
-			platform == string(fleet.AndroidPlatform) {
+		if setupExperienceSupportsStoreApps(platform) {
 			if len(titleIDs) > 0 {
 				if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
 					return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
@@ -694,8 +711,7 @@ VALUES %s`
 		}
 
 		// Unset all vpp apps
-		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) ||
-			platform == string(fleet.IPadOSPlatform) || platform == string(fleet.AndroidPlatform) {
+		if setupExperienceSupportsStoreApps(platform) {
 			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, platform, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 			}
@@ -719,8 +735,7 @@ VALUES %s`
 			}
 		}
 
-		if (platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) ||
-			platform == string(fleet.IPadOSPlatform) || platform == string(fleet.AndroidPlatform)) && len(vppAppTeamIDs) > 0 {
+		if setupExperienceSupportsStoreApps(platform) && len(vppAppTeamIDs) > 0 {
 			stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
 			if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting vpp app teams")
@@ -815,13 +830,14 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 		case string(fleet.MacOSPlatform),
 			string(fleet.IOSPlatform),
 			string(fleet.IPadOSPlatform),
+			string(fleet.TVOSPlatform),
 			string(fleet.AndroidPlatform),
 			"windows",
 			"linux":
 			// ok, valid platform
 		default:
-			return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
-				p, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.AndroidPlatform, fleet.IPadOSPlatform)
+			return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, %q, %q, \"windows\", or \"linux\" platforms are supported",
+				p, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform, fleet.AndroidPlatform)
 		}
 	}
 

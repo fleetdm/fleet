@@ -1383,38 +1383,30 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 }
 
 func isAppleOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) (bool, error) {
-	type AppleOSUpdates struct {
-		MacOSUpdates  fleet.AppleOSUpdateSettings
-		IOSUpdates    fleet.AppleOSUpdateSettings
-		IPadOSUpdates fleet.AppleOSUpdateSettings
-	}
-
 	// Get the relevant team-config, to check for OS updates being configured
-	var appleOSUpdates AppleOSUpdates
+	var appleOSUpdates []fleet.AppleOSUpdateSettings
 	if teamID > 0 {
 		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "getting team config")
 		}
-		appleOSUpdates = AppleOSUpdates{
-			MacOSUpdates:  teamConfig.MacOSUpdates,
-			IOSUpdates:    teamConfig.IOSUpdates,
-			IPadOSUpdates: teamConfig.IPadOSUpdates,
+		appleOSUpdates = []fleet.AppleOSUpdateSettings{
+			teamConfig.MacOSUpdates, teamConfig.IOSUpdates, teamConfig.IPadOSUpdates, teamConfig.TvOSUpdates,
 		}
 	} else {
 		appConfig, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "getting app config")
 		}
-		appleOSUpdates = AppleOSUpdates{
-			MacOSUpdates:  appConfig.MDM.MacOSUpdates,
-			IOSUpdates:    appConfig.MDM.IOSUpdates,
-			IPadOSUpdates: appConfig.MDM.IPadOSUpdates,
+		appleOSUpdates = []fleet.AppleOSUpdateSettings{
+			appConfig.MDM.MacOSUpdates, appConfig.MDM.IOSUpdates, appConfig.MDM.IPadOSUpdates, appConfig.MDM.TvOSUpdates,
 		}
 	}
 
-	if appleOSUpdates.MacOSUpdates.Configured() || appleOSUpdates.IOSUpdates.Configured() || appleOSUpdates.IPadOSUpdates.Configured() {
-		return true, nil
+	for _, updates := range appleOSUpdates {
+		if updates.Configured() {
+			return true, nil
+		}
 	}
 	return false, nil
 }
@@ -2453,6 +2445,9 @@ func (svc *Service) checkAutomaticEnrollmentTokenAllowed(ctx context.Context, ma
 	if len(euaTeamIDs) == 0 {
 		return nil
 	}
+	if appleTVSkipsEndUserAuth(machineInfo, assignments) {
+		return nil
+	}
 	// TeamIDsWithSetupExperienceIdPEnabled uses 0 for "No team".
 	requiresEUA := func(teamID *uint) bool {
 		return slices.Contains(euaTeamIDs, ptr.ValOrZero(teamID))
@@ -2478,6 +2473,21 @@ func (svc *Service) checkAutomaticEnrollmentTokenAllowed(ctx context.Context, ma
 		hardwareSerial: machineInfo.Serial,
 	})
 	return fleet.NewAuthFailedError("automatic enrollment token presented for a host in a fleet that requires end user authentication")
+}
+
+// appleTVSkipsEndUserAuth reports whether the device is an Apple TV, which can't complete end user authentication
+// and so enrolls without it. Both Apple Business and the device itself must say so: the device family Fleet recorded
+// from Apple Business for every active assignment of the serial, and the product in the device's MachineInfo.
+func appleTVSkipsEndUserAuth(machineInfo *fleet.MDMAppleMachineInfo, assignments []*fleet.HostDEPAssignment) bool {
+	if len(assignments) == 0 || !strings.HasPrefix(machineInfo.Product, "AppleTV") {
+		return false
+	}
+	for _, a := range assignments {
+		if !a.IsAppleTV() {
+			return false
+		}
+	}
+	return true
 }
 
 // depAssignedHostRequiringEUA reports whether the serial's active DEP
@@ -2542,6 +2552,8 @@ func abmTokenDefaultTeamID(tok *fleet.ABMToken, platform string) *uint {
 		return tok.IOSDefaultTeamID
 	case "ipados":
 		return tok.IPadOSDefaultTeamID
+	case "tvos":
+		return tok.TvOSDefaultTeamID
 	default:
 		return tok.MacOSDefaultTeamID
 	}
@@ -2553,6 +2565,8 @@ func platformFromAppleProduct(product string) string {
 		return "ios"
 	case strings.HasPrefix(product, "iPad"):
 		return "ipados"
+	case strings.HasPrefix(product, "AppleTV"):
+		return "tvos"
 	default:
 		return "darwin"
 	}
@@ -2755,8 +2769,8 @@ func (svc *Service) isMDMAppleACMERequired(ctx context.Context, machineInfo *fle
 // Apple Silicon Macs running macOS 14 or later.
 // iPhones with A11 chip or higher, running iOS 16 or later.
 // iPads with A11 chip or higher, running iPadOS 16.1 or later.
-// Other Apple devices
-// may support ACME enrollment (e.g., tvOS on Apple TV), but they are not currently supported by Fleet.
+// Apple TV 4K (2nd generation) or later, running tvOS 16 or later.
+// Other Apple devices may support ACME enrollment, but they are not currently supported by Fleet.
 func isACMESupported(ctx context.Context, logger *slog.Logger, modelIdentifier string, osVersion string) (bool, error) {
 	if isMac, _, _, _ := fleet.IsMacIdentifier(modelIdentifier); isMac {
 		// we only require ACME for Apple Silicon Macs, if the device is a mac.
@@ -2810,6 +2824,24 @@ func isACMESupported(ctx context.Context, logger *slog.Logger, modelIdentifier s
 		if isLessThaniPadOS16_1, err := apple_mdm.IsLessThanVersion(osVersion, "16.1"); err != nil {
 			return false, fmt.Errorf("checking if device is less than iPadOS 16.1: %w", err)
 		} else if isLessThaniPadOS16_1 {
+			return false, nil
+		}
+
+		return true, nil
+	}
+
+	if isAppleTV, _, _, err := fleet.IsPrefixedIdentifier(modelIdentifier, "AppleTV"); err != nil {
+		return false, fmt.Errorf("checking if device is an Apple TV: %w", err)
+	} else if isAppleTV {
+		if capable, err := fleet.IsAttestationCapableAppleTV(modelIdentifier); err != nil {
+			return false, fmt.Errorf("checking if Apple TV supports hardware attestation: %w", err)
+		} else if !capable {
+			return false, nil
+		}
+
+		if isLessThanTvOS16, err := apple_mdm.IsLessThanVersion(osVersion, "16.0"); err != nil {
+			return false, fmt.Errorf("checking if device is less than tvOS 16: %w", err)
+		} else if isLessThanTvOS16 {
 			return false, nil
 		}
 
@@ -4431,18 +4463,19 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		scepRenewalInProgress = false
 	}
 
-	// iPhones, iPads, and iPods send ProductName but not Model/ModelName,
+	// iPhones, iPads, iPods and Apple TVs send ProductName but not Model/ModelName,
 	// thus we use this field as the device's Model (which is required on lifecycle stages).
 	platform := "darwin"
-	iPhone := strings.HasPrefix(m.ProductName, "iPhone") || strings.HasPrefix(m.ProductName, "iPod")
-	iPad := strings.HasPrefix(m.ProductName, "iPad")
-	if iPhone || iPad {
+	switch {
+	case strings.HasPrefix(m.ProductName, "iPhone"), strings.HasPrefix(m.ProductName, "iPod"):
+		platform = "ios"
 		m.Model = m.ProductName
-		if iPhone {
-			platform = "ios"
-		} else {
-			platform = "ipados"
-		}
+	case strings.HasPrefix(m.ProductName, "iPad"):
+		platform = "ipados"
+		m.Model = m.ProductName
+	case strings.HasPrefix(m.ProductName, "AppleTV"):
+		platform = "tvos"
+		m.Model = m.ProductName
 	}
 
 	if m.Model == "" {
@@ -4887,8 +4920,8 @@ func (svc *MDMAppleCheckinAndCommandService) runCommandHandlers(ctx context.Cont
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if cmdResult.Status == "Idle" {
-		// NOTE: iPhone/iPod/iPad devices that are still enroled in Fleet's MDM but have
-		// been deleted from Fleet (no host entry) will still send checkin
+		// NOTE: iPhone/iPod/iPad/Apple TV devices that are still enroled in Fleet's MDM but
+		// have been deleted from Fleet (no host entry) will still send checkin
 		// requests from time to time. Those should be Idle requests without a
 		// CommandUUID. As stated in tickets #22941 and #22391, Fleet iDevices
 		// should be re-created when they checkin with MDM.
@@ -4897,8 +4930,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "lookup enrolled but deleted device info")
 		}
 
-		// only re-create iPhone/iPod/iPad devices, macOS are recreated via the fleetd checkin
-		if deletedDevice != nil && (deletedDevice.Platform == "ios" || deletedDevice.Platform == "ipados") {
+		// only re-create MDM-only Apple devices, macOS are recreated via the fleetd checkin
+		if deletedDevice != nil && fleet.IsAppleMDMOnlyPlatform(deletedDevice.Platform) {
 			msg, err := mdm.DecodeCheckin([]byte(deletedDevice.Authenticate))
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "decode authenticate enrollment message to re-create a deleted host")
@@ -5612,13 +5645,10 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 		return nil, ctxerr.Wrap(ctx, err, "remove refetch apps command")
 	}
 
-	if host.Platform != "ios" && host.Platform != "ipados" {
-		return nil, ctxerr.New(ctx, "refetch apps command sent to non-iOS/non-iPadOS host")
+	if !fleet.IsAppleMDMOnlyPlatform(host.Platform) {
+		return nil, ctxerr.Errorf(ctx, "refetch apps command sent to host on unsupported platform %q", host.Platform)
 	}
-	source := "ios_apps"
-	if host.Platform == "ipados" {
-		source = "ipados_apps"
-	}
+	source := fleet.AppleSoftwareSourceForPlatform(host.Platform)
 
 	response := cmdResult.Raw
 	software, err := unmarshalAppList(ctx, response, source)
@@ -5781,10 +5811,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	if host.TeamID != nil {
 		teamID = *host.TeamID
 	}
-	source := "ios_apps"
-	if host.Platform == string(fleet.IPadOSPlatform) {
-		source = "ipados_apps"
-	}
+	source := fleet.AppleSoftwareSourceForPlatform(host.Platform)
 	softwaresWithAutoUpdateSchedule, err := svc.ds.ListSoftwareAutoUpdateSchedules(
 		ctx,
 		teamID,
@@ -6519,14 +6546,18 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
 	isLostModeEnabled, _ := queryResponses["IsMDMLostModeEnabled"].(bool)
 
+	// tvOS has no DeviceInformation storage-capacity keys, so their absence is
+	// expected rather than a sign of a truncated response.
+	reportsCapacity := !fleet.IsAppleTVPlatform(host.Platform)
+
 	var missingFields []string
 	if !deviceNameOK {
 		missingFields = append(missingFields, "DeviceName")
 	}
-	if !deviceCapacityOK {
+	if reportsCapacity && !deviceCapacityOK {
 		missingFields = append(missingFields, "DeviceCapacity")
 	}
-	if !availableDeviceCapacityOK {
+	if reportsCapacity && !availableDeviceCapacityOK {
 		missingFields = append(missingFields, "AvailableDeviceCapacity")
 	}
 	if !osVersionOK {
@@ -6562,23 +6593,27 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		platform        string
 	)
 	if productNameOK {
-		if strings.HasPrefix(productName, "iPhone") || strings.HasPrefix(productName, "iPod") {
-			osVersionPrefix = "iOS"
+		switch {
+		case strings.HasPrefix(productName, "iPhone"), strings.HasPrefix(productName, "iPod"):
 			platform = "ios"
-		} else { // iPad
-			osVersionPrefix = "iPadOS"
+		case strings.HasPrefix(productName, "iPad"):
 			platform = "ipados"
+		case strings.HasPrefix(productName, "AppleTV"):
+			platform = "tvos"
 		}
-	} else {
-		// Fall back to the host's known platform when ProductName is absent so
-		// the OS version is still updated with the correct prefix.
+	}
+	if platform == "" {
+		// Fall back to the host's known platform when ProductName is absent or
+		// unrecognized, so the OS version is still updated with the correct prefix.
 		platform = host.Platform
-		switch platform {
-		case "ios":
-			osVersionPrefix = "iOS"
-		case "ipados":
-			osVersionPrefix = "iPadOS"
-		}
+	}
+	switch platform {
+	case "ios":
+		osVersionPrefix = "iOS"
+	case "ipados":
+		osVersionPrefix = "iPadOS"
+	case "tvos":
+		osVersionPrefix = "tvOS"
 	}
 
 	// Only update host.OSVersion when we have both the prefix (from ProductName or
@@ -6616,7 +6651,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		svc.logger.ErrorContext(ctx, "update host mdm apple device vitals from refetch", "host_uuid", host.UUID, "err", err)
 	}
 
-	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
+	if deviceNameOK && deviceName != "" && fleet.IsAppleMDMOnlyPlatform(host.Platform) {
 		// Reconcile the host-name enforcement row (if any) against the name the
 		// device reported: confirms a rename (verifying → verified) or re-queues
 		// enforcement on drift. No-op for hosts without a row. A failure here
@@ -8310,6 +8345,7 @@ type updateABMTokenTeamsRequest struct {
 	MacOSTeamID  *uint `json:"macos_fleet_id"`
 	IOSTeamID    *uint `json:"ios_fleet_id"`
 	IPadOSTeamID *uint `json:"ipados_fleet_id"`
+	TvOSTeamID   *uint `json:"tvos_fleet_id"`
 	BYODTeamID   *uint `json:"byod_fleet_id"`
 }
 
@@ -8323,7 +8359,13 @@ func (r updateABMTokenTeamsResponse) Error() error { return r.Err }
 func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateABMTokenTeamsRequest)
 
-	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, req.MacOSTeamID, req.IOSTeamID, req.IPadOSTeamID, req.BYODTeamID)
+	tok, err := svc.UpdateABMTokenTeams(ctx, req.TokenID, fleet.ABMTokenTeamIDs{
+		MacOS:  req.MacOSTeamID,
+		IOS:    req.IOSTeamID,
+		IPadOS: req.IPadOSTeamID,
+		TvOS:   req.TvOSTeamID,
+		BYOD:   req.BYODTeamID,
+	})
 	if err != nil {
 		return &updateABMTokenTeamsResponse{Err: err}, nil
 	}
@@ -8331,7 +8373,7 @@ func updateABMTokenTeamsEndpoint(ctx context.Context, request interface{}, svc f
 	return &updateABMTokenTeamsResponse{ABMToken: tok}, nil
 }
 
-func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID, byodTeamID *uint) (*fleet.ABMToken, error) {
+func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, teamIDs fleet.ABMTokenTeamIDs) (*fleet.ABMToken, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

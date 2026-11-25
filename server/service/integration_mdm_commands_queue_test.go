@@ -373,7 +373,7 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	require.NoError(t, err)
 	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&command_status=ran", h.UUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, iPadOS, and Android hosts`)
+	require.Contains(t, errMsg, `"command_status" filter is only available for macOS, iOS, iPadOS, tvOS, and Android hosts`)
 
 	// per_page above the documented maximum is rejected with a clear message.
 	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/commands?host_identifier=%s&per_page=1001", h.UUID), nil, http.StatusBadRequest)

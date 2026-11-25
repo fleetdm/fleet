@@ -318,7 +318,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 	// experience tables, exposed via the setup experience endpoint.
 	setupSoftwareByTitleID := make(map[uint]struct{})
 	setupAppsByName := make(map[string]struct{})
-	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
+	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,tvos,android", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
 	}
@@ -1578,6 +1578,7 @@ func runGetMDMAB(c *cli.Context) error {
 			{"macOS fleet:", fleetName(token.MacOSTeam)},
 			{"iOS fleet:", fleetName(token.IOSTeam)},
 			{"iPadOS fleet:", fleetName(token.IPadOSTeam)},
+			{"tvOS fleet:", fleetName(token.TvOSTeam)},
 			{"BYOD fleet:", fleetName(token.BYODTeam)},
 		})
 

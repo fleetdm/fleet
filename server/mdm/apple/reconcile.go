@@ -53,7 +53,7 @@ func EntityAppliesToHost(
 // IsEligiblePlatform reports whether the host's platform is one of the
 // Apple platforms this reconciler can manage.
 func IsEligiblePlatform(platform string) bool {
-	return platform == "darwin" || platform == "ios" || platform == "ipados"
+	return fleet.IsApplePlatform(platform)
 }
 
 // profileChannelKey identifies where a profile is delivered on a host. The same
@@ -761,8 +761,8 @@ func ExecuteReconcileBatch(
 			}
 			if enrollmentID == "" {
 				var errorDetail string
-				if fleet.IsAppleMobilePlatform(p.HostPlatform) {
-					errorDetail = "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts."
+				if fleet.IsAppleMDMOnlyPlatform(p.HostPlatform) {
+					errorDetail = "This setting couldn't be enforced because the user channel isn't available on iOS, iPadOS, and tvOS hosts."
 				} else {
 					errorDetail = "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll."
 					logger.WarnContext(ctx, "host does not have a user enrollment, failing profile installation",

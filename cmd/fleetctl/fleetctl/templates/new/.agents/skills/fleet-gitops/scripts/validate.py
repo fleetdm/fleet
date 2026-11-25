@@ -81,7 +81,7 @@ RESERVED_PAYLOAD_TYPES = {"com.apple.MCX.FileVault2": "disk encryption is manage
 FORBIDDEN_DECL_TYPES = {"com.apple.configuration.watch.enrollment", "com.apple.configuration.account.google",
                         "com.apple.management.server-capabilities",
                         "com.apple.configuration.management.status-subscriptions", "com.apple.configuration.package"}
-FLEET_MANAGED_DECL_TYPES = {"com.apple.configuration.softwareupdate.enforcement.specific": "controls.macos_updates / ios_updates / ipados_updates"}
+FLEET_MANAGED_DECL_TYPES = {"com.apple.configuration.softwareupdate.enforcement.specific": "controls.macos_updates / ios_updates / ipados_updates / tvos_updates"}
 WINDOWS_TOP_LEVEL = {"Replace", "Add", "Exec", "Atomic"}
 WINDOWS_RESERVED_LOCURI = {"/Vendor/MSFT/BitLocker": "controls.enable_disk_encryption",
                            "/Vendor/MSFT/Policy/Config/Update": "controls.windows_updates",
@@ -847,8 +847,8 @@ def check_software(ctx, fs, software):
         if not isinstance(aid, str) or not aid:
             ctx.fail(isrc, f"{what}: app_store_id must be a quoted string (for example \"361285480\" or \"com.android.chrome\")")
         plat = merged.get("platform")
-        if plat is not None and plat not in {"darwin", "ios", "ipados", "android"}:
-            ctx.fail(isrc, f"{what}: platform must be darwin, ios, ipados, or android")
+        if plat is not None and plat not in {"darwin", "ios", "ipados", "tvos", "android"}:
+            ctx.fail(isrc, f"{what}: platform must be darwin, ios, ipados, tvos, or android")
         key = (str(aid), plat)
         if key in fs.app_store_ids:
             ctx.fail(isrc, f"{what}: listed twice for platform {plat or 'all'}")
@@ -858,8 +858,8 @@ def check_software(ctx, fs, software):
         check_bool(ctx, isrc, merged, "setup_experience", what)
         check_categories(ctx, isrc, merged, what)
         if merged.get("auto_update_enabled"):
-            if plat not in (None, "ios", "ipados"):
-                ctx.fail(isrc, f"{what}: auto_update_enabled is only supported for ios and ipados apps")
+            if plat not in (None, "ios", "ipados", "tvos"):
+                ctx.fail(isrc, f"{what}: auto_update_enabled is only supported for ios, ipados, and tvos apps")
             for k in ("auto_update_window_start", "auto_update_window_end"):
                 v = merged.get(k)
                 if not isinstance(v, str) or not re.fullmatch(r"\d{2}:\d{2}", v):

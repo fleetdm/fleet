@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
 
@@ -240,6 +241,7 @@ type ABMToken struct {
 	MacOSDefaultTeamID  *uint  `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint  `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint  `db:"ipados_default_team_id" json:"-"`
+	TvOSDefaultTeamID   *uint  `db:"tvos_default_team_id" json:"-"`
 	BYODDefaultTeamID   *uint  `db:"byod_default_team_id" json:"-"`
 	EncryptedToken      []byte `db:"token" json:"-"`
 	EnrollmentURLToken  []byte `db:"enrollment_url_token" json:"-"`
@@ -255,12 +257,14 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	TvOSTeamName   string `db:"tvos_team" json:"-"`
 	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
 	MacOSTeam  ABMTokenTeam `json:"macos_fleet"`
 	IOSTeam    ABMTokenTeam `json:"ios_fleet"`
 	IPadOSTeam ABMTokenTeam `json:"ipados_fleet"`
+	TvOSTeam   ABMTokenTeam `json:"tvos_fleet"`
 	BYODTeam   ABMTokenTeam `json:"byod_fleet"`
 }
 
@@ -268,9 +272,63 @@ func (a ABMToken) AuthzType() string {
 	return "mdm_apple"
 }
 
+// ABMTokenTeamIDs are the per-platform default team ids submitted when updating
+// an ABM token's team assignments. A nil or zero id means "No team".
+type ABMTokenTeamIDs struct {
+	MacOS  *uint
+	IOS    *uint
+	IPadOS *uint
+	TvOS   *uint
+	BYOD   *uint
+}
+
+// ABMDefaultTeams holds the per-platform default teams configured on an ABM
+// token. A nil entry means devices of that platform land in "No team".
+type ABMDefaultTeams struct {
+	MacOS  *Team
+	IOS    *Team
+	IPadOS *Team
+	TvOS   *Team
+}
+
+// ForDeviceFamily returns the default team for a DEP sync device_family value.
+// Anything unrecognized falls back to the macOS team, matching how Fleet types
+// such devices as "darwin".
+func (t ABMDefaultTeams) ForDeviceFamily(deviceFamily string) *Team {
+	switch deviceFamily {
+	case "iPhone", "iPod":
+		return t.IOS
+	case "iPad":
+		return t.IPadOS
+	case DEPDeviceFamilyAppleTV:
+		return t.TvOS
+	default:
+		return t.MacOS
+	}
+}
+
+// All returns one entry per platform, in a fixed order. A nil entry means that
+// platform has no default team, which callers read as "No team" — devices of
+// that family land there, so the nils are meaningful and not filtered out.
+func (t ABMDefaultTeams) All() []*Team {
+	return []*Team{t.MacOS, t.IOS, t.IPadOS, t.TvOS}
+}
+
 type ABMTokenTeam struct {
 	Name string `json:"name"`
 	ID   uint   `json:"fleet_id"`
+}
+
+// PopulateTeams composes the per-platform fleet objects the API returns from the
+// id and name columns, which are read separately (the ids live on abm_tokens,
+// the names come from a LEFT JOIN on teams). A nil default fleet id means
+// "Unassigned" and yields the zero id.
+func (a *ABMToken) PopulateTeams() {
+	a.MacOSTeam = ABMTokenTeam{Name: a.MacOSTeamName, ID: ptr.ValOrZero(a.MacOSDefaultTeamID)}
+	a.IOSTeam = ABMTokenTeam{Name: a.IOSTeamName, ID: ptr.ValOrZero(a.IOSDefaultTeamID)}
+	a.IPadOSTeam = ABMTokenTeam{Name: a.IPadOSTeamName, ID: ptr.ValOrZero(a.IPadOSDefaultTeamID)}
+	a.TvOSTeam = ABMTokenTeam{Name: a.TvOSTeamName, ID: ptr.ValOrZero(a.TvOSDefaultTeamID)}
+	a.BYODTeam = ABMTokenTeam{Name: a.BYODTeamName, ID: ptr.ValOrZero(a.BYODDefaultTeamID)}
 }
 
 // AppleCSR is the authorization subject of the Apple MDM setup endpoints.
@@ -1232,7 +1290,7 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 // can turn MDM on for a platform at all, use MDMTurnedOnSupported instead.
 func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
-	case "darwin", "ios", "ipados":
+	case "darwin", "ios", "ipados", "tvos":
 		return "darwin"
 	case "windows":
 		return "windows"
@@ -1256,11 +1314,11 @@ func MDMTurnedOnSupported(hostPlatform string) bool {
 }
 
 // FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
-// if the profile target's platform is ios/ipados.
+// if the profile target's platform is one of the MDM-only Apple platforms (ios/ipados/tvos).
 func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
 	i := 0
 	for _, profilePayload := range profiles {
-		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
+		if IsAppleMDMOnlyPlatform(profilePayload.HostPlatform) &&
 			(profilePayload.ProfileName == mdm_types.FleetdConfigProfileName ||
 				profilePayload.ProfileName == mdm_types.FleetFileVaultProfileName) {
 			continue
@@ -1438,6 +1496,7 @@ const (
 	MacOS AppleDevice = iota
 	IOS
 	IPadOS
+	TvOS
 )
 
 type InstallableDevicePlatform string
@@ -1446,19 +1505,36 @@ const (
 	MacOSPlatform   InstallableDevicePlatform = "darwin"
 	IOSPlatform     InstallableDevicePlatform = "ios"
 	IPadOSPlatform  InstallableDevicePlatform = "ipados"
+	TVOSPlatform    InstallableDevicePlatform = "tvos"
 	AndroidPlatform InstallableDevicePlatform = "android"
 )
 
-var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform, AndroidPlatform}
+var AppStoreAppsPlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, TVOSPlatform, MacOSPlatform, AndroidPlatform}
 
-var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, MacOSPlatform}
+var ApplePlatforms = []InstallableDevicePlatform{IOSPlatform, IPadOSPlatform, TVOSPlatform, MacOSPlatform}
+
+// AppleSoftwareSourceForPlatform returns the software.source value Fleet stores
+// for apps inventoried from an Apple host, either through osquery (macOS) or an
+// MDM InstalledApplicationList command (iOS/iPadOS/tvOS).
+func AppleSoftwareSourceForPlatform(hostPlatform string) string {
+	switch hostPlatform {
+	case string(IOSPlatform):
+		return "ios_apps"
+	case string(IPadOSPlatform):
+		return "ipados_apps"
+	case string(TVOSPlatform):
+		return "tvos_apps"
+	default:
+		return "apps"
+	}
+}
 
 // SupportsAppStoreApps returns whether or not the given platform supports app store apps.
 func (p InstallableDevicePlatform) SupportsAppStoreApps() bool {
 	return slices.Contains(AppStoreAppsPlatforms, p)
 }
 
-// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, or iPadOS.
+// IsApplePlatform returns whether the platform is one of Apple's platforms: macOS, iOS, iPadOS or tvOS.
 func (p InstallableDevicePlatform) IsApplePlatform() bool {
 	return slices.Contains(ApplePlatforms, p)
 }
@@ -1471,9 +1547,16 @@ func (p InstallableDevicePlatform) DisplayName() string {
 	return string(p)
 }
 
+// SupportsManagedAppConfiguration reports whether the platform accepts a managed
+// app configuration alongside an InstallApplication command. macOS does not.
+func (p InstallableDevicePlatform) SupportsManagedAppConfiguration() bool {
+	return p == IOSPlatform || p == IPadOSPlatform || p == TVOSPlatform
+}
+
 type AppleDevicesToRefetch struct {
 	HostID               uint                   `db:"host_id"`
 	UUID                 string                 `db:"uuid"`
+	Platform             string                 `db:"platform"`
 	InstalledFromDEP     bool                   `db:"installed_from_dep"`
 	IsPersonalEnrollment bool                   `db:"is_personal_enrollment"`
 	CommandsAlreadySent  MDMCommandsAlreadySent `db:"commands_already_sent"`

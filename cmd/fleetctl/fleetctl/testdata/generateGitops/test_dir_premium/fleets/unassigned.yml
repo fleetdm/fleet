@@ -33,6 +33,11 @@ controls:
   scripts:
   - path: ../lib/unassigned/scripts/Script Z.ps1
   setup_experience: 'TODO: update with your setup_experience configuration'
+  tvos_updates:
+    deadline:
+    deadline_days:
+    minimum_version:
+    update_new_hosts:
   windows_entra_client_ids:
   - 7c1de9aa-9b2c-4d3e-8f10-2233445566aa
   windows_entra_tenant_ids:

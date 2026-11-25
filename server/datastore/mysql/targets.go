@@ -12,7 +12,7 @@ import (
 
 // mobilePlatformsSQLList lists the platforms that don't run osquery and so
 // can't be targeted by live reports.
-const mobilePlatformsSQLList = "('ios','ipados','android')"
+const mobilePlatformsSQLList = "('ios','ipados','tvos','android')"
 
 func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 	// The logic in this function should remain synchronized with

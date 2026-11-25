@@ -171,7 +171,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 // byte-exact, disagree with the UPDATE's own predicate, and re-select case-only differences
 // on every run.
 //
-// additional_identifier is 1 for ios_apps and 2 for ipados_apps, so requiring 0 keeps a macOS
+// additional_identifier is 1 for ios_apps, 2 for ipados_apps and 3 for tvos_apps, so requiring 0 keeps a macOS
 // app's canonical name off its iOS and iPadOS sibling titles, which are distinct products
 // that happen to share a bundle identifier. `software` has no such column, so it excludes
 // those sources directly.
@@ -222,7 +222,7 @@ const (
 		FROM (` + catalogNamesByIdentifier + `) fma
 		STRAIGHT_JOIN software s
 			ON s.bundle_identifier = fma.unique_identifier
-			AND s.source NOT IN ('ios_apps', 'ipados_apps')
+			AND s.source NOT IN ('ios_apps', 'ipados_apps', 'tvos_apps')
 		WHERE s.name <> fma.name
 		LIMIT ?`
 

@@ -64,3 +64,8 @@ macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary
   webhook_url: https://some-macos-migration-webhook-url.com
+tvos_updates:
+  deadline:
+  deadline_days:
+  minimum_version:
+  update_new_hosts:

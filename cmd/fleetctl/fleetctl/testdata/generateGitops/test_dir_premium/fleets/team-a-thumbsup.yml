@@ -50,6 +50,11 @@ controls:
   name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL
   scripts:
   - path: "../lib/team-a-👍/scripts/Script B.ps1"
+  tvos_updates:
+    deadline:
+    deadline_days:
+    minimum_version:
+    update_new_hosts:
   windows_settings:
     enable_disk_encryption: true
     require_bitlocker_pin: false

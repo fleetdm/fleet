@@ -122,6 +122,13 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"ListIOSAndIPadOSToRefetchBatching", testListIOSAndIPadOSToRefetchBatching},
+		{"ListAppleMDMOnlyDevicesToRefetchIncludesTvOS", testListAppleMDMOnlyDevicesToRefetchIncludesTvOS},
+		{"MDMAppleUpsertHostTvOS", testMDMAppleUpsertHostTvOS},
+		{"HostDEPAssignmentsDeviceFamily", testHostDEPAssignmentsDeviceFamily},
+		{"MDMAppleSetupAssistantTvOSProfileUUID", testMDMAppleSetupAssistantTvOSProfileUUID},
+		{"MDMAppleUpsertHostMacToTvOS", testMDMAppleUpsertHostMacToTvOS},
+		{"IngestMDMAppleDevicesFromDEPSyncTvOSTeam", testIngestMDMAppleDevicesFromDEPSyncTvOSTeam},
+		{"ABMTokenTvOSDefaultTeam", testABMTokenTvOSDefaultTeam},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitals},
@@ -1518,7 +1525,7 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.EqualValues(t, 4, n) // 4 new hosts ("abc", "xyz", "ijk", "tuv")
 
@@ -1548,7 +1555,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.Equal(t, int64(2), n)
 
@@ -1572,7 +1579,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, team, team, team)
+	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, fleet.ABMDefaultTeams{MacOS: team, IOS: team, IPadOS: team, TvOS: team})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 
@@ -1590,7 +1597,7 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 		{SerialNumber: "jqk", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	}
 
-	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nonExistentTeam, nonExistentTeam, nonExistentTeam)
+	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, fleet.ABMDefaultTeams{MacOS: nonExistentTeam, IOS: nonExistentTeam, IPadOS: nonExistentTeam, TvOS: nonExistentTeam})
 	require.NoError(t, err)
 	require.EqualValues(t, n, 1)
 
@@ -1786,7 +1793,7 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business)
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
-	}, abmToken.ID, nil, nil, nil)
+	}, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
 
@@ -1837,7 +1844,7 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	// no effect if same host appears in DEP sync
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
-	}, abmToken.ID, nil, nil, nil)
+	}, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.Equal(t, int64(0), n)
 
@@ -2550,45 +2557,21 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 // extant for MDM flows
 func createBuiltinLabels(t *testing.T, ds *Datastore) {
 	// Labels are deleted when truncating tables in between tests.
-	// We need to delete the iOS/iPadOS labels because these two are created on a table migration,
+	// We need to delete the iOS/iPadOS/tvOS labels because these are created on a table migration,
 	// and also we want to keep their indexes higher than "All Hosts" and "macOS" (to not break existing tests).
-	_, err := ds.writer(t.Context()).Exec(
-		`
-		DELETE FROM labels WHERE name = 'iOS' OR name = 'iPadOS'`,
+	_, err := ds.writer(t.Context()).Exec(`
+		DELETE FROM labels WHERE name IN ('iOS', 'iPadOS', 'tvOS')`,
 	)
 	require.NoError(t, err)
 
-	_, err = ds.writer(t.Context()).Exec(
-		`
-		INSERT INTO labels (
-			name,
-			description,
-			query,
-			platform,
-			label_type
-		) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)`,
-		"All Hosts",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-		"macOS",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-		"iOS",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-		"iPadOS",
-		"",
-		"",
-		"",
-		fleet.LabelTypeBuiltIn,
-	)
-	require.NoError(t, err)
+	for _, name := range []string{"All Hosts", "macOS", fleet.BuiltinLabelIOS, fleet.BuiltinLabelIPadOS, fleet.BuiltinLabelTvOS} {
+		_, err = ds.writer(t.Context()).Exec(`
+			INSERT INTO labels (name, description, query, platform, label_type)
+			VALUES (?, '', '', '', ?)`,
+			name, fleet.LabelTypeBuiltIn,
+		)
+		require.NoError(t, err)
+	}
 }
 
 func nanoEnrollAndSetHostMDMData(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
@@ -5274,7 +5257,7 @@ func TestHostDEPAssignments(t *testing.T) {
 		depOrbitNodeKey := "dep-orbit-node-key"
 		depDeviceTok := "dep-device-token"
 
-		n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID, nil, nil, nil)
+		n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID, fleet.ABMDefaultTeams{})
 		require.NoError(t, err)
 		require.Equal(t, int64(1), n)
 
@@ -5435,7 +5418,7 @@ func TestHostDEPAssignments(t *testing.T) {
 
 		migrationDeadline := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Millisecond)
 
-		n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial, MDMMigrationDeadline: &migrationDeadline}}, abmToken.ID, nil, nil, nil)
+		n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial, MDMMigrationDeadline: &migrationDeadline}}, abmToken.ID, fleet.ABMDefaultTeams{})
 		require.NoError(t, err)
 		require.Equal(t, int64(1), n)
 
@@ -6189,7 +6172,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 				{SerialNumber: "bar"},
 				{SerialNumber: "baz"},
 			}
-			_, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, nil, nil, nil)
+			_, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, fleet.ABMDefaultTeams{})
 			require.NoError(t, err)
 
 			err = ds.DeleteHostDEPAssignments(ctx, abmToken.ID, tt.in)
@@ -7963,7 +7946,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 			depUUID := "dep-uuid"
 			depOrbitNodeKey := "dep-orbit-node-key"
 
-			n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID, nil, nil, nil)
+			n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{{SerialNumber: depSerial}}, abmToken.ID, fleet.ABMDefaultTeams{})
 			require.NoError(t, err)
 			require.Equal(t, int64(1), n)
 
@@ -8470,7 +8453,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
 		{SerialNumber: "iPod_SERIAL", DeviceFamily: "iPod", OpType: "added"},
 	}
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.Equal(t, int64(3), n)
 
@@ -8673,6 +8656,192 @@ func testListIOSAndIPadOSToRefetchBatching(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"requested-uuid", "stale5h-uuid"}, uuids(devices))
 	require.Equal(t, fleet.MDMCommandsAlreadySent{fleet.RefetchCertsCommandUUIDPrefix}, devices[1].CommandsAlreadySent)
 	require.Empty(t, devices[0].CommandsAlreadySent)
+}
+
+func testListAppleMDMOnlyDevicesToRefetchIncludesTvOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	// Apple TVs must be picked up by the same refetcher as iPhones/iPads: they
+	// have no osquery, so this cron is the only source of their inventory.
+	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "tvOS0_UUID",
+		HardwareSerial: "tvOS0_SERIAL",
+		HardwareModel:  "AppleTV14,1",
+		Platform:       "tvos",
+	}, fleet.PersonalEnrollmentTypeNone)
+	require.NoError(t, err)
+	tvOS0, err := ds.HostByIdentifier(ctx, "tvOS0_SERIAL")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, tvOS0, false)
+
+	// Freshly enrolled: refetch_requested carries it into the very next tick
+	// rather than waiting out the staleness window.
+	require.True(t, tvOS0.RefetchRequested)
+
+	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour, 10)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, "tvOS0_UUID", devices[0].UUID)
+	// The refetcher buckets by platform to pick the right DeviceInformation
+	// query keys, so the platform has to come back with the row.
+	require.Equal(t, "tvos", devices[0].Platform)
+
+	// Once the DeviceInformation ack clears the flag, only staleness brings it back.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET refetch_requested = 0, detail_updated_at = DATE_SUB(NOW(), INTERVAL 30 MINUTE) WHERE id = ?`, tvOS0.ID)
+		return err
+	})
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour, 10)
+	require.NoError(t, err)
+	require.Empty(t, devices)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, tvOS0.ID)
+		return err
+	})
+	devices, err = ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour, 10)
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, "tvOS0_UUID", devices[0].UUID)
+
+	// The reviver re-creates Apple TVs that check in after being deleted from
+	// Fleet, same as iPhones/iPads.
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+
+	require.NoError(t, ds.DeleteHost(ctx, tvOS0.ID))
+
+	ids, err = ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{"tvOS0_UUID"}, ids)
+}
+
+func testMDMAppleUpsertHostTvOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	tvOSHost := &fleet.Host{
+		UUID:           "tvos-uuid",
+		HardwareSerial: "tvos-serial",
+		HardwareModel:  "AppleTV14,1",
+		Platform:       "tvos",
+	}
+
+	// Insert path.
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, tvOSHost, fleet.PersonalEnrollmentTypeNone))
+	host, err := ds.HostByIdentifier(ctx, "tvos-serial")
+	require.NoError(t, err)
+	require.Equal(t, "tvos", host.Platform)
+	require.Equal(t, "AppleTV14,1", host.HardwareModel)
+	require.True(t, host.RefetchRequested)
+	// MDM-only devices get last_enrolled_at from the MDM enroll, not osquery.
+	require.NotEqual(t, "2000-01-01 00:00:00 +0000 UTC", host.LastEnrolledAt.String())
+
+	// The host lands in the tvOS builtin label, not macOS.
+	labels, err := ds.ListLabelsForHost(ctx, host.ID)
+	require.NoError(t, err)
+	labelNames := make([]string, 0, len(labels))
+	for _, l := range labels {
+		labelNames = append(labelNames, l.Name)
+	}
+	require.ElementsMatch(t, []string{"All Hosts", fleet.BuiltinLabelTvOS}, labelNames)
+
+	// Update path.
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, tvOSHost, fleet.PersonalEnrollmentTypeNone))
+	host, err = ds.HostByIdentifier(ctx, "tvos-serial")
+	require.NoError(t, err)
+	require.Equal(t, "tvos", host.Platform)
+	require.True(t, host.RefetchRequested)
+}
+
+func testIngestMDMAppleDevicesFromDEPSyncTvOSTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tvOSTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Apple TVs"})
+	require.NoError(t, err)
+	macOSTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "Workstations"})
+	require.NoError(t, err)
+
+	encTok := uuid.NewString()
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(365 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	depDevices := []godep.Device{
+		{SerialNumber: "tvOS0_SERIAL", DeviceFamily: "AppleTV", OpType: "added"},
+		{SerialNumber: "mac0_SERIAL", DeviceFamily: "Mac", OpType: "added"},
+	}
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, fleet.ABMDefaultTeams{
+		MacOS: macOSTeam,
+		TvOS:  tvOSTeam,
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(2), n)
+
+	// Before tvOS had its own default team, Apple TVs fell through to the macOS
+	// team; they must now land in the tvOS team instead.
+	tvOSHost, err := ds.HostByIdentifier(ctx, "tvOS0_SERIAL")
+	require.NoError(t, err)
+	require.Equal(t, "tvos", tvOSHost.Platform)
+	require.NotNil(t, tvOSHost.TeamID)
+	require.Equal(t, tvOSTeam.ID, *tvOSHost.TeamID)
+
+	macHost, err := ds.HostByIdentifier(ctx, "mac0_SERIAL")
+	require.NoError(t, err)
+	require.NotNil(t, macHost.TeamID)
+	require.Equal(t, macOSTeam.ID, *macHost.TeamID)
+}
+
+func testABMTokenTvOSDefaultTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Apple TVs"})
+	require.NoError(t, err)
+
+	encTok := uuid.NewString()
+	tok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{
+		OrganizationName:  "org",
+		EncryptedToken:    []byte(encTok),
+		RenewAt:           time.Now().Add(365 * 24 * time.Hour),
+		TvOSDefaultTeamID: &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Round-trips through both read paths, including the composed team object
+	// the API returns.
+	byID, err := ds.GetABMTokenByID(ctx, tok.ID)
+	require.NoError(t, err)
+	require.NotNil(t, byID.TvOSDefaultTeamID)
+	require.Equal(t, team.ID, *byID.TvOSDefaultTeamID)
+	require.Equal(t, team.Name, byID.TvOSTeam.Name)
+	require.Equal(t, team.ID, byID.TvOSTeam.ID)
+
+	listed, err := ds.ListABMTokens(ctx)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.NotNil(t, listed[0].TvOSDefaultTeamID)
+	require.Equal(t, team.ID, *listed[0].TvOSDefaultTeamID)
+	require.Equal(t, team.Name, listed[0].TvOSTeam.Name)
+
+	// The token shows up when looking for tokens tied to the team.
+	orgNames, err := ds.GetABMTokenOrgNamesAssociatedWithTeam(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Contains(t, orgNames, "org")
+
+	// Clearing it back to "No team" persists and reads back as such.
+	byID.TvOSDefaultTeamID = nil
+	require.NoError(t, ds.SaveABMToken(ctx, byID))
+
+	cleared, err := ds.GetABMTokenByID(ctx, tok.ID)
+	require.NoError(t, err)
+	require.Nil(t, cleared.TvOSDefaultTeamID)
+	require.Equal(t, fleet.DisplayNameNoTeam, cleared.TvOSTeam.Name)
+	require.Zero(t, cleared.TvOSTeam.ID)
 }
 
 func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -9006,7 +9175,7 @@ func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datast
 		t.Helper()
 		_, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx,
 			[]godep.Device{{SerialNumber: serial, DeviceFamily: "iPhone", OpType: "added"}},
-			abmToken.ID, nil, nil, nil)
+			abmToken.ID, fleet.ABMDefaultTeams{})
 		require.NoError(t, err)
 		h, err := ds.HostByIdentifier(ctx, serial)
 		require.NoError(t, err)
@@ -9123,7 +9292,7 @@ func testMDMAppleUpsertHostEnrollmentTypeOnReenrollment(t *testing.T, ds *Datast
 		assignInABM(t, host.ID, serial)
 		_, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx,
 			[]godep.Device{{SerialNumber: serial, DeviceFamily: "Mac", OpType: "added"}},
-			abmToken.ID, nil, nil, nil)
+			abmToken.ID, fleet.ABMDefaultTeams{})
 		require.NoError(t, err)
 
 		hmdm, err := ds.GetHostMDM(ctx, host.ID)
@@ -9142,6 +9311,8 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		{SerialNumber: "iOS0_SERIAL", DeviceFamily: "iPhone", OpType: "added"},
 		{SerialNumber: "iPadOS0_SERIAL", DeviceFamily: "iPad", OpType: "added"},
 		{SerialNumber: "iPod_SERIAL", DeviceFamily: "iPod", OpType: "added"},
+		{SerialNumber: "tvOS0_SERIAL", DeviceFamily: "AppleTV", OpType: "added"},
+		{SerialNumber: "mac0_SERIAL", DeviceFamily: "Mac", OpType: "added"},
 	}
 
 	encTok := uuid.NewString()
@@ -9149,9 +9320,9 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, nil, nil, nil)
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
-	require.Equal(t, int64(3), n)
+	require.Equal(t, int64(5), n)
 
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{
 		User: &fleet.User{
@@ -9159,13 +9330,23 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 		},
 	}, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 3)
-	require.Equal(t, "ios", hosts[0].Platform)
-	require.Equal(t, false, hosts[0].RefetchRequested)
-	require.Equal(t, "ipados", hosts[1].Platform)
-	require.Equal(t, false, hosts[1].RefetchRequested)
-	require.Equal(t, "ios", hosts[2].Platform)
-	require.Equal(t, false, hosts[2].RefetchRequested)
+	require.Len(t, hosts, 5)
+
+	platformsBySerial := map[string]string{}
+	for _, h := range hosts {
+		platformsBySerial[h.HardwareSerial] = h.Platform
+		// Apple MDM devices are only flagged for refetch once they actually
+		// enroll, not while they are still DEP-pending. macOS refetches via
+		// osquery instead.
+		require.Equal(t, h.Platform == "darwin", h.RefetchRequested, h.HardwareSerial)
+	}
+	require.Equal(t, map[string]string{
+		"iOS0_SERIAL":    "ios",
+		"iPadOS0_SERIAL": "ipados",
+		"iPod_SERIAL":    "ios",
+		"tvOS0_SERIAL":   "tvos",
+		"mac0_SERIAL":    "darwin",
+	}, platformsBySerial)
 }
 
 func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -9232,6 +9413,17 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	iPod, err := ds.HostByIdentifier(ctx, "iPod_UUID")
 	require.NoError(t, err)
 	nanoEnroll(t, ds, iPod, false)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           "tvOS0_UUID",
+		HardwareSerial: "tvOS0_SERIAL",
+		HardwareModel:  "AppleTV14,1",
+		Platform:       "tvos",
+		OsqueryHostID:  new("tvOS0_OSQUERY_HOST_ID"),
+	}, fleet.PersonalEnrollmentTypeNone)
+	require.NoError(t, err)
+	tvOS0, err := ds.HostByIdentifier(ctx, "tvOS0_UUID")
+	require.NoError(t, err)
+	nanoEnroll(t, ds, tvOS0, false)
 
 	someProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
@@ -9255,6 +9447,33 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
+
+	// Apple TVs reconcile like the other MDM-only platforms, and the macOS-only
+	// profiles (fleetd config, FileVault) are filtered out for them too.
+	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "tvOS0_UUID")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.Equal(t, someProfile.Name, profiles[0].Name)
+
+	// Without osquery there is nothing to verify with, so an install ack takes
+	// the profile straight to "verified" rather than parking it in "verifying".
+	var tvOSCommandUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &tvOSCommandUUID,
+			`SELECT command_uuid FROM host_mdm_apple_profiles WHERE host_uuid = ?`, "tvOS0_UUID")
+	})
+	require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      "tvOS0_UUID",
+		CommandUUID:   tvOSCommandUUID,
+		ProfileUUID:   profiles[0].ProfileUUID,
+		OperationType: fleet.MDMOperationTypeInstall,
+		Status:        &fleet.MDMDeliveryVerifying,
+	}))
+	profiles, err = ds.GetHostMDMAppleProfiles(ctx, "tvOS0_UUID")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.NotNil(t, profiles[0].Status)
+	require.Equal(t, fleet.MDMDeliveryVerified, *profiles[0].Status)
 }
 
 func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
@@ -10890,7 +11109,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	require.NotEmpty(t, abmToken.ID)
 
 	// ingest some test devices
-	n, err := ds.IngestMDMAppleDevicesFromDEPSync(context.Background(), []godep.Device{devicesByKey["ios"], devicesByKey["ipados"], devicesByKey["macos"]}, abmToken.ID, nil, nil, nil)
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(context.Background(), []godep.Device{devicesByKey["ios"], devicesByKey["ipados"], devicesByKey["macos"]}, abmToken.ID, fleet.ABMDefaultTeams{})
 	require.NoError(t, err)
 	require.Equal(t, int64(3), n)
 	hostIDsByKey := map[string]uint{}
@@ -15270,4 +15489,163 @@ func testGetAppleSerialEnrolledUnderAnotherUUID(t *testing.T, ds *Datastore) {
 	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
 	require.NoError(t, err)
 	require.Empty(t, got)
+}
+
+func testHostDEPAssignmentsDeviceFamily(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	tok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org1", EncryptedToken: []byte("token"), RenewAt: time.Now()})
+	require.NoError(t, err)
+	otherTok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org2", EncryptedToken: []byte("token"), RenewAt: time.Now()})
+	require.NoError(t, err)
+
+	newDEPHost := func(serial string, tokenID uint) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       serial,
+			HardwareSerial: serial,
+			UUID:           "uuid-" + serial,
+			OsqueryHostID:  new("osquery-" + serial),
+			NodeKey:        new("nodekey-" + serial),
+			Platform:       "darwin",
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tokenID, nil))
+		return h
+	}
+	tv := newDEPHost("tv1", tok.ID)
+	mac := newDEPHost("mac1", tok.ID)
+	otherTokenTV := newDEPHost("tv2", otherTok.ID)
+
+	family := func(h *fleet.Host) *string {
+		assignments, err := ds.GetHostDEPAssignmentsBySerial(ctx, h.HardwareSerial)
+		require.NoError(t, err)
+		require.Len(t, assignments, 1)
+		byID, err := ds.GetHostDEPAssignment(ctx, h.ID)
+		require.NoError(t, err)
+		require.Equal(t, assignments[0].DeviceFamily, byID.DeviceFamily)
+		require.Equal(t, assignments[0].DeviceFamily != nil && *assignments[0].DeviceFamily == fleet.DEPDeviceFamilyAppleTV, assignments[0].IsAppleTV())
+		return assignments[0].DeviceFamily
+	}
+	require.Nil(t, family(tv))
+
+	// only the token's own assignments are updated
+	require.NoError(t, ds.SetHostDEPAssignmentsDeviceFamily(ctx, tok.ID, fleet.DEPDeviceFamilyAppleTV, []string{"tv1", "tv2", "unknown"}))
+	require.NoError(t, ds.SetHostDEPAssignmentsDeviceFamily(ctx, tok.ID, "Mac", []string{"mac1"}))
+	require.NoError(t, ds.SetHostDEPAssignmentsDeviceFamily(ctx, tok.ID, "Mac", nil))
+	require.Equal(t, new(fleet.DEPDeviceFamilyAppleTV), family(tv))
+	require.Equal(t, new("Mac"), family(mac))
+	require.Nil(t, family(otherTokenTV))
+
+	serials, err := ds.ListDEPSerialsWithDeviceFamily(ctx, fleet.DEPDeviceFamilyAppleTV, []string{"tv1", "tv2", "mac1", "unknown"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"tv1"}, serials)
+	serials, err = ds.ListDEPSerialsWithDeviceFamily(ctx, fleet.DEPDeviceFamilyAppleTV, nil)
+	require.NoError(t, err)
+	require.Empty(t, serials)
+
+	// a later sync that re-creates the assignment keeps the device family
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*tv}, tok.ID, nil))
+	require.Equal(t, new(fleet.DEPDeviceFamilyAppleTV), family(tv))
+
+	// a device removed from Apple Business is no longer listed
+	require.NoError(t, ds.DeleteHostDEPAssignments(ctx, tok.ID, []string{"tv1"}))
+	serials, err = ds.ListDEPSerialsWithDeviceFamily(ctx, fleet.DEPDeviceFamilyAppleTV, []string{"tv1"})
+	require.NoError(t, err)
+	require.Empty(t, serials)
+}
+
+func testMDMAppleSetupAssistantTvOSProfileUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const org = "org1"
+	_, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: org, EncryptedToken: []byte("token"), RenewAt: time.Now()})
+	require.NoError(t, err)
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "tvos-profile-team"})
+	require.NoError(t, err)
+
+	for _, custom := range []bool{false, true} {
+		for _, teamID := range []*uint{nil, &tm.ID} {
+			t.Run(fmt.Sprintf("custom=%t team=%t", custom, teamID != nil), func(t *testing.T) {
+				setMain := func(profileUUID string) {
+					if custom {
+						require.NoError(t, ds.SetMDMAppleSetupAssistantProfileUUID(ctx, teamID, profileUUID, org))
+						return
+					}
+					require.NoError(t, ds.SetMDMAppleDefaultSetupAssistantProfileUUID(ctx, teamID, profileUUID, org))
+				}
+
+				// nothing registered for the token yet
+				_, err := ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+				require.True(t, fleet.IsNotFound(err), err)
+
+				if custom {
+					_, err := ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{
+						TeamID: teamID, Name: "asst", Profile: json.RawMessage(`{"profile_name": "asst"}`),
+					})
+					require.NoError(t, err)
+				}
+				setMain("main-1")
+
+				got, err := ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+				require.NoError(t, err)
+				require.Nil(t, got)
+
+				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-1", "tvos-1", org))
+				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+				require.NoError(t, err)
+				require.Equal(t, new("tvos-1"), got)
+
+				// "same profile as everyone else" is distinct from "not worked out yet"
+				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-1", "", org))
+				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+				require.NoError(t, err)
+				require.Equal(t, new(""), got)
+
+				// re-registering the profile discards it
+				setMain("main-2")
+				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+				require.NoError(t, err)
+				require.Nil(t, got)
+
+				// a value worked out from the replaced profile isn't stored
+				for _, stale := range []string{"", "tvos-1"} {
+					require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-1", stale, org))
+					got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+					require.NoError(t, err)
+					require.Nil(t, got)
+				}
+
+				require.NoError(t, ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, "main-2", "tvos-2", org))
+				got, err = ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, teamID, custom, org)
+				require.NoError(t, err)
+				require.Equal(t, new("tvos-2"), got)
+			})
+		}
+	}
+}
+
+func testMDMAppleUpsertHostMacToTvOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	labelNames := func(hostID uint) []string {
+		labels, err := ds.ListLabelsForHost(ctx, hostID)
+		require.NoError(t, err)
+		names := make([]string, 0, len(labels))
+		for _, l := range labels {
+			names = append(names, l.Name)
+		}
+		return names
+	}
+
+	host := &fleet.Host{UUID: "tv-uuid", HardwareSerial: "tv-serial", HardwareModel: "AppleTV14,1", Platform: "darwin"}
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, host, fleet.PersonalEnrollmentTypeNone))
+	stored, err := ds.HostByIdentifier(ctx, "tv-serial")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"All Hosts", "macOS"}, labelNames(stored.ID))
+
+	host.Platform = "tvos"
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, host, fleet.PersonalEnrollmentTypeNone))
+	stored, err = ds.HostByIdentifier(ctx, "tv-serial")
+	require.NoError(t, err)
+	require.Equal(t, "tvos", stored.Platform)
+	require.ElementsMatch(t, []string{"All Hosts", fleet.BuiltinLabelTvOS}, labelNames(stored.ID))
 }

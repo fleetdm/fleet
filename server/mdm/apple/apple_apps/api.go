@@ -224,7 +224,7 @@ func do(req *http.Request, getBearerToken authenticator, forceRenew bool, dest *
 }
 
 func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
-	// length 1 because watchOS/tvOS/visionOS exist and we don't support them, so using the length of the DeviceFamilies
+	// length 1 because watchOS/visionOS exist and we don't support them, so using the length of the DeviceFamilies
 	// slice would give us extra empty entries
 	platforms := make(map[fleet.InstallableDevicePlatform]fleet.VPPApp, 1)
 	for _, device := range app.Attributes.DeviceFamilies {
@@ -235,7 +235,7 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 		)
 
 		// It is rare that a single app supports all platforms, but it is possible.
-		// Skipping the "appletvos" platform right now as we don't support tvOS;
+		// watchOS and visionOS are still skipped as Fleet doesn't manage them;
 		// see https://github.com/DIYgod/RSSHub/blob/master/lib/routes/apple/apps.ts for mapping info
 		switch device {
 		case "iphone":
@@ -256,6 +256,19 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 				continue
 			}
 			platform = fleet.MacOSPlatform
+		// Apple spells this platform three different ways across one
+		// request/response pair: "appletv" as the additionalPlatforms request
+		// parameter, "tvos" as the device family here, and "appletvos" as the
+		// platformAttributes key below. All three are required and none of them
+		// can be inferred from the others.
+		case "tvos":
+			// Apple TV apps are built against a separate SDK, so they carry
+			// their own platform entry rather than sharing the "ios" one.
+			data, ok = app.Attributes.Platforms["appletvos"]
+			if !ok {
+				continue
+			}
+			platform = fleet.TVOSPlatform
 		default:
 			continue
 		}
@@ -281,6 +294,9 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 // getBaseURL returns the VPP app metadata base URL for the given storefront
 // region. The FLEET_DEV_VPP_REGION dev override, when set, takes precedence
 // over the caller-supplied region. An empty region falls back to "us".
+//
+// NOTE: Apple only returns platformAttributes for the platforms requested here, so a platform mapped in ToVPPApps
+// but missing from this list silently yields no apps.
 func getBaseURL(bearerTokenSupplied bool, region string) string {
 	if region == "" {
 		region = "us"
@@ -295,10 +311,10 @@ func getBaseURL(bearerTokenSupplied bool, region string) string {
 	}
 	// if a bearer token is supplied and we don't have an explicit further override, use Apple's endpoint directly
 	if urlFromEnvVar == "apple" || bearerTokenSupplied {
-		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
+		return fmt.Sprintf(appleHostAndScheme+"/v1/catalog/%s/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", region)
 	}
 
-	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", region)
+	return fmt.Sprintf("https://fleetdm.com/api/vpp/v1/metadata/%s?platform=iphone&additionalPlatforms=ipad,mac,appletv&extend[apps]=latestVersionInfo", region)
 }
 
 type authResp struct {

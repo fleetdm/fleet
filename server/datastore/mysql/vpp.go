@@ -723,7 +723,7 @@ ORDER BY vat.id
 						return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 					}
 				}
-			case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform:
 				if len(toAdd.Configuration) > 0 {
 					if err := ds.updateVPPAppConfigurationTx(ctx, tx, vppAppTeamID, toAdd.Configuration); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
@@ -898,7 +898,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, vppAppTeamID, app.Configuration); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 				}
-			case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform:
 				// Empty bytes signals a clear (PATCH `"configuration": null`). Non-empty
 				// bytes upsert. Mirrors the batch path above so single-app and batch
 				// flows behave the same way.
@@ -1114,10 +1114,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	// back by osquery. Since it may change, we're using a variable for the source.
 	var source string
 	switch app.Platform {
-	case fleet.IOSPlatform:
-		source = "ios_apps"
-	case fleet.IPadOSPlatform:
-		source = "ipados_apps"
+	case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform:
+		source = fleet.AppleSoftwareSourceForPlatform(string(app.Platform))
 	case fleet.AndroidPlatform:
 		source = "android_apps"
 	default:
@@ -1135,7 +1133,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, extension_for) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
 		switch source {
-		case "ios_apps", "ipados_apps":
+		case "ios_apps", "ipados_apps", "tvos_apps":
 			selectStmt = `
 				    SELECT id
 				    FROM software_titles
@@ -3240,7 +3238,7 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 			if configurationChanged && len(incomingApp.Configuration) == 0 {
 				incomingApp.Configuration = json.RawMessage("{}")
 			}
-		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+		case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.TVOSPlatform:
 			configurationChanged, err = ds.HasVPPAppConfigurationChanged(ctx, incomingApp.Platform, existingApp.AdamID, ptr.ValOrZero(teamID), &existingApp.AppTeamID, incomingApp.Configuration)
 			if err != nil {
 				return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for vpp app")
@@ -3306,7 +3304,7 @@ func (ds *Datastore) checkSoftwareConflictsForVPPApp(ctx context.Context, tx sql
 	}
 
 	// check if the vpp app conflicts with an existing in-house app
-	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+	if fleet.IsAppleMDMOnlyPlatform(string(appID.Platform)) {
 		exists, conflictingTitle, err := ds.checkInHouseAppExistsForAdamID(ctx, tx, teamID, appID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "check if in-house app exists")
@@ -3474,7 +3472,7 @@ WHERE
 	// drop the field at the builder level (and we don't even bother fetching).
 	var vppAppTeamIDs []uint
 	for _, p := range pending {
-		if p.VPPAppTeamID != nil && (p.Platform == string(fleet.IOSPlatform) || p.Platform == string(fleet.IPadOSPlatform)) {
+		if p.VPPAppTeamID != nil && fleet.IsAppleMDMOnlyPlatform(p.Platform) {
 			vppAppTeamIDs = append(vppAppTeamIDs, *p.VPPAppTeamID)
 		}
 	}
@@ -3969,7 +3967,7 @@ FROM
 	hosts h
 WHERE
 	h.id > ? AND
-	h.platform IN ('ios', 'ipados') AND
+	h.platform IN ('ios', 'ipados', 'tvos') AND
 	EXISTS (
 		SELECT 1 FROM nano_enrollments ne
 		WHERE ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')

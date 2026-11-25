@@ -526,6 +526,102 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 	return profileUUID, modTime, nil
 }
 
+// tvOSProfileUUID returns the profile Apple TVs in the team (or no team) are assigned in place of profUUID, the
+// team's profile registered with the ABM token. tvOS only requests its enrollment profile from the profile's url and
+// can't complete end user authentication, so when the team's profile sets configuration_web_url, Apple TVs get a
+// copy that doesn't.
+func (d *DEPService) tvOSProfileUUID(ctx context.Context, team *fleet.Team, abmTokenOrgName, profUUID string) (string, error) {
+	var tmID *uint
+	if team != nil {
+		tmID = &team.ID
+	}
+
+	var rawJSON json.RawMessage
+	asst, err := d.ds.GetMDMAppleSetupAssistant(ctx, tmID)
+	switch {
+	case err == nil:
+		rawJSON = asst.Profile
+	case !fleet.IsNotFound(err):
+		return "", ctxerr.Wrap(ctx, err, "get setup assistant")
+	}
+	custom := asst != nil
+
+	stored, err := d.ds.GetMDMAppleSetupAssistantTvOSProfileUUID(ctx, tmID, custom, abmTokenOrgName)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get tvOS profile uuid")
+	}
+	if stored != nil {
+		if *stored == "" {
+			return profUUID, nil
+		}
+		return *stored, nil
+	}
+
+	appCfg, err := d.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+	defaultProf, err := d.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "fetching default profile")
+	}
+	enrollURL, err := EnrollURL(defaultProf.Token, appCfg)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating enroll URL")
+	}
+	if !custom && defaultProf.DEPProfile != nil {
+		rawJSON = *defaultProf.DEPProfile
+	}
+	jsonProf, err := d.buildJSONProfile(ctx, rawJSON, appCfg, team, enrollURL)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "building json profile")
+	}
+
+	var tvOSProfUUID string
+	if jsonProf.ConfigurationWebURL != "" {
+		jsonProf.ConfigurationWebURL = ""
+		jsonProf.URL = enrollURL
+		res, err := NewDEPClient(d.depStorage, d.ds, d.logger).DefineProfile(ctx, abmTokenOrgName, jsonProf)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "apple POST /profile request failed for tvOS profile")
+		}
+		tvOSProfUUID = res.ProfileUUID
+	}
+	if err := d.ds.SetMDMAppleSetupAssistantTvOSProfileUUID(ctx, tmID, custom, profUUID, tvOSProfUUID, abmTokenOrgName); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "save tvOS profile uuid")
+	}
+	if tvOSProfUUID == "" {
+		return profUUID, nil
+	}
+	return tvOSProfUUID, nil
+}
+
+// GroupSerialsByProfile returns the profile each serial must be assigned: profUUID, the team's profile registered
+// with the ABM token, except for Apple TVs, which get the team's tvOS profile.
+func (d *DEPService) GroupSerialsByProfile(ctx context.Context, team *fleet.Team, abmTokenOrgName, profUUID string, serials []string) (map[string][]string, error) {
+	tvSerials, err := d.ds.ListDEPSerialsWithDeviceFamily(ctx, fleet.DEPDeviceFamilyAppleTV, serials)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list Apple TV serials")
+	}
+	if len(tvSerials) == 0 {
+		return map[string][]string{profUUID: serials}, nil
+	}
+
+	tvOSProfUUID, err := d.tvOSProfileUUID(ctx, team, abmTokenOrgName, profUUID)
+	if err != nil {
+		return nil, err
+	}
+	byProfile := make(map[string][]string, 2)
+	for _, serial := range serials {
+		if slices.Contains(tvSerials, serial) {
+			byProfile[tvOSProfUUID] = append(byProfile[tvOSProfUUID], serial)
+			continue
+		}
+		byProfile[profUUID] = append(byProfile[profUUID], serial)
+	}
+	return byProfile, nil
+}
+
 func (d *DEPService) RunAssigner(ctx context.Context) error {
 	syncerLogger := logging.NewNanoDEPLogger(ctx, d.logger.With("component", "nanodep-syncer"))
 	teams, err := d.ds.ListTeams(
@@ -561,22 +657,25 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			}
 		}
 
-		var macOSTeam, iosTeam, ipadTeam *fleet.Team
+		var defaultTeams fleet.ABMDefaultTeams
 
 		if token.MacOSDefaultTeamID != nil {
-			macOSTeam = teamsByID[*token.MacOSDefaultTeamID]
+			defaultTeams.MacOS = teamsByID[*token.MacOSDefaultTeamID]
 		}
 
 		if token.IOSDefaultTeamID != nil {
-			iosTeam = teamsByID[*token.IOSDefaultTeamID]
+			defaultTeams.IOS = teamsByID[*token.IOSDefaultTeamID]
 		}
 
 		if token.IPadOSDefaultTeamID != nil {
-			ipadTeam = teamsByID[*token.IPadOSDefaultTeamID]
+			defaultTeams.IPadOS = teamsByID[*token.IPadOSDefaultTeamID]
 		}
 
-		teams := []*fleet.Team{macOSTeam, iosTeam, ipadTeam}
-		for _, team := range teams {
+		if token.TvOSDefaultTeamID != nil {
+			defaultTeams.TvOS = teamsByID[*token.TvOSDefaultTeamID]
+		}
+
+		for _, team := range defaultTeams.All() {
 			// ensure the default (fallback) setup assistant profile exists, registered
 			// with Apple DEP.
 			_, defModTime, err := d.EnsureDefaultSetupAssistant(ctx, team, token.OrganizationName)
@@ -623,7 +722,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
 				// the nanodep syncer just logs the error of the callback, so in order to
 				// capture it we need to do this here.
-				err := d.processDeviceResponse(ctx, resp, token.ID, token.OrganizationName, macOSTeam, iosTeam, ipadTeam)
+				err := d.processDeviceResponse(ctx, resp, token.ID, token.OrganizationName, defaultTeams)
 				if err != nil {
 					ctxerr.Handle(ctx, err)
 				}
@@ -686,9 +785,7 @@ func (d *DEPService) processDeviceResponse(
 	resp *godep.DeviceResponse,
 	abmTokenID uint,
 	abmOrganizationName string,
-	macOSTeam *fleet.Team,
-	iosTeam *fleet.Team,
-	ipadTeam *fleet.Team,
+	defaultTeams fleet.ABMDefaultTeams,
 ) error {
 	if len(resp.Devices) < 1 {
 		// no devices means we can't assign anything
@@ -838,7 +935,7 @@ func (d *DEPService) processDeviceResponse(
 		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
 	}
 
-	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevicesSlice, abmTokenID, macOSTeam, iosTeam, ipadTeam)
+	n, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevicesSlice, abmTokenID, defaultTeams)
 	switch {
 	case err != nil:
 		d.logger.ErrorContext(ctx, "error ingesting DEP devices", "err", err)
@@ -861,29 +958,14 @@ func (d *DEPService) processDeviceResponse(
 	//
 	// collect a map of all the profiles => serials we need to assign.
 	profileToDevices := map[string][]godep.Device{}
-	var iosTeamID, macOSTeamID, ipadTeamID *uint
-	if iosTeam != nil {
-		iosTeamID = &iosTeam.ID
-	}
-	if macOSTeam != nil {
-		macOSTeamID = &macOSTeam.ID
-	}
-	if ipadTeam != nil {
-		ipadTeamID = &ipadTeam.ID
-	}
 
 	// each new device should be assigned the DEP profile of the default
 	// ABM team as configured by the IT admin.
 	devicesByTeam := map[*uint][]godep.Device{}
 	for _, newDevice := range addedDevicesSlice {
 		var teamID *uint
-		switch newDevice.DeviceFamily {
-		case "iPhone", "iPod":
-			teamID = iosTeamID
-		case "iPad":
-			teamID = ipadTeamID
-		default:
-			teamID = macOSTeamID
+		if team := defaultTeams.ForDeviceFamily(newDevice.DeviceFamily); team != nil {
+			teamID = &team.ID
 		}
 		devicesByTeam[teamID] = append(devicesByTeam[teamID], newDevice)
 	}
@@ -916,15 +998,49 @@ func (d *DEPService) processDeviceResponse(
 		}
 	}
 
+	serialsByDeviceFamily := map[string][]string{}
+	for _, devices := range devicesByTeam {
+		for _, device := range devices {
+			if device.DeviceFamily != "" {
+				serialsByDeviceFamily[device.DeviceFamily] = append(serialsByDeviceFamily[device.DeviceFamily], device.SerialNumber)
+			}
+		}
+	}
+	for deviceFamily, serials := range serialsByDeviceFamily {
+		if err := d.ds.SetHostDEPAssignmentsDeviceFamily(ctx, abmTokenID, deviceFamily, serials); err != nil {
+			return ctxerr.Wrap(ctx, err, "recording device family of dep assignments")
+		}
+	}
+
 	// assign the profile to each device
 	for team, devices := range devicesByTeam {
 		// FIXME: Do we have replication issues or races? There seem to be alot of calls going on inside this function.
-		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
+		// A device is an Apple TV if either this response or the stored device family says so: Apple may not
+		// repeat it for every record, and a device that failed to ingest has nothing stored.
+		serials := make([]string, 0, len(devices))
+		for _, device := range devices {
+			serials = append(serials, device.SerialNumber)
+		}
+		tvSerials, err := d.ds.ListDEPSerialsWithDeviceFamily(ctx, fleet.DEPDeviceFamilyAppleTV, serials)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list Apple TV serials")
+		}
+		isAppleTV := func(device godep.Device) bool {
+			return device.DeviceFamily == fleet.DEPDeviceFamilyAppleTV || slices.Contains(tvSerials, device.SerialNumber)
+		}
+
+		profUUID, tvOSProfUUID, err := d.getProfileUUIDsForTeam(ctx, team, abmOrganizationName, slices.ContainsFunc(devices, isAppleTV))
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
 		}
 
-		profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
+		for _, device := range devices {
+			deviceProfUUID := profUUID
+			if isAppleTV(device) {
+				deviceProfUUID = tvOSProfUUID
+			}
+			profileToDevices[deviceProfUUID] = append(profileToDevices[deviceProfUUID], device)
+		}
 	}
 
 	// keep track of the serials we're going to skip for all profiles in
@@ -1044,29 +1160,38 @@ func (d *DEPService) processDeviceResponse(
 	return nil
 }
 
-func (d *DEPService) getProfileUUIDForTeam(ctx context.Context, tmID *uint, abmTokenOrgName string) (string, error) {
+// getProfileUUIDsForTeam returns the profile to assign to the team's devices and, if withTvOS, the one to assign to
+// its Apple TVs.
+func (d *DEPService) getProfileUUIDsForTeam(ctx context.Context, tmID *uint, abmTokenOrgName string, withTvOS bool) (profUUID, tvOSProfUUID string, err error) {
 	var appleBMTeam *fleet.Team
 	if tmID != nil {
 		tm, err := d.ds.TeamWithExtras(ctx, *tmID) // TODO see if we can convert to TeamLite
 		if err != nil && !fleet.IsNotFound(err) {
-			return "", ctxerr.Wrap(ctx, err, "get team")
+			return "", "", ctxerr.Wrap(ctx, err, "get team")
 		}
 		appleBMTeam = tm
 	}
 
 	// get profile uuid of team or default
-	profUUID, _, err := d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam, abmTokenOrgName)
+	profUUID, _, err = d.EnsureCustomSetupAssistantIfExists(ctx, appleBMTeam, abmTokenOrgName)
 	if err != nil {
-		return "", fmt.Errorf("ensure setup assistant for team: %w", err)
+		return "", "", fmt.Errorf("ensure setup assistant for team: %w", err)
 	}
 	if profUUID == "" {
 		profUUID, _, err = d.EnsureDefaultSetupAssistant(ctx, appleBMTeam, abmTokenOrgName)
 		if err != nil {
-			return "", fmt.Errorf("ensure default setup assistant: %w", err)
+			return "", "", fmt.Errorf("ensure default setup assistant: %w", err)
 		}
 	}
 
-	return profUUID, nil
+	if withTvOS {
+		tvOSProfUUID, err = d.tvOSProfileUUID(ctx, appleBMTeam, abmTokenOrgName, profUUID)
+		if err != nil {
+			return "", "", fmt.Errorf("ensure tvOS setup assistant: %w", err)
+		}
+	}
+
+	return profUUID, tvOSProfUUID, nil
 }
 
 // logCountsForResults tries to aggregate the result types and log the counts.
@@ -1746,7 +1871,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	start := time.Now()
 	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, fleet.MobileRefetchInterval, batchSize)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
+		return ctxerr.Wrap(ctx, err, "list ios, ipados and tvos devices to refetch")
 	}
 	if len(devices) == 0 {
 		return nil
@@ -1839,7 +1964,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 		commandUUID := fleet.RefetchAppsCommandUUIDPrefix + uuid.NewString()
 		err := trackAndSend(fleet.RefetchAppsCommandUUIDPrefix, commandUUID, group,
-			"send InstalledApplicationList commands to ios and ipados devices", func() error {
+			"send InstalledApplicationList commands to ios, ipados and tvos devices", func() error {
 				return commander.InstalledApplicationList(ctx, group.uuids, commandUUID, managedOnly)
 			})
 		if err != nil {
@@ -1851,7 +1976,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	if len(certs.uuids) > 0 {
 		commandUUID := fleet.RefetchCertsCommandUUIDPrefix + uuid.NewString()
 		err := trackAndSend(fleet.RefetchCertsCommandUUIDPrefix, commandUUID, certs,
-			"send CertificateList commands to ios and ipados devices", func() error {
+			"send CertificateList commands to ios, ipados and tvos devices", func() error {
 				return commander.CertificateList(ctx, certs.uuids, commandUUID)
 			})
 		if err != nil {
@@ -1859,20 +1984,32 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 
-	// DeviceInformation is last because the refetch response clears the refetch_requested flag
-	deviceInfoGroups := groupsByFlag(fleet.RefetchDeviceCommandUUIDPrefix, func(device fleet.AppleDevicesToRefetch) bool {
-		return device.IsPersonalEnrollment
-	})
-	for _, isPersonalEnrollment := range []bool{true, false} {
-		group, ok := deviceInfoGroups[isPersonalEnrollment]
+	// DeviceInformation is last because the refetch response clears the refetch_requested flag.
+	// One command targets many devices, so devices are grouped by the set of query keys they
+	// can answer (BYOD enrollments and Apple TVs each answer a reduced set).
+	deviceInfoGroups := map[DeviceInformationKeySet]deviceGroup{}
+	for _, device := range devices {
+		if slices.Contains(device.CommandsAlreadySent, fleet.RefetchDeviceCommandUUIDPrefix) {
+			continue
+		}
+		keySet := DeviceInformationKeySetForHost(device.Platform, device.IsPersonalEnrollment)
+		group := deviceInfoGroups[keySet]
+		group.hostIDs = append(group.hostIDs, device.HostID)
+		group.uuids = append(group.uuids, device.UUID)
+		deviceInfoGroups[keySet] = group
+	}
+	for _, keySet := range []DeviceInformationKeySet{ // fixed order keeps enqueue order deterministic
+		DeviceInformationKeysPersonalEnrollment, DeviceInformationKeysFull, DeviceInformationKeysTvOS,
+	} {
+		group, ok := deviceInfoGroups[keySet]
 		if !ok {
 			continue
 		}
 
 		commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + uuid.NewString()
 		err := trackAndSend(fleet.RefetchDeviceCommandUUIDPrefix, commandUUID, group,
-			"send DeviceInformation commands to ios and ipados devices", func() error {
-				return commander.DeviceInformation(ctx, group.uuids, commandUUID, isPersonalEnrollment)
+			"send DeviceInformation commands to ios, ipados and tvos devices", func() error {
+				return commander.DeviceInformation(ctx, group.uuids, commandUUID, keySet)
 			})
 		if err != nil {
 			return err
@@ -1973,7 +2110,7 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 
 	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 500)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to revive")
+		return ctxerr.Wrap(ctx, err, "list ios, ipados and tvos devices to revive")
 	}
 	if len(ids) == 0 {
 		return nil
@@ -1991,15 +2128,17 @@ func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppl
 }
 
 func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](settings T, excludeNonPublicAssetSets bool) (map[string]string, error) {
-	var macOSUpdates, iOSUpdates, iPadOSUpdates fleet.AppleOSUpdateSettings
+	var macOSUpdates, iOSUpdates, iPadOSUpdates, tvOSUpdates fleet.AppleOSUpdateSettings
 	if m, ok := any(settings).(fleet.MDM); ok {
 		macOSUpdates = m.MacOSUpdates
 		iOSUpdates = m.IOSUpdates
 		iPadOSUpdates = m.IPadOSUpdates
+		tvOSUpdates = m.TvOSUpdates
 	} else if t, ok := any(settings).(fleet.TeamMDM); ok {
 		macOSUpdates = t.MacOSUpdates
 		iOSUpdates = t.IOSUpdates
 		iPadOSUpdates = t.IPadOSUpdates
+		tvOSUpdates = t.TvOSUpdates
 	} else {
 		return nil, errors.New("invalid settings type")
 	}
@@ -2011,7 +2150,31 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return s.MinimumVersion.Value != "" && !s.EnforcesLatestVersion()
 	}
 
-	if !needsVersionCheck(macOSUpdates) && !needsVersionCheck(iOSUpdates) && !needsVersionCheck(iPadOSUpdates) {
+	// Apple publishes Apple TV builds in the iOS asset set, so tvOS versions are
+	// looked up there with the AppleTV device prefix.
+	//
+	// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
+	// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
+	// and we want to avoid breaking workflows for users in that event
+	platforms := []struct {
+		key          string
+		updates      fleet.AppleOSUpdateSettings
+		devicePrefix string // empty means the macOS asset set
+	}{
+		{"macos", macOSUpdates, ""},
+		{"ios", iOSUpdates, "iphone"},
+		{"ipados", iPadOSUpdates, "ipad"},
+		{"tvos", tvOSUpdates, "appletv"},
+	}
+
+	var anyNeedsCheck bool
+	for _, p := range platforms {
+		if needsVersionCheck(p.updates) {
+			anyNeedsCheck = true
+			break
+		}
+	}
+	if !anyNeedsCheck {
 		// nothing to validate, so don't pay for the round trip to Apple.
 		return nil, nil
 	}
@@ -2024,23 +2187,19 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return nil, errors.New("Apple asset metadata is not available")
 	}
 
-	invalid := make(map[string]string, 3)
-	if needsVersionCheck(macOSUpdates) {
-		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
-			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
+	invalid := make(map[string]string, len(platforms))
+	for _, p := range platforms {
+		if !needsVersionCheck(p.updates) {
+			continue
 		}
-	}
-	if needsVersionCheck(iOSUpdates) {
-		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
-		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
-		// and we want to avoid breaking workflows for users in that event
-		if ok := am.IsSupportedIOSVersion(iOSUpdates.MinimumVersion.Value, "iphone", excludeNonPublicAssetSets); !ok {
-			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
+		var supported bool
+		if p.devicePrefix == "" {
+			supported = am.IsSupportedMacOSVersion(p.updates.MinimumVersion.Value, excludeNonPublicAssetSets)
+		} else {
+			supported = am.IsSupportedIOSVersion(p.updates.MinimumVersion.Value, p.devicePrefix, excludeNonPublicAssetSets)
 		}
-	}
-	if needsVersionCheck(iPadOSUpdates) {
-		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
-			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
+		if !supported {
+			invalid[p.key] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
 
@@ -2726,7 +2885,7 @@ computeOSTargets:
 		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
-	// Get a list of all teams that has latest configured for macOS, iOS, or iPadOS.
+	// Get a list of all teams that has latest configured for macOS, iOS, iPadOS or tvOS.
 	// We use admin global role to have access to all teams.
 	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
 		GlobalRole: new("admin"),
@@ -2740,6 +2899,7 @@ computeOSTargets:
 	teamsWithLatest["darwin"] = map[uint]int{}
 	teamsWithLatest["ios"] = map[uint]int{}
 	teamsWithLatest["ipados"] = map[uint]int{}
+	teamsWithLatest["tvos"] = map[uint]int{}
 
 	for _, team := range teams {
 		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
@@ -2750,6 +2910,9 @@ computeOSTargets:
 		}
 		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 			teamsWithLatest["ipados"][team.ID] = team.Config.MDM.IPadOSUpdates.DeadlineDays.Value
+		}
+		if team.Config.MDM.TvOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+			teamsWithLatest["tvos"][team.ID] = team.Config.MDM.TvOSUpdates.DeadlineDays.Value
 		}
 	}
 
@@ -2762,6 +2925,9 @@ computeOSTargets:
 	}
 	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
 		teamsWithLatest["ipados"][0] = appCfg.MDM.IPadOSUpdates.DeadlineDays.Value
+	}
+	if appCfg.MDM.TvOSUpdates.MinimumVersion.Value == fleet.AppleOSUpdateLatestVersion {
+		teamsWithLatest["tvos"][0] = appCfg.MDM.TvOSUpdates.DeadlineDays.Value
 	}
 
 	updateAssets, err := ds.ListAppleOSUpdateAssets(ctx)
@@ -2809,10 +2975,14 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 		if host.Platform == "darwin" {
 			updateAssetsPlatform = "macos"
 		} else {
-			updateAssetsPlatform = "ios" // covers iPhone, iPad, iPod
+			// Apple publishes Apple TV builds in the iOS asset set alongside
+			// iPhone/iPad/iPod, so tvOS reads from "ios" too. The per-host
+			// SupportedDevices filter below is what narrows it to the right
+			// device family.
+			updateAssetsPlatform = "ios"
 		}
 
-		// teamsWithLatest is configured per platform, one for macos, ios, ipados.
+		// teamsWithLatest is configured per platform, one for macos, ios, ipados, tvos.
 		teamsWithLatestForPlatform, ok := teamsWithLatest[host.Platform]
 		if !ok {
 			logger.DebugContext(ctx, "unsupported os update platform", "platform", host.Platform, "host_uuid", host.HostUUID)
@@ -3035,6 +3205,7 @@ const (
 	MacOSDDMSoftwareUpdateIdentifier  = "macos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
 	IOSDDMSoftwareUpdateIdentifier    = "ios-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
 	IpadOSDDMSoftwareUpdateIdentifier = "ipados-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
+	TvOSDDMSoftwareUpdateIdentifier   = "tvos-software-update-94f4bbdf-f439-4fb1-8d27-ae1bb793e105"
 )
 
 func FleetReservedDeclarationIdentifiers() map[string]struct{} {
@@ -3042,5 +3213,6 @@ func FleetReservedDeclarationIdentifiers() map[string]struct{} {
 		MacOSDDMSoftwareUpdateIdentifier:  {},
 		IOSDDMSoftwareUpdateIdentifier:    {},
 		IpadOSDDMSoftwareUpdateIdentifier: {},
+		TvOSDDMSoftwareUpdateIdentifier:   {},
 	}
 }

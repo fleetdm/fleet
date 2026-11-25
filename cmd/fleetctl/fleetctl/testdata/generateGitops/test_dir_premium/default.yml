@@ -158,11 +158,13 @@ org_settings:
       ipados_fleet: "📱🏢 Company-owned mobile devices"
       macos_fleet: "💻 Workstations"
       organization_name: Fleet Device Management Inc.
+      tvos_fleet: "📺 Conference room Apple TVs"
     - byod_fleet:
       ios_fleet:
       ipados_fleet:
       macos_fleet: "💻 Workstations"
       organization_name: Second Org LLC
+      tvos_fleet:
     apple_server_url: http://some-apple-server-url.com
     end_user_authentication:
       entity_id: some-mdm-entity-id.com
