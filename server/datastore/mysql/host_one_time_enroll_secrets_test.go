@@ -902,8 +902,8 @@ func testOneTimeEnrollSecretWindowsMint(t *testing.T, ds *Datastore) {
 	usedByOrbit, err := ds.WindowsMDMEnrollSecretUsedByOrbit(ctx, device.ID)
 	require.NoError(t, err)
 	require.False(t, usedByOrbit)
-	h := newOneTimeSecretTestHost(t, ds, "windows", nil)
-	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(stored.ID))...)
+	newDevice := &fleet.Host{UUID: strings.ToUpper(uuid.NewString()), Platform: "windows"}
+	_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(newDevice, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(stored.ID))...)
 	require.NoError(t, err)
 	usedByOrbit, err = ds.WindowsMDMEnrollSecretUsedByOrbit(ctx, device.ID)
 	require.NoError(t, err)
@@ -1085,11 +1085,11 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 	t.Run("a spent secret is swept by host once a resend supersedes it", func(t *testing.T) {
 		// The first-install secret is minted unbound, and consuming it records the host. That is what lets the host-keyed sweep
 		// the Apple path uses cover Windows too.
-		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
 		device := insertWindowsEnrollment(t, ds, "hw-bind-sweep", "")
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		spent := liveWindowsSecret(t, ds, device.ID)
-		_, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(spent.ID))...)
+		newDevice := &fleet.Host{UUID: strings.ToUpper(uuid.NewString()), Platform: "windows"}
+		h, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(newDevice, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(spent.ID))...)
 		require.NoError(t, err)
 		consumed, err := ds.GetHostOneTimeEnrollSecret(ctx, spent.Secret)
 		require.NoError(t, err)
@@ -1111,27 +1111,65 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		require.NoError(t, err, "the live secret must survive the sweep")
 	})
 
-	t.Run("a first-install secret cannot take over a host another enrollment claims", func(t *testing.T) {
+	t.Run("a first-install secret cannot take over a host another enrollment claims or an agent enrolled as", func(t *testing.T) {
 		// The attacker's device is legitimately enrolled in MDM, so it is handed a first-install secret over its own channel,
-		// but its orbit presents the victim's identifiers. Nothing binds that secret to a host.
-		victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
-		insertWindowsEnrollment(t, ds, "hw-claim-victim", victim.UUID)
-		attacker := insertWindowsEnrollment(t, ds, "hw-claim-attacker", "")
-		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, attacker.ID))
-		row := liveWindowsSecret(t, ds, attacker.ID)
-		before, err := ds.Host(ctx, victim.ID)
-		require.NoError(t, err)
+		// but its agent presents the victim's identifiers. Nothing binds that secret to a host.
+		cases := []struct {
+			name            string
+			claimed         bool
+			orbitEnrolled   bool
+			osqueryEnrolled bool
+		}{
+			{name: "another enrollment claims it", claimed: true},
+			{name: "orbit enrolled as it", orbitEnrolled: true},
+			{name: "osquery enrolled as it", osqueryEnrolled: true},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = IF(?, CONCAT('onk-', uuid), NULL),
+						node_key = IF(?, CONCAT('nk-', uuid), NULL) WHERE id = ?`, c.orbitEnrolled, c.osqueryEnrolled, victim.ID)
+					return err
+				})
+				if c.claimed {
+					insertWindowsEnrollment(t, ds, "hw-claim-victim", victim.UUID)
+				}
+				attacker := insertWindowsEnrollment(t, ds, "hw-claim-attacker-"+victim.UUID, "")
+				require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, attacker.ID))
+				row := liveWindowsSecret(t, ds, attacker.ID)
+				before, err := ds.Host(ctx, victim.ID)
+				require.NoError(t, err)
 
-		_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(victim, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
-		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
-		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(victim, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
-		requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
+				// Either plane can go first.
+				_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(victim, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
+				requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
+				_, err = ds.EnrollOrbit(ctx, orbitEnrollOpts(victim, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
+				requireEnrollmentRejected(t, err, fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, &victim.ID)
 
-		after, err := ds.Host(ctx, victim.ID)
+				after, err := ds.Host(ctx, victim.ID)
+				require.NoError(t, err)
+				require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey, "the refused enrollment must not rotate the victim's node key")
+				require.Equal(t, before.NodeKey, after.NodeKey)
+				require.Equal(t, row.Secret, liveWindowsSecret(t, ds, attacker.ID).Secret, "a refused attempt must not spend the secret")
+			})
+		}
+	})
+
+	t.Run("a first-install secret lands on an enrolled host that its agent linked to the enrollment", func(t *testing.T) {
+		// fleetd was on the device before it turned on MDM, and osquery reported the enrollment's MDM device ID after the mint.
+		h := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := insertWindowsEnrollment(t, ds, "hw-agent-linked", "")
+		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
+		row := liveWindowsSecret(t, ds, device.ID)
+		require.Nil(t, row.HostID)
+		linkWindowsEnrollment(t, ds, device, h.UUID)
+
+		enrolled, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
-		require.Equal(t, before.OrbitNodeKey, after.OrbitNodeKey, "the refused enrollment must not rotate the victim's node key")
-		require.Equal(t, before.NodeKey, after.NodeKey)
-		require.Equal(t, row.Secret, liveWindowsSecret(t, ds, attacker.ID).Secret, "a refused attempt must not spend the secret")
+		require.Equal(t, h.ID, enrolled.ID)
+		_, err = ds.EnrollOsquery(ctx, osqueryEnrollOpts(h, nil, fleet.WithEnrollOsqueryOneTimeEnrollSecret(row.ID))...)
+		require.NoError(t, err)
 	})
 
 	t.Run("a first-install secret cannot take over a host that isn't Windows", func(t *testing.T) {
