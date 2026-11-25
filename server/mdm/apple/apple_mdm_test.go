@@ -1005,6 +1005,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ResetRecoveryLockForInactiveCommandsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 			return nil, nil
 		}
@@ -1041,6 +1044,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.ResetRecoveryLockForInactiveCommandsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
 		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
@@ -1102,6 +1108,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ResetRecoveryLockForInactiveCommandsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 			return nil, nil
 		}
@@ -1161,6 +1170,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ResetRecoveryLockForInactiveCommandsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 			return nil, nil
 		}
@@ -1214,12 +1226,20 @@ type mockRecoveryLockCommander struct {
 	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	rotateRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	verifyRecoveryLockFn func(ctx context.Context, hostUUID, cmdUUID string) error
+	verifyLastKnownFn    func(ctx context.Context, hostUUID, cmdUUID string) error
 	verifyClearFn        func(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error {
 	if m.verifyRecoveryLockFn != nil {
 		return m.verifyRecoveryLockFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) VerifyRecoveryLockLastKnownPassword(ctx context.Context, hostUUID, cmdUUID string) error {
+	if m.verifyLastKnownFn != nil {
+		return m.verifyLastKnownFn(ctx, hostUUID, cmdUUID)
 	}
 	return nil
 }
@@ -1257,8 +1277,9 @@ func TestSendRecoveryLockVerifyCommands(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 
 	claims := []fleet.HostRecoveryLockVerifyClaim{
-		{HostUUID: "install-host", OperationType: fleet.MDMOperationTypeInstall, VerifyCommandUUID: "verify-1"},
+		{HostUUID: "install-host", OperationType: fleet.MDMOperationTypeInstall, HasPendingPassword: true, VerifyCommandUUID: "verify-1"},
 		{HostUUID: "remove-host", OperationType: fleet.MDMOperationTypeRemove, VerifyCommandUUID: "verify-2"},
+		{HostUUID: "last-known-host", OperationType: fleet.MDMOperationTypeInstall, VerifyCommandUUID: "verify-3"},
 	}
 
 	t.Run("sends the verify matching each operation", func(t *testing.T) {
@@ -1266,10 +1287,14 @@ func TestSendRecoveryLockVerifyCommands(t *testing.T) {
 		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 			return claims, nil
 		}
-		var verified, verifiedClear []string
+		var verified, verifiedLastKnown, verifiedClear []string
 		commander := &mockRecoveryLockCommander{
 			verifyRecoveryLockFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
 				verified = append(verified, hostUUID+"/"+cmdUUID)
+				return nil
+			},
+			verifyLastKnownFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
+				verifiedLastKnown = append(verifiedLastKnown, hostUUID+"/"+cmdUUID)
 				return nil
 			},
 			verifyClearFn: func(ctx context.Context, hostUUID, cmdUUID string) error {
@@ -1280,6 +1305,7 @@ func TestSendRecoveryLockVerifyCommands(t *testing.T) {
 
 		require.NoError(t, sendRecoveryLockVerifyCommands(ctx, ds, commander, logger))
 		require.Equal(t, []string{"install-host/verify-1"}, verified)
+		require.Equal(t, []string{"last-known-host/verify-3"}, verifiedLastKnown)
 		require.Equal(t, []string{"remove-host/verify-2"}, verifiedClear)
 		require.False(t, ds.UnclaimHostForRecoveryLockVerifyFuncInvoked)
 	})
@@ -1341,6 +1367,9 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.ResetRecoveryLockForInactiveCommandsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 			return nil, nil
 		}
@@ -1381,6 +1410,9 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.ResetRecoveryLockForInactiveCommandsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
 		ds.ClaimHostsForRecoveryLockVerifyFunc = func(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {

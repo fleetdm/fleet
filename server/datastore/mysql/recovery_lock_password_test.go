@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -48,6 +49,7 @@ func TestRecoveryLockPassword(t *testing.T) {
 		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
 		{"RecoveryLockPasswordArchive", testRecoveryLockPasswordArchive},
 		{"ClaimHostsForRecoveryLockVerify", testClaimHostsForRecoveryLockVerify},
+		{"ResetRecoveryLockForInactiveCommands", testResetRecoveryLockForInactiveCommands},
 	}
 
 	for _, c := range cases {
@@ -2590,9 +2592,15 @@ func testClaimHostsForRecoveryLockVerify(t *testing.T, ds *Datastore) {
 			return err
 		})
 	}
-	// left by the upgrade repair: acknowledged, verify not sent
+	// left by the upgrade repair: acknowledged, verify not sent; the repair keeps a pending password
 	setRow("install-awaiting", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeInstall), nil, false)
 	setRow("remove-awaiting", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeRemove), nil, false)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_recovery_key_passwords SET pending_encrypted_password = 'ppw' WHERE host_uuid = 'install-awaiting'`)
+		return err
+	})
+	// verifying the last known password, whose verify was dropped: no pending password
+	setRow("last-known-awaiting", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeInstall), nil, false)
 	// not for the cron: verify already sent, still waiting on the set, deleted
 	setRow("verify-sent", string(fleet.MDMDeliveryVerifying), string(fleet.MDMOperationTypeInstall), new("verify-1"), false)
 	setRow("set-pending", string(fleet.MDMDeliveryPending), string(fleet.MDMOperationTypeInstall), nil, false)
@@ -2608,7 +2616,7 @@ func testClaimHostsForRecoveryLockVerify(t *testing.T, ds *Datastore) {
 
 	claims, err := ds.ClaimHostsForRecoveryLockVerify(ctx)
 	require.NoError(t, err)
-	require.Len(t, claims, 2)
+	require.Len(t, claims, 3)
 	byHost := map[string]fleet.HostRecoveryLockVerifyClaim{}
 	for _, c := range claims {
 		require.NotEmpty(t, c.VerifyCommandUUID)
@@ -2617,6 +2625,8 @@ func testClaimHostsForRecoveryLockVerify(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, fleet.MDMOperationTypeInstall, byHost["install-awaiting"].OperationType)
 	require.Equal(t, fleet.MDMOperationTypeRemove, byHost["remove-awaiting"].OperationType)
+	require.True(t, byHost["install-awaiting"].HasPendingPassword)
+	require.False(t, byHost["last-known-awaiting"].HasPendingPassword)
 	require.NotEqual(t, byHost["install-awaiting"].VerifyCommandUUID, byHost["remove-awaiting"].VerifyCommandUUID)
 	require.Equal(t, "verify-1", ptr.ValOrZero(pendingVerify("verify-sent")))
 	require.Nil(t, pendingVerify("set-pending"))
@@ -2639,4 +2649,227 @@ func testClaimHostsForRecoveryLockVerify(t *testing.T, ds *Datastore) {
 	require.Len(t, claims, 1)
 	require.Equal(t, "install-awaiting", claims[0].HostUUID)
 	require.NotEqual(t, claimed, claims[0].VerifyCommandUUID)
+}
+
+func testResetRecoveryLockForInactiveCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+
+	newTeam := func(name string, enabled bool) *fleet.Team {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: name})
+		require.NoError(t, err)
+		team.Config.MDM.EnableRecoveryLockPassword = enabled
+		team, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+		return team
+	}
+	teamOn := newTeam("recovery-lock-on", true)
+	teamOff := newTeam("recovery-lock-off", false)
+
+	newHost := func(name string, team *fleet.Team) *fleet.Host {
+		host := test.NewHost(t, ds, name, "1.2.9.1", name+"key", name+"uuid", time.Now(),
+			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
+		_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET cpu_type = 'arm64' WHERE id = ?`, host.ID)
+		require.NoError(t, err)
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+		return host
+	}
+	storePassword := func(hostUUID, password string) string {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{
+			{HostUUID: hostUUID, Password: password, PendingSetCommandUUID: cmdUUID},
+		}))
+		return cmdUUID
+	}
+	report := func(hostUUID, cmdUUID, status string) {
+		require.NoError(t, storage.StoreCommandReport(&mdm.Request{EnrollID: &mdm.EnrollID{ID: hostUUID}, Context: ctx},
+			&mdm.CommandResults{CommandUUID: cmdUUID, Status: status, Raw: []byte(`<?xml version="1.0"?><plist/>`)}))
+	}
+	// Answers NotNow and then clears the queue, as an Authenticate (e.g. SCEP renewal) does.
+	dropQueue := func(hostUUID string, cmdUUIDs ...string) {
+		for _, cmdUUID := range cmdUUIDs {
+			report(hostUUID, cmdUUID, "NotNow")
+		}
+		require.NoError(t, storage.ClearQueue(&mdm.Request{EnrollID: &mdm.EnrollID{ID: hostUUID}, Context: ctx}))
+	}
+	setVerified := func(hostUUID, password string) {
+		cmdUUID := storePassword(hostUUID, password)
+		require.NoError(t, commander.SetRecoveryLock(ctx, []string{hostUUID}, cmdUUID))
+		report(hostUUID, cmdUUID, "Acknowledged")
+		markRecoveryLockVerified(t, ds, hostUUID)
+	}
+
+	type rkpRow struct {
+		Status                   *string `db:"status"`
+		OperationType            string  `db:"operation_type"`
+		PendingSetCommandUUID    *string `db:"pending_set_command_uuid"`
+		PendingVerifyCommandUUID *string `db:"pending_verify_command_uuid"`
+		Retry                    int     `db:"retry"`
+		HasPassword              bool    `db:"has_password"`
+		HasPendingPassword       bool    `db:"has_pending_password"`
+		Deleted                  bool    `db:"deleted"`
+	}
+	readRow := func(hostUUID string) rkpRow {
+		var row rkpRow
+		require.NoError(t, ds.writer(ctx).GetContext(ctx, &row, `
+			SELECT status, operation_type, pending_set_command_uuid, pending_verify_command_uuid, retry,
+				encrypted_password IS NOT NULL AS has_password,
+				pending_encrypted_password IS NOT NULL AS has_pending_password,
+				deleted
+			FROM host_recovery_key_passwords WHERE host_uuid = ?`, hostUUID))
+		return row
+	}
+
+	// First set dropped, on a row the cron had already retried once.
+	firstSet := newHost("rl-reset-first-set", teamOn)
+	require.NoError(t, ds.RetryRecoveryLock(ctx, firstSet.UUID, storePassword(firstSet.UUID, apple_mdm.GenerateRecoveryLockPassword())))
+	firstSetCmd := storePassword(firstSet.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	require.NoError(t, commander.SetRecoveryLock(ctx, []string{firstSet.UUID}, firstSetCmd))
+	dropQueue(firstSet.UUID, firstSetCmd)
+
+	// Rotation dropped.
+	rotation := newHost("rl-reset-rotation", teamOn)
+	originalPassword := apple_mdm.GenerateRecoveryLockPassword()
+	setVerified(rotation.UUID, originalPassword)
+	rotationCmd := uuid.NewString()
+	require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, rotation.UUID, rotationCmd, apple_mdm.GenerateRecoveryLockPassword()))
+	require.NoError(t, commander.RotateRecoveryLock(ctx, []string{rotation.UUID}, rotationCmd))
+	dropQueue(rotation.UUID, rotationCmd)
+
+	// Clear dropped on one host; the other host got the same command and kept it queued.
+	clearDropped := newHost("rl-reset-clear", teamOff)
+	clearKept := newHost("rl-reset-clear-kept", teamOff)
+	setVerified(clearDropped.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	setVerified(clearKept.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	clearCmd := uuid.NewString()
+	claimed, err := ds.ClaimHostsForRecoveryLockClear(ctx, clearCmd)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{clearDropped.UUID, clearKept.UUID}, claimed)
+	require.NoError(t, commander.ClearRecoveryLock(ctx, claimed, clearCmd))
+	dropQueue(clearDropped.UUID, clearCmd)
+
+	// Verify dropped.
+	verify := newHost("rl-reset-verify", teamOn)
+	verifySetCmd := storePassword(verify.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	require.NoError(t, commander.SetRecoveryLock(ctx, []string{verify.UUID}, verifySetCmd))
+	report(verify.UUID, verifySetCmd, "Acknowledged")
+	verifyCmd := uuid.NewString()
+	require.NoError(t, ds.SetRecoveryLockVerifying(ctx, verify.UUID, verifySetCmd, verifyCmd))
+	require.NoError(t, commander.VerifyRecoveryLock(ctx, verify.UUID, verifyCmd))
+	dropQueue(verify.UUID, verifyCmd)
+
+	// Verify of an acknowledged clear dropped.
+	clearVerify := newHost("rl-reset-clear-verify", teamOff)
+	setVerified(clearVerify.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	clearVerifySetCmd := uuid.NewString()
+	claimed, err = ds.ClaimHostsForRecoveryLockClear(ctx, clearVerifySetCmd)
+	require.NoError(t, err)
+	require.Equal(t, []string{clearVerify.UUID}, claimed)
+	require.NoError(t, commander.ClearRecoveryLock(ctx, claimed, clearVerifySetCmd))
+	report(clearVerify.UUID, clearVerifySetCmd, "Acknowledged")
+	clearVerifyCmd := uuid.NewString()
+	require.NoError(t, ds.SetRecoveryLockVerifying(ctx, clearVerify.UUID, clearVerifySetCmd, clearVerifyCmd))
+	require.NoError(t, commander.VerifyClearRecoveryLock(ctx, clearVerify.UUID, clearVerifyCmd))
+	dropQueue(clearVerify.UUID, clearVerifyCmd)
+
+	// Controls: still queued, not enqueued yet, verified, and soft-deleted with its set dropped.
+	active := newHost("rl-reset-active", teamOn)
+	activeCmd := storePassword(active.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	require.NoError(t, commander.SetRecoveryLock(ctx, []string{active.UUID}, activeCmd))
+
+	inFlight := newHost("rl-reset-in-flight", teamOn)
+	inFlightCmd := storePassword(inFlight.UUID, apple_mdm.GenerateRecoveryLockPassword())
+
+	verified := newHost("rl-reset-verified", teamOn)
+	setVerified(verified.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	dropQueue(verified.UUID)
+
+	deleted := newHost("rl-reset-deleted", teamOff)
+	deletedCmd := storePassword(deleted.UUID, apple_mdm.GenerateRecoveryLockPassword())
+	require.NoError(t, commander.SetRecoveryLock(ctx, []string{deleted.UUID}, deletedCmd))
+	dropQueue(deleted.UUID, deletedCmd)
+	require.NoError(t, ds.MDMResetEnrollment(ctx, deleted.UUID, false))
+
+	// Before the reset, no claim picks up the rows whose command was dropped.
+	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	require.Empty(t, hosts)
+	verifyClaims, err := ds.ClaimHostsForRecoveryLockVerify(ctx)
+	require.NoError(t, err)
+	require.Empty(t, verifyClaims)
+	claimed, err = ds.ClaimHostsForRecoveryLockClear(ctx, uuid.NewString())
+	require.NoError(t, err)
+	require.Empty(t, claimed)
+
+	n, err := ds.ResetRecoveryLockForInactiveCommands(ctx)
+	require.NoError(t, err)
+	require.EqualValues(t, 5, n)
+	n, err = ds.ResetRecoveryLockForInactiveCommands(ctx)
+	require.NoError(t, err)
+	require.Zero(t, n)
+
+	row := readRow(firstSet.UUID)
+	require.Nil(t, row.Status)
+	require.Nil(t, row.PendingSetCommandUUID)
+	require.Equal(t, 1, row.Retry, "a dropped command is not a device error")
+	require.False(t, row.HasPassword)
+
+	row = readRow(rotation.UUID)
+	require.Nil(t, row.Status)
+	require.Nil(t, row.PendingSetCommandUUID)
+	require.True(t, row.HasPendingPassword)
+	pw, err := ds.GetHostRecoveryLockPassword(ctx, rotation.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, pw.Password)
+	require.Equal(t, originalPassword, *pw.Password, "the device still holds the original password")
+
+	row = readRow(verify.UUID)
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), ptr.ValOrZero(row.Status))
+	require.Nil(t, row.PendingVerifyCommandUUID)
+
+	row = readRow(clearKept.UUID)
+	require.Equal(t, string(fleet.MDMOperationTypeRemove), row.OperationType)
+	require.Equal(t, string(fleet.MDMDeliveryPending), ptr.ValOrZero(row.Status))
+	require.Equal(t, clearCmd, ptr.ValOrZero(row.PendingSetCommandUUID))
+
+	row = readRow(active.UUID)
+	require.Equal(t, string(fleet.MDMDeliveryPending), ptr.ValOrZero(row.Status))
+	require.Equal(t, activeCmd, ptr.ValOrZero(row.PendingSetCommandUUID))
+
+	row = readRow(inFlight.UUID)
+	require.Equal(t, string(fleet.MDMDeliveryPending), ptr.ValOrZero(row.Status))
+	require.Equal(t, inFlightCmd, ptr.ValOrZero(row.PendingSetCommandUUID))
+
+	status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, verified.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	status.PopulateStatus()
+	require.Equal(t, fleet.RecoveryLockStatusVerified, ptr.ValOrZero(status.Status))
+	require.True(t, status.PasswordAvailable)
+
+	row = readRow(deleted.UUID)
+	require.True(t, row.Deleted)
+	require.Equal(t, string(fleet.MDMDeliveryPending), ptr.ValOrZero(row.Status))
+	require.Equal(t, deletedCmd, ptr.ValOrZero(row.PendingSetCommandUUID))
+
+	// The same claims now pick the reset rows up, so the cron resends on this tick.
+	hosts, err = ds.GetHostsForRecoveryLockAction(ctx)
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{firstSet.UUID: false, rotation.UUID: true}, hosts)
+
+	verifyClaims, err = ds.ClaimHostsForRecoveryLockVerify(ctx)
+	require.NoError(t, err)
+	require.Len(t, verifyClaims, 2)
+	claimsByHost := map[string]fleet.HostRecoveryLockVerifyClaim{}
+	for _, c := range verifyClaims {
+		claimsByHost[c.HostUUID] = c
+	}
+	require.NotEqual(t, verifyCmd, claimsByHost[verify.UUID].VerifyCommandUUID)
+	require.True(t, claimsByHost[verify.UUID].HasPendingPassword, "the verify goes out with the password the set delivered")
+	require.Equal(t, fleet.MDMOperationTypeRemove, claimsByHost[clearVerify.UUID].OperationType)
+	require.NotEqual(t, clearVerifyCmd, claimsByHost[clearVerify.UUID].VerifyCommandUUID)
+
+	claimed, err = ds.ClaimHostsForRecoveryLockClear(ctx, uuid.NewString())
+	require.NoError(t, err)
+	require.Equal(t, []string{clearDropped.UUID}, claimed)
 }

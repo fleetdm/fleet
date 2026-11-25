@@ -2111,8 +2111,8 @@ type Datastore interface {
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
 
-	// ClaimHostsForRecoveryLockVerify returns hosts whose acknowledged SetRecoveryLock still needs
-	// its verify sent, each with a newly recorded verify command UUID to send it under.
+	// ClaimHostsForRecoveryLockVerify returns hosts in verifying with no verify command queued,
+	// each with a newly recorded verify command UUID to send it under.
 	ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]HostRecoveryLockVerifyClaim, error)
 
 	// UnclaimHostForRecoveryLockVerify releases a claim from ClaimHostsForRecoveryLockVerify whose
@@ -2154,6 +2154,12 @@ type Datastore interface {
 	// to prevent leakage into the re-animated row on re-enroll. Returns the number
 	// of rows soft-deleted.
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error)
+
+	// ResetRecoveryLockForInactiveCommands returns live recovery lock rows whose
+	// pending set, clear or verify command went inactive in the MDM queue (as an
+	// Authenticate's queue clear leaves it) to the state the recovery lock cron
+	// retries. Returns the number of rows reset.
+	ResetRecoveryLockForInactiveCommands(ctx context.Context) (int64, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple host name enforcement
