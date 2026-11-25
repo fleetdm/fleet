@@ -2622,7 +2622,7 @@ func (s *integrationMDMTestSuite) TestRemovedSetupExperienceNames() {
 	t := s.T()
 
 	removedMsg := func(name string) string {
-		return `The "` + name + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + name + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 
 	const setupPath = "/api/latest/fleet/setup_experience"

@@ -21,7 +21,7 @@ func (s *integrationMDMTestSuite) TestRemovedAppleSettingsKeys() {
 	const specPath = "/api/latest/fleet/spec/fleets"
 
 	removedMsg := func(key string) string {
-		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+		return `The "` + key + `" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade`
 	}
 	spec := func(mdm string) string {
 		return fmt.Sprintf(`{"specs": [{"name": %q, "mdm": %s}]}`, team.Name, mdm)

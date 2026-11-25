@@ -1,0 +1,4 @@
+- Added Reset for Windows hosts, in the host Actions menu, as `POST /api/v1/fleet/hosts/:id/reset` and as `fleetctl mdm reset`. Reset erases the host so it can be given to another end user, and keeps the provisioning packages it was set up with. Fleet clears the previous end user when the host comes back, and logs a failed reset when Windows rolls back an interrupted one.
+- **Breaking change:** Removed the `windows` parameter from `POST /api/v1/fleet/hosts/:id/wipe`. Requests that still send it fail with 422. Windows hosts are always wiped with `doWipeProtected`.
+- Updated the Wipe dialog to explain when to wipe and when to reset, for every platform.
+- Fixed the dashboard activity feed showing "Fleet" before "Wipe failed on <host>."

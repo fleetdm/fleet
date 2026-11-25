@@ -1152,20 +1152,6 @@ allow {
   action == read
 }
 
-# Global admins can read and write Apple devices.
-allow {
-  object.type == "mdm_apple_device"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
-# Global admins can read and write Apple DEP devices.
-allow {
-  object.type == "mdm_apple_dep_device"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
 # Global admins and maintainers can read and write MDM Apple settings.
 allow {
   object.type == "mdm_apple_settings"
@@ -1508,6 +1494,14 @@ allow {
 allow {
   object.type == "conditional_access_microsoft"
   subject.global_role == admin
+  action == write
+}
+
+# Global admins and gitops can configure Google conditional access, as they can through the
+# app config.
+allow {
+  object.type == "conditional_access_google"
+  subject.global_role == [admin, gitops][_]
   action == write
 }
 

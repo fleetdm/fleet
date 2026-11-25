@@ -31,10 +31,14 @@ func (c *Client) ApplyLabels(
 }
 
 // GetLabel retrieves information about a label by name
-func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
+func (c *Client) GetLabel(name string, fleetID *uint) (*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/labels/"+url.PathEscape(name)
 	var responseBody fleet.GetLabelSpecResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	var query string
+	if fleetID != nil {
+		query = fmt.Sprintf("fleet_id=%d", *fleetID)
+	}
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	return responseBody.Spec, err
 }
 

@@ -33,4 +33,13 @@
     align-items: center;
     justify-content: space-between;
   }
+
+  &__details-help {
+    @include help-text;
+    margin: 0;
+
+    .custom-link {
+      font-size: inherit;
+    }
+  }
 }

@@ -2,6 +2,7 @@
 # Tower's winget manifest declares a placeholder ProductCode ("MSI:Tower") instead of the
 # real GUID, so the default product-code-based uninstall fails with 1619. The MSI's
 # UpgradeCode is stable across releases, so uninstall via RelatedProducts instead.
+$ErrorActionPreference = 'Stop'
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product
 

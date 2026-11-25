@@ -36,8 +36,7 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 	// Catches up patch policies whose query fell behind their active installer, such
 	// as one refreshed in place by a server that didn't regenerate the policy. First,
 	// so a run that spends its budget on downloads can't skip it. Policies it doesn't
-	// reach in time still differ, so the next run picks them up, and the
-	// policy_membership cron finishes an interrupted results cleanup.
+	// reach in time still differ, so the next run picks them up.
 	syncCtx, cancel := context.WithTimeout(ctx, patchPolicySyncMaxRunTime)
 	err := ds.SyncPatchPolicyQueries(syncCtx)
 	cancel()
@@ -99,12 +98,6 @@ func autoUpdateOneFleetMaintainedApp(
 	pin := ""
 	if pinned != nil {
 		pin = *pinned
-	}
-
-	// A literal pin never advances and never pre-caches: the version is already
-	// cached and nothing newer is wanted (re-pinning is handled on-demand).
-	if pin != "" && !strings.HasPrefix(pin, "^") {
-		return nil
 	}
 
 	// Download the latest published version when the store is configured and the
@@ -210,9 +203,8 @@ func downloadNewVersionIfEligible(
 	// extracted, so the caret-major and cache checks are deferred until after that.
 	isLatest := app.Version == "latest"
 	if !isLatest {
-		// Caret pin: caching a version the pin can never promote to wastes a slot.
-		// Empty pin always takes latest; literal pins were filtered out by the caller.
-		if pin != "" && !versionMatchesMajor(app.Version, strings.TrimPrefix(pin, "^")) {
+		// Caching a version the pin can never promote to wastes a slot.
+		if !versionAllowedByPin(app.Version, pin) {
 			return "", nil
 		}
 		versionExists, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
@@ -319,7 +311,7 @@ func downloadNewVersionIfEligible(
 	}
 
 	// Apply the deferred gates now that the concrete version is known ("latest").
-	if isLatest && pin != "" && !versionMatchesMajor(version, strings.TrimPrefix(pin, "^")) {
+	if isLatest && !versionAllowedByPin(version, pin) {
 		return "", nil
 	}
 	if !versionAlreadyCached {
@@ -461,19 +453,25 @@ func hydrateLatestManifest(ctx context.Context, ds fleet.Datastore, c fleet.FMAA
 // advance to. versions must be ordered most recently downloaded first. An empty
 // pin means Latest (newest). A caret pin returns the newest version within its major, or
 // ok=false when no cached version satisfies the major (so the cron skips rather
-// than crossing into another major, unlike the on-demand PATCH path).
+// than crossing into another major).
 func selectAutoUpdateTarget(versions []fleet.FleetMaintainedVersion, pin string) (fleet.FleetMaintainedVersion, bool) {
-	if pin == "" {
-		return versions[0], true
-	}
-	// Caret pin: parsePinnedVersion already validated the shape on write.
-	major := strings.TrimPrefix(pin, "^")
 	for _, v := range versions {
-		if versionMatchesMajor(v.Version, major) {
+		if versionAllowedByPin(v.Version, pin) {
 			return v, true
 		}
 	}
 	return fleet.FleetMaintainedVersion{}, false
+}
+
+func versionAllowedByPin(version string, pin string) bool {
+	if pin == "" {
+		return true
+	}
+	major, isCaretPin := strings.CutPrefix(pin, "^")
+	if isCaretPin {
+		return versionMatchesMajor(version, major)
+	}
+	return version == pin
 }
 
 // teamIDForLog renders an optional team ID for structured logs; slog prints a

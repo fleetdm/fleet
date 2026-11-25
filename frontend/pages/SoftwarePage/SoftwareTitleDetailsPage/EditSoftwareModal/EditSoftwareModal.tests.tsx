@@ -6,6 +6,8 @@ import {
   createMockSoftwarePackage,
 } from "__mocks__/softwareMock";
 import softwareAPI from "services/entities/software";
+import { emptySelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
 import EditSoftwareModal from "./EditSoftwareModal";
@@ -37,6 +39,11 @@ const renderModal = (
   const render = createCustomRenderer({ withBackendMock: true });
   return render(<EditSoftwareModal {...BASE_PROPS} {...overrides} />);
 };
+
+// The modal loads the self-service categories when it renders.
+beforeEach(() => {
+  mockServer.use(emptySelfServiceCategoriesHandler);
+});
 
 describe("EditSoftwareModal — multi-package title", () => {
   beforeEach(() => {

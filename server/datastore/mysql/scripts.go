@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -1547,6 +1549,9 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		}
 
 	case "android":
+		if mdmActions.UnlockPIN != nil {
+			status.UnlockPIN = *mdmActions.UnlockPIN
+		}
 		// Android lock/wipe/clear-passcode are AMAPI commands tracked in mdm_android_commands;
 		// lock_ref / wipe_ref / clear_passcode_ref store the Fleet-generated command_uuid (no
 		// unlock_ref on Android). All three fetch the same shape, so loop them.
@@ -1610,6 +1615,13 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				}
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
+				if status.IsWiped() && status.IsReset() {
+					queued, err := windowsHostsWithPendingRemoteWipeDB(ctx, ds.reader(ctx), []string{host.UUID})
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get wipe queued after reset")
+					}
+					_, status.WipeQueuedAfterReset = queued[host.UUID]
+				}
 			} else {
 				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 				if err != nil && !fleet.IsNotFound(err) {
@@ -2016,6 +2028,27 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 				status.WipeMDMCommandResult = cmdRes
 			}
 		}
+
+		resetHosts := make(map[string][]*fleet.HostLockWipeStatus)
+		for _, refs := range cmdUUIDMap {
+			for _, ref := range refs {
+				if status := statusMap[ref.hostID]; status != nil && status.IsWiped() && status.IsReset() {
+					resetHosts[ref.hostUUID] = append(resetHosts[ref.hostUUID], status)
+				}
+			}
+		}
+		if len(resetHosts) > 0 {
+			queued, err := windowsHostsWithPendingRemoteWipeDB(ctx, ds.reader(ctx), slices.Collect(maps.Keys(resetHosts)))
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get wipes queued after reset")
+			}
+			for hostUUID, statuses := range resetHosts {
+				_, isQueued := queued[hostUUID]
+				for _, status := range statuses {
+					status.WipeQueuedAfterReset = isQueued
+				}
+			}
+		}
 	}
 
 	// Batch query Android MDM commands (lock/wipe via AMAPI). Pending rows leave the result nil
@@ -2170,6 +2203,7 @@ func (ds *Datastore) getHostMDMAndroidCommand(ctx context.Context, cmdUUID strin
 		CommandUUID: cmd.CommandUUID,
 		HostUUID:    cmd.HostUUID,
 		Status:      cmd.Status,
+		UpdatedAt:   cmd.UpdatedAt,
 	}, nil
 }
 

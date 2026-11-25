@@ -2164,7 +2164,7 @@ TEAMLOOP:
 		case fleet.NullTeamNoTeam:
 			tok.Teams = append(tok.Teams, fleet.TeamTuple{
 				ID:   0,
-				Name: fleet.TeamNameNoTeam,
+				Name: fleet.DisplayNameNoTeam,
 			})
 		case fleet.NullTeamNone:
 			// Regular team
@@ -2441,7 +2441,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 			}
 			token.Teams = []fleet.TeamTuple{}
 		case fleet.NullTeamNoTeam:
-			token.Teams = append(token.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
+			token.Teams = append(token.Teams, fleet.TeamTuple{ID: 0, Name: fleet.DisplayNameNoTeam})
 		case fleet.NullTeamNone:
 			// Regular team
 			token.Teams = append(token.Teams, fleet.TeamTuple{ID: *team.TeamID, Name: team.TeamName})
@@ -2556,7 +2556,7 @@ TEAMLOOP:
 		case fleet.NullTeamNoTeam:
 			tok.Teams = append(tok.Teams, fleet.TeamTuple{
 				ID:   0,
-				Name: fleet.TeamNameNoTeam,
+				Name: fleet.DisplayNameNoTeam,
 			})
 		case fleet.NullTeamNone:
 			// Regular team

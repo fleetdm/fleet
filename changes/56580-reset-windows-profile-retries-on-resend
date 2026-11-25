@@ -1,0 +1,1 @@
+- Changed resending a Windows configuration profile, manually or after an IdP user or custom host vital change, to give it a fresh set of retries.

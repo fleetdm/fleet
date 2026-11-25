@@ -38,8 +38,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
@@ -51,6 +50,8 @@ env:
 
 jobs:
   checks:
+    permissions:
+      contents: read
     name: Pre-release checks
     runs-on: ubuntu-latest
     outputs:
@@ -148,6 +149,8 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
   upload:
+    permissions:
+      contents: read
     name: Upload pkg to R2
     needs: [checks, build]
     runs-on: ubuntu-latest

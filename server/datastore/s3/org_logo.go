@@ -58,7 +58,7 @@ func (s *OrgLogoStore) Delete(ctx context.Context, mode fleet.OrgLogoMode) error
 		if errors.As(err, &noSuchKey) || errors.As(err, &notFound) {
 			return nil
 		}
-		return ctxerr.Wrap(ctx, err, "deleting org logo from S3 store")
+		return ctxerr.Wrap(ctx, s.wrapAPIError(err), "deleting org logo from S3 store")
 	}
 	return nil
 }

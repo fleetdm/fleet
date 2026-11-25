@@ -17,11 +17,12 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   post-community-prs:
+    permissions:
+      contents: read
     if: github.repository == 'fleetdm/fleet'
     runs-on: ubuntu-latest
     timeout-minutes: 10

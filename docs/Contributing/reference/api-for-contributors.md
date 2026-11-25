@@ -857,10 +857,19 @@ Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The AB token's ID |
+| default | boolean | body | *Required* Set to `true` to make this token the default. Set to `false` to clear the default from this token. You can't clear it when this is the only AB token. |
 
 #### Example
 
 `PATCH /api/v1/fleet/ab_tokens/2/default`
+
+##### Request body
+
+```json
+{
+  "default": true
+}
+```
 
 ##### Default response
 
@@ -913,6 +922,7 @@ Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The AB token's ID |
+| token | file | form | *Required* The file containing the renewed token (.p7m) from Apple Business |
 
 #### Example
 
@@ -1006,6 +1016,7 @@ Content-Type: application/octet-stream
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The VPP token's ID |
+| token | file | form | *Required* The renewed content token (.vpptoken) file downloaded from Apple Business |
 
 ##### Request header
 
@@ -1073,6 +1084,8 @@ Content-Type: application/octet-stream
 | team_name | string | query | _Available in Fleet Premium_ The name of the fleet to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
 | no_cache  | bool   | query | Do not use the cached version of Fleet's configuration. This parameter should only be used when the configuration was updated less than 1 second ago. |
+| assume_enabled | bool | query | Only applies when `dry_run` is `true`. Validate the profiles as if Windows MDM is turned on (`true`) or off (`false`), instead of using the current setting. `fleetctl gitops --dry-run` sends this so profiles are validated against the Windows MDM setting in the YAML files. |
+| assume_profile_validation | bool | query | Only applies when `dry_run` is `true`. Validate the profiles as if `mdm.enable_profile_validation` is `true` or `false`, instead of using the current setting. `fleetctl gitops --dry-run` sends the incoming value from the YAML file. |
 | profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles). |
 
 
@@ -1101,6 +1114,7 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 | initiator | string | body | Used to differentiate between account driven enrollment and DEP or other flows for SSO callback purposes. The callback will use the Account Driven Enrollment behavior if `account_driven_enroll` is passed as the value of this parameter. Use `setup_experience` to initiate a web-based SSO login outside of the DEP flow. |
 | user_identifier | string | body | Passed by Apple for account-driven enrollment.
 | host_uuid | string | body | The hardware UUID of the device to enroll when using the `setup_experience` value for `initiator`.
+| deviceinfo | string | body | **Required** when `initiator` is `mdm_sso`, which the Fleet UI sends for automatic enrollment (ADE) end user authentication. The base64-encoded `x-apple-aspen-deviceinfo` value that Setup Assistant sent with the enrollment web view request. Fleet verifies Apple's signature on it and binds the enrollment to that device. |
 
 #### Example
 
@@ -1116,7 +1130,7 @@ A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that ne
 
 Example response cookie in the HTTP `Set-Cookie` header:
 ```
-Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=900; HttpOnly; Secure
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=900; HttpOnly; Secure; SameSite=None
 ```
 
 `Max-Age` matches `auth.sso_session_validity_period`, which defaults to 15 minutes.
@@ -1245,6 +1259,8 @@ This endpoint handles over the air (OTA) MDM enrollments
 | Name                | Type   | In   | Description                                                                                                                                                                                                                                                                                        |
 | ------------------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enroll_secret       | string | url  | **Required** Assigns the host to a fleet with a matching enroll secret                                                                                                                                                                                                                |
+| idp_session         | string | url  | The identity provider (IdP) session ID from end user authentication on the `/enroll` page. **Required** when end user authentication is turned on for the fleet that matches `enroll_secret`. Fleet links the host to the end user's IdP account. Only used when the device response is signed by Fleet's SCEP certificate (second phase). |
+| byod                | string | url  | Set to `true` or `1` when the end user chose a personal (BYOD) device on the `/enroll` page. Fleet records the host as a personal enrollment and leaves out the device lock and erase access rights from the enrollment profile. Only used when the device response is signed by Fleet's SCEP certificate (second phase). |
 | XML device response | XML    | body | **Required**. The XML response from the device. See [Apple configuration profile documentation](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/ConfigurationProfileExamples/ConfigurationProfileExamples.html#//apple_ref/doc/uid/TP40009505-CH4-SW7) for examples. |
 
 > Note: enroll secrets can contain special characters. Ensure any special characters are [properly escaped](https://developer.mozilla.org/en-US/docs/Glossary/Percent-encoding).
@@ -2342,7 +2358,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 | Name  | Type | In   | Description                                                                                                   |
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | team_id | int | query | The ID of the fleet to set labels to; omit to set global labels |
-| specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
+| specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties. Each label's `name` and `description` must be 255 characters or fewer. |
 | names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other fleets. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct fleet can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
 
 The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one fleet (or global) to using that same label name on another fleet (or switching a fleet label to a global label). Once labels are created on the correct fleets, the old labels are cleaned up when GitOps is run on the old fleet via explicit `DELETE` calls.
@@ -2495,13 +2511,16 @@ Gets all labels visible to the currently logged-in user.
 
 ### Get label
 
-Returns the label specified by name if it exists and its fleet (if any) is accessible by the current user.
+Returns the label specified by name if it exists and its fleet (if any) is accessible by the current user. If more than one of those fleets has a label with that name, returns `409` unless `fleet_id` is set.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
 #### Parameters
 
-None.
+| Name     | Type   | In    | Description                                                                                                                                     |
+| -------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| name     | string | path  | **Required.** The label's name.                                                                                                                 |
+| fleet_id | integer    | query | _Available in Fleet Premium._ Looks the name up among the global labels and this fleet's labels. Supply 0 to look it up among the global labels only. |
 
 #### Example
 
@@ -2859,12 +2878,13 @@ Some routes are always exempt from SSO and others are exempt while a host is sti
 - [Uninstall software via self-service](#uninstall-software-via-self-service) (`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`) — *exempt during setup experience*
 - [Get device's software install results](#get-devices-software-install-results) (`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`) — *exempt during setup experience*
 - [Get uninstall results via self-service](#get-uninstall-results-via-self-service) (`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`) — *exempt during setup experience*
-- `GET /api/v1/fleet/device/{token}/software/self_service_categories` — *exempt during setup experience*
+- [Get device's self-service categories](#get-devices-self-service-categories) (`GET /api/v1/fleet/device/{token}/software/self_service_categories`) — *exempt during setup experience*
 - [Download device software icon](#download-device-software-icon) (`GET /api/v1/fleet/device/{token}/software/titles/{software_title_id}/icon`) — *exempt during setup experience*
 - [Get device's certificates](#get-devices-certificates) (`GET /api/v1/fleet/device/{token}/certificates`) — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/setup_experience/status` — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *exempt during setup experience*
+- [Get device's Google conditional access status](#get-devices-google-conditional-access-status) (`POST /api/v1/fleet/device/{token}/conditional_access/google`) — *exempt during setup experience*
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *exempt during setup experience*
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *exempt during setup experience*
@@ -3144,6 +3164,49 @@ Lists the software installed on the current device.
     "has_next_results": false,
     "has_previous_results": false
   }
+}
+```
+
+#### Get device's self-service categories
+
+_Available in Fleet Premium_
+
+Lists the self-service categories for the device's fleet. Fleet Desktop uses them to group software on the **Self-service** page.
+
+`GET /api/v1/fleet/device/{token}/software/self_service_categories`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/self_service_categories`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "self_service_categories": [
+    {
+      "id": 12,
+      "name": "🌎 Browsers",
+      "fleet_id": 3,
+      "created_at": "2026-05-01T14:22:58Z",
+      "updated_at": "2026-05-01T14:22:58Z"
+    },
+    {
+      "id": 13,
+      "name": "🧰 Developer tools",
+      "fleet_id": 3,
+      "created_at": "2026-05-01T14:22:58Z",
+      "updated_at": "2026-05-01T14:22:58Z"
+    }
+  ]
 }
 ```
 
@@ -3471,6 +3534,129 @@ Lists the certificates installed on the current device.
 }
 ```
 
+#### Get device's notification
+
+Gets an end user notification for the current device, as Fleet Desktop shows it. Today, Fleet uses these notifications to warn end users before it closes and updates apps.
+
+`GET /api/v1/fleet/device/{token}/notifications/{uuid}`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+| uuid  | string | path | **Required**. The notification's UUID. |
+
+If the notification belongs to another host, Fleet returns `404`.
+
+##### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/notifications/5f3e2a9c-8d41-4b7e-9c0a-1e6f2d3b4a5c`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "uuid": "5f3e2a9c-8d41-4b7e-9c0a-1e6f2d3b4a5c",
+  "org_logo_url_light_mode": "https://example.com/logo-light.png",
+  "org_logo_url_dark_mode": "https://example.com/logo-dark.png",
+  "title": "Save your work",
+  "description": "These apps will close and update in **1 hour**.",
+  "items": [
+    {
+      "software_title_id": 121,
+      "icon_url": "/api/latest/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
+      "name": "Google Chrome.app",
+      "display_name": "Chrome"
+    },
+    {
+      "software_title_id": 143,
+      "icon_url": null,
+      "name": "Firefox.app"
+    }
+  ],
+  "actions": [
+    {
+      "id": "remind",
+      "label": "Remind me 5 minutes before"
+    },
+    {
+      "id": "update_now",
+      "label": "Update now"
+    }
+  ],
+  "install_at": "2026-11-11T17:00:00Z"
+}
+```
+
+`description` is Markdown. `items` lists the apps the notification is about. After the end user chooses **Update now**, each item also includes `install_status` (`pending_install`, `installed`, or `failed_install`) and `status`, the label Fleet Desktop shows for it. `install_at` is when Fleet closes and updates the apps.
+
+#### Act on device's notification
+
+Records the end user's choice on a notification for the current device and returns the updated notification.
+
+`POST /api/v1/fleet/device/{token}/notifications/{uuid}/actions`
+
+##### Parameters
+
+| Name   | Type   | In   | Description                        |
+| ------ | ------ | ---- | ---------------------------------- |
+| token  | string | path | The device's authentication token. |
+| uuid   | string | path | **Required**. The notification's UUID. |
+| action | string | body | **Required**. The `id` of one of the notification's `actions`. For app update notifications, options include `update_now`, `remind`, and `dismiss`. `update_now` closes and updates the apps now. `remind` and `dismiss` close the notification without changing it, and Fleet still shows a reminder 5 minutes before `install_at`. |
+
+##### Example
+
+`POST /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/notifications/5f3e2a9c-8d41-4b7e-9c0a-1e6f2d3b4a5c/actions`
+
+##### Request body
+
+```json
+{
+  "action": "update_now"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "uuid": "5f3e2a9c-8d41-4b7e-9c0a-1e6f2d3b4a5c",
+  "org_logo_url_light_mode": "https://example.com/logo-light.png",
+  "org_logo_url_dark_mode": "https://example.com/logo-dark.png",
+  "title": "Save your work",
+  "description": "These apps will close and update in **1 hour**.",
+  "items": [
+    {
+      "software_title_id": 121,
+      "icon_url": "/api/latest/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
+      "name": "Google Chrome.app",
+      "display_name": "Chrome",
+      "status": "Updating...",
+      "install_status": "pending_install"
+    },
+    {
+      "software_title_id": 143,
+      "icon_url": null,
+      "name": "Firefox.app",
+      "status": "Updated",
+      "install_status": "installed"
+    }
+  ],
+  "actions": [
+    {
+      "id": "dismiss",
+      "label": "Hide"
+    }
+  ],
+  "install_at": "2026-11-11T17:00:00Z"
+}
+```
+
 #### Get device's transparency URL
 
 Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
@@ -3730,6 +3916,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 - [Escrow LUKS data](#escrow-luks-data)
 - [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
 - [Set or update device token](#set-or-update-device-token)
+- [Report Entra device token](#report-entra-device-token)
 - [Get orbit script](#get-orbit-script)
 - [Post orbit script result](#post-orbit-script-result)
 - [Put orbit device mapping](#put-orbit-device-mapping)
@@ -3753,6 +3940,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | passphrase | string | body | The LUKS passphrase generated for Fleet (the end user's existing passphrase is not transmitted) |
 | key_slot | int | body | The LUKS key slot ID corresponding to the provided passphrase |
 | salt | string | body | The salt corresponding to the specified LUKS key slot. Provided to track cases where an end user rotates LUKS credentials (at which point we'll no longer be able to decrypt data with the escrowed passphrase). |
+| key_type | string | body | How the escrowed secret unlocks the volume. Options include `passphrase` and `recovery_key`. Default is `passphrase`. Use `recovery_key` to escrow the recovery key from a host with TPM-backed full disk encryption (for example, Ubuntu 26). In that case, send the recovery key in `passphrase` and leave out `salt` and `key_slot`. Only sent to servers advertising the `luks_recovery_key_escrow` capability. |
 | status | string | body | Progress on the escrow request instead of a result: `prompting` and `escrowing` keep the request marked as in progress while the end user is at the passphrase prompt and while the key slot is created, so a second **Create key** on the My device page does not queue a duplicate; `canceled` and `timed_out` end it without recording a key or an error. If provided, all other request parameters are ignored. Only sent to servers advertising the `linux_escrow_status` capability. |
 
 ##### Example
@@ -3798,6 +3986,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | ----- | ------ | ---- | ---------------------------------- |
 | orbit_node_key | string | body | The Orbit node key for authentication. |
 | force_release | boolean | body | Force a host release from ADE flow, in case the setup is taking too long. |
+| reset_failed_setup_steps | boolean | body | If `true`, a software install failed, and the host's fleet requires all setup experience software, Fleet queues again the setup experience steps that didn't succeed. Steps that succeeded aren't repeated. On macOS, fleetd sends `true` on its first request after it starts. Default is `false`. |
 
 
 ##### Example
@@ -3920,6 +4109,38 @@ On Windows and Linux hosts, if any queued software has associated policies (poli
 {
   "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
   "device_auth_token": "2267a440-4cfb-48af-804b-d52224a05e1b"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Report Entra device token
+
+Used by fleetd on macOS hosts for [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). When conditional access is on for the host, [Get Orbit config](#get-orbit-config) returns `entra_device_token_request` with a `tenant_id`, `client_id`, and `nonce`. fleetd uses them to get an Entra ID token through the Company Portal single sign-on extension, then sends the token to this endpoint. Fleet verifies the token before it saves the host's Entra device ID.
+
+An Entra device ID can belong to only one host. If another host already has it, Fleet returns `Status: 409`. To move it, delete the other host in Fleet.
+
+`POST /api/fleet/orbit/entra_device_token`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                                                      |
+| -------------- | ------ | ---- | ---------------------------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.                           |
+| id_token       | string | body | The Entra ID token, with the `deviceid` claim and the `nonce` from the Orbit config. |
+
+##### Example
+
+`POST /api/fleet/orbit/entra_device_token`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "id_token": "<Entra ID token>"
 }
 ```
 
@@ -4266,6 +4487,7 @@ Body: <blob>
 | Name           | Type   | In   | Description                                    |
 | -------------- | ------ | ---- | ---------------------------------------------- |
 | orbit_node_key | string | body | The Orbit node key for authentication.         |
+| orbot_node_key | string | body | Deprecated. Misspelled alias of `orbit_node_key`, kept for fleetd 1.38.0 and older. Fleet uses it only when `orbit_node_key` is empty. |
 | install_uuid   | string | body | The UUID of the software installation attempt. |
 
 ##### Example
@@ -5058,6 +5280,81 @@ None.
   "configuration_completed": false
 }
 ```
+
+### Get device's Google conditional access status
+
+Used by the **Self-service** web clip on iOS and iPadOS hosts. The web clip calls it only when [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) returns `google_conditional_access_sign_in_required: true`, and then sends the end user to `sign_in_url`.
+
+Each call that returns a `sign_in_url` creates a new single-use token, valid for 15 minutes, and counts as a sign-in attempt. After 3 attempts in 24 hours with no completed sign-in, the response has no `sign_in_url`.
+
+`POST /api/v1/fleet/device/{token}/conditional_access/google`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "sign_in_url": "https://fleetdm.com/api/v1/google-conditional-access/sign-in?..."
+}
+```
+
+`sign_in_url` is omitted when the host is registered or isn't a company-owned iOS or iPadOS host, when Google isn't connected, or when the host has used up its sign-in attempts.
+
+### Register device with Google conditional access
+
+**Note:** This endpoint is called by fleetdm.com after an end user signs in to Google on an iOS or iPadOS host. It's authenticated with the per-server secret that fleetdm.com returned when Google was connected, sent as a bearer token.
+
+Stores the host's Google device users and marks them as managed in Google.
+
+`POST /api/v1/fleet/google_conditional_access/register`
+
+#### Parameters
+
+| Name     | Type   | In   | Description                                                                 |
+| -------- | ------ | ---- | --------------------------------------------------------------------------- |
+| token    | string | body | **Required.** The single-use token from the host's `sign_in_url`. |
+| names    | array  | body | The resource names of the Google device users that Google's lookup returned (`devices/{device}/deviceUsers/{deviceUser}`). Empty when Google doesn't know the device. |
+| customer | string | body | The Google customer the lookup ran in. |
+| email    | string | body | The Google account that signed in. |
+
+##### Request body
+
+```json
+{
+  "token": "<single-use token>",
+  "names": ["devices/c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12/deviceUsers/7f2b9c1e-3a4d-4e5f-8a6b-1c2d3e4f5a6b"],
+  "customer": "customers/C01234abc",
+  "email": "anna@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "result": "done"
+}
+```
+
+`result` tells fleetdm.com which page to show the end user:
+
+- `done`: the host is registered.
+- `not_found`: `names` is empty. The end user hasn't signed in to Gmail on the device, or Gmail doesn't have the managed configuration.
+- `not_allowed`: the token is unknown, used, or expired, the host isn't company-owned, the account is from another Google Workspace, or a device user is registered to another host.
+- `error`: Fleet couldn't register the host. The reason is in the server logs.
+
+A wrong or missing secret returns `Status: 401`.
+
+To develop against these endpoints without fleetdm.com or a Google Workspace, use the [mock server](https://github.com/fleetdm/fleet/tree/main/cmd/google-conditional-access-mock).
 
 ### Get Okta conditional access SAML IdP metadata
 

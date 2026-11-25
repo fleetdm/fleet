@@ -296,8 +296,7 @@ type OsqueryConfig struct {
 	AISessionMaxToolCalls int `yaml:"ai_session_max_tool_calls"`
 	// AISessionMaxToolCallsPerRefresh is how many new tool calls Fleet asks a host for per AI agent session at each
 	// refresh; 0 leaves it to what fits in the host's result.
-	AISessionMaxToolCallsPerRefresh int           `yaml:"ai_session_max_tool_calls_per_refresh"`
-	MinSoftwareLastOpenedAtDiff     time.Duration `yaml:"min_software_last_opened_at_diff"`
+	AISessionMaxToolCallsPerRefresh int `yaml:"ai_session_max_tool_calls_per_refresh"`
 
 	// MaxLogWriteBodySize overrides the default request body size limit
 	// for the /api/osquery/log endpoint. A value of 0 means use the
@@ -1025,6 +1024,7 @@ type FleetConfig struct {
 	GoogleWorkspace            GoogleWorkspaceConfig `yaml:"google_workspace"`
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	GoogleConditionalAccess    GoogleConditionalAccessConfig    `yaml:"google_conditional_access"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
 	WebSocket                  WebSocketConfig                  `yaml:"websocket"`
 
@@ -1153,6 +1153,12 @@ type MicrosoftCompliancePartnerConfig struct {
 	// ClientID is the client ID of Fleet's multi-tenant Entra app, the audience of the
 	// device ID tokens reported by macOS hosts.
 	ClientID string `yaml:"client_id"`
+}
+
+// GoogleConditionalAccessConfig holds the server configuration for Google conditional access.
+type GoogleConditionalAccessConfig struct {
+	// ProxyURI is the URI of the fleetdm.com relay (for development/testing).
+	ProxyURI string `yaml:"proxy_uri"`
 }
 
 type MDMConfig struct {
@@ -1956,8 +1962,6 @@ func (man Manager) addConfigs() {
 		"Maximum number of tool calls stored per host AI agent session (the first ones are kept)")
 	man.addConfigInt("osquery.ai_session_max_tool_calls_per_refresh", 0,
 		"Maximum number of new tool calls requested per host AI agent session at each detail refresh (0 for no limit)")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
-		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
 		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
@@ -2347,6 +2351,7 @@ func (man Manager) addConfigs() {
 	// Microsoft Compliance Partner
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 	man.addConfigString("microsoft_compliance_partner.client_id", DefaultMicrosoftCompliancePartnerClientID, "Client ID of Fleet's Microsoft Compliance Partner Entra app (for development/testing)")
+	man.addConfigString("google_conditional_access.proxy_uri", "https://fleetdm.com", "URI of the Google conditional access relay (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
@@ -2541,7 +2546,6 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			MaxJitterPercent:                man.getConfigInt("osquery.max_jitter_percent"),
 			AISessionMaxToolCalls:           man.getConfigInt("osquery.ai_session_max_tool_calls"),
 			AISessionMaxToolCallsPerRefresh: man.getConfigInt("osquery.ai_session_max_tool_calls_per_refresh"),
-			MinSoftwareLastOpenedAtDiff:     man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 			MaxLogWriteBodySize:             man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:     man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:           man.getConfigBool("osquery.allow_body_auth_fallback"),
@@ -2774,6 +2778,9 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 			ClientID: man.getConfigString("microsoft_compliance_partner.client_id"),
+		},
+		GoogleConditionalAccess: GoogleConditionalAccessConfig{
+			ProxyURI: man.getConfigString("google_conditional_access.proxy_uri"),
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),

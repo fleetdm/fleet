@@ -447,7 +447,7 @@ export const buildHostVitals = ({
   });
 
   // Last restarted
-  if (!isIosOrIpadosHost && !isAndroidHost && !isChromeHost) {
+  if (!isIosOrIpadosHost && !isAndroidHost) {
     vitals.push({
       sortKey: "Last restarted",
       element: (

@@ -12,6 +12,11 @@ Join Fleet co-founder and CEO Mike McNeil and Fleet Head of IT Allen Houchins fo
 - What changes when the architecture underneath is built to be trusted
 - Questions to bring back to your team about whatever you're running today
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube-nocookie.com/embed/2h376EupTOc?si=7iN3xSzHwBDCdQq4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
+
 
 <meta name="articleTitle" value="The trust gap in endpoint management - and why automation is about to expose it">
 
@@ -21,5 +26,3 @@ Join Fleet co-founder and CEO Mike McNeil and Fleet Head of IT Allen Houchins fo
 <meta name="category" value="webinar">
 <meta name="publishedOn" value="2026-05-29">
 <meta name="description" value="Fleet CEO Mike McNeil and Head of IT Allen Houchins on what it takes for an endpoint tool to be worth automating against.">
-
-<meta name="webinarEmbeddedVideoUrl" value="https://player.mediadelivery.net/play/637410/cd98701b-def1-4992-95f1-e478f5167b67">
