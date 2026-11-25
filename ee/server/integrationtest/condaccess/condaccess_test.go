@@ -22,7 +22,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,6 +46,7 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"SCEPEnrollment", testSCEPEnrollment},
 		{"InvalidChallenge", testInvalidChallenge},
 		{"OneTimeChallenge", testOneTimeChallenge},
+		{"GlobalSecretRefusedWithoutMDMEnrollment", testGlobalSecretRefusedWithoutMDMEnrollment},
 		{"MissingUUID", testMissingUUID},
 		{"NonExistentHost", testNonExistentHost},
 		{"CertificateRotation", testCertificateRotation},
@@ -53,7 +56,7 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			defer mysqltest.TruncateTables(t, s.BaseSuite.DS, []string{
 				"conditional_access_scep_serials", "conditional_access_scep_certificates", "mdm_apple_scep_challenges",
-				"mdm_windows_enrollments",
+				"mdm_windows_enrollments", "nano_enrollments", "nano_devices",
 			}...)
 			c.fn(t, s)
 		})
@@ -119,7 +122,15 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 	require.NoError(t, err)
 
 	// macOS profiles use the Apple prefix, Windows profiles the platform-neutral one.
-	for i, prefix := range []string{"urn:device:apple:uuid:", "urn:device:fleet:uuid:"} {
+	for i, c := range []struct {
+		prefix   string
+		platform string
+		enroll   func(t *testing.T, s *Suite, hostUUID string)
+	}{
+		{"urn:device:apple:uuid:", "darwin", enrollInAppleMDM},
+		{"urn:device:fleet:uuid:", "windows", enrollInWindowsMDM},
+	} {
+		prefix := c.prefix
 		t.Run(prefix, func(t *testing.T) {
 			// Create a test host
 			host, err := s.DS.NewHost(ctx, &fleet.Host{
@@ -127,10 +138,11 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 				NodeKey:         new(fmt.Sprintf("test-node-key-scep-%d", i+1)),
 				UUID:            fmt.Sprintf("test-uuid-scep-%d", i+1),
 				Hostname:        fmt.Sprintf("test-hostname-scep-%d", i+1),
-				Platform:        "darwin",
+				Platform:        c.platform,
 				DetailUpdatedAt: time.Now(),
 			})
 			require.NoError(t, err)
+			c.enroll(t, s, host.UUID)
 
 			// Request certificate via SCEP
 			deviceURI, err := url.Parse(prefix + host.UUID)
@@ -227,6 +239,59 @@ func testOneTimeChallenge(t *testing.T, s *Suite) {
 	requireSCEPFailure(t, err, "a deleted host must not get a certificate")
 	require.Nil(t, cert)
 	require.NoError(t, s.DS.ConsumeConditionalAccessSCEPChallenge(ctx, challenge, host.UUID))
+}
+
+// testGlobalSecretRefusedWithoutMDMEnrollment checks that a host enrolled in osquery with the global enroll secret, but not
+// in Fleet MDM, can't use the secret for a certificate, whatever platform it reports.
+func testGlobalSecretRefusedWithoutMDMEnrollment(t *testing.T, s *Suite) {
+	ctx := t.Context()
+	require.NoError(t, s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}}))
+
+	for _, platform := range []string{"ubuntu", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			hostUUID := "no-mdm-uuid-" + platform
+			var resp contract.EnrollOsqueryAgentResponse
+			s.DoJSON(t, "POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
+				EnrollSecret:   testEnrollmentSecret,
+				HostIdentifier: hostUUID,
+				HostDetails: map[string]map[string]string{
+					"system_info": {"uuid": hostUUID},
+					"os_version":  {"platform": platform},
+				},
+			}, http.StatusOK, &resp)
+			require.NotEmpty(t, resp.NodeKey)
+
+			cert, err := requestSCEPCertificateWithChallenge(t, s, hostUUID, testEnrollmentSecret)
+			requireSCEPFailure(t, err, "a host not enrolled in Fleet MDM must not get a certificate with the global enroll secret")
+			require.Nil(t, cert)
+		})
+	}
+}
+
+// enrollInAppleMDM records an Apple MDM enrollment for the host, which a request with the global enroll secret needs.
+func enrollInAppleMDM(t *testing.T, s *Suite, hostUUID string) {
+	t.Helper()
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(t.Context(), `INSERT INTO nano_devices (id, authenticate) VALUES (?, 'test')`, hostUUID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(t.Context(), `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex)
+			VALUES (?, ?, 'Device', 'topic', 'magic', 'hex')`, hostUUID, hostUUID)
+		return err
+	})
+}
+
+// enrollInWindowsMDM records a Windows MDM enrollment for the host, which a request with the global enroll secret needs.
+func enrollInWindowsMDM(t *testing.T, s *Suite, hostUUID string) {
+	t.Helper()
+	require.NoError(t, s.DS.MDMWindowsInsertEnrolledDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:    "device-" + hostUUID,
+		MDMHardwareID:  "hardware-" + hostUUID,
+		MDMDeviceState: "ENROLLED",
+		MDMDeviceType:  "CIMClient_Windows",
+		MDMEnrollType:  "ProgrammaticEnrollment",
+		HostUUID:       hostUUID,
+	}))
 }
 
 func testMissingUUID(t *testing.T, s *Suite) {
@@ -361,6 +426,7 @@ func testCertificateRotation(t *testing.T, s *Suite) {
 		DetailUpdatedAt: time.Now(),
 	})
 	require.NoError(t, err)
+	enrollInAppleMDM(t, s, host.UUID)
 
 	// Request first certificate via SCEP (old cert)
 	oldCert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)

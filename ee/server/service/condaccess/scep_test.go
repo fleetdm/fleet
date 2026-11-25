@@ -114,6 +114,51 @@ func TestChallengeMiddleware(t *testing.T) {
 			mdm:       config.MDMConfig{AppleOneTimeEnrollSecrets: true},
 		},
 		{
+			name:      "global secret is refused for a host that reports darwin but isn't enrolled in Fleet MDM",
+			challenge: "global-secret",
+			csrURIs:   []string{"urn:device:apple:uuid:unenrolled-mac"},
+			wantErr:   "invalid challenge",
+		},
+		{
+			name:      "global secret is refused for a host that reports another platform when one-time enroll secrets are on",
+			challenge: "global-secret",
+			csrURIs:   []string{"urn:device:fleet:uuid:linux-1"},
+			mdm:       config.MDMConfig{AppleOneTimeEnrollSecrets: true, WindowsOneTimeEnrollSecrets: true},
+			wantErr:   "invalid challenge",
+		},
+		{
+			name:      "global secret is refused for a host whose Apple MDM enrollment is disabled",
+			challenge: "global-secret",
+			csrURIs:   []string{"urn:device:apple:uuid:disabled-mac"},
+			wantErr:   "invalid challenge",
+		},
+		{
+			name:      "global secret is refused for a host enrolled in both MDMs when Apple hosts get one-time enroll secrets",
+			challenge: "global-secret",
+			csrURIs:   []string{"urn:device:fleet:uuid:dual-1"},
+			mdm:       config.MDMConfig{AppleOneTimeEnrollSecrets: true},
+			wantErr:   "invalid challenge",
+		},
+		{
+			name:      "global secret is refused for a host enrolled in both MDMs when Windows hosts get one-time enroll secrets",
+			challenge: "global-secret",
+			csrURIs:   []string{"urn:device:fleet:uuid:dual-1"},
+			mdm:       config.MDMConfig{WindowsOneTimeEnrollSecrets: true},
+			wantErr:   "invalid challenge",
+		},
+		{
+			name:      "Apple MDM enrollment lookup failure is an error",
+			challenge: "global-secret",
+			csrURIs:   []string{"urn:device:apple:uuid:apple-db-down"},
+			wantErr:   "looking up Apple MDM enrollment",
+		},
+		{
+			name:      "Windows MDM enrollment lookup failure is an error",
+			challenge: "global-secret",
+			csrURIs:   []string{"urn:device:fleet:uuid:windows-db-down"},
+			wantErr:   "looking up Windows MDM enrollment",
+		},
+		{
 			name:      "one-time challenge for the requesting host is accepted",
 			challenge: "one-time",
 			csrURIs:   []string{"urn:device:fleet:uuid:host-1"},
@@ -163,12 +208,41 @@ func TestChallengeMiddleware(t *testing.T) {
 				switch hostUUID {
 				case "mac-1", "host-1", "host-2":
 					return &fleet.Host{UUID: hostUUID, Platform: "darwin"}, nil
+				case "unenrolled-mac":
+					return &fleet.Host{UUID: hostUUID, Platform: "darwin"}, nil
 				case "win-1":
 					return &fleet.Host{UUID: hostUUID, Platform: "windows"}, nil
+				case "linux-1":
+					return &fleet.Host{UUID: hostUUID, Platform: "ubuntu"}, nil
+				case "disabled-mac", "dual-1", "apple-db-down", "windows-db-down":
+					// The reported platform isn't what decides these.
+					return &fleet.Host{UUID: hostUUID}, nil
 				case "db-down":
 					return nil, errors.New("db down")
 				default:
 					return nil, common_mysql.NotFound("Host")
+				}
+			}
+			ds.GetNanoMDMEnrollmentFunc = func(_ context.Context, id string) (*fleet.NanoEnrollment, error) {
+				switch id {
+				case "mac-1", "host-1", "host-2", "dual-1":
+					return &fleet.NanoEnrollment{ID: id, Enabled: true}, nil
+				case "disabled-mac":
+					return &fleet.NanoEnrollment{ID: id, Enabled: false}, nil
+				case "apple-db-down":
+					return nil, errors.New("db down")
+				default:
+					return nil, nil
+				}
+			}
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(_ context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				switch hostUUID {
+				case "win-1", "dual-1":
+					return &fleet.MDMWindowsEnrolledDevice{HostUUID: hostUUID}, nil
+				case "windows-db-down":
+					return nil, errors.New("db down")
+				default:
+					return nil, common_mysql.NotFound("MDMWindowsEnrolledDevice")
 				}
 			}
 			ds.ConsumeConditionalAccessSCEPChallengeFunc = func(_ context.Context, challenge, hostUUID string) error {
