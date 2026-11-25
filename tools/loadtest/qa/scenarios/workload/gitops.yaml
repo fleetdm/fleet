@@ -1,0 +1,26 @@
+# The customer's CI applying the GitOps repo with a small real change. One run applies every fleet file, so the
+# rate is the profile's fleet applies per day divided by the number of fleets (13 on the 10k instance).
+# The repo and its apply command are private: set DRIVER_GITOPS_REPO and DRIVER_GITOPS_COMMAND.
+kind: action
+id: W-GITOPS-01
+feature: gitops
+title: CI applies the GitOps repo with a small change
+verb: gitops.apply
+with:
+  repo: ${DRIVER_GITOPS_REPO}
+  command: ${DRIVER_GITOPS_COMMAND}
+  pause_file: ${DRIVER_GITOPS_PAUSE_FILE}
+  busy_file: ${DRIVER_GITOPS_BUSY_FILE}
+  timeout: 45m
+  scripts: 3
+  profiles: 6                         # one macOS profile in each of 6 profile sets (a set shared by several fleets changes them all)
+  profiles_glob: lib/*/apple/*.mobileconfig
+  agent_options: 5                    # fleet files whose agent options change (no activity: GitOps fleet applies don't write one)
+  global_agent_options_file: default.yml   # the global change writes edited_agent_options
+  labels: 60                          # GitOps-route manual labels in labels/driver.yml, all edited every run
+  label_hosts: 200
+  label_change: 2
+rate: {start: 6/day, profile: activity.applied_spec_team, share: 0.077}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 15m"}

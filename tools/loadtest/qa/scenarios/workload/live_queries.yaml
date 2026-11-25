@@ -1,0 +1,24 @@
+# Live queries: mostly a few hosts, now and then all of them. The two specs split one profile rate.
+kind: action
+id: W-LIVEQ-01
+feature: live queries
+title: Live query on a few online hosts
+verb: live_query
+with: {target: hosts, hosts: 1-50, timeout: 60s}
+rate: {start: 100/day, profile: activity.live_query, share: 0.98}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 30s"}
+  outcome: {responses: every online target within the timeout}
+---
+kind: action
+id: W-LIVEQ-02
+feature: live queries
+title: Live query on all hosts
+verb: live_query
+with: {target: all, timeout: 120s}
+rate: {start: 3/day, profile: activity.live_query, share: 0.02}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 120s"}
+  outcome: {responses: every online target within the timeout}

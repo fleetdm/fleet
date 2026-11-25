@@ -1,0 +1,34 @@
+# Small things admins do to single hosts from the host page.
+kind: action
+id: W-UNINSTALL-01
+feature: software
+title: Uninstall a Fleet-managed package from a host
+verb: software.uninstall
+with: {tries: 10}
+rate: {start: 20/day, profile: activity.uninstalled_software}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 2s"}
+---
+kind: action
+id: W-RESEND-01
+feature: mdm
+title: Resend a configuration profile to a Mac
+verb: profiles.resend
+with: {platform: darwin, tries: 10}
+rate: {start: 5/day, profile: activity.resent_configuration_profile}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 2s"}
+---
+kind: action
+id: W-TRANSFER-01
+feature: hosts
+title: Move a few hosts between the big fleets
+verb: hosts.transfer
+# Fleet names are the instance's; set them to fleets that can absorb the moves.
+with: {hosts: 1-20, fleets: [Ducks, Geese, Pigeons]}
+rate: {start: 1/day, profile: activity.transferred_hosts}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 10s"}
