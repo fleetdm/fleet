@@ -84,7 +84,7 @@ const updateCampaignStateFromResults = (
           curError ||
           // Hosts with osquery version below 4.4.0 receive an empty error message
           // when the live query fails so we create our own message.
-          "Error details require osquery 4.4.0+ (Launcher does not provide error details)",
+          "Error details require osquery 4.4.0+",
       },
     ]);
     newUIHostCounts = {
