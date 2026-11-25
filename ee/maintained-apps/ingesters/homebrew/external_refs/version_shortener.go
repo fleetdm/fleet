@@ -229,3 +229,22 @@ func UTMVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_app
 	}
 	return app, nil
 }
+
+// hoppscotchReleaseRevisionPattern matches a Hoppscotch cask version with a
+// release revision (e.g. "26.11.0-0", from the "v26.11.0-0" release tag).
+var hoppscotchReleaseRevisionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)-\d+$`)
+
+// HoppscotchVersionTransformer strips the release revision Hoppscotch's cask
+// version carries (e.g. "26.11.0-0" → "26.11.0"). The app's
+// CFBundleShortVersionString omits it, so without this osquery's version_compare
+// treats the installed "26.11.0" as older than "26.11.0-0", breaking patch
+// policy detection.
+func HoppscotchVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Hoppscotch")
+	}
+	if m := hoppscotchReleaseRevisionPattern.FindStringSubmatch(app.Version); m != nil {
+		app.Version = m[1]
+	}
+	return app, nil
+}
