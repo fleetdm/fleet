@@ -7,6 +7,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Patch queries as the catalog manifests generate them.
+const (
+	firefoxPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '160.0.1') < 0);"
+	firefoxESRPatchQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%ESR%' AND publisher = 'Mozilla' AND version_compare(version, '153.8.0') < 0);"
+	dotnet8PatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET Runtime - 8.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '8.0.34') < 0);"
+	python313PatchQuery  = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.17150.0') < 0);"
+	python314PatchQuery  = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.14.10150.0') < 0);"
+	qgisPatchQuery       = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%' AND version_compare(version, '4.2.3') < 0);"
+	qgisLTRPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%' AND version_compare(version, '3.44.15') < 0);"
+	realVNCPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC') AND version_compare(version, '8.6.2.18') < 0);"
+	granolaPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.821.0') < 0);"
+	burpPatchQuery       = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'Burp Suite 2%' OR name LIKE 'Burp Suite Professional %' OR name LIKE 'Burp Suite Community Edition %') AND publisher = 'PortSwigger Web Security') AND version_compare(version, '2026.11.2') < 0);"
+	zoomPatchQuery       = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Workplace%' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0);"
+	zoomARMPatchQuery    = "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (ARM64)' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');"
+)
+
+// windowsFMAApp is a Windows catalog entry as apps.json has it, with the installer title
+// agreeing with the catalog name. titleID doubles as the identity used for ambiguity checks.
+func windowsFMAApp(titleID uint, name, uniqueIdentifier, patchQuery string) fleet.MaintainedApp {
+	return fleet.MaintainedApp{
+		Name: name, UniqueIdentifier: uniqueIdentifier, PatchQuery: patchQuery,
+		Platform: "windows", TitleID: &titleID, TitleName: name,
+	}
+}
+
 func TestMatchWindowsFMATitle(t *testing.T) {
 	// win builds an FMA whose installer title agrees with the catalog name, which is
 	// the normal case. titleID doubles as the identity used for ambiguity checks.
@@ -87,47 +112,28 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 }
 
 func TestMatchWindowsFMATitleCuratedRules(t *testing.T) {
-	// Catalog entries as apps.json and the manifests' patched queries have them.
-	app := func(titleID uint, name, uniqueIdentifier, patchQuery string) fleet.MaintainedApp {
-		return fleet.MaintainedApp{
-			Name: name, UniqueIdentifier: uniqueIdentifier, PatchQuery: patchQuery,
-			Platform: "windows", TitleID: &titleID, TitleName: name,
-		}
-	}
-	firefox := app(1, "Mozilla Firefox", "Mozilla Firefox (x64 en-US)",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '160.0.1') < 0);")
-	firefoxESR := app(2, "Mozilla Firefox ESR", "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%ESR%' AND publisher = 'Mozilla' AND version_compare(version, '153.8.0') < 0);")
-	dotnet8 := app(3, "Microsoft .NET Runtime 8", "Microsoft .NET Runtime - 8",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Microsoft .NET Runtime - 8.%' AND name LIKE '%(x64)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '8.0.34') < 0);")
-	python313 := app(4, "Python 3.13", "Python 3.13.13 (64-bit)",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.17150.0') < 0);")
-	python314 := app(5, "Python 3.14", "Python 3.14.5 (64-bit)",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.14.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.14.10150.0') < 0);")
-	qgis := app(6, "QGIS", "QGIS",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%' AND version_compare(version, '4.2.3') < 0);")
-	qgisLTR := app(7, "QGIS LTR", "QGIS LTR",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%' AND version_compare(version, '3.44.15') < 0);")
-	realVNC := app(8, "RealVNC Connect Viewer", "RealVNC Connect Viewer",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC') AND version_compare(version, '8.6.2.18') < 0);")
-	granola := app(9, "Granola", "Granola",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.821.0') < 0);")
-	const burpRule = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'Burp Suite 2%' OR name LIKE 'Burp Suite Professional %' OR name LIKE 'Burp Suite Community Edition %') AND publisher = 'PortSwigger Web Security') AND version_compare(version, '2026.11.2') < 0);"
-	burpCommunity := app(10, "Burp Suite Community Edition", "Burp Suite", burpRule)
-	burpPro := app(11, "Burp Suite Professional", "Burp Suite", burpRule)
-	zoom := app(12, "Zoom", "Zoom Workplace (X64)",
-		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Workplace%' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0);")
-	zoomARM := app(13, "Zoom (ARM64)", "Zoom Workplace (ARM64)",
-		"SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (ARM64)' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');")
-	noPublisher := app(14, "GoldenDict-ng", "GoldenDict-ng",
+	firefox := windowsFMAApp(1, "Mozilla Firefox", "Mozilla Firefox (x64 en-US)", firefoxPatchQuery)
+	firefoxESR := windowsFMAApp(2, "Mozilla Firefox ESR", "Mozilla Firefox 140.7.1 ESR (x64 en-US)", firefoxESRPatchQuery)
+	dotnet8 := windowsFMAApp(3, "Microsoft .NET Runtime 8", "Microsoft .NET Runtime - 8", dotnet8PatchQuery)
+	python313 := windowsFMAApp(4, "Python 3.13", "Python 3.13.13 (64-bit)", python313PatchQuery)
+	python314 := windowsFMAApp(5, "Python 3.14", "Python 3.14.5 (64-bit)", python314PatchQuery)
+	qgis := windowsFMAApp(6, "QGIS", "QGIS", qgisPatchQuery)
+	qgisLTR := windowsFMAApp(7, "QGIS LTR", "QGIS LTR", qgisLTRPatchQuery)
+	realVNC := windowsFMAApp(8, "RealVNC Connect Viewer", "RealVNC Connect Viewer", realVNCPatchQuery)
+	granola := windowsFMAApp(9, "Granola", "Granola", granolaPatchQuery)
+	burpCommunity := windowsFMAApp(10, "Burp Suite Community Edition", "Burp Suite", burpPatchQuery)
+	burpPro := windowsFMAApp(11, "Burp Suite Professional", "Burp Suite", burpPatchQuery)
+	zoom := windowsFMAApp(12, "Zoom", "Zoom Workplace (X64)", zoomPatchQuery)
+	zoomARM := windowsFMAApp(13, "Zoom (ARM64)", "Zoom Workplace (ARM64)", zoomARMPatchQuery)
+	noPublisher := windowsFMAApp(14, "GoldenDict-ng", "GoldenDict-ng",
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GoldenDict-ng%' AND version_compare(version, '25.6.0') < 0);")
-	noName := app(15, "Acme", "Acme",
+	noName := windowsFMAApp(15, "Acme", "Acme",
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE publisher = 'Acme' AND version_compare(version, '1.0') < 0);")
-	wildcardOnly := app(17, "Bar", "Bar",
+	wildcardOnly := windowsFMAApp(17, "Bar", "Bar",
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '%Bar%' AND publisher = 'Acme' AND version_compare(version, '1.0') < 0);")
-	matchAllPublisher := app(18, "Baz", "Baz",
+	matchAllPublisher := windowsFMAApp(18, "Baz", "Baz",
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Baz%' AND publisher LIKE '%' AND version_compare(version, '1.0') < 0);")
-	unparseable := app(16, "Foo", "Foo",
+	unparseable := windowsFMAApp(16, "Foo", "Foo",
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Foo%' AND publisher = 'Foo Inc' AND install_location LIKE '%Foo%' AND version_compare(version, '1.0') < 0);")
 
 	cases := []struct {
@@ -178,23 +184,12 @@ func TestMatchWindowsFMATitleCuratedRules(t *testing.T) {
 }
 
 func TestWindowsFMARuleMayDecide(t *testing.T) {
-	app := func(titleID uint, name, uniqueIdentifier, patchQuery string) fleet.MaintainedApp {
-		return fleet.MaintainedApp{
-			Name: name, UniqueIdentifier: uniqueIdentifier, PatchQuery: patchQuery,
-			Platform: "windows", TitleID: &titleID, TitleName: name,
-		}
-	}
 	m := newWindowsFMAMatcher([]fleet.MaintainedApp{
-		app(1, "Mozilla Firefox", "Mozilla Firefox (x64 en-US)",
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '160.0.1') < 0);"),
-		app(2, "Mozilla Firefox ESR", "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%ESR%' AND publisher = 'Mozilla' AND version_compare(version, '153.8.0') < 0);"),
-		app(3, "Zoom", "Zoom Workplace (X64)",
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Workplace%' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0);"),
-		app(4, "Zoom (ARM64)", "Zoom Workplace (ARM64)",
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (ARM64)' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0);"),
-		app(5, "Python 3.13", "Python 3.13.13 (64-bit)",
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.17150.0') < 0);"),
+		windowsFMAApp(1, "Mozilla Firefox", "Mozilla Firefox (x64 en-US)", firefoxPatchQuery),
+		windowsFMAApp(2, "Mozilla Firefox ESR", "Mozilla Firefox 140.7.1 ESR (x64 en-US)", firefoxESRPatchQuery),
+		windowsFMAApp(3, "Zoom", "Zoom Workplace (X64)", zoomPatchQuery),
+		windowsFMAApp(4, "Zoom (ARM64)", "Zoom Workplace (ARM64)", zoomARMPatchQuery),
+		windowsFMAApp(5, "Python 3.13", "Python 3.13.13 (64-bit)", python313PatchQuery),
 	})
 
 	cases := []struct {

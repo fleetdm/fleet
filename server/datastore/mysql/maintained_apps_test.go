@@ -2955,16 +2955,6 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, total, "the skipped pin is cascaded away with its title")
 }
 
-// Patch queries as the catalog manifests generate them.
-const (
-	python313PatchQuery  = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (64-bit)' AND publisher = 'Python Software Foundation' AND version_compare(version, '3.13.17150.0') < 0);"
-	realVNCPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC') AND version_compare(version, '8.6.2.18') < 0);"
-	qgisPatchQuery       = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%' AND version_compare(version, '4.2.3') < 0);"
-	qgisLTRPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%' AND version_compare(version, '3.44.15') < 0);"
-	firefoxPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '160.0.1') < 0);"
-	firefoxESRPatchQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%ESR%' AND publisher = 'Mozilla' AND version_compare(version, '153.8.0') < 0);"
-)
-
 // testWindowsFMACuratedRuleOnIngest: a program the name-prefix rule misses, but the
 // app's curated rule accepts, is filed under the installer's title on ingest.
 func testWindowsFMACuratedRuleOnIngest(t *testing.T, ds *Datastore) {
