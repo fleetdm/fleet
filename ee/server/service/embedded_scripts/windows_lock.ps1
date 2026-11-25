@@ -25,10 +25,10 @@ Get-WmiObject -Class Win32_UserProfile | Where-Object { $_.Special -eq $false } 
     }
 }
 
-# The "Deny log on locally" and "Deny log on through Remote Desktop Services"
-# policies. Denying the Users (S-1-5-32-545) and Guests (S-1-5-32-546) groups
-# blocks every account type (local, AD, Azure/Entra) without touching cached
-# logins. The previous values are saved so windows_unlock.ps1 can restore them.
+# Deny Users (S-1-5-32-545) and Guests (S-1-5-32-546) groups with "Deny log on
+# locally" and "Deny log on through Remote Desktop Services" policies to block
+# every account type (local, AD, Azure/Entra) without touching cached logins.
+# The previous values are saved so windows_unlock.ps1 can restore them.
 $denyRights = 'SeDenyInteractiveLogonRight', 'SeDenyRemoteInteractiveLogonRight'
 
 function Get-DenyLogonRights {
