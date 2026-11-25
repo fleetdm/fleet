@@ -62,7 +62,7 @@ const selectFileNamed = async (container: HTMLElement, name: string) => {
 };
 
 const TARGET_BANNER_COPY = /If multiple versions target the same host, Fleet will deploy the one that was added first\./i;
-const IPA_DUAL_PLATFORM_COPY = /Fleet adds an iOS app for both iOS and iPadOS\. Edit each platform separately\. Changes to one don't apply to the other\. A tvOS app is added for tvOS only\./i;
+const IPA_DUAL_PLATFORM_COPY = /iOS apps are added for iOS and iPadOS, and each is edited separately\. tvOS apps are added for tvOS only\./i;
 
 describe("PackageForm", () => {
   describe("Target section on the single-package Add flow", () => {
@@ -115,6 +115,33 @@ describe("PackageForm", () => {
         screen.queryByText(IPA_DUAL_PLATFORM_COPY)
       ).not.toBeInTheDocument();
     });
+  });
+
+  describe("Self service on the .ipa Edit flow", () => {
+    it("hides Self service for a tvOS app and keeps the Target section", () => {
+      renderForm({
+        isEditingSoftware: true,
+        defaultSoftware: createMockSoftwarePackageIos({
+          name: "MyTVApp.ipa",
+          platform: "tvos",
+        }),
+      });
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+    });
+
+    it.each(["ios", "ipados"])(
+      "shows Self service for an %s app",
+      (platform) => {
+        renderForm({
+          isEditingSoftware: true,
+          defaultSoftware: createMockSoftwarePackageIos({ platform }),
+        });
+        expect(screen.getByText("Self service")).toBeInTheDocument();
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      }
+    );
   });
 
   describe("Advanced options section", () => {

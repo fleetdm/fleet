@@ -86,7 +86,7 @@ const getGraphicName = (ext: string) => {
 };
 
 export const IPA_DUAL_PLATFORM_BANNER_COPY =
-  "Fleet adds an iOS app for both iOS and iPadOS. Edit each platform separately. Changes to one don't apply to the other. A tvOS app is added for tvOS only.";
+  "iOS apps are added for iOS and iPadOS, and each is edited separately. tvOS apps are added for tvOS only.";
 
 const renderIpaDualPlatformBanner = () => (
   <InfoBanner
