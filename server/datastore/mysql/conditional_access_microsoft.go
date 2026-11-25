@@ -15,6 +15,9 @@ import (
 func (ds *Datastore) ConditionalAccessMicrosoftCreateIntegration(
 	ctx context.Context, tenantID string, proxyServerSecret string,
 ) error {
+	if ds.serverPrivateKey == "" {
+		return ctxerr.New(ctx, "server private key is required for conditional access encryption")
+	}
 	encryptedSecret, err := fleetcrypto.Encrypt([]byte(proxyServerSecret), ds.serverPrivateKey)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "encrypt proxy server secret")
@@ -53,8 +56,9 @@ func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.
 		ProxyServerSecret []byte `db:"proxy_server_secret"`
 		SetupDone         bool   `db:"setup_done"`
 	}
+	// Use writer to avoid replication lag (not in the hot path).
 	err := sqlx.GetContext(
-		ctx, ds.reader(ctx), &row,
+		ctx, ds.writer(ctx), &row,
 		// Currently only one global integration is supported.
 		`SELECT tenant_id, proxy_server_secret, setup_done FROM microsoft_compliance_partner_integrations;`,
 	)
@@ -71,11 +75,15 @@ func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.
 	// Lazy backfill: if the value was legacy cleartext, encrypt and save it
 	// so existing customers get their secrets encrypted on first read after upgrade.
 	if len(row.ProxyServerSecret) > 0 && row.ProxyServerSecret[0] != 0x01 && ds.serverPrivateKey != "" {
-		if encrypted, err := fleetcrypto.Encrypt(secret, ds.serverPrivateKey); err == nil {
-			_, _ = ds.writer(ctx).ExecContext(ctx,
-				`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
-				encrypted, row.TenantID,
-			)
+		encrypted, err := fleetcrypto.Encrypt(secret, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "encrypting legacy proxy server secret")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
+			encrypted, row.TenantID,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "backfilling encrypted proxy server secret")
 		}
 	}
 	return &fleet.ConditionalAccessMicrosoftIntegration{

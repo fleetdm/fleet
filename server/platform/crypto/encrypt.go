@@ -11,7 +11,10 @@ import (
 )
 
 // encryptionVersion is prepended to all newly encrypted values so we can
-// distinguish encrypted data from legacy cleartext on read.
+// distinguish encrypted data from legacy cleartext on read. This works
+// because the plaintext values being encrypted (UUIDs, base64 tokens,
+// ASCII strings) always start with printable characters (0x20-0x7E),
+// so 0x01 never appears as the first byte of legitimate cleartext.
 const encryptionVersion byte = 0x01
 
 // Encrypt encrypts plainText using AES-GCM with the given key.
@@ -85,9 +88,14 @@ func Decrypt(encrypted []byte, key string) ([]byte, error) {
 // legacy cleartext and returned as-is. If the data starts with the version
 // prefix but decryption fails (wrong key, corrupted data), an error is
 // returned instead of silently passing through garbage.
+//
+// The key must not be empty; an empty key is a configuration error.
 func DecryptOrPassthrough(data []byte, key string) ([]byte, error) {
-	if len(key) == 0 || len(data) == 0 {
+	if len(data) == 0 {
 		return data, nil
+	}
+	if len(key) == 0 {
+		return nil, errors.New("decrypting: server private key is not configured")
 	}
 	if data[0] != encryptionVersion {
 		// Legacy cleartext, return as-is.

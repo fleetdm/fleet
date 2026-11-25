@@ -86,11 +86,11 @@ func TestDecryptOrPassthrough(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("empty key returns data as-is", func(t *testing.T) {
+	t.Run("empty key returns error", func(t *testing.T) {
 		data := []byte("some-data")
-		result, err := DecryptOrPassthrough(data, "")
-		require.NoError(t, err)
-		assert.Equal(t, data, result)
+		_, err := DecryptOrPassthrough(data, "")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "server private key is not configured")
 	})
 
 	t.Run("wrong key on versioned data returns error", func(t *testing.T) {

@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261116140000, Down_20261116140000)
+	MigrationClient.AddMigration(Up_20261125193603, Down_20261125193603)
 }
 
-func Up_20261116140000(tx *sql.Tx) error {
+func Up_20261125193603(tx *sql.Tx) error {
 	if colType := columnDataType(tx, "microsoft_compliance_partner_integrations", "proxy_server_secret"); colType != "" && colType != "blob" {
 		if _, err := tx.Exec(`ALTER TABLE microsoft_compliance_partner_integrations MODIFY COLUMN proxy_server_secret blob NOT NULL`); err != nil {
 			return fmt.Errorf("alter proxy_server_secret to blob: %w", err)
@@ -31,6 +31,6 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
 	return dt
 }
 
-func Down_20261116140000(tx *sql.Tx) error {
+func Down_20261125193603(tx *sql.Tx) error {
 	return nil
 }
