@@ -1,0 +1,1 @@
+- Fixed swiftDialog (and any other app fleetd keeps its own copy of under `/opt/orbit`) always showing "Update available" on the host's software page and in self-service. fleetd's copy no longer counts toward install or update status.

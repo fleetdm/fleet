@@ -12,6 +12,7 @@ import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  ISoftwareInstallVersion,
   MACOS_APP_SOFTWARE_TYPE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
@@ -267,6 +268,15 @@ const getNewerDate = (dateStr1: string, dateStr2: string) => {
   return dateStr1 > dateStr2 ? dateStr1 : dateStr2;
 };
 
+const FLEETD_INSTALL_ROOT = "/opt/orbit/";
+
+/** fleetd keeps its own copies of some apps (e.g. swiftDialog for setup
+ * experience) under /opt/orbit. Updating the title never touches them, so they
+ * must not drive install or update status; FMA patch policies skip them too. */
+const isFleetdOwnedVersion = (version: ISoftwareInstallVersion) =>
+  !!version.installed_paths?.length &&
+  version.installed_paths.every((path) => path.startsWith(FLEETD_INSTALL_ROOT));
+
 export const getUiStatus = (
   software: IHostSoftware,
   isHostOnline: boolean,
@@ -278,7 +288,10 @@ export const getUiStatus = (
   // back into the ordinary failed_install family.
   suppressSkippedInstall = false
 ): IHostSoftwareUiStatus => {
-  const { status, installed_versions, source } = software;
+  const { status, source } = software;
+  const installed_versions =
+    software.installed_versions?.filter((iv) => !isFleetdOwnedVersion(iv)) ??
+    null;
 
   const lastInstallDate = getLastInstall(software)?.installed_at;
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
