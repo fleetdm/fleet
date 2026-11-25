@@ -243,29 +243,18 @@ export const generateRole = (
   globalRole: UserRole | null
 ): UserRole => {
   if (globalRole === null) {
-    const listOfRoles = teams.map<UserRole | undefined>((team) => team.role);
-
     if (teams.length === 0) {
       // no global role and no teams
       return "Unassigned";
-    } else if (teams.length === 1) {
-      // no global role and only one team
-      return stringUtils.capitalizeRole(teams[0].role || "Unassigned");
-    } else if (listOfRoles.every((role): boolean => role === "maintainer")) {
-      // only team maintainers
-      return "Maintainer";
-    } else if (listOfRoles.every((role): boolean => role === "observer")) {
-      // only team observers
-      return "Observer";
-    } else if (listOfRoles.every((role): boolean => role === "observer_plus")) {
-      // only team observers plus
-      return "Observer+";
-    } else if (listOfRoles.every((role): boolean => role === "technician")) {
-      // only team technicians
-      return "Technician";
     }
 
-    return ROLE_VARIOUS; // no global role and multiple teams
+    const [{ role }] = teams;
+    if (teams.every((team) => team.role === role)) {
+      // same role on every fleet
+      return stringUtils.capitalizeRole(role || "Unassigned");
+    }
+
+    return ROLE_VARIOUS; // no global role and different roles across fleets
   }
 
   if (teams.length === 0) {

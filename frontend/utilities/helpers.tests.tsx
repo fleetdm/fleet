@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
+import createMockTeam from "__mocks__/teamMock";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { getPastDate, getFutureDate } from "test/test-utils";
 
@@ -13,9 +14,41 @@ import helpers, {
   internationalTimeOnlyFormat,
   formatSelectedTargetsForApi,
   formatFleet5RemovalMessage,
+  generateRole,
+  ROLE_VARIOUS,
 } from "./helpers";
 
 describe("helpers utilities", () => {
+  describe("generateRole function", () => {
+    it.each([
+      ["admin", "Admin"],
+      ["maintainer", "Maintainer"],
+      ["observer", "Observer"],
+      ["observer_plus", "Observer+"],
+      ["technician", "Technician"],
+      ["gitops", "GitOps"],
+    ] as const)(
+      "returns the shared role when a user is %s on every fleet",
+      (role, expected) => {
+        const teams = [
+          createMockTeam({ id: 1, role }),
+          createMockTeam({ id: 2, role }),
+        ];
+
+        expect(generateRole(teams, null)).toEqual(expected);
+      }
+    );
+
+    it("returns Various when a user has different roles across fleets", () => {
+      const teams = [
+        createMockTeam({ id: 1, role: "admin" }),
+        createMockTeam({ id: 2, role: "observer" }),
+      ];
+
+      expect(generateRole(teams, null)).toEqual(ROLE_VARIOUS);
+    });
+  });
+
   describe("getHostOSDisplayName function", () => {
     it.each([
       ["macOS", "14.1.2", "macOS 14.1.2"],
