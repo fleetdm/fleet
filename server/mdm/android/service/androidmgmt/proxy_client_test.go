@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -108,6 +109,8 @@ func TestProxyClientAppCallsExplainRejectedSecret(t *testing.T) {
 				err := c.call(t.Context(), client)
 				require.Error(t, err)
 				assert.Equal(t, st.wantRejectedSecret, strings.Contains(err.Error(), wantRejectionMsg), err.Error())
+				// The API response shows only the cause, so the explanation must survive it.
+				assert.Equal(t, st.wantRejectedSecret, strings.Contains(ctxerr.Cause(err).Error(), wantRejectionMsg), ctxerr.Cause(err).Error())
 				var ae *googleapi.Error
 				require.ErrorAs(t, err, &ae)
 				assert.Equal(t, st.status, ae.Code)

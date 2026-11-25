@@ -88,11 +88,22 @@ func (p *ProxyClient) authorization() string {
 	return "Bearer " + p.fleetServerSecret
 }
 
-// explainUnauthorized names the cause of a 401 from the proxy, which otherwise reads as a bare
-// "googleapi: Error 401". The proxy returns 401 only when the server secret is missing or doesn't match.
+// rejectedSecretError is a 401 from the proxy, which returns 401 only when the server secret is missing
+// or doesn't match. It unwraps with Unwrap() []error so that ctxerr.Cause stops here and the API response
+// names the cause instead of a bare "googleapi: Error 401".
+type rejectedSecretError struct {
+	err error
+}
+
+func (e rejectedSecretError) Error() string {
+	return "fleetdm.com Android proxy rejected this Fleet server's secret (missing or mismatched): " + e.err.Error()
+}
+
+func (e rejectedSecretError) Unwrap() []error { return []error{e.err} }
+
 func explainUnauthorized(err error) error {
 	if isErrorCode(err, http.StatusUnauthorized) {
-		return fmt.Errorf("fleetdm.com Android proxy rejected this Fleet server's secret (missing or mismatched): %w", err)
+		return rejectedSecretError{err: err}
 	}
 	return err
 }
