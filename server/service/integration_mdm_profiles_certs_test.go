@@ -192,6 +192,12 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
 
+	identifier := host.UUID + "," + profileUUID + "," + "INTEGRATION"
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+"/pkiclient.exe", nil, http.StatusOK, nil, "operation", "GetCACaps")
+	body, err := io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+
 	// Simulate osquery reporting the issued certificate. It carries the profile's renewal-ID marker
 	// (fleet-<profile_uuid>) in its OU, which Fleet matches back to the profile's managed-certificate row.
 	sha1Sum := make([]byte, 20)
@@ -220,12 +226,8 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
 
-	// Attempt simple SCEP call with GetCACaps operation to verify SCEP server is reachable
-	identifier := host.UUID + "," + profileUUID + "," + "INTEGRATION"
-	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+"/pkiclient.exe", nil, http.StatusOK, nil, "operation", "GetCACaps")
-	body, err := io.ReadAll(scepRes.Body)
-	require.NoError(t, err)
-	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+	// The proxy only serves a profile that is still being installed.
+	s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+"/pkiclient.exe", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
 }
 
 // TestWindowsHardcodedSCEPProfile covers a Windows MDM SCEP profile that uses a hardcoded SCEP

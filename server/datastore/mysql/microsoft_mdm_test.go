@@ -6698,6 +6698,7 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			assert.Nil(t, profile.NotValidBefore)
 			assert.Nil(t, profile.NotValidAfter)
 			assert.Equal(t, caName, profile.CAName)
+			assert.Equal(t, "command-uuid", profile.CommandUUID)
 
 			// Renew should not do anything yet
 			err = ds.RenewMDMManagedCertificates(ctx)

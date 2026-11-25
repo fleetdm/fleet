@@ -5253,10 +5253,11 @@ func executeWindowsProfileReconcileBatch(
 					continue
 				}
 
-				// Preprocess the profile content for this specific host
+				// Created before preprocessing because the NDES SCEP proxy URL carries it.
+				hostCmdUUID := uuid.New().String()
 				processedContent, err := microsoft_mdm.PreprocessWindowsProfileContentsForDeployment(
 					deps,
-					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID},
+					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID, CommandUUID: hostCmdUUID},
 					string(p.SyncML),
 				)
 				// AsType reports false for a nil error, so these double as the "no error" check.
@@ -5277,9 +5278,6 @@ func executeWindowsProfileReconcileBatch(
 				case err != nil:
 					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
 				}
-
-				// Create a unique command UUID for this host since the content is unique
-				hostCmdUUID := uuid.New().String()
 
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)

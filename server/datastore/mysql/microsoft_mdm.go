@@ -4465,6 +4465,7 @@ func (ds *Datastore) GetWindowsHostMDMCertificateProfile(ctx context.Context, ho
 		hmwp.host_uuid,
 		hmwp.profile_uuid,
 		hmwp.status,
+		hmwp.command_uuid,
 		hmmc.challenge_retrieved_at,
 		hmmc.not_valid_before,
 		hmmc.not_valid_after,

@@ -438,6 +438,8 @@ type HostMDMCertificateProfile struct {
 	Type                 CAConfigAssetType  `db:"type"`
 	CAName               string             `db:"ca_name"`
 	Serial               *string            `db:"serial"`
+	// CommandUUID is the install command that delivered the profile. Only set for Windows profiles.
+	CommandUUID string `db:"command_uuid"`
 }
 
 type HostMDMProfileDetail string

@@ -76,6 +76,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 
 	// use the same uuid for all profile UUID actions
 	profileUUID := uuid.NewString()
+	commandUUID := uuid.NewString()
 
 	ndesConfig := &fleet.NDESSCEPProxyCA{
 		URL:      "https://ndes.example.com/certsrv/mscep/mscep.dll",
@@ -96,6 +97,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	tests := []struct {
 		name                       string
 		hostUUID                   string
+		noCommandUUID              bool
 		profileContents            string
 		expectedContents           string
 		expectError                bool
@@ -371,7 +373,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			expectedContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
 				`<Data>ndes-test-challenge</Data></Item></Add>` +
 				`<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
-				`<Data>https://test-fleet.com/mdm/scep/proxy/ndes-host-uuid%2C` + profileUUID + `%2CNDES</Data></Item></Add>`,
+				`<Data>https://test-fleet.com/mdm/scep/proxy/ndes-host-uuid%2C` + profileUUID + `%2CNDES%2C` + commandUUID + `</Data></Item></Add>`,
 			setup: func() {
 				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 					return &fleet.AppConfig{
@@ -406,7 +408,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				`<Add><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/Challenge</LocURI></Target>` +
 				`<Data>ndes-test-challenge</Data></Item></Add>` +
 				`<Add><CmdID>2</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
-				`<Data>https://test-fleet.com/mdm/scep/proxy/ndes-atomic-host%2C` + profileUUID + `%2CNDES</Data></Item></Add>` +
+				`<Data>https://test-fleet.com/mdm/scep/proxy/ndes-atomic-host%2C` + profileUUID + `%2CNDES%2C` + commandUUID + `</Data></Item></Add>` +
 				`</Atomic>`,
 			setup: func() {
 				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -423,6 +425,15 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				require.Equal(t, fleet.CAConfigNDES, managedCerts[0].Type)
 				require.Equal(t, "ndes-atomic-host", managedCerts[0].HostUUID)
 			},
+		},
+		{
+			name:           "ndes proxy url without a command UUID",
+			hostUUID:       "ndes-no-command-host",
+			noCommandUUID:  true,
+			withNDESConfig: ndesConfig,
+			profileContents: `<Add><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data></Item></Add>`,
+			expectError: true,
 		},
 		{
 			name:                       "ndes challenge fetch fails",
@@ -557,10 +568,11 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				},
 			}
 
-			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
-				HostUUID:    tt.hostUUID,
-				ProfileUUID: profileUUID,
-			}, tt.profileContents)
+			params := ProfilePreprocessParams{HostUUID: tt.hostUUID, ProfileUUID: profileUUID, CommandUUID: commandUUID}
+			if tt.noCommandUUID {
+				params.CommandUUID = ""
+			}
+			result, err := PreprocessWindowsProfileContentsForDeployment(deps, params, tt.profileContents)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.processingError != "" {

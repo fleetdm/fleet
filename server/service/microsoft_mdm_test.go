@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -1447,6 +1448,42 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		}
 	}
 	require.True(t, foundError, "Should have found a failed status update")
+}
+
+// The SCEP proxy only accepts a Windows NDES request whose URL carries the command UUID of the host's current delivery.
+func TestReconcileWindowsProfilesNDESProxyURLCarriesCommandUUID(t *testing.T) {
+	ds := new(mock.Store)
+	const hostUUID, profileUUID = "ndes-host", "w-ndes-profile"
+	setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{hostUUID: {
+		ProfileUUID: profileUUID,
+		Name:        "NDES",
+		SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/test/Install/ServerURL</LocURI></Target>` +
+			`<Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data></Item></Replace>`),
+	}})
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
+		}, nil
+	}
+	ds.RefreshMDMWindowsProfilesStatusRollupFunc = func(ctx context.Context, hostUUIDs []string) error { return nil }
+	var gotCmd *fleet.MDMWindowsCommand
+	var gotRows []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand,
+		updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+	) error {
+		gotCmd, gotRows = cmd, updates
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(t.Context(), ds, slog.New(slog.DiscardHandler), false))
+
+	require.NotNil(t, gotCmd)
+	require.Len(t, gotRows, 1)
+	require.NotEmpty(t, gotRows[0].CommandUUID)
+	require.Equal(t, gotCmd.CommandUUID, gotRows[0].CommandUUID)
+	wantURL := "https://fleet.example.com/mdm/scep/proxy/" + url.PathEscape(hostUUID+","+profileUUID+",NDES,"+gotRows[0].CommandUUID)
+	require.Contains(t, string(gotCmd.RawCommand), "<Data>"+wantURL+"</Data>")
 }
 
 func TestReconcileWindowsProfilesRefreshesRollupWhenBatchFails(t *testing.T) {
