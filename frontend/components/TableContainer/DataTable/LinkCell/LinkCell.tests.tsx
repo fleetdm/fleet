@@ -56,6 +56,8 @@ describe("Link cell", () => {
       const tooltip = await screen.findByRole("tooltip");
 
       await user.hover(tooltip);
+      // Wait so a tooltip that closes when the pointer leaves the link would be gone.
+      await new Promise((resolve) => setTimeout(resolve, 300));
       expect(screen.getByRole("tooltip")).toBeInTheDocument();
 
       await user.keyboard("{Escape}");
