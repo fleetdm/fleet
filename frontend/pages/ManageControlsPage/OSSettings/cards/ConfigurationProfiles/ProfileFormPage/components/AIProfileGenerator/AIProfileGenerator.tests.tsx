@@ -102,6 +102,8 @@ const appleOnly = {
   windows_mdm_enabled: false,
 };
 
+const APPLE_OPTION = "Apple (macOS, iOS, iPadOS, tvOS)";
+
 const MANUAL_LOCATION = {
   pathname: "/controls/os-settings/configuration-profiles/new/manual",
   query: { fleet_id: 2 },
@@ -198,7 +200,7 @@ describe("AIProfileGenerator", () => {
 
   it("offers only the platforms whose MDM is on", async () => {
     const { user } = renderGenerator();
-    expect(screen.getByText("Apple (macOS, iOS, iPadOS)")).toBeInTheDocument();
+    expect(screen.getByText(APPLE_OPTION)).toBeInTheDocument();
     await user.click(screen.getByRole("combobox"));
     expect(screen.queryByText("Windows")).not.toBeInTheDocument();
   });
@@ -217,14 +219,12 @@ describe("AIProfileGenerator", () => {
       defaultPlatform: "windows",
     });
     expect(screen.getByText("Windows")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Apple (macOS, iOS, iPadOS)")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(APPLE_OPTION)).not.toBeInTheDocument();
   });
 
   it("falls back to the first platform when the default's MDM is off", () => {
     renderGenerator({ defaultPlatform: "windows" });
-    expect(screen.getByText("Apple (macOS, iOS, iPadOS)")).toBeInTheDocument();
+    expect(screen.getByText(APPLE_OPTION)).toBeInTheDocument();
   });
 
   it("names the fleet the profile is added to", () => {
