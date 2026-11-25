@@ -120,7 +120,7 @@ const Activity = ({
             <Tab disabled={isUpcomingDisabled}>
               {isUpcomingDisabled ? (
                 <TooltipWrapper
-                  tipContent="Currently, upcoming activity is only supported for macOS, Windows, Linux, iOS, and iPadOS hosts."
+                  tipContent="Currently, upcoming activity is only supported for macOS, Windows, Linux, iOS, iPadOS, and tvOS hosts."
                   showArrow
                   underline={false}
                 >

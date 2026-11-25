@@ -73,7 +73,7 @@ describe("DeleteHostModal", () => {
     ).toBeVisible();
     expect(
       screen.getByText(
-        /iOS, iPadOS, and personal Android hosts will re-enroll unless you unenroll them first/i
+        /iOS, iPadOS, tvOS, and personal Android hosts will re-enroll unless you unenroll them first/i
       )
     ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
@@ -173,27 +173,30 @@ describe("DeleteHostModal", () => {
     );
   });
 
-  it("renders the iOS and iPadOS copy", () => {
-    renderModal({
-      hostName: "iPad",
-      platform: "ipados",
-      isMdmEnrolledInFleet: true,
-    });
-    expect(
-      screen.getByText(
-        "This will remove all host data from Fleet. It won't remove data from the host."
-      )
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        /This host will re-enroll unless you unenroll it first\./
-      )
-    ).toBeVisible();
-    expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
-      "href",
-      expect.stringMatching(DELETING_A_HOST_LINK)
-    );
-  });
+  it.each(["ipados", "tvos"] as const)(
+    "renders the Apple MDM-only copy for a %s host",
+    (platform) => {
+      renderModal({
+        hostName: "Host1",
+        platform,
+        isMdmEnrolledInFleet: true,
+      });
+      expect(
+        screen.getByText(
+          "This will remove all host data from Fleet. It won't remove data from the host."
+        )
+      ).toBeVisible();
+      expect(
+        screen.getByText(
+          /This host will re-enroll unless you unenroll it first\./
+        )
+      ).toBeVisible();
+      expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
+        "href",
+        expect.stringMatching(DELETING_A_HOST_LINK)
+      );
+    }
+  );
 
   it("renders the macOS MDM copy with the deleting-a-host link when one-time enroll secrets are off", () => {
     renderModal({
