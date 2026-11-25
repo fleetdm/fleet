@@ -19,6 +19,7 @@ const (
 	realVNCPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'RealVNC Viewer %' OR name LIKE 'RealVNC Connect Viewer %') AND publisher = 'RealVNC') AND version_compare(version, '8.6.2.18') < 0);"
 	granolaPatchQuery    = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.821.0') < 0);"
 	burpPatchQuery       = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE ((name LIKE 'Burp Suite 2%' OR name LIKE 'Burp Suite Professional %' OR name LIKE 'Burp Suite Community Edition %') AND publisher = 'PortSwigger Web Security') AND version_compare(version, '2026.11.2') < 0);"
+	gitPatchQuery        = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Git%' AND publisher = 'The Git Development Community' AND version_compare(version, '2.56.1') < 0);"
 	zoomPatchQuery       = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Workplace%' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0);"
 	zoomARMPatchQuery    = "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (ARM64)' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');"
 )
@@ -133,6 +134,7 @@ func TestMatchWindowsFMATitleCuratedRules(t *testing.T) {
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '%Bar%' AND publisher = 'Acme' AND version_compare(version, '1.0') < 0);")
 	matchAllPublisher := windowsFMAApp(18, "Baz", "Baz",
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Baz%' AND publisher LIKE '%' AND version_compare(version, '1.0') < 0);")
+	git := windowsFMAApp(19, "Git", "Git", gitPatchQuery)
 	unparseable := windowsFMAApp(16, "Foo", "Foo",
 		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Foo%' AND publisher = 'Foo Inc' AND install_location LIKE '%Foo%' AND version_compare(version, '1.0') < 0);")
 
@@ -166,6 +168,11 @@ func TestMatchWindowsFMATitleCuratedRules(t *testing.T) {
 		{"rule without a name never accepts", "Anything 1.0", "Acme", "1.0", []fleet.MaintainedApp{noName}, 0, false},
 		{"rule pinning no name text never accepts", "Foo Bar 1.0", "Acme", "1.0", []fleet.MaintainedApp{wildcardOnly}, 0, false},
 		{"rule whose publisher pattern pins no text never accepts", "Bazooka 1.0", "Acme", "1.0", []fleet.MaintainedApp{matchAllPublisher}, 0, false},
+		// Git's rule is its own name followed by %: all it adds over the prefix is names
+		// glued to it, which can be another product as easily as a glued version.
+		{"rule that only drops the prefix's space takes no names", "GitKraken 11.0", "The Git Development Community", "11.0", []fleet.MaintainedApp{git}, 0, false},
+		{"rule that only drops the prefix's space, glued version", "Git2.45", "The Git Development Community", "2.45", []fleet.MaintainedApp{git}, 0, false},
+		{"rule that only drops the prefix's space leaves the prefix", "Git 2.45.1", "The Git Development Community", "2.45.1", []fleet.MaintainedApp{git}, 19, true},
 		{"unparseable rule keeps prefix behavior", "Foobar 1.0", "Foo Inc", "1.0", []fleet.MaintainedApp{unparseable}, 0, false},
 		{"unparseable rule keeps prefix behavior, positive", "Foo 1.0", "Foo Inc", "1.0", []fleet.MaintainedApp{unparseable}, 16, true},
 	}

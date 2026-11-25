@@ -101,10 +101,13 @@ func newWindowsFMAMatcher(fmas []fleet.MaintainedApp) *windowsFMAMatcher {
 			continue
 		}
 		title := windowsFMATitle{titleName: f.TitleName, titleID: *f.TitleID}
+		ownPrefixes := make([]string, 0, len(prefixes))
 		for _, p := range prefixes {
-			m.prefixes = append(m.prefixes, windowsFMAPrefix{prefix: normalizeForMatch(p), windowsFMATitle: title})
+			normalized := normalizeForMatch(p)
+			ownPrefixes = append(ownPrefixes, normalized)
+			m.prefixes = append(m.prefixes, windowsFMAPrefix{prefix: normalized, windowsFMATitle: title})
 		}
-		if rule, ok := newWindowsFMARule(f.PatchQuery, title); ok {
+		if rule, ok := newWindowsFMARule(f.PatchQuery, title, ownPrefixes); ok {
 			m.rules = append(m.rules, rule)
 		}
 	}
@@ -121,9 +124,10 @@ type windowsFMARule struct {
 }
 
 // newWindowsFMARule returns false for a patch query the parser doesn't understand,
-// and for a rule that doesn't pin both a name and a publisher: those were written to
-// detect an install, and without both they are too loose to decide identity.
-func newWindowsFMARule(patchQuery string, title windowsFMATitle) (windowsFMARule, bool) {
+// for a rule that doesn't pin both a name and a publisher (those were written to
+// detect an install, and without both they are too loose to decide identity), and for
+// a rule that only relaxes the app's own name prefix (see onlyRelaxesPrefix).
+func newWindowsFMARule(patchQuery string, title windowsFMATitle, ownPrefixes []string) (windowsFMARule, bool) {
 	parsed, ok := patch_policy.ParseWindowsProgramsRule(patchQuery)
 	if !ok {
 		return windowsFMARule{}, false
@@ -156,7 +160,32 @@ func newWindowsFMARule(patchQuery string, title windowsFMATitle) (windowsFMARule
 		}
 		rule.clauses = append(rule.clauses, conds)
 	}
-	return rule, hasName && hasPublisher
+	return rule, hasName && hasPublisher && !onlyRelaxesPrefix(rule.clauses, ownPrefixes)
+}
+
+// onlyRelaxesPrefix reports whether a rule's only name condition is one of the app's
+// own (normalized) prefix candidates followed by %, with no version condition, such as
+// Git's "Git%". Over the prefix rule it adds nothing but names glued to the candidate,
+// which can be another product ("GitKraken") as easily as a glued version ("Git2.45"),
+// so it is left out and the prefix rule decides as it does without curated rules.
+func onlyRelaxesPrefix(clauses [][]patch_policy.ProgramsCondition, ownPrefixes []string) bool {
+	var nameConds []patch_policy.ProgramsCondition
+	for _, clause := range clauses {
+		switch clause[0].Column {
+		case patch_policy.ProgramsVersion:
+			return false
+		case patch_policy.ProgramsName:
+			nameConds = append(nameConds, clause...)
+		}
+	}
+	if len(nameConds) != 1 || nameConds[0].Op != patch_policy.OpLike {
+		return false
+	}
+	literal, ok := strings.CutSuffix(nameConds[0].Values[0], "%")
+	if !ok || strings.ContainsAny(literal, "%_") {
+		return false
+	}
+	return slices.Contains(ownPrefixes, literal)
 }
 
 // acceptsName reports whether the rule's name clauses accept a normalized name. It
