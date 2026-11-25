@@ -180,6 +180,8 @@ type SaveLabelFunc func(ctx context.Context, label *fleet.Label, hostIDs []uint,
 
 type DeleteLabelFunc func(ctx context.Context, id uint) error
 
+type CleanupOrphanedLabelMembershipFunc func(ctx context.Context) error
+
 type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
 type LabelMembershipHostIDsFunc func(ctx context.Context, labelID uint) ([]uint, error)
@@ -2892,6 +2894,9 @@ type DataStore struct {
 
 	DeleteLabelFunc        DeleteLabelFunc
 	DeleteLabelFuncInvoked bool
+
+	CleanupOrphanedLabelMembershipFunc        CleanupOrphanedLabelMembershipFunc
+	CleanupOrphanedLabelMembershipFuncInvoked bool
 
 	LabelFunc        LabelFunc
 	LabelFuncInvoked bool
@@ -7157,6 +7162,13 @@ func (s *DataStore) DeleteLabel(ctx context.Context, id uint) error {
 	s.DeleteLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteLabelFunc(ctx, id)
+}
+
+func (s *DataStore) CleanupOrphanedLabelMembership(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupOrphanedLabelMembershipFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupOrphanedLabelMembershipFunc(ctx)
 }
 
 func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
