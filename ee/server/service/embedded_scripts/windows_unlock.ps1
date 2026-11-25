@@ -33,10 +33,35 @@ function Set-DenyLogonRights {
     }
 }
 
+# Enable the given accounts. Returns $true only if every one was enabled.
+function Enable-Accounts {
+    param($Users)
+
+    $ok = $true
+    foreach ($user in $Users) {
+        try {
+            Enable-LocalUser -SID $user.SID -ErrorAction Stop
+            Write-Host "Enabled user account: $($user.Name)"
+        } catch {
+            Write-Host "Could not enable user account $($user.Name): $($_.Exception.Message)"
+            $ok = $false
+        }
+    }
+    $ok
+}
+
 # Restore what windows_lock.ps1 saved: the two deny-logon policies and the
-# local accounts it disabled.
+# local accounts it disabled. The saved record is only deleted once everything
+# is restored, so a failed unlock can be retried.
 $stateKey = "HKLM:\SOFTWARE\Fleet\WindowsLock"
-$localUsers = @(Get-LocalUser)
+$restored = $true
+$localUsers = @()
+try {
+    $localUsers = @(Get-LocalUser -ErrorAction Stop)
+} catch {
+    Write-Host "Could not list local accounts: $($_.Exception.Message)"
+    $restored = $false
+}
 
 if (Test-Path $stateKey) {
     $saved = Get-ItemProperty -Path $stateKey
@@ -52,12 +77,11 @@ if (Test-Path $stateKey) {
     }
 
     $savedSids = @($saved.DisabledAccounts)
-    foreach ($user in @($localUsers | Where-Object { $savedSids -contains $_.SID.Value -and -not $_.Enabled })) {
-        Enable-LocalUser -SID $user.SID
-        Write-Host "Enabled user account: $($user.Name)"
+    if (-not (Enable-Accounts -Users @($localUsers | Where-Object { $savedSids -contains $_.SID.Value -and -not $_.Enabled }))) {
+        $restored = $false
     }
 
-    Remove-Item -Path $stateKey -Recurse -Force
+    if ($restored) { Remove-Item -Path $stateKey -Recurse -Force }
 } else {
     # Locked by an older version of windows_lock.ps1, which didn't change the
     # deny-logon policies or keep a record of the accounts it disabled. It did
@@ -66,11 +90,12 @@ if (Test-Path $stateKey) {
     # (-501), DefaultAccount (-503), WDAGUtilityAccount (-504).
     $cachedLogons = (Get-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name 'CachedLogonsCount' -ErrorAction SilentlyContinue).CachedLogonsCount
     if ($cachedLogons -eq '0') {
-        New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\" -Name 'CachedLogonsCount' -Value 10 -PropertyType String -Force
-
-        foreach ($user in @($localUsers | Where-Object { -not $_.Enabled -and $_.SID.Value -notmatch '-(501|503|504)$' })) {
-            Enable-LocalUser -SID $user.SID
-            Write-Host "Enabled user account: $($user.Name)"
+        $enabled = Enable-Accounts -Users @($localUsers | Where-Object { -not $_.Enabled -and $_.SID.Value -notmatch '-(501|503|504)$' })
+        # Changing this ends the old-lock fallback, so only do it once every account is back.
+        if ($enabled -and $restored) {
+            New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\" -Name 'CachedLogonsCount' -Value 10 -PropertyType String -Force
+        } else {
+            $restored = $false
         }
     }
 }
@@ -78,3 +103,8 @@ if (Test-Path $stateKey) {
 # Re-enable additional AD logins. 1 is the default ("allowed"); 0 means "not
 # allowed" and grays out Settings > Accounts > Sign-in options.
 New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions" -Name 'value' -Value 1 -PropertyType DWORD -Force
+
+if (-not $restored) {
+    Write-Host "Unlock was incomplete. Run it again to retry."
+    exit 1
+}
