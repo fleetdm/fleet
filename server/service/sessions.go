@@ -248,7 +248,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 		}
 	}
 
-	session, err := svc.makeSession(ctx, user.ID)
+	session, err := svc.ds.NewSession(ctx, user.ID, svc.config.Session.KeySize)
 	if err != nil {
 		return nil, nil, loginDatastoreError(ctx, err, "make session")
 	}
@@ -270,10 +270,6 @@ func loginDatastoreError(ctx context.Context, err error, msg string) error {
 		return ctxerr.Wrap(ctx, err, msg)
 	}
 	return ctxerr.Wrap(ctx, fleet.NewAuthUnavailableError(err.Error()), msg)
-}
-
-func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Session, error) {
-	return svc.ds.NewSession(ctx, userID, svc.config.Session.KeySize)
 }
 
 func (svc *Service) GetSessionDuration(ctx context.Context) time.Duration {
@@ -859,7 +855,7 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 		}
 	}
 
-	session, err := svc.makeSession(ctx, user.ID)
+	session, err := svc.ds.NewSession(ctx, user.ID, svc.config.Session.KeySize)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "make session in sso callback")
 	}
