@@ -377,6 +377,12 @@ type runScriptsConfigReceiver struct {
 	// on macos and only if ScriptsExecutionEnabled is false.
 	dynamicScriptsEnabled              atomic.Bool
 	dynamicScriptsEnabledCheckInterval time.Duration
+	// closed once the first dynamic check completes; nil if the dynamic check
+	// doesn't run. Until then, dynamicScriptsEnabled is not yet known and
+	// scriptsEnabled waits (up to firstDynamicCheckTimeout) instead of
+	// reporting scripts as disabled.
+	firstDynamicCheckDone    chan struct{}
+	firstDynamicCheckTimeout time.Duration
 	// for tests, if set will use this instead of profiles.GetFleetdConfig.
 	testGetFleetdConfig func() (*fleet.MDMAppleFleetdConfig, error)
 
@@ -398,6 +404,7 @@ func ApplyRunScriptsConfigFetcherMiddleware(
 		ScriptsExecutionEnabled:            scriptsEnabled,
 		ScriptsClient:                      scriptsClient,
 		dynamicScriptsEnabledCheckInterval: 5 * time.Minute,
+		firstDynamicCheckTimeout:           10 * time.Second, // only hit if `profiles` hangs, it normally returns in well under a second
 		rootDirPath:                        rootDirPath,
 	}
 	// start the dynamic check for scripts enabled if required
@@ -414,6 +421,7 @@ func (h *runScriptsConfigReceiver) runDynamicScriptsEnabledCheck() {
 	// only run on macos and only if scripts are disabled by default for the
 	// agent (but always run if a test get fleetd config function is set).
 	if (runtime.GOOS == "darwin" && !h.ScriptsExecutionEnabled) || (h.testGetFleetdConfig != nil) {
+		h.firstDynamicCheckDone = make(chan struct{})
 		go func() {
 			runCheck := func() {
 				cfg, err := getFleetdConfig()
@@ -431,6 +439,7 @@ func (h *runScriptsConfigReceiver) runDynamicScriptsEnabledCheck() {
 
 			// check immediately at startup, before checking at the interval
 			runCheck()
+			close(h.firstDynamicCheckDone)
 
 			// check every minute
 			for range time.Tick(h.dynamicScriptsEnabledCheckInterval) {
@@ -462,20 +471,23 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 		if h.mu.TryLock() {
 			log.Info().Msgf("proceeding to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
 
-			runner := &scripts.Runner{
-				ScriptExecutionEnabled: h.scriptsEnabled(),
-				Client:                 h.ScriptsClient,
-				ScriptExecutionTimeout: timeout,
-			}
-			fn := runner.Run
-			if h.runScriptsFn != nil {
-				fn = func(execIDs []string) error {
-					return h.runScriptsFn(runner, execIDs)
-				}
-			}
-
 			go func() {
 				defer h.mu.Unlock()
+
+				// built in the goroutine because scriptsEnabled may block while
+				// waiting for the first dynamic check, which must not hold up the
+				// other config receivers.
+				runner := &scripts.Runner{
+					ScriptExecutionEnabled: h.scriptsEnabled(),
+					Client:                 h.ScriptsClient,
+					ScriptExecutionTimeout: timeout,
+				}
+				fn := runner.Run
+				if h.runScriptsFn != nil {
+					fn = func(execIDs []string) error {
+						return h.runScriptsFn(runner, execIDs)
+					}
+				}
 
 				if err := fn(cfg.Notifications.PendingScriptExecutionIDs); err != nil {
 					log.Info().Err(err).Msg("running scripts failed")
@@ -492,7 +504,23 @@ func (h *runScriptsConfigReceiver) scriptsEnabled() bool {
 	// scripts are always enabled if the agent is started with the
 	// --enable-scripts flag. If it is not started with this flag, then
 	// scripts are enabled only if the mdm profile says so.
-	return h.ScriptsExecutionEnabled || h.dynamicScriptsEnabled.Load()
+	if h.ScriptsExecutionEnabled {
+		return true
+	}
+	if h.firstDynamicCheckDone != nil {
+		select {
+		case <-h.firstDynamicCheckDone:
+		default:
+			timer := time.NewTimer(h.firstDynamicCheckTimeout)
+			defer timer.Stop()
+			select {
+			case <-h.firstDynamicCheckDone:
+			case <-timer.C:
+				log.Info().Msg("timed out waiting for the first check of the fleetd configuration profile, scripts are considered disabled")
+			}
+		}
+	}
+	return h.dynamicScriptsEnabled.Load()
 }
 
 type DiskEncryptionKeySetter interface {
