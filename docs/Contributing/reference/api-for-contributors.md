@@ -4811,7 +4811,7 @@ _Available in Fleet Premium._
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
-| app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. |
+| app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. Not available for tvOS: the request fails with a `422` status if `platform` is `tvos`. If `platform` isn't specified, the tvOS app isn't added when this is `true`. |
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |

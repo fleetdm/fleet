@@ -3614,7 +3614,7 @@ the `software` table.
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_installer_id | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
-| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, tvOS, and Android only. |
 | software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`. See note below for filtering Windows hosts.                                                                                                                                                                                                                                     |
@@ -3623,7 +3623,7 @@ the `software` table.
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS, tvOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
 | connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
@@ -3951,7 +3951,7 @@ Response payload with the `munki_issue_id` filter provided:
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
 | software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
-| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, tvOS, and Android only. |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -3959,7 +3959,7 @@ Response payload with the `munki_issue_id` filter provided:
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS, tvOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -5046,6 +5046,7 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 > Note: 
 > - `signature_information` is set for macOS apps (`source: apps`) and Homebrew formulae (`source: homebrew_packages`). Apps get one entry per bundle. Homebrew formulae get one entry per Mach-O executable in the formula's `bin` and `sbin` directories, with `executable_path` and `executable_sha256`. For those entries, `team_identifier` is empty and `hash_sha256` is `null`. Homebrew hashes require fleetd 1.63.0.
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - tvOS hosts report the subset of these that tvOS supports: `awaiting_configuration`, `bluetooth_mac`, `device_properties_attestation`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `mdm_options`, `model_number`, `organization_info`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
@@ -5818,6 +5819,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > Note:
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - tvOS hosts report the subset of these that tvOS supports: `awaiting_configuration`, `bluetooth_mac`, `device_properties_attestation`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `mdm_options`, `model_number`, `organization_info`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
@@ -6555,6 +6557,8 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 Retrieves the end user url for the host's **My device** page.
 
+Not available for Android, ChromeOS, or tvOS hosts, which have no **My device** page. For these hosts, the request fails with a `400` status.
+
 `GET /api/v1/fleet/hosts/:id/device_url`
 
 #### Parameters
@@ -6854,7 +6858,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
 
 `skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
-On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
+On iOS, iPadOS, tvOS, and Android App Store apps, `app_store_app.version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
 
 #### Example
 
@@ -7172,14 +7176,14 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
 | software_installer_id   | integer | query | **Requires `software_title_id`**. The ID of a specific package of the title to filter hosts by. Use for multi-package titles to filter by one installer. |
-| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, and Android only. |
+| app_store_app_version_id | integer | query | **Requires `software_title_id`**. The ID of a specific admin-created App Store app version of the title to filter hosts by. iOS, iPadOS, tvOS, and Android only. |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS, tvOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
@@ -7446,7 +7450,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is locked once it comes online. Apple TVs (tvOS) don't support lock, so requests for a tvOS host return a 422 error.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is locked once it comes online. Apple TVs (tvOS) don't support lock, so requests for a tvOS host fail with a `422` status and the message "Couldn't lock. Apple TVs don't support lock."
 
 To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
@@ -7483,7 +7487,7 @@ For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documen
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host. Apple TVs (tvOS) don't support lock, so requests for a tvOS host return a 422 error.
+Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host. Apple TVs (tvOS) don't support lock, so requests for a tvOS host fail with a `422` status and the message "Couldn't unlock. Apple TVs don't support lock."
 
 For iOS and iPadOS, this disables Lost Mode.
 
@@ -8502,7 +8506,7 @@ Returns a list of the hosts that belong to the specified label.
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
-| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS, tvOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
@@ -8979,7 +8983,7 @@ Update a configuration profile to target hosts with specific labels.
 
 ### Resend configuration profile
 
-Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS, and tvOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
 When [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) is enabled, resending the "Fleetd enroll secret" profile to a Windows host issues the host a new one-time enroll secret. If the host already has one it hasn't used, Fleet sends that one again. When the setting is disabled, resending this profile returns a `409` error.
 
@@ -9054,11 +9058,11 @@ If the profile isn't self-service, the response is `Status: 400`. If the host ha
 
 Modify configuration profiles for a fleet. The provided list of profiles will be the active profiles for the specified fleet. If no fleet (`fleet_id` or `fleet_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are "Unassigned" (Fleet Premium).
 
-For Apple (macOS, iOS, iPadOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list.
+For Apple (macOS, iOS, iPadOS, tvOS) profiles, Fleet will send only an `InstallProfile` command (edit) for all existing profiles with the same `PayloadIdentifier` (specified in the .mobileconfig file). Fleet will send a `RemoveProfile` command to hosts for all existing profiles that are not part of the list.
 
 For Windows profiles, Fleet applies new profiles or updates when content changes, and deletes profiles no longer in the list. It does not send commands to remove configuration profiles from Windows hosts.
 
-For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked "Pending," and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
+For declaration (DDM) profiles, hosts with new, updated, or removed profiles are marked "Pending," and Fleet sends a [DeclarativeManagement command](https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand) to tell Apple (macOS, iOS, iPadOS, tvOS) hosts to sync profiles. If declarations are current, no command is sent and the host is not marked "Pending."
 
 For requests with 100+ profiles, requests will take 5+ seconds.
 
@@ -9079,7 +9083,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 
 | Name                    | Type    | Description   |
 | ------------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile                 | string  | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
+| profile                 | string  | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS, tvOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
 | labels_include_all      | array   | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any      | array   | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any      | array   | _Available in Fleet Premium_. Target hosts that that don't have any label, specified by label name, in the array. |
@@ -9307,7 +9311,7 @@ Deletes an Apple asset declaration.
 
 ### Resend configuration profile by Fleet Desktop token
 
-Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
+Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS, and tvOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
 The "Fleetd enroll secret" profile can't be resent with this endpoint when [`mdm.windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-one-time-enroll-secrets) is enabled. It returns a `403` error, because only an admin can issue a new one-time enroll secret.
 
@@ -10100,7 +10104,7 @@ _Available in Fleet Premium_
 | Name                           | Type    | In    | Description                                                                                 |
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
+| enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. Apple TVs (tvOS) always enroll without end user authentication. |
 | lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
@@ -10554,7 +10558,7 @@ Note that the Apple `EraseDevice` and `DeviceLock` commands and the Android `LOC
 
 This endpoint returns the results for a specific custom MDM command.
 
-In the response, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
+In the response, the possible `status` values for macOS, iOS, iPadOS, and tvOS hosts are the following:
 
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * NotNow: the host acknowledged the MDM command but couldn’t run for one of [Apple's documented reasons](https://developer.apple.com/documentation/devicemanagement/handling-notnow-status-responses#Handle-NotNow-Responses). Per Apple, the host retries automatically. Apple doesn’t specify when the retries happen, or whether they depend on clearing _all_ blocking reasons or just one.
@@ -10653,13 +10657,13 @@ Fleet deletes old MDM command history on a schedule, so older commands may not b
 | command_status            | string  | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
-> Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, iPadOS, or Android. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
+> Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, iPadOS, tvOS, or Android. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
 >
-> Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
+> Apple (macOS, iOS, iPadOS, tvOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
 >
 > Android MDM commands that 'ran' have an 'acknowledged' `status`. Commands that are 'pending' have a 'pending' `status`. Android commands that 'failed' have an 'error' `status`.
 >
-> Apple (macOS, iOS, iPadOS) InstallProfile and RemoveProfile commands enqueued by Fleet going forward will have a non-`null` "name" which represents the profile name. Previously-enqueued(prior to v4.84.0) or manually-enqueued commands will have a `null` name, as will other types of Apple MDM commands and all Windows and Android commands.
+> Apple (macOS, iOS, iPadOS, tvOS) InstallProfile and RemoveProfile commands enqueued by Fleet going forward will have a non-`null` "name" which represents the profile name. Previously-enqueued(prior to v4.84.0) or manually-enqueued commands will have a `null` name, as will other types of Apple MDM commands and all Windows and Android commands.
 
 #### Example
 
@@ -10707,7 +10711,7 @@ _Available in Fleet Premium._
 
 Cancels a pending MDM command (lock, wipe, or clear passcode) for the specified Apple host. The command will not be delivered to the host if it hasn't been sent yet.
 
-Only Apple (macOS, iOS, iPadOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, and `EnableLostMode` command types can be canceled. Commands that have already been acknowledged or errored can't be canceled. Canceling a pending command isn't supported yet for Windows or Android hosts.
+Only Apple (macOS, iOS, iPadOS, tvOS) `DeviceLock`, `EraseDevice`, `ClearPasscode`, and `EnableLostMode` command types can be canceled. Commands that have already been acknowledged or errored can't be canceled. Canceling a pending command isn't supported yet for Windows or Android hosts.
 
 `DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`
 
