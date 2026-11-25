@@ -88,6 +88,7 @@ export interface IPolicy {
   resend_configuration_profile?: IPolicyResendConfigurationProfile;
   patch_software?: IPolicySoftwareToInstall;
   continuous_automations_enabled?: boolean;
+  force_patch?: boolean;
   patch_when_closed?: boolean;
   notify_before_patching?: boolean;
   patch_deadline?: boolean;
@@ -160,6 +161,7 @@ export interface IPolicyFormData {
   id?: number;
   hidden?: boolean;
   continuous_automations_enabled?: boolean;
+  force_patch?: boolean;
   patch_when_closed?: boolean;
   notify_before_patching?: boolean;
   patch_deadline?: boolean;

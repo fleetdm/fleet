@@ -456,6 +456,7 @@ const PolicyForm = ({
     try {
       await policiesAPI.update(policyIdForEdit as number, {
         automation_type: "software",
+        force_patch: true,
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
       notify.success("Automation added.");

@@ -1153,6 +1153,7 @@ describe("PolicyForm - component", () => {
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
             automation_type: "software",
+            force_patch: false,
             patch_when_closed: false,
             notify_before_patching: false,
             patch_deadline: true,
@@ -1190,6 +1191,7 @@ describe("PolicyForm - component", () => {
 
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
+            force_patch: false,
             patch_when_closed: false,
             notify_before_patching: false,
             patch_deadline: false,
