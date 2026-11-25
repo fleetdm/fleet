@@ -1500,11 +1500,11 @@ func windowsFMALike(s, pattern string) bool {
 // the program and that rule is at least as specific as the prefix that matched.
 // When several apps' rules accept, the prefix result stands.
 func (m *windowsFMAMatcher) match(name, vendor, version string) (windowsFMATitle, bool) {
-	normalized := normalizeForMatch(name)
-	prefixMatch, prefixLen, prefixOK := m.matchPrefix(normalized)
+	normName := normalizeForMatch(name)
+	prefixMatch, prefixLen, prefixOK := m.matchPrefix(normName)
 
 	ruleMatch, literalLen, ruleOK := m.matchRules(
-		normalized,
+		normName,
 		normalizeForMatch(vendor),
 		normalizeForMatch(version),
 	)

@@ -2234,6 +2234,17 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 	require.Len(t, names, 1)
 	require.Equal(t, refreshedRule, names[0].PatchQuery)
 
+	// A row without a rule, such as one added before patch queries existed and pinned
+	// since, never hides another row's rule, however recently it was written.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET patch_query = '' WHERE global_or_team_id = ?`, team.ID)
+		return err
+	})
+	names, err = ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	require.Equal(t, refreshedRule, names[0].PatchQuery)
+
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
 	})
