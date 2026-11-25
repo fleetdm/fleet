@@ -16790,6 +16790,8 @@ For example:
 }
 ```
 
+For Google Play apps, each version in `app_store_apps` and `app_store_app` also includes `required`. If `true`, end users can't uninstall the app after it's installed during setup experience. For Apple App Store apps, `required` isn't included.
+
 For Apple App Store apps, `vpp_token` is the VPP token the app was added from in the specified fleet. Fleet uses this VPP token for all requests to Apple related to the app in that fleet. For Google Play apps, or if `fleet_id` isn't specified, `vpp_token` is `null`.
 
 ### Get software version
@@ -17401,6 +17403,7 @@ You can add more than one version of the same app to a fleet. Fleet always insta
 | name | string | body | Admin-provided version name, unique per title per fleet. Defaults to `Default version` when omitted. Required if the title already has a version with the default name. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Google Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Only supported for `darwin`. |
+| required | boolean | body | Only supported for Android. If `true`, end users can't uninstall the app after it's installed during [setup experience](https://fleetdm.com/guides/setup-experience#install-software). Set per version. During setup experience, Fleet installs the first-added version, so its `required` value applies. Default is `false`. |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
@@ -17444,6 +17447,18 @@ To add more than one version of the same app, call this endpoint once per versio
   "name": "Test",
   "labels_include_any": ["Test"],
   "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
+}
+```
+
+##### Request body adding an Android app that end users can't uninstall
+
+```json
+{
+  "app_store_id": "com.Slack",
+  "fleet_id": 2,
+  "platform": "android",
+  "self_service": false,
+  "required": true
 }
 ```
 
@@ -17492,6 +17507,7 @@ A software title can have more than one version of the same App Store app on a f
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Google Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| required | boolean | body | Only supported for Android. If `true`, end users can't uninstall the app after it's installed during [setup experience](https://fleetdm.com/guides/setup-experience#install-software). If changed to `true`, hosts that already got the app during setup experience can't uninstall it anymore. If the end user already uninstalled it, it's reinstalled. If changed to `false`, the app stays on hosts and end users can uninstall it. |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
