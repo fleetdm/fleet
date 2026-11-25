@@ -7,7 +7,47 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"time"
 )
+
+// lookups times the reads a verb makes to find what to act on (a host's software, its profiles), so the event can
+// report them apart from the action's own request.
+type lookups struct {
+	n    int
+	took time.Duration
+	max  time.Duration
+}
+
+func (l *lookups) do(ctx context.Context, e *env, method, path string, q url.Values, out any) (int, error) {
+	start := time.Now()
+	status, err := e.api.do(ctx, method, path, q, nil, out)
+	d := time.Since(start)
+	l.n++
+	l.took += d
+	l.max = max(l.max, d)
+	return status, err
+}
+
+func (l *lookups) add(detail map[string]any) map[string]any {
+	if l.n > 0 {
+		detail["lookups"], detail["lookup_ms"], detail["lookup_max_ms"] = l.n, l.took.Milliseconds(), l.max.Milliseconds()
+	}
+	return detail
+}
+
+// result is the action's own request; took is its time alone.
+func (l *lookups) result(status int, err error, took time.Duration, detail map[string]any) result {
+	return result{status: status, err: err, took: took, detail: l.add(detail)}
+}
+
+// failed is a lookup that failed: the action never ran, and the lookup's status is what broke.
+func (l *lookups) failed(status int, err error, detail map[string]any) result {
+	return result{status: status, err: fmt.Errorf("lookup: %w", err), detail: l.add(detail)}
+}
+
+func (l *lookups) skipped(why string) result {
+	return result{skip: why, detail: l.add(map[string]any{})}
+}
 
 // softwareUninstall uninstalls a Fleet-managed package from an online host where it's installed
 // (POST /hosts/{id}/software/{title_id}/uninstall). The host's uninstall result writes uninstalled_software; an
@@ -30,6 +70,7 @@ func newSoftwareUninstall(p *params) (verb, error) {
 func (v *softwareUninstall) setup(context.Context, *env) error { return nil }
 
 func (v *softwareUninstall) run(ctx context.Context, e *env) result {
+	var look lookups
 	for _, h := range e.hosts.pick(v.tries, true) {
 		var resp struct {
 			Software []struct {
@@ -41,8 +82,9 @@ func (v *softwareUninstall) run(ctx context.Context, e *env) result {
 			} `json:"software"`
 		}
 		q := url.Values{"available_for_install": {"true"}, "per_page": {"100"}}
-		if status, err := e.api.do(ctx, http.MethodGet, fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), q, nil, &resp); err != nil {
-			return result{status: status, err: err, detail: map[string]any{"host_id": h.ID}}
+		status, err := look.do(ctx, e, http.MethodGet, fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), q, &resp)
+		if err != nil {
+			return look.failed(status, err, map[string]any{"host_id": h.ID})
 		}
 		var installed []uint
 		for _, s := range resp.Software {
@@ -54,11 +96,11 @@ func (v *softwareUninstall) run(ctx context.Context, e *env) result {
 			continue
 		}
 		title := installed[randIntN(len(installed))]
-		detail := map[string]any{"host_id": h.ID, "title_id": title}
-		status, err := e.api.do(ctx, http.MethodPost, fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, title), nil, nil, nil)
-		return result{status: status, err: err, detail: detail}
+		start := time.Now()
+		status, err = e.api.do(ctx, http.MethodPost, fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, title), nil, nil, nil)
+		return look.result(status, err, time.Since(start), map[string]any{"host_id": h.ID, "title_id": title})
 	}
-	return result{skip: fmt.Sprintf("no installed package on %d online hosts", v.tries)}
+	return look.skipped(fmt.Sprintf("no installed package on %d online hosts", v.tries))
 }
 
 // profilesResend resends one configuration profile to an online host
@@ -86,6 +128,7 @@ func newProfilesResend(p *params) (verb, error) {
 func (v *profilesResend) setup(context.Context, *env) error { return nil }
 
 func (v *profilesResend) run(ctx context.Context, e *env) result {
+	var look lookups
 	for _, h := range e.hosts.pick(4*v.tries, true) {
 		if !slices.Contains(v.platforms, h.Platform) {
 			continue
@@ -100,8 +143,9 @@ func (v *profilesResend) run(ctx context.Context, e *env) result {
 				} `json:"mdm"`
 			} `json:"host"`
 		}
-		if status, err := e.api.do(ctx, http.MethodGet, fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), url.Values{"exclude_software": {"true"}}, nil, &resp); err != nil {
-			return result{status: status, err: err, detail: map[string]any{"host_id": h.ID}}
+		status, err := look.do(ctx, e, http.MethodGet, fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), url.Values{"exclude_software": {"true"}}, &resp)
+		if err != nil {
+			return look.failed(status, err, map[string]any{"host_id": h.ID})
 		}
 		var uuids []string
 		for _, p := range resp.Host.MDM.Profiles {
@@ -113,11 +157,11 @@ func (v *profilesResend) run(ctx context.Context, e *env) result {
 			continue
 		}
 		u := uuids[randIntN(len(uuids))]
-		detail := map[string]any{"host_id": h.ID, "profile_uuid": u}
-		status, err := e.api.do(ctx, http.MethodPost, fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", h.ID, url.PathEscape(u)), nil, nil, nil)
-		return result{status: status, err: err, detail: detail}
+		start := time.Now()
+		status, err = e.api.do(ctx, http.MethodPost, fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", h.ID, url.PathEscape(u)), nil, nil, nil)
+		return look.result(status, err, time.Since(start), map[string]any{"host_id": h.ID, "profile_uuid": u})
 	}
-	return result{skip: "no online host with a delivered profile"}
+	return look.skipped("no online host with a delivered profile")
 }
 
 // hostsTransfer moves a few hosts from one fleet to another (POST /hosts/transfer), so they pick up the other

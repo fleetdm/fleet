@@ -16,8 +16,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// spec is one workload action in the scenario catalogue's format (kind: action). Other kinds (storm, check, cycle)
-// are skipped until the driver runs them.
+// spec is one workload action in the scenario catalogue's format (kind: action). Checks are checkSpec; storms and
+// cycles are skipped until the driver runs them.
 type spec struct {
 	Kind      string         `yaml:"kind"`
 	ID        string         `yaml:"id"`
@@ -27,7 +27,7 @@ type spec struct {
 	With      map[string]any `yaml:"with"`
 	Rate      rateSpec       `yaml:"rate"`
 	Curve     string         `yaml:"curve"`
-	Check     checkSpec      `yaml:"check"`
+	Check     actionCheck    `yaml:"check"`
 	Conflicts []string       `yaml:"conflicts"`
 	Pool      *poolSpec      `yaml:"pool"`
 
@@ -45,7 +45,8 @@ type rateSpec struct {
 	Share   float64 `yaml:"share"`   // this spec's share of the profile rate, when several specs split one key (default 1)
 }
 
-type checkSpec struct {
+// actionCheck is an action's own light check.
+type actionCheck struct {
 	Request struct {
 		Status string `yaml:"status"`
 		Took   string `yaml:"took"` // "<= 2s"
@@ -59,9 +60,9 @@ type poolSpec struct {
 	Band   int    `yaml:"band"`
 }
 
-// loadSpecs reads every YAML file under dir. It returns the action specs sorted by ID and the IDs of specs of other
-// kinds, which the driver doesn't run yet.
-func loadSpecs(dir string) ([]*spec, []string, error) {
+// loadSpecs reads every YAML file under dir. It returns the action and check specs sorted by ID and the IDs of
+// specs of other kinds, which the driver doesn't run yet.
+func loadSpecs(dir string) ([]*spec, []*checkSpec, []string, error) {
 	var paths []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && (filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml") {
@@ -70,45 +71,75 @@ func loadSpecs(dir string) ([]*spec, []string, error) {
 		return err
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var specs []*spec
+	var checks []*checkSpec
 	var other []string
+	seen := map[string]string{}
 	for _, path := range paths {
 		b, err := os.ReadFile(path)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		dec := yaml.NewDecoder(bytes.NewReader(b))
-		dec.KnownFields(true)
 		for {
-			var s spec
-			if err := dec.Decode(&s); err != nil {
+			var doc yaml.Node
+			if err := dec.Decode(&doc); err != nil {
 				if errors.Is(err, io.EOF) {
 					break
 				}
-				return nil, nil, fmt.Errorf("%s: %w", path, err)
+				return nil, nil, nil, fmt.Errorf("%s: %w", path, err)
 			}
-			s.file = path
-			if s.Kind != "action" {
-				other = append(other, s.ID)
-				continue
+			var head struct {
+				Kind string `yaml:"kind"`
+				ID   string `yaml:"id"`
 			}
-			specs = append(specs, &s)
+			if err := doc.Decode(&head); err != nil {
+				return nil, nil, nil, fmt.Errorf("%s: %w", path, err)
+			}
+			if head.ID == "" {
+				return nil, nil, nil, fmt.Errorf("%s: a %s spec without an id", path, head.Kind)
+			}
+			if prev, ok := seen[head.ID]; ok {
+				return nil, nil, nil, fmt.Errorf("spec %s is in both %s and %s", head.ID, prev, path)
+			}
+			seen[head.ID] = path
+			switch head.Kind {
+			case "action":
+				s := &spec{file: path}
+				if err := strictDecode(&doc, s); err != nil {
+					return nil, nil, nil, fmt.Errorf("%s: %s: %w", path, head.ID, err)
+				}
+				if s.Verb == "" {
+					return nil, nil, nil, fmt.Errorf("%s: %s: verb is required", path, head.ID)
+				}
+				specs = append(specs, s)
+			case "check":
+				c := &checkSpec{file: path}
+				if err := strictDecode(&doc, c); err != nil {
+					return nil, nil, nil, fmt.Errorf("%s: %s: %w", path, head.ID, err)
+				}
+				checks = append(checks, c)
+			default:
+				other = append(other, head.ID)
+			}
 		}
 	}
 	sort.Slice(specs, func(i, j int) bool { return specs[i].ID < specs[j].ID })
-	seen := make(map[string]string, len(specs))
-	for _, s := range specs {
-		if s.ID == "" || s.Verb == "" {
-			return nil, nil, fmt.Errorf("%s: id and verb are required", s.file)
-		}
-		if prev, ok := seen[s.ID]; ok {
-			return nil, nil, fmt.Errorf("spec %s is in both %s and %s", s.ID, prev, s.file)
-		}
-		seen[s.ID] = s.file
+	sort.Slice(checks, func(i, j int) bool { return checks[i].ID < checks[j].ID })
+	return specs, checks, other, nil
+}
+
+// strictDecode decodes one YAML document, rejecting keys the struct doesn't have, so a typo is an error.
+func strictDecode(doc *yaml.Node, out any) error {
+	b, err := yaml.Marshal(doc)
+	if err != nil {
+		return err
 	}
-	return specs, other, nil
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	dec.KnownFields(true)
+	return dec.Decode(out)
 }
 
 // resolve sets each spec's rate, curve, budget and verb. A missing profile rate falls back to the start guess.

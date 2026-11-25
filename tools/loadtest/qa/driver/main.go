@@ -50,6 +50,8 @@ func run() error {
 		flRunLabel   = flag.String("run", "", "label for this run in every event (default: the start time)")
 		flSummary    = flag.String("summary", "", "print a per-action summary of these comma-separated event-log files and exit")
 		flSince      = flag.Duration("since", 24*time.Hour, "with -summary: the window, ending now")
+		flLT         = flag.String("lt", "", "load-test instance, fleet-<terraform workspace>: its ECS cluster, Aurora cluster and log group carry this name; enables the checks that read AWS")
+		flRegion     = flag.String("aws_region", "us-east-2", "AWS region of the load test")
 	)
 	flag.Parse()
 	if *flSummary != "" {
@@ -64,7 +66,7 @@ func run() error {
 	if *flScenarios == "" {
 		return errors.New("-scenarios is required")
 	}
-	specs, other, err := loadSpecs(*flScenarios)
+	specs, checkSpecs, other, err := loadSpecs(*flScenarios)
 	if err != nil {
 		return err
 	}
@@ -74,9 +76,10 @@ func run() error {
 	if *flOnly != "" {
 		want := strings.Split(*flOnly, ",")
 		specs = slices.DeleteFunc(specs, func(s *spec) bool { return !slices.Contains(want, s.ID) })
+		checkSpecs = slices.DeleteFunc(checkSpecs, func(c *checkSpec) bool { return !slices.Contains(want, c.ID) })
 	}
-	if len(specs) == 0 {
-		return errors.New("no action specs to run")
+	if len(specs) == 0 && len(checkSpecs) == 0 {
+		return errors.New("no specs to run")
 	}
 	prof, err := loadProfile(*flProfile)
 	if err != nil {
@@ -148,39 +151,71 @@ func run() error {
 		userPrefix: *flUserPrefix, userCount: *flUsers,
 	}
 
-	if err := e.hosts.start(ctx); err != nil {
+	g := &guard{stopFile: *flStopFile, onTrip: *flOnTrip, api: a, events: events, logger: logger}
+	ms := &metricSources{guard: g, api: a}
+	if *flLT != "" {
+		if ms.aws, err = newAWSSources(ctx, *flLT, *flRegion); err != nil {
+			return err
+		}
+	}
+	checks, dropped, err := resolveChecks(checkSpecs, ms)
+	if err != nil {
 		return err
 	}
-	// Setup creates the driver's own objects. A spec whose setup fails is dropped, not the run.
-	ready := specs[:0]
-	for _, s := range specs {
-		if err := s.verb.setup(ctx, e); err != nil {
-			logger.ErrorContext(ctx, "setup failed, spec dropped", "id", s.ID, "err", err)
-			events.write(event{Kind: "setup", ID: s.ID, Verb: s.Verb, Verdict: "broken", Error: err.Error()})
-			continue
-		}
-		ready = append(ready, s)
+	for _, d := range dropped {
+		logger.WarnContext(ctx, "check metric dropped", "why", d)
+		events.write(event{Kind: "setup", Verdict: "skipped", Error: d})
 	}
-	if len(ready) == 0 {
-		return errors.New("every spec's setup failed")
+	cr := &checkRunner{checks: checks, guard: g, events: events, logger: logger}
+
+	var ready []*spec
+	if len(specs) > 0 {
+		if err := e.hosts.start(ctx); err != nil {
+			return err
+		}
+		// Setup creates the driver's own objects. A spec whose setup fails is dropped, not the run.
+		for _, s := range specs {
+			if err := s.verb.setup(ctx, e); err != nil {
+				logger.ErrorContext(ctx, "setup failed, spec dropped", "id", s.ID, "err", err)
+				events.write(event{Kind: "setup", ID: s.ID, Verb: s.Verb, Verdict: "broken", Error: err.Error()})
+				continue
+			}
+			ready = append(ready, s)
+		}
+		if len(ready) == 0 {
+			return errors.New("every spec's setup failed")
+		}
 	}
 
 	if *flOnce {
 		for _, s := range ready {
 			runOne(ctx, s, e, events)
 		}
+		for _, mc := range checks {
+			cr.evaluate(ctx, mc, time.Now())
+		}
 		return nil
 	}
 
-	g := &guard{stopFile: *flStopFile, onTrip: *flOnTrip, api: a, events: events, logger: logger}
 	go g.watchHealthz(ctx)
-	ids := make([]string, 0, len(ready))
+	ids := make([]string, 0, len(ready)+len(checks))
 	for _, s := range ready {
 		ids = append(ids, s.ID)
 	}
-	events.write(event{Kind: "start", Detail: map[string]any{"specs": ids, "seed": seed, "profile": *flProfile != ""}})
-	logger.InfoContext(ctx, "workload running", "specs", len(ready), "stop_file", *flStopFile)
-	(&workload{specs: ready, env: e, guard: g, events: events, rng: rng, maxInflight: *flInflight}).run(ctx)
+	checkIDs := make([]string, 0, len(checks))
+	for _, mc := range checks {
+		checkIDs = append(checkIDs, mc.checkID+" "+mc.metric)
+	}
+	events.write(event{Kind: "start", Detail: map[string]any{"specs": ids, "checks": checkIDs, "seed": seed, "profile": *flProfile != ""}})
+	logger.InfoContext(ctx, "workload running", "specs", len(ready), "checks", len(checks), "stop_file", *flStopFile)
+	done := make(chan struct{})
+	go func() { cr.run(ctx); close(done) }()
+	if len(ready) > 0 {
+		(&workload{specs: ready, env: e, guard: g, events: events, rng: rng, maxInflight: *flInflight}).run(ctx)
+	} else {
+		<-ctx.Done()
+	}
+	<-done
 	events.write(event{Kind: "stop"})
 	return nil
 }

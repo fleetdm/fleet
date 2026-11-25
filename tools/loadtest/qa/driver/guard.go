@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,26 @@ type guard struct {
 	isPaused bool
 	recent   []bool // the last outcomes, true = broken on the server's side
 	hzFails  int
+	hz       []healthzReading // the last two hours, for the healthz.p99 check
+}
+
+type healthzReading struct {
+	at   time.Time
+	took time.Duration
+	ok   bool
+}
+
+// healthzReadings returns the readings taken in [from, to).
+func (g *guard) healthzReadings(from, to time.Time) []healthzReading {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	var out []healthzReading
+	for _, h := range g.hz {
+		if !h.at.Before(from) && h.at.Before(to) {
+			out = append(out, h)
+		}
+	}
+	return out
 }
 
 const (
@@ -105,6 +126,8 @@ func (g *guard) watchHealthz(ctx context.Context) {
 			return
 		}
 		g.mu.Lock()
+		g.hz = append(g.hz, healthzReading{at: start, took: took, ok: err == nil && status == http.StatusOK})
+		g.hz = slices.DeleteFunc(g.hz, func(h healthzReading) bool { return time.Since(h.at) > 2*time.Hour })
 		if err != nil || status != http.StatusOK || took >= healthzSlow {
 			g.hzFails++
 		} else {

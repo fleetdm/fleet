@@ -4,16 +4,20 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"time"
 )
 
 // result is what one run of an action returns. status is the HTTP status of the action's main request (0 if it
 // never got one); skip says why the action had nothing to do (no online host, an empty pool), which isn't a failure;
-// slow marks an outcome that came late even though the request itself worked.
+// slow marks an outcome that came late even though the request itself worked. took is the main request's own time,
+// for verbs that look things up first (the host to act on): the budget and took_ms are about the action, and the
+// lookups go in the detail.
 type result struct {
 	status int
 	err    error
 	skip   string
 	slow   bool
+	took   time.Duration
 	detail map[string]any
 }
 

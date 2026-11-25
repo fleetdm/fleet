@@ -8,18 +8,27 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"time"
 )
 
-// summarize prints, per action, the runs in [from, to): verdict counts, success rate and client-side p50/p95/max.
-// It also lists trips and pauses. It reads event-log files, not Fleet.
+// summarize prints, per action, the runs in [from, to): verdict counts, success rate and client-side p50/p95/max;
+// per check metric, its windows, breaches and highest value. It also lists trips and pauses. It reads event-log
+// files, not Fleet.
 func summarize(w io.Writer, paths []string, from, to time.Time) error {
 	type stats struct {
 		verdicts map[string]int
 		took     []int64
 	}
+	type checkStats struct {
+		verdicts map[string]int
+		held     int // breaches that held for the metric's breach count
+		max      float64
+		budget   string
+	}
 	by := map[string]*stats{}
+	checks := map[string]*checkStats{}
 	var notes []string
 	for _, p := range paths {
 		f, err := os.Open(p)
@@ -47,6 +56,28 @@ func summarize(w io.Writer, paths []string, from, to time.Time) error {
 				s.verdicts[e.Verdict]++
 				if e.Verdict != "skipped" {
 					s.took = append(s.took, e.TookMS)
+				}
+			case "check":
+				metric, _ := e.Detail["metric"].(string)
+				key := e.ID + " " + metric
+				c := checks[key]
+				if c == nil {
+					c = &checkStats{verdicts: map[string]int{}}
+					checks[key] = c
+				}
+				c.verdicts[e.Verdict]++
+				if v, ok := e.Detail["value"].(float64); ok {
+					c.max = max(c.max, v)
+				}
+				if b, ok := e.Detail["budget"].(string); ok {
+					c.budget = b
+				}
+				if held, _ := e.Detail["held"].(bool); held {
+					if streak, _ := e.Detail["streak"].(float64); streak > 0 {
+						if n, _ := e.Detail["breach_n"].(float64); n == 0 || streak == n {
+							c.held++
+						}
+					}
 				}
 			case "trip", "pause", "resume", "setup":
 				notes = append(notes, fmt.Sprintf("%s %s %s %s", e.Start, e.Kind, e.ID, e.Error))
@@ -81,6 +112,30 @@ func summarize(w io.Writer, paths []string, from, to time.Time) error {
 			s.verdicts["broken"], s.verdicts["skipped"], success, pct(s.took, 0.5), pct(s.took, 0.95), pct(s.took, 1))
 	}
 	_ = tw.Flush()
+	if len(checks) > 0 {
+		fmt.Fprintln(w, "\nChecks (windows read; HELD = breaches that lasted their breach count):")
+		tw = tabwriter.NewWriter(w, 2, 4, 2, ' ', 0)
+		fmt.Fprintln(tw, "CHECK\tMETRIC\tWINDOWS\tOK\tBREACH\tHELD\tNO DATA\tUNREADABLE\tMAX\tBUDGET")
+		keys := make([]string, 0, len(checks))
+		for k := range checks {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			c, ok := checks[k]
+			if !ok {
+				continue
+			}
+			id, metric, _ := strings.Cut(k, " ")
+			n := 0
+			for _, v := range c.verdicts {
+				n += v
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%g\t%s\n", id, metric, n, c.verdicts["ok"]+c.verdicts["recorded"],
+				c.verdicts["breach"], c.held, c.verdicts["no_data"], c.verdicts["unreadable"], c.max, c.budget)
+		}
+		_ = tw.Flush()
+	}
 	if len(notes) > 0 {
 		fmt.Fprintln(w, "\nTrips, pauses and setup failures:")
 		for _, n := range notes {

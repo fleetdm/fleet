@@ -159,9 +159,17 @@ func runOne(ctx context.Context, s *spec, e *env, events *eventLog) result {
 	start := time.Now()
 	r := s.verb.run(ctx, e)
 	end := time.Now()
+	took := end.Sub(start)
+	if r.took > 0 {
+		took = r.took
+		if r.detail == nil {
+			r.detail = map[string]any{}
+		}
+		r.detail["total_ms"] = end.Sub(start).Milliseconds()
+	}
 	ev := event{
 		Kind: "action", ID: s.ID, Verb: s.Verb, Start: ts(start), End: ts(end),
-		Status: r.status, TookMS: end.Sub(start).Milliseconds(), Detail: r.detail,
+		Status: r.status, TookMS: took.Milliseconds(), Detail: r.detail,
 	}
 	switch {
 	case r.skip != "":
@@ -170,7 +178,7 @@ func runOne(ctx context.Context, s *spec, e *env, events *eventLog) result {
 		ev.Verdict, ev.Error = "skipped", "driver stopped: "+r.err.Error()
 	case r.err != nil:
 		ev.Verdict, ev.Error = "broken", r.err.Error()
-	case r.slow || (s.budget > 0 && end.Sub(start) > s.budget):
+	case r.slow || (s.budget > 0 && took > s.budget):
 		ev.Verdict = "slow"
 	default:
 		ev.Verdict = "ok"

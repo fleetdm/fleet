@@ -1,8 +1,9 @@
 # Activity driver
 
 Runs a load-test instance's admin workload all day: the action specs in `../scenarios`, each as a Poisson arrival
-stream at its rate, shaped by a business-hours curve. It writes one JSON line per action to stdout (and `-events`),
-so server metrics can be sliced by what was running.
+stream at its rate, shaped by a business-hours curve, and watches the instance with the check specs. It writes one
+JSON line per action and per check reading to stdout (and `-events`), so server metrics can be sliced by what was
+running.
 
 ```sh
 go build -o driver ./tools/loadtest/qa/driver
@@ -10,7 +11,7 @@ go build -o driver ./tools/loadtest/qa/driver
 # What the schedule would do over a day, without calling Fleet:
 ./driver -scenarios tools/loadtest/qa/scenarios -profile ~/private/profile.yaml -dry_run 24h
 
-# Each spec once, in order, then exit:
+# Each spec once, in order, then exit (checks read one window each):
 FLEET_DRIVER_TOKEN=... ./driver -fleet_url https://fleet.example.com -scenarios tools/loadtest/qa/scenarios -once
 
 # The workload, until interrupted:
@@ -67,6 +68,11 @@ online targets never answered), `broken` (an error), `skipped` (paused, the prev
 to act on). An arrival that can't run is logged as skipped and not made up later, so a pause never turns into a
 burst.
 
+Verbs that first look up what to act on (`software.uninstall` reads hosts' software until it finds an installed
+package, `profiles.resend` reads hosts' profiles, `fleets.agent_options` reads the fleet) report the action's own
+request in `took_ms` and judge it against the budget; the lookups go in `detail` (`lookups`, `lookup_ms`,
+`lookup_max_ms`, and `total_ms` for the whole run).
+
 ## GitOps runs
 
 `gitops.apply` works on an operator's GitOps repo (`repo`, usually from an env var, because a real repo holds
@@ -98,6 +104,43 @@ It creates them on first use and reuses them after:
 
 To clean up, delete the users and labels with those prefixes.
 
+## Checks
+
+`kind: check` specs (in `../scenarios/checks`) watch a metric all the time: every `every` (default: the window), the
+driver reads the last `window` and compares it with `budget` (`<= 2s`, `< 60%`, `== 0`). `breach` windows over budget
+in a row hold a breach: with `trip: true` it trips the workload (below), otherwise it's a warning in the log. A metric
+without a budget is only recorded. Every reading is a `kind: check` event with the value and the window, and checks keep
+reading while the workload is paused, so recovery is on record too.
+
+```yaml
+kind: check
+id: C-HOST-01
+title: Host check-ins stay fast
+metrics:
+  - {metric: host.distributed_write.p99, window: 5m, budget: "<= 2s", breach: 3}
+  - {metric: checkin.errors, window: 5m}
+```
+
+FORMAT.md's single-metric shape (`metric`, `window`, `budget`, `breach` at the top) works too; invariant checks
+(`compare`) and relative budgets (trailing baselines) aren't run yet.
+
+| Metric | Unit | Source |
+|---|---|---|
+| `healthz.p99` | seconds | the driver's own `/healthz` readings, one a minute |
+| `hosts.online_drop` | percent | online hosts below their highest count in the window (`/host_summary`) |
+| `fleet.memory.max`, `fleet.cpu.max` | percent | ECS service metrics, highest minute |
+| `fleet.tasks_missing` | count | the Fleet service's desired minus running tasks |
+| `fleet.task_stops` | count | Fleet tasks stopped in the window, with their reasons |
+| `alb.5xx_pct` | percent | the device load balancer's 5xx (targets' and its own) per request |
+| `writer.cpu`, `reader.cpu` | percent | Aurora CPU by role, window average |
+| `host.distributed_write.p99`, `osquery.config.p99`, `orbit.config.p99` | seconds | Fleet's request log (`took`), through Logs Insights |
+| `checkin.errors` | count | the busiest minute's `context canceled` errors in Fleet's log |
+
+Every metric but the first two reads AWS, so it needs `-lt fleet-<workspace>` (the load-test terraform names the ECS
+cluster, the Aurora cluster and the log group after it) and credentials from the default chain that can read ECS,
+CloudWatch metrics and Logs Insights; without `-lt` those metrics are dropped at start. The log-based metrics cost a
+few cents a day in Logs Insights scans at 10k hosts.
+
 ## Pausing and trips
 
 While the `-stop_file` exists, every arrival is skipped. The driver creates the file on a trip and runs `-on_trip`
@@ -105,7 +148,8 @@ once (with `DRIVER_TRIP_REASON` in its environment); it resumes only when someon
 Fleet's own symptoms:
 
 - `/healthz` failing or taking 2 s or more 3 minutes in a row;
-- 10 of the last 20 actions getting a 5xx or no response.
+- 10 of the last 20 actions getting a 5xx or no response;
+- a check metric with `trip: true` whose breach holds.
 
 Database load alone doesn't trip it. Watch that separately: a busy reader during a vulnerabilities run is normal at
 a large population.

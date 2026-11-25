@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
@@ -85,7 +89,7 @@ func TestNextArrivalMatchesExpected(t *testing.T) {
 }
 
 func TestLoadAndResolveScenarios(t *testing.T) {
-	specs, other, err := loadSpecs("../scenarios")
+	specs, checks, other, err := loadSpecs("../scenarios")
 	require.NoError(t, err)
 	assert.Empty(t, other)
 	require.NotEmpty(t, specs)
@@ -99,6 +103,88 @@ func TestLoadAndResolveScenarios(t *testing.T) {
 		assert.Positive(t, float64(s.rate), s.ID)
 		assert.NotNil(t, s.verb, s.ID)
 	}
+
+	require.NotEmpty(t, checks)
+	mcs, dropped, err := resolveChecks(checks, &metricSources{guard: &guard{}, aws: &awsSources{lt: "fleet-test"}})
+	require.NoError(t, err)
+	assert.Empty(t, dropped)
+	assert.NotEmpty(t, mcs)
+	// Without AWS, only the driver's own metrics stay.
+	mcs, dropped, err = resolveChecks(checks, &metricSources{guard: &guard{}})
+	require.NoError(t, err)
+	assert.NotEmpty(t, dropped)
+	for _, mc := range mcs {
+		assert.Contains(t, []string{"healthz.p99", "hosts.online_drop"}, mc.metric)
+	}
+}
+
+func TestBudgets(t *testing.T) {
+	for _, c := range []struct {
+		in     string
+		unit   unit
+		v      float64
+		within bool
+	}{
+		{"<= 2s", unitSeconds, 2, true},
+		{"<= 2s", unitSeconds, 2.01, false},
+		{"< 500ms", unitSeconds, 0.4, true},
+		{"< 60%", unitPercent, 60, false},
+		{"== 0", unitCount, 0, true},
+		{"== 0", unitCount, 1, false},
+		{">= 10", unitCount, 12, true},
+	} {
+		b, err := parseBudget(c.in)
+		require.NoError(t, err, c.in)
+		assert.Equal(t, c.unit, b.unit, c.in)
+		assert.Equal(t, c.within, b.within(c.v), "%s with %v", c.in, c.v)
+	}
+	for _, bad := range []string{"", "2s", "<= trailing_7d_p50 × 1.5", "< 2 parsecs"} {
+		_, err := parseBudget(bad)
+		require.Error(t, err, bad)
+	}
+
+	n, err := parseBreach("3 windows in a row")
+	require.NoError(t, err)
+	assert.Equal(t, 3, n)
+}
+
+type fakeSource struct{ vals []float64 }
+
+func (s *fakeSource) lag() time.Duration { return 0 }
+
+func (s *fakeSource) read(context.Context, time.Time, time.Time) (reading, error) {
+	v := s.vals[0]
+	s.vals = s.vals[1:]
+	return reading{value: v}, nil
+}
+
+func TestCheckBreachTrips(t *testing.T) {
+	var buf bytes.Buffer
+	events := newEventLog("test", &buf)
+	stop := filepath.Join(t.TempDir(), "STOP")
+	g := &guard{stopFile: stop, events: events, logger: slog.New(slog.DiscardHandler)}
+	b, err := parseBudget("< 60%")
+	require.NoError(t, err)
+	mc := &metricCheck{checkID: "C-X", metric: "fleet.memory.max", window: 5 * time.Minute, budget: b, breachN: 2, trip: true,
+		src: &fakeSource{vals: []float64{70, 50, 70, 70}}}
+	r := &checkRunner{checks: []*metricCheck{mc}, guard: g, events: events, logger: g.logger}
+	now := time.Now()
+	r.evaluate(t.Context(), mc, now) // breach 1
+	r.evaluate(t.Context(), mc, now) // ok: the streak resets
+	r.evaluate(t.Context(), mc, now) // breach 1
+	assert.NoFileExists(t, stop)
+	r.evaluate(t.Context(), mc, now) // breach 2: held, trips
+	assert.FileExists(t, stop)
+
+	var verdicts []string
+	for line := range bytes.SplitSeq(bytes.TrimSpace(buf.Bytes()), []byte("\n")) {
+		var e event
+		require.NoError(t, json.Unmarshal(line, &e))
+		if e.Kind == "check" {
+			verdicts = append(verdicts, e.Verdict)
+		}
+	}
+	assert.Equal(t, []string{"breach", "ok", "breach", "breach"}, verdicts)
 }
 
 func TestProfileRates(t *testing.T) {
@@ -234,4 +320,42 @@ func TestGitopsLabels(t *testing.T) {
 		assert.Len(t, second[i].Hosts, 10, "two out, two in")
 		assert.NotEqual(t, first[i].Hosts, second[i].Hosts)
 	}
+}
+
+type fixedVerb struct {
+	sleep time.Duration
+	r     result
+}
+
+func (v fixedVerb) setup(context.Context, *env) error { return nil }
+
+func (v fixedVerb) run(context.Context, *env) result {
+	time.Sleep(v.sleep)
+	return v.r
+}
+
+func TestRunOneBudgetUsesActionTime(t *testing.T) {
+	var buf bytes.Buffer
+	events := newEventLog("test", &buf)
+	s := &spec{ID: "X", Verb: "x", budget: 50 * time.Millisecond}
+
+	// Slow lookups, fast action: ok, and took_ms is the action's.
+	s.verb = fixedVerb{sleep: 80 * time.Millisecond, r: result{status: 200, took: 10 * time.Millisecond}}
+	runOne(t.Context(), s, &env{}, events)
+	// No action time reported: the whole run counts.
+	s.verb = fixedVerb{sleep: 80 * time.Millisecond, r: result{status: 200}}
+	runOne(t.Context(), s, &env{}, events)
+
+	var evs []event
+	for line := range bytes.SplitSeq(bytes.TrimSpace(buf.Bytes()), []byte("\n")) {
+		var e event
+		require.NoError(t, json.Unmarshal(line, &e))
+		evs = append(evs, e)
+	}
+	require.Len(t, evs, 2)
+	assert.Equal(t, "ok", evs[0].Verdict)
+	assert.EqualValues(t, 10, evs[0].TookMS)
+	assert.GreaterOrEqual(t, evs[0].Detail["total_ms"], float64(80))
+	assert.Equal(t, "slow", evs[1].Verdict)
+	assert.GreaterOrEqual(t, evs[1].TookMS, int64(80))
 }

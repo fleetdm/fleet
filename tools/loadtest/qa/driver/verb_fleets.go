@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // fleetsAgentOptions edits one fleet's agent options through the API (POST /fleets/{id}/agent_options), the way an
@@ -70,8 +71,9 @@ func (v *fleetsAgentOptions) run(ctx context.Context, e *env) result {
 			AgentOptions json.RawMessage `json:"agent_options"`
 		} `json:"fleet"`
 	}
-	if status, err := e.api.do(ctx, http.MethodGet, fmt.Sprintf("/api/latest/fleet/fleets/%d", id), nil, nil, &resp); err != nil {
-		return result{status: status, err: err, detail: detail}
+	var look lookups
+	if status, err := look.do(ctx, e, http.MethodGet, fmt.Sprintf("/api/latest/fleet/fleets/%d", id), nil, &resp); err != nil {
+		return look.failed(status, err, detail)
 	}
 	if resp.Fleet == nil || len(resp.Fleet.AgentOptions) == 0 || string(resp.Fleet.AgentOptions) == "null" {
 		return result{skip: "fleet has no agent options of its own", detail: detail}
@@ -101,6 +103,7 @@ func (v *fleetsAgentOptions) run(ctx context.Context, e *env) result {
 		return result{err: err, detail: detail}
 	}
 	detail[v.option] = next
+	start := time.Now()
 	status, err := e.api.do(ctx, http.MethodPost, fmt.Sprintf("/api/latest/fleet/fleets/%d/agent_options", id), nil, ao, nil)
-	return result{status: status, err: err, detail: detail}
+	return look.result(status, err, time.Since(start), detail)
 }
