@@ -73,6 +73,7 @@ export default {
       ios_fleet_id: number;
       ipados_fleet_id: number;
       macos_fleet_id: number;
+      tvos_fleet_id: number;
       byod_fleet_id: number;
     };
   }) => {

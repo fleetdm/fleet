@@ -1,10 +1,41 @@
 import {
+  isAppleDevice,
+  isAppleMdmOnlyPlatform,
   isDiskEncryptionSupportedLinuxPlatform,
+  isIPadOrIPhone,
   isMacOS,
+  isMobilePlatform,
+  isNonQueryablePlatform,
   isWindows,
 } from "./platform";
 
 describe("platform helpers", () => {
+  describe("tvOS", () => {
+    it("is an Apple, MDM-only platform without osquery", () => {
+      expect(isAppleDevice("tvos")).toBe(true);
+      expect(isAppleMdmOnlyPlatform("tvos")).toBe(true);
+      expect(isNonQueryablePlatform("tvos")).toBe(true);
+    });
+
+    it("is not treated as an iPhone, iPad, or mobile platform", () => {
+      expect(isIPadOrIPhone("tvos")).toBe(false);
+      expect(isMobilePlatform("tvos")).toBe(false);
+    });
+  });
+
+  describe("isNonQueryablePlatform", () => {
+    it.each(["ios", "ipados", "tvos", "android"])("matches %s", (platform) => {
+      expect(isNonQueryablePlatform(platform)).toBe(true);
+    });
+
+    it.each(["darwin", "windows", "ubuntu", "chrome"])(
+      "does not match %s",
+      (platform) => {
+        expect(isNonQueryablePlatform(platform)).toBe(false);
+      }
+    );
+  });
+
   describe("isMacOS", () => {
     it("matches a single darwin platform string", () => {
       expect(isMacOS("darwin")).toBe(true);

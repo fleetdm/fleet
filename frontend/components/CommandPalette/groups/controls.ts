@@ -40,6 +40,7 @@ const buildControlsItems = (
               "windows",
               "ios",
               "ipados",
+              "tvos",
               "patch",
             ],
           },

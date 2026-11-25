@@ -9,8 +9,8 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
-import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
+import { isAppleTV, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { IAppStoreApp, isAppleMdmOnlySoftware } from "interfaces/software";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import {
@@ -27,6 +27,10 @@ import SoftwareDeploySlider from "../SoftwareDeploySlider";
 import { generateFormValidation, getUniqueAppId } from "./helpers";
 
 const baseClass = "software-vpp-form";
+
+// An Apple TV has no end user surface to install from, and the API rejects
+// self-service for tvOS apps.
+const supportsSelfService = (platform: string) => !isAppleTV(platform);
 
 interface IVppAppListItemProps {
   app: IVppApp;
@@ -175,17 +179,12 @@ const SoftwareVppForm = ({
 
   const onSelectApp = (app: IVppApp) => {
     if ("selectedApp" in formData) {
+      const isMdmOnlyApp = isAppleMdmOnlySoftware(app.platform);
       const newFormData = {
         ...formData,
         selectedApp: app,
-        selfService:
-          app.platform === "ios" || app.platform === "ipados"
-            ? false
-            : formData.selfService,
-        automaticInstall:
-          app.platform === "ios" || app.platform === "ipados"
-            ? false
-            : formData.automaticInstall,
+        selfService: isMdmOnlyApp ? false : formData.selfService,
+        automaticInstall: isMdmOnlyApp ? false : formData.automaticInstall,
       };
       setFormData(newFormData);
       setFormValidation(generateFormValidation(newFormData));
@@ -261,7 +260,7 @@ const SoftwareVppForm = ({
   const renderContent = () => {
     // Edit VPP form
     if (softwareVppForEdit) {
-      const isAppleMobile = isIpadOrIphoneSoftware(softwareVppForEdit.platform);
+      const isAppleMobile = isAppleMdmOnlySoftware(softwareVppForEdit.platform);
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
@@ -273,18 +272,20 @@ const SoftwareVppForm = ({
             canEdit={false}
           />
           <div className={`${baseClass}__form-frame`}>
-            <SoftwareOptionsSelector
-              platform={softwareVppForEdit.platform}
-              formData={formData}
-              onToggleSelfService={onToggleSelfService}
-              onSelectCategory={onSelectCategory}
-              isEditingSoftware
-              onClickPreviewEndUserExperience={() =>
-                onClickPreviewEndUserExperience(isAppleMobile)
-              }
-              teamId={teamId}
-              disableOptions={gitOpsModeEnabled}
-            />
+            {supportsSelfService(softwareVppForEdit.platform) && (
+              <SoftwareOptionsSelector
+                platform={softwareVppForEdit.platform}
+                formData={formData}
+                onToggleSelfService={onToggleSelfService}
+                onSelectCategory={onSelectCategory}
+                isEditingSoftware
+                onClickPreviewEndUserExperience={() =>
+                  onClickPreviewEndUserExperience(isAppleMobile)
+                }
+                teamId={teamId}
+                disableOptions={gitOpsModeEnabled}
+              />
+            )}
             <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
               selectedCustomTarget={formData.customTarget}
@@ -311,10 +312,10 @@ const SoftwareVppForm = ({
     }
 
     // Hides deploy slider until app is selected
-    // Hides deploy slider for iOS/iPadOS apps
+    // Hides deploy slider for iOS/iPadOS/tvOS apps
     const showDeploySoftwareSlider =
       !!formData.selectedApp &&
-      !isIpadOrIphoneSoftware(formData.selectedApp.platform);
+      !isAppleMdmOnlySoftware(formData.selectedApp.platform);
 
     // Add VPP form
     // 4.83+ has no additional options to select beyond the app
@@ -331,21 +332,22 @@ const SoftwareVppForm = ({
             These apps were added in Apple Business (AB). To add more apps, head
             to <CustomLink url="https://business.apple.com" text="AB" newTab />
           </div>
-          {formData.selectedApp && (
-            <SoftwareOptionsSelector
-              platform={formData.selectedApp.platform}
-              formData={formData}
-              onToggleSelfService={onToggleSelfService}
-              onSelectCategory={onSelectCategory}
-              onClickPreviewEndUserExperience={() =>
-                onClickPreviewEndUserExperience(
-                  isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
-                )
-              }
-              teamId={teamId}
-              disableOptions={gitOpsModeEnabled}
-            />
-          )}
+          {formData.selectedApp &&
+            supportsSelfService(formData.selectedApp.platform) && (
+              <SoftwareOptionsSelector
+                platform={formData.selectedApp.platform}
+                formData={formData}
+                onToggleSelfService={onToggleSelfService}
+                onSelectCategory={onSelectCategory}
+                onClickPreviewEndUserExperience={() =>
+                  onClickPreviewEndUserExperience(
+                    isAppleMdmOnlySoftware(formData.selectedApp?.platform || "")
+                  )
+                }
+                teamId={teamId}
+                disableOptions={gitOpsModeEnabled}
+              />
+            )}
           {showDeploySoftwareSlider && (
             <SoftwareDeploySlider
               deploySoftware={formData.automaticInstall}

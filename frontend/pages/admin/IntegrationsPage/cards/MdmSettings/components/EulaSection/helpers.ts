@@ -31,7 +31,7 @@ export const EULA_PLATFORM_CONFIG: Record<EulaPlatform, IEulaPlatformConfig> = {
     uploadMessage: "PDF (.pdf)",
     wrongTypeMessage: "Couldn’t upload EULA. The file must be a PDF (.pdf).",
     unavailableMessage:
-      "To require a EULA on macOS hosts, first turn on Apple (macOS, iOS, iPadOS) MDM and add an Apple Business Manager token.",
+      "To require a EULA on macOS hosts, first turn on Apple (macOS, iOS, iPadOS, tvOS) MDM and add an Apple Business Manager token.",
     deleteMessage:
       "End users won’t be required to agree to this EULA on macOS hosts that automatically enroll.",
     hasExample: false,

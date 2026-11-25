@@ -10,7 +10,7 @@ import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
   formatSoftwareType,
   isAndroidSoftwareSource,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   ISoftwareTitleDetails,
 } from "interfaces/software";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
@@ -241,7 +241,7 @@ const SoftwareSummaryCard = ({
             icon="self-service"
             text="Self service"
             tooltip={getSelfServiceTooltip(
-              isIpadOrIphoneSoftwareSource(softwareTitle.source),
+              isAppleMdmOnlySoftwareSource(softwareTitle.source),
               isAndroidSoftwareSource(softwareTitle.source)
             )}
             tooltipTextBalanced={false}

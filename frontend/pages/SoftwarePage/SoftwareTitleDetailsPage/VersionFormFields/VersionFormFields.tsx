@@ -11,7 +11,12 @@ import InfoBanner from "components/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import { ITextFieldProps, TextFieldName } from "hooks/useFormValidation";
 import { ILabelSummary } from "interfaces/label";
-import { IAppStoreAppVersion, SoftwareCategory } from "interfaces/software";
+import { isAppleTV, isIPadOrIPhone } from "interfaces/platform";
+import {
+  IAppStoreAppVersion,
+  isAppleMdmOnlySoftware,
+  SoftwareCategory,
+} from "interfaces/software";
 import { CategoriesSelector } from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector/SoftwareOptionsSelector";
 import {
   CUSTOM_TARGET_OPTIONS,
@@ -48,9 +53,7 @@ export interface IVersionFormData {
 export const EMPTY_XML_SCAFFOLD = "<dict>\n  \n</dict>";
 export const EMPTY_JSON_SCAFFOLD = "{}";
 export const getEmptyConfigScaffold = (platform: string): string =>
-  platform === "ios" || platform === "ipados"
-    ? EMPTY_XML_SCAFFOLD
-    : EMPTY_JSON_SCAFFOLD;
+  isAppleMdmOnlySoftware(platform) ? EMPTY_XML_SCAFFOLD : EMPTY_JSON_SCAFFOLD;
 
 export const DEFAULT_VERSION_FORM_DATA: IVersionFormData = {
   name: "",
@@ -214,9 +217,10 @@ interface IVersionFormFieldsProps {
   commitFields: (changes: Partial<IVersionFormData>) => void;
   getError: (name: string) => string | undefined;
   /** Platform of the title's App Store app. Drives configuration mode
-   * (XML for iOS/iPadOS, JSON for Android) and gates the auto-update
-   * and self-service sections (iOS/iPadOS only). */
-  platform: "ios" | "ipados" | "android" | string;
+   * (XML for iOS/iPadOS/tvOS, JSON for Android) and gates the auto-update
+   * section (iOS/iPadOS/tvOS) and the self-service section (iOS/iPadOS only:
+   * an Apple TV has no end user surface to install from). */
+  platform: "ios" | "ipados" | "tvos" | "android" | string;
   /** Display name of the app, used in the auto-update help text. */
   appDisplayName: string;
   labels: ILabelSummary[];
@@ -250,8 +254,12 @@ const VersionFormFields = ({
   isWebApp = false,
   disabled = false,
 }: IVersionFormFieldsProps) => {
-  const isIosOrIpados = platform === "ios" || platform === "ipados";
-  const editorMode = isIosOrIpados ? "xml" : "json";
+  const isAppleApp = isAppleMdmOnlySoftware(platform);
+  const supportsSelfService = isIPadOrIPhone(platform);
+  // tvOS has no self-service toggle, so its categories are always editable.
+  const showCategories =
+    isAppleTV(platform) || (supportsSelfService && formData.selfService);
+  const editorMode = isAppleApp ? "xml" : "json";
 
   const configFieldProps = getTextFieldProps("configuration");
 
@@ -310,8 +318,8 @@ const VersionFormFields = ({
         newTab
         text="Learn more"
         url={`${LEARN_MORE_ABOUT_BASE_LINK}/${
-          isIosOrIpados
-            ? "ios-software-managed-configuration"
+          isAppleApp
+            ? "app-managed-configuration"
             : "android-software-managed-configuration"
         }`}
       />
@@ -343,7 +351,7 @@ const VersionFormFields = ({
         </>
       )}
 
-      {isIosOrIpados && (
+      {supportsSelfService && (
         <Slider
           value={formData.selfService}
           onChange={() => commitFields({ selfService: !formData.selfService })}
@@ -353,11 +361,14 @@ const VersionFormFields = ({
         />
       )}
 
-      {isIosOrIpados && formData.selfService && (
+      {showCategories && (
         <CategoriesSelector
           onSelectCategory={onSelectCategory}
           selectedCategories={formData.categories}
-          onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
+          // The preview shows self-service, which tvOS doesn't have.
+          onClickPreviewEndUserExperience={
+            isAppleTV(platform) ? undefined : onClickPreviewEndUserExperience
+          }
           teamId={teamId}
           label="Category"
           previewButtonLabel="View end user experience"
@@ -365,7 +376,7 @@ const VersionFormFields = ({
         />
       )}
 
-      {isIosOrIpados && (
+      {isAppleApp && (
         <FormField name="auto-updates" label="Auto updates">
           <div className={`${baseClass}__auto-updates`}>
             <p className={`${baseClass}__auto-updates-help`}>

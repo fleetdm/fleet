@@ -275,6 +275,24 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/deadline: 2026-09-01/)).toBeInTheDocument();
   });
 
+  it("renders an edited_tvos_min_version activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedTvosMinVersion,
+      details: {
+        fleet_id: 1,
+        fleet_name: "Conference rooms",
+        minimum_version: "26.4",
+        deadline: "2026-12-01",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(/updated the minimum tvOS version/)
+    ).toBeInTheDocument();
+    expect(screen.getByText("26.4")).toBeInTheDocument();
+  });
+
   it("renders an edited_macos_min_version activity for the latest target", () => {
     // "latest" is a mode rather than a version, so the sentence must not call it
     // a minimum, and there's no deadline to report.
@@ -1266,7 +1284,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for macOS, iOS, iPadOS, and tvOS hosts assigned to the <b>Workstations</b> fleet."
         );
       })
     ).toBeInTheDocument();
@@ -1285,7 +1303,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> edited configuration profiles for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet via fleetctl."
+          "<b>Test User </b> edited configuration profiles for macOS, iOS, iPadOS, and tvOS hosts assigned to the <b>Workstations</b> fleet via fleetctl."
         );
       })
     ).toBeInTheDocument();
@@ -1345,7 +1363,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> edited the declaration (DDM) profile <b>Test Declaration</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+          "<b>Test User </b> edited the declaration (DDM) profile <b>Test Declaration</b> for macOS, iOS, iPadOS, and tvOS hosts assigned to the <b>Workstations</b> fleet."
         );
       })
     ).toBeInTheDocument();

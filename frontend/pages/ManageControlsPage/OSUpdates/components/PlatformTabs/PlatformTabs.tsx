@@ -26,6 +26,9 @@ interface IPlatformTabsProps {
   defaultIPadOSVersion: string;
   defaultIPadOSDeadline: string;
   defaultIPadOSDeadlineDays: string;
+  defaultTvOSVersion: string;
+  defaultTvOSDeadline: string;
+  defaultTvOSDeadlineDays: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
   selectedPlatform: OSUpdatesTargetPlatform;
@@ -48,6 +51,9 @@ const PlatformTabs = ({
   defaultIPadOSDeadline,
   defaultIPadOSDeadlineDays,
   defaultIPadOSVersion,
+  defaultTvOSDeadline,
+  defaultTvOSDeadlineDays,
+  defaultTvOSVersion,
   defaultWindowsDeadlineDays,
   defaultWindowsGracePeriodDays,
   selectedPlatform,
@@ -66,6 +72,7 @@ const PlatformTabs = ({
     "linux",
     "ios",
     "ipados",
+    "tvos",
     "android",
   ];
 
@@ -79,6 +86,7 @@ const PlatformTabs = ({
   const isWindowsConfigured = !!defaultWindowsDeadlineDays;
   const isIOSConfigured = !!defaultIOSVersion;
   const isIPadOSConfigured = !!defaultIPadOSVersion;
+  const isTvOSConfigured = !!defaultTvOSVersion;
 
   const appleMdmEmptyState = (platformName: string) => (
     <EmptyState
@@ -137,6 +145,9 @@ const PlatformTabs = ({
             </Tab>
             <Tab key="iPadOS" data-text="iPadOS">
               <TabText showCheck={isIPadOSConfigured}>iPadOS</TabText>
+            </Tab>
+            <Tab key="tvOS" data-text="tvOS">
+              <TabText showCheck={isTvOSConfigured}>tvOS</TabText>
             </Tab>
             <Tab key="Android" data-text="Android">
               Android
@@ -256,6 +267,31 @@ const PlatformTabs = ({
               </>
             ) : (
               appleMdmEmptyState("iPadOS")
+            )}
+          </TabPanel>
+          <TabPanel
+            className={`${baseClass}__tab-panel${
+              isAppleMdmEnabled ? "" : "--empty"
+            }`}
+          >
+            {isAppleMdmEnabled ? (
+              <>
+                <AppleOSTargetForm
+                  currentTeamId={currentTeamId}
+                  applePlatform="tvos"
+                  defaultMinOsVersion={defaultTvOSVersion}
+                  defaultDeadline={defaultTvOSDeadline}
+                  defaultDeadlineDays={defaultTvOSDeadlineDays}
+                  key={currentTeamId}
+                  refetchAppConfig={refetchAppConfig}
+                  refetchTeamConfig={refetchTeamConfig}
+                />
+                <div className={`${baseClass}__nudge-preview`}>
+                  <EndUserOSRequirementPreview platform="tvos" />
+                </div>
+              </>
+            ) : (
+              appleMdmEmptyState("tvOS")
             )}
           </TabPanel>
           <TabPanel className={`${baseClass}__tab-panel--empty`}>

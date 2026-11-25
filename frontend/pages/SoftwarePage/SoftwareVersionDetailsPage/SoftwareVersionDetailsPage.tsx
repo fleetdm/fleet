@@ -18,7 +18,6 @@ import {
   ISoftwareVersion,
   formatSoftwareType,
   formatSoftwareVersion,
-  isIpadOrIphoneSoftwareSource,
   isAndroidSoftwareSource,
 } from "interfaces/software";
 import hostsCountAPI, {
@@ -53,10 +52,16 @@ const getVulnUnsupportedSourceText = (
   source: string
 ): DisplayPlatform | undefined => {
   if (isAndroidSoftwareSource(source)) return "Android";
-  if (isIpadOrIphoneSoftwareSource(source)) {
-    return source === "ios_apps" ? "iOS" : "iPadOS";
+  switch (source) {
+    case "ios_apps":
+      return "iOS";
+    case "ipados_apps":
+      return "iPadOS";
+    case "tvos_apps":
+      return "tvOS";
+    default:
+      return undefined;
   }
-  return undefined;
 };
 
 const SoftwareVersionDetailsPage = ({

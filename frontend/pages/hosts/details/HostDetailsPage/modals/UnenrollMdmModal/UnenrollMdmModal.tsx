@@ -11,7 +11,12 @@ import {
   isBYODManualEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
-import { isAndroid, isIPadOrIPhone, isMacOS } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleMdmOnlyPlatform,
+  isIPadOrIPhone,
+  isMacOS,
+} from "interfaces/platform";
 import mdmAPI from "services/entities/mdm";
 
 const baseClass = "unenroll-mdm-modal";
@@ -136,7 +141,7 @@ const UnenrollMdmModal = ({
   };
 
   const generateDescription = () => {
-    if (isIPadOrIPhone(hostPlatform)) {
+    if (isAppleMdmOnlyPlatform(hostPlatform)) {
       return (
         <>
           <p>Settings and apps added by Fleet will be removed.</p>

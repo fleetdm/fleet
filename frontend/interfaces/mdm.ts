@@ -36,6 +36,7 @@ export interface IMdmAbToken {
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
+  tvos_fleet: ITokenFleet;
   byod_fleet: ITokenFleet;
 }
 
@@ -192,6 +193,7 @@ export type ProfilePlatform =
   | "windows"
   | "ios"
   | "ipados"
+  | "tvos"
   | "linux"
   | "android";
 
@@ -237,6 +239,7 @@ export const platformToMDMLabel = (platform: ProfilePlatform) => {
     case "darwin":
     case "ios":
     case "ipados":
+    case "tvos":
       return "Apple";
     case "windows":
       return "Windows";

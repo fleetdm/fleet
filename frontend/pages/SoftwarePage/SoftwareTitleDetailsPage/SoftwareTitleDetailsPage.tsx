@@ -26,7 +26,7 @@ import {
   IAppStoreApp,
   IAppStoreAppVersion,
   isAndroidSoftwareSource,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
   ISoftwareInstallPolicyUI,
   ISoftwarePackage,
   ISoftwareTitleDetails,
@@ -232,7 +232,7 @@ const SoftwareTitleDetailsPage = ({
   const canActivateMultipleVersions =
     !!isPremiumTier &&
     !!softwareTitle?.app_store_apps?.length &&
-    (isIpadOrIphoneSoftwareSource(softwareTitle.source) ||
+    (isAppleMdmOnlySoftwareSource(softwareTitle.source) ||
       isAndroidSoftwareSource(softwareTitle.source));
 
   // Android web apps use the versions layout but can only ever hold one
@@ -387,7 +387,7 @@ const SoftwareTitleDetailsPage = ({
       if (!appStore) return null;
       const { labels, kind } = pickLabels(appStore);
       const isAndroidPlayStoreApp = appStore.platform === "android";
-      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(title.source);
       return (
         <LibraryItemAccordion
           filename={getDisplayedSoftwareName(
@@ -430,7 +430,7 @@ const SoftwareTitleDetailsPage = ({
     const renderAppStoreVersionRow = (version: IAppStoreAppVersion) => {
       const { labels, kind } = pickLabels(version);
       const isAndroidPlayStoreApp = version.platform === "android";
-      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(title.source);
       return (
         <LibraryItemAccordion
           key={version.id}
@@ -547,7 +547,7 @@ const SoftwareTitleDetailsPage = ({
         installerResult?.meta.isLatestFmaVersion ?? false;
       const isScriptPackage =
         installerResult?.cardInfo.isScriptPackage ?? false;
-      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      const isIosOrIpadosApp = isAppleMdmOnlySoftwareSource(title.source);
       const perPackagePolicies = mergePolicies({
         automaticInstallPolicies: pkg.automatic_install_policies,
         patchPolicy: pkg.patch_policy,
@@ -771,7 +771,7 @@ const SoftwareTitleDetailsPage = ({
           source={title.source}
           isLoading={isSoftwareTitleLoading}
           teamIdForApi={teamIdForApi}
-          isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
+          isIPadOSOrIOSApp={isAppleMdmOnlySoftwareSource(title.source)}
           isAvailableForInstall={isAvailableForInstall}
           countsUpdatedAt={title.counts_updated_at}
         />
@@ -824,7 +824,7 @@ const SoftwareTitleDetailsPage = ({
         teamId={teamIdForApi}
         // Don't send installer_id for in-house apps because delete only accepts it for custom packages.
         installerId={
-          isIpadOrIphoneSoftwareSource(title.source)
+          isAppleMdmOnlySoftwareSource(title.source)
             ? undefined
             : selected?.installer_id
         }

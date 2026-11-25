@@ -14,6 +14,7 @@ export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
   "chrome",
   "ios",
   "ipados",
+  "tvos",
   "android",
 ];
 

@@ -80,6 +80,11 @@ const PLATFORM_FILTER_OPTIONS = [
   },
   {
     disabled: false,
+    label: "tvOS",
+    value: "tvos",
+  },
+  {
+    disabled: false,
     label: "Android",
     value: "android",
   },

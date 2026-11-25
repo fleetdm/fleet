@@ -57,6 +57,15 @@ describe("canShowMyDeviceButton", () => {
     expect(canShowMyDeviceButton(host, false, true)).toBe(false);
   });
 
+  it("returns false for tvOS even with Fleet Desktop reported", () => {
+    const host = createMockHost({
+      platform: "tvos",
+      fleet_desktop_version: "1.22.1",
+      mdm: { ...createMockHost().mdm, device_status: "unlocked" },
+    });
+    expect(canShowMyDeviceButton(host, false, true)).toBe(false);
+  });
+
   // iOS/iPadOS never run Fleet Desktop; they reach the My device page by host
   // UUID, so the missing fleet_desktop_version must not hide the button.
   it("returns true for iOS without Fleet Desktop", () => {

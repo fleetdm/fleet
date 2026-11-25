@@ -53,6 +53,7 @@ export interface IHostPlatformCounts {
   chrome: number;
   ios: number;
   ipados: number;
+  tvos: number;
   android: number;
 }
 
@@ -86,6 +87,7 @@ const PLATFORM_ROWS: { platform: PlatformKey; label: string }[] = [
   { platform: "chrome", label: "ChromeOS" },
   { platform: "ios", label: "iOS" },
   { platform: "ipados", label: "iPadOS" },
+  { platform: "tvos", label: "tvOS" },
   { platform: "android", label: "Android" },
 ];
 

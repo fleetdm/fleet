@@ -12,7 +12,7 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
   formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
+  isAppleMdmOnlySoftwareSource,
 } from "interfaces/software";
 import {
   getAutomaticInstallPoliciesCount,
@@ -134,7 +134,7 @@ const generateTableHeaders = (
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount
             }
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
+            isIosOrIpadosApp={isAppleMdmOnlySoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
             isAppStoreApp={!!cellProps.row.original.app_store_apps?.length}
             autoUpdateEnabled={cellProps.row.original.auto_update_enabled}
@@ -177,7 +177,7 @@ const generateTableHeaders = (
           return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
         }
         const vulnDetectionNotSupported =
-          isIpadOrIphoneSoftwareSource(cellProps.row.original.source) ||
+          isAppleMdmOnlySoftwareSource(cellProps.row.original.source) ||
           cellProps.row.original.source === "tgz_packages";
 
         if (vulnDetectionNotSupported) {

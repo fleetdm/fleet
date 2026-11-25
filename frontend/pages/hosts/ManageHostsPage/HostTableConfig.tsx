@@ -26,7 +26,9 @@ import { isPersonalEnrollment } from "interfaces/mdm";
 import {
   isAndroid,
   isAppleDevice,
-  isMobilePlatform,
+  isAppleMdmOnlyPlatform,
+  isAppleTV,
+  isNonQueryablePlatform,
   isWindows,
 } from "interfaces/platform";
 import { ROLLING_ARCH_LINUX_VERSIONS } from "interfaces/software";
@@ -139,7 +141,7 @@ const lastSeenTime = (
   seenTime: string,
   platform?: string
 ): string => {
-  if (platform && isMobilePlatform(platform)) {
+  if (platform && isNonQueryablePlatform(platform)) {
     return "Last seen: Not supported";
   }
   if (status !== "online") {
@@ -384,7 +386,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         gigs_total_disk_space,
         gigs_all_disk_space,
       } = cellProps.row.original;
-      if (platform === "chrome") {
+      if (platform === "chrome" || isAppleTV(platform)) {
         return NotSupported;
       }
       return (
@@ -406,10 +408,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "cpu_type",
     id: "cpu_type",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isAppleMdmOnlyPlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
@@ -424,10 +423,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "memory",
     id: "memory",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isAppleMdmOnlyPlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -495,7 +491,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "issues",
     sortDescFirst: true,
     Cell: (cellProps: IIssuesCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
+      if (isNonQueryablePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -598,7 +594,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "primary_ip",
     id: "primary_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
+      if (isNonQueryablePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
@@ -620,7 +616,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "public_ip",
     id: "public_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
+      if (isNonQueryablePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -658,7 +654,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         fleet_desktop_version,
       } = cellProps.row.original;
 
-      if (isMobilePlatform(platform)) {
+      if (isNonQueryablePlatform(platform)) {
         return NotSupported;
       }
 
@@ -721,7 +717,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "seen_time",
     id: "seen_time",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
+      if (isNonQueryablePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -757,7 +753,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (isMobilePlatform(platform)) {
+      if (isNonQueryablePlatform(platform)) {
         return NotSupported;
       }
       return (

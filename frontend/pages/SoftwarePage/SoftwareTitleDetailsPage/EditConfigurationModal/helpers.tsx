@@ -82,6 +82,8 @@ export const getPlatformLabel = (platform: string): string => {
       return "iOS";
     case "ipados":
       return "iPadOS";
+    case "tvos":
+      return "tvOS";
     case "android":
       return "Android";
     default:

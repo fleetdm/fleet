@@ -19,7 +19,7 @@ import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
-  isIPadOrIPhone,
+  isAppleMdmOnlyPlatform,
   isMacOS,
 } from "interfaces/platform";
 import {
@@ -227,8 +227,9 @@ const HostSoftware = ({
     ai_tool: filters.aiTool,
   };
 
-  // no Android software and no vulnerable software for iOS
-  const isUnsupported = isIPadOrIPhone(platform) && queryParams.vulnerable;
+  // no Android software and no vulnerable software for iOS, iPadOS, or tvOS
+  const isUnsupported =
+    isAppleMdmOnlyPlatform(platform) && queryParams.vulnerable;
 
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
@@ -412,6 +413,7 @@ const HostSoftware = ({
             // AI tools are only reported on desktop platforms, the same ones
             // offered the Premium-only AI types.
             showAiToolFilter={availableTypes.some((t) => t.premiumOnly)}
+            showVulnerabilityFilters={!isAppleMdmOnlyPlatform(platform)}
           />
         )}
       </>

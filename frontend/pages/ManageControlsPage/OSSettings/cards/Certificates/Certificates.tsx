@@ -252,8 +252,8 @@ const Certificates = ({
           content={
             <>
               Deploy certificates. Currently only Android is supported. For
-              macOS, iOS, iPadOS and Windows use configuration profiles, and for
-              Linux use scripts.{" "}
+              macOS, iOS, iPadOS, tvOS, and Windows use configuration profiles,
+              and for Linux use scripts.{" "}
               <CustomLink
                 newTab
                 text="Learn more"

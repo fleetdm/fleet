@@ -76,7 +76,7 @@ describe("getSoftwareTypesForPlatform", () => {
   const keysFor = (platform: string) =>
     getSoftwareTypesForPlatform(platform, { hostPage: true }).map((t) => t.key);
 
-  it.each(["darwin", "windows", "ubuntu", "chrome", "ios", "android"])(
+  it.each(["darwin", "windows", "ubuntu", "chrome", "ios", "tvos", "android"])(
     "hides installer-only types on %s host pages",
     (platform) => {
       expect(
@@ -133,6 +133,7 @@ describe("getSoftwareTypesForPlatform", () => {
     { platform: "ubuntu", hasAiTypes: true },
     { platform: "ios", hasAiTypes: false },
     { platform: "ipados", hasAiTypes: false },
+    { platform: "tvos", hasAiTypes: false },
     { platform: "android", hasAiTypes: false },
     { platform: "chrome", hasAiTypes: false },
   ])(

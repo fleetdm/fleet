@@ -809,6 +809,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const tvosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const androidLayout = () => (
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
@@ -830,6 +837,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return iosLayout();
       case "ipados":
         return ipadosLayout();
+      case "tvos":
+        return tvosLayout();
       case "android":
         return androidLayout();
       default:

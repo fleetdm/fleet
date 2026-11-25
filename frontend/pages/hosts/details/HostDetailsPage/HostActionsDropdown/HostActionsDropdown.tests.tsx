@@ -1973,6 +1973,83 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
+  describe("tvOS hosts", () => {
+    it("renders only the transfer, turn off MDM, wipe, and delete options", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="tvos"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Transfer")).toBeInTheDocument();
+      expect(screen.getByText("Turn off MDM")).toBeInTheDocument();
+      expect(screen.getByText("Wipe")).toBeInTheDocument();
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+
+      [
+        "Live report",
+        "Run script",
+        "Lock",
+        "Unlock",
+        "Unenroll",
+        "Clear passcode",
+        "Show disk encryption key",
+      ].forEach((label) =>
+        expect(screen.queryByText(label)).not.toBeInTheDocument()
+      );
+    });
+
+    it("does not offer Unlock for a tvOS host reported as locked", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="tvos"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="locked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+    });
+  });
+
   describe("Android hosts", () => {
     it("renders Transfer + Clear passcode + Unenroll + Lock + Delete for a BYO Android host with MDM on", async () => {
       const render = createCustomRenderer({

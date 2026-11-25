@@ -89,6 +89,11 @@ describe("AddHostsModal", () => {
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
     expect(screen.queryByText(/Turn on Apple MDM/i)).toBeInTheDocument();
 
+    await user.click(screen.getByRole("tab", { name: "tvOS" }));
+    expect(
+      screen.getByText("Only tvOS hosts in Apple Business can enroll.")
+    ).toBeInTheDocument();
+
     await user.click(screen.getByRole("tab", { name: "Android" }));
     expect(screen.queryByText(/Turn on Android MDM/i)).toBeInTheDocument();
 

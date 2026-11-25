@@ -234,7 +234,8 @@ const SoftwareDetailsSummary = ({
         <img
           src={iconPreviewUrl}
           alt="Uploaded icon preview"
-          style={{ width: 96, height: 96 }}
+          // App Store icons for tvOS are 5:3; letterbox instead of stretching.
+          style={{ width: 96, height: 96, objectFit: "contain" }}
         />
       );
     }

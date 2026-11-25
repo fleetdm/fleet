@@ -512,6 +512,7 @@ const routes = (
             <Route path="chrome" component={LazyDashboardPage} />
             <Route path="ios" component={LazyDashboardPage} />
             <Route path="ipados" component={LazyDashboardPage} />
+            <Route path="tvos" component={LazyDashboardPage} />
             <Route path="android" component={LazyDashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>

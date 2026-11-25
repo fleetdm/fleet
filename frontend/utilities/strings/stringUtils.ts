@@ -22,6 +22,7 @@ export const STYLIZATIONS_AND_ACRONYMS = [
   "macOS",
   "iOS",
   "iPadOS",
+  "tvOS",
   "osquery",
   "MySQL",
   "MDM",

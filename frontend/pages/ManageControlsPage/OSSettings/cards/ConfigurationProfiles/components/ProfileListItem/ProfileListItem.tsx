@@ -10,7 +10,7 @@ import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
-import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import { isAppleDevice, isAppleMdmOnlyPlatform } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 import { timeAgo } from "utilities/date_format";
 import strUtils from "utilities/strings";
@@ -51,8 +51,8 @@ const ProfileDetails = ({
         return "Linux";
       default:
         return isDDM
-          ? "macOS, iOS, iPadOS (declaration)"
-          : "macOS, iOS, iPadOS";
+          ? "macOS, iOS, iPadOS, tvOS (declaration)"
+          : "macOS, iOS, iPadOS, tvOS";
     }
   };
 
@@ -120,9 +120,9 @@ const ProfileListItem = ({
   const nameRef = useRef<HTMLSpanElement>(null);
   const isNameTruncated = useCheckTruncatedElement(nameRef);
 
-  // iOS/iPadOS don't support user channels, so never show the user-scope icon
+  // iOS/iPadOS/tvOS don't support user channels, so never show the user-scope icon
   // for them (matches the host details OS settings table).
-  const isUserScoped = scope === "User" && !isIPadOrIPhone(platform);
+  const isUserScoped = scope === "User" && !isAppleMdmOnlyPlatform(platform);
 
   const onClickDownload = async () => {
     const fileContent = await createFileContent(profile);

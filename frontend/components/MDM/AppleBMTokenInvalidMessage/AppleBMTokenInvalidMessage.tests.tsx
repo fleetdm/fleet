@@ -9,7 +9,7 @@ describe("AppleBMTokenInvalidMessage", () => {
 
     expect(
       screen.getByText(
-        "Your Apple Business (AB) token for Acme Inc. is invalid. macOS, iOS, and iPadOS hosts won’t automatically enroll into Fleet. Users with the admin role in Fleet can renew the token."
+        "Your Apple Business (AB) token for Acme Inc. is invalid. macOS, iOS, iPadOS, and tvOS hosts won’t automatically enroll into Fleet. Users with the admin role in Fleet can renew the token."
       )
     ).toBeInTheDocument();
   });
@@ -21,7 +21,7 @@ describe("AppleBMTokenInvalidMessage", () => {
 
     expect(
       screen.getByText(
-        "Your Apple Business (AB) tokens for Acme Inc. and Globex Corp. are invalid. macOS, iOS, and iPadOS hosts won’t automatically enroll into Fleet. Users with the admin role in Fleet can renew the tokens."
+        "Your Apple Business (AB) tokens for Acme Inc. and Globex Corp. are invalid. macOS, iOS, iPadOS, and tvOS hosts won’t automatically enroll into Fleet. Users with the admin role in Fleet can renew the tokens."
       )
     ).toBeInTheDocument();
   });
@@ -35,7 +35,7 @@ describe("AppleBMTokenInvalidMessage", () => {
 
     expect(
       screen.getByText(
-        "Your Apple Business (AB) tokens for Acme Inc., Globex Corp., and Initech are invalid. macOS, iOS, and iPadOS hosts won’t automatically enroll into Fleet. Users with the admin role in Fleet can renew the tokens."
+        "Your Apple Business (AB) tokens for Acme Inc., Globex Corp., and Initech are invalid. macOS, iOS, iPadOS, and tvOS hosts won’t automatically enroll into Fleet. Users with the admin role in Fleet can renew the tokens."
       )
     ).toBeInTheDocument();
   });

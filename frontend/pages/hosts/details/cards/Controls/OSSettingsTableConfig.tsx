@@ -356,9 +356,9 @@ const makeDarwinRows = ({
   return rows;
 };
 
-// iOS/iPadOS hosts don't surface disk-encryption or recovery-lock rows, but they
-// do get the synthetic "Host name" row when a template is enforced. They can also
-// have regular configuration profiles.
+// iOS/iPadOS/tvOS hosts don't surface disk-encryption or recovery-lock rows, but
+// they do get the synthetic "Host name" row when a template is enforced. They can
+// also have regular configuration profiles.
 const makeAppleMobileRows = (
   { profiles, os_settings, enrollment_status }: IHostMdmData,
   platform: ProfilePlatform
@@ -402,6 +402,7 @@ export const generateTableData = (
       return makeDarwinRows(hostMDMData);
     case "ios":
     case "ipados":
+    case "tvos":
       return makeAppleMobileRows(hostMDMData, platform);
     case "android":
       return hostMDMData.profiles;

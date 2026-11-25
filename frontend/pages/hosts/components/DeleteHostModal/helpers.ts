@@ -7,7 +7,7 @@ import {
 import {
   HostPlatform,
   isAndroid,
-  isIPadOrIPhone,
+  isAppleMdmOnlyPlatform,
   isLinuxLike,
   isMacOS,
   isWindows,
@@ -21,7 +21,7 @@ export interface IDeleteHostTarget {
 
 type DeleteCopyGroup =
   | "android"
-  | "ios"
+  | "apple_mdm_only"
   | "macos"
   | "windows"
   | "linux"
@@ -31,7 +31,7 @@ type DeleteCopyGroup =
  * selection still gets one message instead of the generic bulk copy. */
 const deleteCopyGroup = (platform: string): DeleteCopyGroup => {
   if (isAndroid(platform)) return "android";
-  if (isIPadOrIPhone(platform)) return "ios";
+  if (isAppleMdmOnlyPlatform(platform)) return "apple_mdm_only";
   if (isMacOS(platform)) return "macos";
   if (isWindows(platform)) return "windows";
   if (isLinuxLike(platform)) return "linux";
@@ -39,7 +39,7 @@ const deleteCopyGroup = (platform: string): DeleteCopyGroup => {
 };
 
 /**
- * What an admin must do before deleting an iOS, iPadOS, or Android host so it
+ * What an admin must do before deleting an iOS, iPadOS, tvOS, or Android host so it
  * doesn't re-enroll. Null when MDM is off or the Android ownership isn't
  * confirmed, so the modal doesn't tell admins to wipe a personal device.
  * Company-owned Android hosts have no Unenroll action, only Wipe.
@@ -61,7 +61,7 @@ export const getMobileReEnrollAction = (
  * Returns the platform and MDM state shared by every selected host, so the
  * delete modal can show the per-platform copy. Returns undefined when the
  * selection is mixed, in which case the modal falls back to the generic bulk
- * copy. MDM state only changes the copy for macOS, iOS, iPadOS, and Android,
+ * copy. MDM state only changes the copy for macOS, iOS, iPadOS, tvOS, and Android,
  * so it is ignored for other platforms.
  */
 export const getSharedDeleteHostTarget = (
@@ -84,7 +84,7 @@ export const getSharedDeleteHostTarget = (
     if (deleteCopyGroup(host.platform) !== group) {
       return false;
     }
-    if (group === "android" || group === "ios") {
+    if (group === "android" || group === "apple_mdm_only") {
       return (
         getMobileReEnrollAction(
           host.platform,

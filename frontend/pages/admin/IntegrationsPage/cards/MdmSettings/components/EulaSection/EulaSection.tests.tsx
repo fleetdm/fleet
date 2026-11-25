@@ -134,7 +134,7 @@ describe("EulaSection", () => {
 
     expect(
       screen.getByText(
-        "To require a EULA on macOS hosts, first turn on Apple (macOS, iOS, iPadOS) MDM and add an Apple Business Manager token."
+        "To require a EULA on macOS hosts, first turn on Apple (macOS, iOS, iPadOS, tvOS) MDM and add an Apple Business Manager token."
       )
     ).toBeInTheDocument();
   });
