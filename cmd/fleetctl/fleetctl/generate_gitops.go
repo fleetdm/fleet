@@ -323,7 +323,7 @@ func generateGitopsCommand() *cli.Command {
 			debugFlag(),
 			&cli.BoolFlag{
 				Name:  "insecure",
-				Usage: "Include enroll secrets, certificate authority secrets, and SSO and end user authentication metadata in plaintext. Secrets the Fleet API never returns are still left as TODO comments.",
+				Usage: "Include enroll secrets, certificate authority secrets, and SSO and end user authentication metadata in plaintext. Secrets the Fleet API never returns stay as TODO comments. Don't commit the output.",
 				Value: false,
 			},
 			&cli.StringFlag{
