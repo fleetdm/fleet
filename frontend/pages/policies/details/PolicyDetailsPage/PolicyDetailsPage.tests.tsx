@@ -150,23 +150,23 @@ describe("getLabelModalData", () => {
   });
 
   describe("exclude labels", () => {
-    it("resolves labels_exclude_any with the 'exclude any' scope", () => {
+    it("resolves labels_exclude_any with the 'don’t have any' scope", () => {
       const result = getLabelModalData(
         createMockPolicy({ labels_exclude_any: labels("A") })
       );
 
       expect(result.excludeLabels).toEqual(labels("A"));
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
       expect(result.includeLabels).toBeUndefined();
     });
 
-    it("resolves labels_exclude_all with the 'exclude all' scope", () => {
+    it("resolves labels_exclude_all with the 'don’t have all' scope", () => {
       const result = getLabelModalData(
         createMockPolicy({ labels_exclude_all: labels("A") })
       );
 
       expect(result.excludeLabels).toEqual(labels("A"));
-      expect(result.excludeScopeLabel).toBe("exclude all");
+      expect(result.excludeScopeLabel).toBe("don’t have all");
     });
 
     it("prefers labels_exclude_any over labels_exclude_all", () => {
@@ -178,7 +178,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.excludeLabels).toEqual(labels("Any"));
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
     });
   });
 
@@ -192,7 +192,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have any");
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
     });
 
     it("resolves include_any + exclude_all", () => {
@@ -204,7 +204,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have any");
-      expect(result.excludeScopeLabel).toBe("exclude all");
+      expect(result.excludeScopeLabel).toBe("don’t have all");
     });
 
     it("resolves include_all + exclude_any", () => {
@@ -216,7 +216,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have all");
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
     });
 
     it("resolves include_all + exclude_all", () => {
@@ -228,7 +228,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have all");
-      expect(result.excludeScopeLabel).toBe("exclude all");
+      expect(result.excludeScopeLabel).toBe("don’t have all");
     });
   });
 });

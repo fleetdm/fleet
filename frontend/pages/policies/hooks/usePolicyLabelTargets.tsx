@@ -202,7 +202,7 @@ const usePolicyLabelTargets = ({
     onSelectMode: setExcludeMode,
     anyTooltip: (
       <>
-        Will not target hosts that have{" "}
+        Will only target hosts that don’t have{" "}
         <em>
           <b>any</b>
         </em>{" "}
@@ -211,7 +211,7 @@ const usePolicyLabelTargets = ({
     ),
     allTooltip: (
       <>
-        Will not target hosts that have{" "}
+        Will only target hosts that don’t have{" "}
         <em>
           <b>all</b>
         </em>{" "}
