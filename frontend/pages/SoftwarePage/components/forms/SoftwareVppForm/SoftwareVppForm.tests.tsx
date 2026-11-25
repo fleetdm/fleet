@@ -4,9 +4,16 @@ import React from "react";
 import { createMockVppApp } from "__mocks__/appleMdm";
 import createMockConfig from "__mocks__/configMock";
 import { createMockAppStoreApp } from "__mocks__/softwareMock";
+import { emptySelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareVppForm from "./SoftwareVppForm";
+
+// The form loads the self-service categories when it renders.
+beforeEach(() => {
+  mockServer.use(emptySelfServiceCategoriesHandler);
+});
 
 describe("SoftwareVppForm", () => {
   it("shows Self service after selecting an app to add", async () => {

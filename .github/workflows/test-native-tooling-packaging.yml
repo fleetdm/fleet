@@ -22,15 +22,16 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test-packaging:
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-4core]
+        os: [ubuntu-22.04]
         # build_type == 'remote' means this job will test the fleetdm/fleetctl:latest from Docker Hub.
         # build_type == 'local' means this job will build the the image locally.
         #

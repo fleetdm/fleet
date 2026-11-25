@@ -25,7 +25,7 @@ func attachFleetAPIRoutes(r *eu.Router, svc api.Service, authMiddleware endpoint
 	ue := newUserAuthenticatedEndpointer(svc, authMiddleware, opts, r, apiVersions()...)
 
 	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, api_http.ListActivitiesRequest{})
-	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/activities", listHostPastActivitiesEndpoint, api_http.ListHostPastActivitiesRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id}/activities", listHostPastActivitiesEndpoint, api_http.ListHostPastActivitiesRequest{})
 }
 
 // RegisterTracingTiers classifies this context's routes for trace sampling. Both activity list endpoints are admin reads, so
@@ -60,7 +60,7 @@ func listActivitiesEndpoint(ctx context.Context, request any, svc api.Service) p
 func listHostPastActivitiesEndpoint(ctx context.Context, request any, svc api.Service) platform_http.Errorer {
 	req := request.(*api_http.ListHostPastActivitiesRequest)
 
-	activities, meta, err := svc.ListHostPastActivities(ctx, req.HostID, req.ListOptions)
+	activities, meta, err := svc.ListHostPastActivities(ctx, req.Identifier, req.ListOptions)
 	if err != nil {
 		return api_http.ListHostPastActivitiesResponse{Err: err}
 	}

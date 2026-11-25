@@ -809,6 +809,10 @@ type MDMHostData struct {
 	WipeAllowed          *bool `json:"wipe_allowed,omitempty" db:"-" csv:"-"`
 	LockAllowed          *bool `json:"lock_allowed,omitempty" db:"-" csv:"-"`
 	ClearPasscodeAllowed *bool `json:"clear_passcode_allowed,omitempty" db:"-" csv:"-"`
+
+	// UnlockPINAvailable is set for Android hosts only: true when the current enrollment has an
+	// acknowledged Fleet lock with a stored PIN. Only populated by getHostDetails.
+	UnlockPINAvailable *bool `json:"unlock_pin_available,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -1562,6 +1566,7 @@ var HostLinuxOSs = []string{
 	"cachyos",
 	"omarchy",
 	"amd-ryzen-ai-developer-platform",
+	"chainguard",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1578,6 +1583,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"coreos":      {},
 	"cachyos":     {},
 	"omarchy":     {},
+	"chainguard":  {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
@@ -1888,6 +1894,25 @@ func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) e
 	}
 	if !appCfg.MDM.AndroidEnabledAndConfigured {
 		return NewInvalidArgumentError("host_id", AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+	}
+	return nil
+}
+
+// ValidateWipeRequest returns the error for a wipe request refused because of the host's pending or completed lock,
+// unlock or wipe actions, or nil when the wipe can proceed. It covers the Android wipe paths outside ee; the ee
+// WipeHost uses checkHostCanBeWiped, which adds the Windows Reset cases, so keep the two in step.
+func (s *HostLockWipeStatus) ValidateWipeRequest() error {
+	switch {
+	case s.IsPendingLock():
+		return NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete.")
+	case s.IsPendingUnlock():
+		return NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete.")
+	case s.IsPendingWipe():
+		return NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online.")
+	case s.IsLocked():
+		return NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked.")
+	case s.IsWiped():
+		return NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict)
 	}
 	return nil
 }
@@ -2297,6 +2322,12 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostIDByIdentifierOptions sets which columns Datastore.HostIDByIdentifier matches besides hardware_serial, UUID and hostname.
+type HostIDByIdentifierOptions struct {
+	// MatchID tries a numeric identifier as a host ID first.
+	MatchID bool
 }
 
 // HostLite contains a subset of Host fields.

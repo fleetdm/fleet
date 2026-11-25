@@ -109,7 +109,7 @@ func (ds *Datastore) TeamLitesByIDs(ctx context.Context, ids []uint) ([]*fleet.T
 		}
 		noTeam := &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}
 		lites = append(lites, noTeam.ToTeamLite())
@@ -143,7 +143,7 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras boo
 		}
 		return &fleet.Team{
 			ID:     0,
-			Name:   fleet.ReservedNameNoTeam,
+			Name:   fleet.DisplayNameNoTeam,
 			Config: *config,
 		}, nil
 	}
@@ -224,9 +224,10 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 		return ctxerr.Wrapf(ctx, err, "preparing windows profiles for deletion for fleet %d", tid)
 	}
 
-	var activateAffectedHostIDs []uint
+	var activateAffectedHostIDs, teamLabelIDs []uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		activateAffectedHostIDs = nil // reset on retry
+		teamLabelIDs = nil
 
 		// Delete team policies first, because policies can have associated installers and scripts
 		// which may be deleted on cascade before deleting the policies (which are also deleted on cascade).
@@ -253,7 +254,6 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 
 		// Get labels that belong to this team.
 		getTeamLabelIDsStmt := `SELECT id FROM labels WHERE team_id = ?`
-		teamLabelIDs := []uint{}
 		if err := sqlx.SelectContext(ctx, tx, &teamLabelIDs, getTeamLabelIDsStmt, tid); err != nil {
 			return ctxerr.Wrapf(ctx, err, "load labels for team %d", tid)
 		}
@@ -334,6 +334,9 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 	})
 	if err != nil {
 		return err
+	}
+	if len(teamLabelIDs) > 0 {
+		ds.deleteLabelMembership(ctx, teamLabelIDs)
 	}
 	// The team is gone, so don't fail the delete over a host that won't activate. Those are logged, and the
 	// unblock cron retries them.

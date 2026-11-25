@@ -7,7 +7,7 @@ import (
 )
 
 type listHostAISessionsRequest struct {
-	ID          uint              `url:"id"`
+	Identifier  string            `url:"id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 	// OrderDirection is order_direction as sent, since the direction defaults to descending and ListOptions can't
 	// tell an unset direction from an explicit "asc".
@@ -31,10 +31,14 @@ func listHostAISessionsEndpoint(ctx context.Context, request any, svc fleet.Serv
 	if req.OrderDirection == "" {
 		opts.OrderDirection = fleet.OrderDescending
 	}
-	sessions, meta, err := svc.ListHostAISessions(ctx, req.ID, fleet.HostAISessionListOptions{
-		ListOptions: opts,
-		Agent:       req.Agent,
-		Category:    fleet.AISessionCategory(req.Category),
+	var meta *fleet.PaginationMetadata
+	sessions, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (sessions []*fleet.HostAISession, err error) {
+		sessions, meta, err = svc.ListHostAISessions(ctx, hostID, fleet.HostAISessionListOptions{
+			ListOptions: opts,
+			Agent:       req.Agent,
+			Category:    fleet.AISessionCategory(req.Category),
+		})
+		return sessions, err
 	})
 	if err != nil {
 		return listHostAISessionsResponse{Err: err}, nil
@@ -55,8 +59,8 @@ func (svc *Service) ListHostAISessions(ctx context.Context, hostID uint, opts fl
 }
 
 type getHostAISessionRequest struct {
-	ID          uint `url:"id"`
-	AISessionID uint `url:"ai_session_id"`
+	Identifier  string `url:"id"`
+	AISessionID uint   `url:"ai_session_id"`
 }
 
 type getHostAISessionResponse struct {
@@ -68,7 +72,9 @@ func (r getHostAISessionResponse) Error() error { return r.Err }
 
 func getHostAISessionEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostAISessionRequest)
-	session, err := svc.GetHostAISession(ctx, req.ID, req.AISessionID)
+	session, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (*fleet.HostAISession, error) {
+		return svc.GetHostAISession(ctx, hostID, req.AISessionID)
+	})
 	if err != nil {
 		return getHostAISessionResponse{Err: err}, nil
 	}
@@ -84,7 +90,7 @@ func (svc *Service) GetHostAISession(ctx context.Context, hostID, aiSessionID ui
 }
 
 type listHostAISessionEventsRequest struct {
-	ID          uint              `url:"id"`
+	Identifier  string            `url:"id"`
 	AISessionID uint              `url:"ai_session_id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 	Category    string            `query:"category,optional"`
@@ -101,9 +107,13 @@ func (r listHostAISessionEventsResponse) Error() error { return r.Err }
 
 func listHostAISessionEventsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostAISessionEventsRequest)
-	events, meta, err := svc.ListHostAISessionEvents(ctx, req.ID, req.AISessionID, fleet.HostAISessionEventListOptions{
-		ListOptions: req.ListOptions,
-		Category:    fleet.AISessionCategory(req.Category),
+	var meta *fleet.PaginationMetadata
+	events, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (events []*fleet.HostAISessionEvent, err error) {
+		events, meta, err = svc.ListHostAISessionEvents(ctx, hostID, req.AISessionID, fleet.HostAISessionEventListOptions{
+			ListOptions: req.ListOptions,
+			Category:    fleet.AISessionCategory(req.Category),
+		})
+		return events, err
 	})
 	if err != nil {
 		return listHostAISessionEventsResponse{Err: err}, nil

@@ -1,0 +1,1 @@
+- Removed the deprecated `labels` field from `POST /api/v1/fleet/configuration_profiles`. Use `labels_include_all` instead.

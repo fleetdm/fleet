@@ -732,7 +732,7 @@ func TestValidateIdentifier(t *testing.T) {
 				CAName:      "my-custom-ca",
 			}, nil
 		}
-		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 			assert.Equal(t, "valid-challenge", challenge)
 			return nil
 		}
@@ -765,7 +765,7 @@ func TestValidateIdentifier(t *testing.T) {
 				CAName:      "my-custom-ca",
 			}, nil
 		}
-		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 			return sql.ErrNoRows // Challenge not found
 		}
 		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
@@ -812,7 +812,7 @@ func TestValidateIdentifier(t *testing.T) {
 
 		t.Run("valid challenge is accepted and consumed", func(t *testing.T) {
 			ds := newDS()
-			ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+			ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 				assert.Equal(t, "valid-challenge", challenge)
 				return nil
 			}
@@ -834,7 +834,7 @@ func TestValidateIdentifier(t *testing.T) {
 		} {
 			t.Run(tc.name+" is rejected", func(t *testing.T) {
 				ds := newDS()
-				ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+				ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 					return sql.ErrNoRows // challenge not found
 				}
 				// Fleet turned this delivery away.
@@ -1170,7 +1170,7 @@ func TestValidateIdentifier(t *testing.T) {
 				CAName:                "android-ca",
 			}, nil
 		}
-		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 			assert.Equal(t, "valid-challenge", challenge)
 			return nil
 		}
@@ -1204,7 +1204,7 @@ func TestValidateIdentifier(t *testing.T) {
 				CAName:                "android-ca",
 			}, nil
 		}
-		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
 			return sql.ErrNoRows // Challenge not found/expired
 		}
 		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
@@ -1240,7 +1240,7 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.Contains(t, err.Error(), "getting Android certificate template")
 	})
 
-	t.Run("Android uses challenge from template when not in identifier", func(t *testing.T) {
+	t.Run("Android without a challenge in the identifier is rejected", func(t *testing.T) {
 		ds := new(mock.DataStore)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 			return &fleet.GroupedCertificateAuthorities{
@@ -1254,26 +1254,112 @@ func TestValidateIdentifier(t *testing.T) {
 			return &fleet.CertificateTemplateForHost{
 				HostUUID:              "host-uuid",
 				CertificateTemplateID: 1,
-				FleetChallenge:        ptr.String("template-challenge"), // Challenge from template
+				FleetChallenge:        new("template-challenge"),
 				Status:                &deliveredStatus,
 				CAType:                fleet.CAConfigCustomSCEPProxy,
 				CAName:                "android-ca",
 			}, nil
 		}
-		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string) error {
-			// Should use challenge from template since not provided in identifier
-			assert.Equal(t, "template-challenge", challenge)
+		// Only the challenge Fleet stored for the template would be accepted.
+		ds.ConsumeChallengeFunc = func(ctx context.Context, challenge string, scope fleet.ChallengeScope) error {
+			if challenge == "template-challenge" {
+				return nil
+			}
+			return sql.ErrNoRows
+		}
+		ds.ResendHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
 			return nil
 		}
 		svc := newTestService(ds)
 
-		// No challenge in identifier - should use one from template
 		identifier := makeIdentifier("host-uuid", "g1", "custom_scep_proxy", "")
-		scepURL, err := svc.validateIdentifier(ctx, identifier, true)
-		require.NoError(t, err)
-		assert.Equal(t, "https://scep.example.com/scep", scepURL)
-		assert.True(t, ds.ConsumeChallengeFuncInvoked)
-		ds.ConsumeChallengeFuncInvoked = false
+		_, err := svc.validateIdentifier(ctx, identifier, true)
+		require.ErrorContains(t, err, "custom scep challenge failed")
+	})
+
+	t.Run("Custom SCEP challenge is only accepted for the delivery it was created for", func(t *testing.T) {
+		const challenge = "valid-challenge"
+		for _, tc := range []struct {
+			name        string
+			profileUUID string
+			// identifierCA is the third field of the identifier: the CA name, or the CA type on Android.
+			identifierCA string
+			scope        fleet.ChallengeScope
+		}{
+			{
+				name: "Apple", profileUUID: "a-profile-uuid", identifierCA: "my-custom-ca",
+				scope: fleet.ChallengeScope{HostUUID: "host-uuid", ProfileUUID: "a-profile-uuid", CAName: "my-custom-ca"},
+			},
+			{
+				name: "Windows", profileUUID: "w-profile-uuid", identifierCA: "my-custom-ca",
+				scope: fleet.ChallengeScope{HostUUID: "host-uuid", ProfileUUID: "w-profile-uuid", CAName: "my-custom-ca"},
+			},
+			{
+				name: "Android", profileUUID: "g1", identifierCA: "custom_scep_proxy",
+				scope: fleet.ChallengeScope{HostUUID: "host-uuid", ProfileUUID: "g1"},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				newDS := func() *mock.DataStore {
+					ds := new(mock.DataStore)
+					ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+						return &fleet.GroupedCertificateAuthorities{
+							CustomScepProxy: []fleet.CustomSCEPProxyCA{
+								{Name: "my-custom-ca", URL: "https://custom-scep.example.com/scep"},
+								{Name: "other-ca", URL: "https://other-scep.example.com/scep"},
+							},
+						}, nil
+					}
+					pendingStatus := fleet.MDMDeliveryPending
+					getProfile := func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+						return &fleet.HostMDMCertificateProfile{
+							HostUUID:    hostUUID,
+							ProfileUUID: profileUUID,
+							Status:      &pendingStatus,
+							Type:        fleet.CAConfigCustomSCEPProxy,
+							CAName:      caName,
+						}, nil
+					}
+					ds.GetAppleHostMDMCertificateProfileFunc = getProfile
+					ds.GetWindowsHostMDMCertificateProfileFunc = getProfile
+					deliveredStatus := fleet.CertificateTemplateDelivered
+					ds.GetCertificateTemplateForHostFunc = func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.CertificateTemplateForHost, error) {
+						return &fleet.CertificateTemplateForHost{
+							HostUUID:              hostUUID,
+							CertificateTemplateID: certificateTemplateID,
+							Status:                &deliveredStatus,
+							CAType:                fleet.CAConfigCustomSCEPProxy,
+							CAName:                "my-custom-ca",
+						}, nil
+					}
+					// Stands in for the datastore, which only knows the challenge for the scope it was created with.
+					ds.ConsumeChallengeFunc = func(ctx context.Context, got string, scope fleet.ChallengeScope) error {
+						if got == challenge && scope == tc.scope {
+							return nil
+						}
+						return sql.ErrNoRows
+					}
+					resend := func(ctx context.Context, hostUUID, profileUUID string) error { return nil }
+					ds.ResendHostCertificateProfileFunc = resend
+					ds.ResendWindowsHostCertificateProfileFunc = resend
+					return ds
+				}
+
+				_, err := newTestService(newDS()).validateIdentifier(ctx,
+					makeIdentifier("host-uuid", tc.profileUUID, tc.identifierCA, challenge), true)
+				require.NoError(t, err)
+
+				_, err = newTestService(newDS()).validateIdentifier(ctx,
+					makeIdentifier("other-host-uuid", tc.profileUUID, tc.identifierCA, challenge), true)
+				require.ErrorContains(t, err, "custom scep challenge failed")
+
+				if tc.scope.CAName != "" {
+					_, err = newTestService(newDS()).validateIdentifier(ctx,
+						makeIdentifier("host-uuid", tc.profileUUID, "other-ca", challenge), true)
+					require.ErrorContains(t, err, "custom scep challenge failed")
+				}
+			})
+		}
 	})
 }
 
@@ -1470,7 +1556,7 @@ func TestSCEPProxyRecordsWindowsFailure(t *testing.T) {
 
 	t.Run("PKIOperation on a Windows profile records the failure", func(t *testing.T) {
 		ds := newDS(failingCA.URL)
-		ds.ConsumeChallengeFunc = func(context.Context, string) error { return nil }
+		ds.ConsumeChallengeFunc = func(context.Context, string, fleet.ChallengeScope) error { return nil }
 		var gotDetail string
 		gotOnlyIfVerifying := true
 		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, _, _, detail string, onlyIfVerifying bool) (bool, bool, error) {

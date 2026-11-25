@@ -255,6 +255,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, &clr)
 
 	lbl1Name := clr.Label.Name
+	lbl1ID := clr.Label.ID
 
 	clr = fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
@@ -264,6 +265,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}, http.StatusOK, &clr)
 
 	lbl2Name := clr.Label.Name
+	lbl2ID := clr.Label.ID
 
 	var addAppResp addAppStoreAppResponse
 	addAppReq := &addAppStoreAppRequest{
@@ -324,9 +326,10 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	    "fleet_id": %d,
 		"self_service": false,
 		"software_title_id": %d,
-		"software_display_name": "%s"
+		"software_display_name": "%s",
+		"labels_include_any": [{"id": %d, "name": "%s"}, {"id": %d, "name": "%s"}]
 	}`,
-		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
+		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName, lbl1ID, lbl1Name, lbl2ID, lbl2Name)
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, activityData, tok), 0)
 
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}

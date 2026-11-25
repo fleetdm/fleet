@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"math/big"
 	"slices"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +33,7 @@ func TestCertificateAuthority(t *testing.T) {
 		{"Delete", testDeleteCertificateAuthority},
 		{"UpdateCertificateAuthorityByID", testUpdateCertificateAuthorityByID},
 		{"EditResendsProfiles", testEditResendsProfiles},
-		{"EJBCANamesAreUnique", testEJBCANamesAreUnique},
+		{"CANamesAreUnique", testCANamesAreUnique},
 	}
 
 	for _, c := range cases {
@@ -374,7 +374,7 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 
 		// Try to create the same CA again, it should return an error
 		_, err = ds.NewCertificateAuthority(ctx, ca)
-		require.ErrorAs(t, err, &fleet.ConflictError{})
+		require.ErrorAs(t, err, new(fleet.AlreadyExistsError))
 
 		// Get the CA and ensure it matches with and without secrets
 		retrievedCA, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
@@ -888,7 +888,9 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 		current, err := ds.GetCertificateAuthorityByID(ctx, id, true)
 		require.NoError(t, err)
 		mod(current)
-		return ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{current}})
+		_, err = ds.BatchApplyCertificateAuthorities(ctx,
+			fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{current}})
+		return err
 	}
 	cases := []struct {
 		name string
@@ -973,8 +975,9 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			digiCert.CertificateSeatID = new("batch-seat")
 			ejbca.EJBCAUsernameTemplate = new("batch-user")
-			return ds.BatchApplyCertificateAuthorities(ctx,
+			_, err = ds.BatchApplyCertificateAuthorities(ctx,
 				fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert, ejbca}})
+			return err
 		}, wantResend: true, wantEJBCAResend: true},
 		// The name column ignores case, so the CA is the same one, and the profiles that use the new spelling are resent for the changed field.
 		{name: "EJBCA GitOps edit that changes the case of the name and the common name", edit: func() error {
@@ -1013,9 +1016,9 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 	}
 }
 
-// testEJBCANamesAreUnique checks that the name of an EJBCA CA can't be shared with a CA of any other type, however the CAs are written,
-// and that CAs of the other types that already share a name are not affected.
-func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
+// testCANamesAreUnique checks that a CA can't share its name with another CA of any type, however the CAs are written, and that CAs that
+// shared a name from before names had to be unique can't be written until one of them is renamed.
+func testCANamesAreUnique(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	scepCA := func(name string) *fleet.CertificateAuthority {
 		return &fleet.CertificateAuthority{
@@ -1023,9 +1026,8 @@ func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
 		}
 	}
 	inUse := func(t *testing.T, err error, name string) {
-		nameInUse, ok := errors.AsType[fleet.EJBCANameInUseError](err)
-		require.True(t, ok, "got %v", err)
-		require.Equal(t, name, nameInUse.Name)
+		require.ErrorAs(t, err, new(fleet.AlreadyExistsError))
+		require.ErrorContains(t, err, `CertificateAuthority "`+name+`" already exists`)
 	}
 	names := func() []string {
 		cas, err := ds.ListCertificateAuthorities(ctx)
@@ -1037,60 +1039,140 @@ func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
 		return res
 	}
 
-	// CAs of other types may keep sharing a name, which the unique index on type and name allows, and a batch that keeps the name is fine.
-	digiCert := newDigiCertCA(t, ds, "shared", "cn", "seat", nil)
-	_, err := ds.NewCertificateAuthority(ctx, scepCA("shared"))
-	require.NoError(t, err)
-	digiCert, err = ds.GetCertificateAuthorityByID(ctx, digiCert.ID, true)
-	require.NoError(t, err)
-	digiCert.CertificateSeatID = new("batch-seat")
-	require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert}}))
-
+	newDigiCertCA(t, ds, "digicert", "cn", "seat", nil)
 	ejbca := newEJBCACA(t, ds, "ejbca", "cn", nil, nil)
-	unchanged := []string{"digicert:shared", "custom_scep_proxy:shared", "ejbca:ejbca"}
+	scep, err := ds.NewCertificateAuthority(ctx, scepCA("scep"))
+	require.NoError(t, err)
+	unchanged := []string{"digicert:digicert", "ejbca:ejbca", "custom_scep_proxy:scep"}
 
 	t.Run("create", func(t *testing.T) {
-		// An EJBCA CA can't take a name another CA has, and no other CA can take the name of an EJBCA CA.
-		_, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-			Type: string(fleet.CATypeEJBCA), Name: new("shared"), URL: new("https://ejbca.example.com"),
-		})
-		inUse(t, err, "shared")
-		_, err = ds.NewCertificateAuthority(ctx, scepCA("ejbca"))
-		inUse(t, err, "ejbca")
 		// The names are compared without regard to case, like the column is.
-		_, err = ds.NewCertificateAuthority(ctx, scepCA("EJBCA"))
-		inUse(t, err, "ejbca")
+		_, err := ds.NewCertificateAuthority(ctx, scepCA("DIGICERT"))
+		inUse(t, err, "DIGICERT")
+		_, err = ds.NewCertificateAuthority(ctx, scepCA("Scep"))
+		inUse(t, err, "Scep")
 		require.ElementsMatch(t, unchanged, names())
 	})
 
 	t.Run("rename", func(t *testing.T) {
-		err := ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("shared")})
-		inUse(t, err, "shared")
-		err = ds.UpdateCertificateAuthorityByID(ctx, digiCert.ID, &fleet.CertificateAuthority{Type: digiCert.Type, Name: new("ejbca")})
-		inUse(t, err, "ejbca")
+		err := ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("SCEP")})
+		inUse(t, err, "SCEP")
 		require.ElementsMatch(t, unchanged, names())
 
 		// A name nobody has is fine.
-		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("renamed")}))
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, scep.ID, &fleet.CertificateAuthority{Type: scep.Type, Name: new("renamed")}))
+		unchanged = []string{"digicert:digicert", "ejbca:ejbca", "custom_scep_proxy:renamed"}
+		require.ElementsMatch(t, unchanged, names())
 	})
 
 	t.Run("batch apply", func(t *testing.T) {
 		ejbca, err := ds.GetCertificateAuthorityByID(ctx, ejbca.ID, true)
 		require.NoError(t, err)
-		before := names()
 
-		// A new CA with an EJBCA name is rejected, and the whole batch rolls back.
-		err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
-			Add: []*fleet.CertificateAuthority{scepCA("fresh"), scepCA(*ejbca.Name)},
+		// A new CA with a taken name is rejected, and the whole batch rolls back.
+		_, err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{scepCA("fresh"), scepCA("DigiCert")},
 		})
-		inUse(t, err, *ejbca.Name)
-		require.ElementsMatch(t, before, names())
+		inUse(t, err, "DigiCert")
+		require.ElementsMatch(t, unchanged, names())
 
-		// A CA of another type can replace the EJBCA CA of the same name in one batch, since the old one is deleted in it.
-		require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+		// A CA of another type can replace the CA of the same name in one batch, since the old one is deleted in it.
+		_, err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
 			Add: []*fleet.CertificateAuthority{scepCA(*ejbca.Name)}, Delete: []*fleet.CertificateAuthority{ejbca},
+		})
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"digicert:digicert", "custom_scep_proxy:renamed", "custom_scep_proxy:ejbca"}, names())
+	})
+
+	t.Run("replace a CA used by certificate templates", func(t *testing.T) {
+		used, err := ds.NewCertificateAuthority(ctx, scepCA("used"))
+		require.NoError(t, err)
+		other, err := ds.NewCertificateAuthority(ctx, scepCA("other"))
+		require.NoError(t, err)
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "ca names team"})
+		require.NoError(t, err)
+		newTemplate := func(ca *fleet.CertificateAuthority) *fleet.CertificateTemplateResponse {
+			template, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+				Name: *ca.Name, TeamID: team.ID, CertificateAuthorityID: ca.ID, SubjectName: "CN=" + *ca.Name,
+			})
+			require.NoError(t, err)
+			return template
+		}
+		usedTemplate, otherTemplate := newTemplate(used), newTemplate(other)
+		require.NoError(t, ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+			{HostUUID: "installed", CertificateTemplateID: usedTemplate.ID, Status: fleet.CertificateTemplateVerified,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "used"},
+			{HostUUID: "pending", CertificateTemplateID: usedTemplate.ID, Status: fleet.CertificateTemplatePending,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "used"},
+			{HostUUID: "installed", CertificateTemplateID: otherTemplate.ID, Status: fleet.CertificateTemplateVerified,
+				OperationType: fleet.MDMOperationTypeInstall, Name: "other"},
 		}))
-		require.ElementsMatch(t, []string{"digicert:shared", "custom_scep_proxy:shared", "custom_scep_proxy:" + *ejbca.Name}, names())
+		replacement := fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{{
+				Type: string(fleet.CATypeHydrant), Name: new("used"), URL: new("https://hydrant.example.com"), ClientID: new("id"),
+				ClientSecret: new("secret"),
+			}},
+			Delete: []*fleet.CertificateAuthority{used},
+		}
+
+		// The templates keep the CA from being deleted, unless they are deleted with it.
+		_, err = ds.BatchApplyCertificateAuthorities(ctx, replacement)
+		require.ErrorContains(t, err, fleet.DeleteCAReferencedByTemplatesErrMsg)
+		replacement.DeleteCertificateTemplates = true
+		templateFleetIDs, err := ds.BatchApplyCertificateAuthorities(ctx, replacement)
+		require.NoError(t, err)
+		require.Equal(t, []uint{team.ID}, templateFleetIDs)
+		require.Subset(t, names(), []string{"hydrant:used", "custom_scep_proxy:other"})
+		require.NotContains(t, names(), "custom_scep_proxy:used")
+
+		// Only the template of the deleted CA is gone, and hosts remove the certificate they got from it, like when a template is deleted.
+		templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, templates, 1)
+		require.Equal(t, otherTemplate.ID, templates[0].ID)
+		installed, err := ds.GetHostCertificateTemplateRecord(ctx, "installed", usedTemplate.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, installed.Status)
+		require.Equal(t, fleet.MDMOperationTypeRemove, installed.OperationType)
+		_, err = ds.GetHostCertificateTemplateRecord(ctx, "pending", usedTemplate.ID)
+		require.True(t, fleet.IsNotFound(err), "got %v", err)
+		otherInstalled, err := ds.GetHostCertificateTemplateRecord(ctx, "installed", otherTemplate.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateVerified, otherInstalled.Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, otherInstalled.OperationType)
+	})
+
+	t.Run("legacy shared name", func(t *testing.T) {
+		// Names didn't have to be unique across types before, so a DB can have CAs that share one.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO certificate_authorities (type, name, url) VALUES (?, 'legacy', 'https://a.example.com'),
+				(?, 'LEGACY', 'https://b.example.com')`, fleet.CATypeCustomSCEPProxy, fleet.CATypeHydrant)
+			return err
+		})
+		var legacyIDs []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &legacyIDs, `SELECT id FROM certificate_authorities WHERE name = 'legacy' ORDER BY id`)
+		})
+		require.Len(t, legacyIDs, 2)
+		scepID, hydrantID := legacyIDs[0], legacyIDs[1]
+
+		// Editing either one fails, even without changing the name.
+		err := ds.UpdateCertificateAuthorityByID(ctx, scepID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeCustomSCEPProxy), URL: new("https://c.example.com")})
+		inUse(t, err, "legacy")
+		legacySCEP, err := ds.GetCertificateAuthorityByID(ctx, scepID, true)
+		require.NoError(t, err)
+		require.Equal(t, "https://a.example.com", *legacySCEP.URL)
+		legacySCEP.URL = new("https://c.example.com")
+		_, err = ds.BatchApplyCertificateAuthorities(ctx,
+			fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{legacySCEP}})
+		inUse(t, err, "legacy")
+
+		// Renaming one of them fixes it, and then the other can be edited.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, hydrantID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeHydrant), Name: new("legacy_hydrant")}))
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, scepID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeCustomSCEPProxy), URL: new("https://c.example.com")}))
 	})
 }
 

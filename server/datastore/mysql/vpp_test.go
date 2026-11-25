@@ -1257,14 +1257,14 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, upTok.Teams, 1)
 	assert.Equal(t, tokID, upTok.ID)
 	assert.Equal(t, uint(0), upTok.Teams[0].ID)
-	assert.Equal(t, fleet.TeamNameNoTeam, upTok.Teams[0].Name)
+	assert.Equal(t, fleet.DisplayNameNoTeam, upTok.Teams[0].Name)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
 	assert.NoError(t, err)
 	assert.Len(t, tok.Teams, 1)
 	assert.Equal(t, tokID, tok.ID)
 	assert.Equal(t, uint(0), tok.Teams[0].ID)
-	assert.Equal(t, fleet.TeamNameNoTeam, tok.Teams[0].Name)
+	assert.Equal(t, fleet.DisplayNameNoTeam, tok.Teams[0].Name)
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -1272,7 +1272,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Len(t, toks[0].Teams, 1)
 	assert.Equal(t, tokID, toks[0].ID)
 	assert.Equal(t, uint(0), toks[0].Teams[0].ID)
-	assert.Equal(t, fleet.TeamNameNoTeam, toks[0].Teams[0].Name)
+	assert.Equal(t, fleet.DisplayNameNoTeam, toks[0].Teams[0].Name)
 
 	teamTok, err = ds.GetVPPTokenByTeamID(ctx, nil)
 	assert.NoError(t, err)
@@ -1283,7 +1283,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, location, teamTok.Location)
 	assert.Len(t, teamTok.Teams, 1)
 	assert.Equal(t, uint(0), teamTok.Teams[0].ID)
-	assert.Equal(t, fleet.TeamNameNoTeam, teamTok.Teams[0].Name)
+	assert.Equal(t, fleet.DisplayNameNoTeam, teamTok.Teams[0].Name)
 
 	_, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
 	assert.Error(t, err)
@@ -1511,7 +1511,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, tokTeams.Teams, 2)
 	assert.Contains(t, tokTeams.Teams, fleet.TeamTuple{ID: team2.ID, Name: team2.Name})
-	assert.Contains(t, tokTeams.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
+	assert.Contains(t, tokTeams.Teams, fleet.TeamTuple{ID: 0, Name: fleet.DisplayNameNoTeam})
 
 	// add an app with an automation to no team
 	noTeamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -1618,7 +1618,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, tokTeam2.ID, tokTeam2.ID)
 	assert.Len(t, tokTeam2.Teams, 2)
 	assert.Contains(t, tokTeam2.Teams, fleet.TeamTuple{ID: team2.ID, Name: team2.Name})
-	assert.Contains(t, tokTeam2.Teams, fleet.TeamTuple{ID: 0, Name: fleet.TeamNameNoTeam})
+	assert.Contains(t, tokTeam2.Teams, fleet.TeamTuple{ID: 0, Name: fleet.DisplayNameNoTeam})
 
 	////
 
@@ -1695,7 +1695,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	// duplicate IDs are stored once, including repeated "No fleet"
 	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{team.ID, team.ID, 0, 0})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []fleet.TeamTuple{{ID: team.ID, Name: team.Name}, {ID: 0, Name: fleet.TeamNameNoTeam}}, upTok.Teams)
+	require.ElementsMatch(t, []fleet.TeamTuple{{ID: team.ID, Name: team.Name}, {ID: 0, Name: fleet.DisplayNameNoTeam}}, upTok.Teams)
 	var rows int
 	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &rows, `SELECT COUNT(*) FROM vpp_token_teams WHERE vpp_token_id = ?`, tokNone.ID))
 	assert.Equal(t, 2, rows)

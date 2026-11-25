@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanomdm_mdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -636,6 +637,93 @@ func TestClearPasscode(t *testing.T) {
 	})
 }
 
+type clearPasscodeAndroidModule struct {
+	android.Service
+	clearedHostIDs []uint
+}
+
+func (m *clearPasscodeAndroidModule) ClearAndroidPasscode(_ context.Context, hostID uint) (string, error) {
+	m.clearedHostIDs = append(m.clearedHostIDs, hostID)
+	return "reset-password-uuid", nil
+}
+
+func TestClearPasscodeAndroidLockWipeStatus(t *testing.T) {
+	t.Parallel()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	cases := []struct {
+		name    string
+		status  fleet.HostLockWipeStatus
+		wantErr string
+	}{
+		{
+			name:    "pending wipe is refused",
+			status:  fleet.HostLockWipeStatus{WipeMDMCommand: &fleet.MDMCommand{CommandUUID: "wipe-uuid", RequestType: "WIPE"}},
+			wantErr: "Host has pending wipe request. Cannot process clear passcode requests once host is wiped.",
+		},
+		{
+			name: "acknowledged wipe does not block",
+			status: fleet.HostLockWipeStatus{
+				WipeMDMCommand:       &fleet.MDMCommand{CommandUUID: "wipe-uuid", RequestType: "WIPE"},
+				WipeMDMCommandResult: &fleet.MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged)},
+			},
+		},
+		{
+			name: "no pending action",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.HostLiteFunc = func(_ context.Context, hostID uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: hostID, UUID: "android-uuid", Platform: "android"}, nil
+			}
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+			}
+			ds.IsHostConnectedToFleetMDMFunc = func(_ context.Context, _ *fleet.Host) (bool, error) {
+				return true, nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(_ context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				require.Equal(t, uint(1), h.ID)
+				status := tc.status
+				status.HostFleetPlatform = "android"
+				return &status, nil
+			}
+
+			var activities []fleet.ActivityDetails
+			baseSvc := &mocksvc.Service{
+				NewActivityFunc: func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+					activities = append(activities, act)
+					return nil
+				},
+			}
+			androidModule := &clearPasscodeAndroidModule{}
+			svc := Service{ds: ds, authz: authorizer, androidModule: androidModule, Service: baseSvc}
+
+			ctx := test.UserContext(t.Context(), test.UserAdmin)
+			res, err := svc.ClearPasscode(ctx, 1)
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.wantErr)
+				var invalidArgErr *fleet.InvalidArgumentError
+				require.ErrorAs(t, err, &invalidArgErr)
+				assert.Empty(t, androidModule.clearedHostIDs, "nothing should be sent to AMAPI")
+				assert.Empty(t, activities, "no cleared_passcode activity should be created")
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, "reset-password-uuid", res.CommandUUID)
+			assert.Equal(t, []uint{1}, androidModule.clearedHostIDs)
+			require.Len(t, activities, 1)
+			assert.IsType(t, fleet.ActivityTypeClearedPasscode{}, activities[0])
+		})
+	}
+}
+
 func TestCancelHostMDMCommand(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -1158,14 +1246,11 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 	t.Parallel()
 
 	abmToken := func(orgName string, isDefault bool, macOSTeam string) *fleet.ABMToken {
-		return &fleet.ABMToken{
-			OrganizationName: orgName,
-			IsDefault:        isDefault,
-			MacOSTeam:        fleet.ABMTokenTeam{Name: macOSTeam},
-			IOSTeam:          fleet.ABMTokenTeam{Name: macOSTeam},
-			IPadOSTeam:       fleet.ABMTokenTeam{Name: macOSTeam},
-			BYODTeam:         fleet.ABMTokenTeam{Name: macOSTeam},
+		tm := fleet.ABMTokenTeam{Name: macOSTeam, ID: 1}
+		if macOSTeam == fleet.DisplayNameNoTeam {
+			tm.ID = 0
 		}
+		return &fleet.ABMToken{OrganizationName: orgName, IsDefault: isDefault, MacOSTeam: tm, IOSTeam: tm, IPadOSTeam: tm, BYODTeam: tm}
 	}
 	abmEntry := func(orgName string, isDefault bool, teamName string) fleet.MDMAppleABMAssignmentInfo {
 		return fleet.MDMAppleABMAssignmentInfo{
@@ -1187,8 +1272,18 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 	}{
 		{
 			name:    "creates entry when app config was never set",
-			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.DisplayNameNoTeam)},
 			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
+			wantSet: true,
+		},
+		{
+			name: "keeps a fleet named Unassigned",
+			tokens: []*fleet.ABMToken{{
+				OrganizationName: "org1", MacOSTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam, ID: 5},
+				IOSTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam}, IPadOSTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+				BYODTeam: fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			}},
+			want:    []fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "org1", MacOSTeam: fleet.DisplayNameNoTeam}},
 			wantSet: true,
 		},
 		{
@@ -1219,7 +1314,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 			appCfg: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
 				abmEntry("org1", true, "Workstations"),
 			}),
-			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.TeamNameNoTeam)},
+			tokens:  []*fleet.ABMToken{abmToken("org1", true, fleet.DisplayNameNoTeam)},
 			want:    []fleet.MDMAppleABMAssignmentInfo{abmEntry("org1", true, "")},
 			wantSet: true,
 		},
@@ -1241,7 +1336,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 			tokens: []*fleet.ABMToken{
 				abmToken("org1", false, "Workstations"),
 				abmToken("org2", true, "Servers"),
-				abmToken("org3", false, fleet.TeamNameNoTeam),
+				abmToken("org3", false, fleet.DisplayNameNoTeam),
 			},
 			want: []fleet.MDMAppleABMAssignmentInfo{
 				abmEntry("org1", false, "Workstations"),
@@ -1294,7 +1389,7 @@ func TestSyncABMTokensToAppConfig(t *testing.T) {
 		appCfg := &fleet.AppConfig{}
 		tokens := []*fleet.ABMToken{
 			abmToken("org1", true, "Workstations"),
-			abmToken("org2", false, fleet.TeamNameNoTeam),
+			abmToken("org2", false, fleet.DisplayNameNoTeam),
 		}
 
 		syncABMTokensToAppConfig(appCfg, tokens)
@@ -1351,10 +1446,10 @@ func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
 			ID:               2,
 			OrganizationName: "org2",
 			IsDefault:        true, // the datastore promoted it inside the delete tx
-			MacOSTeam:        fleet.ABMTokenTeam{Name: "Workstations"},
-			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
-			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
-			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam},
+			MacOSTeam:        fleet.ABMTokenTeam{Name: "Workstations", ID: 1},
+			IOSTeam:          fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			IPadOSTeam:       fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
+			BYODTeam:         fleet.ABMTokenTeam{Name: fleet.DisplayNameNoTeam},
 		}}
 		ds, svc, saved := setupDeleteTest(t, entries, remaining)
 

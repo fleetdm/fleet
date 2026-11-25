@@ -134,8 +134,6 @@ const SaveNewPolicyModal = ({
       ({
         id: -1,
         fleet_id: policyTeamId ?? null,
-        calendar_events_enabled: false,
-        conditional_access_enabled: false,
         continuous_automations_enabled: false,
       } as IPolicy),
     [policyTeamId]

@@ -28,10 +28,10 @@ certificate_authorities:
       certificate_profile_name: some-ejbca-certificate-profile-name
       certificate_user_principal_names:
         - some-ejbca-certificate-user-principal-name
-      client_p12: ___GITOPS_COMMENT_1___
+      client_p12: ___GITOPS_COMMENT_5___
       end_entity_profile_name: some-ejbca-end-entity-profile-name
       name: some-ejbca-name
-      password: ___GITOPS_COMMENT_2___
+      password: ___GITOPS_COMMENT_6___
       trust_ca_bundle: |
         -----BEGIN CERTIFICATE-----
         some-ejbca-trust-bundle
@@ -85,27 +85,25 @@ integrations:
   certificates_idp_introspection_urls:
   conditional_access_enabled: true
   google_calendar:
-    - api_key_json:
-        owl: hoot
+    - api_key_json: ___GITOPS_COMMENT_0___
       domain: fleetdm.com
   google_conditional_access:
     admin_email: admin@fleetdm.com
-    api_key_json: ___GITOPS_COMMENT_0___
+    api_key_json: ___GITOPS_COMMENT_4___
     customer_id: C02cajzvg
   google_workspace:
-    - api_key_json:
-        owl: hoot
+    - api_key_json: ___GITOPS_COMMENT_3___
       domain: fleetdm.com
       impersonated_user_email: admin@fleetdm.com
   jira:
-    - api_token: some-jira-api-token
+    - api_token: ___GITOPS_COMMENT_1___
       enable_failing_policies: false
       enable_software_vulnerabilities: false
       project_key: some-jira-project-key
       url: https://some-jira-url.com
       username: some-jira-username
   zendesk:
-    - api_token: some-zendesk-api-token
+    - api_token: ___GITOPS_COMMENT_2___
       email: some-zendesk-email@example.com
       enable_failing_policies: false
       enable_software_vulnerabilities: false

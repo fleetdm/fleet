@@ -2317,19 +2317,41 @@ describe("Activity Feed", () => {
       screen.getByText("deleted multiple reports", { exact: false })
     ).toBeInTheDocument();
   });
-  // test for wipe activity
-  it("renders a 'wiped_host' type activity for a team", () => {
+  it.each([
+    [ActivityType.WipedHost, "wiped"],
+    [ActivityType.ResetHost, "reset"],
+    [ActivityType.FailedReset, "Reset failed on"],
+  ])("renders a '%s' type activity", (type, verb) => {
     const activity = createMockActivity({
-      type: ActivityType.WipedHost,
+      type,
       details: {
         host_display_name: "Foo Host",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    expect(screen.getByText("wiped", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(verb, { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
   });
+
+  it.each([ActivityType.FailedWipe, ActivityType.FailedReset])(
+    "renders a '%s' type activity without the Fleet actor",
+    (type) => {
+      const activity = createMockActivity({
+        type,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "Foo Host",
+        },
+      });
+      render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+      expect(screen.queryByText("Fleet")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("failed on", { exact: false })
+      ).toBeInTheDocument();
+    }
+  );
 
   it("renders a 'deleted_host' type activity for manual deletion", () => {
     const activity = createMockActivity({
@@ -3830,5 +3852,22 @@ describe("opt-in configuration profile activities", () => {
       expect(container).toHaveTextContent("to Monday and Friday at 17:00.");
       expect(container).not.toHaveTextContent("Fooday");
     });
+  });
+});
+
+describe("viewed_host_unlock_pin activity", () => {
+  it("renders the actor and the host display name", () => {
+    const activity = createMockActivity({
+      type: ActivityType.ViewedHostUnlockPin,
+      actor_full_name: "Test User",
+      details: { host_display_name: "Test Samsung" },
+    });
+    const { container } = render(
+      <GlobalActivityItem activity={activity} isPremiumTier />
+    );
+
+    expect(container).toHaveTextContent(
+      "Test User viewed the unlock PIN for Test Samsung."
+    );
   });
 });

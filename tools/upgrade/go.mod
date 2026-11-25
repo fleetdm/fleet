@@ -141,8 +141,8 @@ require (
 	github.com/moby/moby/api v1.55.0 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nats-io/nats.go v1.49.0 // indirect
-	github.com/nats-io/nkeys v0.4.15 // indirect
+	github.com/nats-io/nats.go v1.51.0 // indirect
+	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/ngrok/sqlmw v0.0.0-20211220175533-9d16fdc47b31 // indirect
 	github.com/nukosuke/go-zendesk v0.13.1 // indirect

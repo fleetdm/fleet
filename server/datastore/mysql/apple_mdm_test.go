@@ -128,6 +128,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostEnrolledSerial", testMDMAppleUpsertHostEnrolledSerial},
 		{"NewAppleSCEPChallengeEnrolledSerial", testNewAppleSCEPChallengeEnrolledSerial},
 		{"GetAppleSerialEnrolledUnderAnotherUUID", testGetAppleSerialEnrolledUnderAnotherUUID},
+		{"GetAppleAccountDrivenEnrollmentIDTaken", testGetAppleAccountDrivenEnrollmentIDTaken},
 		{"MDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange", testMDMAppleUpsertHostPersonalEnrollmentClearsStaleVitalsUUIDChange},
 		{"MDMAppleUpsertHostEnrollmentTypeOnReenrollment", testMDMAppleUpsertHostEnrollmentTypeOnReenrollment},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
@@ -168,6 +169,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestSetLockCommandForLostModeCheckin", testSetLockCommandForLostModeCheckin},
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
+		{"TestDEPAssignProfileThrottledRetryAfter", testDEPAssignProfileThrottledRetryAfter},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
 		{"DeleteMDMAppleConfigProfileWithPolicyAutomation", testDeleteMDMAppleConfigProfileWithPolicyAutomation},
 		{"BatchSetMDMAppleDeclarationsCaseChange", testBatchSetMDMAppleDeclarationsCaseChange},
@@ -4638,16 +4640,6 @@ func testMDMAppleEnrollmentProfile(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, profMan.ID)
-
-	profs, err := ds.ListMDMAppleEnrollmentProfiles(ctx)
-	require.NoError(t, err)
-	require.Len(t, profs, 2)
-
-	tokens := make([]string, 2)
-	for i, p := range profs {
-		tokens[i] = p.Token
-	}
-	require.ElementsMatch(t, []string{"abcd", "efgh"}, tokens)
 
 	// get the automatic profile by type
 	getProf, err := ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
@@ -9862,10 +9854,10 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tok.EncryptedToken))
 	require.Empty(t, tok.OrganizationName)
 	require.Empty(t, tok.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tok.BYODTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.IPadOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tok.BYODTeamName)
 
 	// update the token with a name and teams
 	tok.OrganizationName = "org-name"
@@ -9889,8 +9881,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
 	require.Equal(t, tm2.ID, tokReload.IOSTeam.ID)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.IPadOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.IPadOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.IPadOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.IPadOSTeam.ID)
 	require.Equal(t, tm4.Name, tokReload.BYODTeamName)
 	require.Equal(t, tm4.Name, tokReload.BYODTeam.Name)
@@ -9913,8 +9905,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm3.Name, tokReload.IPadOSTeamName)
@@ -9932,8 +9924,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	require.Equal(t, encTok2, string(tokReload.EncryptedToken))
 	require.Equal(t, "org-name", tokReload.OrganizationName)
 	require.Equal(t, "name@example.com", tokReload.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, tokReload.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, tokReload.MacOSTeam.Name)
 	require.Equal(t, uint(0), tokReload.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, tokReload.IOSTeamName)
 	require.Equal(t, tm2.Name, tokReload.IOSTeam.Name)
@@ -9954,8 +9946,8 @@ func testMDMAppleGetAndUpdateABMToken(t *testing.T, ds *Datastore) {
 	expTok := toks[0]
 	require.Equal(t, "org-name", expTok.OrganizationName)
 	require.Equal(t, "name@example.com", expTok.AppleID)
-	require.Equal(t, fleet.TeamNameNoTeam, expTok.MacOSTeamName)
-	require.Equal(t, fleet.TeamNameNoTeam, expTok.MacOSTeam.Name)
+	require.Equal(t, fleet.DisplayNameNoTeam, expTok.MacOSTeamName)
+	require.Equal(t, fleet.DisplayNameNoTeam, expTok.MacOSTeam.Name)
 	require.Equal(t, uint(0), expTok.MacOSTeam.ID)
 	require.Equal(t, tm2.Name, expTok.IOSTeamName)
 	require.Equal(t, tm3.Name, expTok.IPadOSTeamName)
@@ -12425,6 +12417,94 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	}
 	require.Len(t, allSerials, apple_mdm.DEPSyncLimit, "limit process cooldowns to sync limit")
 	require.LessOrEqual(t, len(allSerials), 1000, "never go above 1000 devices as per Apple's recommendations")
+}
+
+func testDEPAssignProfileThrottledRetryAfter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "org", EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(24 * time.Hour)})
+	require.NoError(t, err)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "throttled", OsqueryHostID: new("throttled"), NodeKey: new("throttled"),
+		UUID: "throttled-uuid", HardwareSerial: "throttled-serial", Platform: "darwin",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmToken.ID, make(map[uint]time.Time)))
+
+	respond := func(status fleet.DEPAssignProfileResponseStatus, retryAfterSeconds int) {
+		require.NoError(t, ds.UpdateHostDEPAssignProfileResponses(ctx, &godep.ProfileResponse{
+			ProfileUUID:       "profile",
+			Devices:           map[string]string{host.HardwareSerial: string(status)},
+			RetryAfterSeconds: retryAfterSeconds,
+		}, abmToken.ID))
+	}
+	retryAfter := func() *time.Time {
+		a, err := ds.GetHostDEPAssignment(ctx, host.ID)
+		require.NoError(t, err)
+		return a.ThrottledRetryAfter
+	}
+	// ageResponse moves the stored times back as if the response arrived d ago.
+	ageResponse := func(d time.Duration) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET
+				response_updated_at = DATE_SUB(response_updated_at, INTERVAL ? SECOND),
+				throttled_retry_after = DATE_SUB(throttled_retry_after, INTERVAL ? SECOND)
+				WHERE host_id = ?`, d.Seconds(), d.Seconds(), host.ID)
+			return err
+		})
+	}
+	requireCooldown := func(want bool) {
+		t.Helper()
+		skip, assign, err := ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, []string{host.HardwareSerial})
+		require.NoError(t, err)
+		expired, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+		require.NoError(t, err)
+		if want {
+			require.Equal(t, []string{host.HardwareSerial}, skip["org"])
+			require.Empty(t, assign)
+			require.Empty(t, expired)
+		} else {
+			require.Empty(t, skip)
+			require.Equal(t, []string{host.HardwareSerial}, assign["org"])
+			require.Equal(t, map[uint][]string{0: {host.HardwareSerial}}, expired)
+		}
+	}
+
+	// Apple's wait shorter than the fixed cooldown is honored
+	respond(fleet.DEPAssignProfileResponseThrottled, 7200)
+	require.NotNil(t, retryAfter())
+	require.WithinDuration(t, time.Now().Add(2*time.Hour), *retryAfter(), time.Minute)
+	requireCooldown(true)
+	ageResponse(2*time.Hour + time.Minute)
+	requireCooldown(false)
+
+	// and so is a wait longer than the fixed cooldown
+	respond(fleet.DEPAssignProfileResponseThrottled, int((30 * time.Hour).Seconds()))
+	ageResponse(depThrottledCooldownPeriod + time.Hour)
+	requireCooldown(true)
+	ageResponse(6 * time.Hour)
+	requireCooldown(false)
+
+	// but it's capped
+	respond(fleet.DEPAssignProfileResponseThrottled, int((30 * 24 * time.Hour).Seconds()))
+	require.WithinDuration(t, time.Now().Add(depThrottledMaxRetryAfter), *retryAfter(), time.Minute)
+
+	// without Apple's wait, the fixed cooldown applies
+	for _, seconds := range []int{0, -1} {
+		respond(fleet.DEPAssignProfileResponseThrottled, seconds)
+		require.Nil(t, retryAfter())
+		requireCooldown(true)
+		ageResponse(depThrottledCooldownPeriod - time.Hour)
+		requireCooldown(true)
+		ageResponse(time.Hour + time.Minute)
+		requireCooldown(false)
+	}
+
+	// any other response clears it, even when Apple throttled other devices in the same request
+	respond(fleet.DEPAssignProfileResponseThrottled, 7200)
+	require.NotNil(t, retryAfter())
+	respond(fleet.DEPAssignProfileResponseSuccess, 7200)
+	require.Nil(t, retryAfter())
 }
 
 func testMDMAppleHostsDiskEncryption(t *testing.T, ds *Datastore) {
@@ -15047,6 +15127,22 @@ func testMDMAppleUpsertHostEnrolledSerial(t *testing.T, ds *Datastore) {
 	// and it finds its own host again on the next check-in
 	require.NoError(t, ds.MDMAppleUpsertHost(ctx, adue, fleet.PersonalEnrollmentTypeAccountDriven))
 	require.Equal(t, 1, countByUUID("enrollment-id"))
+
+	// nor matched by UUID to another device's host, e.g. a Windows host not enrolled in Apple MDM
+	windows, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "windows", OsqueryHostID: new("windows-uuid"), NodeKey: new("windows"),
+		UUID: "windows-uuid", HardwareSerial: "windows-serial", HardwareModel: "Surface", Platform: "windows",
+	})
+	require.NoError(t, err)
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: windows.UUID, HardwareSerial: windows.UUID, HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeAccountDriven)
+	require.ErrorAs(t, err, &conflictErr)
+	host, err = ds.HostLite(ctx, windows.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "windows", host.Platform)
+	assert.Equal(t, "windows-serial", host.HardwareSerial)
+	require.Equal(t, 1, countByUUID(windows.UUID))
 }
 
 func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
@@ -15107,6 +15203,31 @@ func testNewAppleSCEPChallengeEnrolledSerial(t *testing.T, ds *Datastore) {
 		return err
 	})
 	require.NoError(t, newChallenge("other-uuid", enrolled.HardwareSerial))
+}
+
+func testGetAppleAccountDrivenEnrollmentIDTaken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname: "windows", OsqueryHostID: new("windows-uuid"), NodeKey: new("windows"),
+		UUID: "windows-uuid", HardwareSerial: "windows-serial", Platform: "windows",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "enrollment-id", HardwareSerial: "enrollment-id", HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeAccountDriven))
+	// same UUID-equals-serial shape, but not an account-driven enrollment
+	require.NoError(t, ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID: "lookalike-id", HardwareSerial: "lookalike-id", HardwareModel: "iPhone14,5", Platform: "ios",
+	}, fleet.PersonalEnrollmentTypeManualProfile))
+
+	for id, want := range map[string]bool{
+		"windows-uuid": true, "enrollment-id": false, "lookalike-id": true, "unknown-id": false,
+	} {
+		taken, err := ds.GetAppleAccountDrivenEnrollmentIDTaken(ctx, id)
+		require.NoError(t, err)
+		assert.Equal(t, want, taken, id)
+	}
 }
 
 func testGetAppleSerialEnrolledUnderAnotherUUID(t *testing.T, ds *Datastore) {

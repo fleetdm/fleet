@@ -1,0 +1,2 @@
+- Fixed a crash when listing a host's software with a search or the vulnerable filter, for a host that reports thousands of long versions of the same software.
+- Fixed host software listing a version against the wrong installed software when an earlier version of the same software contains a comma.

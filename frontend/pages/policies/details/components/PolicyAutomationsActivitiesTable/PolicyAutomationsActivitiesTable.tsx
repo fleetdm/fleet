@@ -51,12 +51,17 @@ interface IPolicyAutomationsActivitiesTableProps {
   policy: IPolicy;
   otherAutomationType?: OtherAutomationType;
   canResetPolicy: boolean;
+  /** Prefills the host search, e.g. when linked from a host's policy. */
+  initialSearchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
 const PolicyAutomationsActivitiesTable = ({
   policy,
   otherAutomationType,
   canResetPolicy,
+  initialSearchQuery = "",
+  onSearchQueryChange,
 }: IPolicyAutomationsActivitiesTableProps): JSX.Element => {
   const { id: policyId } = policy;
   const queryClient = useQueryClient();
@@ -68,7 +73,7 @@ const PolicyAutomationsActivitiesTable = ({
   } = config?.activity_expiry_settings ?? {};
 
   const [page, setPage] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [
     sortHeader,
@@ -88,7 +93,7 @@ const PolicyAutomationsActivitiesTable = ({
     { id: number; displayName: string } | undefined
   >(undefined);
 
-  const { data, isLoading, isError } = useQuery<
+  const { data, isFetching, isError } = useQuery<
     IPolicyAutomationActivitiesResponse,
     AxiosError
   >(
@@ -112,7 +117,9 @@ const PolicyAutomationsActivitiesTable = ({
         query: searchQuery,
         status: statusFilter,
       }),
-    { ...DEFAULT_USE_QUERY_OPTIONS, keepPreviousData: true }
+    // A short staleTime lets paging back to a just-visited page reuse its rows
+    // instead of refetching behind the loading spinner.
+    { ...DEFAULT_USE_QUERY_OPTIONS, keepPreviousData: true, staleTime: 5000 }
   );
 
   const { mutateAsync: resetPolicy, isLoading: isResetting } = useMutation(
@@ -146,10 +153,14 @@ const PolicyAutomationsActivitiesTable = ({
     setPage(newPage);
   }, []);
 
-  const onSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setPage(0);
-  }, []);
+  const onSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      setPage(0);
+      onSearchQueryChange?.(value);
+    },
+    [onSearchQueryChange]
+  );
 
   const onStatusFilterChange = useCallback(
     (option: CustomOptionType | null) => {
@@ -271,7 +282,7 @@ const PolicyAutomationsActivitiesTable = ({
         getRowId={(row: IPolicyAutomationActivity) =>
           `${row.id}-${row.host_id}`
         }
-        isLoading={isLoading}
+        isLoading={isFetching}
         manualSortBy
         pageIndex={page}
         pageSize={DEFAULT_PAGE_SIZE}

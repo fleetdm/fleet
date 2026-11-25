@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
@@ -149,32 +148,6 @@ func (m MDMAppleManualEnrollmentProfile) AuthzType() string {
 type MDMAppleDEPKeyPair struct {
 	PublicKey  []byte `json:"public_key"`
 	PrivateKey []byte `json:"private_key"`
-}
-
-// MDMAppleDevice represents an MDM enrolled Apple device.
-type MDMAppleDevice struct {
-	// ID is the device hardware UUID.
-	ID string `json:"id" db:"id"`
-	// SerialNumber is the serial number of the Apple device.
-	SerialNumber string `json:"serial_number" db:"serial_number"`
-	// Enabled indicates whether the device is currently enrolled.
-	// It's set to false when a device unenrolls from Fleet.
-	Enabled bool `json:"enabled" db:"enabled"`
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleDevice) AuthzType() string {
-	return "mdm_apple_device"
-}
-
-// MDMAppleDEPDevice represents an Apple device in Apple Business (AB).
-type MDMAppleDEPDevice struct {
-	godep.Device
-}
-
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleDEPDevice) AuthzType() string {
-	return "mdm_apple_dep_device"
 }
 
 // These following types are copied from nanomdm.
@@ -825,6 +798,9 @@ type HostDEPAssignment struct {
 	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
 	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
 	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
+	// ThrottledRetryAfter is when Apple allows a THROTTLED assignment to be retried, or nil if Apple
+	// didn't say, in which case Fleet retries after a fixed cooldown.
+	ThrottledRetryAfter *time.Time `db:"throttled_retry_after" json:"throttled_retry_after"`
 	// HardwareSerial is omitted from JSON to avoid overpopulating old responses.
 	HardwareSerial string `db:"hardware_serial" json:"-"`
 }

@@ -1,32 +1,56 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
+#
+# Docker Desktop refuses "install --user" when it is run by the SYSTEM account,
+# because that would install it into the SYSTEM profile. Run the all-users
+# install instead: it needs administrator rights, puts the app in
+# C:\Program Files\Docker\Docker and registers it in HKLM.
+#
+# Users who need Windows containers or Hyper-V VM management must also be in
+# the local docker-users group; the all-users install does not add them.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$registryKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Docker Desktop"
+# 3010 = reboot required, 1641 = reboot initiated
+$expectedExitCodes = @(0, 1641, 3010)
 
 try {
-    # Docker Desktop 4.72+ added a per-user vs all-user install choice for
-    # Windows. All-user silent installs hang on Windows Server runners
-    # (Docker Desktop is not officially supported on Windows Server). Install
-    # per-user with --user instead: no admin needed, target is
-    # %LOCALAPPDATA%\Programs\DockerDesktop, and uninstall info is written to
-    # HKCU. --accept-license suppresses the subscription agreement prompt.
-    Start-Process -FilePath "$exeFilePath" -ArgumentList "install","--user","--accept-license","--quiet" | Out-Null
-
-    # The installer process can keep running for several minutes after the
-    # app is registered with Windows. Poll the HKCU uninstall key (osquery's
-    # programs table reads both HKLM and HKU) to detect when the core install
-    # has completed, rather than blocking on Start-Process -Wait.
-    $registryKey = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Docker Desktop"
-    $deadline = (Get-Date).AddMinutes(4)
-    while ((Get-Date) -lt $deadline) {
-        if (Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue) {
-            Write-Host "Docker Desktop registered in HKCU."
-            Exit 0
-        }
-        Start-Sleep -Seconds 10
+    $before = Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue
+    if ($before) {
+        Write-Host "Docker Desktop $($before.DisplayVersion) is already installed; installing over it."
     }
 
-    Write-Host "Docker Desktop did not register within timeout."
+    # --accept-license suppresses the subscription agreement prompt.
+    $process = Start-Process -FilePath "$exeFilePath" `
+        -ArgumentList "install","--accept-license","--quiet" -PassThru
+    # Touch the handle so ExitCode is still readable after the process exits.
+    $null = $process.Handle
+
+    # Wait for this install to finish. A registration that is already there
+    # belongs to the previous install and says nothing about this one.
+    if (-not $process.WaitForExit(8 * 60 * 1000)) {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "The installer did not finish within 8 minutes. See C:\ProgramData\DockerDesktop\install-log-admin.txt."
+        Exit 1
+    }
+
+    $exitCode = $process.ExitCode
+    Write-Host "Install exit code: $exitCode"
+    if ($expectedExitCodes -notcontains $exitCode) { Exit $exitCode }
+
+    # Child processes finish the registration, so it can land a little after the
+    # installer exits. Wait for the entry osquery's programs table reads.
+    $deadline = (Get-Date).AddMinutes(2)
+    while ((Get-Date) -lt $deadline) {
+        $after = Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue
+        if ($after) {
+            Write-Host "Docker Desktop $($after.DisplayVersion) registered in HKLM."
+            Exit 0
+        }
+        Start-Sleep -Seconds 5
+    }
+
+    Write-Host "The installer exited $exitCode but Docker Desktop is not registered. See C:\ProgramData\DockerDesktop\install-log-admin.txt."
     Exit 1
 } catch {
     Write-Host "Error: $_"
