@@ -17,6 +17,7 @@ CREATE TABLE `abm_tokens` (
   `token_invalid` tinyint(1) NOT NULL DEFAULT '0',
   `server_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_default` tinyint(1) NOT NULL DEFAULT '0',
+  `tvos_default_team_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_abm_tokens_organization_name` (`organization_name`),
   UNIQUE KEY `idx_abm_tokens_enrollment_url_token` (`enrollment_url_token`),
@@ -24,12 +25,14 @@ CREATE TABLE `abm_tokens` (
   KEY `fk_abm_tokens_ios_default_team_id` (`ios_default_team_id`),
   KEY `fk_abm_tokens_ipados_default_team_id` (`ipados_default_team_id`),
   KEY `abm_tokens_byod_team_fk` (`byod_default_team_id`),
+  KEY `fk_abm_tokens_tvos_default_team_id` (`tvos_default_team_id`),
   CONSTRAINT `abm_tokens_byod_team_fk` FOREIGN KEY (`byod_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_abm_tokens_ios_default_team_id` FOREIGN KEY (`ios_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_abm_tokens_ipados_default_team_id` FOREIGN KEY (`ipados_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_abm_tokens_macos_default_team_id` FOREIGN KEY (`macos_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_abm_tokens_tvos_default_team_id` FOREIGN KEY (`tvos_default_team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL,
   CONSTRAINT `abm_tokens_enroll_url_length` CHECK ((length(`enrollment_url_token`) > 32))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -900,6 +903,7 @@ CREATE TABLE `host_dep_assignments` (
   `mdm_migration_deadline` timestamp(6) NULL DEFAULT NULL,
   `mdm_migration_completed` timestamp(6) NULL DEFAULT NULL,
   `hardware_serial` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `device_family` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`host_id`),
   KEY `idx_hdep_response` (`assign_profile_response`,`response_updated_at`),
   KEY `fk_host_dep_assignments_abm_token_id` (`abm_token_id`),
@@ -2059,9 +2063,9 @@ CREATE TABLE `labels` (
   FULLTEXT KEY `labels_search` (`name`),
   CONSTRAINT `labels_ibfk_1` FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `labels_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2025-10-09 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','',1,0,NULL,NULL,NULL),(2,'2024-06-28 00:00:00','2025-10-09 00:00:00','iOS','All iOS hosts','','',1,1,NULL,NULL,NULL),(3,'2024-06-28 00:00:00','2025-10-09 00:00:00','iPadOS','All iPadOS hosts','','',1,1,NULL,NULL,NULL),(4,'2024-09-27 00:00:00','2026-08-14 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name like \'%fedora%\';','',1,0,NULL,NULL,NULL),(5,'2025-02-25 00:00:00','2025-10-09 00:00:00','Android','All Android hosts','','',1,1,NULL,NULL,NULL);
+INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2025-10-09 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','',1,0,NULL,NULL,NULL),(2,'2024-06-28 00:00:00','2025-10-09 00:00:00','iOS','All iOS hosts','','',1,1,NULL,NULL,NULL),(3,'2024-06-28 00:00:00','2025-10-09 00:00:00','iPadOS','All iPadOS hosts','','',1,1,NULL,NULL,NULL),(4,'2024-09-27 00:00:00','2026-08-14 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name like \'%fedora%\';','',1,0,NULL,NULL,NULL),(5,'2025-02-25 00:00:00','2025-10-09 00:00:00','Android','All Android hosts','','',1,1,NULL,NULL,NULL),(19,'2026-08-11 00:00:00','2026-08-11 00:00:00','tvOS','All tvOS hosts','','',1,1,NULL,NULL,NULL);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `legacy_host_mdm_enroll_refs` (
@@ -2271,13 +2275,14 @@ CREATE TABLE `mdm_apple_default_setup_assistants` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `abm_token_id` int unsigned DEFAULT NULL,
+  `tvos_profile_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_mdm_default_setup_assistant_global_or_team_id_abm_token_id` (`global_or_team_id`,`abm_token_id`),
   KEY `fk_mdm_default_setup_assistant_team_id` (`team_id`),
   KEY `fk_mdm_default_setup_assistant_abm_token_id` (`abm_token_id`),
   CONSTRAINT `fk_mdm_default_setup_assistant_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE CASCADE,
   CONSTRAINT `mdm_apple_default_setup_assistants_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -2368,12 +2373,13 @@ CREATE TABLE `mdm_apple_setup_assistant_profiles` (
   `profile_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `tvos_profile_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_mdm_apple_setup_assistant_profiles_asst_id_tok_id` (`setup_assistant_id`,`abm_token_id`),
   KEY `fk_mdm_apple_setup_assistant_profiles_abm_token_id` (`abm_token_id`),
   CONSTRAINT `fk_mdm_apple_setup_assistant_profiles_abm_token_id` FOREIGN KEY (`abm_token_id`) REFERENCES `abm_tokens` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_mdm_apple_setup_assistant_profiles_setup_assistant_id` FOREIGN KEY (`setup_assistant_id`) REFERENCES `mdm_apple_setup_assistants` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -3712,7 +3718,7 @@ CREATE TABLE `software_titles` (
   `source` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `extension_for` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `bundle_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `additional_identifier` tinyint unsigned GENERATED ALWAYS AS ((case when (`source` = _utf8mb4'ios_apps') then 1 when (`source` = _utf8mb4'ipados_apps') then 2 when (`bundle_identifier` is not null) then 0 else NULL end)) VIRTUAL,
+  `additional_identifier` tinyint unsigned GENERATED ALWAYS AS ((case when (`source` = _utf8mb4'ios_apps') then 1 when (`source` = _utf8mb4'ipados_apps') then 2 when (`source` = _utf8mb4'tvos_apps') then 3 when (`bundle_identifier` is not null) then 0 else NULL end)) VIRTUAL,
   `is_kernel` tinyint(1) NOT NULL DEFAULT '0',
   `application_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `unique_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (coalesce(`bundle_identifier`,`application_id`,nullif(`upgrade_code`,_utf8mb4''),`name`)) VIRTUAL,
@@ -3721,7 +3727,7 @@ CREATE TABLE `software_titles` (
   UNIQUE KEY `idx_software_titles_bundle_identifier` (`bundle_identifier`,`additional_identifier`),
   UNIQUE KEY `idx_unique_sw_titles` (`unique_identifier`,`source`,`extension_for`),
   KEY `idx_sw_titles` (`name`,`source`,`extension_for`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

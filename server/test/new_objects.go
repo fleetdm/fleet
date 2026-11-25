@@ -164,6 +164,13 @@ func BuiltinLabels() []*fleet.Label {
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 		},
 		{
+			Name:                "tvOS",
+			Platform:            "tvos",
+			Query:               "",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+		{
 			Name:                "Fedora Linux",
 			Platform:            "rhel",
 			Query:               "select 1 from os_version where name like '%fedora%';",
