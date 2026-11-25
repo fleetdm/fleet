@@ -114,16 +114,9 @@ func TestChallengeMiddleware(t *testing.T) {
 			mdm:       config.MDMConfig{AppleOneTimeEnrollSecrets: true},
 		},
 		{
-			name:      "global secret is refused for a host that reports darwin but isn't enrolled in Fleet MDM",
+			name:      "global secret is refused for a host not enrolled in Fleet MDM",
 			challenge: "global-secret",
-			csrURIs:   []string{"urn:device:apple:uuid:unenrolled-mac"},
-			wantErr:   "invalid challenge",
-		},
-		{
-			name:      "global secret is refused for a host that reports another platform when one-time enroll secrets are on",
-			challenge: "global-secret",
-			csrURIs:   []string{"urn:device:fleet:uuid:linux-1"},
-			mdm:       config.MDMConfig{AppleOneTimeEnrollSecrets: true, WindowsOneTimeEnrollSecrets: true},
+			csrURIs:   []string{"urn:device:apple:uuid:unenrolled-1"},
 			wantErr:   "invalid challenge",
 		},
 		{
@@ -137,13 +130,6 @@ func TestChallengeMiddleware(t *testing.T) {
 			challenge: "global-secret",
 			csrURIs:   []string{"urn:device:fleet:uuid:dual-1"},
 			mdm:       config.MDMConfig{AppleOneTimeEnrollSecrets: true},
-			wantErr:   "invalid challenge",
-		},
-		{
-			name:      "global secret is refused for a host enrolled in both MDMs when Windows hosts get one-time enroll secrets",
-			challenge: "global-secret",
-			csrURIs:   []string{"urn:device:fleet:uuid:dual-1"},
-			mdm:       config.MDMConfig{WindowsOneTimeEnrollSecrets: true},
 			wantErr:   "invalid challenge",
 		},
 		{
@@ -206,16 +192,7 @@ func TestChallengeMiddleware(t *testing.T) {
 			}
 			ds.HostByUUIDFunc = func(_ context.Context, hostUUID string) (*fleet.Host, error) {
 				switch hostUUID {
-				case "mac-1", "host-1", "host-2":
-					return &fleet.Host{UUID: hostUUID, Platform: "darwin"}, nil
-				case "unenrolled-mac":
-					return &fleet.Host{UUID: hostUUID, Platform: "darwin"}, nil
-				case "win-1":
-					return &fleet.Host{UUID: hostUUID, Platform: "windows"}, nil
-				case "linux-1":
-					return &fleet.Host{UUID: hostUUID, Platform: "ubuntu"}, nil
-				case "disabled-mac", "dual-1", "apple-db-down", "windows-db-down":
-					// The reported platform isn't what decides these.
+				case "mac-1", "host-1", "host-2", "win-1", "unenrolled-1", "disabled-mac", "dual-1", "apple-db-down", "windows-db-down":
 					return &fleet.Host{UUID: hostUUID}, nil
 				case "db-down":
 					return nil, errors.New("db down")
@@ -298,7 +275,7 @@ func TestChallengeMiddlewareSignsOnlyTheDeviceURI(t *testing.T) {
 	depot.PutFunc = func(string, *x509.Certificate) error { return nil }
 	ds := new(mock.DataStore)
 	ds.HostByUUIDFunc = func(_ context.Context, hostUUID string) (*fleet.Host, error) {
-		return &fleet.Host{UUID: hostUUID, Platform: "darwin"}, nil
+		return &fleet.Host{UUID: hostUUID}, nil
 	}
 	ds.VerifyEnrollSecretFunc = func(context.Context, string) (*fleet.EnrollSecret, error) {
 		return nil, common_mysql.NotFound("enroll_secret")

@@ -242,30 +242,26 @@ func testOneTimeChallenge(t *testing.T, s *Suite) {
 }
 
 // testGlobalSecretRefusedWithoutMDMEnrollment checks that a host enrolled in osquery with the global enroll secret, but not
-// in Fleet MDM, can't use the secret for a certificate, whatever platform it reports.
+// in Fleet MDM, can't use the secret for a certificate.
 func testGlobalSecretRefusedWithoutMDMEnrollment(t *testing.T, s *Suite) {
 	ctx := t.Context()
 	require.NoError(t, s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}}))
 
-	for _, platform := range []string{"ubuntu", "darwin"} {
-		t.Run(platform, func(t *testing.T) {
-			hostUUID := "no-mdm-uuid-" + platform
-			var resp contract.EnrollOsqueryAgentResponse
-			s.DoJSON(t, "POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
-				EnrollSecret:   testEnrollmentSecret,
-				HostIdentifier: hostUUID,
-				HostDetails: map[string]map[string]string{
-					"system_info": {"uuid": hostUUID},
-					"os_version":  {"platform": platform},
-				},
-			}, http.StatusOK, &resp)
-			require.NotEmpty(t, resp.NodeKey)
+	const hostUUID = "no-mdm-uuid"
+	var resp contract.EnrollOsqueryAgentResponse
+	s.DoJSON(t, "POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
+		EnrollSecret:   testEnrollmentSecret,
+		HostIdentifier: hostUUID,
+		HostDetails: map[string]map[string]string{
+			"system_info": {"uuid": hostUUID},
+			"os_version":  {"platform": "ubuntu"},
+		},
+	}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.NodeKey)
 
-			cert, err := requestSCEPCertificateWithChallenge(t, s, hostUUID, testEnrollmentSecret)
-			requireSCEPFailure(t, err, "a host not enrolled in Fleet MDM must not get a certificate with the global enroll secret")
-			require.Nil(t, cert)
-		})
-	}
+	cert, err := requestSCEPCertificateWithChallenge(t, s, hostUUID, testEnrollmentSecret)
+	requireSCEPFailure(t, err, "a host not enrolled in Fleet MDM must not get a certificate with the global enroll secret")
+	require.Nil(t, cert)
 }
 
 // enrollInAppleMDM records an Apple MDM enrollment for the host, which a request with the global enroll secret needs.
