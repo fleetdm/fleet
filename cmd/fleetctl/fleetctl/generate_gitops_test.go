@@ -2082,6 +2082,20 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+
+	// GET /config masks these integration secrets, so insecure mode must still warn instead of exporting the mask.
+	var warnedKeys []string
+	for _, w := range cmd.Messages.SecretWarnings {
+		warnedKeys = append(warnedKeys, w.Key)
+	}
+	for _, key := range []string{
+		"integrations.google_calendar.api_key_json",
+		"integrations.jira.api_token",
+		"integrations.zendesk.api_token",
+		"integrations.google_workspace.api_key_json",
+	} {
+		assert.Contains(t, warnedKeys, key)
+	}
 }
 
 func TestGenerateTeamSettings(t *testing.T) {

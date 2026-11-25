@@ -1124,48 +1124,46 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		// Team integrations don't have secrets right now, so just return as-is.
 		return result, nil
 	}
-	// Obfuscate secrets if not in insecure mode.
-	if !cmd.CLI.Bool("insecure") {
-		if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
-			for _, intg := range googleCalendar.([]interface{}) {
-				intgMap := intg.(map[string]any)
-				if _, ok := intgMap["api_key_json"]; ok {
-					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
-					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
-						Filename: "default.yml",
-						Key:      "integrations.google_calendar.api_key_json",
-					})
-				}
-			}
-		}
-		if jira, ok := result["jira"]; ok && jira != nil {
-			for _, intg := range jira.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
+	// GET /config always masks these, so even insecure mode only gets a placeholder.
+	if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
+		for _, intg := range googleCalendar.([]any) {
+			intgMap := intg.(map[string]any)
+			if _, ok := intgMap["api_key_json"]; ok {
+				intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.jira.api_token",
+					Key:      "integrations.google_calendar.api_key_json",
 				})
 			}
 		}
-		if zendesk, ok := result["zendesk"]; ok && zendesk != nil {
-			for _, intg := range zendesk.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
+	}
+	if jira, ok := result["jira"]; ok && jira != nil {
+		for _, intg := range jira.([]any) {
+			intg.(map[string]any)["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.jira.api_token",
+			})
+		}
+	}
+	if zendesk, ok := result["zendesk"]; ok && zendesk != nil {
+		for _, intg := range zendesk.([]any) {
+			intg.(map[string]any)["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.zendesk.api_token",
+			})
+		}
+	}
+	if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
+		for _, intg := range googleWorkspace.([]any) {
+			intgMap := intg.(map[string]any)
+			if _, ok := intgMap["api_key_json"]; ok {
+				intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.zendesk.api_token",
+					Key:      "integrations.google_workspace.api_key_json",
 				})
-			}
-		}
-		if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
-			for _, intg := range googleWorkspace.([]any) {
-				intgMap := intg.(map[string]any)
-				if _, ok := intgMap["api_key_json"]; ok {
-					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
-					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
-						Filename: "default.yml",
-						Key:      "integrations.google_workspace.api_key_json",
-					})
-				}
 			}
 		}
 	}
