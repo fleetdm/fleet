@@ -2,6 +2,7 @@ package chart
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/RoaringBitmap/roaring"
@@ -30,6 +31,10 @@ func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now
 		// The value is a bitmap of host IDs that were active in this bucket.
 		map[string]*roaring.Bitmap{"": NewBitmap(hostIDs)})
 }
+
+// cveConvertBudget bounds the time one collection spends converting the history collected before the change
+// storage started. var (not const) so tests can change it.
+var cveConvertBudget = 5 * time.Minute
 
 // CVEDataset implements api.Dataset for host CVE tracking.
 type CVEDataset struct{}
@@ -63,5 +68,23 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 	if err := store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps); err != nil {
 		return err
 	}
-	return store.RecordSCDChanges(ctx, c.Name(), bucketStart, bitmaps)
+	// A busy change storage means a scrub is running; the next collection
+	// records this hour's changes.
+	if err := store.RecordSCDChanges(ctx, c.Name(), bucketStart, bitmaps); err != nil {
+		if errors.Is(err, api.ErrChangeStorageBusy) {
+			return nil
+		}
+		return err
+	}
+
+	started := time.Now()
+	for {
+		more, err := store.ConvertSCDHistory(ctx, c.Name())
+		if errors.Is(err, api.ErrChangeStorageBusy) {
+			return nil
+		}
+		if err != nil || !more || time.Since(started) >= cveConvertBudget {
+			return err
+		}
+	}
 }

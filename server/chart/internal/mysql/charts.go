@@ -48,6 +48,10 @@ type Datastore struct {
 	primary *sqlx.DB
 	replica *sqlx.DB
 	logger  *slog.Logger
+
+	// testHookSCDChangesBeforeWrite, when set, runs after a collection read the current sets and before it
+	// writes. A field, not a package var, because the package's tests run in parallel.
+	testHookSCDChangesBeforeWrite func()
 }
 
 // NewDatastore creates a new MySQL datastore for the chart bounded context.

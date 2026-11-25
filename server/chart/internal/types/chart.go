@@ -105,6 +105,12 @@ type Datastore interface {
 	// RecordBucketData, with the same bitmaps.
 	RecordSCDChanges(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error
 
+	// ConvertSCDHistory converts one bounded step of the host_scd_data
+	// history from before the change storage started into changes, and
+	// reports whether more remains. When the last step completes, the
+	// changes cover the 32 days before the change storage started.
+	ConvertSCDHistory(ctx context.Context, dataset string) (more bool, err error)
+
 	// GetSCDData returns per-bucket distinct-host counts for a dataset over the
 	// given range at the given bucket size. Aggregation within a bucket depends
 	// on the sample strategy:
@@ -128,8 +134,8 @@ type Datastore interface {
 	// ReplaySCDChanges returns what GetSCDData returns with the snapshot
 	// strategy, computed from the change storage instead of host_scd_data:
 	// it starts from the current sets and undoes changes newest first.
-	// Buckets that end before the change storage started hold the state it
-	// started from.
+	// Only buckets that end at or after the state's covered_from hold the
+	// history.
 	ReplaySCDChanges(
 		ctx context.Context,
 		dataset string,
