@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -48,7 +49,7 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.L
 	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
 		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(kitLogger)),
-		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
+		kithttp.ServerFinalizer(identifierLoggingFinalizer(kitLogger, rootPath)),
 	}
 
 	encode := newSCEPResponseEncoder(logger)
@@ -60,10 +61,58 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.L
 	r.Handle("POST "+rootPath+"{identifier}", postHandler)
 	// For Windows SCEP client which appends pkiclient.exe to the URL and seemingly cannot be configured
 	// to not do that
-	r.Handle("GET "+rootPath+"{identifier}/pkiclient.exe", getHandler)
-	r.Handle("POST "+rootPath+"{identifier}/pkiclient.exe", postHandler)
+	r.Handle("GET "+rootPath+"{identifier}"+pkiclientSuffix, getHandler)
+	r.Handle("POST "+rootPath+"{identifier}"+pkiclientSuffix, postHandler)
 
 	return r
+}
+
+const pkiclientSuffix = "/pkiclient.exe"
+
+// identifierLoggingFinalizer logs what logutil's LoggingFinalizer logs, except that the fourth field of the identifier is
+// masked: it authorizes the request.
+func identifierLoggingFinalizer(logger *kitlogadapter.Logger, rootPath string) kithttp.ServerFinalizerFunc {
+	return func(_ context.Context, code int, r *http.Request) {
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			host = r.RemoteAddr
+		}
+		_ = logger.Log(
+			"method", r.Method,
+			"status", code,
+			"proto", r.Proto,
+			"host", host,
+			"user_agent", r.UserAgent(),
+			"path", maskedRequestURI(r, rootPath),
+		)
+	}
+}
+
+func maskedRequestURI(r *http.Request, rootPath string) string {
+	uri := r.RequestURI
+	if uri == "" {
+		uri = r.URL.RequestURI()
+	}
+	// Split the way the service does: it unescapes the already-decoded path value again, so a double-encoded comma
+	// separates fields too.
+	identifier := r.PathValue("identifier")
+	if parsed, err := url.PathUnescape(identifier); err == nil {
+		identifier = parsed
+	}
+	fields := strings.SplitN(identifier, ",", 4)
+	if len(fields) < 4 {
+		return uri
+	}
+	fields[3] = "REDACTED"
+
+	path := rootPath + url.PathEscape(strings.Join(fields, ","))
+	if strings.HasSuffix(r.Pattern, pkiclientSuffix) {
+		path += pkiclientSuffix
+	}
+	if r.URL.RawQuery != "" {
+		path += "?" + r.URL.RawQuery
+	}
+	return path
 }
 
 // EncodeSCEPRequest encodes a SCEP HTTP Request. Used by the client.
