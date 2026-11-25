@@ -33,7 +33,7 @@ It is generally not recommended to store sensitive information such as Fleet enr
     - secret: $ENROLLMENT_SECRET
 ```
 
-To include some of these items in plaintext, use the `--insecure` option. It adds enroll secrets, certificate authority secrets (except EJBCA), SSO metadata, and end user authentication metadata. The Fleet API never returns some secrets, such as the SMTP password and integration API tokens. For these, `generate-gitops` always leaves comments and lists them at the end, so you still add them by hand. Don't commit files generated with `--insecure` to Git.
+To include some of these items in plaintext, use the `--insecure` option. It adds enroll secrets, certificate authority secrets (except EJBCA), SSO metadata, and end user authentication metadata. The Fleet API never returns some secrets, such as the SMTP password and integration API tokens. For these, `generate-gitops` always leaves comments and lists them at the end, so you still add them by hand. Don't commit files generated with `--insecure` to version control.
 
 ## Other options
 
