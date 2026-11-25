@@ -4110,4 +4110,19 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicyOptionsRequireSoftwareAu
 	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
 	require.True(t, modResp.Policy.ForcePatch)
 	require.False(t, modResp.Policy.PatchWhenClosed)
+
+	// update the policy to patch_deadline and then remove the automation, patch_deadline should be cleared
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": false, "patch_deadline": true}, http.StatusOK, &modResp)
+	require.True(t, modResp.Policy.PatchDeadline)
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"automation_type": nil}, http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	require.False(t, modResp.Policy.PatchDeadline)
+
+	// turn the software automation back on with patch_when_closed, patch_deadline should be false
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"automation_type": "software", "patch_when_closed": true}, http.StatusOK, &modResp)
+	require.True(t, modResp.Policy.PatchWhenClosed)
+	require.False(t, modResp.Policy.PatchDeadline)
 }

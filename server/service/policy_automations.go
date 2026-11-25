@@ -201,6 +201,10 @@ func applyAutomationType(teamID *uint, p *fleet.ModifyPolicyPayload) (webhookOrT
 	if !is(fleet.PolicyAutomationSoftware) {
 		p.SoftwareTitleID = optjson.Any[uint]{Set: true}
 		p.SoftwareInstallerID = optjson.Any[uint]{}
+		p.ForcePatch = new(false)
+		p.PatchWhenClosed = new(false)
+		p.NotifyBeforePatching = new(false)
+		p.PatchDeadline = new(false)
 	}
 	if !is(fleet.PolicyAutomationScript) {
 		p.ScriptID = optjson.Any[uint]{Set: true}
