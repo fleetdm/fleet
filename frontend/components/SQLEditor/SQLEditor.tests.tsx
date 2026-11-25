@@ -84,6 +84,7 @@ describe("SQLEditor syntax highlighting", () => {
     "SELECT {name} FROM [processes] proc_alias, [os_version] AS os_alias WHERE {uptime} = 1",
     "SELECT * FROM [users] u LEFT JOIN [processes] ON u.{uid} = {pid}",
     "select * from main.[os_version]",
+    "SELECT * FROM [OS_VERSION] JOIN [Processes] WHERE {PID} > 0",
     "SELECT 1 FROM (\n  SELECT count({time}) FROM [uptime]\n) sub_alias, [os_version] JOIN [processes] WHERE {time} > 0",
     "SELECT 1 FROM /* comment */\n  [os_version] JOIN -- comment\n\n[processes] JOIN   \n  [time]",
   ])("highlights %s", (markedSql) => {
