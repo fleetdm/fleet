@@ -4142,4 +4142,26 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicyOptionsRequireSoftwareAu
 	s.DoJSON("PATCH", policyPath, map[string]any{"patch_when_closed": false, "force_patch": true}, http.StatusOK, &modResp)
 	require.True(t, modResp.Policy.ForcePatch)
 	require.False(t, modResp.Policy.PatchWhenClosed)
+
+	// update the policy with the software automation with software_title_id and no automation_type, force_patch should stay true
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"software_title_id": titleID}, http.StatusOK, &modResp)
+	require.NotNil(t, modResp.Policy.AutomationType)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
+	require.True(t, modResp.Policy.ForcePatch)
+
+	// update the policy with the software automation with software_title_id null and no automation_type, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"software_title_id": nil}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"software_title_id" can only be null when the policy's "automation_type" isn't "software".`)
+	res.Body.Close()
+
+	// remove the automation, then send software_title_id and no automation_type, the request should fail with 422
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"automation_type": nil}, http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	res = s.Do("PATCH", policyPath, map[string]any{"software_title_id": titleID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"software_title_id" can only be set when the policy's "automation_type" is "software".`)
+	res.Body.Close()
 }

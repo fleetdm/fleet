@@ -318,7 +318,7 @@ func normalizePatchPolicyCreate(tp *fleet.NewTeamPolicyPayload) error {
 
 // normalizePatchPolicyUpdate applies the update rules of a patch policy: its app can't change, so automation_type
 // "software" alone turns patching on for that app. With another automation_type, software_title_id only names the
-// app; without automation_type it keeps its legacy meaning of installing the app.
+// app; without automation_type it can't turn the software automation on or off.
 func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPayload) error {
 	if policy.Type != fleet.PolicyTypePatch || policy.PatchSoftwareTitleID == nil {
 		return nil
@@ -326,6 +326,16 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 	titleSet := p.SoftwareTitleID.Valid && p.SoftwareTitleID.Value != 0
 	if titleSet && p.SoftwareTitleID.Value != *policy.PatchSoftwareTitleID {
 		return &fleet.BadRequestError{Message: "a patch policy's software_title_id can't be changed"}
+	}
+
+	// Return an error when software_title_id without automation_type would turn the software automation on or off.
+	if !p.AutomationType.Set && p.SoftwareTitleID.Set {
+		if policy.SoftwareInstallerID == nil && titleSet {
+			return fleet.NewUserMessageError(errors.New(errPatchPolicyTitleSetRequiresAutomationType), http.StatusUnprocessableEntity)
+		}
+		if policy.SoftwareInstallerID != nil && !titleSet {
+			return fleet.NewUserMessageError(errors.New(errPatchPolicyTitleUnsetRequiresAutomationType), http.StatusUnprocessableEntity)
+		}
 	}
 
 	forcePatch := ptr.ValOrZero(p.ForcePatch)

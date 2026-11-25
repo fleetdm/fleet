@@ -183,11 +183,13 @@ const (
 	errPolicyAllFleetsForSoftware                        = "\"All fleets\" policy cannot have software_title_id set"
 	errPolicyAllFleetsForSoftwarePackage                 = "\"All fleets\" policy cannot have software_package_id set"
 	errPolicyAllFleetsForPatchOptions                    = "\"All fleets\" policy cannot have force_patch, patch_when_closed, notify_before_patching, or patch_deadline set"
-	errPatchOptionsRequireSoftwareAutomation             = "If \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" is true, \"automation_type\" must be \"software\"."
-	errSoftwareAutomationRequiresPatchOption             = "If \"automation_type\" is \"software\", one of \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" must be true."
 	errPatchWhenClosedRequiresContinuousAutomations      = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errPatchDeadlineRequiresContinuousAutomations        = "If \"patch_deadline\" is true, \"continuous_automations_enabled\" can't be set to false."
+	errPatchOptionsRequireSoftwareAutomation             = "If \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" is true, \"automation_type\" must be \"software\"."
+	errSoftwareAutomationRequiresPatchOption             = "If \"automation_type\" is \"software\", one of \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" must be true."
+	errPatchPolicyTitleSetRequiresAutomationType         = "\"software_title_id\" can only be set when the policy's \"automation_type\" is \"software\"."
+	errPatchPolicyTitleUnsetRequiresAutomationType       = "\"software_title_id\" can only be null when the policy's \"automation_type\" isn't \"software\"."
 )
 
 func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
