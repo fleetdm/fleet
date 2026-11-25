@@ -2014,6 +2014,26 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 		{
 			data: []map[string]string{
 				{
+					"name":           "Zorin OS",
+					"version":        "18.1",
+					"major":          "18",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.14.0-37-generic",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Zorin OS",
+				Version:       "18.1",
+				Arch:          "x86_64",
+				KernelVersion: "6.14.0-37-generic",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
 					"name":           "CentOS Linux",
 					"version":        "CentOS Linux release 7.9.2009 (Core)",
 					"major":          "7",
