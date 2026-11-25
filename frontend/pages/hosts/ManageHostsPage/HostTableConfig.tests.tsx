@@ -197,39 +197,27 @@ describe("HostTableConfig - Host column", () => {
       .mockReturnValue(352);
     jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
 
-    const { container } = renderHostCell(LONG_HOST_NAME);
+    renderHostCell(LONG_HOST_NAME);
 
-    expect(
-      container.querySelector(".data-table__tooltip-truncated-text-container")
-    ).toHaveAttribute("data-tip-disable", "false");
     await userEvent.hover(
       screen.getByText(LONG_HOST_NAME, {
         selector: ".data-table__tooltip-truncated-text",
       })
     );
-    expect(
-      await screen.findByText(LONG_HOST_NAME, {
-        selector: ".truncated-tooltip.show",
-      })
-    ).toBeVisible();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      LONG_HOST_NAME
+    );
   });
 
   it("does not show a tooltip when the host name fits", async () => {
-    const { container } = renderHostCell("DESKTOP-U3RE7T8");
+    renderHostCell("DESKTOP-U3RE7T8");
 
-    expect(
-      container.querySelector(".data-table__tooltip-truncated-text-container")
-    ).toHaveAttribute("data-tip-disable", "true");
     await userEvent.hover(
       screen.getByText("DESKTOP-U3RE7T8", {
         selector: ".data-table__tooltip-truncated-text",
       })
     );
-    expect(
-      screen.queryByText("DESKTOP-U3RE7T8", {
-        selector: ".truncated-tooltip.show",
-      })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 });
 
