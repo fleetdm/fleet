@@ -84,7 +84,7 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 ### Apple (VPP)
 
-Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+Currently, configuration for Apple hosts is supported on iOS, iPadOS, and tvOS. Managed configuration is often referred to as App Config.
 
 Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
@@ -100,6 +100,8 @@ This example Zoom configuration ensures that the end user has only the SSO login
   <string>example</string>
 </dict>
 ```
+
+You can use [built-in variables](https://fleetdm.com/guides/fleet-variables) (`$FLEET_VAR_HOST_*`) and [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) in the configuration. Fleet fills them in for each host when it sends the app.
 
 ### Google Play (Android)
 
