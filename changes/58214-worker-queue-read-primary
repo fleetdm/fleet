@@ -1,0 +1,1 @@
+* Fixed the background worker processing only 100 jobs per run when a MySQL read replica is configured, by reading the job queue from the primary.

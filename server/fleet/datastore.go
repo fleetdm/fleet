@@ -256,6 +256,9 @@ type Datastore interface {
 	// manual membership is replaced with exactly those hosts.
 	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	DeleteLabel(ctx context.Context, id uint) error
+	// CleanupOrphanedLabelMembership deletes label_membership rows of labels that no longer exist: the ones an
+	// interrupted label deletion left behind, and the ones hosts reported after the label was deleted.
+	CleanupOrphanedLabelMembership(ctx context.Context) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	// LabelMembershipHostIDs returns every host_id row in label_membership for

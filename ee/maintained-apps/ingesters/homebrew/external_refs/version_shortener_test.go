@@ -256,6 +256,34 @@ func TestUTMVersionTransformer(t *testing.T) {
 	}
 }
 
+func TestHoppscotchVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "zero revision", version: "26.11.0-0", expected: "26.11.0"},
+		{name: "non-zero revision", version: "26.10.1-2", expected: "26.10.1"},
+		{name: "no revision", version: "26.11.0", expected: "26.11.0"},
+		{name: "non-numeric suffix kept", version: "26.11.0-beta", expected: "26.11.0-beta"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "hoppscotch/darwin"}
+			result, err := HoppscotchVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
 func TestMakeTrailingZeroTrimmer(t *testing.T) {
 	trimmer := makeTrailingZeroTrimmer(2)
 

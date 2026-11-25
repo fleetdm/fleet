@@ -166,7 +166,8 @@ var (
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
 	errPolicyPatchDeadlineRequiresPatch              = errors.New("\"patch_deadline\" is only supported for patch policies")
-	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
+	errPolicyForcePatchRequiresPatch                 = errors.New("\"force_patch\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
 	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
 	ErrPolicyPatchDeadlineRequiresMacOS              = errors.New("\"patch_deadline\" is available for macOS Fleet-maintained apps. It's coming soon to Windows.")
 )
@@ -574,6 +575,7 @@ type PolicyData struct {
 	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool `json:"patch_deadline" db:"patch_deadline"`
+	ForcePatch    bool `json:"force_patch" db:"-"`
 
 	UpdateCreateTimestamps
 }
@@ -891,6 +893,7 @@ type PolicySpec struct {
 	NotifyBeforePatching bool `json:"notify_before_patching"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool `json:"patch_deadline"`
+	ForcePatch    bool `json:"force_patch"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -970,7 +973,10 @@ func (p PolicySpec) Verify() error {
 	if p.PatchDeadline && p.Type != PolicyTypePatch {
 		return errPolicyPatchDeadlineRequiresPatch
 	}
-	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+	if p.ForcePatch && p.Type != PolicyTypePatch {
+		return errPolicyForcePatchRequiresPatch
+	}
+	if PatchOptionsConflict(p.ForcePatch, p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	return p.VerifyLabelScopes()

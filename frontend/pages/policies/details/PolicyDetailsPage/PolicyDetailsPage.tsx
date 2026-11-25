@@ -93,10 +93,10 @@ export const getLabelModalData = (policy: IPolicy): ILabelModalData => {
   let excludeScopeLabel: string | undefined;
   if (policy.labels_exclude_any?.length) {
     excludeLabels = policy.labels_exclude_any;
-    excludeScopeLabel = "exclude any";
+    excludeScopeLabel = "don’t have any";
   } else if (policy.labels_exclude_all?.length) {
     excludeLabels = policy.labels_exclude_all;
-    excludeScopeLabel = "exclude all";
+    excludeScopeLabel = "don’t have all";
   }
 
   return { includeLabels, includeScopeLabel, excludeLabels, excludeScopeLabel };
@@ -427,8 +427,10 @@ const PolicyDetailsPage = ({
                   {storedPolicy?.critical && (
                     <TooltipWrapper
                       tipContent="This policy has been marked as critical."
+                      position="top"
                       showArrow
                       underline={false}
+                      fixedPositionStrategy
                     >
                       <Icon
                         className="critical-policy-icon"

@@ -502,6 +502,7 @@ import HiveApp from "./png/HiveApp.png";
 import HomeAssistant from "./png/HomeAssistant.png";
 import Homebrew from "./png/Homebrew.png";
 import Homerow from "./png/Homerow.png";
+import Hoppscotch from "./png/Hoppscotch.png";
 import Hot from "./png/Hot.png";
 import Houdahspot from "./png/Houdahspot.png";
 import HpEasyAdmin from "./png/HpEasyAdmin.png";
@@ -1694,6 +1695,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "home assistant": HomeAssistant,
   homebrew: Homebrew,
   homerow: Homerow,
+  hoppscotch: Hoppscotch,
   hot: Hot,
   houdahspot: Houdahspot,
   "hp easy admin": HpEasyAdmin,

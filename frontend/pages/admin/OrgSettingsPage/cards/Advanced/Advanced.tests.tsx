@@ -14,12 +14,14 @@ const renderAdvanced = (
     tier?: string;
     mcpDisabled?: boolean;
     aiSessionsDisabled?: boolean;
+    mdm?: Partial<ReturnType<typeof createMockConfig>["mdm"]>;
   } = {}
 ) => {
   const baseConfig = createMockConfig();
   const config = {
     ...baseConfig,
     license: { ...baseConfig.license, tier: overrides.tier ?? "premium" },
+    mdm: { ...baseConfig.mdm, ...overrides.mdm },
     server_settings: {
       ...baseConfig.server_settings,
       mcp_disabled: overrides.mcpDisabled ?? false,
@@ -158,6 +160,42 @@ describe("Advanced settings — Host lifecycle", () => {
     await user.click(screen.getByText("Host expiry"));
 
     expect(screen.getByLabelText("Host expiry window")).toBeEnabled();
+  });
+});
+
+describe("Advanced settings — Allow only Apple Business enrollments", () => {
+  const getCheckbox = () =>
+    screen.getByLabelText(/Allow only Apple Business enrollments/);
+
+  it("is enabled when Apple MDM is on and Apple Business is connected", () => {
+    renderAdvanced();
+
+    expect(getCheckbox()).toBeEnabled();
+  });
+
+  it("is disabled with a tooltip when Apple Business isn't connected", async () => {
+    const { user } = renderAdvanced({
+      mdm: { apple_business_enabled_and_configured: false },
+    });
+
+    expect(getCheckbox()).toBeDisabled();
+
+    await user.hover(screen.getByText("Allow only Apple Business enrollments"));
+
+    expect(await screen.findByText(/to use this feature/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Apple MDM" })).toHaveAttribute(
+      "href",
+      "/settings/integrations/mdm/apple"
+    );
+    expect(
+      screen.getByRole("link", { name: "Apple Business" })
+    ).toHaveAttribute("href", "/settings/integrations/mdm/ab");
+  });
+
+  it("is disabled when Apple MDM is off", () => {
+    renderAdvanced({ mdm: { enabled_and_configured: false } });
+
+    expect(getCheckbox()).toBeDisabled();
   });
 });
 
