@@ -333,6 +333,7 @@ resource "aws_ecs_task_definition" "driver" {
         "-aws_region", data.aws_region.current.name,
         "-stop_file", "s3://${aws_s3_bucket.driver.id}/STOP",
         "-users_secret_env", "DRIVER_USERS_SECRET",
+        "-log_json",
       ],
       var.notify ? ["-notify_url_env", "DRIVER_NOTIFY_URL"] : [],
       var.extra_flags,

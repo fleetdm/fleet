@@ -54,6 +54,7 @@ func run() error {
 		flSince      = flag.Duration("since", 24*time.Hour, "with -summary: the window, ending now")
 		flLT         = flag.String("lt", "", "load-test instance, fleet-<terraform workspace>: its ECS cluster, Aurora cluster and log group carry this name; enables the checks that read AWS")
 		flRegion     = flag.String("aws_region", "us-east-2", "AWS region of the load test")
+		flLogJSON    = flag.Bool("log_json", false, "log as JSON lines on stderr (for CloudWatch Logs Insights)")
 	)
 	flag.Parse()
 	if *flSummary != "" {
@@ -61,7 +62,11 @@ func run() error {
 		return summarize(os.Stdout, strings.Split(*flSummary, ","), now.Add(-*flSince), now)
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	var handler slog.Handler = slog.NewTextHandler(os.Stderr, nil)
+	if *flLogJSON {
+		handler = slog.NewJSONHandler(os.Stderr, nil)
+	}
+	logger := slog.New(handler)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
