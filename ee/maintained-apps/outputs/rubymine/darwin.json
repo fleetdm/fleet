@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.3",
+      "version": "2026.3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rubymine';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rubymine' AND version_compare(bundle_short_version, '2026.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rubymine' AND version_compare(bundle_short_version, '2026.3.0.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.jetbrains.rubymine' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2026.3-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2026.3.0.1-aarch64.dmg",
       "install_script_ref": "b3208b3f",
       "uninstall_script_ref": "ff2e0623",
-      "sha256": "0d82dc7bd4a839e83d91b1b517b4a3c2ee8aed00759e6ddda22f14a14ed767ec",
+      "sha256": "b4025788dd9eb0fe227444d56590c80661456f18fb4a79047a1dffef0dca9f53",
       "default_categories": [
         "Developer tools"
       ]
