@@ -174,6 +174,8 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupStaleNanoRefetchCommands", testCleanupStaleNanoRefetchCommands},
 		{"MDMTurnOffSoftDeletesMDMCertificates", testMDMTurnOffSoftDeletesMDMCertificates},
 		{"HostMDMProfileOptIns", testHostMDMProfileOptIns},
+		{"AppleMDMStatusRollups", testAppleMDMStatusRollups},
+		{"AppleStatusRollupReconcileBatching", testAppleStatusRollupReconcileBatching},
 	}
 
 	for _, c := range cases {
@@ -15139,4 +15141,272 @@ func testGetAppleSerialEnrolledUnderAnotherUUID(t *testing.T, ds *Datastore) {
 	got, err = ds.GetAppleSerialEnrolledUnderAnotherUUID(ctx, "enrolled-serial", "other-uuid")
 	require.NoError(t, err)
 	require.Empty(t, got)
+}
+
+type appleStatusRollupRow struct {
+	Status    string `db:"status"`
+	FileVault string `db:"filevault_status"`
+}
+
+// readAppleStatusRollups returns the host_mdm_apple_profiles_status and host_mdm_apple_declarations_status rows keyed by host
+// UUID, read directly from the tables (no reconcile).
+func readAppleStatusRollups(t *testing.T, ds *Datastore) (profiles map[string]appleStatusRollupRow, decls map[string]string) {
+	profiles, decls = map[string]appleStatusRollupRow{}, map[string]string{}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var profRows []struct {
+			HostUUID string `db:"host_uuid"`
+			appleStatusRollupRow
+		}
+		if err := sqlx.SelectContext(t.Context(), q, &profRows,
+			`SELECT host_uuid, status, filevault_status FROM host_mdm_apple_profiles_status`); err != nil {
+			return err
+		}
+		for _, r := range profRows {
+			profiles[r.HostUUID] = r.appleStatusRollupRow
+		}
+		var declRows []struct {
+			HostUUID string `db:"host_uuid"`
+			Status   string `db:"status"`
+		}
+		if err := sqlx.SelectContext(t.Context(), q, &declRows,
+			`SELECT host_uuid, status FROM host_mdm_apple_declarations_status`); err != nil {
+			return err
+		}
+		for _, r := range declRows {
+			decls[r.HostUUID] = r.Status
+		}
+		return nil
+	})
+	return profiles, decls
+}
+
+// testAppleMDMStatusRollups verifies that the per-host Apple profile and declaration status rollups are maintained
+// INCREMENTALLY by the real write paths, with no reconcile.
+func testAppleMDMStatusRollups(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	ds.testSynchronousAppleRollupDispatch = true
+	t.Cleanup(func() { ds.testSynchronousAppleRollupDispatch = false })
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	setAppConfigDiskEncryptionForTest(ac, false)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+	newEnrolledMacHost := func(t *testing.T, name string) *fleet.Host {
+		h := newTestHostWithPlatform(t, ds, name, "darwin", nil)
+		nanoEnrollAndSetHostMDMData(t, ds, h, false)
+		return h
+	}
+	profileStatus := func(t *testing.T, hostUUID string) (appleStatusRollupRow, bool) {
+		profs, _ := readAppleStatusRollups(t, ds)
+		r, ok := profs[hostUUID]
+		return r, ok
+	}
+	declStatus := func(t *testing.T, hostUUID string) (string, bool) {
+		_, decls := readAppleStatusRollups(t, ds)
+		s, ok := decls[hostUUID]
+		return s, ok
+	}
+	requireProfileStatus := func(t *testing.T, hostUUID string, status, filevault fleet.MDMDeliveryStatus) {
+		t.Helper()
+		got, ok := profileStatus(t, hostUUID)
+		require.True(t, ok, "missing profiles rollup row")
+		require.Equal(t, appleStatusRollupRow{Status: string(status), FileVault: string(filevault)}, got)
+	}
+	requireDeclStatus := func(t *testing.T, hostUUID string, status fleet.MDMDeliveryStatus) {
+		t.Helper()
+		got, ok := declStatus(t, hostUUID)
+		require.True(t, ok, "missing declarations rollup row")
+		require.Equal(t, string(status), got)
+	}
+	assertSummary := func(t *testing.T, expected fleet.MDMProfilesSummary) {
+		t.Helper()
+		ps, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
+		require.NoError(t, err)
+		require.Equal(t, expected, *ps)
+	}
+	newProfile := func(t *testing.T, name string) *fleet.MDMAppleConfigProfile {
+		p, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, name, "com.test."+name, uuid.NewString()), nil)
+		require.NoError(t, err)
+		return p
+	}
+	ack := func(t *testing.T, h *fleet.Host, p *fleet.MDMAppleConfigProfile, op fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
+		// upsertHostCPs stores an empty command_uuid, which is what the ack matches on.
+		require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			HostUUID: h.UUID, ProfileUUID: p.ProfileUUID, OperationType: op, Status: &status,
+		}))
+	}
+
+	hostA := newEnrolledMacHost(t, "rollup-a")
+	hostB := newEnrolledMacHost(t, "rollup-b")
+	p1 := newProfile(t, "p1")
+	p2 := newProfile(t, "p2")
+	const none = fleet.MDMDeliveryStatus("")
+
+	// 1) BulkUpsertMDMAppleHostProfiles: hostA pending, hostB verified.
+	upsertHostCPs([]*fleet.Host{hostA}, []*fleet.MDMAppleConfigProfile{p1}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{hostB}, []*fleet.MDMAppleConfigProfile{p1}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	requireProfileStatus(t, hostA.UUID, fleet.MDMDeliveryPending, none)
+	requireProfileStatus(t, hostB.UUID, fleet.MDMDeliveryVerified, none)
+	assertSummary(t, fleet.MDMProfilesSummary{Pending: 1, Verified: 1})
+
+	// 2) Device ack (UpdateOrDeleteHostMDMAppleProfile) moves hostA to verifying.
+	ack(t, hostA, p1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	requireProfileStatus(t, hostA.UUID, fleet.MDMDeliveryVerifying, none)
+	assertSummary(t, fleet.MDMProfilesSummary{Verifying: 1, Verified: 1})
+
+	// 3) The FileVault profile lands in its own bucket and leaves the other-profiles bucket alone.
+	fv := &fleet.MDMAppleConfigProfile{ProfileUUID: "a" + uuid.NewString(), Identifier: mobileconfig.FleetFileVaultPayloadIdentifier, Name: "FileVault"}
+	upsertHostCPs([]*fleet.Host{hostB}, []*fleet.MDMAppleConfigProfile{fv}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, ctx, ds, t)
+	requireProfileStatus(t, hostB.UUID, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed)
+
+	// 4) Single resend (ResendHostMDMProfile) sets status NULL, which counts as pending.
+	require.NoError(t, ds.ResendHostMDMProfile(ctx, hostB.UUID, p1.ProfileUUID))
+	requireProfileStatus(t, hostB.UUID, fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed)
+
+	// 5) Batch resend (BatchResendMDMProfileToHosts, async dispatch): both hosts' failed p2 goes back to pending.
+	upsertHostCPs([]*fleet.Host{hostA, hostB}, []*fleet.MDMAppleConfigProfile{p2}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, ctx, ds, t)
+	requireProfileStatus(t, hostA.UUID, fleet.MDMDeliveryFailed, none)
+	resent, err := ds.BatchResendMDMProfileToHosts(ctx, p2.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, resent)
+	requireProfileStatus(t, hostA.UUID, fleet.MDMDeliveryPending, none)
+	requireProfileStatus(t, hostB.UUID, fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed)
+
+	// 6) Deleting p2 (DeleteMDMAppleConfigProfile, async dispatch) drops its unsent rows: hostA recomputes back to verifying.
+	require.NoError(t, ds.DeleteMDMAppleConfigProfile(ctx, p2.ProfileUUID))
+	requireProfileStatus(t, hostA.UUID, fleet.MDMDeliveryVerifying, none)
+
+	// 7) Queued removal (QueueHostMDMAppleProfileRemoval) is pending; acking it deletes hostA's last row and its rollup row.
+	require.NoError(t, ds.QueueHostMDMAppleProfileRemoval(ctx, hostA.UUID, p1.ProfileUUID))
+	requireProfileStatus(t, hostA.UUID, fleet.MDMDeliveryPending, none)
+	ack(t, hostA, p1, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryVerified)
+	_, ok := profileStatus(t, hostA.UUID)
+	require.False(t, ok, "profiles rollup row should be removed with the host's last profile")
+
+	// 8) Declarations (BulkUpsertMDMAppleHostDeclarations); the reserved OS updates declaration is excluded.
+	decl, err := ds.NewMDMAppleDeclaration(ctx, declForTest("D1", "D1", "foo"), nil)
+	require.NoError(t, err)
+	declRow := func(h *fleet.Host, declUUID, name string, status fleet.MDMDeliveryStatus) *fleet.MDMAppleHostDeclaration {
+		sum := md5.Sum([]byte(declUUID)) // nolint:gosec // test token only
+		return &fleet.MDMAppleHostDeclaration{
+			HostUUID: h.UUID, DeclarationUUID: declUUID, Name: name, Identifier: "id-" + name,
+			Status: &status, OperationType: fleet.MDMOperationTypeInstall, Token: string(sum[:]),
+		}
+	}
+	require.NoError(t, ds.BulkUpsertMDMAppleHostDeclarations(ctx, []*fleet.MDMAppleHostDeclaration{
+		declRow(hostA, decl.DeclarationUUID, decl.Name, fleet.MDMDeliveryVerified),
+		declRow(hostB, decl.DeclarationUUID, decl.Name, fleet.MDMDeliveryPending),
+		declRow(hostB, "d"+uuid.NewString(), fleetmdm.FleetMacOSUpdatesProfileName, fleet.MDMDeliveryFailed),
+	}))
+	requireDeclStatus(t, hostA.UUID, fleet.MDMDeliveryVerified)
+	requireDeclStatus(t, hostB.UUID, fleet.MDMDeliveryPending)
+
+	// 9) SetHostMDMAppleDeclarationStatus and the declaration resend path.
+	require.NoError(t, ds.SetHostMDMAppleDeclarationStatus(ctx, hostB.UUID, decl.DeclarationUUID, &fleet.MDMDeliveryVerified, "", nil))
+	requireDeclStatus(t, hostB.UUID, fleet.MDMDeliveryVerified)
+	require.NoError(t, ds.ResendHostMDMProfile(ctx, hostB.UUID, decl.DeclarationUUID))
+	requireDeclStatus(t, hostB.UUID, fleet.MDMDeliveryPending)
+
+	// 10) Deleting the declaration (DeleteMDMAppleDeclaration, async dispatch): hostA's verified row flips to a pending remove;
+	// hostB's unsent (NULL) row is updated too, and the reserved declaration still doesn't count.
+	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID))
+	requireDeclStatus(t, hostA.UUID, fleet.MDMDeliveryPending)
+
+	// 11) MDMTurnOff and DeleteHost remove both rollup rows.
+	_, _, err = ds.MDMTurnOff(ctx, hostA.UUID)
+	require.NoError(t, err)
+	require.NoError(t, ds.DeleteHost(ctx, hostB.ID))
+	profs, decls := readAppleStatusRollups(t, ds)
+	for _, h := range []*fleet.Host{hostA, hostB} {
+		require.NotContains(t, profs, h.UUID)
+		require.NotContains(t, decls, h.UUID)
+	}
+
+	// 12) A reconcile over the incrementally maintained state changes nothing.
+	hostC := newEnrolledMacHost(t, "rollup-c")
+	upsertHostCPs([]*fleet.Host{hostC}, []*fleet.MDMAppleConfigProfile{p1}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, ctx, ds, t)
+	profsBefore, declsBefore := readAppleStatusRollups(t, ds)
+	require.NoError(t, ds.ReconcileAppleMDMStatusRollups(ctx))
+	profsAfter, declsAfter := readAppleStatusRollups(t, ds)
+	require.Equal(t, profsBefore, profsAfter)
+	require.Equal(t, declsBefore, declsAfter)
+
+	// 13) The production async dispatch (goroutine, detached context) converges on its own.
+	ds.testSynchronousAppleRollupDispatch = false
+	resent, err = ds.BatchResendMDMProfileToHosts(ctx, p1.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, resent)
+	require.Eventually(t, func() bool {
+		r, ok := profileStatus(t, hostC.UUID)
+		return ok && r.Status == string(fleet.MDMDeliveryPending)
+	}, 10*time.Second, 100*time.Millisecond, "async rollup dispatch should converge without a reconcile")
+}
+
+// testAppleStatusRollupReconcileBatching verifies that ReconcileAppleMDMStatusRollups pages correctly: with a page size smaller
+// than the host count, every host resolves to the right bucket and every orphan rollup row is removed.
+func testAppleStatusRollupReconcileBatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	ds.testAppleStatusRollupReconcileBatchSize = 2
+	t.Cleanup(func() { ds.testAppleStatusRollupReconcileBatchSize = 0 })
+
+	// Seed source rows directly, bypassing the write paths that maintain the rollups.
+	insertProfile := func(hostUUID, identifier string, status *fleet.MDMDeliveryStatus) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_mdm_apple_profiles
+					(host_uuid, profile_uuid, profile_identifier, command_uuid, checksum, operation_type, status)
+				VALUES (?, ?, ?, ?, UNHEX(MD5(?)), 'install', ?)`,
+				hostUUID, "a"+identifier, identifier, "cmd-"+hostUUID+identifier, identifier, status)
+			return err
+		})
+	}
+	insertDecl := func(hostUUID string, status *fleet.MDMDeliveryStatus) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_mdm_apple_declarations
+					(host_uuid, declaration_uuid, declaration_identifier, declaration_name, token, operation_type, status)
+				VALUES (?, 'd1', 'id-d1', 'D1', UNHEX(MD5(?)), 'install', ?)`,
+				hostUUID, hostUUID, status)
+			return err
+		})
+	}
+	fv := mobileconfig.FleetFileVaultPayloadIdentifier
+	insertProfile("batch-host-a", "com.a", new(fleet.MDMDeliveryFailed))
+	insertProfile("batch-host-b", "com.a", nil)
+	insertProfile("batch-host-c", "com.a", new(fleet.MDMDeliveryVerifying))
+	insertProfile("batch-host-c", fv, new(fleet.MDMDeliveryVerified))
+	insertProfile("batch-host-d", "com.a", new(fleet.MDMDeliveryVerified))
+	insertProfile("batch-host-e", fv, new(fleet.MDMDeliveryPending))
+	insertDecl("batch-host-a", new(fleet.MDMDeliveryVerified))
+	insertDecl("batch-host-b", new(fleet.MDMDeliveryFailed))
+	insertDecl("batch-host-c", nil)
+
+	// Seed orphan rollup rows: hosts with a rollup row but no source rows.
+	for _, orphan := range []string{"batch-orphan-a", "batch-orphan-b", "batch-orphan-c"} {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles_status (host_uuid, status) VALUES (?, 'verified')`, orphan); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations_status (host_uuid, status) VALUES (?, 'verified')`, orphan)
+			return err
+		})
+	}
+
+	require.NoError(t, ds.ReconcileAppleMDMStatusRollups(ctx))
+	profs, decls := readAppleStatusRollups(t, ds)
+	require.Equal(t, map[string]appleStatusRollupRow{
+		"batch-host-a": {Status: "failed"},
+		"batch-host-b": {Status: "pending"},
+		"batch-host-c": {Status: "verifying", FileVault: "verified"},
+		"batch-host-d": {Status: "verified"},
+		"batch-host-e": {FileVault: "pending"},
+	}, profs)
+	require.Equal(t, map[string]string{
+		"batch-host-a": "verified",
+		"batch-host-b": "failed",
+		"batch-host-c": "pending",
+	}, decls)
 }

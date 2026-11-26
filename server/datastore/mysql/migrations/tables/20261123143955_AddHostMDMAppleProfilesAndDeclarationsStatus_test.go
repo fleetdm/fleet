@@ -66,7 +66,7 @@ func TestUp_20261123143955(t *testing.T) {
 		gotProf[host] = ps
 	}
 	require.NoError(t, rows.Err())
-	require.NoError(t, rows.Close())
+	defer rows.Close()
 	require.Equal(t, map[string]profStatus{
 		"host-failed":           {"failed", "verified"},
 		"host-pending":          {"pending", "verifying"},
@@ -85,7 +85,7 @@ func TestUp_20261123143955(t *testing.T) {
 		gotDecl[host] = status
 	}
 	require.NoError(t, rows.Err())
-	require.NoError(t, rows.Close())
+	defer rows.Close()
 	require.Equal(t, map[string]string{
 		"host-failed":          "failed",
 		"host-pending":         "pending",
