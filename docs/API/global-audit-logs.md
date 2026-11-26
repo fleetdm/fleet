@@ -147,6 +147,8 @@ This activity does not contain any detail fields.
 - [edited_ejbca](#edited-ejbca)
 - [deleted_ejbca](#deleted-ejbca)
 - [resent_certificate](#resent-certificate)
+- [added_certificate](#added-certificate)
+- [deleted_certificate](#deleted-certificate)
 
 ### edited_android_certificate
 
@@ -447,7 +449,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_google_cas
+### added_google_cas
 
 Generated when Google CAS certificate authority configuration is added in Fleet.
 
@@ -462,7 +464,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_google_cas
+### edited_google_cas
 
 Generated when Google CAS certificate authority configuration is edited in Fleet.
 
@@ -477,7 +479,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_google_cas
+### deleted_google_cas
 
 Generated when Google CAS certificate authority configuration is deleted in Fleet.
 
@@ -492,7 +494,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_ejbca
+### added_ejbca
 
 Generated when EJBCA certificate authority configuration is added in Fleet.
 
@@ -507,7 +509,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_ejbca
+### edited_ejbca
 
 Generated when EJBCA certificate authority configuration is edited in Fleet.
 
@@ -522,7 +524,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_ejbca
+### deleted_ejbca
 
 Generated when EJBCA certificate authority configuration is deleted in Fleet.
 
@@ -555,6 +557,44 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "certificate_template_id": 123,
   "certificate_name": "Zero trust certificate"
+}
+```
+
+### added_certificate
+
+Generated when a user adds a certificate template for Android hosts.
+
+This activity contains the following fields:
+- "name": Name of the certificate template.
+- "fleet_id": The ID of the fleet that the certificate template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the certificate template applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "name": "WiFi cert",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+### deleted_certificate
+
+Generated when a user deletes a certificate template for Android hosts.
+
+This activity contains the following fields:
+- "name": Name of the certificate template.
+- "fleet_id": The ID of the fleet that the certificate template applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the certificate template applied to, `null` if it applied to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "name": "WiFi cert",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -607,8 +647,13 @@ This activity contains the following fields:
 - [deleted_conditional_access_integration_microsoft](#deleted-conditional-access-integration-microsoft)
 - [added_conditional_access_okta](#added-conditional-access-okta)
 - [deleted_conditional_access_okta](#deleted-conditional-access-okta)
+- [added_conditional_access_integration_google](#added-conditional-access-integration-google)
+- [edited_conditional_access_integration_google](#edited-conditional-access-integration-google)
+- [deleted_conditional_access_integration_google](#deleted-conditional-access-integration-google)
 - [enabled_conditional_access_automations](#enabled-conditional-access-automations)
 - [disabled_conditional_access_automations](#disabled-conditional-access-automations)
+- [update_conditional_access_bypass](#update-conditional-access-bypass)
+- [host_bypassed_conditional_access](#host-bypassed-conditional-access)
 
 ### added_conditional_access_integration_microsoft
 
@@ -631,6 +676,26 @@ This activity does not contain any detail fields.
 ### deleted_conditional_access_okta
 
 Generated when Okta conditional access configuration is removed.
+
+This activity does not contain any detail fields.
+
+### added_conditional_access_integration_google
+
+Generated when Google conditional access is configured.
+
+This activity does not contain any detail fields.
+
+### edited_conditional_access_integration_google
+
+Generated when the Google customer ID, the admin email, or the service account key of a connected Google conditional access integration is changed.
+
+This activity does not contain any detail fields.
+
+### deleted_conditional_access_integration_google
+
+Generated when Google conditional access is removed. Hosts stay marked as managed in Google.
+
+Also generated when a change of Google customer ID disconnects Fleet from the previous customer and Fleet can't connect to the new one. The next successful connection generates `added_conditional_access_integration_google`.
 
 This activity does not contain any detail fields.
 
@@ -672,6 +737,40 @@ This activity contains the following field:
 }
 ```
 
+### update_conditional_access_bypass
+
+Generated when conditional access bypass settings are updated.
+
+This activity contains the following field:
+- "bypass_disabled": Whether conditional access bypass was disabled.
+
+#### Example
+
+```json
+{
+  "bypass_disabled": true
+}
+```
+
+### host_bypassed_conditional_access
+
+Generated when a host bypasses conditional access.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "idp_full_name": The end user's full name from the identity provider. "An end user" if Fleet doesn't have a name.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "idp_full_name": "Anna Chao"
+}
+```
+
 ## Fleet configuration
 
 - [edited_agent_options](#edited-agent-options)
@@ -689,6 +788,12 @@ This activity contains the following field:
 - [disabled_windows_mdm_migration](#disabled-windows-mdm-migration)
 - [edited_enroll_secrets](#edited-enroll-secrets)
 - [edited_windows_enrollment_default_fleet](#edited-windows-enrollment-default-fleet)
+- [added_microsoft_entra_tenant](#added-microsoft-entra-tenant)
+- [deleted_microsoft_entra_tenant](#deleted-microsoft-entra-tenant)
+- [added_microsoft_entra_client_id](#added-microsoft-entra-client-id)
+- [deleted_microsoft_entra_client_id](#deleted-microsoft-entra-client-id)
+- [changed_org_logo](#changed-org-logo)
+- [deleted_org_logo](#deleted-org-logo)
 
 ### edited_agent_options
 
@@ -837,6 +942,96 @@ This activity contains the following fields:
 }
 ```
 
+### added_microsoft_entra_tenant
+
+Generated when a Microsoft Entra tenant is added. Fleet generates one activity for each tenant added.
+
+This activity contains the following field:
+- "tenant_id": The ID of the Entra tenant.
+
+#### Example
+
+```json
+{
+  "tenant_id": "ada00076-06f6-459b-8c45-88a843a2271f"
+}
+```
+
+### deleted_microsoft_entra_tenant
+
+Generated when a Microsoft Entra tenant is deleted. Fleet generates one activity for each tenant deleted.
+
+This activity contains the following field:
+- "tenant_id": The ID of the Entra tenant.
+
+#### Example
+
+```json
+{
+  "tenant_id": "ada00076-06f6-459b-8c45-88a843a2271f"
+}
+```
+
+### added_microsoft_entra_client_id
+
+Generated when a Microsoft Entra client ID is added. Fleet generates one activity for each client ID added.
+
+This activity contains the following field:
+- "client_id": The Entra client ID.
+
+#### Example
+
+```json
+{
+  "client_id": "5f0a1b2c-3d4e-4f5a-8b6c-7d8e9f0a1b2c"
+}
+```
+
+### deleted_microsoft_entra_client_id
+
+Generated when a Microsoft Entra client ID is deleted. Fleet generates one activity for each client ID deleted.
+
+This activity contains the following field:
+- "client_id": The Entra client ID.
+
+#### Example
+
+```json
+{
+  "client_id": "5f0a1b2c-3d4e-4f5a-8b6c-7d8e9f0a1b2c"
+}
+```
+
+### changed_org_logo
+
+Generated when a user uploads or changes the organization logo.
+
+This activity contains the following field:
+- "mode": The logo that was changed. Options are "light", "dark", or "all".
+
+#### Example
+
+```json
+{
+  "mode": "light"
+}
+```
+
+### deleted_org_logo
+
+Generated when the organization logo is deleted. Also generated when changing the logo URL in the organization settings removes a logo that Fleet hosted.
+
+This activity contains the following field:
+- "mode": The logo that was deleted. Options are "light", "dark", or "all".
+
+#### Example
+
+```json
+{
+  "mode": "dark"
+}
+```
+
 ## Hosts
 
 - [transferred_hosts](#transferred-hosts)
@@ -855,13 +1050,14 @@ This activity contains the following fields:
 - [rotated_disk_encryption_key](#rotated-disk-encryption-key)
 - [failed_to_rotate_disk_encryption_key](#failed-to-rotate-disk-encryption-key)
 - [bound_host_to_idp_account](#bound-host-to-idp-account)
+- [unbound_host_from_idp_account](#unbound-host-from-idp-account)
 - [refused_host_idp_account_change](#refused-host-idp-account-change)
 - [set_host_google_device_id](#set-host-google-device-id)
 - [deleted_host_google_device_id](#deleted-host-google-device-id)
 - [edited_host_idp_data](#edited-host-idp-data)
-- [read_host_recovery_lock_password](#read-host-recovery-lock-password)
-- [escrowed_recovery_lock_password](#escrowed-recovery-lock-password)
-- [rotated_recovery_lock_password](#rotated-recovery-lock-password)
+- [viewed_host_recovery_lock_password](#viewed-host-recovery-lock-password)
+- [set_host_recovery_lock_password](#set-host-recovery-lock-password)
+- [rotated_host_recovery_lock_password](#rotated-host-recovery-lock-password)
 - [rotated_managed_local_account_password](#rotated-managed-local-account-password)
 - [failed_to_rotate_managed_local_account_password](#failed-to-rotate-managed-local-account-password)
 - [read_managed_local_account](#read-managed-local-account)
@@ -1224,7 +1420,7 @@ This activity contains the following fields:
 }
 ```
 
-## unbound_host_from_idp_account
+### unbound_host_from_idp_account
 
 Generated when a host's link to an identity provider (IdP) account is removed, for example when the host re-enrolls without end user authentication. Fleet records this activity, so it does not include a user.
 
@@ -1262,12 +1458,15 @@ This activity contains the following fields:
 
 ### set_host_google_device_id
 
-Generated when a host is marked as company-owned in Google by saving its Google device ID, for example by the registration page from the Google conditional access guide. Not generated when the same ID is set again.
+Generated when a host is marked as company-owned in Google by saving its Google device ID. Not generated when the same ID is set again.
+
+The activity has no Fleet user when the end user's Google sign-in registered the host (iOS and iPadOS) or when Fleet registered it automatically (Android).
 
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "google_device_id": The host's device ID in Google.
+- "google_email": The Google account that signed in. Only present when the end user's Google sign-in registered the host.
 
 #### Example
 
@@ -1275,13 +1474,14 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's iPhone",
-  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+  "google_email": "anna@example.com"
 }
 ```
 
 ### deleted_host_google_device_id
 
-Generated when a user unmarks a host as company-owned in Google by removing its Google device ID. Not generated when the host has no Google device ID.
+Generated when a user removes a host's Google device ID. Fleet unmarks the host in Google within 5 minutes. Not generated when the host has no Google device ID, or when Fleet unmarks a host because it was deleted or unenrolled.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1317,7 +1517,7 @@ This activity contains the following fields:
 }
 ```
 
-### read_host_recovery_lock_password
+### viewed_host_recovery_lock_password
 
 Generated when a user views the Recovery Lock password for a host.
 
@@ -1334,9 +1534,9 @@ This activity contains the following fields:
 }
 ```
 
-### escrowed_recovery_lock_password
+### set_host_recovery_lock_password
 
-Generated when a Recovery Lock password is escrowed.
+Generated when Fleet sets the Recovery Lock password on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1351,9 +1551,9 @@ This activity contains the following fields:
 }
 ```
 
-### rotated_recovery_lock_password
+### rotated_host_recovery_lock_password
 
-Generated when a Recovery Lock password is rotated.
+Generated when the Recovery Lock password for a host is rotated, either by a user or automatically by Fleet after the password is viewed.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1647,8 +1847,8 @@ This activity contains the following fields:
 - [resent_configuration_profile_batch](#resent-configuration-profile-batch)
 - [installed_opt_in_configuration_profile](#installed-opt-in-configuration-profile)
 - [uninstalled_opt_in_configuration_profile](#uninstalled-opt-in-configuration-profile)
-- [enabled_recovery_lock_password](#enabled-recovery-lock-password)
-- [disabled_recovery_lock_password](#disabled-recovery-lock-password)
+- [enabled_recovery_lock_passwords](#enabled-recovery-lock-passwords)
+- [disabled_recovery_lock_passwords](#disabled-recovery-lock-passwords)
 - [edited_host_name_template](#edited-host-name-template)
 - [created_apple_asset_declaration](#created-apple-asset-declaration)
 - [edited_disk_encryption_settings](#edited-disk-encryption-settings)
@@ -2175,7 +2375,7 @@ This activity contains the following fields:
 }
 ```
 
-### enabled_recovery_lock_password
+### enabled_recovery_lock_passwords
 
 Generated when a user turns on Recovery Lock password for a fleet (or no fleet).
 
@@ -2194,7 +2394,7 @@ This activity contains the following fields:
 }
 ```
 
-### disabled_recovery_lock_password
+### disabled_recovery_lock_passwords
 
 Generated when a user turns off Recovery Lock password for a fleet (or no fleet).
 
@@ -4431,6 +4631,63 @@ This activity contains the following fields:
 {
   "custom_variable_id": 123,
   "custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## Custom host vitals
+
+- [created_custom_host_vital](#created-custom-host-vital)
+- [edited_custom_host_vital](#edited-custom-host-vital)
+- [deleted_custom_host_vital](#deleted-custom-host-vital)
+
+### created_custom_host_vital
+
+Generated when a user creates a custom host vital.
+
+This activity contains the following fields:
+- "custom_host_vital_id": ID of the custom host vital.
+- "custom_host_vital_name": Name of the custom host vital.
+
+#### Example
+
+```json
+{
+  "custom_host_vital_id": 12,
+  "custom_host_vital_name": "Asset tag"
+}
+```
+
+### edited_custom_host_vital
+
+Generated when a user edits a custom host vital.
+
+This activity contains the following fields:
+- "custom_host_vital_id": ID of the custom host vital.
+- "custom_host_vital_name": Name of the custom host vital.
+
+#### Example
+
+```json
+{
+  "custom_host_vital_id": 12,
+  "custom_host_vital_name": "Asset tag"
+}
+```
+
+### deleted_custom_host_vital
+
+Generated when a user deletes a custom host vital.
+
+This activity contains the following fields:
+- "custom_host_vital_id": ID of the custom host vital.
+- "custom_host_vital_name": Name of the custom host vital.
+
+#### Example
+
+```json
+{
+  "custom_host_vital_id": 12,
+  "custom_host_vital_name": "Asset tag"
 }
 ```
 

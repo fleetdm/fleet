@@ -2476,6 +2476,8 @@ type enrolledHostInfo struct {
 	// NodeKeySet indicates whether `node_key` is set (NOT NULL) for a osquery host
 	// or if `orbit_node_key` is set (NOT NULL) for a orbit host.
 	NodeKeySet bool
+	// AgentEnrolled indicates orbit or osquery has enrolled as the host: a node key is set on either plane.
+	AgentEnrolled bool
 	// Platform is the OS of the host.
 	Platform string
 	// HasUUID indicates the host has a UUID. MySQL computes it so it agrees with the COALESCE(NULLIF(uuid, ''), ?) updates.
@@ -2513,6 +2515,7 @@ func matchHostDuringEnrollment(
 		ID             uint
 		LastEnrolledAt time.Time `db:"last_enrolled_at"`
 		NodeKeySet     bool      `db:"node_key_set"`
+		AgentEnrolled  bool      `db:"agent_enrolled"`
 		Priority       int
 		Platform       string `db:"platform"`
 		HasUUID        bool   `db:"has_uuid"`
@@ -2529,9 +2532,11 @@ func matchHostDuringEnrollment(
 	if enrollType == orbitEnroll {
 		nodeKeyColumn = "orbit_node_key"
 	}
+	// Unqualified in the joined subqueries too, since only hosts has these columns.
+	const agentEnrolledColumn = `(orbit_node_key IS NOT NULL OR node_key IS NOT NULL) AS agent_enrolled`
 
 	if osqueryID != "" || uuid != "" {
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 1 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, `+agentEnrolledColumn+`, 1 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
 		osqueryHostID := osqueryID
 		if osqueryID == "" {
 			// special-case, if there's no osquery identifier, use the uuid
@@ -2557,7 +2562,7 @@ func matchHostDuringEnrollment(
 			uuidCond = ` AND (uuid = '' OR uuid = ?)`
 			args = append(args, uuid)
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados')%s ORDER BY id LIMIT 1)`, nodeKeyColumn, uuidCond))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, `+agentEnrolledColumn+`, 2 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados')%s ORDER BY id LIMIT 1)`, nodeKeyColumn, uuidCond))
 	}
 
 	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find it.
@@ -2568,7 +2573,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT h.id, h.last_enrolled_at, h.%s IS NOT NULL AS node_key_set, 2 priority, h.platform, h.uuid <> '' AS has_uuid
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT h.id, h.last_enrolled_at, h.%s IS NOT NULL AS node_key_set, `+agentEnrolledColumn+`, 2 priority, h.platform, h.uuid <> '' AS has_uuid
 			FROM hosts h
 			JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
 			WHERE had.autopilot_device_id = ? AND h.platform = 'windows' AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL
@@ -2584,7 +2589,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT h.id, h.last_enrolled_at, h.%s IS NOT NULL AS node_key_set, 3 priority, h.platform, h.uuid <> '' AS has_uuid
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT h.id, h.last_enrolled_at, h.%s IS NOT NULL AS node_key_set, `+agentEnrolledColumn+`, 3 priority, h.platform, h.uuid <> '' AS has_uuid
 			FROM hosts h
 			JOIN host_mdm hm ON hm.host_id = h.id
 			JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
@@ -2599,7 +2604,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 3 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE uuid = ? AND (platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, `+agentEnrolledColumn+`, 3 priority, platform, uuid <> '' AS has_uuid FROM hosts WHERE uuid = ? AND (platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, uuid)
 	}
 
@@ -2617,6 +2622,7 @@ func matchHostDuringEnrollment(
 		ID:             rows[0].ID,
 		LastEnrolledAt: rows[0].LastEnrolledAt,
 		NodeKeySet:     rows[0].NodeKeySet,
+		AgentEnrolled:  rows[0].AgentEnrolled,
 		Platform:       rows[0].Platform,
 		HasUUID:        rows[0].HasUUID,
 		// Priority 2 and 3 on a Windows row are the Autopilot ZTDID and serial matches.
@@ -2926,7 +2932,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		}
 
 		if enrollConfig.OneTimeEnrollSecretID != nil {
-			if err := consumeHostOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, fleet.EnrollmentPlaneOrbit, host.ID); err != nil {
+			// enrolledHostInfo is nil when the enrollment inserted a new row, and it holds the row's state from before the update.
+			agentEnrolled := enrolledHostInfo != nil && enrolledHostInfo.AgentEnrolled
+			if err := consumeHostOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, fleet.EnrollmentPlaneOrbit, host.ID,
+				agentEnrolled); err != nil {
 				return err
 			}
 		}
@@ -2989,6 +2998,19 @@ func (ds *Datastore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo f
 		// enrollment from end user authentication.
 		return matched.NodeKeySet, nil
 	}
+}
+
+func (ds *Datastore) HostAgentEnrolled(ctx context.Context, hostID uint) (bool, error) {
+	var enrolled bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &enrolled,
+		`SELECT orbit_node_key IS NOT NULL OR node_key IS NOT NULL FROM hosts WHERE id = ?`, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, ctxerr.Wrap(ctx, notFound("Host").WithID(hostID))
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "check host agent enrollment")
+	}
+	return enrolled, nil
 }
 
 // EnrollOsquery enrolls the osquery agent to Fleet.
@@ -3181,7 +3203,10 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		}
 
 		if enrollConfig.OneTimeEnrollSecretID != nil {
-			if err := consumeHostOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, fleet.EnrollmentPlaneOsquery, hostID); err != nil {
+			// enrolledHostInfo is nil when the enrollment inserted a new row, and it holds the row's state from before the update.
+			agentEnrolled := enrolledHostInfo != nil && enrolledHostInfo.AgentEnrolled
+			if err := consumeHostOneTimeEnrollSecret(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, fleet.EnrollmentPlaneOsquery, hostID,
+				agentEnrolled); err != nil {
 				return err
 			}
 		}
@@ -4915,7 +4940,8 @@ func (ds *Datastore) ClearEndUserAfterWindowsReset(ctx context.Context, opts ...
 		}
 		err = rejectOrbitEnrollmentOverHostDB(ctx, tx, enrollConfig, matched, false)
 		if err == nil && enrollConfig.OneTimeEnrollSecretID != nil {
-			err = checkHostOneTimeEnrollSecretDB(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, fleet.EnrollmentPlaneOrbit, matched.ID, false)
+			err = checkHostOneTimeEnrollSecretDB(ctx, tx, *enrollConfig.OneTimeEnrollSecretID, fleet.EnrollmentPlaneOrbit, matched.ID,
+				matched.AgentEnrolled, false)
 		}
 		if _, rejected := errors.AsType[*fleet.EnrollmentRejectedError](err); rejected {
 			return nil

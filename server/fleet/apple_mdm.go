@@ -1855,7 +1855,10 @@ type HostRecoveryLockPasswordPayload struct {
 }
 
 type HostRecoveryLockPending struct {
-	HasCurrentPassword       bool             `db:"has_current_password"` // Whether or not encrypted_password contains a value
+	HasCurrentPassword bool `db:"has_current_password"` // Whether or not encrypted_password contains a value
+	// SetsNewPassword is true when the pending install delivers a new password outside a rotation: a first set,
+	// or a set after re-enrollment, which keeps the last known password as current.
+	SetsNewPassword          bool             `db:"sets_new_password"`
 	PendingSetCommandUUID    *string          `db:"pending_set_command_uuid"`
 	PendingVerifyCommandUUID *string          `db:"pending_verify_command_uuid"`
 	OperationType            MDMOperationType `db:"operation_type"`

@@ -213,7 +213,7 @@ func (d *Datastore) invalidateAfterHostUpdate(ctx context.Context, host *fleet.H
 }
 
 // MDMWindowsDeleteEnrolledDeviceOnReenrollment invalidates the host the deleted enrollment was linked to: a host back from a
-// reset has its orbit_node_key cleared here.
+// wipe or reset has its node keys cleared here.
 func (d *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) (string, error) {
 	hostUUID, err := d.Datastore.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, mdmDeviceHWID)
 	if err != nil || hostUUID == "" || !d.hostCacheEnabled {

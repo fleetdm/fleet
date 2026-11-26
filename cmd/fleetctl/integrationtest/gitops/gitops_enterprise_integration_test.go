@@ -5066,9 +5066,9 @@ reports:
 	teamFile := filepath.Join(t.TempDir(), "team.yml")
 
 	require.NoError(t, os.WriteFile(teamFile, []byte(teamWithFMAAndPolicies), 0o644))
-	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{
+	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
-	}))
+	}), true)
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)

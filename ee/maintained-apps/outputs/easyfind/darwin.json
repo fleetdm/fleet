@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.0.2",
+      "version": "6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.grunenberg.EasyFind';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.grunenberg.EasyFind' AND version_compare(bundle_short_version, '5.0.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.grunenberg.EasyFind' AND version_compare(bundle_short_version, '6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.grunenberg.EasyFind' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.devontechnologies.com/download/freeware/easyfind/5.0.2/EasyFind.app.zip",
+      "installer_url": "https://download.devontechnologies.com/download/freeware/easyfind/6.0/EasyFind.app.zip",
       "install_script_ref": "3e08f076",
       "uninstall_script_ref": "dda6343f",
-      "sha256": "1539a562539e3b3a243da864fddee0351a4c7d109aa9dcae436775ecbb288fc9",
+      "sha256": "4cc13fc5ff8eec0a217e4058078caf7bb6af3bf332a09a779738613790731a11",
       "default_categories": [
         "Productivity"
       ]

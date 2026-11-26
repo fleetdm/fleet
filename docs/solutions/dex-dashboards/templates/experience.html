@@ -19,6 +19,7 @@ a.btn { display: inline-flex; align-items: center; box-sizing: border-box; text-
 .delta { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .delta.up { color: var(--core-fleet-green); }
 .delta.down { color: var(--bad); }
+.delta.none { color: var(--ink-2); }
 .cats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
 .cat { text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px;
   display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
@@ -333,8 +334,8 @@ function gradeBadge(x, lg) {
   const g = gradeOf(x);
   return g ? h("span", { class: `grade${lg ? " lg" : ""}`, style: `--tone:var(--${gradeTone(g)})`, title: `Grade ${g}` }, g) : null;
 }
-function deltaEl(dv, suffix = "") {
-  if (!Number.isFinite(dv)) return h("span", { class: "delta" }, "---");
+function deltaEl(dv, suffix = "", none = "---") {
+  if (!Number.isFinite(dv)) return h("span", { class: "delta none" }, none);
   const v = Math.round(dv * 10) / 10;
   if (Math.abs(v) < 0.5) return h("span", { class: "delta" }, `no change${suffix}`);
   return h("span", { class: `delta ${v > 0 ? "up" : "down"}` }, `${v > 0 ? "+" : "−"}${Math.abs(Math.round(v))}${suffix}`);
@@ -509,7 +510,7 @@ function categorySection(cfg, sc, bds, lostCat, lostSig, perHost) {
       h("h3", {}, catLabel(c.cid)),
       h("span", { class: "s" }, c.cw > 0 ? `${fmt.pct(pct(c.cw, totalW))} of the score` : "Shown, not scored"),
       h("div", { class: "big" }, h("b", {}, scoreFmt(a)), gradeBadge(a)),
-      h("span", { class: "s" }, deltaEl(dv, " in 7 days"), c.cw > 0 && sc.length ? ` · costs ${r1(perHost(lostCat, c.cid))} points` : ""));
+      h("span", { class: "s" }, deltaEl(dv, " in 7 days", "No score from a week ago"), c.cw > 0 && sc.length ? ` · costs ${r1(perHost(lostCat, c.cid))} points` : ""));
   });
   const sel = PLAN.find((c) => c.cid === CAT_SEL);
   const cat = active().categories[sel.cid];
@@ -646,7 +647,7 @@ function hostsSection(cfg, now) {
     { key: "name", label: "Computer", value: (r) => r.x.name.toLowerCase(), cell: (r) => hostCell(r.x) },
     { key: "score", label: "Score", num: true, value: (r) => (Number.isFinite(r.s) ? r.s : null),
       cell: (r) => (r.stale ? h("span", { class: "cell-sub" }, "not checking in") : Number.isFinite(r.s) ? [scoreFmt(r.s), " ", gradeBadge(r.s)] : "---") },
-    { key: "delta", label: "Change, 7 days", num: true, value: (r) => (Number.isFinite(r.delta) ? r.delta : null), cell: (r) => deltaEl(r.delta) },
+    { key: "delta", label: "Change, 7 days", num: true, value: (r) => (Number.isFinite(r.delta) ? r.delta : null), cell: (r) => deltaEl(r.delta, "", "no data") },
     { key: "weak", label: "Lowest category", value: (r) => (r.weakest ? r.weakest[1] : null),
       cell: (r) => (r.weakest ? [catLabel(r.weakest[0]), " ", h("span", { class: "cell-sub" }, scoreFmt(r.weakest[1]))] : "---") },
     { key: "issue", label: "Costs the most", value: () => 0, cell: (r) => { const t = r.stale ? null : topIssue(r.x); return t ? h("span", { class: "cell-sub" }, `${t.g.sig.label}: ${valueLabel(t.g.sig, t.v)}`) : "---"; } },

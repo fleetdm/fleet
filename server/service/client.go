@@ -128,10 +128,14 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 }
 
 func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, rawQuery string, bodyBytes []byte, headers map[string]string) (*http.Response, error) {
+	requestURL, err := c.RequestURL(path, rawQuery)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building request URL")
+	}
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
-		c.URL(path, rawQuery).String(),
+		requestURL,
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
@@ -4090,7 +4094,8 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			// validation or silently pin the wrong package. Reset before resolve.
 			config.Policies[i].SoftwarePackageID = nil
 
-			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
+			if config.Policies[i].Type == fleet.PolicyTypePatch && (config.Policies[i].ForcePatch || config.Policies[i].PatchWhenClosed ||
+				config.Policies[i].NotifyBeforePatching || config.Policies[i].PatchDeadline) {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
 					// Should not happen because FMAs are uploaded first.

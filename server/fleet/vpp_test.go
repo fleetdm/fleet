@@ -65,6 +65,16 @@ func TestValidateAppleAppConfiguration(t *testing.T) {
 			input: `<dict><key>K</key><string>https://x/$FLEET_VAR_HOST_UUID/$FLEET_VAR_HOST_HARDWARE_SERIAL</string></dict>`,
 		},
 		{
+			name:  "custom host vital",
+			input: `<dict><key>AssetTag</key><string>$FLEET_HOST_VITAL_12</string><key>Braced</key><string>${FLEET_HOST_VITAL_3}</string></dict>`,
+		},
+		{
+			name:    "malformed custom host vital",
+			input:   `<dict><key>AssetTag</key><string>$FLEET_HOST_VITAL_asset_tag</string></dict>`,
+			wantErr: true,
+			errSub:  `Invalid custom host vital reference "$FLEET_HOST_VITAL_asset_tag"`,
+		},
+		{
 			name:    "credential variable not allowed in app config",
 			input:   `<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`,
 			wantErr: true,

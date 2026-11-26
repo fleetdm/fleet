@@ -3838,6 +3838,13 @@
       "description": "GitHub Copilot is a native desktop app for working with the GitHub Copilot AI coding agent."
     },
     {
+      "name": "GitHub Copilot",
+      "slug": "github-copilot-app/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub Copilot",
+      "description": "GitHub Copilot is a native desktop app for working with the GitHub Copilot AI coding agent."
+    },
+    {
       "name": "GitHub Copilot for Xcode",
       "slug": "github-copilot-for-xcode/darwin",
       "platform": "darwin",
@@ -4319,6 +4326,20 @@
       "platform": "darwin",
       "unique_identifier": "com.superultra.Homerow",
       "description": "Homerow is a keyboard shortcuts for every button on your screen."
+    },
+    {
+      "name": "Hoppscotch",
+      "slug": "hoppscotch/darwin",
+      "platform": "darwin",
+      "unique_identifier": "io.hoppscotch.desktop",
+      "description": "Hoppscotch is an open source API development and testing client."
+    },
+    {
+      "name": "Hoppscotch",
+      "slug": "hoppscotch/windows",
+      "platform": "windows",
+      "unique_identifier": "Hoppscotch",
+      "description": "Hoppscotch is an open source API development and testing client."
     },
     {
       "name": "Hot",

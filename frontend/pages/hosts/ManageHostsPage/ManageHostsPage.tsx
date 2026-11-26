@@ -933,6 +933,10 @@ const ManageHostsPage = ({
     ) {
       // Match the legacy `software_id` too so the one-frame overlap before the
       // software_id → software_version_id redirect doesn't stash a stale URL.
+      // Clear any earlier list's path so hosts opened from here don't return to it.
+      if (filteredHostsPath) {
+        setFilteredHostsPath("");
+      }
       return;
     }
     const path = location.pathname + location.search;

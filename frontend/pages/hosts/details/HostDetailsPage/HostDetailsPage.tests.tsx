@@ -131,6 +131,7 @@ const renderHostDetails = (overrides?: {
   location?: typeof mockLocation;
   hostId?: string;
   router?: ReturnType<typeof createMockRouter>;
+  filteredHostsPath?: string;
   isPremiumTier?: boolean;
 }) => {
   const {
@@ -141,6 +142,7 @@ const renderHostDetails = (overrides?: {
     location = mockLocation,
     hostId = "1",
     router = createMockRouter(),
+    filteredHostsPath = "",
     isPremiumTier = true,
   } = overrides || {};
 
@@ -154,6 +156,7 @@ const renderHostDetails = (overrides?: {
         isMacMdmEnabledAndConfigured,
         isWindowsMdmEnabledAndConfigured,
         config: createMockConfig(),
+        filteredHostsPath,
       },
     },
   });
@@ -854,6 +857,54 @@ describe("HostDetailsPage - activity card tab switch", () => {
     });
     expect((commandAPI.getCommands as jest.Mock).mock.calls.length).toBe(
       commandsCallsBefore
+    );
+  });
+});
+
+describe("HostDetailsPage - delete host", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  const deleteHost = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByText("Actions"));
+    await user.click(await screen.findByText("Delete"));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(hostAPI.destroy).toHaveBeenCalled());
+  };
+
+  it("returns to the fleet's host list the user came from", async () => {
+    stubQueries(mockWindowsHost());
+    (hostAPI.destroy as jest.Mock).mockResolvedValue({});
+    const router = createMockRouter({ push: jest.fn() });
+    const { user } = renderHostDetails({
+      router,
+      location: { ...mockLocation, query: { fleet_id: "3" } },
+    });
+
+    await deleteHost(user);
+
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith("/hosts/manage?fleet_id=3")
+    );
+  });
+
+  it("returns to the filtered host list the user came from", async () => {
+    stubQueries(mockWindowsHost());
+    (hostAPI.destroy as jest.Mock).mockResolvedValue({});
+    const router = createMockRouter({ push: jest.fn() });
+    const { user } = renderHostDetails({
+      router,
+      location: { ...mockLocation, query: { fleet_id: "3" } },
+      filteredHostsPath: "/hosts/manage?fleet_id=3&status=offline",
+    });
+
+    await deleteHost(user);
+
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith(
+        "/hosts/manage?fleet_id=3&status=offline"
+      )
     );
   });
 });

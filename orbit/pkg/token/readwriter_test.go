@@ -77,11 +77,14 @@ func TestLoadOrGenerate(t *testing.T) {
 	})
 
 	t.Run("errors for other reasons", func(t *testing.T) {
+		if os.Geteuid() == 0 {
+			t.Skip("root can read a file that has no read permission")
+		}
 		file, err := os.CreateTemp("", "identifier")
 		require.NoError(t, err)
 		_, err = file.WriteString("test")
 		require.NoError(t, err)
-		require.NoError(t, file.Chmod(0x600))
+		require.NoError(t, file.Chmod(0o200))
 		defer os.Remove(file.Name())
 
 		rw := NewReadWriter(file.Name(), nil)
