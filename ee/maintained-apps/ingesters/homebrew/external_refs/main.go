@@ -93,6 +93,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"redcine-x-pro/darwin":              {REDCINEXProVersionShortener},
 	"postgres-app/darwin":               {PostgresAppBundleIDs},
 	"hoppscotch/darwin":                 {HoppscotchVersionTransformer},
+	"adobe-acrobat-reader/darwin":       {AdobeAcrobatReaderManifestVersion},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
