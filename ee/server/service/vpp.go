@@ -996,11 +996,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
 						return nil, nil, err
 					}
-					if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
-						if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
-							return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
-						}
-						return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+					if err := svc.validateAppConfigCustomHostVitals(ctx, payload.Configuration); err != nil {
+						return nil, nil, err
 					}
 				}
 				appStoreApp.Configuration = payload.Configuration
@@ -1012,6 +1009,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 						return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 					}
 					if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
+						return nil, nil, err
+					}
+					if err := svc.validateAppConfigCustomHostVitals(ctx, []byte(plist)); err != nil {
 						return nil, nil, err
 					}
 					appStoreApp.Configuration = []byte(plist)
@@ -1446,11 +1446,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if appID.Configuration != nil {
-			if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(appID.Configuration)}); err != nil {
-				if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
-					return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
-				}
-				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+			if err := svc.validateAppConfigCustomHostVitals(ctx, appID.Configuration); err != nil {
+				return nil, err
 			}
 		}
 
@@ -1602,6 +1599,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 				return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 			}
 			if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
+				return nil, err
+			}
+			if err := svc.validateAppConfigCustomHostVitals(ctx, []byte(plist)); err != nil {
 				return nil, err
 			}
 			app.Configuration = []byte(plist)
@@ -1906,6 +1906,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 			return nil, nil, err
 		}
+		if err := svc.validateAppConfigCustomHostVitals(ctx, []byte(plist)); err != nil {
+			return nil, nil, err
+		}
 		datastoreConfig = []byte(plist)
 	}
 
@@ -1987,11 +1990,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			return nil, nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
 		}
 
-		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
-			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
-				return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
-			}
-			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+		if err := svc.validateAppConfigCustomHostVitals(ctx, payload.Configuration); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -2660,6 +2660,16 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 				}
 			}
 		}
+	}
+	return nil
+}
+
+func (svc *Service) validateAppConfigCustomHostVitals(ctx context.Context, config []byte) error {
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(config)}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
 	}
 	return nil
 }

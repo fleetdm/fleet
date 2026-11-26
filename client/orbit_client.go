@@ -203,10 +203,14 @@ func (oc *OrbitClient) requestWithExternal(ctx context.Context, verb string, pat
 			return fmt.Errorf("parsing URL: %w", err)
 		}
 
+		requestURL, err := oc.RequestURL(parsedURL.EscapedPath(), parsedURL.RawQuery)
+		if err != nil {
+			return err
+		}
 		request, err = http.NewRequestWithContext(
 			ctx,
 			verb,
-			oc.URL(parsedURL.Path, parsedURL.RawQuery).String(),
+			requestURL,
 			bytes.NewBuffer(bodyBytes),
 		)
 		if err != nil {

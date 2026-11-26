@@ -54,7 +54,7 @@ const AppleAutomaticEnrollmentCard = ({
     >
       {onlyAllowAppleBusinessEnrollment
         ? "Company-owned Apple hosts will enroll with Automated Device Enrollment (ADE) when they're first unboxed."
-        : "Company-owned Apple hosts will enroll with Automated Device Enrollment (ADE) when they&apos;re first unboxed. Personal (BYOD) hosts will enroll when end users sign in with Managed Apple Account."}
+        : "Company-owned Apple hosts will enroll with Automated Device Enrollment (ADE) when they're first unboxed. Personal (BYOD) hosts will enroll when end users sign in with Managed Apple Account."}
     </SectionCard>
   );
 

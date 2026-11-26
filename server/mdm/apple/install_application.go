@@ -51,21 +51,22 @@ func (e *UnresolvableAppConfigVarError) Is(target error) bool {
 }
 
 // AppConfigSubstitutionHost carries the host context needed to substitute the
-// host-scoped $FLEET_VAR_* tokens supported in iOS / iPadOS managed app
-// configuration. The validator (fleet.ValidateAppleAppConfiguration) restricts
-// stored bytes to FleetVarsSupportedInAppleAppConfig, so this type only needs
-// to cover that set.
+// host-scoped $FLEET_VAR_* tokens supported in Apple managed app configuration,
+// and $FLEET_HOST_VITAL_<id> custom host vitals. The validator
+// (fleet.ValidateAppleAppConfiguration) restricts stored bytes to
+// FleetVarsSupportedInAppleAppConfig, so this type only needs to cover that set.
 type AppConfigSubstitutionHost struct {
+	HostID         uint
 	UUID           string
 	HardwareSerial string
 	Platform       string
 }
 
-// SubstituteFleetVarsInAppConfig replaces every supported $FLEET_VAR_* token
+// SubstituteFleetVarsInAppConfig replaces every supported $FLEET_VAR_* token and $FLEET_HOST_VITAL_<id>
 // in config with the resolved value for the given host, returning the
 // substituted bytes. End-user IDP fields are looked up via ds; for that
 // reason ds must be non-nil whenever the configuration references an IDP
-// variable. Returns ErrUnresolvableAppConfigVar (wrapped) if the host can't
+// variable or a custom host vital. Returns ErrUnresolvableAppConfigVar (wrapped) if the host can't
 // supply a referenced variable — the caller is responsible for surfacing
 // that to the user (typically by failing the install for that host).
 func SubstituteFleetVarsInAppConfig(
@@ -77,12 +78,13 @@ func SubstituteFleetVarsInAppConfig(
 	if len(config) == 0 {
 		return config, nil
 	}
-	used := variables.Find(string(config))
-	if len(used) == 0 {
+	contents := string(config)
+	used := variables.Find(contents)
+	hasHostVitals := len(fleet.FindCustomHostVitalIDs(contents)) > 0
+	if len(used) == 0 && !hasHostVitals {
 		return config, nil
 	}
 
-	contents := string(config)
 	idpUUIDCache := map[string]uint{}
 
 	for _, name := range used {
@@ -130,6 +132,19 @@ func SubstituteFleetVarsInAppConfig(
 			}
 			return nil, &UnresolvableAppConfigVarError{FleetVar: name, Detail: detail}
 		}
+	}
+
+	if hasHostVitals {
+		expanded, err := ds.ExpandCustomHostVitals(ctx, host.HostID, contents)
+		if err != nil {
+			// Callers fail the install on ErrUnresolvableAppConfigVar, which is the
+			// right outcome for a host with no value, so fold the vital error into it.
+			if missing, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); ok {
+				return nil, &UnresolvableAppConfigVarError{Detail: missing.Error()}
+			}
+			return nil, ctxerr.Wrap(ctx, err, "expand custom host vitals in app config")
+		}
+		contents = expanded
 	}
 
 	return []byte(contents), nil

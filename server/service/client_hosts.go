@@ -27,7 +27,7 @@ func (c *Client) GetHost(id uint) (*fleet.HostDetailResponse, error) {
 // HostByIdentifier retrieves a host as GET /hosts/:id resolves it: by host ID first, then by hardware_serial, uuid, or hostname, the newest
 // one when several match.
 func (c *Client) HostByIdentifier(identifier string) (*fleet.HostDetailResponse, error) {
-	verb, path := "GET", "/api/latest/fleet/hosts/"+identifier
+	verb, path := "GET", "/api/latest/fleet/hosts/"+url.PathEscape(identifier)
 	var responseBody getHostResponse
 	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
 		return nil, err

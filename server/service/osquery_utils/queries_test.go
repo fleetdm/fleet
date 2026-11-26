@@ -2014,6 +2014,26 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 		{
 			data: []map[string]string{
 				{
+					"name":           "Zorin OS",
+					"version":        "18.1",
+					"major":          "18",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.14.0-37-generic",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Zorin OS",
+				Version:       "18.1",
+				Arch:          "x86_64",
+				KernelVersion: "6.14.0-37-generic",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
 					"name":           "CentOS Linux",
 					"version":        "CentOS Linux release 7.9.2009 (Core)",
 					"major":          "7",
@@ -2908,6 +2928,110 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+
+	// composefs (bootc): "/" is an overlay with no row, and the root filesystem is at /sysroot.
+	for _, tc := range []struct {
+		name     string
+		rows     []map[string]string
+		expected bool
+	}{
+		{
+			name: "composefs, encrypted /sysroot",
+			rows: []map[string]string{
+				{"path": "/sysroot", "encrypted": "1"},
+				{"path": "/var", "encrypted": "1"},
+				{"path": "/boot", "encrypted": "0"},
+			},
+			expected: true,
+		},
+		{
+			name:     "composefs, unencrypted /sysroot",
+			rows:     []map[string]string{{"path": "/sysroot", "encrypted": "0"}},
+			expected: false,
+		},
+		{
+			name: "an unencrypted / wins over /sysroot",
+			rows: []map[string]string{
+				{"path": "/", "encrypted": "0"},
+				{"path": "/sysroot", "encrypted": "1"},
+			},
+			expected: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			var got *bool
+			ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
+				got = &encrypted
+				return nil
+			}
+			err := directIngestDiskEncryptionLinux(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tc.rows)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, tc.expected, *got)
+		})
+	}
+}
+
+// TestDiskSpaceUnixRootFilesystem runs disk_space_unix against sqlite, which osquery embeds, to check
+// which mount it reports: "/", unless "/" is a composefs overlay and the root filesystem is at /sysroot.
+func TestDiskSpaceUnixRootFilesystem(t *testing.T) {
+	query := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["disk_space_unix"].Query
+
+	type mount struct {
+		path, typ, device                   string
+		blocks, blocksAvailable, blocksSize int64
+	}
+	for _, tc := range []struct {
+		name          string
+		mounts        []mount
+		expectedTotal string
+	}{
+		{
+			name:          "ext4 /",
+			mounts:        []mount{{"/", "ext4", "/dev/sda2", 25_000_000, 10_000_000, 4096}},
+			expectedTotal: "102.4",
+		},
+		{
+			name: "composefs / with the root filesystem at /sysroot",
+			mounts: []mount{
+				{"/", "overlay", "composefs:abc", 2_500, 0, 4096},
+				{"/sysroot", "ext4", "/dev/mapper/root", 10_000_000, 8_000_000, 4096},
+			},
+			expectedTotal: "40.96",
+		},
+		{
+			name:          "overlay / with no /sysroot, as in a container",
+			mounts:        []mount{{"/", "overlay", "overlay", 25_000_000, 10_000_000, 4096}},
+			expectedTotal: "102.4",
+		},
+		{
+			name: "ext4 / wins over /sysroot",
+			mounts: []mount{
+				{"/", "ext4", "/dev/sda2", 25_000_000, 10_000_000, 4096},
+				{"/sysroot", "ext4", "/dev/sdb1", 10_000_000, 8_000_000, 4096},
+			},
+			expectedTotal: "102.4",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := sql.Open("sqlite3", ":memory:")
+			require.NoError(t, err)
+			defer db.Close()
+
+			_, err = db.Exec(`CREATE TABLE mounts (path TEXT, type TEXT, device TEXT, blocks INTEGER, blocks_available INTEGER, blocks_size INTEGER)`)
+			require.NoError(t, err)
+			for _, m := range tc.mounts {
+				_, err = db.Exec(`INSERT INTO mounts VALUES (?, ?, ?, ?, ?, ?)`, m.path, m.typ, m.device, m.blocks, m.blocksAvailable, m.blocksSize)
+				require.NoError(t, err)
+			}
+
+			var percentAvailable, gigsAvailable, gigsTotal string
+			var gigsAll sql.NullString
+			require.NoError(t, db.QueryRow(query).Scan(&percentAvailable, &gigsAvailable, &gigsTotal, &gigsAll))
+			require.Equal(t, tc.expectedTotal, gigsTotal)
+		})
+	}
 }
 
 func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {

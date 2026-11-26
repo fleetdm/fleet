@@ -135,13 +135,16 @@
             <p>Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.</p>
           </div>
           <div purpose="cta-container">
-            <div purpose="article-cta" v-if="['articles', 'releases', 'guides', 'announcements', 'podcasts', 'securing', 'newsletters', 'industry-news'].includes(articleCategorySlug)">
+            <div purpose="article-cta" v-if="articleCategorySlug === 'guides'">
               <h2>Manage all your devices like it's 2026</h2>
               <p>Open MDM, patching, and vuln management for every OS.</p>
               <div purpose="button-row">
                 <a purpose="cta-button" href="/customers">Read case studies</a>
                 <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
               </div>
+            </div>
+            <div purpose="article-cta" v-else-if="['articles', 'releases', 'announcements', 'podcasts', 'securing', 'newsletters', 'industry-news'].includes(articleCategorySlug)">
+              <demo-request-form class="w-100 p-0 text-left" style="max-width: none;"></demo-request-form>
             </div>
           </div>
         </div>

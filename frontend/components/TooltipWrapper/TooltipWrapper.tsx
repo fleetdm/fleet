@@ -180,7 +180,7 @@ and mouseout from the element. If a boolean, sets delay to the default below. If
 
 const baseClass = "component__tooltip-wrapper";
 
-const DEFAULT_DELAY_MS = 250;
+export const DEFAULT_DELAY_MS = 250;
 
 const TooltipWrapper = ({
   // wrapperCustomClass,

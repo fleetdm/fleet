@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,6 +34,7 @@ func TestCustomHostVitals(t *testing.T) {
 		{"DeleteUsedCustomHostVital", testDeleteUsedCustomHostVital},
 		{"SetHostValueResendsReferencingProfiles", testSetHostCustomHostVitalValueResendsProfiles},
 		{"SetHostValueResendsReferencingAndroidAppConfigs", testSetHostCustomHostVitalValueResendsAndroidAppConfigs},
+		{"SetHostValueResendsReferencingAppleAppStoreAppConfigs", testSetHostCustomHostVitalValueResendsAppleAppStoreAppConfigs},
 		{"SetHostValueResendsReferencingDeviceName", testSetHostCustomHostVitalValueResendsDeviceName},
 		{"ReconcileSnapshotMarksVitalDeclarations", testReconcileSnapshotMarksVitalDeclarations},
 		{"ValidateReferencedCustomHostVitalsRejectsMalformed", testValidateReferencedCustomHostVitalsRejectsMalformed},
@@ -461,13 +463,60 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &useErr)
 		require.Equal(t, id, useErr.CustomHostVitalID)
 		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
-		require.Equal(t, fleet.CustomHostVitalEntityAndroidAppConfig, useErr.Entity.Type)
+		require.Equal(t, fleet.CustomHostVitalEntityAppConfig, useErr.Entity.Type)
 		require.Equal(t, "Firefox", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
 		// replace the configuration with one that doesn't use the host vital, so the final delete succeeds
 		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), //nolint:gosec // dismiss G115
 			[]byte(`{"managedConfiguration":{"assetTag":"static"}}`)))
+	})
+
+	t.Run("apple app store app configurations", func(t *testing.T) {
+		const adamID = "406284021"
+		var appTeamID int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps (adam_id, platform, name) VALUES (?, 'ios', 'Slack')`, adamID); err != nil {
+				return err
+			}
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name) VALUES (?, 'ios', ?, ?, 'Default version')`,
+				adamID, foobarTeam.ID, foobarTeam.ID)
+			if err != nil {
+				return err
+			}
+			appTeamID, err = res.LastInsertId()
+			return err
+		})
+		require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), //nolint:gosec // dismiss G115
+			[]byte(fmt.Sprintf(`<dict><key>assetTag</key><string>%s</string></dict>`, token))))
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, fleet.CustomHostVitalEntityAppConfig, useErr.Entity.Type)
+		require.Equal(t, "Slack", useErr.Entity.Name)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), //nolint:gosec // dismiss G115
+			[]byte(`<dict><key>assetTag</key><string>static</string></dict>`)))
+	})
+
+	t.Run("in-house app configurations", func(t *testing.T) {
+		iosID, _ := setupTestInHouseApp(t, ds, "vitals.ipa")
+		require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID,
+			[]byte(fmt.Sprintf(`<dict><key>assetTag</key><string>%s</string></dict>`, token))))
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, fleet.CustomHostVitalEntityAppConfig, useErr.Entity.Type)
+		require.Equal(t, "vitals.ipa", useErr.Entity.Name)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID,
+			[]byte(`<dict><key>assetTag</key><string>static</string></dict>`)))
 	})
 
 	t.Run("scripts", func(t *testing.T) {
@@ -868,6 +917,63 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	recordInstalls()
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "Sales"))
 	require.ElementsMatch(t, []string{vitalAppID, secondVitalAppID}, drainFlaggedAppIDs())
+}
+
+func testSetHostCustomHostVitalValueResendsAppleAppStoreAppConfigs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	vitalID := createCustomHostVital(t, ds, "Asset tag")
+	otherVitalID := createCustomHostVital(t, ds, "Department")
+
+	host := test.NewHost(t, ds, "ios-host", "", "ios-host-key", "ios-host-uuid", time.Now(), test.WithPlatform("ios"), test.WithTeamID(team.ID))
+	otherHost := test.NewHost(t, ds, "ios-other", "", "ios-other-key", "ios-other-uuid", time.Now(), test.WithPlatform("ios"), test.WithTeamID(team.ID))
+
+	addApp := func(adamID, configuration string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name) VALUES (?, 'ios', ?)`, adamID, adamID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name, configuration) VALUES (?, 'ios', ?, ?, 'Default version', ?)`,
+				adamID, team.ID, team.ID, configuration)
+			return err
+		})
+	}
+	addInstall := func(hostID uint, adamID string, canceled bool) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, canceled) VALUES (?, ?, 'ios', ?, ?)`,
+				hostID, adamID, uuid.NewString(), canceled)
+			return err
+		})
+	}
+	needsResend := func(hostID uint, adamID string) []bool {
+		var got []bool
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got,
+				`SELECT needs_resend FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ? ORDER BY id`, hostID, adamID)
+		})
+		return got
+	}
+
+	addApp("with-vital", fmt.Sprintf(`<dict><key>assetTag</key><string>$%s%d</string></dict>`, fleet.CustomHostVitalPrefix, vitalID))
+	addApp("with-other-vital", fmt.Sprintf(`<dict><key>dept</key><string>${%s%d}</string></dict>`, fleet.CustomHostVitalPrefix, otherVitalID))
+	addApp("without-vital", `<dict><key>assetTag</key><string>static</string></dict>`)
+
+	addInstall(host.ID, "with-vital", true)
+	addInstall(host.ID, "with-vital", false)
+	addInstall(host.ID, "with-other-vital", false)
+	addInstall(host.ID, "without-vital", false)
+	addInstall(otherHost.ID, "with-vital", false)
+
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "A-1"))
+
+	require.Equal(t, []bool{false, true}, needsResend(host.ID, "with-vital"))
+	require.Equal(t, []bool{false}, needsResend(host.ID, "with-other-vital"))
+	require.Equal(t, []bool{false}, needsResend(host.ID, "without-vital"))
+	require.Equal(t, []bool{false}, needsResend(otherHost.ID, "with-vital"))
 }
 
 // testSetHostCustomHostVitalValueResendsDeviceName covers the device-name side

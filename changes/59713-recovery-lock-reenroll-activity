@@ -1,0 +1,1 @@
+- Fleet now logs an activity when it sets a new Recovery Lock password after a Mac re-enrolls in MDM.
