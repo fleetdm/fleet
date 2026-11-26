@@ -3355,7 +3355,12 @@ relaunch_application() { echo relaunched; }
 sudo() {
   case "$1" in
     chown) printf 'ownership %s\n' "$*"; [[ "$CHOWN_FAILS" != true ]];;
-    cp) [[ "$COPY_FAILS" != true ]] && command "$@";;
+    cp)
+      if [[ "$COPY_FAILS" == true ]]; then
+        mkdir -p "${4%/}/ChatGPT.app" && printf new > "${4%/}/ChatGPT.app/version"
+        return 1
+      fi
+      command "$@";;
     *) command "$@";;
   esac
 }
