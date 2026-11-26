@@ -1,11 +1,16 @@
 package osv
 
 import (
+	"bytes"
 	"compress/gzip"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"fmt"
+	"hash/maphash"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -97,10 +102,117 @@ func readArtifact(vulnPath, prefix, version string, date time.Time, dst any) (st
 	}
 	defer gz.Close()
 
-	if err := json.UnmarshalRead(gz, dst); err != nil {
+	if err := decodeArtifact(gz, dst); err != nil {
 		return "", fmt.Errorf("decoding OSV artifact %s: %w", filepath.Base(path), err)
 	}
 	return path, nil
+}
+
+// decodeArtifact decodes an OSV artifact into dst, sharing identical strings and identical
+// string lists across rows. The same version lists recur across thousands of rows (every CVE of
+// a kernel, packages built from the same source), so decoding each copy separately makes the
+// artifact many times larger in memory. Callers must not modify the decoded rows, since a change
+// to a shared list would show up in every row holding it.
+func decodeArtifact(r io.Reader, dst any) error {
+	in := &artifactInterner{
+		strings: make(map[string]string),
+		lists:   make(map[uint64][][]string),
+		seed:    maphash.MakeSeed(),
+	}
+	return json.UnmarshalRead(r, dst, json.WithUnmarshalers(json.JoinUnmarshalers(
+		json.UnmarshalFromFunc(in.unmarshalString),
+		json.UnmarshalFromFunc(in.unmarshalStrings),
+	)))
+}
+
+type artifactInterner struct {
+	strings map[string]string
+	lists   map[uint64][][]string
+	seed    maphash.Seed
+	scratch []string
+}
+
+func (in *artifactInterner) intern(b []byte) string {
+	if s, ok := in.strings[string(b)]; ok {
+		return s
+	}
+	s := string(b)
+	in.strings[s] = s
+	return s
+}
+
+func (in *artifactInterner) readString(dec *jsontext.Decoder) (string, error) {
+	val, err := dec.ReadValue()
+	if err != nil {
+		return "", err
+	}
+	switch val.Kind() {
+	case 'n':
+		return "", nil
+	case '"':
+		raw := val[1 : len(val)-1]
+		if bytes.IndexByte(raw, '\\') < 0 {
+			return in.intern(raw), nil
+		}
+		var s string
+		if err := json.Unmarshal(val, &s); err != nil {
+			return "", err
+		}
+		return in.intern([]byte(s)), nil
+	default:
+		return "", fmt.Errorf("expected a JSON string, got %s", val.Kind())
+	}
+}
+
+func (in *artifactInterner) unmarshalString(dec *jsontext.Decoder, s *string) error {
+	v, err := in.readString(dec)
+	if err != nil {
+		return err
+	}
+	*s = v
+	return nil
+}
+
+func (in *artifactInterner) unmarshalStrings(dec *jsontext.Decoder, v *[]string) error {
+	switch kind := dec.PeekKind(); kind {
+	case 'n':
+		_, err := dec.ReadToken()
+		*v = nil
+		return err
+	case '[':
+	default:
+		return fmt.Errorf("expected a JSON array, got %s", kind)
+	}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
+	}
+	in.scratch = in.scratch[:0]
+	var h maphash.Hash
+	h.SetSeed(in.seed)
+	for dec.PeekKind() != ']' {
+		item, err := in.readString(dec)
+		if err != nil {
+			return err
+		}
+		in.scratch = append(in.scratch, item)
+		_, _ = h.WriteString(item)
+		_ = h.WriteByte(0)
+	}
+	if _, err := dec.ReadToken(); err != nil {
+		return err
+	}
+	sum := h.Sum64()
+	for _, list := range in.lists[sum] {
+		if slices.Equal(list, in.scratch) {
+			*v = list
+			return nil
+		}
+	}
+	list := make([]string, len(in.scratch))
+	copy(list, in.scratch)
+	in.lists[sum] = append(in.lists[sum], list)
+	*v = list
+	return nil
 }
 
 // removeOldArtifacts deletes the artifacts of one OSV family in rootPath whose date is not
