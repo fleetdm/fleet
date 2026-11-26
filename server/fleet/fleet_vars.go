@@ -25,13 +25,13 @@ func ContainsPrefixVars(text, prefix string) []string {
 
 // IsBarePrefix reports whether name, ending at byte end of text, is only the
 // $FLEET_SECRET_ prefix written as prose, such as "$FLEET_SECRET_ in CI". The
-// braced form, or another variable, markup, an escape or a quote right after
-// the prefix, keeps it a reference. Other prefixes are always references.
+// braced form, or another variable, a brace, markup, an escape or a quote right
+// after the prefix, keeps it a reference. Other prefixes are always references.
 func IsBarePrefix(text, name, prefix string, end int) bool {
 	if prefix != ServerSecretPrefix || name != prefix || text[end-1] == '}' {
 		return false
 	}
-	return end >= len(text) || !strings.ContainsRune(`$<&\]"'`, rune(text[end]))
+	return end >= len(text) || !strings.ContainsRune(`${<>&\]"'`, rune(text[end]))
 }
 
 // ContainsVar returns true if text contains the given variableName in the form of

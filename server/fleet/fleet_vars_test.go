@@ -23,9 +23,9 @@ ${FLEET_SECRET_QUX}
 	}{
 		{script, ServerSecretPrefix, []string{"FOO", "BAR", "BAZ", "QUX"}},
 		{"<!-- Delivered via $FLEET_SECRET_ (kept out of git). -->\n<Data>$FLEET_SECRET_FOO</Data>", ServerSecretPrefix, []string{"FOO"}},
-		{"# $FLEET_SECRET_. and $FLEET_SECRET_{X} and $FLEET_SECRET_", ServerSecretPrefix, []string{}},
+		{"# $FLEET_SECRET_. and $FLEET_SECRET_", ServerSecretPrefix, []string{}},
 		// Not a bare prefix: braced, or something follows it.
-		{"$FLEET_SECRET_$X $FLEET_SECRET_${X} $FLEET_SECRET_<b> $FLEET_SECRET_&amp; $FLEET_SECRET_\\n [$FLEET_SECRET_] \"$FLEET_SECRET_\" '$FLEET_SECRET_' ${FLEET_SECRET_}", ServerSecretPrefix, []string{"", "", "", "", "", "", "", "", ""}},
+		{"$FLEET_SECRET_$X $FLEET_SECRET_${X} $FLEET_SECRET_{X} $FLEET_SECRET_<b> $FLEET_SECRET_>b $FLEET_SECRET_&amp; $FLEET_SECRET_\\n [$FLEET_SECRET_] \"$FLEET_SECRET_\" '$FLEET_SECRET_' ${FLEET_SECRET_}", ServerSecretPrefix, []string{"", "", "", "", "", "", "", "", "", "", ""}},
 		// Only $FLEET_SECRET_ can be bare.
 		{"$FLEET_HOST_SECRET_ and $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD", HostSecretPrefix, []string{"", "RECOVERY_LOCK_PASSWORD"}},
 		{"$FLEET_HOST_VITAL_ and ${FLEET_HOST_VITAL_12}", CustomHostVitalPrefix, []string{"", "12"}},
