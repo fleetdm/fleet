@@ -9767,13 +9767,18 @@ Returns `400` when AI features are disabled (`server_settings.ai_features_disabl
 
 This request doesn't count toward the [monthly generation limit](#autofill-configuration-profile-content), but it returns `429` once the limit is reached.
 
+To generate them from a profile exported from another MDM instead of from a description, include `profile_export`.
+
+> You need to send a request of type `multipart/form-data` when you include `profile_export`. Otherwise, send a JSON request.
+
 `POST /api/v1/fleet/autofill/configuration_profile/name_description`
 
 #### Parameters
 
 | Name                          | Type   | In   | Description                                    |
 | ----------------------------- | ------ | ---- | ---------------------------------------------- |
-| natural_language_instructions | string | body | **Required.** What the profile should enforce. |
+| natural_language_instructions | string | body | What the profile should enforce. Required unless `profile_export` is included. Only one of `natural_language_instructions` or `profile_export` can be included. |
+| profile_export                | file   | body | A profile exported from another MDM. Supported for `platform` `windows` with an Intune export (JSON). The file must be 1 MB or smaller. Only one of `natural_language_instructions` or `profile_export` can be included. |
 | platform                      | string | body | **Required.** One of `apple` or `windows`.     |
 
 #### Example
@@ -9872,13 +9877,18 @@ Content requests are limited each month. On Fleet Free, each Fleet instance can 
 
 On Fleet Free, or with an expired license, the Fleet server needs a [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) to generate profiles.
 
+To convert a profile exported from another MDM instead of describing one, include `profile_export`.
+
+> You need to send a request of type `multipart/form-data` when you include `profile_export`. Otherwise, send a JSON request.
+
 `POST /api/v1/fleet/autofill/configuration_profile/content`
 
 #### Parameters
 
 | Name                          | Type    | In   | Description                                    |
 | ----------------------------- | ------- | ---- | ---------------------------------------------- |
-| natural_language_instructions | string  | body | **Required.** What the profile should enforce. |
+| natural_language_instructions | string  | body | What the profile should enforce. Required unless `profile_export` is included. Only one of `natural_language_instructions` or `profile_export` can be included. |
+| profile_export                | file    | body | A profile exported from another MDM, to convert to a Fleet profile. Supported for `platform` `windows` with an Intune export (JSON). The file must be 1 MB or smaller. Only one of `natural_language_instructions` or `profile_export` can be included. |
 | platform                      | string  | body | **Required.** One of `apple` or `windows`.     |
 | fleet_id                      | integer | body | _Available in Fleet Premium_. The fleet ID for the profile. Fleet checks the generated profile against this fleet's settings, like OS updates, before returning it. If not specified, Fleet checks against hosts that are "Unassigned". |
 
@@ -9913,6 +9923,17 @@ On Fleet Free, or with an expired license, the Fleet server needs a [private key
 `name` is the .mobileconfig profile's `PayloadDisplayName`. It's the name end users see in System Settings, and the name Fleet gives the profile by default. It's `null` for declaration and Windows profiles.
 
 `delivery_notes` describes anything you need to do or decide that isn't visible in the profile, like adding a companion asset declaration. It's an empty string when there's nothing to note.
+
+##### Convert an Intune export
+
+Convert a profile exported from Intune. The response has the same fields as the default response.
+
+`POST /api/v1/fleet/autofill/configuration_profile/content`
+
+```http
+profile_export="intune-export.json"
+platform="windows"
+```
 
 ##### Profile can't be generated
 
