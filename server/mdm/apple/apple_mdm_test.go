@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1012,6 +1013,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
+			assert.True(t, ctxdb.IsPrimaryRequired(ctx), "the set claim must see rows the reset just freed")
 			return nil, nil
 		}
 		// Mock clear flow - no hosts need clearing

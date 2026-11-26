@@ -1198,6 +1198,13 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, setCmd, "the cron must send the rotation the renewal dropped")
 		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
 		require.NotEqual(t, deferredCmdUUID, setCmd.CommandUUID)
+		// The resent command rotates from the password the Mac still holds.
+		var setPayload struct {
+			Command struct{ CurrentPassword, NewPassword string }
+		}
+		require.NoError(t, plist.Unmarshal(setCmd.Raw, &setPayload))
+		assert.Equal(t, originalPassword, setPayload.Command.CurrentPassword)
+		require.NotEmpty(t, setPayload.Command.NewPassword)
 		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
 		require.NoError(t, err)
 		if verifyCmd == nil {
@@ -1206,6 +1213,11 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}
 		require.NotNil(t, verifyCmd)
 		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+		var verifyPayload struct {
+			Command struct{ Password string }
+		}
+		require.NoError(t, plist.Unmarshal(verifyCmd.Raw, &verifyPayload))
+		assert.Equal(t, setPayload.Command.NewPassword, verifyPayload.Command.Password)
 		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
 		require.NoError(t, err)
 
@@ -1214,7 +1226,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
 		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
-		assert.NotEqual(t, originalPassword, *getPasswordResp.RecoveryLockPassword.Password)
+		assert.Equal(t, setPayload.Command.NewPassword, *getPasswordResp.RecoveryLockPassword.Password)
 
 		// The host can be rotated again.
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})

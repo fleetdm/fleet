@@ -20,6 +20,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -2186,7 +2187,9 @@ func sendSetRecoveryLockCommands(
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
 ) error {
-	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+	// From the primary: a lagging replica would hide rows ResetRecoveryLockForInactiveCommands
+	// just reset, and could still show rows an earlier run already claimed.
+	hosts, err := ds.GetHostsForRecoveryLockAction(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock action")
 	}
