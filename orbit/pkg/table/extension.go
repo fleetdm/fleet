@@ -49,12 +49,6 @@ type Runner struct {
 	// checkInterval is how often the runner verifies osquery still lists the
 	// extension as registered.
 	checkInterval time.Duration
-	// retryBackoff is the delay before the first re-registration attempt; it
-	// doubles on each consecutive failure.
-	retryBackoff time.Duration
-	// healthySession is how long a session must stay registered to reset the
-	// consecutive failure count.
-	healthySession time.Duration
 
 	// mu protects access to srv, ctx and cancel in Execute and Interrupt.
 	mu     sync.Mutex
@@ -102,10 +96,6 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 		socket:        socket,
 		executeDone:   make(chan struct{}),
 		checkInterval: 10 * time.Second,
-		retryBackoff:  1 * time.Second,
-		// Long enough that a session failing right after registering counts as a
-		// failure.
-		healthySession: 1 * time.Minute,
 	}
 	r.newClient = func(timeout time.Duration) (osquery.ExtensionManager, error) {
 		return osquery.NewClient(r.socket, timeout)
@@ -148,36 +138,19 @@ func (r *Runner) Execute() error {
 	})
 }
 
-const (
-	// serverClientTimeout is the timeout of the client the extension manager
-	// server uses to register the extension and ping osquery. On some systems,
-	// registering tables takes more than a couple of seconds (see #3878).
-	serverClientTimeout = 5 * time.Minute
-	// maxConsecutiveSessionFailures is how many extension sessions in a row can
-	// end in an error before the runner gives up and returns the error, which
-	// restarts orbit.
-	maxConsecutiveSessionFailures = 5
-	maxRetryBackoff               = 30 * time.Second
-)
+// serverClientTimeout is the timeout of the client the extension manager
+// server uses to register the extension and ping osquery. On some systems,
+// registering tables takes more than a couple of seconds (see #3878).
+const serverClientTimeout = 5 * time.Minute
 
 var errExtensionNotRegistered = errors.New("osquery no longer lists the extension as registered")
 
-// run registers plugins and serves them until osquery goes away.
-//
-// If osquery rejects the registration because another extension (e.g. a
-// third-party one loaded via --extensions_autoload) already registered an item
-// with the same name, the conflicting plugin is dropped and registration is
-// retried, so that a name collision doesn't take orbit down.
-//
-// If the session is lost (osquery deregisters the extension, or the
-// connection to osquery breaks), the extension is registered again in place
-// rather than returning an error, which would restart all of orbit.
+// run registers plugins and serves them until osquery goes away or drops the
+// extension. If osquery rejects the registration because another extension
+// (e.g. a third-party one loaded via --extensions_autoload) already registered
+// an item with the same name, the conflicting plugin is dropped and
+// registration is retried, so that a name collision doesn't take orbit down.
 func (r *Runner) run(ctx context.Context, plugins []osquery.OsqueryPlugin, newServer func(osquery.ExtensionManager) (*osquery.ExtensionManagerServer, error)) error {
-	failures := 0
-	// staleUUID is a previous session's registration that couldn't be confirmed
-	// removed. It outlives that session's client, so cleanup can be retried
-	// once osquery is reachable again.
-	var staleUUID *osquerygen.ExtensionRouteUUID
 	for {
 		srv, client, err := r.newServer(ctx, newServer)
 		if err != nil {
@@ -185,108 +158,44 @@ func (r *Runner) run(ctx context.Context, plugins []osquery.OsqueryPlugin, newSe
 		}
 		srv.RegisterPlugin(plugins...)
 
-		err = r.serve(ctx, srv, client)
-		if err == nil || ctx.Err() != nil {
-			// A nil error means osquery asked the extension to shut down.
+		err = r.serve(srv, client)
+		if err == nil {
+			return nil
+		}
+		name, ok := registryConflictItem(err)
+		if !ok || ctx.Err() != nil {
 			return err
 		}
-		if name, ok := registryConflictItem(err); ok {
-			// Only tables are dropped; losing another kind of plugin (e.g. distributed)
-			// would silently break orbit, so that conflict stays fatal.
-			remaining := slices.DeleteFunc(slices.Clone(plugins), func(p osquery.OsqueryPlugin) bool {
-				return p.RegistryName() == "table" && p.Name() == name
-			})
-			if len(remaining) == len(plugins) {
-				// The conflicting item isn't one of our tables, retrying won't help.
-				return err
-			}
-			plugins = remaining
-			log.Warn().Str("table", name).Msg("skipping fleetd table: another osquery extension already registered an item with the same name")
-			continue
-		}
-
-		// Only time spent registered counts, so attempts that are slow to fail
-		// registering don't reset the count.
-		if client.registeredFor() >= r.healthySession {
-			failures = 0
-		}
-		failures++
-		if failures > maxConsecutiveSessionFailures {
-			return fmt.Errorf("osquery extension session failed %d consecutive times: %w", failures, err)
-		}
-		// When the session ends because the connection broke, osquery-go's
-		// deregistration goes over that broken connection and can fail, leaving a
-		// stale registration that makes osquery reject the new one as a duplicate.
-		if uuid, ok := client.registeredUUID(); ok {
-			staleUUID = &uuid
-		}
-		if staleUUID != nil && r.deregister(*staleUUID) {
-			staleUUID = nil
-		}
-		backoff := min(r.retryBackoff<<(failures-1), maxRetryBackoff)
-		log.Error().Err(err).Int("attempt", failures).Dur("retry_in", backoff).Msg("osquery extension session ended, registering extension again")
-		select {
-		case <-time.After(backoff):
-		case <-ctx.Done():
+		// Only tables are dropped; losing another kind of plugin (e.g. distributed)
+		// would silently break orbit, so that conflict stays fatal.
+		remaining := slices.DeleteFunc(slices.Clone(plugins), func(p osquery.OsqueryPlugin) bool {
+			return p.RegistryName() == "table" && p.Name() == name
+		})
+		if len(remaining) == len(plugins) {
+			// The conflicting item isn't one of our tables, retrying won't help.
 			return err
 		}
+		plugins = remaining
+		log.Warn().Str("table", name).Msg("skipping fleetd table: another osquery extension already registered an item with the same name")
 	}
 }
 
-// serve runs srv until it stops, osquery no longer lists the extension as
-// registered, or ctx is canceled.
+// serve runs srv until it stops, or returns errExtensionNotRegistered once
+// osquery no longer lists the extension as registered.
 //
 // osquery-go only pings the extension manager, which proves osqueryd is alive
-// but not that this extension is still registered with it, so the
-// registration is checked separately.
-func (r *Runner) serve(ctx context.Context, srv *osquery.ExtensionManagerServer, client *registrationClient) error {
-	lost := make(chan error, 1)
-	done := make(chan struct{})
-	defer close(done)
-
+// but not that this extension is still registered with it. When osquery drops
+// the extension, the returned error restarts orbit and osqueryd with it:
+// registering again with the same osqueryd isn't enough, as it can keep the
+// dropped extension's tables or lose its extension manager socket.
+func (r *Runner) serve(srv *osquery.ExtensionManagerServer, client *registrationClient) error {
+	runErr := make(chan error, 1)
 	go func() {
-		switch err := r.watchRegistration(ctx, done, client); {
-		case err != nil:
-			lost <- err
-		case ctx.Err() == nil:
-			// srv.Run already returned.
-			return
-		}
-		// A Shutdown before Start registers the extension doesn't stop it: with
-		// osquery.WithClient, Start still registers and serves afterwards.
-		select {
-		case <-client.registeredCh:
-		case <-done:
-			return
-		}
-		if err := srv.Shutdown(context.WithoutCancel(ctx)); err != nil {
-			log.Debug().Err(err).Msg("shutdown extension")
-		}
+		runErr <- srv.Run()
 	}()
 
-	err := srv.Run()
-	// srv doesn't close a client passed with osquery.WithClient.
-	client.Close()
-	if err != nil {
-		// srv deregisters the extension when it stops on its own, so the watcher
-		// can also report it missing; err is the actual cause.
-		return err
-	}
-	select {
-	case lostErr := <-lost:
-		return lostErr
-	default:
-		return nil
-	}
-}
-
-// watchRegistration returns errExtensionNotRegistered once osquery no longer
-// lists the extension registered by client, and nil when done is closed or ctx
-// is canceled.
-func (r *Runner) watchRegistration(ctx context.Context, done <-chan struct{}, client *registrationClient) error {
 	ticker := time.NewTicker(r.checkInterval)
 	defer ticker.Stop()
-
 	var checkClient osquery.ExtensionManager
 	defer func() {
 		if checkClient != nil {
@@ -295,10 +204,10 @@ func (r *Runner) watchRegistration(ctx context.Context, done <-chan struct{}, cl
 	}()
 	for {
 		select {
-		case <-ctx.Done():
-			return nil
-		case <-done:
-			return nil
+		case err := <-runErr:
+			// srv doesn't close a client passed with osquery.WithClient.
+			client.Close()
+			return err
 		case <-ticker.C:
 		}
 
@@ -323,40 +232,10 @@ func (r *Runner) watchRegistration(ctx context.Context, done <-chan struct{}, cl
 			continue
 		}
 		if _, ok := extensions[uuid]; !ok {
+			// Interrupt shuts srv down; waiting for it here could hold up the restart.
 			return errExtensionNotRegistered
 		}
 	}
-}
-
-// deregister deregisters the extension with the given UUID, if osquery still
-// has it registered. It reports whether osquery no longer has it registered.
-func (r *Runner) deregister(uuid osquerygen.ExtensionRouteUUID) bool {
-	client, err := r.newClient(r.checkInterval)
-	if err != nil {
-		log.Debug().Err(err).Msg("connect to osquery to deregister stale extension")
-		return false
-	}
-	defer client.Close()
-
-	extensions, err := client.Extensions()
-	if err != nil {
-		log.Debug().Err(err).Msg("list osquery extensions")
-		return false
-	}
-	if _, ok := extensions[uuid]; !ok {
-		return true
-	}
-	log.Info().Int64("uuid", int64(uuid)).Msg("deregistering stale osquery extension")
-	stat, err := client.DeregisterExtension(uuid)
-	if err != nil {
-		log.Debug().Err(err).Msg("deregister stale osquery extension")
-		return false
-	}
-	if stat.Code != 0 {
-		log.Debug().Int32("code", stat.Code).Str("message", stat.Message).Msg("deregister stale osquery extension")
-		return false
-	}
-	return true
 }
 
 // registrationClient records the UUID osquery assigns to the extension, which
@@ -364,25 +243,17 @@ func (r *Runner) deregister(uuid osquerygen.ExtensionRouteUUID) bool {
 type registrationClient struct {
 	osquery.ExtensionManager
 
-	// registeredCh is closed once the extension is registered.
-	registeredCh chan struct{}
-
-	mu           sync.Mutex
-	uuid         osquerygen.ExtensionRouteUUID
-	registeredAt time.Time
-}
-
-func newRegistrationClient(c osquery.ExtensionManager) *registrationClient {
-	return &registrationClient{ExtensionManager: c, registeredCh: make(chan struct{})}
+	mu         sync.Mutex
+	uuid       osquerygen.ExtensionRouteUUID
+	registered bool
 }
 
 func (c *registrationClient) RegisterExtension(info *osquerygen.InternalExtensionInfo, registry osquerygen.ExtensionRegistry) (*osquerygen.ExtensionStatus, error) {
 	stat, err := c.ExtensionManager.RegisterExtension(info, registry)
 	if err == nil && stat != nil && stat.Code == 0 {
 		c.mu.Lock()
-		c.uuid, c.registeredAt = stat.UUID, time.Now()
+		c.uuid, c.registered = stat.UUID, true
 		c.mu.Unlock()
-		close(c.registeredCh)
 	}
 	return stat, err
 }
@@ -390,18 +261,7 @@ func (c *registrationClient) RegisterExtension(info *osquerygen.InternalExtensio
 func (c *registrationClient) registeredUUID() (osquerygen.ExtensionRouteUUID, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.uuid, !c.registeredAt.IsZero()
-}
-
-// registeredFor returns how long ago the extension was registered, or zero if
-// it never was.
-func (c *registrationClient) registeredFor() time.Duration {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.registeredAt.IsZero() {
-		return 0
-	}
-	return time.Since(c.registeredAt)
+	return c.uuid, c.registered
 }
 
 // newServer creates the extension manager server, retrying until it succeeds
@@ -430,7 +290,7 @@ func (r *Runner) tryNewServer(newServer func(osquery.ExtensionManager) (*osquery
 	if err != nil {
 		return nil, nil, err
 	}
-	client := newRegistrationClient(c)
+	client := &registrationClient{ExtensionManager: c}
 	srv, err := newServer(client)
 	if err != nil {
 		client.Close()

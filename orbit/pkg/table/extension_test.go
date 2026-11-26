@@ -8,6 +8,7 @@ package table
 import (
 	"context"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,111 +22,51 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeOsquery simulates osqueryd's extension manager.
-type fakeOsquery struct {
-	// taken are table names already registered by another extension.
+// fakeExtensionManager simulates osquery rejecting registry items already
+// registered by another extension.
+type fakeExtensionManager struct {
 	taken []string
 	// alwaysConflict, if set, is reported as conflicting on every registration.
 	alwaysConflict string
-	// goneAfterRegister makes every ping fail after a successful registration.
-	goneAfterRegister bool
-	// registerDelay is how long each registration takes.
-	registerDelay time.Duration
+	// stayUp keeps pings succeeding after a successful registration.
+	stayUp bool
 
 	mu         sync.Mutex
 	registered [][]string
-	extensions map[osquerygen.ExtensionRouteUUID]string
-	nextUUID   osquerygen.ExtensionRouteUUID
-	gone       bool
-	// failPings is how many pings fail before pings succeed again.
-	failPings int
-	// failDeregistrations is how many deregistrations fail.
-	failDeregistrations int
+	pingErr    error
+	extensions osquerygen.InternalExtensionList
 }
 
-// client returns a new connection to the fake osquery.
-func (f *fakeOsquery) client() *fakeClient {
-	return &fakeClient{f: f}
-}
-
-func (f *fakeOsquery) getRegistered() [][]string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.registered)
-}
-
-func (f *fakeOsquery) getExtensions() []osquerygen.ExtensionRouteUUID {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	var uuids []osquerygen.ExtensionRouteUUID
-	for uuid := range f.extensions {
-		uuids = append(uuids, uuid)
-	}
-	return uuids
-}
-
-// evictAll simulates osquery dropping registered extensions ("Extension UUID N
+// evict simulates osquery dropping the registered extension ("Extension UUID N
 // has gone away").
-func (f *fakeOsquery) evictAll() {
+func (f *fakeExtensionManager) evict() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	clear(f.extensions)
 }
 
-type fakeClient struct {
-	f *fakeOsquery
+func (f *fakeExtensionManager) Close() {}
 
-	mu     sync.Mutex
-	closed bool
-}
-
-func (c *fakeClient) Close() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.closed = true
-}
-
-func (c *fakeClient) isClosed() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.closed
-}
-
-func (c *fakeClient) Ping() (*osquerygen.ExtensionStatus, error) {
-	if c.isClosed() {
-		return nil, errors.New("client closed")
-	}
-	f := c.f
+func (f *fakeExtensionManager) Ping() (*osquerygen.ExtensionStatus, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.gone {
-		return nil, errors.New("osquery gone")
-	}
-	if f.failPings > 0 {
-		f.failPings--
-		return nil, errors.New("broken pipe")
+	if f.pingErr != nil {
+		return nil, f.pingErr
 	}
 	return &osquerygen.ExtensionStatus{Code: 0}, nil
 }
 
-func (c *fakeClient) Call(string, string, osquerygen.ExtensionPluginRequest) (*osquerygen.ExtensionResponse, error) {
+func (f *fakeExtensionManager) Call(string, string, osquerygen.ExtensionPluginRequest) (*osquerygen.ExtensionResponse, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (c *fakeClient) Extensions() (osquerygen.InternalExtensionList, error) {
-	f := c.f
+func (f *fakeExtensionManager) Extensions() (osquerygen.InternalExtensionList, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	list := osquerygen.InternalExtensionList{}
-	for uuid, name := range f.extensions {
-		list[uuid] = &osquerygen.InternalExtensionInfo{Name: name}
-	}
-	return list, nil
+	return maps.Clone(f.extensions), nil
 }
 
-func (c *fakeClient) RegisterExtension(info *osquerygen.InternalExtensionInfo, registry osquerygen.ExtensionRegistry) (*osquerygen.ExtensionStatus, error) {
-	f := c.f
-	time.Sleep(f.registerDelay)
+func (f *fakeExtensionManager) RegisterExtension(info *osquerygen.InternalExtensionInfo, registry osquerygen.ExtensionRegistry) (*osquerygen.ExtensionStatus, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var names []string
@@ -134,11 +75,6 @@ func (c *fakeClient) RegisterExtension(info *osquerygen.InternalExtensionInfo, r
 	}
 	slices.Sort(names)
 	f.registered = append(f.registered, names)
-	for _, name := range f.extensions {
-		if name == info.Name {
-			return &osquerygen.ExtensionStatus{Code: 1, Message: "Duplicate extension registered"}, nil
-		}
-	}
 	conflict := f.alwaysConflict
 	for _, name := range names {
 		if slices.Contains(f.taken, name) {
@@ -152,38 +88,40 @@ func (c *fakeClient) RegisterExtension(info *osquerygen.InternalExtensionInfo, r
 			Message: "Failed adding registry: Registry item " + conflict + " conflicts with another item of the same name.",
 		}, nil
 	}
-	if f.goneAfterRegister {
-		f.gone = true
+	f.extensions = osquerygen.InternalExtensionList{1: info}
+	if !f.stayUp {
+		// Make Run return shortly after a successful registration.
+		f.pingErr = errors.New("osquery gone")
 	}
-	if f.extensions == nil {
-		f.extensions = make(map[osquerygen.ExtensionRouteUUID]string)
-	}
-	f.nextUUID++
-	f.extensions[f.nextUUID] = info.Name
-	return &osquerygen.ExtensionStatus{Code: 0, UUID: f.nextUUID}, nil
+	return &osquerygen.ExtensionStatus{Code: 0, UUID: 1}, nil
 }
 
-func (c *fakeClient) DeregisterExtension(uuid osquerygen.ExtensionRouteUUID) (*osquerygen.ExtensionStatus, error) {
-	f := c.f
+func (f *fakeExtensionManager) DeregisterExtension(osquerygen.ExtensionRouteUUID) (*osquerygen.ExtensionStatus, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.failDeregistrations > 0 {
-		f.failDeregistrations--
-		return nil, errors.New("broken pipe")
+	// With osquery.WithClient, Shutdown doesn't drop the client, so osquery-go's
+	// ping goroutine would keep pinging forever; failing pings stops it.
+	if f.pingErr == nil {
+		f.pingErr = errors.New("deregistered")
 	}
-	delete(f.extensions, uuid)
 	return &osquerygen.ExtensionStatus{Code: 0}, nil
 }
 
-func (c *fakeClient) Options() (osquerygen.InternalOptionList, error) {
+func (f *fakeExtensionManager) getRegistered() [][]string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.registered
+}
+
+func (f *fakeExtensionManager) Options() (osquerygen.InternalOptionList, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (c *fakeClient) Query(string) (*osquerygen.ExtensionResponse, error) {
+func (f *fakeExtensionManager) Query(string) (*osquerygen.ExtensionResponse, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (c *fakeClient) GetQueryColumns(string) (*osquerygen.ExtensionResponse, error) {
+func (f *fakeExtensionManager) GetQueryColumns(string) (*osquerygen.ExtensionResponse, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -192,8 +130,8 @@ func testTablePlugin(name string) osquery.OsqueryPlugin {
 		func(context.Context, table.QueryContext) ([]map[string]string, error) { return nil, nil })
 }
 
-// newTestRunner returns a runner connected to f and a function to run it.
-func newTestRunner(t *testing.T, f *fakeOsquery) (*Runner, func(ctx context.Context, plugins []osquery.OsqueryPlugin) error) {
+// newTestRunner returns a function that runs a Runner connected to f.
+func newTestRunner(t *testing.T, f *fakeExtensionManager) func(ctx context.Context, plugins []osquery.OsqueryPlugin) error {
 	// Unix socket paths have a short length limit, so avoid t.TempDir().
 	// A dir per test avoids reusing a listen path that osquery-go may
 	// still be closing asynchronously.
@@ -204,9 +142,8 @@ func newTestRunner(t *testing.T, f *fakeOsquery) (*Runner, func(ctx context.Cont
 
 	r := NewRunner(sock)
 	r.checkInterval = 10 * time.Millisecond
-	r.retryBackoff = time.Millisecond
-	r.newClient = func(time.Duration) (osquery.ExtensionManager, error) { return f.client(), nil }
-	return r, func(ctx context.Context, plugins []osquery.OsqueryPlugin) error {
+	r.newClient = func(time.Duration) (osquery.ExtensionManager, error) { return f, nil }
+	return func(ctx context.Context, plugins []osquery.OsqueryPlugin) error {
 		return r.run(ctx, plugins, func(client osquery.ExtensionManager) (*osquery.ExtensionManagerServer, error) {
 			return osquery.NewExtensionManagerServer("test", sock,
 				osquery.WithClient(client),
@@ -215,46 +152,34 @@ func newTestRunner(t *testing.T, f *fakeOsquery) (*Runner, func(ctx context.Cont
 	}
 }
 
-func repeat(names []string, n int) [][]string {
-	var out [][]string
-	for range n {
-		out = append(out, names)
-	}
-	return out
-}
-
 func TestRunnerSkipsConflictingTables(t *testing.T) {
-	// Each session fails right after registering, so the runner retries until it
-	// gives up.
-	attempts := maxConsecutiveSessionFailures + 1
 	for _, tc := range []struct {
 		name           string
-		fake           *fakeOsquery
+		fake           *fakeExtensionManager
 		wantRegistered [][]string
 		wantErr        string
 	}{
 		{
 			name:           "no conflicts",
-			fake:           &fakeOsquery{goneAfterRegister: true},
-			wantRegistered: repeat([]string{"a", "b", "c"}, attempts),
+			fake:           &fakeExtensionManager{},
+			wantRegistered: [][]string{{"a", "b", "c"}},
 			wantErr:        "osquery gone",
 		},
 		{
-			name: "two conflicts",
-			fake: &fakeOsquery{taken: []string{"a", "c"}, goneAfterRegister: true},
-			wantRegistered: append([][]string{{"a", "b", "c"}, {"b", "c"}},
-				repeat([]string{"b"}, attempts)...),
-			wantErr: "osquery gone",
+			name:           "two conflicts",
+			fake:           &fakeExtensionManager{taken: []string{"a", "c"}},
+			wantRegistered: [][]string{{"a", "b", "c"}, {"b", "c"}, {"b"}},
+			wantErr:        "osquery gone",
 		},
 		{
 			name:           "conflict on item not owned by fleetd",
-			fake:           &fakeOsquery{alwaysConflict: "z"},
+			fake:           &fakeExtensionManager{alwaysConflict: "z"},
 			wantRegistered: [][]string{{"a", "b", "c"}},
 			wantErr:        "Registry item z conflicts",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, run := newTestRunner(t, tc.fake)
+			run := newTestRunner(t, tc.fake)
 			plugins := []osquery.OsqueryPlugin{testTablePlugin("a"), testTablePlugin("b"), testTablePlugin("c")}
 			err := run(t.Context(), plugins)
 			require.ErrorContains(t, err, tc.wantErr)
@@ -263,104 +188,27 @@ func TestRunnerSkipsConflictingTables(t *testing.T) {
 	}
 }
 
-func TestRunnerSlowRegistrationFailuresGiveUp(t *testing.T) {
-	// Each attempt takes longer than a healthy session to fail, but is only
-	// registered briefly, so it must still count as a failure.
-	f := &fakeOsquery{goneAfterRegister: true, registerDelay: 100 * time.Millisecond}
-	r, run := newTestRunner(t, f)
-	r.healthySession = 50 * time.Millisecond
+func TestRunnerReturnsWhenOsqueryDropsExtension(t *testing.T) {
+	f := &fakeExtensionManager{stayUp: true}
+	run := newTestRunner(t, f)
+	errc := make(chan error, 1)
+	go func() {
+		errc <- run(t.Context(), []osquery.OsqueryPlugin{testTablePlugin("a")})
+	}()
 
-	err := run(t.Context(), []osquery.OsqueryPlugin{testTablePlugin("a")})
-	require.ErrorContains(t, err, "osquery gone")
-	require.Len(t, f.getRegistered(), maxConsecutiveSessionFailures+1)
-}
-
-func TestRunnerStopsWhenCanceledBeforeRegistration(t *testing.T) {
-	// Cancellation before the server starts (e.g. while waiting for the
-	// extension socket) races the shutdown against registration.
-	for range 20 {
-		f := &fakeOsquery{registerDelay: 10 * time.Millisecond}
-		_, run := newTestRunner(t, f)
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		errc := make(chan error, 1)
-		go func() {
-			errc <- run(ctx, []osquery.OsqueryPlugin{testTablePlugin("a")})
-		}()
-
-		select {
-		case <-errc:
-		case <-time.After(5 * time.Second):
-			t.Fatal("runner didn't stop after cancel")
-		}
-		require.Empty(t, f.getExtensions())
+	require.Eventually(t, func() bool { return len(f.getRegistered()) == 1 }, 5*time.Second, 10*time.Millisecond)
+	// Still registered: several checks pass without ending the session.
+	select {
+	case err := <-errc:
+		t.Fatalf("runner returned while registered: %v", err)
+	case <-time.After(100 * time.Millisecond):
 	}
-}
 
-func TestRunnerReregisters(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		fake *fakeOsquery
-		// lose ends the first session.
-		lose          func(f *fakeOsquery)
-		registrations int
-	}{
-		{
-			name:          "osquery evicts the extension",
-			fake:          &fakeOsquery{},
-			lose:          (*fakeOsquery).evictAll,
-			registrations: 2,
-		},
-		{
-			name: "ping fails and deregistration fails",
-			// Without deregistering the stale registration, osquery would reject
-			// the new one as a duplicate.
-			fake: &fakeOsquery{failDeregistrations: 1},
-			lose: func(f *fakeOsquery) {
-				f.mu.Lock()
-				defer f.mu.Unlock()
-				f.failPings = 1
-			},
-			registrations: 2,
-		},
-		{
-			name: "ping fails and stale cleanup fails once",
-			// The second registration is rejected as a duplicate; the stale
-			// registration is removed before the third one.
-			fake: &fakeOsquery{failDeregistrations: 2},
-			lose: func(f *fakeOsquery) {
-				f.mu.Lock()
-				defer f.mu.Unlock()
-				f.failPings = 1
-			},
-			registrations: 3,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			_, run := newTestRunner(t, tc.fake)
-			ctx, cancel := context.WithCancel(t.Context())
-			errc := make(chan error, 1)
-			go func() {
-				errc <- run(ctx, []osquery.OsqueryPlugin{testTablePlugin("a")})
-			}()
-
-			require.Eventually(t, func() bool { return len(tc.fake.getExtensions()) == 1 }, 5*time.Second, 10*time.Millisecond)
-			first := tc.fake.getExtensions()[0]
-			tc.lose(tc.fake)
-
-			require.Eventually(t, func() bool {
-				uuids := tc.fake.getExtensions()
-				return len(uuids) == 1 && uuids[0] != first
-			}, 5*time.Second, 10*time.Millisecond)
-			require.Equal(t, repeat([]string{"a"}, tc.registrations), tc.fake.getRegistered())
-
-			cancel()
-			select {
-			case <-errc:
-			case <-time.After(5 * time.Second):
-				t.Fatal("runner didn't stop after cancel")
-			}
-			require.Empty(t, tc.fake.getExtensions())
-		})
+	f.evict()
+	select {
+	case err := <-errc:
+		require.ErrorIs(t, err, errExtensionNotRegistered)
+	case <-time.After(5 * time.Second):
+		t.Fatal("runner didn't notice osquery dropped the extension")
 	}
 }
