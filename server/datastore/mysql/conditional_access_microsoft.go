@@ -54,37 +54,39 @@ func (ds *Datastore) ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context
 // secrets. Call this once during server startup (after migrations) so the
 // read path can always assume encrypted data.
 func (ds *Datastore) EncryptConditionalAccessSecrets(ctx context.Context) error {
-	var row struct {
-		TenantID          string `db:"tenant_id"`
-		ProxyServerSecret []byte `db:"proxy_server_secret"`
-	}
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &row,
-		`SELECT tenant_id, proxy_server_secret FROM microsoft_compliance_partner_integrations LIMIT 1;`,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil // no integration configured
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var row struct {
+			TenantID          string `db:"tenant_id"`
+			ProxyServerSecret []byte `db:"proxy_server_secret"`
 		}
-		return ctxerr.Wrap(ctx, err, "reading conditional access secret for encryption backfill")
-	}
-	// If there's an integration configured, the server private key is required.
-	if ds.serverPrivateKey == "" {
-		return errors.New("FLEET_SERVER_PRIVATE_KEY is required when conditional access is configured")
-	}
-	if len(row.ProxyServerSecret) == 0 || row.ProxyServerSecret[0] == 0x01 {
-		return nil // already encrypted or empty
-	}
-	encrypted, err := fleetcrypto.Encrypt(row.ProxyServerSecret, ds.serverPrivateKey)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "encrypting legacy proxy server secret")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx,
-		`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
-		encrypted, row.TenantID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "backfilling encrypted proxy server secret")
-	}
-	return nil
+		err := sqlx.GetContext(ctx, tx, &row,
+			`SELECT tenant_id, proxy_server_secret FROM microsoft_compliance_partner_integrations LIMIT 1 FOR UPDATE;`,
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil // no integration configured
+			}
+			return ctxerr.Wrap(ctx, err, "reading conditional access secret for encryption backfill")
+		}
+		// If there's an integration configured, the server private key is required.
+		if ds.serverPrivateKey == "" {
+			return errors.New("FLEET_SERVER_PRIVATE_KEY is required when conditional access is configured")
+		}
+		if len(row.ProxyServerSecret) == 0 || row.ProxyServerSecret[0] == 0x01 {
+			return nil // already encrypted or empty
+		}
+		encrypted, err := fleetcrypto.Encrypt(row.ProxyServerSecret, ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypting legacy proxy server secret")
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
+			encrypted, row.TenantID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "backfilling encrypted proxy server secret")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
@@ -93,9 +95,8 @@ func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.
 		ProxyServerSecret []byte `db:"proxy_server_secret"`
 		SetupDone         bool   `db:"setup_done"`
 	}
-	// Use writer to avoid replication lag (not in the hot path).
 	err := sqlx.GetContext(
-		ctx, ds.writer(ctx), &row,
+		ctx, ds.reader(ctx), &row,
 		// Currently only one global integration is supported.
 		`SELECT tenant_id, proxy_server_secret, setup_done FROM microsoft_compliance_partner_integrations;`,
 	)
@@ -105,7 +106,7 @@ func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting microsoft_compliance_partner_integrations")
 	}
-	secret, err := fleetcrypto.DecryptOrPassthrough(row.ProxyServerSecret, ds.serverPrivateKey)
+	secret, err := fleetcrypto.Decrypt(row.ProxyServerSecret, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypting proxy server secret")
 	}
