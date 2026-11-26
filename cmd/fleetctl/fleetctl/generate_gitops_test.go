@@ -2957,6 +2957,24 @@ func (c *MockClientInHouseApp) ListSoftwareTitles(query string) ([]fleet.Softwar
 			},
 		}, nil
 	}
+	if query == "available_for_install=1&fleet_id=11&order_key=name" {
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:               40,
+				Name:             "Budget",
+				BundleIdentifier: new("com.example.budget"),
+				HashSHA256:       new("budget-ipa-hash"),
+				Packages:         []fleet.SoftwarePackageListItem{{Name: "Budget.ipa", Platform: "ios", Version: "1.0"}},
+			},
+			{
+				ID:               41,
+				Name:             "Budget",
+				BundleIdentifier: new("com.example.budget.beta"),
+				HashSHA256:       new("budget-beta-ipa-hash"),
+				Packages:         []fleet.SoftwarePackageListItem{{Name: "BudgetBeta.ipa", Platform: "ios", Version: "1.1"}},
+			},
+		}, nil
+	}
 	return c.MockClient.ListSoftwareTitles(query)
 }
 
@@ -2995,12 +3013,29 @@ func (c *MockClientInHouseApp) GetSoftwareTitleByID(id uint, teamID *uint) (*fle
 			BundleIdentifier: new("com.example.hello"),
 			Packages:         []fleet.SoftwareInstaller{{Name: "HelloWorld.pkg", Platform: "darwin", URL: "https://example.com/hello/HelloWorld.pkg"}},
 		}, nil
+	case 40:
+		return &fleet.SoftwareTitle{
+			ID:               40,
+			Name:             "Budget",
+			BundleIdentifier: new("com.example.budget"),
+			Packages:         []fleet.SoftwareInstaller{{Name: "Budget.ipa", Platform: "ios", URL: "https://example.com/Budget.ipa", Configuration: json.RawMessage(`"<dict>budget</dict>"`)}},
+		}, nil
+	case 41:
+		return &fleet.SoftwareTitle{
+			ID:               41,
+			Name:             "Budget",
+			BundleIdentifier: new("com.example.budget.beta"),
+			Packages:         []fleet.SoftwareInstaller{{Name: "BudgetBeta.ipa", Platform: "ios", URL: "https://example.com/BudgetBeta.ipa", Configuration: json.RawMessage(`"<dict>budget beta</dict>"`)}},
+		}, nil
 	default:
 		return c.MockClient.GetSoftwareTitleByID(id, teamID)
 	}
 }
 
 func (c *MockClientInHouseApp) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 11 {
+		return []fleet.SoftwareTitleListResult{}, nil
+	}
 	if teamID == 10 && strings.Contains(platform, "ios") {
 		return []fleet.SoftwareTitleListResult{
 			{
@@ -3106,6 +3141,19 @@ func TestGenerateSoftwareInHouseAppSetupExperience(t *testing.T) {
 	require.Equal(t, "ios", packages[1]["setup_experience_platform"])
 	require.Equal(t, "https://example.com/hello/HelloWorld.pkg", packages[2]["url"])
 	require.NotContains(t, packages[2], "setup_experience_platform")
+
+	// Generate a fleet with two in-house apps that have the same title name and platform,
+	// each app should get its own configuration file.
+	cmd.FilesToWrite["fleets/same-name.yml"] = map[string]any{}
+	res, err = cmd.generateSoftware("fleets/same-name.yml", 11, "same-name", false)
+	require.NoError(t, err)
+	packages, ok = res["packages"].([]map[string]any)
+	require.True(t, ok, "expected packages in result")
+	require.Len(t, packages, 2)
+	require.Equal(t, map[string]any{"path": "../lib/same-name/software/budget-ios-config.xml"}, packages[0]["configuration"])
+	require.Equal(t, map[string]any{"path": "../lib/same-name/software/budget-ios-2-config.xml"}, packages[1]["configuration"])
+	require.Equal(t, []byte("<dict>budget</dict>"), cmd.FilesToWrite["lib/same-name/software/budget-ios-config.xml"])
+	require.Equal(t, []byte("<dict>budget beta</dict>"), cmd.FilesToWrite["lib/same-name/software/budget-ios-2-config.xml"])
 }
 
 type MockClientMultiPackage struct {

@@ -2481,6 +2481,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	appStoreApps := make([]map[string]any, 0)
 	fmas := make([]map[string]any, 0)
 	dedupeInHouseApps := make(map[string]struct{})
+	takenFilenamePrefixes := make(map[string]bool)
 	slugResolver := &fmaSlugResolver{client: cmd.Client, teamID: teamID}
 	for _, sw := range software {
 		if isDuplicateInHouseApp(sw, dedupeInHouseApps) {
@@ -2563,7 +2564,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if len(softwareTitle.Packages) > 0 {
 			firstPackage := &softwareTitle.Packages[0]
-			filenamePrefix := generateFilename(sw.Name) + "-" + firstPackage.Platform
+			filenamePrefix := uniqueFilename(generateFilename(sw.Name)+"-"+firstPackage.Platform, takenFilenamePrefixes)
 			scriptExtension := scriptExtensionForPlatform(firstPackage.Platform)
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
@@ -2696,7 +2697,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 		if len(softwareTitle.AppStoreApps) > 0 {
 			firstAppStoreApp := softwareTitle.AppStoreApps[0]
-			filenamePrefix := generateFilename(sw.Name) + "-" + string(firstAppStoreApp.Platform)
+			filenamePrefix := uniqueFilename(generateFilename(sw.Name)+"-"+string(firstAppStoreApp.Platform), takenFilenamePrefixes)
 			softwareSpec["platform"] = firstAppStoreApp.Platform
 
 			if tok := firstAppStoreApp.VPPToken; tok != nil && firstAppStoreApp.Platform != fleet.AndroidPlatform {
