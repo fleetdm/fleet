@@ -2834,7 +2834,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			// Never set together with the cross-selection emission above: .ipa
 			// titles can't be cross-selected because the setup experience listing
 			// excludes them for any non-mobile target platform.
-			if inHousePlatforms, ok := inHouseSetupPlatformsByBundleIdentifier[ptr.ValOrZero(softwareTitle.BundleIdentifier)]; ok && len(inHousePlatforms) > 0 {
+			inHousePlatforms, ok := inHouseSetupPlatformsByBundleIdentifier[ptr.ValOrZero(softwareTitle.BundleIdentifier)]
+			if ok && filepath.Ext(sp.Name) == ".ipa" && len(inHousePlatforms) > 0 {
 				slices.Sort(inHousePlatforms)
 				softwareSpec["setup_experience_platform"] = strings.Join(inHousePlatforms, ",")
 			}

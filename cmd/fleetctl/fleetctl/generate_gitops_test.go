@@ -2948,6 +2948,13 @@ func (c *MockClientInHouseApp) ListSoftwareTitles(query string) ([]fleet.Softwar
 				HashSHA256:       new("other-ipa-hash"),
 				Packages:         []fleet.SoftwarePackageListItem{{Name: "HelloWorld.ipa", Platform: "ipados", Version: "1.0"}},
 			},
+			{
+				ID:               34,
+				Name:             "Hello World Mac",
+				BundleIdentifier: new("com.example.hello"),
+				HashSHA256:       new("hello-pkg-hash"),
+				Packages:         []fleet.SoftwarePackageListItem{{Name: "HelloWorld.pkg", Platform: "darwin", Version: "1.0"}},
+			},
 		}, nil
 	}
 	return c.MockClient.ListSoftwareTitles(query)
@@ -2980,6 +2987,13 @@ func (c *MockClientInHouseApp) GetSoftwareTitleByID(id uint, teamID *uint) (*fle
 			Name:             "Hello Other",
 			BundleIdentifier: new("com.example.other"),
 			Packages:         []fleet.SoftwareInstaller{{Name: "HelloWorld.ipa", Platform: "ios", URL: "https://example.com/other/HelloWorld.ipa"}},
+		}, nil
+	case 34:
+		return &fleet.SoftwareTitle{
+			ID:               34,
+			Name:             "Hello World Mac",
+			BundleIdentifier: new("com.example.hello"),
+			Packages:         []fleet.SoftwareInstaller{{Name: "HelloWorld.pkg", Platform: "darwin", URL: "https://example.com/hello/HelloWorld.pkg"}},
 		}, nil
 	default:
 		return c.MockClient.GetSoftwareTitleByID(id, teamID)
@@ -3078,17 +3092,20 @@ func TestGenerateSoftwareInHouseAppSetupExperience(t *testing.T) {
 	assert.False(t, hasBoolean, "per-platform selection must not emit the setup_experience boolean")
 
 	// Generate a fleet with two in-house apps that share the HelloWorld.ipa filename but have
-	// different bundle identifiers, each app should get its own entry and setup platform.
+	// different bundle identifiers, each app should get its own entry and setup platform. A macOS
+	// package with the same bundle identifier as an in-house app should get no setup platform.
 	cmd.FilesToWrite["fleets/same-filename.yml"] = map[string]any{}
 	res, err = cmd.generateSoftware("fleets/same-filename.yml", 10, "same-filename", false)
 	require.NoError(t, err)
 	packages, ok = res["packages"].([]map[string]any)
 	require.True(t, ok, "expected packages in result")
-	require.Len(t, packages, 2)
+	require.Len(t, packages, 3)
 	require.Equal(t, "https://example.com/hello/HelloWorld.ipa", packages[0]["url"])
 	require.Equal(t, "ipados", packages[0]["setup_experience_platform"])
 	require.Equal(t, "https://example.com/other/HelloWorld.ipa", packages[1]["url"])
 	require.Equal(t, "ios", packages[1]["setup_experience_platform"])
+	require.Equal(t, "https://example.com/hello/HelloWorld.pkg", packages[2]["url"])
+	require.NotContains(t, packages[2], "setup_experience_platform")
 }
 
 type MockClientMultiPackage struct {
