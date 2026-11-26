@@ -1,0 +1,1 @@
+* Fixed Ubuntu OSV vulnerability scanning missing packages whose binary name differs from their source package name.

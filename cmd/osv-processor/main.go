@@ -37,7 +37,15 @@ type Affected struct {
 }
 
 type EcosystemSpecific struct {
-	Severity string `json:"severity,omitempty"`
+	Severity string   `json:"severity,omitempty"`
+	Binaries []Binary `json:"binaries,omitempty"`
+}
+
+// Binary is a binary package built from an Ubuntu source package. On an entry with a fix,
+// Version is the binary's fixed version; without a fix, it is its currently published version.
+type Binary struct {
+	Name    string `json:"binary_name"`
+	Version string `json:"binary_version"`
 }
 
 type Package struct {
@@ -296,43 +304,13 @@ func run(cfg Config) error {
 				vulnToUse = modifiedVuln
 			}
 
-			for _, pkg := range packages {
-				if _, exists := artifacts[ubuntuVer]; !exists {
-					artifacts[ubuntuVer] = &ArtifactData{
-						SchemaVersion:   "1.0",
-						UbuntuVersion:   ubuntuVer,
-						Vulnerabilities: make(map[string][]ProcessedVuln),
-					}
-				}
-				artifacts[ubuntuVer].Vulnerabilities[pkg] = append(artifacts[ubuntuVer].Vulnerabilities[pkg], *vulnToUse)
-			}
-
-			// Add to today's delta artifact if this file was changed today
+			rows := ubuntuRows(affected, fixed, packages, *vulnToUse)
+			addUbuntuRows(artifacts, ubuntuVer, rows)
 			if inToday {
-				for _, pkg := range packages {
-					if _, exists := todayArtifacts[ubuntuVer]; !exists {
-						todayArtifacts[ubuntuVer] = &ArtifactData{
-							SchemaVersion:   "1.0",
-							UbuntuVersion:   ubuntuVer,
-							Vulnerabilities: make(map[string][]ProcessedVuln),
-						}
-					}
-					todayArtifacts[ubuntuVer].Vulnerabilities[pkg] = append(todayArtifacts[ubuntuVer].Vulnerabilities[pkg], *vulnToUse)
-				}
+				addUbuntuRows(todayArtifacts, ubuntuVer, rows)
 			}
-
-			// Add to yesterday's delta artifact if this file was changed yesterday
 			if inYesterday {
-				for _, pkg := range packages {
-					if _, exists := yesterdayArtifacts[ubuntuVer]; !exists {
-						yesterdayArtifacts[ubuntuVer] = &ArtifactData{
-							SchemaVersion:   "1.0",
-							UbuntuVersion:   ubuntuVer,
-							Vulnerabilities: make(map[string][]ProcessedVuln),
-						}
-					}
-					yesterdayArtifacts[ubuntuVer].Vulnerabilities[pkg] = append(yesterdayArtifacts[ubuntuVer].Vulnerabilities[pkg], *vulnToUse)
-				}
+				addUbuntuRows(yesterdayArtifacts, ubuntuVer, rows)
 			}
 		}
 
@@ -408,6 +386,80 @@ func run(cfg Config) error {
 	}
 
 	return nil
+}
+
+type ubuntuRow struct {
+	pkg  string
+	vuln ProcessedVuln
+}
+
+// ubuntuRows returns the rows for one affected entry: base under each source package name, plus
+// a row for each binary built from it. upstreamFixed and affected.Versions are the entry's values
+// before transformVuln, so a per-CVE override of base still carries to the binaries.
+func ubuntuRows(affected Affected, upstreamFixed string, packages []string, base ProcessedVuln) []ubuntuRow {
+	rows := make([]ubuntuRow, 0, len(packages))
+	for _, pkg := range packages {
+		rows = append(rows, ubuntuRow{pkg: pkg, vuln: base})
+	}
+	if affected.EcosystemSpecific == nil || isUbuntuKernelSource(affected.EcosystemSpecific.Binaries) {
+		return rows
+	}
+	for _, bin := range affected.EcosystemSpecific.Binaries {
+		if bin.Name == "" || slices.Contains(packages, bin.Name) {
+			continue
+		}
+		rows = append(rows, ubuntuRow{
+			pkg:  bin.Name,
+			vuln: ubuntuBinaryVuln(base, bin.Version, upstreamFixed, affected.Versions),
+		})
+	}
+	return rows
+}
+
+// isUbuntuKernelSource reports whether binaries come from a kernel source. Kernel entries are not
+// expanded: the analyzer maps linux-image-* to the source key itself, and headers, modules and
+// tools must not inherit kernel CVEs. Matching on binaries rather than the source name keeps
+// linux-firmware, linuxptp and similar sources expandable.
+func isUbuntuKernelSource(binaries []Binary) bool {
+	return slices.ContainsFunc(binaries, func(b Binary) bool {
+		return strings.HasPrefix(b.Name, "linux-image-") ||
+			strings.HasPrefix(b.Name, "linux-headers-") ||
+			strings.HasPrefix(b.Name, "linux-modules-")
+	})
+}
+
+// ubuntuBinaryVuln adapts the source row to a binary on its own version line, where the source's
+// versions would never match and its fixed version would be the wrong "resolved in". base is a
+// copy whose Versions slice is shared with the source row, so the field is replaced, never edited.
+func ubuntuBinaryVuln(base ProcessedVuln, binaryVersion, upstreamFixed string, upstreamVersions []string) ProcessedVuln {
+	if binaryVersion == "" {
+		return base
+	}
+	switch {
+	case upstreamFixed != "":
+		if binaryVersion != upstreamFixed {
+			base.Fixed = binaryVersion
+			base.Versions = nil
+		}
+	case len(upstreamVersions) > 0 && !slices.Contains(upstreamVersions, binaryVersion):
+		base.Versions = []string{binaryVersion}
+	}
+	return base
+}
+
+func addUbuntuRows(artifacts map[string]*ArtifactData, ubuntuVer string, rows []ubuntuRow) {
+	artifact, ok := artifacts[ubuntuVer]
+	if !ok {
+		artifact = &ArtifactData{
+			SchemaVersion:   "1.0",
+			UbuntuVersion:   ubuntuVer,
+			Vulnerabilities: make(map[string][]ProcessedVuln),
+		}
+		artifacts[ubuntuVer] = artifact
+	}
+	for _, row := range rows {
+		artifact.Vulnerabilities[row.pkg] = append(artifact.Vulnerabilities[row.pkg], row.vuln)
+	}
 }
 
 func buildVersionFilter(versions, excludeVersions string) (targetVersions, excludedVersions map[string]bool) {

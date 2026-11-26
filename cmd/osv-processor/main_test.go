@@ -4,8 +4,10 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -836,6 +838,286 @@ func TestRunWithVersionFiltering(t *testing.T) {
 			}
 		})
 	}
+}
+
+type testUbuntuBinary struct {
+	Name    string `json:"binary_name"`
+	Version string `json:"binary_version"`
+}
+
+// testUbuntuAffected builds one Ubuntu affected entry as Canonical publishes it. A nil binaries
+// slice omits ecosystem_specific entirely; an empty one emits "binaries": [].
+func testUbuntuAffected(ecosystem, source, fixed string, versions []string, binaries []testUbuntuBinary) map[string]any {
+	events := []map[string]string{{"introduced": "0"}}
+	if fixed != "" {
+		events = append(events, map[string]string{"fixed": fixed})
+	}
+	affected := map[string]any{
+		"package": map[string]string{"ecosystem": ecosystem, "name": source},
+		"ranges":  []map[string]any{{"type": "ECOSYSTEM", "events": events}},
+	}
+	if versions != nil {
+		affected["versions"] = versions
+	}
+	if binaries != nil {
+		affected["ecosystem_specific"] = map[string]any{"binaries": binaries}
+	}
+	return affected
+}
+
+func writeTestUbuntuRecord(t *testing.T, dir, cve string, affected ...map[string]any) {
+	t.Helper()
+	data, err := json.Marshal(map[string]any{
+		"schema_version": "1.7.0",
+		"id":             "UBUNTU-" + cve,
+		"published":      "2026-01-01T00:00:00Z",
+		"modified":       "2026-01-02T00:00:00Z",
+		"upstream":       []string{cve},
+		"affected":       affected,
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, cve+".json"), data, 0o644))
+}
+
+func testUbuntuRunConfig(inputDir, outputDir string) Config {
+	return Config{
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		DateStr:            "2026-01-03",
+		YesterdayStr:       "2026-01-02",
+		GeneratedTimestamp: "2026-01-03T00:00:00Z",
+		RunTime:            time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC),
+	}
+}
+
+func runUbuntuRecord(t *testing.T, affected ...map[string]any) *ArtifactData {
+	t.Helper()
+	inputDir, outputDir := t.TempDir(), t.TempDir()
+	writeTestUbuntuRecord(t, inputDir, "CVE-2026-0001", affected...)
+	require.NoError(t, run(testUbuntuRunConfig(inputDir, outputDir)))
+	artifact, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2404-2026-01-03.json.gz"))
+	require.NoError(t, err)
+	return artifact
+}
+
+func TestRunUbuntuBinaryExpansion(t *testing.T) {
+	const (
+		eco    = "Ubuntu:24.04:LTS"
+		proEco = "Ubuntu:Pro:24.04:LTS"
+	)
+	row := func(fixed string, versions []string) ProcessedVuln {
+		return ProcessedVuln{
+			CVE:        "CVE-2026-0001",
+			Published:  "2026-01-01T00:00:00Z",
+			Modified:   "2026-01-02T00:00:00Z",
+			Introduced: "0",
+			Fixed:      fixed,
+			Versions:   versions,
+		}
+	}
+
+	cases := []struct {
+		name     string
+		affected []map[string]any
+		want     map[string][]ProcessedVuln
+	}{
+		{
+			name: "fix, binaries on the source version line",
+			affected: []map[string]any{testUbuntuAffected(eco, "openssh", "1:9.6p1-3ubuntu13.5",
+				[]string{"1:9.6p1-3ubuntu13", "1:9.6p1-3ubuntu13.4"},
+				[]testUbuntuBinary{
+					{"openssh-client", "1:9.6p1-3ubuntu13.5"},
+					{"openssh-server", "1:9.6p1-3ubuntu13.5"},
+				})},
+			want: map[string][]ProcessedVuln{
+				"openssh":        {row("1:9.6p1-3ubuntu13.5", []string{"1:9.6p1-3ubuntu13", "1:9.6p1-3ubuntu13.4"})},
+				"openssh-client": {row("1:9.6p1-3ubuntu13.5", []string{"1:9.6p1-3ubuntu13", "1:9.6p1-3ubuntu13.4"})},
+				"openssh-server": {row("1:9.6p1-3ubuntu13.5", []string{"1:9.6p1-3ubuntu13", "1:9.6p1-3ubuntu13.4"})},
+			},
+		},
+		{
+			name: "fix, binary on its own version line",
+			affected: []map[string]any{testUbuntuAffected(eco, "inetutils", "2:2.4-3ubuntu1",
+				[]string{"2:2.4-3"},
+				[]testUbuntuBinary{
+					{"inetutils-telnet", "2:2.4-3ubuntu1"},
+					{"telnet", "0.17+2.4-3ubuntu1"},
+				})},
+			want: map[string][]ProcessedVuln{
+				"inetutils":        {row("2:2.4-3ubuntu1", []string{"2:2.4-3"})},
+				"inetutils-telnet": {row("2:2.4-3ubuntu1", []string{"2:2.4-3"})},
+				"telnet":           {row("0.17+2.4-3ubuntu1", nil)},
+			},
+		},
+		{
+			name: "fix, binary without a version",
+			affected: []map[string]any{testUbuntuAffected(eco, "curl", "8.5.0-2ubuntu10.6",
+				[]string{"8.5.0-2ubuntu10"},
+				[]testUbuntuBinary{{"libcurl4t64", ""}})},
+			want: map[string][]ProcessedVuln{
+				"curl":        {row("8.5.0-2ubuntu10.6", []string{"8.5.0-2ubuntu10"})},
+				"libcurl4t64": {row("8.5.0-2ubuntu10.6", []string{"8.5.0-2ubuntu10"})},
+			},
+		},
+		{
+			name: "no fix, binary version listed",
+			affected: []map[string]any{testUbuntuAffected(eco, "brotli", "",
+				[]string{"1.1.0-2build1", "1.1.0-2build2"},
+				[]testUbuntuBinary{{"libbrotli1", "1.1.0-2build2"}})},
+			want: map[string][]ProcessedVuln{
+				"brotli":     {row("", []string{"1.1.0-2build1", "1.1.0-2build2"})},
+				"libbrotli1": {row("", []string{"1.1.0-2build1", "1.1.0-2build2"})},
+			},
+		},
+		{
+			name: "no fix, binary on its own version line",
+			affected: []map[string]any{testUbuntuAffected(eco, "gcc-mingw-w64", "",
+				[]string{"13.2.0-6ubuntu1+26.1"},
+				[]testUbuntuBinary{
+					{"gcc-mingw-w64-base", "13.2.0-6ubuntu1+26.1"},
+					{"g++-mingw-w64", "26.1"},
+				})},
+			want: map[string][]ProcessedVuln{
+				"gcc-mingw-w64":      {row("", []string{"13.2.0-6ubuntu1+26.1"})},
+				"gcc-mingw-w64-base": {row("", []string{"13.2.0-6ubuntu1+26.1"})},
+				"g++-mingw-w64":      {row("", []string{"26.1"})},
+			},
+		},
+		{
+			name: "no fix and no versions",
+			affected: []map[string]any{testUbuntuAffected(eco, "libfoo", "", nil,
+				[]testUbuntuBinary{{"libfoo1", "1.0-1"}})},
+			want: map[string][]ProcessedVuln{
+				"libfoo":  {row("", nil)},
+				"libfoo1": {row("", nil)},
+			},
+		},
+		{
+			name: "standard and Pro entries keep their own rows",
+			affected: []map[string]any{
+				testUbuntuAffected(eco, "gnutls28", "3.8.3-1.1ubuntu3.4", []string{"3.8.3-1.1ubuntu3"},
+					[]testUbuntuBinary{{"libgnutls30t64", "3.8.3-1.1ubuntu3.4"}}),
+				testUbuntuAffected(proEco, "gnutls28", "3.8.3-1.1ubuntu3.4+esm1", []string{"3.8.3-1.1ubuntu3"},
+					[]testUbuntuBinary{{"libgnutls30t64", "3.8.3-1.1ubuntu3.4+esm1"}}),
+			},
+			want: map[string][]ProcessedVuln{
+				"gnutls28": {
+					row("3.8.3-1.1ubuntu3.4", []string{"3.8.3-1.1ubuntu3"}),
+					row("3.8.3-1.1ubuntu3.4+esm1", []string{"3.8.3-1.1ubuntu3"}),
+				},
+				"libgnutls30t64": {
+					row("3.8.3-1.1ubuntu3.4", []string{"3.8.3-1.1ubuntu3"}),
+					row("3.8.3-1.1ubuntu3.4+esm1", []string{"3.8.3-1.1ubuntu3"}),
+				},
+			},
+		},
+		{
+			name: "linux-named source without kernel binaries",
+			affected: []map[string]any{testUbuntuAffected(eco, "linux-firmware", "20240318.git3b128b60-0ubuntu2.5",
+				[]string{"20240318.git3b128b60-0ubuntu2"},
+				[]testUbuntuBinary{
+					{"linux-firmware", "20240318.git3b128b60-0ubuntu2.5"},
+					{"linux-firmware-amd-graphics", "20240318.git3b128b60-0ubuntu2.5"},
+				})},
+			want: map[string][]ProcessedVuln{
+				"linux-firmware":              {row("20240318.git3b128b60-0ubuntu2.5", []string{"20240318.git3b128b60-0ubuntu2"})},
+				"linux-firmware-amd-graphics": {row("20240318.git3b128b60-0ubuntu2.5", []string{"20240318.git3b128b60-0ubuntu2"})},
+			},
+		},
+		{
+			name: "kernel source is not expanded",
+			affected: []map[string]any{testUbuntuAffected(eco, "linux", "6.8.0-60.63", []string{"6.8.0-59.61"},
+				[]testUbuntuBinary{
+					{"linux-image-6.8.0-60-generic", "6.8.0-60.63"},
+					{"linux-headers-6.8.0-60", "6.8.0-60.63"},
+					{"linux-modules-6.8.0-60-generic", "6.8.0-60.63"},
+					{"linux-tools-6.8.0-60", "6.8.0-60.63"},
+					{"linux-libc-dev", "6.8.0-60.63"},
+				})},
+			want: map[string][]ProcessedVuln{
+				"linux": {row("6.8.0-60.63", []string{"6.8.0-59.61"})},
+			},
+		},
+		{
+			name:     "no ecosystem_specific",
+			affected: []map[string]any{testUbuntuAffected(eco, "zlib", "1:1.3.dfsg-3.1ubuntu2.1", nil, nil)},
+			want: map[string][]ProcessedVuln{
+				"zlib": {row("1:1.3.dfsg-3.1ubuntu2.1", nil)},
+			},
+		},
+		{
+			name:     "empty binaries",
+			affected: []map[string]any{testUbuntuAffected(eco, "zlib", "1:1.3.dfsg-3.1ubuntu2.1", nil, []testUbuntuBinary{})},
+			want: map[string][]ProcessedVuln{
+				"zlib": {row("1:1.3.dfsg-3.1ubuntu2.1", nil)},
+			},
+		},
+		{
+			name: "binary named like its source",
+			affected: []map[string]any{testUbuntuAffected(eco, "wget", "1.21.4-1ubuntu4.1", nil,
+				[]testUbuntuBinary{{"wget", "1.21.4-1ubuntu4.1"}})},
+			want: map[string][]ProcessedVuln{
+				"wget": {row("1.21.4-1ubuntu4.1", nil)},
+			},
+		},
+		{
+			name: "emacs binaries get one row each",
+			affected: []map[string]any{testUbuntuAffected(eco, "emacs", "1:29.3+1-1ubuntu2+esm1", nil,
+				[]testUbuntuBinary{
+					{"emacs", "1:29.3+1-1ubuntu2+esm1"},
+					{"emacs-common", "1:29.3+1-1ubuntu2+esm1"},
+					{"emacs-el", "1:29.3+1-1ubuntu2+esm1"},
+					{"emacs-gtk", "1:29.3+1-1ubuntu2+esm1"},
+				})},
+			want: map[string][]ProcessedVuln{
+				"emacs":        {row("1:29.3+1-1ubuntu2+esm1", nil)},
+				"emacs-common": {row("1:29.3+1-1ubuntu2+esm1", nil)},
+				"emacs-el":     {row("1:29.3+1-1ubuntu2+esm1", nil)},
+				"emacs-gtk":    {row("1:29.3+1-1ubuntu2+esm1", nil)},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			artifact := runUbuntuRecord(t, tc.affected...)
+			require.Equal(t, tc.want, artifact.Vulnerabilities)
+			require.Equal(t, len(tc.want), artifact.TotalPackages)
+			require.Equal(t, 1, artifact.TotalCVEs)
+		})
+	}
+}
+
+func TestRunUbuntuBinaryExpansionDeltas(t *testing.T) {
+	inputDir, outputDir, listDir := t.TempDir(), t.TempDir(), t.TempDir()
+	writeTestUbuntuRecord(t, inputDir, "CVE-2026-0001", testUbuntuAffected("Ubuntu:24.04:LTS", "openssh", "1:9.6p1-3ubuntu13.5", nil,
+		[]testUbuntuBinary{{"openssh-server", "1:9.6p1-3ubuntu13.5"}}))
+	writeTestUbuntuRecord(t, inputDir, "CVE-2026-0002", testUbuntuAffected("Ubuntu:24.04:LTS", "inetutils", "2:2.4-3ubuntu1", nil,
+		[]testUbuntuBinary{{"telnet", "0.17+2.4-3ubuntu1"}}))
+
+	todayList := filepath.Join(listDir, "today.txt")
+	yesterdayList := filepath.Join(listDir, "yesterday.txt")
+	require.NoError(t, os.WriteFile(todayList, []byte("osv/cve/CVE-2026-0001.json\n"), 0o644))
+	require.NoError(t, os.WriteFile(yesterdayList, []byte("osv/cve/CVE-2026-0002.json\n"), 0o644))
+
+	cfg := testUbuntuRunConfig(inputDir, outputDir)
+	cfg.ChangedFilesToday = todayList
+	cfg.ChangedFilesYesterday = yesterdayList
+	require.NoError(t, run(cfg))
+
+	full, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2404-2026-01-03.json.gz"))
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"openssh", "openssh-server", "inetutils", "telnet"}, slices.Collect(maps.Keys(full.Vulnerabilities)))
+
+	today, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2404-delta-2026-01-03.json.gz"))
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"openssh", "openssh-server"}, slices.Collect(maps.Keys(today.Vulnerabilities)))
+	require.Equal(t, full.Vulnerabilities["openssh-server"], today.Vulnerabilities["openssh-server"])
+
+	yesterday, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2404-delta-2026-01-02.json.gz"))
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"inetutils", "telnet"}, slices.Collect(maps.Keys(yesterday.Vulnerabilities)))
+	require.Equal(t, full.Vulnerabilities["telnet"], yesterday.Vulnerabilities["telnet"])
 }
 
 func TestExtractRHELVersion(t *testing.T) {
