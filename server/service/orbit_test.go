@@ -818,7 +818,7 @@ func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
 	t.Run("retries the frozen installer when it is still active", func(t *testing.T) {
 		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
-		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.NoError(t, svc.retrySoftwareInstall(ctx, host, hsi, false))
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.Equal(t, frozenID, capturedInstallerID)
 		require.Equal(t, &policyID, capturedOpts.PolicyID)
@@ -831,10 +831,25 @@ func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
 			return activeID, nil
 		}
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
-		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.NoError(t, svc.retrySoftwareInstall(ctx, host, hsi, false))
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.Equal(t, activeID, capturedInstallerID, "policy retry targets the current active installer, not the frozen one")
 		require.Equal(t, &policyID, capturedOpts.PolicyID)
+	})
+
+	t.Run("policy retry keeps the app open decision and does not use with_retries", func(t *testing.T) {
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
+		patchHSI := &fleet.HostSoftwareInstallerResult{
+			SoftwareInstallerID:     &frozenID,
+			PolicyID:                &policyID,
+			AttemptNumber:           new(1),
+			OverridePreInstallQuery: true,
+		}
+		require.NoError(t, svc.retrySoftwareInstall(ctx, host, patchHSI, false))
+		require.True(t, capturedOpts.OverridePreInstallQuery)
+		require.False(t, capturedOpts.WithRetries)
+		require.False(t, capturedOpts.SelfService)
+		require.Nil(t, capturedOpts.UserID)
 	})
 }
 

@@ -3863,7 +3863,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	require.NoError(t, err)
 	require.Equal(t, 1, attempts)
 
-	// A later success clears it, so a host that installs and regresses later starts over rather than staying at its old total.
+	// Report a successful install, the success should count too.
 	submitPolicyResults(false)
 	installUUID = pendingInstallUUID()
 	require.NotEmpty(t, installUUID)
@@ -3871,14 +3871,16 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 
 	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
-	require.Zero(t, attempts)
+	require.Equal(t, 2, attempts)
 
 	// The success above puts continuous automations on cooldown for a policy update interval, which would
-	// stop the run below from queueing anything. Dropping the rows lifts it and starts the count at zero.
+	// stop the run below from queueing anything. Dropping the rows lifts it, and resetting the count
+	// starts it at zero.
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_software_installs WHERE host_id = ? AND software_installer_id = ?`, host.ID, installerID)
 		return err
 	})
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
 	installs := countInstalls()
 	require.Zero(t, installs)
 
@@ -3941,6 +3943,161 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
 	require.Equal(t, 1, attempts)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAutomaticInstallAttemptsAreCounted() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for counted.deb",
+		Filename:      "counted.deb",
+		Title:         "counted",
+		TeamID:        &team.ID,
+		SelfService:   true,
+	}, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "counted", "deb_packages")
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "counted.deb")
+	})
+	require.NotZero(t, installerID)
+
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   team.ID,
+		TitleIDs: []uint{titleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "ubuntu",
+		PlatformLike:    "debian",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+	deviceToken := "device-token-" + t.Name()
+	createDeviceTokenForHost(t, s.ds, host.ID, deviceToken)
+
+	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
+
+	pendingInstallUUID := func() string {
+		last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+		require.NoError(t, err)
+		require.NotNil(t, last)
+		require.NotNil(t, last.Status)
+		require.Equal(t, fleet.SoftwareInstallPending, *last.Status)
+		return last.ExecutionID
+	}
+
+	reportInstallResult := func(installUUID string, exitCode int, retriesRemaining uint) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *host.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID:                host.ID,
+				InstallUUID:           installUUID,
+				InstallScriptExitCode: new(exitCode),
+				InstallScriptOutput:   new("done"),
+				RetriesRemaining:      retriesRemaining,
+			},
+		}, http.StatusNoContent)
+	}
+
+	// Start the setup experience, the installer should be queued for the host.
+	var orbitInitResponse fleet.OrbitSetupExperienceInitResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/init", fleet.OrbitSetupExperienceInitRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+	}, http.StatusOK, &orbitInitResponse)
+	require.NoError(t, orbitInitResponse.Err)
+	require.True(t, orbitInitResponse.Result.Enabled)
+
+	var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: *host.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	setupInstallUUID := pendingInstallUUID()
+
+	// Report a failure that fleetd retries on the device, the download should count.
+	reportInstallResult(setupInstallUUID, 1, 1)
+	attempts, err := s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+
+	// Report the final result as a success, the setup experience item should succeed and the install
+	// should count again.
+	reportInstallResult(setupInstallUUID, 0, 0)
+	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+	require.NoError(t, err)
+	setupResults, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, team.ID)
+	require.NoError(t, err)
+	require.Len(t, setupResults, 1)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, setupResults[0].Status)
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 2, attempts)
+
+	// Install the software as an admin and report a success, the count should not change.
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID),
+		&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
+	reportInstallResult(pendingInstallUUID(), 0, 0)
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 2, attempts)
+
+	// Install the software from self-service and report a success, the count should not change.
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", deviceToken, titleID), nil, http.StatusAccepted)
+	reportInstallResult(pendingInstallUUID(), 0, 0)
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 2, attempts)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     t.Name(),
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "linux",
+	})
+	require.NoError(t, err)
+	var modifyPolicyResp fleet.ModifyPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID), fleet.ModifyPolicyRequest{
+		AutomationType:  optjson.Any[fleet.PolicyAutomation]{Set: true, Valid: true, Value: fleet.PolicyAutomationSoftware},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID}}, http.StatusOK, &modifyPolicyResp)
+
+	// Fail the policy and report each exit code fleetd or the server sets before a download, the
+	// count should not change.
+	for _, exitCode := range []int{fleet.ExitCodeScriptsDisabled, fleet.ExitCodeInstallerNotFound, fleet.ExitCodeFleetVarResolutionFailed} {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(true)}), http.StatusOK, &distributedResp)
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write",
+			genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(false)}), http.StatusOK, &distributedResp)
+		policyInstallUUID := pendingInstallUUID()
+		var policyInstall *fleet.HostSoftwareInstallerResult
+		policyInstall, err = s.ds.GetSoftwareInstallResults(ctx, policyInstallUUID)
+		require.NoError(t, err)
+		require.NotNil(t, policyInstall.PolicyID)
+		require.Equal(t, policy.ID, *policyInstall.PolicyID)
+		reportInstallResult(policyInstallUUID, exitCode, 0)
+
+		attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+		require.NoError(t, err)
+		require.Equal(t, 2, attempts, "exit code %d", exitCode)
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailuresDoNotCount() {

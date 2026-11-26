@@ -7953,7 +7953,7 @@ func (ds *Datastore) CountHostSoftwareInstallAttempts(ctx context.Context, hostI
 	return count, nil
 }
 
-func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
+func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, error) {
 	// Get the original installation details first, including software title and package info
 	const getDetailsStmt = `
 		SELECT
@@ -7969,19 +7969,10 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 		WHERE hsi.execution_id = ? AND hsi.host_id = ?
 	`
 
-	var details struct {
-		SoftwareInstallerID *uint     `db:"software_installer_id"`
-		UserID              *uint     `db:"user_id"`
-		PolicyID            *uint     `db:"policy_id"`
-		SelfService         bool      `db:"self_service"`
-		CreatedAt           time.Time `db:"created_at"`
-		SoftwareTitleID     *uint     `db:"software_title_id"`
-		SoftwarePackage     string    `db:"software_package"`
-		SoftwareTitle       string    `db:"software_title"`
-	}
+	var details fleet.HostSoftwareInstallerResult
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &details, getDetailsStmt, result.InstallUUID, result.HostID); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get original install details")
+		return "", nil, ctxerr.Wrap(ctx, err, "get original install details")
 	}
 
 	// Generate a deterministic execution ID for the failed attempt record
@@ -8051,10 +8042,10 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 		return nil
 	})
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "create intermediate failure record")
+		return "", nil, ctxerr.Wrap(ctx, err, "create intermediate failure record")
 	}
 
-	return failedExecID, nil
+	return failedExecID, &details, nil
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {

@@ -642,7 +642,7 @@ type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.Ho
 
 type IncrementHostPolicyAutomationRunCountFunc func(ctx context.Context, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error
 
-type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
+type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, error)
 
 type ListSoftwareCategoriesFunc func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error)
 
@@ -8781,7 +8781,7 @@ func (s *DataStore) IncrementHostPolicyAutomationRunCount(ctx context.Context, p
 	return s.IncrementHostPolicyAutomationRunCountFunc(ctx, policyID, hostID, activity, succeeded)
 }
 
-func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
+func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, error) {
 	s.mu.Lock()
 	s.CreateIntermediateInstallFailureRecordFuncInvoked = true
 	s.mu.Unlock()
