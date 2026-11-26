@@ -178,6 +178,7 @@ const ActivityTypeDropdown = ({
     if (option === null) return;
 
     onSelect(option.value !== "all" ? option.value : "");
+    setMenuIsOpen(false);
     selectRef.current?.blur();
   };
 
@@ -192,7 +193,7 @@ const ActivityTypeDropdown = ({
     if (e.key === "Escape") {
       setMenuIsOpen(false);
       selectRef.current?.blur();
-    } else if (e.key === "Tab" && !e.shiftKey) {
+    } else if (e.key === "Tab") {
       // Allow tabbing out of the component
       setMenuIsOpen(false);
       selectRef.current?.blur();

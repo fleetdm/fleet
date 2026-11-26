@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
 import React from "react";
@@ -67,6 +67,9 @@ describe("ActivityTypeDropdown", () => {
     await user.keyboard("{Enter}");
 
     expect(onSelect).toHaveBeenCalledWith("viewed_host_unlock_pin");
+    expect(
+      screen.queryByRole("textbox", { name: "Search activity types" })
+    ).not.toBeInTheDocument();
   });
 
   it("focuses the search input when reopened after selecting an option", async () => {
@@ -123,5 +126,26 @@ describe("ActivityTypeDropdown", () => {
       screen.getByRole("textbox", { name: "Search activity types" })
     ).toHaveValue("");
     expect(screen.getByText("Added App Store app")).toBeInTheDocument();
+  });
+
+  // fireEvent rather than user.keyboard: user-event's tab-destination lookup
+  // crashes when the focused search input unmounts mid-keypress.
+  it.each([
+    ["Tab", false],
+    ["Shift+Tab", true],
+  ])("closes the menu when tabbing out with %s", async (_, shiftKey) => {
+    const user = userEvent.setup();
+    render(<ActivityTypeDropdown value="" onSelect={noop} />);
+
+    await user.click(screen.getByText("All types"));
+    const searchInput = screen.getByRole("textbox", {
+      name: "Search activity types",
+    });
+    expect(searchInput).toHaveFocus();
+
+    fireEvent.keyDown(searchInput, { key: "Tab", shiftKey });
+    expect(
+      screen.queryByRole("textbox", { name: "Search activity types" })
+    ).not.toBeInTheDocument();
   });
 });
