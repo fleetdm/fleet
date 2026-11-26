@@ -469,15 +469,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	// breaks version_compare ordering. When opted in, compare against the
 	// DisplayVersion so the patch policy flags outdated installs correctly.
 	patchVersion := out.Version
-	if input.UseDisplayVersionForPatch {
+	if input.UseDisplayVersionForPatch || input.UseDisplayVersionWhenListed {
 		displayVersion := firstDisplayVersion(selectedInstaller.AppsAndFeaturesEntries)
 		if displayVersion == "" {
 			displayVersion = firstDisplayVersion(m.AppsAndFeaturesEntries)
 		}
-		if displayVersion == "" {
+		switch {
+		case displayVersion != "":
+			patchVersion = displayVersion
+		case input.UseDisplayVersionForPatch:
 			return nil, ctxerr.New(ctx, "use_display_version_for_patch is set but no DisplayVersion found in winget manifest")
 		}
-		patchVersion = displayVersion
 	}
 
 	// create patch policy
@@ -741,6 +743,11 @@ type inputApp struct {
 	// from the marketing version in a way that breaks version_compare ordering
 	// (e.g. python.org installers report "3.14.5150.0" for version "3.14.5").
 	UseDisplayVersionForPatch bool `json:"use_display_version_for_patch"`
+	// UseDisplayVersionWhenListed is UseDisplayVersionForPatch for apps whose registry
+	// version only sometimes differs: winget lists a DisplayVersion only when it
+	// differs from PackageVersion, so a manifest without one keeps PackageVersion.
+	// (MySQL Workbench's 26.10.0.1 hotfix registers 26.10.1.)
+	UseDisplayVersionWhenListed bool `json:"use_display_version_when_listed"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash bool `json:"ignore_hash"`
 	// IgnoreUpgradeCode leaves the MSI UpgradeCode out of the manifest, for apps that mint
