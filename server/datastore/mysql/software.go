@@ -381,11 +381,13 @@ func kegSignatureInformation(ip fleet.HostSoftwareInstalledPath) []fleet.PathSig
 	return info
 }
 
-// macOSTopLevelApplicationTitleIDs returns the set of software title IDs that
-// have at least one macOS app installed at the top level of the /Applications
-// folder on the given host (e.g. /Applications/Foo.app). Nested helper apps,
-// system apps, and user-local apps are excluded.
-func (ds *Datastore) macOSTopLevelApplicationTitleIDs(ctx context.Context, hostID uint) (map[uint]struct{}, error) {
+// macOSApplicationsFolderTitleIDs returns the set of software title IDs that
+// have at least one macOS app installed anywhere under the /Applications folder
+// on the given host, including vendor subfolders (e.g.
+// /Applications/Vendor/Foo.app). Apps nested inside another app bundle, apps
+// under /Applications/Utilities, system apps, and user-local apps are excluded.
+func (ds *Datastore) macOSApplicationsFolderTitleIDs(ctx context.Context, hostID uint) (map[uint]struct{}, error) {
+	// The .app/ check also drops Apple silicon iOS apps (Foo.app/Wrapper/Foo.app), which ingest keeps.
 	const stmt = `
 		SELECT DISTINCT s.title_id
 		FROM host_software_installed_paths hsip
@@ -393,7 +395,8 @@ func (ds *Datastore) macOSTopLevelApplicationTitleIDs(ctx context.Context, hostI
 		WHERE hsip.host_id = ?
 			AND s.source = 'apps'
 			AND hsip.installed_path LIKE '/Applications/%'
-			AND hsip.installed_path NOT LIKE '/Applications/%/%'
+			AND hsip.installed_path NOT LIKE '/Applications/%.app/%'
+			AND hsip.installed_path NOT LIKE '/Applications/Utilities/%'
 			AND s.title_id IS NOT NULL`
 
 	var ids []uint
@@ -5940,10 +5943,10 @@ func filterSelfServiceOutOfScopeHostSoftware(
 	}
 }
 
-// filterHostSoftwareToMacOSApplications drops every title the host isn't reporting at the top level of the macOS /Applications
-// folder. Callers apply this only for macOS hosts with opts.MacOSApplicationsOnly set. Pruning the in-memory maps (rather than
-// the SQL) keeps the count and main queries consistent and applies uniformly across software, VPP, and in-house apps. Maps are
-// mutated in place.
+// filterHostSoftwareToMacOSApplications drops every title the host isn't reporting under the macOS /Applications folder
+// (see macOSApplicationsFolderTitleIDs). Callers apply this only for macOS hosts with opts.MacOSApplicationsOnly set.
+// Pruning the in-memory maps (rather than the SQL) keeps the count and main queries consistent and applies uniformly
+// across software, VPP, and in-house apps. Maps are mutated in place.
 // pruneHostSoftwareByFilters applies the macOS /Applications, type and AI tool filters by pruning
 // the in-memory maps rather than the SQL, which keeps the count and main queries consistent and
 // applies uniformly across software, VPP, and in-house apps. The /Applications filter is ignored
@@ -5985,7 +5988,7 @@ func (ds *Datastore) filterHostSoftwareToMacOSApplications(
 	byVPPAdamID map[string]*hostSoftware,
 	byInHouseID map[uint]*hostSoftware,
 ) error {
-	qualifyingTitleIDs, err := ds.macOSTopLevelApplicationTitleIDs(ctx, hostID)
+	qualifyingTitleIDs, err := ds.macOSApplicationsFolderTitleIDs(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "filter macos applications")
 	}

@@ -1,0 +1,1 @@
+- Fixed the macOS Applications view on the host Software tab hiding apps installed in a subfolder of `/Applications` (for example, `/Applications/Cisco/Cisco Secure Client.app`). Apps under `/Applications/Utilities` and apps nested inside another app stay hidden unless "Show helpers" is on.

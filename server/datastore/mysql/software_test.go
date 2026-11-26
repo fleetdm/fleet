@@ -4678,7 +4678,7 @@ func TestSoftwareTitleUpgradeCodeDriftMatch(t *testing.T) {
 }
 
 func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	host := test.NewHost(t, ds, "macos-apps-host", "", "macappskey", "macappsuuid", time.Now(), test.WithPlatform("darwin"))
 	linuxHost := test.NewHost(t, ds, "linux-apps-host", "", "linuxappskey", "linuxappsuuid", time.Now(), test.WithPlatform("ubuntu"))
@@ -4689,16 +4689,26 @@ func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
 		{Name: "Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.helper"},
 		{Name: "SystemApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.system"},
 		{Name: "UserApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.user"},
+		{Name: "VendorFolderApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.vendorfolder"},
+		{Name: "DeepFolderApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.deepfolder"},
+		{Name: "WrappedIOSApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.wrappedios"},
+		{Name: "UtilitiesApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.utilities"},
+		{Name: "UtilitiesHelper", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.utilitieshelper"},
 	}
 	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
 	pathByName := map[string]string{
-		"TopLevel":  "/Applications/TopLevel.app",                             // kept
-		"Helper":    "/Applications/TopLevel.app/Contents/Helpers/Helper.app", // nested, dropped
-		"SystemApp": "/System/Applications/SystemApp.app",                     // system, dropped
-		"UserApp":   "/Users/alice/Applications/UserApp.app",                  // user-local, dropped
+		"TopLevel":        "/Applications/TopLevel.app",                                   // kept
+		"VendorFolderApp": "/Applications/Vendor/VendorFolderApp.app",                     // vendor folder, kept
+		"DeepFolderApp":   "/Applications/Vendor/Suite 2025/Tools/DeepFolderApp.app",      // any depth, kept
+		"Helper":          "/Applications/TopLevel.app/Contents/Helpers/Helper.app",       // nested, dropped
+		"WrappedIOSApp":   "/Applications/TopLevel.app/Wrapper/WrappedIOSApp.app",         // nested outside Contents, dropped
+		"UtilitiesApp":    "/Applications/Utilities/UtilitiesApp.app",                     // Utilities, dropped
+		"UtilitiesHelper": "/Applications/Utilities/Vendor Sync/Sync/UtilitiesHelper.app", // Utilities subfolder, dropped
+		"SystemApp":       "/System/Applications/SystemApp.app",                           // system, dropped
+		"UserApp":         "/Users/alice/Applications/UserApp.app",                        // user-local, dropped
 	}
 
 	swPaths := map[string]fleet.ExecutableHashes{}
@@ -4712,21 +4722,26 @@ func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
 
 	baseOpts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"}}
 
-	// filter off: all four apps returned
+	// filter off: every app returned
 	opts := baseOpts
 	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, sw, 4)
-	require.EqualValues(t, 4, meta.TotalResults)
+	require.Len(t, sw, len(software))
+	require.NotNil(t, meta)
+	require.EqualValues(t, len(software), meta.TotalResults)
 
-	// filter on: only the top-level /Applications app
+	// filter on: only apps under /Applications that aren't nested in a bundle or in Utilities
 	opts = baseOpts
 	opts.MacOSApplicationsOnly = true
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	require.Len(t, sw, 1)
-	require.Equal(t, "TopLevel", sw[0].Name)
-	require.EqualValues(t, 1, meta.TotalResults)
+	names := make([]string, 0, len(sw))
+	for _, s := range sw {
+		names = append(names, s.Name)
+	}
+	require.Equal(t, []string{"DeepFolderApp", "TopLevel", "VendorFolderApp"}, names)
+	require.NotNil(t, meta)
+	require.EqualValues(t, 3, meta.TotalResults)
 
 	// filter is ignored on a non-macOS host
 	linuxSoftware := []fleet.Software{
