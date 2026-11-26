@@ -1,0 +1,1 @@
+- Fixed macOS hosts with fleetd tables reporting Firefox as "Firefox.app" and Firefox ESR as "Firefox ESR.app", which split the same Firefox version into two software versions. Existing "Firefox.app" and "Firefox ESR.app" software versions and titles are renamed or merged into the matching versions when Fleet is upgraded.

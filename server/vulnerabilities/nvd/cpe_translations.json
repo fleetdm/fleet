@@ -755,7 +755,7 @@
   },
   {
     "software": {
-      "name": ["Firefox ESR.app"],
+      "name": ["Firefox ESR", "Firefox ESR.app"],
       "source": ["apps"]
     },
     "filter": {
