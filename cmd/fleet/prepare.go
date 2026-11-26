@@ -95,6 +95,10 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "migrating db schema")
 			}
 
+			if err := ds.EncryptConditionalAccessSecrets(cmd.Context()); err != nil {
+				initFatal(err, "encrypting conditional access secrets")
+			}
+
 			fmt.Println("Migrations completed.")
 		},
 	}

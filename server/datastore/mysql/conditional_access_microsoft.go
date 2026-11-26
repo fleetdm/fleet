@@ -50,6 +50,42 @@ func (ds *Datastore) ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context
 	return nil
 }
 
+// EncryptConditionalAccessSecrets encrypts any legacy cleartext proxy server
+// secrets. Call this once during server startup (after migrations) so the
+// read path can always assume encrypted data.
+func (ds *Datastore) EncryptConditionalAccessSecrets(ctx context.Context) error {
+	if ds.serverPrivateKey == "" {
+		return nil
+	}
+	var row struct {
+		TenantID          string `db:"tenant_id"`
+		ProxyServerSecret []byte `db:"proxy_server_secret"`
+	}
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &row,
+		`SELECT tenant_id, proxy_server_secret FROM microsoft_compliance_partner_integrations LIMIT 1;`,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // no integration configured
+		}
+		return ctxerr.Wrap(ctx, err, "reading conditional access secret for encryption backfill")
+	}
+	if len(row.ProxyServerSecret) == 0 || row.ProxyServerSecret[0] == 0x01 {
+		return nil // already encrypted or empty
+	}
+	encrypted, err := fleetcrypto.Encrypt(row.ProxyServerSecret, ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypting legacy proxy server secret")
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
+		encrypted, row.TenantID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "backfilling encrypted proxy server secret")
+	}
+	return nil
+}
+
 func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 	var row struct {
 		TenantID          string `db:"tenant_id"`
@@ -71,20 +107,6 @@ func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.
 	secret, err := fleetcrypto.DecryptOrPassthrough(row.ProxyServerSecret, ds.serverPrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decrypting proxy server secret")
-	}
-	// Lazy backfill: if the value was legacy cleartext, encrypt and save it
-	// so existing customers get their secrets encrypted on first read after upgrade.
-	if len(row.ProxyServerSecret) > 0 && row.ProxyServerSecret[0] != 0x01 && ds.serverPrivateKey != "" {
-		encrypted, err := fleetcrypto.Encrypt(secret, ds.serverPrivateKey)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "encrypting legacy proxy server secret")
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx,
-			`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
-			encrypted, row.TenantID,
-		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "backfilling encrypted proxy server secret")
-		}
 	}
 	return &fleet.ConditionalAccessMicrosoftIntegration{
 		TenantID:          row.TenantID,
