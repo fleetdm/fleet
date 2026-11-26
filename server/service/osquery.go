@@ -1335,7 +1335,7 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
 	var criticalQueriesOnly bool
 	send := host.RefetchRequested || svc.shouldUpdate(host.DetailUpdatedAt, svc.config.Osquery.DetailUpdateInterval, host.ID)
-	if send && !host.RefetchRequested {
+	if send && !host.RefetchRequested && !svc.newlyEnrolled(host) {
 		unsaved, ok := svc.hasUnsavedSend(ctx, "detail", host.ID, host.DetailUpdatedAt)
 		if unsaved {
 			send = false
@@ -1449,6 +1449,12 @@ func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, 
 // saved (e.g. its distributed/write failed during a database stall), so failed writes don't turn every check-in into a
 // full resend.
 const unsavedResendTTL = 5 * time.Minute
+
+// newlyEnrolled reports whether the host enrolled in the last 15 minutes. Callers skip hasUnsavedSend and recordSend
+// for such hosts, so failed writes in their first minutes don't hold back their detail and policy queries.
+func (svc *Service) newlyEnrolled(host *fleet.Host) bool {
+	return svc.clock.Now().Sub(host.LastEnrolledAt) < 15*time.Minute
+}
 
 // hasUnsavedSend reports whether queries of the given kind were sent to the host within unsavedResendTTL and the
 // host's timestamp for them hasn't moved since, i.e. their results weren't saved. ok is false if there's no store or
@@ -1730,7 +1736,7 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return policyQueries, false, nil
 	}
 	// Setup experience can send no policies without saving the timestamp, so it isn't backed off.
-	if !host.RefetchRequested {
+	if !host.RefetchRequested && !svc.newlyEnrolled(host) {
 		unsaved, ok := svc.hasUnsavedSend(ctx, "policy", host.ID, host.PolicyUpdatedAt)
 		if unsaved {
 			return nil, false, nil
