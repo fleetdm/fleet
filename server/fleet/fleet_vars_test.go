@@ -26,8 +26,9 @@ ${FLEET_SECRET_QUX}
 		{"# $FLEET_SECRET_. and $FLEET_SECRET_{X} and $FLEET_SECRET_", ServerSecretPrefix, []string{}},
 		// Not a bare prefix: braced, or something follows it.
 		{"$FLEET_SECRET_$X $FLEET_SECRET_${X} $FLEET_SECRET_<b> $FLEET_SECRET_&amp; $FLEET_SECRET_\\n [$FLEET_SECRET_] \"$FLEET_SECRET_\" '$FLEET_SECRET_' ${FLEET_SECRET_}", ServerSecretPrefix, []string{"", "", "", "", "", "", "", "", ""}},
-		{"$FLEET_HOST_SECRET_ and $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD", HostSecretPrefix, []string{"RECOVERY_LOCK_PASSWORD"}},
-		{"$FLEET_HOST_VITAL_ and ${FLEET_HOST_VITAL_12}", CustomHostVitalPrefix, []string{"12"}},
+		// Only $FLEET_SECRET_ can be bare.
+		{"$FLEET_HOST_SECRET_ and $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD", HostSecretPrefix, []string{"", "RECOVERY_LOCK_PASSWORD"}},
+		{"$FLEET_HOST_VITAL_ and ${FLEET_HOST_VITAL_12}", CustomHostVitalPrefix, []string{"", "12"}},
 	} {
 		require.Equal(t, tc.want, ContainsPrefixVars(tc.text, tc.prefix), tc.text)
 	}

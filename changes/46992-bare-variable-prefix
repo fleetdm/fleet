@@ -1,2 +1,2 @@
-- Fixed GitOps runs and script and configuration profile uploads failing when text, such as a comment, mentions `$FLEET_SECRET_` without a variable name after it.
+- Fixed GitOps runs and script and configuration profile uploads failing when text, such as a comment, mentions `$FLEET_SECRET_` followed by a space or the end of a line, for example `# Set $FLEET_SECRET_ in CI`.
 - Added an escaping hint to the GitOps error for `$FLEET_SECRET_` variables used outside configuration profiles and scripts.
