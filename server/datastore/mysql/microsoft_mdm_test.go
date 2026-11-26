@@ -896,6 +896,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_identifier = ?`, hosts[5].UUID, mobileconfig.FleetFileVaultPayloadIdentifier)
 				return err
 			})
+			require.NoError(t, ds.ReconcileAppleMDMStatusRollups(ctx))
 		})
 
 		t.Run("BitLocker host disks must update to transition from Verifying to Verified", func(t *testing.T) {
@@ -2686,7 +2687,8 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 		`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev3.MDMDeviceID))
 
 	// Insert queue entries for both enrollments that have not replied, plus the acked entry of the host that has.
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid, acked_at)
          VALUES (?, ?, NOW(6)), (?, ?, NULL), (?, ?, NULL)`,
 		enrollmentID, cmdUUID,
@@ -4150,7 +4152,8 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 			TeamID:           nil,
 			SyncML:           []byte("<Replace></Replace>"),
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
-		}, nil)
+		}, nil,
+	)
 	require.NotNil(t, err)
 	require.True(t, fleet.IsForeignKey(err))
 
@@ -4170,7 +4173,8 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 			TeamID:           nil,
 			SyncML:           []byte("<Replace></Replace>"),
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
-		}, nil)
+		}, nil,
+	)
 	require.NoError(t, err)
 	require.NotEmpty(t, profWithLabel.ProfileUUID)
 
@@ -5088,7 +5092,8 @@ func testUserChannelRejection(t *testing.T, ds *Datastore) {
 			RawCommand: []byte(fmt.Sprintf(
 				`<Atomic><CmdID>%s</CmdID><Replace><CmdID>%s</CmdID><Item><Target>`+
 					`<LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI>`+
-					`</Target><Data>0</Data></Item></Replace></Atomic>`, commandUUID, replaceUUID)),
+					`</Target><Data>0</Data></Item></Replace></Atomic>`, commandUUID, replaceUUID,
+			)),
 		}
 		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{enrolledDevice.MDMDeviceID}, cmd))
 
@@ -5120,7 +5125,8 @@ ON DUPLICATE KEY UPDATE status = 'pending', command_uuid = VALUES(command_uuid)`
 			RawCommand: []byte(fmt.Sprintf(
 				`<Delete><CmdID>%s</CmdID><Item><Target>`+
 					`<LocURI>./User/Vendor/MSFT/Policy/Config/Experience/AllowTailoredExperiencesWithDiagnosticData</LocURI>`+
-					`</Target></Item></Delete>`, commandUUID)),
+					`</Target></Item></Delete>`, commandUUID,
+			)),
 		}
 		require.NoError(t, ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{enrolledDevice.MDMDeviceID}, cmd))
 
@@ -6282,7 +6288,8 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 
 		requireStatus(t, host, fleet.DeviceStatusUnlocked, fleet.PendingActionReset)
 		reset, err := ds.ClearEndUserAfterWindowsReset(ctx, fleet.WithEnrollOrbitMDMEnabled(true), fleet.WithEnrollOrbitHostInfo(
-			fleet.OrbitHostInfo{HardwareUUID: host.UUID, OsqueryIdentifier: *host.OsqueryHostID, Platform: "windows"}))
+			fleet.OrbitHostInfo{HardwareUUID: host.UUID, OsqueryIdentifier: *host.OsqueryHostID, Platform: "windows"},
+		))
 		require.NoError(t, err)
 		assert.False(t, reset)
 	})
@@ -6310,7 +6317,8 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 		})
 
 		reset, err := ds.ClearEndUserAfterWindowsReset(ctx, fleet.WithEnrollOrbitMDMEnabled(true), fleet.WithEnrollOrbitHostInfo(
-			fleet.OrbitHostInfo{HardwareUUID: host.UUID, OsqueryIdentifier: *host.OsqueryHostID, Platform: "windows"}))
+			fleet.OrbitHostInfo{HardwareUUID: host.UUID, OsqueryIdentifier: *host.OsqueryHostID, Platform: "windows"},
+		))
 		require.NoError(t, err)
 		assert.True(t, reset)
 		got, err := ds.GetMDMIdPAccountByHostUUID(ctx, host.UUID)
@@ -6402,7 +6410,8 @@ func testMDMWindowsReset(t *testing.T, ds *Datastore) {
 			"shared secret for an MDM host":        orbitOpts(fleet.WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(true)),
 			"another enrollment's one-time secret": orbitOpts(fleet.WithEnrollOrbitOneTimeEnrollSecret(otherSecretRow.ID)),
 			"another host's identity certificate": orbitOpts(fleet.WithEnrollOrbitIdentityCert(
-				&types.HostIdentityCertificate{SerialNumber: 1, HostID: &otherHost.ID})),
+				&types.HostIdentityCertificate{SerialNumber: 1, HostID: &otherHost.ID},
+			)),
 			"an Android device's one-time secret": orbitOpts(fleet.WithEnrollOrbitOneTimeEnrollSecret(androidSecretRow.ID)),
 			"an Android device's identifier":      orbitOpts(fleet.WithEnrollOrbitRejectSharedSecretForAndroidMDMHosts(true)),
 		} {
@@ -6647,17 +6656,18 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			assert.Nil(t, profile)
 
-			err = ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
-				{
-					ProfileUUID:   initialCP.ProfileUUID,
-					ProfileName:   initialCP.Name,
-					HostUUID:      host.UUID,
-					Status:        &fleet.MDMDeliveryPending,
-					OperationType: fleet.MDMOperationTypeInstall,
-					CommandUUID:   "command-uuid",
-					Checksum:      []byte("checksum"),
+			err = ds.BulkUpsertMDMWindowsHostProfiles(
+				ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+					{
+						ProfileUUID:   initialCP.ProfileUUID,
+						ProfileName:   initialCP.Name,
+						HostUUID:      host.UUID,
+						Status:        &fleet.MDMDeliveryPending,
+						OperationType: fleet.MDMOperationTypeInstall,
+						CommandUUID:   "command-uuid",
+						Checksum:      []byte("checksum"),
+					},
 				},
-			},
 			)
 			require.NoError(t, err)
 
