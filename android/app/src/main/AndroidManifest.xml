@@ -15,9 +15,6 @@
     <!-- REQUIRED for downloading certificates from remote server -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- REQUIRED for watching the cellular network's roaming state -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
     <!-- Permission to receive the boot event -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
