@@ -22,3 +22,33 @@ func TestExtractPEMetadata(t *testing.T) {
 	assert.Equal(t, "1.0.0", meta.Version)
 	assert.Equal(t, []string{"Hello world"}, meta.PackageIDs)
 }
+
+func TestApplyPESpecialCases(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name, version string
+		wantName      string
+	}{
+		{"Notion", "3.11.1", "Notion 3.11.1"},
+		{"Notion", "", "Notion"},
+		{"Pritunl", "1.4.4791.77", "Pritunl Client"},
+		{"Pritunl", "", "Pritunl Client"},
+		{"Pritunl Client", "1.4.4791.77", "Pritunl Client"},
+		{"Hello world", "1.0.0", "Hello world"},
+	}
+	for _, c := range cases {
+		t.Run(c.name+"@"+c.version, func(t *testing.T) {
+			t.Parallel()
+			meta := applySpecialCases(&InstallerMetadata{
+				Name:       c.name,
+				Version:    c.version,
+				PackageIDs: []string{c.name},
+			}, nil)
+			require.Equal(t, c.wantName, meta.Name)
+			require.Equal(t, c.version, meta.Version)
+			// Package IDs feed $PACKAGE_ID in install/uninstall scripts and keep the installer's own name.
+			require.Equal(t, []string{c.name}, meta.PackageIDs)
+		})
+	}
+}

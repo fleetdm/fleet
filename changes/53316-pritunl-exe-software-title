@@ -1,0 +1,1 @@
+- Fixed Pritunl for Windows added as a custom package showing 0 hosts. The package now gets the "Pritunl Client" software title, which is the name Windows reports for the installed app.

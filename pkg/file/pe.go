@@ -100,6 +100,11 @@ var exeSpecialCases = map[string]func(*InstallerMetadata, []map[string]string) *
 		}
 		return meta
 	},
+	// The Inno Setup script sets AppName=Pritunl but UninstallDisplayName=Pritunl Client.
+	"Pritunl": func(meta *InstallerMetadata, _ []map[string]string) *InstallerMetadata {
+		meta.Name = "Pritunl Client"
+		return meta
+	},
 }
 
 // Unlike .exe files that are the software itself (and just need to be copied
