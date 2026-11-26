@@ -10652,6 +10652,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, host.ID, fleet.ActivityTypeRanScript{}, true)
 	require.NoError(t, err)
 
+	// Insert into host_mdm_uuid_owners table (no host FK, cleaned up via hostRefs).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_mdm_uuid_owners (host_uuid, mdm_platform, host_id, claimed_by) VALUES (?, 'windows', ?, 'test')`, host.UUID, host.ID)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -16376,6 +16381,7 @@ func testEntraJoinHostDeviceMapping(t *testing.T, ds *Datastore) {
 		MDMEnrollProtoVersion:  "5.0",
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		HostUUID:               h4.UUID,
+		LinkedHostID:           &h4.ID,
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, enrollment))
 	// a mapping written before the enrollment is removed along with its link

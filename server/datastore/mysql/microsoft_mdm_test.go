@@ -94,6 +94,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
 		{"TestWindowsPerHostReconcileLoaders", testWindowsPerHostReconcileLoaders},
 		{"TestReconcileWindowsProfilesDuplicateHostUUID", testReconcileWindowsProfilesDuplicateHostUUID},
+		{"TestWindowsMDMUUIDOwners", testWindowsMDMUUIDOwners},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestCleanupStaleMDMWindowsEnrollments", testCleanupStaleMDMWindowsEnrollments},
@@ -244,6 +245,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
 		HostUUID:               host.UUID,
+		LinkedHostID:           &host.ID,
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, cleanupDevice))
 
@@ -2790,6 +2792,7 @@ func createMDMWindowsEnrollment(ctx context.Context, t *testing.T, ds *Datastore
 		MDMEnrollClientVersion: "ecv",
 		MDMNotInOOBE:           false,
 		HostUUID:               h.UUID,
+		LinkedHostID:           &h.ID,
 	}
 
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
@@ -2829,6 +2832,7 @@ func testMDMWindowsCommandResultsWithPendingResult(t *testing.T, ds *Datastore) 
 		MDMEnrollClientVersion: "ecv",
 		MDMNotInOOBE:           false,
 		HostUUID:               h.UUID,
+		LinkedHostID:           &h.ID,
 	}
 
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
@@ -2886,6 +2890,7 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
 		HostUUID:               h.UUID,
+		LinkedHostID:           &h.ID,
 	}
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
 	require.NoError(t, err)
@@ -8336,7 +8341,7 @@ func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
 	gone := newEnrollment(uuid.NewString())
 	setTimes(gone.ID, old, old)
 	host5 := test.NewHost(t, ds, "win-relinked", "10.0.0.5", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
-	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host5.UUID, relinked.MDMDeviceID)
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host5.ID, host5.UUID, relinked.MDMDeviceID)
 	require.NoError(t, err)
 	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{relinked.ID, gone.ID}, cutoff)
 	require.NoError(t, err)
@@ -8348,8 +8353,8 @@ func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
 	// updated_at stays old; the delete must re-check the host itself.
 	recreated := newEnrollment(uuid.NewString())
 	setTimes(recreated.ID, old, old)
-	test.NewHost(t, ds, "win-recreated", "10.0.0.6", uuid.NewString(), recreated.HostUUID, now, test.WithPlatform("windows"))
-	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, recreated.HostUUID, recreated.MDMDeviceID)
+	recreatedHost := test.NewHost(t, ds, "win-recreated", "10.0.0.6", uuid.NewString(), recreated.HostUUID, now, test.WithPlatform("windows"))
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, recreatedHost.ID, recreated.HostUUID, recreated.MDMDeviceID)
 	require.NoError(t, err)
 	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{recreated.ID}, cutoff)
 	require.NoError(t, err)
@@ -9947,7 +9952,7 @@ func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) 
 		}
 	}
 
-	t.Run("newest row on the fleet with the profile", func(t *testing.T) {
+	t.Run("newer row on the fleet with the profile", func(t *testing.T) {
 		sharedUUID := strings.ToUpper(uuid.NewString())
 		hNoTeam := newHost("dup-a-no-team", sharedUUID, nil)
 		windowsEnroll(t, ds, hNoTeam)
@@ -9956,12 +9961,12 @@ func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) 
 		other := newHost("dup-a-other", strings.ToUpper(uuid.NewString()), &team.ID)
 		windowsEnroll(t, ds, other)
 
-		requireReconcilesRow(t, sharedUUID, hTeam)
-		requireOneDelivery(t, sharedUUID, []string{"Install"})
+		requireReconcilesRow(t, sharedUUID, hNoTeam)
+		requireOneDelivery(t, sharedUUID, nil)
 		assert.Equal(t, []string{"Install"}, verbs(other.UUID), "a host with its own UUID gets the profile once")
 	})
 
-	t.Run("newest row on a fleet without the profile", func(t *testing.T) {
+	t.Run("newer row on a fleet without the profile", func(t *testing.T) {
 		sharedUUID := strings.ToUpper(uuid.NewString())
 		hTeam := newHost("dup-b-fleet-a", sharedUUID, &team.ID)
 		windowsEnroll(t, ds, hTeam)
@@ -9969,8 +9974,8 @@ func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) 
 		hNoTeam := newHost("dup-b-no-team", sharedUUID, nil)
 		setMDMEnrolled(hNoTeam, true)
 
-		requireReconcilesRow(t, sharedUUID, hNoTeam)
-		requireOneDelivery(t, sharedUUID, []string{"Delete"})
+		requireReconcilesRow(t, sharedUUID, hTeam)
+		requireOneDelivery(t, sharedUUID, []string{"Install"})
 	})
 
 	t.Run("newest row not enrolled in MDM", func(t *testing.T) {
@@ -10010,8 +10015,8 @@ func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) 
 		hNew := newHost("dup-h-new", sharedUUID, &team.ID)
 		setMDMEnrolled(hNew, true)
 
-		requireReconcilesRow(t, sharedUUID, hNew)
-		requireOneDelivery(t, sharedUUID, []string{"Install"})
+		requireReconcilesRow(t, sharedUUID, hOld)
+		requireOneDelivery(t, sharedUUID, nil)
 	})
 
 	t.Run("rows whose UUIDs differ only in letter case", func(t *testing.T) {
@@ -10027,8 +10032,8 @@ func testReconcileWindowsProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) 
 			hNew := newHost(fmt.Sprintf("dup-e-new-%t", olderLower), newerUUID, &team.ID)
 			setMDMEnrolled(hNew, true)
 
-			requireReconcilesRow(t, newerUUID, hNew)
-			requireOneDelivery(t, newerUUID, []string{"Install"})
+			requireReconcilesRow(t, olderUUID, hOld)
+			requireOneDelivery(t, olderUUID, []string{"Install"})
 		}
 	})
 
@@ -10070,7 +10075,7 @@ func testMDMWindowsSetEnrollmentFleetdPresent(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, previous.UUID))
 		require.True(t, fleetdPresent(t, device))
 
-		linkWindowsEnrollment(t, ds, device, next.UUID)
+		linkWindowsEnrollment(t, ds, device, next)
 		require.False(t, fleetdPresent(t, device), "presence on the previous host says nothing about the next one")
 
 		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, previous.UUID))
@@ -10267,7 +10272,7 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Once the enrollment is linked, the serial lookup no longer returns it.
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, 0, "22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
 	require.NoError(t, err)
 	require.True(t, updated)
 	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-1")
@@ -10284,7 +10289,7 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Linking one of them resolves the ambiguity: a single unlinked row is left, so the lookup returns it again.
-	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "33333333-3333-3333-3333-333333333333", secondTwin.MDMDeviceID)
+	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, 0, "33333333-3333-3333-3333-333333333333", secondTwin.MDMDeviceID)
 	require.NoError(t, err)
 	require.True(t, updated)
 	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
@@ -10721,7 +10726,7 @@ func testMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID(t *testing.
 	// Once linked, the host is reported. That is the only state the warning fires on.
 	host := test.NewHost(t, ds, "hwid-enrolled", "10.0.0.31", "hwid-enrolled-key", "hwid-enrolled-uuid", time.Now())
 	deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hardwareID: hwID})
-	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, deviceID)
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.ID, host.UUID, deviceID)
 	require.NoError(t, err)
 	got, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hwID)
 	require.NoError(t, err)

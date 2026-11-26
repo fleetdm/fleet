@@ -435,6 +435,7 @@ var hostRefs = []string{
 	"host_one_time_enroll_secrets",
 	"notifications_end_user",
 	"host_policy_automation_run_counts",
+	"host_mdm_uuid_owners",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -560,13 +561,20 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 
 	// load host uuid and platform for the MDM tables that rely on this to be cleared.
 	type hostInfo struct {
-		UUID          string  `db:"uuid"`
-		Platform      string  `db:"platform"`
-		TeamID        *uint   `db:"team_id"`
-		OsqueryHostID *string `db:"osquery_host_id"`
+		ID             uint    `db:"id"`
+		UUID           string  `db:"uuid"`
+		Platform       string  `db:"platform"`
+		TeamID         *uint   `db:"team_id"`
+		OsqueryHostID  *string `db:"osquery_host_id"`
+		WindowsOwnerID *uint   `db:"windows_owner_id"`
 	}
 	var hostInfos []hostInfo
-	stmt, args, err := sqlx.In(`SELECT uuid, platform, team_id, osquery_host_id FROM hosts WHERE id IN (?) ORDER BY id`, hostIDs)
+	stmt, args, err := sqlx.In(`
+		SELECT h.id, h.uuid, h.platform, h.team_id, h.osquery_host_id, (
+			SELECT hmuo.host_id FROM host_mdm_uuid_owners hmuo
+			WHERE hmuo.host_uuid = h.uuid AND hmuo.mdm_platform = 'windows' AND h.uuid <> ''
+		) AS windows_owner_id
+		FROM hosts h WHERE h.id IN (?) ORDER BY h.id`, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "building select statement for host uuids")
 	}
@@ -574,9 +582,32 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		return ctxerr.Wrapf(ctx, err, "get uuid and platform for hosts %v", hostIDs)
 	}
 
+	// A UUID's MDM state stays with its Windows MDM owner when that host isn't being deleted, so deleting a stale Windows host that
+	// shares the UUID doesn't break the device. Deleting a host of another platform keeps its previous behavior.
+	deleting := make(map[uint]struct{}, len(hostIDs))
+	for _, id := range hostIDs {
+		deleting[id] = struct{}{}
+	}
+	keptUUIDs := make(map[string]bool)
+	for _, info := range hostInfos {
+		if info.WindowsOwnerID == nil {
+			continue
+		}
+		if _, ok := deleting[*info.WindowsOwnerID]; !ok {
+			keptUUIDs[strings.ToLower(info.UUID)] = true
+		}
+	}
+	for _, info := range hostInfos {
+		if info.Platform != "windows" {
+			delete(keptUUIDs, strings.ToLower(info.UUID))
+		}
+	}
+
 	hostUUIDs := make([]string, 0, len(hostInfos))
 	for _, info := range hostInfos {
-		hostUUIDs = append(hostUUIDs, info.UUID)
+		if !keptUUIDs[strings.ToLower(info.UUID)] {
+			hostUUIDs = append(hostUUIDs, info.UUID)
+		}
 	}
 
 	stmt, args, err = sqlx.In(`DELETE FROM hosts WHERE id IN (?)`, hostIDs)
@@ -688,7 +719,13 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 			touchOnly = append(touchOnly, info.UUID)
 			continue
 		}
-		windowsHosts = append(windowsHosts, windowsEnrollmentFleetHost{UUID: info.UUID, TeamID: info.TeamID, OsqueryHostID: info.OsqueryHostID})
+		if keptUUIDs[strings.ToLower(info.UUID)] {
+			continue
+		}
+		windowsHosts = append(windowsHosts, windowsEnrollmentFleetHost{
+			UUID: info.UUID, TeamID: info.TeamID, OsqueryHostID: info.OsqueryHostID,
+			IsOwner: info.WindowsOwnerID != nil && *info.WindowsOwnerID == info.ID,
+		})
 	}
 	if len(touchOnly) > 0 {
 		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP WHERE host_uuid IN (?)`, touchOnly)
@@ -956,7 +993,7 @@ const hostMDMSelect = `,
 				    WHERE mwe.host_uuid = h.uuid
 				    AND mwe.device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
 				    AND hmdm.enrolled = 1
-				)
+				) AND ` + hostIsWindowsMDMOwner + `
 				THEN CAST(TRUE AS JSON)
 				ELSE CAST(FALSE AS JSON)
 				END
@@ -1462,7 +1499,7 @@ func (ds *Datastore) applyHostFilters(
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		connectedToFleetJoin = `
 				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
-				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?
+				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ? AND ` + hostIsWindowsMDMOwner + `
 				LEFT JOIN android_devices ad ON ad.host_id = h.id`
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
@@ -2253,17 +2290,22 @@ type windowsEnrollmentFleetHost struct {
 	UUID          string  `db:"uuid"`
 	TeamID        *uint   `db:"team_id"`
 	OsqueryHostID *string `db:"osquery_host_id"`
+	// IsOwner is whether the host owns its UUID's Windows MDM state.
+	IsOwner bool `db:"is_owner"`
 }
 
 // recordDeletedWindowsHostFleetsDB saves on each deleted Windows host's enrollment the fleet its device comes back to. hosts must be
-// in id order: when several share a UUID, the host is chosen as windowsEnrollmentBoundHostsDB binds secrets, the osquery_host_id
-// match, else the lowest id.
+// in id order: when several share a UUID, the host is the UUID's Windows MDM owner, else chosen as windowsEnrollmentBoundHostsDB
+// binds secrets, the osquery_host_id match, else the lowest id.
 func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, hosts []windowsEnrollmentFleetHost) error {
 	owners := make(map[string]windowsEnrollmentFleetHost, len(hosts))
 	for _, h := range hosts {
 		key := strings.ToLower(h.UUID)
-		_, seen := owners[key]
-		if !seen || (h.OsqueryHostID != nil && strings.EqualFold(*h.OsqueryHostID, h.UUID)) {
+		chosen, seen := owners[key]
+		if chosen.IsOwner {
+			continue
+		}
+		if !seen || h.IsOwner || (h.OsqueryHostID != nil && strings.EqualFold(*h.OsqueryHostID, h.UUID)) {
 			owners[key] = h
 		}
 	}
@@ -2328,15 +2370,23 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		if _, err := tx.ExecContext(ctx, touchEnrollments, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "touch windows mdm enrollments of incoming hosts")
 		}
+		// Like deleteHosts, an enrollment whose UUID another host owns stays with that host.
 		var windowsHosts []windowsEnrollmentFleetHost
 		if err := sqlx.SelectContext(ctx, tx, &windowsHosts, fmt.Sprintf(`
-			SELECT uuid, team_id, osquery_host_id FROM hosts
-			WHERE platform = 'windows' AND uuid <> '' AND id IN (SELECT id FROM (%s) incoming)
-			ORDER BY id`, selectIDs), now); err != nil {
+			SELECT h.uuid, h.team_id, h.osquery_host_id, `+hostIsWindowsMDMOwner+` AS is_owner FROM hosts h
+			WHERE h.platform = 'windows' AND h.uuid <> '' AND h.id IN (SELECT id FROM (%s) incoming)
+				AND NOT EXISTS (
+					SELECT 1 FROM host_mdm_uuid_owners hmuo
+					WHERE hmuo.host_uuid = h.uuid AND hmuo.mdm_platform = 'windows' AND hmuo.host_id <> h.id
+				)
+			ORDER BY h.id`, selectIDs), now); err != nil {
 			return ctxerr.Wrap(ctx, err, "load incoming windows hosts")
 		}
 		if err := recordDeletedWindowsHostFleetsDB(ctx, tx, windowsHosts); err != nil {
 			return err
+		}
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM host_mdm_uuid_owners WHERE host_id IN (%s)`, selectIDs), now); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup host_mdm_uuid_owners of incoming hosts")
 		}
 
 		cleanupHosts := `
@@ -2639,14 +2689,15 @@ func otherMDMHostIDWithUUID(ctx context.Context, q sqlx.QueryerContext, uuid str
 		return 0, nil
 	}
 	var hostID uint
-	// A disabled Apple enrollment counts because the device enables it again when it re-enrolls.
+	// A disabled Apple enrollment counts because the device enables it again when it re-enrolls. Any host sharing a UUID with a
+	// Windows enrollment counts, not only its owner, so no host can enroll toward a UUID whose owner went missing.
 	err := sqlx.GetContext(ctx, q, &hostID, `
 		SELECT h.id FROM hosts h
 		WHERE h.uuid = ? AND h.uuid <> '' AND h.id != ? AND (
 			EXISTS (SELECT 1 FROM nano_enrollments ne WHERE ne.id = h.uuid) OR
 			EXISTS (SELECT 1 FROM mdm_windows_enrollments mwe WHERE mwe.host_uuid = h.uuid)
 		)
-		ORDER BY h.id LIMIT 1`, uuid, excludeHostID)
+		ORDER BY `+hostIsWindowsMDMOwner+` DESC, h.id LIMIT 1`, uuid, excludeHostID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return 0, nil
@@ -6195,7 +6246,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 					SELECT 1 FROM mdm_windows_enrollments mwe
 					WHERE mwe.host_uuid = h.uuid
 					AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
-				)
+				) AND `+hostIsWindowsMDMOwner+`
 				WHEN hm.enrolled = 1 AND h.platform IN ('ios', 'ipados', 'darwin') THEN EXISTS (
 					SELECT 1 FROM nano_enrollments ne
 					WHERE ne.id = h.uuid

@@ -433,6 +433,7 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 		MDMEnrollClientVersion: "ecv",
 		MDMNotInOOBE:           false,
 		HostUUID:               h.UUID,
+		LinkedHostID:           &h.ID,
 	}
 
 	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, dev))

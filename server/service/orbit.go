@@ -799,12 +799,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured && !appConfig.MDM.EnableTurnOnWindowsMDMManually {
 		if isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
+			// checkWindowsMDMUUIDOwner would refuse the enrollment, and fleetd would retry it on every config fetch.
+			ownerID, err := svc.ds.GetWindowsMDMUUIDOwner(ctx, host.UUID)
 			if err != nil {
-				return fleet.OrbitConfig{}, err
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get windows mdm owner of host uuid")
 			}
-			notifs.WindowsMDMDiscoveryEndpoint = discoURL
-			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+			if ownerID == 0 || ownerID == host.ID {
+				discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
+				if err != nil {
+					return fleet.OrbitConfig{}, err
+				}
+				notifs.WindowsMDMDiscoveryEndpoint = discoURL
+				notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+			}
 		} else if appConfig.MDM.WindowsMigrationEnabled && isEligibleForWindowsMDMMigration(host, mdmInfo) {
 			notifs.NeedsMDMMigration = true
 

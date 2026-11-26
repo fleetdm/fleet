@@ -857,6 +857,7 @@ func newEnrolledWindowsHost(t *testing.T, ds *Datastore, name, serial, ztdRegist
 		ZTDRegistrationID:      ztdRegistrationID,
 		EntraDeviceID:          entraDeviceID,
 		HostUUID:               host.UUID,
+		LinkedHostID:           &host.ID,
 	}))
 	return host
 }

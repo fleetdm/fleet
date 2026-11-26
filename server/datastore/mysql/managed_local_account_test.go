@@ -712,6 +712,7 @@ func newWindowsHostWithEnrollment(t *testing.T, ds *Datastore, name string) stri
 		MDMEnrollProtoVersion:  "5.0",
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		HostUUID:               h.UUID,
+		LinkedHostID:           &h.ID,
 	}))
 	return h.UUID
 }

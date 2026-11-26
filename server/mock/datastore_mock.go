@@ -1598,7 +1598,9 @@ type MDMWindowsFailUndeliverableCommandFunc func(ctx context.Context, enrolledDe
 
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
-type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostID uint, hostUUID string, mdmDeviceID string) (bool, error)
+
+type GetWindowsMDMUUIDOwnerFunc func(ctx context.Context, hostUUID string) (uint, error)
 
 type MDMWindowsClearDeletedHostTeamFunc func(ctx context.Context, mdmDeviceID string) error
 
@@ -5026,6 +5028,9 @@ type DataStore struct {
 
 	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
 	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
+
+	GetWindowsMDMUUIDOwnerFunc        GetWindowsMDMUUIDOwnerFunc
+	GetWindowsMDMUUIDOwnerFuncInvoked bool
 
 	MDMWindowsClearDeletedHostTeamFunc        MDMWindowsClearDeletedHostTeamFunc
 	MDMWindowsClearDeletedHostTeamFuncInvoked bool
@@ -12132,11 +12137,18 @@ func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID
 	return s.GetMDMWindowsCommandResultsFunc(ctx, commandUUID, hostUUID)
 }
 
-func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
+func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostID uint, hostUUID string, mdmDeviceID string) (bool, error) {
 	s.mu.Lock()
 	s.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
+	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostID, hostUUID, mdmDeviceID)
+}
+
+func (s *DataStore) GetWindowsMDMUUIDOwner(ctx context.Context, hostUUID string) (uint, error) {
+	s.mu.Lock()
+	s.GetWindowsMDMUUIDOwnerFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsMDMUUIDOwnerFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error {

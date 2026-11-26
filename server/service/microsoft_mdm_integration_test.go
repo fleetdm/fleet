@@ -32,6 +32,7 @@ func enrollWindowsHostInMDMForTest(t *testing.T, ds fleet.Datastore, host *fleet
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
 		HostUUID:               host.UUID,
+		LinkedHostID:           &host.ID,
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
