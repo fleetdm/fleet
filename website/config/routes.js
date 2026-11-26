@@ -1268,7 +1268,6 @@ module.exports.routes = {
   'GET /guides/seamless-mdm-migration': '/support',
   'GET /visibility-and-reporting': '/endpoint-governance',
   'GET /guides/software-inventory': '/guides/software-inventory-reference',
-  'GET /guides/build-your-own-windows-self-service-with-winget-and-script-only-packages-guide': '/guides/install-app-store-apps#microsoft-store-windows',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
