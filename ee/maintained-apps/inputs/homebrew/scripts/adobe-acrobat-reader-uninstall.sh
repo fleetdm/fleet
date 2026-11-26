@@ -355,12 +355,12 @@ trash() {
   fi
 }
 
-# Adobe's updater can migrate Reader to the unified Adobe Acrobat app, which
-# can sit at Reader's path and shares Adobe's updater (ARMDC), support files and
-# user data with Reader. Never remove those while Acrobat is installed.
+# Adobe Acrobat can be installed alongside Reader, and Adobe's updater can
+# migrate Reader to it. It shares Adobe's updater (ARMDC), support files and
+# user data with Reader, so never remove those while Acrobat is installed.
 ACROBAT_APP=""
 READER_APPS=()
-for app in "/Applications/Adobe Acrobat"*.app "/Applications/Adobe Acrobat DC/"*.app; do
+for app in /Applications/*.app /Applications/*/*.app; do
   [[ -d "$app" ]] || continue
   case "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" in
     com.adobe.Acrobat.Pro) ACROBAT_APP="$app" ;;
@@ -370,15 +370,15 @@ done
 
 if [[ -n "$ACROBAT_APP" ]]; then
   if [[ ${#READER_APPS[@]} -eq 0 ]]; then
-    echo "Adobe Acrobat is installed at '$ACROBAT_APP' and provides Acrobat Reader. Uninstall Adobe Acrobat to remove it."
-    exit 1
+    echo "Adobe Acrobat Reader isn't installed. Leaving Adobe Acrobat at '$ACROBAT_APP' and its updater in place."
+    exit 0
   fi
   echo "Adobe Acrobat is installed at '$ACROBAT_APP'. Removing only Acrobat Reader's app and settings."
   quit_application 'com.adobe.AdobeRdrCEF'
   quit_application 'com.adobe.AdobeRdrCEFHelper'
   quit_application 'com.adobe.Reader' || exit 1
   for app in "${READER_APPS[@]}"; do
-    sudo rm -rf "$app"
+    sudo rm -rf "$app" || exit 1
   done
   forget_pkg 'com.adobe.acrobat.DC.reader.*'
   forget_pkg 'com.adobe.RdrServicesUpdater'

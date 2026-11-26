@@ -233,26 +233,16 @@ PKG="${PKGS[0]}"
 
 TARGET_VERSION=$(pkg_version "$PKG")
 
-# Reader's installer refuses to run over Adobe Acrobat or a newer Reader, so it
-# would fail on hosts that already have Reader. Adobe's updater keeps Reader
-# current and can migrate it to the unified Adobe Acrobat app, which has a
-# different bundle ID and runs as Reader when it isn't licensed.
-for app in "/Applications/Adobe Acrobat"*.app "/Applications/Adobe Acrobat DC/"*.app; do
-  [[ -d "$app" ]] || continue
-  bundle_id=$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)
+# Reader's installer refuses to downgrade, and Adobe's updater keeps Reader
+# ahead of the catalog, so the install would fail on hosts that already have
+# a newer Reader.
+for app in /Applications/*.app /Applications/*/*.app; do
+  [[ -d "$app" && "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" == "com.adobe.Reader" ]] || continue
   version=$(defaults read "$app/Contents/Info" CFBundleShortVersionString 2>/dev/null)
-  case "$bundle_id" in
-    com.adobe.Acrobat.Pro)
-      echo "Adobe Acrobat $version is installed at '$app'. It includes Acrobat Reader, and Reader's installer won't install alongside it."
-      exit 0
-      ;;
-    com.adobe.Reader)
-      if [[ -n "$TARGET_VERSION" ]] && version_newer "$version" "$TARGET_VERSION"; then
-        echo "Adobe Acrobat Reader $version is installed at '$app', which is newer than $TARGET_VERSION. Reader's installer won't downgrade it."
-        exit 0
-      fi
-      ;;
-  esac
+  if [[ -n "$TARGET_VERSION" ]] && version_newer "$version" "$TARGET_VERSION"; then
+    echo "Adobe Acrobat Reader $version is installed at '$app', which is newer than $TARGET_VERSION. Reader's installer won't downgrade it."
+    exit 0
+  fi
 done
 
 # install pkg files

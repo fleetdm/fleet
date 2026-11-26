@@ -89,7 +89,7 @@ func TestAdobeAcrobatReaderManifestVersion(t *testing.T) {
 					}
 					_, _ = w.Write([]byte(c.manifest))
 				default:
-					require.Equal(t, http.MethodHead, r.Method)
+					assert.Equal(t, http.MethodHead, r.Method)
 					if c.installerCode == 0 {
 						t.Errorf("unexpected installer request %s", r.URL.Path)
 					}
