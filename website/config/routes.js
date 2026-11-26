@@ -1441,6 +1441,7 @@ module.exports.routes = {
   'GET /ai-governance': '/endpoint-governance',
   'GET /byod': '/articles/build-byod-security-program',
   'GET /lp/on-premises': (req, res) => { return res.redirect(301, '/lp/on-premise' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
+  'GET /vs': '/compare',
   'GET /vs/microsoft-intune': '/compare/jamf-vs-intune-vs-fleet',
   'GET /vs/jamf': '/compare/jamf-vs-fleet',
   'GET /vs/workspace-one': '/compare/workspace-one-vs-fleet',
