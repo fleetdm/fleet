@@ -1606,6 +1606,11 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDev
 	return nil
 }
 
+// isXMLChar reports whether XML 1.0 allows r in a document (its Char production).
+func isXMLChar(r rune) bool {
+	return r == '\t' || r == '\n' || r == '\r' || (r >= 0x20 && r <= 0xD7FF) || (r >= 0xE000 && r <= 0xFFFD) || (r >= 0x10000 && r <= 0x10FFFF)
+}
+
 // buildFleetdInstallCommand returns the command that installs fleetd on the device, or nil when it cannot be built yet, which
 // the next session retries. With one-time enroll secrets the command carries a placeholder, resolved at delivery.
 func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (*fleet.MDMWindowsCommand, error) {
@@ -1622,7 +1627,18 @@ func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevic
 			svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
 			return nil, nil
 		}
-		enrollSecret = secrets[0].Secret
+		secret := secrets[0].Secret
+		// Escaping would replace characters XML can't carry, such as 0x01, and fleetd would enroll with the wrong secret.
+		if strings.ContainsFunc(secret, func(r rune) bool { return !isXMLChar(r) }) {
+			svc.logger.WarnContext(ctx, "the global enroll secret has characters XML can't carry, not installing fleetd")
+			return nil, nil
+		}
+		// The secret is pasted into the command's XML, where an & or < would make it unparseable and so never delivered.
+		var escaped bytes.Buffer
+		if err := xml.EscapeText(&escaped, []byte(secret)); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "escaping enroll secret")
+		}
+		enrollSecret = escaped.String()
 	}
 
 	// it's okay to skip the installation if we're not able to retrieve the

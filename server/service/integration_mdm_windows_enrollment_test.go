@@ -1654,8 +1654,9 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 	t := s.T()
 	ctx := context.Background()
 
-	// define a global enroll secret
-	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	// define a global enroll secret, with characters the fleetd install command's XML has to escape
+	enrollSecret := t.Name() + "&<b>'c]]>"
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: enrollSecret}})
 	require.NoError(t, err)
 
 	tenantID := uuid.New().String()
@@ -1722,8 +1723,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		require.NoError(t, err)
 		require.Equal(t, s.mockedDownloadFleetdmMeta.MSIURL, installJob.Product.ContentURL)
 		require.Equal(t, s.mockedDownloadFleetdmMeta.MSISha256, installJob.Product.FileHash)
-		// Test name is our simulated enroll secret
-		require.Contains(t, installJob.Product.CommandLine, "FLEET_SECRET=\""+t.Name()+"\"")
+		require.Contains(t, installJob.Product.CommandLine, "FLEET_SECRET=\""+enrollSecret+"\"")
 
 		// reply with success for both commands
 		msgID, err := device.GetCurrentMsgID()
