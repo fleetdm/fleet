@@ -807,4 +807,34 @@ describe("ManageHostsPage", () => {
       );
     });
   });
+
+  it("clears an earlier host list path when showing a software-filtered list", async () => {
+    setupHandlers(0);
+    const setFilteredHostsPath = jest.fn();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          ...mockAppContext,
+          filteredHostsPath: "/hosts/manage?fleet_id=3",
+          setFilteredHostsPath,
+        },
+      },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search: "?fleet_id=4&software_title_id=12",
+        query: { fleet_id: "4", software_title_id: "12" },
+      },
+    }) as any;
+    render(<ManageHostsPage {...props} />);
+
+    // hosts opened from this list must not return to the fleet 3 list
+    await waitFor(() => expect(setFilteredHostsPath).toHaveBeenCalledWith(""));
+    expect(setFilteredHostsPath).not.toHaveBeenCalledWith(
+      expect.stringContaining("software_title_id")
+    );
+  });
 });

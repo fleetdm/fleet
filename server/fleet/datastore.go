@@ -256,6 +256,9 @@ type Datastore interface {
 	// manual membership is replaced with exactly those hosts.
 	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	DeleteLabel(ctx context.Context, id uint) error
+	// CleanupOrphanedLabelMembership deletes label_membership rows of labels that no longer exist: the ones an
+	// interrupted label deletion left behind, and the ones hosts reported after the label was deleted.
+	CleanupOrphanedLabelMembership(ctx context.Context) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	// LabelMembershipHostIDs returns every host_id row in label_membership for
@@ -1685,6 +1688,10 @@ type Datastore interface {
 	// HostPreviouslyOrbitEnrolled reports whether a host matching the given orbit enrollment identifiers already exists in
 	// Fleet and was previously orbit-enrolled (i.e. it has an orbit node key).
 	HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo OrbitHostInfo, isMDMEnabled bool) (bool, error)
+
+	// HostAgentEnrolled reports whether orbit or osquery has enrolled as the host, which then holds a node key on either plane.
+	// Security checks must pass a ctxdb.RequirePrimary context, since a replica can lag an enrollment.
+	HostAgentEnrolled(ctx context.Context, hostID uint) (bool, error)
 
 	// OtherMDMHostIDWithUUID returns the ID of a host other than excludeHostID that has the given UUID and an Apple or Windows
 	// MDM enrollment, or 0 if there is none.

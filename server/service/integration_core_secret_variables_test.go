@@ -89,9 +89,10 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+	require.NotZero(t, secrets[0].ID)
 	s.lastActivityMatches(
 		fleet.ActivityCreatedCustomVariable{}.ActivityName(),
-		fmt.Sprintf(`{"custom_variable_id":0,"custom_variable_name":%q}`, validName),
+		fmt.Sprintf(`{"custom_variable_id":%d,"custom_variable_name":%q}`, secrets[0].ID, validName),
 		0,
 	)
 

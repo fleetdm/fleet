@@ -97,9 +97,13 @@ func (dc *DeviceClient) requestAttempt(verb string, path string, query string, p
 			return fmt.Errorf("making request json marshalling : %w", err)
 		}
 	}
+	requestURL, err := dc.RequestURL(path, query)
+	if err != nil {
+		return err
+	}
 	request, err := http.NewRequest(
 		verb,
-		dc.URL(path, query).String(),
+		requestURL,
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {

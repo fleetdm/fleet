@@ -71,7 +71,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/fleetdm/fleet/v4/server/launcher"
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme"
 	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
@@ -111,13 +110,11 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/google/uuid"
-	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/throttled/throttled/v2"
-	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
 
@@ -999,16 +996,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	}
 
-	// Instantiate a gRPC service to handle launcher requests.
-	launcher := launcher.New(svc, logger, grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			grpc_recovery.UnaryServerInterceptor(),
-		),
-		grpc.ChainStreamInterceptor(
-			grpc_recovery.StreamServerInterceptor(),
-		),
-	), healthCheckers)
-
 	// Set below, before the server starts serving.
 	var srv *http.Server
 	rootMux := http.NewServeMux()
@@ -1218,13 +1205,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// of the response.
 	liveQueryRestPeriod += 10 * time.Second
 
-	handler := launcher.Handler(rootMux)
-
-	srv = config.Server.DefaultHTTPServer(ctx, handler)
+	srv = config.Server.DefaultHTTPServer(ctx, rootMux)
 	if liveQueryRestPeriod > srv.WriteTimeout {
 		srv.WriteTimeout = liveQueryRestPeriod
 	}
-	mcpConn.Start(ctx, handler)
+	mcpConn.Start(ctx, rootMux)
 	srv.SetKeepAlivesEnabled(config.Server.Keepalive)
 	errs := make(chan error, 2)
 	go func() {
@@ -1261,7 +1246,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				stopper.Stop()
 			}
 			cleanupCronStatsOnShutdown(ctx, ds, logger, instanceID)
-			launcher.GracefulStop()
 			// Flush any pending OTEL data before shutting down
 			if tracerProvider != nil {
 				if err := tracerProvider.Shutdown(ctx); err != nil {

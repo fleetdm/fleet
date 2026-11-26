@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.6.1609",
+      "version": "1.6.1619",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.wispr-flow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.wispr-flow' AND version_compare(bundle_short_version, '1.6.1609') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.wispr-flow' AND version_compare(bundle_short_version, '1.6.1619') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.wispr-flow' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.wisprflow.com/wispr-flow/darwin/arm64/dmgs/Flow-v1.6.1609.dmg",
+      "installer_url": "https://dl.wisprflow.com/wispr-flow/darwin/arm64/dmgs/Flow-v1.6.1619.dmg",
       "install_script_ref": "3b8370a6",
       "uninstall_script_ref": "ea841424",
-      "sha256": "f6e02bbdf15ecefcf1b8df8bf8c36798a5862ff85d5ba6726aa3885c854830fa",
+      "sha256": "2a654ac685222808c34bea21ec3ff85035d64856bfc7fe239fb6c646e017ba48",
       "default_categories": [
         "Productivity"
       ]

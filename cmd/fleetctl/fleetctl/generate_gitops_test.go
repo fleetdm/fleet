@@ -455,6 +455,7 @@ var mockPolicyAutomations = map[string]fleet.PolicyAutomation{
 	"Team Profile policy":         fleet.PolicyAutomationConfigurationProfile,
 	"Team FMA install policy":     fleet.PolicyAutomationSoftware,
 	"Team package install policy": fleet.PolicyAutomationSoftware,
+	"Team force patch policy":     fleet.PolicyAutomationSoftware,
 }
 
 func (c MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
@@ -630,6 +631,21 @@ func (MockClient) mockPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
+				},
+			},
+			&fleet.Policy{
+				ID:          8,
+				Name:        "Team force patch policy",
+				Resolution:  new("Install the latest version from self-service"),
+				Description: "This is a team patch policy that force patches",
+				Platform:    "windows",
+				Type:        fleet.PolicyTypePatch,
+				ForcePatch:  true,
+				PatchSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 10,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 10,
 				},
 			},
 		)
@@ -2066,6 +2082,20 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+
+	// GET /config masks these integration secrets, so insecure mode must still warn instead of exporting the mask.
+	var warnedKeys []string
+	for _, w := range cmd.Messages.SecretWarnings {
+		warnedKeys = append(warnedKeys, w.Key)
+	}
+	for _, key := range []string{
+		"integrations.google_calendar.api_key_json",
+		"integrations.jira.api_token",
+		"integrations.zendesk.api_token",
+		"integrations.google_workspace.api_key_json",
+	} {
+		assert.Contains(t, warnedKeys, key)
+	}
 }
 
 func TestGenerateTeamSettings(t *testing.T) {
@@ -3108,6 +3138,10 @@ func TestGeneratePolicies(t *testing.T) {
 			13: {
 				MaintainedAppID: 5,
 				Slug:            "fma5/darwin",
+			},
+			10: {
+				MaintainedAppID: 3,
+				Slug:            "fma3/windows",
 			},
 		},
 		ScriptList: map[uint]string{

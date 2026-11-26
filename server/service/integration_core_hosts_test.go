@@ -1660,7 +1660,7 @@ func (s *integrationTestSuite) TestHostEndpointsAcceptIdentifiers() {
 		{path: "/api/latest/fleet/hosts/%s/macadmins", wantStatus: http.StatusOK},
 		{path: "/api/latest/fleet/hosts/%s/software", wantStatus: http.StatusOK},
 		{path: "/api/latest/fleet/hosts/%s/encryption_key", wantStatus: http.StatusBadRequest},
-		{path: "/api/latest/fleet/hosts/%s/recovery_lock_password", wantStatus: http.StatusUnprocessableEntity},
+		{path: "/api/latest/fleet/hosts/%s/recovery_lock_password", wantStatus: http.StatusPaymentRequired},
 		{path: "/api/latest/fleet/hosts/%s/certificates", wantStatus: http.StatusOK},
 		{path: "/api/latest/fleet/hosts/%s/configuration_profiles", wantStatus: http.StatusBadRequest, unknownHostStatus: http.StatusBadRequest},
 		{path: "/api/latest/fleet/hosts/%s/activities", wantStatus: http.StatusOK},
@@ -2542,6 +2542,7 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
 	})
 }
+
 func (s *integrationTestSuite) TestAndroidHostRefetchNotSupported() {
 	t := s.T()
 

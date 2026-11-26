@@ -823,8 +823,6 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 }
 
 // forgetEndUserAfterWindowsResetDB clears the previous end user of a host coming back from a reset, before the reset status goes.
-// It also clears the host's orbit node key, so that if fleetd enrolls after MDM, end user authentication treats the host as new.
-// The mysqlredis wrapper of MDMWindowsDeleteEnrolledDeviceOnReenrollment invalidates the host cache.
 func forgetEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	var hostID uint
 	err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
@@ -834,12 +832,28 @@ func forgetEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, h
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get host for end user clear")
 	}
-	reset, err := clearEndUserAfterWindowsResetDB(ctx, tx, hostID)
-	if err != nil || !reset {
-		return err
+	_, err = clearEndUserAfterWindowsResetDB(ctx, tx, hostID)
+	return err
+}
+
+// forgetAgentAfterWindowsWipeDB clears the node keys of a host coming back from a wipe or reset it acknowledged, before that
+// status goes, since the device lost its agent. The device can then claim the host again like one no agent has enrolled as, and
+// end user authentication treats fleetd's next enrollment as new. The mysqlredis wrapper of
+// MDMWindowsDeleteEnrolledDeviceOnReenrollment invalidates the host cache.
+func forgetAgentAfterWindowsWipeDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	if hostUUID == "" {
+		return nil
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = NULL WHERE id = ?`, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "clear orbit node key after reset")
+	// Like windowsResetAckDB, only results from the host's own enrollments count.
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE hosts h SET h.orbit_node_key = NULL, h.node_key = NULL
+		WHERE h.uuid = ? AND EXISTS (
+			SELECT 1 FROM host_mdm_actions hma
+			JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = hma.wipe_ref
+			JOIN mdm_windows_enrollments mwe ON mwe.id = wmcr.enrollment_id AND mwe.host_uuid = h.uuid
+			WHERE hma.host_id = h.id AND wmcr.status_code LIKE '2%'
+		)`, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear node keys after wipe")
 	}
 	return nil
 }
@@ -876,6 +890,9 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				deletedHostUUID = hostUUID.String
 
 				if err := forgetEndUserAfterWindowsResetDB(ctx, tx, hostUUID.String); err != nil {
+					return err
+				}
+				if err := forgetAgentAfterWindowsWipeDB(ctx, tx, hostUUID.String); err != nil {
 					return err
 				}
 				// Clear lock/wipe status

@@ -185,7 +185,7 @@ export const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
   return workstations ?? sortBy(fleets, (t) => t.id)[0];
 };
 
-const getDefaultTeam = ({
+export const getDefaultTeam = ({
   currentUser,
   includeAllTeams,
   includeNoTeam,
@@ -235,8 +235,12 @@ const getDefaultTeam = ({
   }
 
   return (
-    userTeams.find((t) => permissions.isTeamAdmin(currentUser, t.id)) ||
-    userTeams.find((t) => permissions.isTeamMaintainer(currentUser, t.id)) ||
+    preferredOrLowestIdFleet(
+      realFleets.filter((t) => permissions.isTeamAdmin(currentUser, t.id))
+    ) ||
+    preferredOrLowestIdFleet(
+      realFleets.filter((t) => permissions.isTeamMaintainer(currentUser, t.id))
+    ) ||
     preferredOrLowestIdFleet(realFleets)
   );
 };

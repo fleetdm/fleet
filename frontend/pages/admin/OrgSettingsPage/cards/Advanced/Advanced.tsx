@@ -265,6 +265,7 @@ const Advanced = ({
           formData={formData}
           formErrors={formErrors}
           isPremiumTier={isPremiumLicense}
+          appConfig={appConfig}
         />
         <ActivityDataRetentionSection
           formData={formData}
