@@ -351,7 +351,7 @@ func normalizePatchPolicyUpdate(policy *fleet.Policy, p *fleet.ModifyPolicyPaylo
 			if !patching {
 				return fleet.NewUserMessageError(errors.New(errPatchOptionsRequireSoftwareAutomation), http.StatusUnprocessableEntity)
 			}
-		} else if patching {
+		} else if patching && policy.SoftwareInstallerID == nil {
 			return fleet.NewUserMessageError(errors.New(errSoftwareAutomationRequiresPatchOption), http.StatusUnprocessableEntity)
 		}
 	}

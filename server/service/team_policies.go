@@ -784,11 +784,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(fleet.ErrPolicyPatchOptionsMutuallyExclusive, http.StatusUnprocessableEntity))
 	}
 
-	// This update would leave the patch policy with the software automation enabled and no patch option,
-	// which is how force_patch is stored.
-	if policy.Type == fleet.PolicyTypePatch && policy.SoftwareInstallerID != nil && !p.AutomationType.Set &&
+	// This policy has a software automation and the request doesn't set any options
+	if policy.Type == fleet.PolicyTypePatch && policy.SoftwareInstallerID != nil &&
+		(!p.AutomationType.Set || p.AutomationType.Value == fleet.PolicyAutomationSoftware) &&
 		!forcePatch && !patchWhenClosed && !notifyBeforePatching && !patchDeadline {
-		// Return an error when this request turns off the stored option or force_patch, which isn't stored.
+		// Return an error when this request turns off the policy's current option or force_patch.
 		if policy.PatchWhenClosed || policy.NotifyBeforePatching || policy.PatchDeadline || p.ForcePatch != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errors.New(errSoftwareAutomationRequiresPatchOption), http.StatusUnprocessableEntity))
 		}
