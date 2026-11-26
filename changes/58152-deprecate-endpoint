@@ -1,0 +1,1 @@
+- Deprecated `/fleet/hosts/{id}/configuration_profiles` endpoint as of Fleet 5, use `/fleet/configuration_profiles` to list configuration profiles on a given fleet, or `/fleet/hosts/{id}` -> `mdm.profiles` for host specific profiles.
