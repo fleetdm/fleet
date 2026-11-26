@@ -8,6 +8,7 @@ package table
 import (
 	"context"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -27,10 +28,21 @@ type fakeExtensionManager struct {
 	taken []string
 	// alwaysConflict, if set, is reported as conflicting on every registration.
 	alwaysConflict string
+	// stayUp keeps pings succeeding after a successful registration.
+	stayUp bool
 
 	mu         sync.Mutex
 	registered [][]string
 	pingErr    error
+	extensions osquerygen.InternalExtensionList
+}
+
+// evict simulates osquery dropping the registered extension ("Extension UUID N
+// has gone away").
+func (f *fakeExtensionManager) evict() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	clear(f.extensions)
 }
 
 func (f *fakeExtensionManager) Close() {}
@@ -49,10 +61,12 @@ func (f *fakeExtensionManager) Call(string, string, osquerygen.ExtensionPluginRe
 }
 
 func (f *fakeExtensionManager) Extensions() (osquerygen.InternalExtensionList, error) {
-	return nil, errors.New("not implemented")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return maps.Clone(f.extensions), nil
 }
 
-func (f *fakeExtensionManager) RegisterExtension(_ *osquerygen.InternalExtensionInfo, registry osquerygen.ExtensionRegistry) (*osquerygen.ExtensionStatus, error) {
+func (f *fakeExtensionManager) RegisterExtension(info *osquerygen.InternalExtensionInfo, registry osquerygen.ExtensionRegistry) (*osquerygen.ExtensionStatus, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var names []string
@@ -74,8 +88,11 @@ func (f *fakeExtensionManager) RegisterExtension(_ *osquerygen.InternalExtension
 			Message: "Failed adding registry: Registry item " + conflict + " conflicts with another item of the same name.",
 		}, nil
 	}
-	// Make Run return shortly after a successful registration.
-	f.pingErr = errors.New("osquery gone")
+	f.extensions = osquerygen.InternalExtensionList{1: info}
+	if !f.stayUp {
+		// Make Run return shortly after a successful registration.
+		f.pingErr = errors.New("osquery gone")
+	}
 	return &osquerygen.ExtensionStatus{Code: 0, UUID: 1}, nil
 }
 
@@ -113,6 +130,28 @@ func testTablePlugin(name string) osquery.OsqueryPlugin {
 		func(context.Context, table.QueryContext) ([]map[string]string, error) { return nil, nil })
 }
 
+// newTestRunner returns a function that runs a Runner connected to f.
+func newTestRunner(t *testing.T, f *fakeExtensionManager) func(ctx context.Context, plugins []osquery.OsqueryPlugin) error {
+	// Unix socket paths have a short length limit, so avoid t.TempDir().
+	// A dir per test avoids reusing a listen path that osquery-go may
+	// still be closing asynchronously.
+	dir, err := os.MkdirTemp("", "ext")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "s")
+
+	r := NewRunner(sock)
+	r.checkInterval = 10 * time.Millisecond
+	r.newClient = func(time.Duration) (osquery.ExtensionManager, error) { return f, nil }
+	return func(ctx context.Context, plugins []osquery.OsqueryPlugin) error {
+		return r.run(ctx, plugins, func(client osquery.ExtensionManager) (*osquery.ExtensionManagerServer, error) {
+			return osquery.NewExtensionManagerServer("test", sock,
+				osquery.WithClient(client),
+				osquery.ServerPingInterval(10*time.Millisecond))
+		})
+	}
+}
+
 func TestRunnerSkipsConflictingTables(t *testing.T) {
 	for _, tc := range []struct {
 		name           string
@@ -140,23 +179,36 @@ func TestRunnerSkipsConflictingTables(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			// Unix socket paths have a short length limit, so avoid t.TempDir().
-			// A dir per subtest avoids reusing a listen path that osquery-go may
-			// still be closing asynchronously.
-			dir, err := os.MkdirTemp("", "ext")
-			require.NoError(t, err)
-			t.Cleanup(func() { os.RemoveAll(dir) })
-			sock := filepath.Join(dir, "s")
-
+			run := newTestRunner(t, tc.fake)
 			plugins := []osquery.OsqueryPlugin{testTablePlugin("a"), testTablePlugin("b"), testTablePlugin("c")}
-			r := NewRunner(sock)
-			err = r.run(t.Context(), plugins, func() (*osquery.ExtensionManagerServer, error) {
-				return osquery.NewExtensionManagerServer("test", sock,
-					osquery.WithClient(tc.fake),
-					osquery.ServerPingInterval(10*time.Millisecond))
-			})
+			err := run(t.Context(), plugins)
 			require.ErrorContains(t, err, tc.wantErr)
 			require.Equal(t, tc.wantRegistered, tc.fake.getRegistered())
 		})
+	}
+}
+
+func TestRunnerReturnsWhenOsqueryDropsExtension(t *testing.T) {
+	f := &fakeExtensionManager{stayUp: true}
+	run := newTestRunner(t, f)
+	errc := make(chan error, 1)
+	go func() {
+		errc <- run(t.Context(), []osquery.OsqueryPlugin{testTablePlugin("a")})
+	}()
+
+	require.Eventually(t, func() bool { return len(f.getRegistered()) == 1 }, 5*time.Second, 10*time.Millisecond)
+	// Still registered: several checks pass without ending the session.
+	select {
+	case err := <-errc:
+		t.Fatalf("runner returned while registered: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	f.evict()
+	select {
+	case err := <-errc:
+		require.ErrorIs(t, err, errExtensionNotRegistered)
+	case <-time.After(5 * time.Second):
+		t.Fatal("runner didn't notice osquery dropped the extension")
 	}
 }
