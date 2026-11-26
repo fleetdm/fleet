@@ -2,6 +2,7 @@ import {
   render,
   RenderOptions,
   RenderResult,
+  screen,
   waitFor,
 } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
@@ -261,4 +262,26 @@ export const waitForLoadingToFinish = async (container: HTMLElement) => {
   await waitFor(() => {
     expect(container.querySelector(".loading-overlay")).not.toBeInTheDocument();
   });
+};
+
+/**
+ * jsdom has no layout, so truncated table text never measures as truncated. This makes every text box narrower than its
+ * content. Undo it with `jest.restoreAllMocks()`.
+ */
+export const mockTruncatedTextLayout = () => {
+  jest.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(352);
+  jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
+};
+
+/** Hovers truncated table text and expects its tooltip to show the full text. */
+export const expectTruncationTooltip = async (
+  user: Pick<UserEvent, "hover">,
+  text: string
+) => {
+  await user.hover(
+    await screen.findByText(text, {
+      selector: ".data-table__tooltip-truncated-text",
+    })
+  );
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(text);
 };

@@ -4,6 +4,10 @@ import React from "react";
 import { Column } from "react-table";
 
 import { IHost } from "interfaces/host";
+import {
+  expectTruncationTooltip,
+  mockTruncatedTextLayout,
+} from "test/test-utils";
 
 import {
   generateAvailableTableHeaders,
@@ -191,22 +195,11 @@ describe("HostTableConfig - Host column", () => {
   });
 
   it("shows the full host name in a tooltip when it is truncated", async () => {
-    // jsdom has no layout, so report a text box narrower than its content.
-    jest
-      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
-      .mockReturnValue(352);
-    jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
+    mockTruncatedTextLayout();
 
     renderHostCell(LONG_HOST_NAME);
 
-    await userEvent.hover(
-      screen.getByText(LONG_HOST_NAME, {
-        selector: ".data-table__tooltip-truncated-text",
-      })
-    );
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      LONG_HOST_NAME
-    );
+    await expectTruncationTooltip(userEvent, LONG_HOST_NAME);
   });
 
   it("does not show a tooltip when the host name fits", async () => {

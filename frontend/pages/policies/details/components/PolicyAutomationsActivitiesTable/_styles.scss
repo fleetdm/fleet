@@ -1,4 +1,9 @@
 .policy-automations-activities-table {
+  // Size the host link to its text, so a click on the rest of the cell opens the run's details.
+  .data-table-block .data-table tbody td .w400 {
+    min-width: auto;
+  }
+
   &__header {
     display: flex;
     flex-direction: column;

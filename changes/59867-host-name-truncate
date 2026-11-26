@@ -1,0 +1,1 @@
+- Fixed long host names overflowing the host column in the policy automation runs, script batch, report results, and live report results tables. They now end in an ellipsis and show the full name in a tooltip.
