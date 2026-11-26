@@ -1,1 +1,1 @@
-- Fixed the activity type filter on the dashboard: the search field is now focused when the dropdown opens, and clicking outside closes the dropdown even after the search field was focused.
+- Fixed the activity type filter on the dashboard: the search field is now focused when the dropdown opens, clicking outside closes the dropdown even after the search field was focused, and the search text clears whenever the dropdown closes.
