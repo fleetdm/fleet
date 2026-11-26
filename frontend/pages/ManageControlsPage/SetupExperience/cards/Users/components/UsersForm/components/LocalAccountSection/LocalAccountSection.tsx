@@ -6,7 +6,9 @@ import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import { IUsersFormData } from "../../UsersForm";
 import ManagedAccountCheckbox from "../ManagedAccountCheckbox";
-import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
+import TurnOnMdmTooltipWrapper, {
+  CONTROL_ROW_SELECTOR,
+} from "../TurnOnMdmTooltipWrapper/TurnOnMdmTooltipWrapper";
 
 const baseClass = "local-account-section";
 
@@ -35,87 +37,95 @@ const LocalAccountSection = ({
     localAccountType !== EndUserLocalAccountType.ADMIN;
   return (
     <div className={baseClass}>
-      <GitOpsModeTooltipWrapper
-        position="left"
-        tipOffset={8}
-        isInputField
-        disableTooltip={!isMacMdmEnabledAndConfigured}
-        renderChildren={(gitopsEnabled) => {
-          return (
-            <div className={`${baseClass}__field-group`}>
-              <h3 className={`${baseClass}__sub-header`}>End user account</h3>
-              <TurnOnMdmTooltipWrapper
-                platform="apple"
-                isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
-              >
-                <fieldset className="form-field">
-                  <Radio
-                    name="localAccountType"
-                    id="localAccountTypeAdmin"
-                    label="Admin"
-                    helpText="End user can add and manage other users, install apps, and change settings."
-                    value={EndUserLocalAccountType.ADMIN}
-                    disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
-                    checked={localAccountType === EndUserLocalAccountType.ADMIN}
-                    onChange={(val) =>
-                      onLocalAccountTypeChange(val as EndUserLocalAccountType)
-                    }
-                  />
-                  <Radio
-                    name="localAccountType"
-                    id="localAccountTypeStandard"
-                    label="Standard"
-                    helpText="End user can install apps and change their own settings only."
-                    value={EndUserLocalAccountType.STANDARD}
-                    checked={
-                      localAccountType === EndUserLocalAccountType.STANDARD
-                    }
-                    disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
-                    onChange={(val) =>
-                      onLocalAccountTypeChange(val as EndUserLocalAccountType)
-                    }
-                  />
-                  <Radio
-                    name="localAccountType"
-                    id="localAccountTypeNone"
-                    label="Skip (no account)"
-                    helpText="No user account will be created and authentication must be handled by an IdP or other workflow."
-                    disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
-                    value={EndUserLocalAccountType.NONE}
-                    checked={localAccountType === EndUserLocalAccountType.NONE}
-                    onChange={(val) =>
-                      onLocalAccountTypeChange(val as EndUserLocalAccountType)
-                    }
-                  />
-                </fieldset>
-              </TurnOnMdmTooltipWrapper>
-
-              <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
-              <TurnOnMdmTooltipWrapper
-                platform="apple"
-                isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
-              >
-                <ManagedAccountCheckbox
-                  disabled={
-                    gitopsEnabled ||
-                    !isMacMdmEnabledAndConfigured ||
-                    forcedByLocalAccountType
+      <div className={`${baseClass}__field-group`}>
+        <h3 className={`${baseClass}__sub-header`}>End user account</h3>
+        <TurnOnMdmTooltipWrapper
+          platform="apple"
+          isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
+        >
+          <GitOpsModeTooltipWrapper
+            position="left"
+            tipOffset={8}
+            isInputField
+            disableTooltip={!isMacMdmEnabledAndConfigured}
+            anchorChildSelector={CONTROL_ROW_SELECTOR}
+            renderChildren={(gitopsEnabled) => (
+              <fieldset className="form-field">
+                <Radio
+                  name="localAccountType"
+                  id="localAccountTypeAdmin"
+                  label="Admin"
+                  helpText="End user can add and manage other users, install apps, and change settings."
+                  value={EndUserLocalAccountType.ADMIN}
+                  disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
+                  checked={localAccountType === EndUserLocalAccountType.ADMIN}
+                  onChange={(val) =>
+                    onLocalAccountTypeChange(val as EndUserLocalAccountType)
                   }
-                  iconTooltipContent={
-                    forcedByLocalAccountType ? (
-                      <span>
-                        There must be at least one admin account on the host.
-                      </span>
-                    ) : undefined
-                  }
-                  value={effectiveEnableManagedLocalAccount(formData)}
-                  onChange={onEnableManagedLocalAccountChange}
                 />
-              </TurnOnMdmTooltipWrapper>
-            </div>
-          );
-        }}
-      />
+                <Radio
+                  name="localAccountType"
+                  id="localAccountTypeStandard"
+                  label="Standard"
+                  helpText="End user can install apps and change their own settings only."
+                  value={EndUserLocalAccountType.STANDARD}
+                  checked={
+                    localAccountType === EndUserLocalAccountType.STANDARD
+                  }
+                  disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
+                  onChange={(val) =>
+                    onLocalAccountTypeChange(val as EndUserLocalAccountType)
+                  }
+                />
+                <Radio
+                  name="localAccountType"
+                  id="localAccountTypeNone"
+                  label="Skip (no account)"
+                  helpText="No user account will be created and authentication must be handled by an IdP or other workflow."
+                  disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
+                  value={EndUserLocalAccountType.NONE}
+                  checked={localAccountType === EndUserLocalAccountType.NONE}
+                  onChange={(val) =>
+                    onLocalAccountTypeChange(val as EndUserLocalAccountType)
+                  }
+                />
+              </fieldset>
+            )}
+          />
+        </TurnOnMdmTooltipWrapper>
+
+        <h3 className={`${baseClass}__sub-header`}>Managed account</h3>
+        <TurnOnMdmTooltipWrapper
+          platform="apple"
+          isMdmEnabledAndConfigured={isMacMdmEnabledAndConfigured}
+        >
+          <GitOpsModeTooltipWrapper
+            position="left"
+            tipOffset={8}
+            isInputField
+            disableTooltip={!isMacMdmEnabledAndConfigured}
+            anchorChildSelector={CONTROL_ROW_SELECTOR}
+            renderChildren={(gitopsEnabled) => (
+              <ManagedAccountCheckbox
+                disabled={
+                  !!gitopsEnabled ||
+                  !isMacMdmEnabledAndConfigured ||
+                  forcedByLocalAccountType
+                }
+                iconTooltipContent={
+                  forcedByLocalAccountType ? (
+                    <span>
+                      There must be at least one admin account on the host.
+                    </span>
+                  ) : undefined
+                }
+                value={effectiveEnableManagedLocalAccount(formData)}
+                onChange={onEnableManagedLocalAccountChange}
+              />
+            )}
+          />
+        </TurnOnMdmTooltipWrapper>
+      </div>
     </div>
   );
 };

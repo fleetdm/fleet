@@ -82,6 +82,69 @@ describe("LocalAccountSection", () => {
     });
   });
 
+  describe("GitOps mode tooltips", () => {
+    const gitopsRender = createCustomRenderer({
+      context: {
+        app: {
+          config: {
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "https://example.com/repo.git",
+            },
+          },
+        },
+      },
+    });
+    const tooltipWrapperOf = (el: HTMLElement) =>
+      el.closest(".gitops-mode-tooltip-wrapper");
+
+    it("gives the account options and the managed account checkbox separate tooltips", () => {
+      gitopsRender(<LocalAccountSection {...defaultProps} />);
+
+      const optionsWrapper = tooltipWrapperOf(
+        screen.getByRole("radio", { name: "Admin" })
+      );
+      const checkboxWrapper = tooltipWrapperOf(
+        screen.getByRole("checkbox", { name: "Create hidden admin" })
+      );
+      expect(optionsWrapper).not.toBeNull();
+      expect(checkboxWrapper).not.toBeNull();
+      expect(checkboxWrapper).not.toBe(optionsWrapper);
+      expect(
+        tooltipWrapperOf(
+          screen.getByRole("radio", { name: "Skip (no account)" })
+        )
+      ).toBe(optionsWrapper);
+
+      expect(tooltipWrapperOf(screen.getByText("End user account"))).toBeNull();
+      expect(tooltipWrapperOf(screen.getByText("Managed account"))).toBeNull();
+    });
+
+    it("shows the tooltip when hovering an option's help text", async () => {
+      const { user } = gitopsRender(<LocalAccountSection {...defaultProps} />);
+
+      await user.hover(
+        screen.getByText(
+          "End user can install apps and change their own settings only."
+        )
+      );
+      await waitFor(() => {
+        expect(screen.getAllByText(/GitOps mode enabled/)).toHaveLength(1);
+      });
+    });
+
+    it("shows the tooltip when hovering the managed account checkbox", async () => {
+      const { user } = gitopsRender(<LocalAccountSection {...defaultProps} />);
+
+      await user.hover(
+        screen.getByRole("checkbox", { name: "Create hidden admin" })
+      );
+      await waitFor(() => {
+        expect(screen.getAllByText(/GitOps mode enabled/)).toHaveLength(1);
+      });
+    });
+  });
+
   describe("disabled states", () => {
     it("when Apple MDM is not enabled and configured", async () => {
       const { user } = render(
