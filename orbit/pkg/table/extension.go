@@ -134,14 +134,23 @@ func (r *Runner) Execute() error {
 	plugins = append(plugins, r.plugins...)
 
 	return r.run(ctx, plugins, func(client osquery.ExtensionManager) (*osquery.ExtensionManagerServer, error) {
-		return osquery.NewExtensionManagerServer(ExtensionName, r.socket, osquery.WithClient(client))
+		return osquery.NewExtensionManagerServer(ExtensionName, r.socket,
+			osquery.WithClient(client),
+			// Besides the client, on Windows it's also the timeout of the
+			// connections osquery opens to the extension.
+			osquery.ServerTimeout(serverClientTimeout))
 	})
 }
 
-// serverClientTimeout is the timeout of the client the extension manager
-// server uses to register the extension and ping osquery. On some systems,
-// registering tables takes more than a couple of seconds (see #3878).
-const serverClientTimeout = 5 * time.Minute
+const (
+	// serverClientTimeout is the timeout of the client the extension manager
+	// server uses to register the extension and ping osquery. On some systems,
+	// registering tables takes more than a couple of seconds (see #3878).
+	serverClientTimeout = 5 * time.Minute
+	// maxRegistrationCheckFailures is how many registration checks in a row can
+	// fail before the runner gives up on osquery.
+	maxRegistrationCheckFailures = 3
+)
 
 var errExtensionNotRegistered = errors.New("osquery no longer lists the extension as registered")
 
@@ -202,6 +211,7 @@ func (r *Runner) serve(srv *osquery.ExtensionManagerServer, client *registration
 			checkClient.Close()
 		}
 	}()
+	checkFailures := 0
 	for {
 		select {
 		case err := <-runErr:
@@ -215,27 +225,45 @@ func (r *Runner) serve(srv *osquery.ExtensionManagerServer, client *registration
 		if !ok {
 			continue
 		}
-		if checkClient == nil {
-			c, err := r.newClient(r.checkInterval)
-			if err != nil {
-				log.Debug().Err(err).Msg("connect to osquery to check extension registration")
-				continue
+		listed, err := r.isListed(&checkClient, uuid)
+		switch {
+		case err != nil:
+			// osqueryd can lose its extension manager listener while osquery-go's
+			// ping keeps working over its existing connection, so failing checks
+			// can't be left to the ping.
+			checkFailures++
+			if checkFailures >= maxRegistrationCheckFailures {
+				return fmt.Errorf("check extension registration: %w", err)
 			}
-			checkClient = c
-		}
-		extensions, err := checkClient.Extensions()
-		if err != nil {
-			// Losing the connection to osquery itself is detected by osquery-go's ping.
-			log.Debug().Err(err).Msg("check extension registration")
-			checkClient.Close()
-			checkClient = nil
-			continue
-		}
-		if _, ok := extensions[uuid]; !ok {
+			log.Debug().Err(err).Int("failures", checkFailures).Msg("check extension registration")
+		case !listed:
 			// Interrupt shuts srv down; waiting for it here could hold up the restart.
 			return errExtensionNotRegistered
+		default:
+			checkFailures = 0
 		}
 	}
+}
+
+// isListed reports whether osquery lists the extension with the given UUID,
+// connecting checkClient first if needed.
+func (r *Runner) isListed(checkClient *osquery.ExtensionManager, uuid osquerygen.ExtensionRouteUUID) (bool, error) {
+	c := *checkClient
+	if c == nil {
+		var err error
+		if c, err = r.newClient(r.checkInterval); err != nil {
+			return false, err
+		}
+		*checkClient = c
+	}
+	extensions, err := c.Extensions()
+	if err != nil {
+		c.Close()
+		*checkClient = nil
+		return false, err
+	}
+	_, ok := extensions[uuid]
+	return ok, nil
 }
 
 // registrationClient records the UUID osquery assigns to the extension, which

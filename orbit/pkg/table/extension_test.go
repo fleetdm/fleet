@@ -30,6 +30,8 @@ type fakeExtensionManager struct {
 	alwaysConflict string
 	// stayUp keeps pings succeeding after a successful registration.
 	stayUp bool
+	// extensionsErr, if set, is returned when listing extensions.
+	extensionsErr error
 
 	mu         sync.Mutex
 	registered [][]string
@@ -63,6 +65,9 @@ func (f *fakeExtensionManager) Call(string, string, osquerygen.ExtensionPluginRe
 func (f *fakeExtensionManager) Extensions() (osquerygen.InternalExtensionList, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.extensionsErr != nil {
+		return nil, f.extensionsErr
+	}
 	return maps.Clone(f.extensions), nil
 }
 
@@ -141,6 +146,13 @@ func newTestRunner(t *testing.T, f *fakeExtensionManager) func(ctx context.Conte
 	sock := filepath.Join(dir, "s")
 
 	r := NewRunner(sock)
+	// The runner returns without stopping the server when osquery drops the
+	// extension, leaving it to Interrupt.
+	t.Cleanup(func() {
+		if srv := r.getSrv(); srv != nil {
+			_ = srv.Shutdown(context.Background())
+		}
+	})
 	r.checkInterval = 10 * time.Millisecond
 	r.newClient = func(time.Duration) (osquery.ExtensionManager, error) { return f, nil }
 	return func(ctx context.Context, plugins []osquery.OsqueryPlugin) error {
@@ -210,5 +222,25 @@ func TestRunnerReturnsWhenOsqueryDropsExtension(t *testing.T) {
 		require.ErrorIs(t, err, errExtensionNotRegistered)
 	case <-time.After(5 * time.Second):
 		t.Fatal("runner didn't notice osquery dropped the extension")
+	}
+}
+
+func TestRunnerReturnsWhenRegistrationCantBeChecked(t *testing.T) {
+	f := &fakeExtensionManager{stayUp: true}
+	run := newTestRunner(t, f)
+	errc := make(chan error, 1)
+	go func() {
+		errc <- run(t.Context(), []osquery.OsqueryPlugin{testTablePlugin("a")})
+	}()
+
+	require.Eventually(t, func() bool { return len(f.getRegistered()) == 1 }, 5*time.Second, 10*time.Millisecond)
+	f.mu.Lock()
+	f.extensionsErr = errors.New("connection refused")
+	f.mu.Unlock()
+	select {
+	case err := <-errc:
+		require.ErrorContains(t, err, "check extension registration: connection refused")
+	case <-time.After(5 * time.Second):
+		t.Fatal("runner didn't give up checking the registration")
 	}
 }
