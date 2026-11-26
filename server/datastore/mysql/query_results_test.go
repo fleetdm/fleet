@@ -376,7 +376,7 @@ func testUpdateQueryResultsLastFetched(t *testing.T, ds *Datastore) {
 		host2IDs = append(host2IDs, r.ID)
 	}
 	require.Len(t, host2IDs, 2)
-	tx, err :=ds.writer(ctx).BeginTxx(ctx, nil)
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback() }()
 	_, err = tx.ExecContext(ctx, `UPDATE query_results SET last_fetched = last_fetched WHERE id = ?`, host2IDs[0])
