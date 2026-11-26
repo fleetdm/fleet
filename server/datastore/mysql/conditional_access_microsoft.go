@@ -54,9 +54,6 @@ func (ds *Datastore) ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context
 // secrets. Call this once during server startup (after migrations) so the
 // read path can always assume encrypted data.
 func (ds *Datastore) EncryptConditionalAccessSecrets(ctx context.Context) error {
-	if ds.serverPrivateKey == "" {
-		return nil
-	}
 	var row struct {
 		TenantID          string `db:"tenant_id"`
 		ProxyServerSecret []byte `db:"proxy_server_secret"`
@@ -69,6 +66,10 @@ func (ds *Datastore) EncryptConditionalAccessSecrets(ctx context.Context) error 
 			return nil // no integration configured
 		}
 		return ctxerr.Wrap(ctx, err, "reading conditional access secret for encryption backfill")
+	}
+	// If there's an integration configured, the server private key is required.
+	if ds.serverPrivateKey == "" {
+		return errors.New("FLEET_SERVER_PRIVATE_KEY is required when conditional access is configured")
 	}
 	if len(row.ProxyServerSecret) == 0 || row.ProxyServerSecret[0] == 0x01 {
 		return nil // already encrypted or empty
