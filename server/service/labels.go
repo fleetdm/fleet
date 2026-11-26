@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -808,8 +809,10 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return err
 	}
 
-	// Emit created/edited activities for regular specs that were applied.
-	afterApply, err := svc.ds.LabelsByName(ctx, regularSpecNames, scopeFilter)
+	// Emit created/edited activities for regular specs that were applied. Read from the primary: a replica may not
+	// have the labels just written yet, which would silently drop their activities.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+	afterApply, err := svc.ds.LabelsByName(primaryCtx, regularSpecNames, scopeFilter)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "look up labels after apply for activity")
 	}
@@ -827,7 +830,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			fieldsMatch := labelSpecMatchesLabel(spec, existing)
 			hostsMatch := true
 			if before, tracked := beforeHostIDs[spec.Name]; tracked {
-				after, err := svc.ds.LabelMembershipHostIDs(ctx, label.ID)
+				after, err := svc.ds.LabelMembershipHostIDs(primaryCtx, label.ID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "get post-apply label host IDs")
 				}

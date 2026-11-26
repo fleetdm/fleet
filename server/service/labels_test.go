@@ -683,6 +683,63 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.Equal(t, user.ID, *lblWithName.AuthorID)
 }
 
+func TestApplyLabelSpecsActivitiesWithReplica(t *testing.T) {
+	dsOpts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := mysqltest.CreateMySQLDSWithOptions(t, dsOpts)
+	defer ds.Close()
+
+	svcOpts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, svcOpts)
+	var activities []activity_api.ActivityDetails
+	svcOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+		activities = append(activities, a)
+		return nil
+	}
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Admin",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "host1",
+		HardwareSerial:  uuid.NewString(),
+		UUID:            uuid.NewString(),
+		Platform:        "darwin",
+		LastEnrolledAt:  time.Now(),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+	dsOpts.RunReplication()
+
+	// The new label isn't replicated before the activity is emitted.
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "new-label", LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{}},
+	}, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	created, ok := activities[0].(fleet.ActivityTypeCreatedLabel)
+	require.True(t, ok, "expected ActivityTypeCreatedLabel, got %T", activities[0])
+	require.Equal(t, "new-label", created.Name)
+	require.NotZero(t, created.ID)
+
+	// A host-membership-only change must be detected even though the replica still has the old membership.
+	dsOpts.RunReplication("labels", "label_membership")
+	activities = activities[:0]
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "new-label", LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{h1.HardwareSerial}},
+	}, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	edited, ok := activities[0].(fleet.ActivityTypeEditedLabel)
+	require.True(t, ok, "expected ActivityTypeEditedLabel, got %T", activities[0])
+	require.Equal(t, created.ID, edited.ID)
+}
+
 func TestLabelCrossTeamHostMembership(t *testing.T) {
 	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
