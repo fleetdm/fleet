@@ -9395,6 +9395,8 @@ Deletes the label specified by ID.
 - [Get or download configuration profile](#get-or-download-configuration-profile)
 - [Update configuration profile](#update-configuration-profile)
 - [Delete configuration profile](#delete-configuration-profile)
+- [Autofill configuration profile name and description](#autofill-configuration-profile-name-and-description)
+- [Autofill configuration profile content](#autofill-configuration-profile-content)
 - [Batch-update configuration profiles](#batch-update-configuration-profiles)
 - [Create Apple asset declaration](#create-apple-asset-declaration)
 - [List Apple asset declarations](#list-apple-asset-declarations)
@@ -9750,6 +9752,243 @@ Update a configuration profile to target hosts with specific labels.
 ##### Default response
 
 `Status: 200`
+
+---
+
+### Autofill configuration profile name and description
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+Generates a name and description for a configuration profile using AI.
+
+The generated name is meant for declaration (DDM) and Windows profiles. A .mobileconfig profile carries its own name, which [Autofill configuration profile content](#autofill-configuration-profile-content) returns as `name`.
+
+Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
+
+This request doesn't count toward the [monthly generation limit](#autofill-configuration-profile-content), but it returns `429` once the limit is reached.
+
+`POST /api/v1/fleet/autofill/configuration_profile/name_description`
+
+#### Parameters
+
+| Name                          | Type   | In   | Description                                    |
+| ----------------------------- | ------ | ---- | ---------------------------------------------- |
+| natural_language_instructions | string | body | **Required.** What the profile should enforce. |
+| platform                      | string | body | **Required.** One of `apple` or `windows`.     |
+
+#### Example
+
+`POST /api/v1/fleet/autofill/configuration_profile/name_description`
+
+##### Request body
+
+```json
+{
+  "natural_language_instructions": "Turn off AirDrop",
+  "platform": "apple"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "name": "Disable AirDrop (macOS)",
+  "description": "Sets `allowAirDrop` to `false` under the `com.apple.applicationaccess` restrictions payload, so AirDrop can't be turned on from Control Center or Finder on managed Macs."
+}
+```
+
+##### Generation failed
+
+`Status: 422 Unprocessable entity`
+
+Returned when Fleet can't reach the AI service, or the AI service returns an error or times out. Retrying might succeed.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "The AI service timed out."
+    }
+  ]
+}
+```
+
+##### Generation limit reached
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+Returned once the [monthly generation limit](#autofill-configuration-profile-content) is used. `limit` is the number of content requests allowed per month. The `retry-after` header is the number of seconds until the limit resets.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles."
+    }
+  ],
+  "limit": 300
+}
+```
+
+##### Private key required
+
+`Status: 422 Unprocessable entity`
+
+Returned on Fleet Free, or with an expired license, when the Fleet server has no [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). Fleet needs it to store the credential it uses to request generations from fleetdm.com.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
+    }
+  ]
+}
+```
+
+---
+
+### Autofill configuration profile content
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+Generates configuration profile content using AI.
+
+For Apple, Fleet generates a declaration (DDM) profile when one declaration can enforce the instructions. Otherwise, Fleet generates a .mobileconfig profile. For Windows, Fleet generates an XML profile.
+
+Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
+
+Content requests are limited each month. On Fleet Free, each Fleet instance can make 15. On Fleet Premium, each license can make 300, and Fleet instances that use the same license key share that limit. Every request that reaches the AI service counts, including requests the AI declines. The limit resets on the 1st of each month (UTC). A Fleet Premium instance whose license has expired gets the Fleet Free limit.
+
+On Fleet Free, or with an expired license, the Fleet server needs a [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) to generate profiles.
+
+`POST /api/v1/fleet/autofill/configuration_profile/content`
+
+#### Parameters
+
+| Name                          | Type    | In   | Description                                    |
+| ----------------------------- | ------- | ---- | ---------------------------------------------- |
+| natural_language_instructions | string  | body | **Required.** What the profile should enforce. |
+| platform                      | string  | body | **Required.** One of `apple` or `windows`.     |
+| fleet_id                      | integer | body | _Available in Fleet Premium_. The fleet ID for the profile. Fleet checks the generated profile against this fleet's settings, like OS updates, before returning it. If not specified, Fleet checks against hosts that are "Unassigned". |
+
+#### Example
+
+`POST /api/v1/fleet/autofill/configuration_profile/content`
+
+##### Request body
+
+```json
+{
+  "natural_language_instructions": "Turn off AirDrop",
+  "platform": "apple"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "type": "mobileconfig",
+  "name": "AirDrop Disabled",
+  "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n...\n</plist>",
+  "delivery_notes": ""
+}
+```
+
+`type` is one of `mobileconfig`, `declaration`, or `windows`.
+
+`name` is the .mobileconfig profile's `PayloadDisplayName`. It's the name end users see in System Settings, and the name Fleet gives the profile by default. It's `null` for declaration and Windows profiles.
+
+`delivery_notes` describes anything you need to do or decide that isn't visible in the profile, like adding a companion asset declaration. It's an empty string when there's nothing to note.
+
+##### Profile can't be generated
+
+`Status: 422 Unprocessable entity`
+
+Returned when AI can't turn the instructions into a single profile for the platform, like a setting that doesn't exist on the platform or a profile that needs more than one file. Also returned when the generated profile is one Fleet doesn't allow you to add, like settings Fleet manages through disk encryption or OS updates. Retrying with the same instructions usually returns the same error.
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "natural_language_instructions",
+      "reason": "AirDrop is a macOS/iOS feature controlled via the Apple com.apple.applicationaccess payload; there is no corresponding Windows CSP node, so this setting cannot be enforced on Windows devices."
+    }
+  ]
+}
+```
+
+##### Generation failed
+
+`Status: 422 Unprocessable entity`
+
+Returned when Fleet can't reach the AI service, the AI service returns an error or times out, or the generated profile fails Fleet's profile validation, like a setting Apple or Microsoft doesn't document or a value of the wrong type. Retrying might succeed.
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "The AI service timed out."
+    }
+  ]
+}
+```
+
+##### Generation limit reached
+
+`Status: 429 Too Many Requests`
+`Header: retry-after: N`
+
+Returned once the [monthly generation limit](#autofill-configuration-profile-content) is used. `limit` is the number of content requests allowed per month. The `retry-after` header is the number of seconds until the limit resets.
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "You have reached the monthly limit for AI-generated configuration profiles."
+    }
+  ],
+  "limit": 300
+}
+```
+
+##### Private key required
+
+`Status: 422 Unprocessable entity`
+
+Returned on Fleet Free, or with an expired license, when the Fleet server has no [private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key"
+    }
+  ]
+}
+```
+
+---
 
 ### Resend configuration profile
 
