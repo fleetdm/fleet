@@ -257,6 +257,26 @@ docker run -p 8080:8080 \
 ./gradlew connectedDebugAndroidTest
 ```
 
+### Running against Fleet on an emulator
+
+`scripts/emulator-vitals-test.sh` runs the debug build on an emulator against a local Fleet server and checks that its vitals reach Fleet, including the report sent when the device starts or stops roaming. It doesn't need AMAPI, signing keys or Google Play:
+
+- The enrollment values AMAPI normally delivers through managed configuration are set by an instrumented test (`DeviceVitalsEmulatorTest`).
+- Fleet can't create an Android host outside AMAPI, so the script inserts one into Fleet's database. Use it only against a development database.
+- Debug builds allow plain HTTP to `10.0.2.2`, the emulator's address for this machine (`src/debug/res/xml/network_security_config.xml`).
+
+```bash
+# Automated run: boots the emulator headless, checks roaming off, on and off again, then cleans up.
+scripts/emulator-vitals-test.sh --fleet-url http://localhost:8080 --api-token <admin API token>
+
+# Manual testing: boots with a window and stops once the agent is enrolled.
+scripts/emulator-vitals-test.sh --fleet-url http://localhost:8080 --api-token <admin API token> --ui
+scripts/emulator-vitals-test.sh roaming on     # or off
+scripts/emulator-vitals-test.sh --down         # deletes the host, and stops the emulator if the script started it
+```
+
+The script creates a `fleet-agent-test` AVD from the `system-images;android-36.1;google_apis;arm64-v8a` image on first use. Install it with `sdkmanager` first, or pass another one with `SYSTEM_IMAGE`. It has to be a Google APIs image, not Google Play: Android ignores the emulator's own roaming toggle on the SIM's home network, so the script forces roaming through carrier config, which needs `adb root`. Fleet needs a global enroll secret. Set `MYSQL_ARGS` if Fleet's MySQL isn't at `127.0.0.1:3306` with the dev credentials.
+
 ## Code quality
 
 ### Formatting with Spotless (ktlint)
