@@ -38,8 +38,8 @@ func Encrypt(plainText []byte, key string) ([]byte, error) {
 	}
 
 	sealed := aesGCM.Seal(nonce, nonce, plainText, nil)
-	// Prepend version byte so DecryptOrPassthrough can distinguish
-	// encrypted values from legacy cleartext.
+	// Prepend version byte so callers can distinguish encrypted values
+	// from legacy cleartext.
 	result := make([]byte, 1+len(sealed))
 	result[0] = encryptionVersion
 	copy(result[1:], sealed)
@@ -81,26 +81,4 @@ func Decrypt(encrypted []byte, key string) ([]byte, error) {
 	}
 
 	return decrypted, nil
-}
-
-// DecryptOrPassthrough decrypts data that starts with the version prefix.
-// If the data does not start with the version prefix, it is treated as
-// legacy cleartext and returned as-is. If the data starts with the version
-// prefix but decryption fails (wrong key, corrupted data), an error is
-// returned instead of silently passing through garbage.
-//
-// The key must not be empty; an empty key is a configuration error.
-func DecryptOrPassthrough(data []byte, key string) ([]byte, error) {
-	if len(data) == 0 {
-		return data, nil
-	}
-	if len(key) == 0 {
-		return nil, errors.New("decrypting: server private key is not configured")
-	}
-	if data[0] != encryptionVersion {
-		// Legacy cleartext, return as-is.
-		return data, nil
-	}
-	// Data has the version prefix, so it must decrypt or fail.
-	return Decrypt(data, key)
 }
