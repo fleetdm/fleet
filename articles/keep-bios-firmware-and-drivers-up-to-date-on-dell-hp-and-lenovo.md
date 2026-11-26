@@ -1,32 +1,43 @@
 # Keep BIOS, firmware, and drivers up to date on Dell, HP, and Lenovo
 
-I have a soft spot for the BIOS update. It's the least glamorous patch in IT, and it runs before anything else on the computer, including every security tool you paid for. If the firmware has a hole in it, the rest of the stack is standing on that hole.
+I read BIOS release notes for fun, which I realize is not a great look. My excuse is that firmware runs before Windows or Linux and before your EDR, so if there's a hole in it, every security tool you bought is sitting on top of that hole. Keeping that layer patched is a big part of why Dell, HP, and Lenovo ship their own update tools.
 
-That's why Dell, HP, and Lenovo each ship their own update tools, and why Intune customers wire them up with HP Connect, Dell Command | Update, and Lenovo's deployment guides. Under the hood, those integrations deploy the OEM's tool as an app, run it with a script, and use remediations to run it again when a device falls behind. Fleet does the same thing with custom software, scripts, policies, and policy automations, on Windows and on Linux.
+When I talk with IT admins leaving Intune, BIOS updates are one of the things they quietly worry about losing. I took the question on a long walk with Claude, and the answer was simpler than I expected. Intune's OEM integrations, like HP Connect and Dell Command | Update, come down to running the vendor's update tooling, on a schedule or when a device falls behind. Nothing about that needs Intune. Fleet does the same thing with software, scripts, and policies, on Linux as well as Windows.
 
 ## Prerequisites
 
-- Fleet Premium. Policy automations that run scripts or install software are Premium features.
-- `fleetd` with scripts enabled. If you use Fleet's MDM features, scripts are on by default.
-- A fleet for your Windows and Linux PCs.
+- Fleet Premium, for policy automations
+- Hosts enrolled with fleetd, with [scripts enabled](https://fleetdm.com/guides/scripts)
+- A fleet for your Windows and Linux PCs
 
 ## Step 1: Label your hardware
 
-Make three dynamic labels so each OEM's tool only lands on its own hardware. Navigate to **Hosts**, click **Filter by platform or label**, then **Add label**, and use these queries:
+Make a dynamic label per OEM so each tool only lands on its own hardware. Navigate to **Hosts**, click **Filter by platform or label**, then **Add label**, and use these queries:
 
-- **Dell:** `SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Dell%';`
-- **HP:** `SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'HP%' OR hardware_vendor LIKE 'Hewlett%';`
-- **Lenovo:** `SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Lenovo%';`
+- Dell: `SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Dell%';`
+- HP: `SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'HP%' OR hardware_vendor LIKE 'Hewlett%';`
+- Lenovo: `SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Lenovo%';`
 
-## Step 2: Install the update tool
+## Step 2: Add the update tools
 
-**Dell.** [Dell Command | Update](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/dell-command-update-cli-commands?guid=guid-92619086-5f7c-4a05-bce2-0d560c15e8ed&lang=en-us) is a Fleet-maintained app. Navigate to **Software**, click **Add software**, select **Fleet-maintained**, and add **Dell Command Update**. Target the **Dell** label.
+### Dell and Lenovo
 
-**Lenovo.** Lenovo System Update is a Fleet-maintained app too. Add **Lenovo System Update** the same way and target the **Lenovo** label. If you standardize on [Lenovo Commercial Vantage](https://docs.lenovocdrt.com/guides/lcv/deployment/) instead, upload it as a custom package and use Lenovo's documented install command, `VantageInstaller.exe Install -Vantage -SuHelper`.
+Navigate to **Software**, click **Add software**, and add the Fleet-maintained app **Dell Command Update** for Windows, targeting the **Dell** label.
 
-**HP.** HP doesn't document silent switches for the HP Image Assistant (HPIA) download. HP's [Client Management Script Library](https://developers.hp.com/hp-client-management/doc/client-management-script-library) (CMSL) has a cmdlet that installs it for you, so the HP script in the next step installs CMSL and HPIA the first time it runs.
+Add **Lenovo System Update** the same way, targeting the **Lenovo** label. If you also want [Lenovo Commercial Vantage](https://docs.lenovocdrt.com/guides/lcv/deployment/) on your PCs, upload it as a custom package with the install command `VantageInstaller.exe Install -Vantage -SuHelper` and manage it with [Lenovo's policies](https://docs.lenovocdrt.com/guides/lcv/configuration/).
 
-**Linux.** Use [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html), which downloads firmware from the [Linux Vendor Firmware Service (LVFS)](https://fwupd.org/). Dell, HP, and Lenovo all publish firmware there. [Dell](https://www.dell.com/support/kbdoc/en-us/000122025/how-to-update-firmware-under-linux) publishes BIOS updates to LVFS, and [HP recommends fwupd](https://ftp.ext.hp.com/pub/caps-softpaq/cmit/linuxtools/HP_LinuxTools.html) over its own Linux flash tool for capsule updates. The OEM update tools above are Windows-only.
+Adding a Fleet-maintained app doesn't install it. Add a policy that fails when the tool is missing, then turn on **Install software** for it in step 5:
+
+- Dell: `SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';`
+- Lenovo: `SELECT 1 FROM programs WHERE name = 'Lenovo System Update';`
+
+### HP
+
+HP doesn't document a silent installer for HP Image Assistant (HPIA), so the HP script in step 3 uses the [HP Client Management Script Library](https://developers.hp.com/hp-client-management/doc/client-management-script-library) (CMSL) to install it the first time it runs.
+
+### Linux
+
+The OEM tools above are Windows-only. On Linux, use [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html), which pulls firmware from the [Linux Vendor Firmware Service (LVFS)](https://fwupd.org/). [Dell publishes BIOS updates to LVFS](https://www.dell.com/support/kbdoc/en-us/000122025/how-to-update-firmware-under-linux), [HP recommends fwupd](https://ftp.ext.hp.com/pub/caps-softpaq/cmit/linuxtools/HP_LinuxTools.html) over its own Linux flash tool, and Lenovo ThinkPad firmware is [listed on LVFS](https://fwupd.org/lvfs/search?value=lenovo). If a host doesn't have fwupd, install it from your distribution's packages.
 
 ## Step 3: Add the update scripts
 
@@ -37,27 +48,29 @@ Navigate to **Controls** > **Scripts** and upload one script per OEM.
 ```powershell
 $dcu = "${env:ProgramFiles(x86)}\Dell\CommandUpdate\dcu-cli.exe"
 if (-not (Test-Path $dcu)) { $dcu = "$env:ProgramFiles\Dell\CommandUpdate\dcu-cli.exe" }
+if (-not (Test-Path $dcu)) { Write-Output 'Dell Command | Update not installed'; exit 1 }
 
 & $dcu /applyUpdates -silent -reboot=disable -autoSuspendBitLocker=enable `
   -updateType=bios,firmware,driver -outputLog=C:\Windows\Temp\dcu-apply.log
 $code = $LASTEXITCODE
 
-# 0 = success, 1 = restart required, 500 = no updates found
-if ($code -in 0, 1, 500) { exit 0 }
+# 0 = success, 1 = restart required, 5 = restart pending, 500 = no updates
+if ($code -in 0, 1, 5, 500) { exit 0 }
 exit $code
 ```
 
-`-autoSuspendBitLocker=enable` suspends BitLocker for the next restart, so a BIOS update doesn't send the user to the recovery screen. Dell lists every exit code in the [Dell Command | Update CLI reference](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/command-line-interface-error-codes?guid=guid-fbb96b06-4603-423a-baec-cbf5963d8948&lang=en-us).
+`-autoSuspendBitLocker=enable` suspends BitLocker for the next restart, so a BIOS update doesn't land the user on the recovery screen. To install only security and critical updates, add `-updateSeverity=security,critical`. Dell lists the other exit codes in the [Dell Command | Update CLI reference](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/command-line-interface-error-codes?guid=guid-fbb96b06-4603-423a-baec-cbf5963d8948&lang=en-us).
 
 `lenovo-update-bios-firmware-drivers.ps1`:
 
 ```powershell
 $tvsu = "${env:ProgramFiles(x86)}\Lenovo\System Update\tvsu.exe"
+if (-not (Test-Path $tvsu)) { Write-Output 'Lenovo System Update not installed'; exit 1 }
 Start-Process -FilePath $tvsu -Wait -ArgumentList `
-  '/CM -search A -action INSTALL -packagetypes 1,2,3,4 -includerebootpackages 3 -noreboot -noicon -nolicense -exporttowmi'
+  '/CM -search A -action INSTALL -packagetypes 2,3,4 -includerebootpackages 3 -noreboot -noicon -nolicense -exporttowmi'
 ```
 
-> **Note:** `-includerebootpackages 3` installs packages that need a restart without forcing one. Lenovo marks some BIOS and firmware packages as forced restart (`1`), forced shutdown (`4`), or delayed forced restart (`5`). Add those values only on a schedule your users expect. See Lenovo's [System Update command-line reference](https://docs.lenovocdrt.com/guides/sus/su_dg/su_dg_ch5/).
+`-packagetypes 2,3,4` limits System Update to drivers, BIOS, and firmware. `-noreboot` only holds back restarts for reboot type 3, so read the [System Update command-line reference](https://docs.lenovocdrt.com/guides/sus/su_dg/su_dg_ch5/) before you add other `-includerebootpackages` values. `-exporttowmi` records what was installed in the `Lenovo_Updates` class in `root\Lenovo`.
 
 `hp-update-bios-firmware-drivers.ps1`:
 
@@ -82,7 +95,7 @@ if ($p.ExitCode -in 0, 256, 3010) { exit 0 }
 exit $p.ExitCode
 ```
 
-HP documents every switch and return code in the [HP Image Assistant user guide](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/HPIAUserGuide2.pdf).
+The rest of HPIA's switches and return codes are in the [HP Image Assistant user guide](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/HPIAUserGuide2.pdf).
 
 `linux-update-firmware.sh`:
 
@@ -97,9 +110,11 @@ if [ "$rc" -eq 2 ]; then exit 0; fi
 exit "$rc"
 ```
 
-> **Note:** Fleet stops a script after 5 minutes by default. Driver and BIOS downloads can take longer, so raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in your agent options, for example to `1800`.
+> **Note:** Fleet stops a script after 300 seconds by default. BIOS and driver downloads can take longer, so raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in your agent options, for example to `1800`.
 
-## Step 4: Write a policy that finds devices that need updates
+If your PCs have a BIOS admin password, the OEM tools need it to flash BIOS (Dell Command | Update has `-biosPassword`, and HPIA's `/BIOSPwdFile` takes a file made with HP's `HpqPswd.exe`). Keep it out of Git with a [Fleet custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles): create the variable first, then write `'$FLEET_SECRET_BIOS_PASSWORD'` (single quotes) in the script, and Fleet fills in the value before the script runs.
+
+## Step 4: Add a policy that finds outdated BIOS
 
 A policy passes when its query returns a row. This one fails on any PC of a given model whose BIOS is older than the version you set:
 
@@ -109,21 +124,26 @@ WHERE s.hardware_model != 'YOUR-MODEL'
    OR version_compare(p.version, 'X.Y.Z') >= 0;
 ```
 
-Replace `YOUR-MODEL` and `X.Y.Z` with a model from your fleet and the minimum BIOS version from the OEM's support page. To see what your hosts report, run `SELECT s.hardware_model, p.vendor, p.version, p.date FROM system_info s, platform_info p;` as a live report. [`platform_info`](https://fleetdm.com/tables/platform_info) works on Windows and Linux, so one query covers both.
+Version strings look different on each OEM, so first run `SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;` as a live report and copy the model and version exactly as your hosts report them. The `date` column shows which PCs have the oldest BIOS. Take the minimum version from the OEM's support page. [`platform_info`](https://fleetdm.com/tables/platform_info) works on Windows and Linux, so one query covers both.
 
-Navigate to **Policies**, select your fleet, click **Add policy**, and save the query. Target it with the OEM label, and set the platform to Windows (or Linux for the fwupd policy).
+Navigate to **Policies**, select your fleet, and click **Add policy**. Save one policy per model, targeted to the OEM's label, with the platform set to Windows or Linux.
 
-## Step 5: Run the update when the policy fails
+Fleet doesn't track the latest BIOS release for each model, so this policy is only as current as the version you type in. Bump it when the OEM ships a new one. Fleet already runs in production on Dell, HP, and Lenovo hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like a hand, [reach out](https://fleetdm.com/support).
 
-1. On the **Policies** page, click **Manage automations** and select **Run script**.
-2. Check each BIOS policy and pick the matching script.
-3. Click **Save**.
+## Step 5: Turn on automations
 
-When a host fails the policy, Fleet runs the script. If the script fails, Fleet retries it up to three times. Learn more in [Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script).
+1. On the **Policies** page, click **Manage automations** and select **Install software**.
+2. Check the Dell and Lenovo "installed" policies, pick the matching app, and click **Save**.
+3. Click **Manage automations** again and select **Run script**.
+4. Check each BIOS policy, pick the matching script, and click **Save**.
+
+Fleet [runs the automation](https://fleetdm.com/guides/policy-automation-run-script) when a host first fails the policy. If the script fails, for example because the update tool wasn't installed yet, Fleet tries again, up to three attempts in total. Updates that need a restart finish the next time the user restarts.
+
+The BIOS policy only fires when a PC falls behind, so drivers can drift in between. To catch up, select hosts on the **Hosts** page, click **Run script**, and pick **Schedule for later**. Dell Command | Update can also check on its own schedule with `dcu-cli.exe /configure -scheduleWeekly=Mon,23:45`.
 
 ## Manage it with GitOps
 
-`default.yml`:
+Add the labels to the `labels` list you already have in `default.yml`, since GitOps can remove labels that aren't listed. Do the same with `agent_options`:
 
 ```yaml
 labels:
@@ -138,11 +158,13 @@ labels:
     label_membership_type: dynamic
 agent_options:
   script_execution_timeout: 1800
+  # ...the rest of your existing agent options
 ```
 
 `fleets/workstations.yml`:
 
 ```yaml
+name: Workstations
 controls:
   scripts:
     - path: ../lib/windows/scripts/dell-update-bios-firmware-drivers.ps1
@@ -158,6 +180,13 @@ software:
       labels_include_any:
         - Lenovo
 policies:
+  - name: Dell - Dell Command | Update is installed
+    platform: windows
+    query: SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';
+    labels_include_any:
+      - Dell
+    install_software:
+      fleet_maintained_app_slug: dell-command-update/windows
   - name: Dell - BIOS is up to date
     platform: windows
     query: SELECT 1 FROM system_info s, platform_info p WHERE s.hardware_model != 'YOUR-MODEL' OR version_compare(p.version, 'X.Y.Z') >= 0;
@@ -165,25 +194,31 @@ policies:
       - Dell
     run_script:
       path: ../lib/windows/scripts/dell-update-bios-firmware-drivers.ps1
-  - name: Linux - Firmware is up to date
+  - name: Linux - BIOS is up to date
     platform: linux
     query: SELECT 1 FROM system_info s, platform_info p WHERE s.hardware_model != 'YOUR-MODEL' OR version_compare(p.version, 'X.Y.Z') >= 0;
     run_script:
       path: ../lib/linux/scripts/linux-update-firmware.sh
 ```
 
-Add the HP and Lenovo policies the same way.
+Add the Lenovo and HP policies the same way. HP doesn't need an install policy, since its script installs HPIA.
+
+## Verify
+
+1. On a host's **Host details** page, open the **Activity** tab and check the script run and its output.
+2. After the host restarts, run the live report from step 4 again and confirm the new BIOS version.
 
 ## Further reading
 
-If you're coming from Intune, these are the integrations this guide mirrors:
+If you're coming from Intune, these are the OEM integrations this guide replaces:
 
 - [HP Connect for Microsoft Intune user guide](https://connect.admin.hp.com/static/HPConnectUserGuide.pdf)
 - [Dell Command | Update with Microsoft Intune](https://www.dell.com/support/manuals/en-us/command-update/admx_rg/using-microsoft-intune?guid=guid-8e1f9749-35cc-46cd-82cd-bc9576b32575&lang=en-us)
-- [Lenovo System Update deployment guide](https://docs.lenovocdrt.com/guides/sus/su_dg/)
-- [fwupdmgr reference](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html)
+- [Lenovo Commercial Vantage Policy Manager for Intune](https://docs.lenovocdrt.com/guides/lcvpm/)
 
-None of this needs Windows Autopilot. If you're setting up new PCs, see [Windows zero touch without Entra or Autopilot](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot).
+For the tools themselves, see the [Lenovo System Update deployment guide](https://docs.lenovocdrt.com/guides/sus/su_dg/) and the [fwupdmgr reference](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html).
+
+None of this needs Windows Autopilot. For new PCs, see [Windows zero touch without Entra or Autopilot](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot), and if you're wondering what it costs to drop Microsoft 365 E3 altogether, we [priced it out](https://fleetdm.com/articles/leaving-e3-entirely).
 
 If you're a Fleet customer, we can help you get this set up quickly as part of your Fast Track. Either way, if you run into any trouble, let us know. We're happy to help, and there's a friendly community of kind people who are happy to help too: [get support](https://fleetdm.com/support).
 
