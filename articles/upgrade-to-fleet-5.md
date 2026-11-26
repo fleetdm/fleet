@@ -1671,6 +1671,18 @@ Update fleetd to 1.56.2 or later before you upgrade to Fleet 5.
 
 GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
 
+### Kolide launcher support removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Hosts could connect to Fleet with [Kolide's launcher](https://github.com/kolide/launcher) agent over gRPC | Removed. Hosts running launcher can't enroll, get config, run reports, or send results. |
+
+#### What to do
+
+If any hosts connect to Fleet with launcher, replace it with [fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) before you upgrade.
+
+GitHub pull request: [#59895](https://github.com/fleetdm/fleet/pull/59895)
+
 
 ## Fleet UI
 
