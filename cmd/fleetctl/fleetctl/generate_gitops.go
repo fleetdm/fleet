@@ -1020,9 +1020,10 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 	orgSettings[jsonFieldName(t, "YaraRules")] = yaraRules
 
-	if cmd.exceptions.Secrets {
+	switch {
+	case cmd.exceptions.Secrets:
 		cmd.leftOut.Secrets = true
-	} else if cmd.CLI.Bool("insecure") {
+	case cmd.CLI.Bool("insecure"):
 		// If --insecure is set, add real secrets.
 		enrollSecrets, err := cmd.Client.GetEnrollSecretSpec()
 		if err != nil {
@@ -1033,7 +1034,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 			secrets[i] = map[string]string{"secret": spec.Secret}
 		}
 		orgSettings["secrets"] = secrets
-	} else {
+	default:
 		orgSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment("default.yml", "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: "default.yml",
@@ -1641,16 +1642,17 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		return nil, err
 	}
 	teamSettings[jsonFieldName(t, "Integrations")] = integrations
-	if cmd.exceptions.Secrets {
+	switch {
+	case cmd.exceptions.Secrets:
 		cmd.leftOut.Secrets = true
-	} else if cmd.CLI.Bool("insecure") {
+	case cmd.CLI.Bool("insecure"):
 		// If --insecure is set, add real secrets.
 		secrets := make([]map[string]string, len(team.Secrets))
 		for i, spec := range team.Secrets {
 			secrets[i] = map[string]string{"secret": spec.Secret}
 		}
 		teamSettings["secrets"] = secrets
-	} else {
+	default:
 		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
