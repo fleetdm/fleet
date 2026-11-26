@@ -45,6 +45,7 @@ type MockClient struct {
 	WindowsEULAName string
 	// no EULA uploaded on either platform
 	WithoutEULAs bool
+	Exceptions   fleet.GitOpsExceptions
 }
 
 func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
@@ -66,6 +67,7 @@ func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 	if c.IsFree == true {
 		appConfig.License.Tier = fleet.TierFree
 	}
+	appConfig.GitOpsConfig.Exceptions = c.Exceptions
 
 	if c.WithoutMDM {
 		appConfig.MDM.EnabledAndConfigured = false
@@ -1613,12 +1615,15 @@ func (noSoftwareMockClient) GetPolicies(*uint) ([]*fleet.Policy, error) {
 	return nil, nil
 }
 
-func generateGitopsInto(t *testing.T, client generateGitopsClient) (string, string) {
+func generateGitopsInto(t *testing.T, client generateGitopsClient, boolFlags ...string) (string, string) {
 	t.Helper()
 	buf := new(bytes.Buffer)
 	dir := t.TempDir()
 	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
 	flagSet.String("dir", dir, "")
+	for _, f := range boolFlags {
+		flagSet.Bool(f, true, "")
+	}
 	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
 	require.NoError(t, createGenerateGitopsAction(client)(cliContext), buf.String())
 	return dir, buf.String()
@@ -1654,6 +1659,116 @@ func TestGenerateGitopsPatchDeadlineSettings(t *testing.T) {
 		b, err := os.ReadFile(filepath.Join(dir, "default.yml"))
 		require.NoError(t, err)
 		require.NotContains(t, string(b), "patch_deadline_settings")
+	})
+}
+
+func TestGenerateGitopsExceptions(t *testing.T) {
+	configureFMAManifestServer(t)
+
+	const teamFile = "fleets/team-a-👍.yml"
+	readYAML := func(t *testing.T, dir, file string) map[string]any {
+		b, err := os.ReadFile(filepath.Join(dir, file))
+		require.NoError(t, err)
+		var doc map[string]any
+		require.NoError(t, yaml.Unmarshal(b, &doc))
+		return doc
+	}
+	// The keys fleetctl gitops rejects for each excepted type.
+	keysByType := map[string][][2]string{
+		"labels":   {{"default.yml", "labels"}, {teamFile, "labels"}},
+		"secrets":  {{"default.yml", "org_settings.secrets"}, {teamFile, "settings.secrets"}},
+		"software": {{teamFile, "software"}, {"fleets/unassigned.yml", "software"}},
+	}
+	isExcepted := func(e fleet.GitOpsExceptions, typ string) bool {
+		return map[string]bool{"labels": e.Labels, "secrets": e.Secrets, "software": e.Software}[typ]
+	}
+	leftOutNote := func(typ string) string {
+		return fmt.Sprintf("%q is excepted from GitOps management and was left out", typ)
+	}
+	// Not Unassigned: the mock returns the fleet's patch policy for it too, so an
+	// Unassigned-only run fails on software it doesn't have.
+	fleetByFile := map[string]string{"default.yml": "", teamFile: "Team A 👍"}
+	printKey := func(t *testing.T, client generateGitopsClient, fleetName, key string) string {
+		buf := new(bytes.Buffer)
+		flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+		flagSet.String("key", key, "")
+		flagSet.String(fleetFlagName, fleetName, "")
+		require.NoError(t, createGenerateGitopsAction(client)(cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)), buf.String())
+		return buf.String()
+	}
+
+	baseDir, _ := generateGitopsInto(t, &MockClient{})
+	basePolicies := readYAML(t, baseDir, teamFile)["policies"]
+	require.NotEmpty(t, basePolicies)
+
+	for _, tc := range []struct {
+		name       string
+		exceptions fleet.GitOpsExceptions
+		insecure   bool
+	}{
+		{"labels", fleet.GitOpsExceptions{Labels: true}, false},
+		{"secrets", fleet.GitOpsExceptions{Secrets: true}, false},
+		{"secrets with insecure", fleet.GitOpsExceptions{Secrets: true}, true},
+		{"software", fleet.GitOpsExceptions{Software: true}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var flags []string
+			if tc.insecure {
+				flags = append(flags, "insecure")
+			}
+			dir, out := generateGitopsInto(t, &MockClient{Exceptions: tc.exceptions}, flags...)
+
+			for typ, keys := range keysByType {
+				excepted := isExcepted(tc.exceptions, typ)
+				for _, k := range keys {
+					_, ok := getValueAtKey(readYAML(t, dir, k[0]), k[1])
+					require.Equal(t, !excepted, ok, "%s in %s", k[1], k[0])
+				}
+				require.Equal(t, excepted, strings.Contains(out, leftOutNote(typ)), out)
+			}
+			if !tc.insecure {
+				require.Equal(t, !tc.exceptions.Secrets, strings.Contains(out, "default.yml: org_settings.secrets"), out)
+			}
+
+			// Software files are left out too, and policies still reference the software.
+			softwareFiles, err := filepath.Glob(filepath.Join(dir, "lib", "team-a-👍", "*", "my-*"))
+			require.NoError(t, err)
+			require.Equal(t, !tc.exceptions.Software, len(softwareFiles) > 0, softwareFiles)
+			require.Equal(t, basePolicies, readYAML(t, dir, teamFile)["policies"])
+
+			// --key prints the note for a left-out key, and "not found" for a key
+			// the file never holds.
+			for typ, keys := range keysByType {
+				if !isExcepted(tc.exceptions, typ) {
+					continue
+				}
+				for _, k := range keys {
+					fleetName, ok := fleetByFile[k[0]]
+					if !ok {
+						continue
+					}
+					out := printKey(t, &MockClient{Exceptions: tc.exceptions}, fleetName, k[1])
+					require.Contains(t, out, leftOutNote(typ), k)
+				}
+			}
+			require.Contains(t, printKey(t, &MockClient{Exceptions: tc.exceptions}, "", "settings.secrets"), "Key settings.secrets not found in default.yml")
+			// A parent key prints its value, plus the note when a key under it was left out.
+			for _, k := range [][2]string{{"default.yml", "org_settings"}, {teamFile, "settings"}} {
+				out := printKey(t, &MockClient{Exceptions: tc.exceptions}, fleetByFile[k[0]], k[1])
+				require.Contains(t, out, "features:", k)
+				require.Equal(t, tc.exceptions.Secrets, strings.Contains(out, leftOutNote("secrets")), out)
+			}
+		})
+	}
+
+	t.Run("free", func(t *testing.T) {
+		dir, out := generateGitopsInto(t, &MockClient{IsFree: true, Exceptions: fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true}})
+		doc := readYAML(t, dir, "default.yml")
+		for _, key := range []string{"labels", "org_settings.secrets"} {
+			_, ok := getValueAtKey(doc, key)
+			require.True(t, ok, key)
+		}
+		require.NotContains(t, out, "is excepted from GitOps management")
 	})
 }
 

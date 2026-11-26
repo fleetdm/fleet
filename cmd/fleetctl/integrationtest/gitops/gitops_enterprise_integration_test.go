@@ -4972,6 +4972,183 @@ software:
 	require.True(t, pols[0].PatchDeadline)
 }
 
+// TestGenerateGitopsExceptionsRoundTrip applies generate-gitops output with labels, secrets and software excepted, and
+// checks that what the Fleet UI manages survives the run.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGenerateGitopsExceptionsRoundTrip() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	slug, installer := s.setupDarwinFMA(t)
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/"+slug+".json" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installer + "/foo.pkg",
+				InstallScriptRef:   "fooscript",
+				UninstallScriptRef: "fooscript",
+				SHA256:             "no_check", // See ma.noCheckHash
+			}},
+			Refs: map[string]string{"fooscript": "echo hello"},
+		})
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	dir := t.TempDir()
+	globalFile := filepath.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets: [{"secret":"exceptions_global_secret"}]
+labels:
+  - name: exceptions-global-label
+    label_membership_type: dynamic
+    query: SELECT 1
+policies:
+reports:
+`), 0o644))
+	teamName := "exceptions_" + uuid.NewString()
+	teamFile := filepath.Join(dir, "team.yml")
+	require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, `
+name: %[2]s
+settings:
+  secrets: [{"secret":"exceptions_fleet_secret"}]
+labels:
+  - name: exceptions-fleet-label
+    label_membership_type: dynamic
+    query: SELECT 2
+software:
+  fleet_maintained_apps:
+    - slug: %[1]s
+policies:
+  - name: exceptions-patch-policy
+    type: patch
+    fleet_maintained_app_slug: %[1]s
+  - name: exceptions-install-policy
+    query: SELECT 1;
+    platform: darwin
+    install_software:
+      fleet_maintained_app_slug: %[1]s
+  - name: exceptions-label-policy
+    query: SELECT 1;
+    labels_include_any:
+      - exceptions-global-label
+      - exceptions-fleet-label
+controls:
+agent_options:
+reports:
+`, slug, teamName), 0o644))
+	unassignedFile := filepath.Join(dir, "unassigned.yml")
+	require.NoError(t, os.WriteFile(unassignedFile, []byte(`name: Unassigned
+controls:
+policies:
+software:
+`), 0o644))
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile, "-f", unassignedFile,
+	}))
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	appConf, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true}
+	require.NoError(t, s.DS.SaveAppConfig(ctx, appConf))
+	t.Cleanup(func() {
+		// t.Context() is already canceled when cleanups run.
+		cfg, err := s.DS.AppConfig(context.Background())
+		require.NoError(t, err)
+		cfg.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
+		require.NoError(t, s.DS.SaveAppConfig(context.Background(), cfg))
+	})
+
+	admin := fleet.User{
+		Name:       "Admin " + uuid.NewString(),
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	require.NoError(t, admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.DS.NewUser(ctx, &admin)
+	require.NoError(t, err)
+	adminConfig := s.createFleetctlConfig(t, admin)
+
+	genDir := t.TempDir()
+	out, err := fleetctltest.RunAppNoChecks([]string{"generate-gitops", "--config", adminConfig.Name(), "--dir", genDir, "--insecure"})
+	require.NoError(t, err)
+	for _, key := range []string{"labels", "secrets", "software"} {
+		require.Contains(t, out.String(), fmt.Sprintf("%q is excepted from GitOps management and was left out", key))
+	}
+
+	genFiles := []string{filepath.Join(genDir, "default.yml")}
+	fleetFiles, err := filepath.Glob(filepath.Join(genDir, "fleets", "*.yml"))
+	require.NoError(t, err)
+	require.Len(t, fleetFiles, 2)
+	genFiles = append(genFiles, fleetFiles...)
+	for _, f := range genFiles {
+		b, err := os.ReadFile(f) //nolint:gosec // reading generated files under t.TempDir()
+		require.NoError(t, err)
+		var gen map[string]any
+		require.NoError(t, yaml.Unmarshal(b, &gen))
+		require.NotContains(t, gen, "labels", f)
+		require.NotContains(t, gen, "software", f)
+		for _, settingsKey := range []string{"org_settings", "settings"} {
+			if settings, ok := gen[settingsKey].(map[string]any); ok {
+				require.NotContains(t, settings, "secrets", f)
+			}
+		}
+	}
+
+	args := []string{"gitops", "--config", fleetctlConfig.Name()}
+	for _, f := range genFiles {
+		args = append(args, "-f", f)
+	}
+	fleetctltest.RunAppForTest(t, append(args, "--dry-run"))
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, args))
+
+	require.Equal(t, map[string]uint{"exceptions-global-label": 0, "exceptions-fleet-label": team.ID}, labelTeamIDResult(t, s, ctx))
+	for teamID, secret := range map[uint]string{0: "exceptions_global_secret", team.ID: "exceptions_fleet_secret"} {
+		var id *uint
+		if teamID != 0 {
+			id = &teamID
+		}
+		secrets, err := s.DS.GetEnrollSecrets(ctx, id)
+		require.NoError(t, err)
+		require.Len(t, secrets, 1)
+		require.Equal(t, secret, secrets[0].Secret)
+	}
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &team.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 3)
+	for _, p := range pols {
+		switch p.Name {
+		case "exceptions-patch-policy":
+			require.NotNil(t, p.PatchSoftwareTitleID)
+		case "exceptions-install-policy":
+			require.NotNil(t, p.SoftwareInstallerID)
+		case "exceptions-label-policy":
+			require.Len(t, p.LabelsIncludeAny, 2)
+		}
+	}
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
 	t := s.T()
 	ctx := context.Background()
