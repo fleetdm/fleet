@@ -2748,6 +2748,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 						versionFilenamePrefix += fmt.Sprintf("-%d", version.VPPAppsTeamsID)
 					}
 					usedVersionFilenamePrefixes[versionFilenamePrefix] = struct{}{}
+					versionFilenamePrefix = uniqueFilename(versionFilenamePrefix, takenFilenamePrefixes)
 				}
 
 				if version.SelfService {
