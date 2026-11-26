@@ -20,8 +20,7 @@ func TestGitOpsEmptySoftwarePackageListItem(t *testing.T) {
 		[]byte("- url: https://example.com/app.pkg\n- # url: https://example.com/old.pkg\n"), 0o600))
 
 	// Software is only parsed with a premium license.
-	appConfig := fleet.EnrichedAppConfig{}
-	appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	appConfig := fleet.EnrichedAppConfig{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
 
 	var err error
 	require.NotPanics(t, func() {
