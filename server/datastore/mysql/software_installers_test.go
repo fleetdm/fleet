@@ -3493,6 +3493,9 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 
 	software1 := []fleet.Software{
 		{Name: "Existing Title", Version: "0.0.1", Source: "apps", BundleIdentifier: "existing.title"},
+		{Name: "Fleet Desktop", Version: "1.64.0", Source: "apps", BundleIdentifier: "com.fleetdm.desktop"},
+		{Name: "Bundled App", Version: "1.0", Source: "apps", BundleIdentifier: "com.bundled.app"},
+		{Name: "Unbundled App", Version: "1.0", Source: "apps"},
 	}
 	software2 := []fleet.Software{
 		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
@@ -3518,12 +3521,21 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
+	type existingTitle struct {
+		name             string
+		bundleIdentifier *string
+	}
+
 	tests := []struct {
-		name                string
-		payload             *fleet.UploadSoftwareInstallerPayload
-		expectedName        string
-		expectedSource      string
-		expectedUpgradeCode *string
+		name                       string
+		payload                    *fleet.UploadSoftwareInstallerPayload
+		expectedName               string
+		expectedSource             string
+		expectedUpgradeCode        *string
+		checkBundleIdentifier      bool
+		expectedBundleIdentifier   *string
+		expectedSameTitleAs        *existingTitle
+		expectedDifferentTitleFrom *existingTitle
 	}{
 		{
 			name: "title that already exists, no bundle identifier in payload",
@@ -3670,6 +3682,105 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			expectedSource:      "programs",
 			expectedUpgradeCode: ptr.String("GHIJKL"),
 		},
+		{
+			name: "payload has a bundle identifier, existing title has the same name and a different bundle identifier, a new title is created",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Fleet Desktop",
+				Source:           "apps",
+				BundleIdentifier: "com.fleetdm.fleet-desktop",
+			},
+			expectedName:               "Fleet Desktop",
+			expectedSource:             "apps",
+			checkBundleIdentifier:      true,
+			expectedBundleIdentifier:   new("com.fleetdm.fleet-desktop"),
+			expectedDifferentTitleFrom: &existingTitle{name: "Fleet Desktop", bundleIdentifier: new("com.fleetdm.desktop")},
+		},
+		{
+			name: "payload has a bundle identifier, existing title has the same name and the same bundle identifier, the existing title is used",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Fleet Desktop",
+				Source:           "apps",
+				BundleIdentifier: "com.fleetdm.desktop",
+			},
+			expectedName:             "Fleet Desktop",
+			expectedSource:           "apps",
+			checkBundleIdentifier:    true,
+			expectedBundleIdentifier: new("com.fleetdm.desktop"),
+			expectedSameTitleAs:      &existingTitle{name: "Fleet Desktop", bundleIdentifier: new("com.fleetdm.desktop")},
+		},
+		{
+			name: "payload has a bundle identifier, existing title has a different name and the same bundle identifier, the existing title is used and keeps its name",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Renamed Fleet Desktop",
+				Source:           "apps",
+				BundleIdentifier: "com.fleetdm.desktop",
+			},
+			expectedName:             "Fleet Desktop",
+			expectedSource:           "apps",
+			checkBundleIdentifier:    true,
+			expectedBundleIdentifier: new("com.fleetdm.desktop"),
+			expectedSameTitleAs:      &existingTitle{name: "Fleet Desktop", bundleIdentifier: new("com.fleetdm.desktop")},
+		},
+		{
+			name: "payload has a bundle identifier, existing title has the same name and no bundle identifier, a new title is created",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Existing Title Without Bundle",
+				Source:           "apps",
+				BundleIdentifier: "com.another.bundleid",
+			},
+			expectedName:               "Existing Title Without Bundle",
+			expectedSource:             "apps",
+			checkBundleIdentifier:      true,
+			expectedBundleIdentifier:   new("com.another.bundleid"),
+			expectedDifferentTitleFrom: &existingTitle{name: "Existing Title Without Bundle"},
+		},
+		{
+			name: "payload has no bundle identifier, existing title has the same name and no bundle identifier, the existing title is used",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "Unbundled App",
+				Source: "apps",
+			},
+			expectedName:             "Unbundled App",
+			expectedSource:           "apps",
+			checkBundleIdentifier:    true,
+			expectedBundleIdentifier: nil,
+			expectedSameTitleAs:      &existingTitle{name: "Unbundled App"},
+		},
+		{
+			name: "payload has no bundle identifier, existing title has the same name and a bundle identifier, the existing title is used",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "Bundled App",
+				Source: "apps",
+			},
+			expectedName:             "Bundled App",
+			expectedSource:           "apps",
+			checkBundleIdentifier:    true,
+			expectedBundleIdentifier: new("com.bundled.app"),
+			expectedSameTitleAs:      &existingTitle{name: "Bundled App", bundleIdentifier: new("com.bundled.app")},
+		},
+		{
+			name: "payload has no bundle identifier, no existing title has the same name, a new title without a bundle identifier is created",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:  "Brand New Without Bundle",
+				Source: "apps",
+			},
+			expectedName:             "Brand New Without Bundle",
+			expectedSource:           "apps",
+			checkBundleIdentifier:    true,
+			expectedBundleIdentifier: nil,
+		},
+		{
+			name: "payload has a bundle identifier, no existing title has the same name or bundle identifier, a new title with the bundle identifier is created",
+			payload: &fleet.UploadSoftwareInstallerPayload{
+				Title:            "Brand New With Bundle",
+				Source:           "apps",
+				BundleIdentifier: "com.brand.new",
+			},
+			expectedName:             "Brand New With Bundle",
+			expectedSource:           "apps",
+			checkBundleIdentifier:    true,
+			expectedBundleIdentifier: new("com.brand.new"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -3679,12 +3790,13 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			require.NotEmpty(t, id)
 
 			var actual struct {
-				Name        string  `db:"name"`
-				Source      string  `db:"source"`
-				UpgradeCode *string `db:"upgrade_code"`
+				Name             string  `db:"name"`
+				Source           string  `db:"source"`
+				UpgradeCode      *string `db:"upgrade_code"`
+				BundleIdentifier *string `db:"bundle_identifier"`
 			}
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				err := sqlx.GetContext(ctx, q, &actual, `SELECT name, source, upgrade_code FROM software_titles WHERE id = ?`, id)
+				err := sqlx.GetContext(ctx, q, &actual, `SELECT name, source, upgrade_code, bundle_identifier FROM software_titles WHERE id = ?`, id)
 				require.NoError(t, err)
 				return nil
 			})
@@ -3693,6 +3805,32 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			}
 			require.Equal(t, tt.expectedSource, actual.Source)
 			require.Equal(t, tt.expectedUpgradeCode, actual.UpgradeCode)
+
+			if tt.checkBundleIdentifier {
+				require.Equal(t, tt.expectedBundleIdentifier, actual.BundleIdentifier)
+			}
+
+			if tt.expectedSameTitleAs != nil {
+				var expectedID uint
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					err := sqlx.GetContext(ctx, q, &expectedID, `SELECT id FROM software_titles WHERE name = ? AND source = 'apps' AND bundle_identifier <=> ?`,
+						tt.expectedSameTitleAs.name, tt.expectedSameTitleAs.bundleIdentifier)
+					require.NoError(t, err)
+					return nil
+				})
+				require.Equal(t, expectedID, id)
+			}
+
+			if tt.expectedDifferentTitleFrom != nil {
+				var otherID uint
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					err := sqlx.GetContext(ctx, q, &otherID, `SELECT id FROM software_titles WHERE name = ? AND source = 'apps' AND bundle_identifier <=> ?`,
+						tt.expectedDifferentTitleFrom.name, tt.expectedDifferentTitleFrom.bundleIdentifier)
+					require.NoError(t, err)
+					return nil
+				})
+				require.NotEqual(t, otherID, id)
+			}
 		})
 	}
 }
