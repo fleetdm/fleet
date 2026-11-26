@@ -29,6 +29,8 @@ type fakeOsquery struct {
 	alwaysConflict string
 	// goneAfterRegister makes every ping fail after a successful registration.
 	goneAfterRegister bool
+	// registerDelay is how long each registration takes.
+	registerDelay time.Duration
 
 	mu         sync.Mutex
 	registered [][]string
@@ -123,6 +125,7 @@ func (c *fakeClient) Extensions() (osquerygen.InternalExtensionList, error) {
 
 func (c *fakeClient) RegisterExtension(info *osquerygen.InternalExtensionInfo, registry osquerygen.ExtensionRegistry) (*osquerygen.ExtensionStatus, error) {
 	f := c.f
+	time.Sleep(f.registerDelay)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var names []string
@@ -260,17 +263,53 @@ func TestRunnerSkipsConflictingTables(t *testing.T) {
 	}
 }
 
+func TestRunnerSlowRegistrationFailuresGiveUp(t *testing.T) {
+	// Each attempt takes longer than a healthy session to fail, but is only
+	// registered briefly, so it must still count as a failure.
+	f := &fakeOsquery{goneAfterRegister: true, registerDelay: 100 * time.Millisecond}
+	r, run := newTestRunner(t, f)
+	r.healthySession = 50 * time.Millisecond
+
+	err := run(t.Context(), []osquery.OsqueryPlugin{testTablePlugin("a")})
+	require.ErrorContains(t, err, "osquery gone")
+	require.Len(t, f.getRegistered(), maxConsecutiveSessionFailures+1)
+}
+
+func TestRunnerStopsWhenCanceledBeforeRegistration(t *testing.T) {
+	// Cancellation before the server starts (e.g. while waiting for the
+	// extension socket) races the shutdown against registration.
+	for range 20 {
+		f := &fakeOsquery{registerDelay: 10 * time.Millisecond}
+		_, run := newTestRunner(t, f)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		errc := make(chan error, 1)
+		go func() {
+			errc <- run(ctx, []osquery.OsqueryPlugin{testTablePlugin("a")})
+		}()
+
+		select {
+		case <-errc:
+		case <-time.After(5 * time.Second):
+			t.Fatal("runner didn't stop after cancel")
+		}
+		require.Empty(t, f.getExtensions())
+	}
+}
+
 func TestRunnerReregisters(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		fake *fakeOsquery
 		// lose ends the first session.
-		lose func(f *fakeOsquery)
+		lose          func(f *fakeOsquery)
+		registrations int
 	}{
 		{
-			name: "osquery evicts the extension",
-			fake: &fakeOsquery{},
-			lose: (*fakeOsquery).evictAll,
+			name:          "osquery evicts the extension",
+			fake:          &fakeOsquery{},
+			lose:          (*fakeOsquery).evictAll,
+			registrations: 2,
 		},
 		{
 			name: "ping fails and deregistration fails",
@@ -282,6 +321,19 @@ func TestRunnerReregisters(t *testing.T) {
 				defer f.mu.Unlock()
 				f.failPings = 1
 			},
+			registrations: 2,
+		},
+		{
+			name: "ping fails and stale cleanup fails once",
+			// The second registration is rejected as a duplicate; the stale
+			// registration is removed before the third one.
+			fake: &fakeOsquery{failDeregistrations: 2},
+			lose: func(f *fakeOsquery) {
+				f.mu.Lock()
+				defer f.mu.Unlock()
+				f.failPings = 1
+			},
+			registrations: 3,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -300,7 +352,7 @@ func TestRunnerReregisters(t *testing.T) {
 				uuids := tc.fake.getExtensions()
 				return len(uuids) == 1 && uuids[0] != first
 			}, 5*time.Second, 10*time.Millisecond)
-			require.Equal(t, repeat([]string{"a"}, 2), tc.fake.getRegistered())
+			require.Equal(t, repeat([]string{"a"}, tc.registrations), tc.fake.getRegistered())
 
 			cancel()
 			select {
