@@ -6159,6 +6159,38 @@ func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL strin
 	return ds.optimisticGetOrInsert(ctx, readStmt, insStmt)
 }
 
+// getOrInsertMDMSolutionDB is getOrInsertMDMSolution for use inside a transaction. An upsert would lock the solution
+// row, shared by every host on that MDM, until the transaction commits. Reading via ds.reader would need a second
+// primary connection while the transaction holds one when there's no replica, which can exhaust the pool.
+func getOrInsertMDMSolutionDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, mdmName string) (uint, error) {
+	const selectStmt = `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
+
+	var id uint
+	err := sqlx.GetContext(ctx, tx, &id, selectStmt, mdmName, serverURL)
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, ctxerr.Wrap(ctx, err, "select mdm solution")
+	}
+
+	res, err := tx.ExecContext(ctx, `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`, mdmName, serverURL)
+	if err == nil {
+		insertedID, _ := res.LastInsertId()
+		return uint(insertedID), nil //nolint:gosec // dismiss G115
+	}
+	if !IsDuplicate(err) {
+		return 0, ctxerr.Wrap(ctx, err, "insert mdm solution")
+	}
+
+	// Another transaction committed the row after this one's snapshot was taken, so a plain SELECT can't see it; a
+	// locking read returns the latest committed version.
+	if err := sqlx.GetContext(ctx, tx, &id, selectStmt+` FOR SHARE`, mdmName, serverURL); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "select mdm solution after duplicate")
+	}
+	return id, nil
+}
+
 func (ds *Datastore) GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	var version string
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &version, `SELECT version FROM host_munki_info WHERE deleted_at is NULL AND host_id = ?`, hostID)

@@ -2302,22 +2302,9 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 	// enrolled yet.
 	enrolled := source != appleMDMInfoFromDEPSync
 
-	result, err := tx.ExecContext(ctx, `
-		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
-		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
-		fleet.WellKnownMDMFleet, serverURL)
+	mdmID, err := getOrInsertMDMSolutionDB(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert mdm solution")
-	}
-
-	var mdmID int64
-	if insertOnDuplicateDidInsertOrUpdate(result) {
-		mdmID, _ = result.LastInsertId()
-	} else {
-		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
-		if err := sqlx.GetContext(ctx, tx, &mdmID, stmt, fleet.WellKnownMDMFleet, serverURL); err != nil {
-			return ctxerr.Wrap(ctx, err, "query mdm solution id")
-		}
+		return ctxerr.Wrap(ctx, err, "get or insert mdm solution")
 	}
 
 	depAssignedSet := map[uint]struct{}{}
