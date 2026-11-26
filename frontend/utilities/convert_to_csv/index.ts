@@ -6,6 +6,20 @@ interface ConvertToCSV {
   tableHeaders?: any[]; // TODO: typing
 }
 
+// Mirrors sanitizeCSVFormula in server/service/hosts.go so client and server exports neutralize the same values.
+const sanitizeCSVFormula = (value: string): string => {
+  // Spreadsheets may trim a cell before parsing it, so the formula character is not necessarily the first byte.
+  const trimmed = value.trim();
+  if (!trimmed || !"=+-@".includes(trimmed[0])) {
+    return value;
+  }
+  // Signed numbers are not formulas; keep numeric columns machine-readable.
+  if (Number.isFinite(Number(trimmed))) {
+    return value;
+  }
+  return `'${value}`;
+};
+
 const formatFieldForCSV = (value: any): string => {
   // If the value is an object, stringify it first
   if (typeof value === "object") {
@@ -19,7 +33,7 @@ const formatFieldForCSV = (value: any): string => {
 
   // Escape double quotes in the value by doubling them
   if (typeof value === "string") {
-    value = value.replace(/"/g, '""');
+    value = sanitizeCSVFormula(value).replace(/"/g, '""');
   }
 
   // Wrap the value in double quotes to enclose any value that may

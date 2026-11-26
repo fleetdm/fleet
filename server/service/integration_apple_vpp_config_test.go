@@ -1944,6 +1944,73 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.NoError(t, err)
 		require.Equal(t, []string{"moved-username-after"}, runCronAndAcknowledge(t, device))
 	})
+
+	newVital := func(t *testing.T) (uint, string) {
+		vital, err := s.ds.CreateCustomHostVital(ctx, t.Name())
+		require.NoError(t, err)
+		return vital.ID, fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vital.ID)
+	}
+	setVitalValue := func(t *testing.T, hostID, vitalID uint, value string) {
+		s.Do("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/custom_host_vitals/%d", hostID, vitalID),
+			fleet.SetHostCustomHostVitalValueRequest{Value: value}, http.StatusOK)
+	}
+
+	t.Run("a custom host vital resolves per host, and changing a host's value sends the new value only to that host", func(t *testing.T) {
+		team := newFleet(t)
+		vitalID, vitalToken := newVital(t)
+		version := addVersion(t, team.ID, "Only", vitalToken, nil)
+		host, device := newHost(t, team.ID)
+		otherHost, otherDevice := newHost(t, team.ID)
+		setVitalValue(t, host.ID, vitalID, "tag-before")
+		setVitalValue(t, otherHost.ID, vitalID, `a&b<c`)
+		require.Equal(t, []string{"tag-before"}, installApp(t, host, device, version.TitleID))
+		require.Equal(t, []string{"a&amp;b&lt;c"}, installApp(t, otherHost, otherDevice, version.TitleID))
+
+		setVitalValue(t, host.ID, vitalID, "tag-after")
+		require.Equal(t, []string{"tag-after"}, runCronAndAcknowledge(t, device))
+		require.Empty(t, runCronAndAcknowledge(t, otherDevice))
+	})
+
+	t.Run("installing on a host with no value for a custom host vital fails and names the vital", func(t *testing.T) {
+		team := newFleet(t)
+		_, vitalToken := newVital(t)
+		version := addVersion(t, team.ID, "Only", vitalToken, nil)
+		host, device := newHost(t, team.ID)
+		require.Empty(t, installApp(t, host, device, version.TitleID))
+
+		var listActs listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActs,
+			"order_key", "id", "order_direction", "desc", "per_page", "1")
+		require.Len(t, listActs.Activities, 1)
+		require.Equal(t, (fleet.ActivityInstalledAppStoreApp{}).ActivityName(), listActs.Activities[0].Type)
+		require.NotNil(t, listActs.Activities[0].Details)
+		details := string(*listActs.Activities[0].Details)
+		require.Contains(t, details, string(fleet.SoftwareInstallFailed))
+		require.Contains(t, details, fmt.Sprintf("%s (%s) because there's no value set for this host", t.Name(), vitalToken))
+	})
+
+	t.Run("a configuration referencing an unknown or malformed custom host vital is rejected", func(t *testing.T) {
+		team := newFleet(t)
+		_, vitalToken := newVital(t)
+		version := addVersion(t, team.ID, "Only", vitalToken, nil)
+
+		for configurationValue, errSub := range map[string]string{
+			"$FLEET_HOST_VITAL_999999":    "is not defined",
+			"$FLEET_HOST_VITAL_asset_tag": "Invalid custom host vital reference",
+		} {
+			configuration, err := json.Marshal(fmt.Sprintf(`<dict><key>value</key><string>%s</string></dict>`, configurationValue))
+			require.NoError(t, err)
+			r := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+				TeamID: &team.ID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Configuration: configuration,
+			}, http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(r.Body), errSub)
+
+			r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", version.TitleID), &updateAppStoreAppRequest{
+				TeamID: &team.ID, VersionID: &version.VersionID, Configuration: configuration,
+			}, http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(r.Body), errSub)
+		}
+	})
 }
 
 func getFirstAddedVPPAppConfigurationForTest(t *testing.T, ds *mysql.Datastore, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {

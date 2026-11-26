@@ -143,6 +143,9 @@ func (ds *Datastore) SetHostsRecoveryLockPasswords(ctx context.Context, password
 			status = VALUES(status),
 			operation_type = VALUES(operation_type),
 			error_message = NULL,
+			-- Before deleted is reset: only a row revived by re-enrollment loses its last verify. A retry of a
+			-- live row (e.g. a rotation after a transient error) keeps it, so it isn't taken for a new set.
+			verify_command_uuid = IF(deleted = 1, NULL, verify_command_uuid),
 			deleted = 0,
 			auto_rotate_at = NULL,
 			set_command_uuid = NULL,
@@ -835,6 +838,10 @@ func (ds *Datastore) GetPendingRecoveryLock(ctx context.Context, hostUUID string
 			pending_set_command_uuid, pending_verify_command_uuid,
 			operation_type,
 			encrypted_password IS NOT NULL AS has_current_password,
+			-- verify_command_uuid is NULL until a password is verified, and again after re-enrollment; rotations
+			-- and their retries keep it. The upgrade repair of a failed rotation re-stages the current password.
+			(verify_command_uuid IS NULL AND pending_encrypted_password IS NOT NULL
+				AND (encrypted_password IS NULL OR pending_encrypted_password <> encrypted_password)) AS sets_new_password,
 			retry
 		FROM host_recovery_key_passwords
 		WHERE host_uuid = ?

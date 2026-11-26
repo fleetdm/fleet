@@ -1434,6 +1434,23 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "--yaml", "label1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "label", "--json", "label1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+
+	t.Run("names with path characters", func(t *testing.T) {
+		for _, name := range []string{"abc/def", "abc%2Fdef", "All Hosts"} {
+			t.Run(name, func(t *testing.T) {
+				ds.GetLabelSpecFunc = func(ctx context.Context, filter fleet.TeamFilter, gotName string) (*fleet.LabelSpec, error) {
+					require.Equal(t, name, gotName)
+					return &fleet.LabelSpec{ID: 32, Name: gotName, Query: "select 1;"}, nil
+				}
+				out := runAppForTest(t, []string{"get", "label", "--json", name})
+				var got struct {
+					Spec fleet.LabelSpec `json:"spec"`
+				}
+				require.NoError(t, json.Unmarshal([]byte(out), &got))
+				require.Equal(t, name, got.Spec.Name)
+			})
+		}
+	})
 }
 
 func TestGetLabelWithFleet(t *testing.T) {
@@ -1851,6 +1868,23 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "report", "--fleet", "1", "teamQuery1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "report", "--yaml", "--fleet", "1", "teamQuery1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "report", "--json", "--fleet", "1", "teamQuery1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+
+	t.Run("names with path characters", func(t *testing.T) {
+		for _, name := range []string{"abc/def", "abc%2Fdef", "All Hosts"} {
+			t.Run(name, func(t *testing.T) {
+				ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, gotName string) (*fleet.Query, error) {
+					require.Equal(t, name, gotName)
+					return &fleet.Query{ID: 35, Name: gotName, Query: "select 1;", Saved: true}, nil
+				}
+				out := runAppForTest(t, []string{"get", "report", "--json", name})
+				var got struct {
+					Spec fleet.QuerySpec `json:"spec"`
+				}
+				require.NoError(t, json.Unmarshal([]byte(out), &got))
+				require.Equal(t, name, got.Spec.Name)
+			})
+		}
+	})
 }
 
 func TestGetQueryLabelsIncludeAll(t *testing.T) {

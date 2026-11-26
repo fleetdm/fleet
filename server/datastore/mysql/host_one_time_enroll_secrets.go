@@ -620,9 +620,12 @@ func rejectSharedSecretForMDMLinkedWindowsUUID(ctx context.Context, tx sqlx.ExtC
 // by one enrollment plane, inside the enrollment transaction so the node key
 // rotation and the consumption commit or roll back together. matchedHostID is
 // the host row the enrollment landed on (a freshly inserted row is fine as
-// long as the bound host no longer exists).
-func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id uint, plane fleet.EnrollmentPlane, matchedHostID uint) error {
-	if err := checkHostOneTimeEnrollSecretDB(ctx, tx, id, plane, matchedHostID, true); err != nil {
+// long as the bound host no longer exists). matchedAgentEnrolled is whether an
+// agent had enrolled as that row before this enrollment updated it.
+func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id uint, plane fleet.EnrollmentPlane, matchedHostID uint,
+	matchedAgentEnrolled bool,
+) error {
+	if err := checkHostOneTimeEnrollSecretDB(ctx, tx, id, plane, matchedHostID, matchedAgentEnrolled, true); err != nil {
 		return err
 	}
 
@@ -646,9 +649,10 @@ func consumeHostOneTimeEnrollSecret(ctx context.Context, tx sqlx.ExtContext, id 
 }
 
 // checkHostOneTimeEnrollSecretDB returns an EnrollmentRejectedError when the one-time enroll secret may not enroll the plane
-// over matchedHostID. lock takes the row lock that consuming the secret needs.
+// over matchedHostID. matchedAgentEnrolled is whether an agent had enrolled as that host before this enrollment. lock takes the
+// row lock that consuming the secret needs.
 func checkHostOneTimeEnrollSecretDB(ctx context.Context, q sqlx.QueryerContext, id uint, plane fleet.EnrollmentPlane,
-	matchedHostID uint, lock bool,
+	matchedHostID uint, matchedAgentEnrolled, lock bool,
 ) error {
 	// consumed_at is written with the database clock, so the window is judged
 	// there too rather than against this server's clock.
@@ -682,10 +686,10 @@ func checkHostOneTimeEnrollSecretDB(ctx context.Context, q sqlx.QueryerContext, 
 		}
 	}
 
-	// A secret minted before its host was known is bound only to its MDM enrollment, and nothing above ties it to a host. So it
-	// must not land on a host that another Windows MDM enrollment already claims, or on a host that isn't Windows: either is a
-	// different machine presenting this host's identifiers, and landing would rotate the real host's node key. The stored platform
-	// is what counts, since the agent's is self-reported.
+	// A secret minted before its host was known is bound only to its MDM enrollment, so the identifiers its agent presents are only a
+	// claim, and landing on the wrong host rotates that host's node key. So it may land on a new host, on one no agent has enrolled as
+	// (a pending Autopilot host), or on one already linked to this enrollment. Never on a host another Windows MDM enrollment claims,
+	// or that isn't Windows by its stored platform, since the agent's is self-reported.
 	if s.HostID == nil && s.MDMWindowsEnrollmentID != nil {
 		var claimed bool
 		if err := sqlx.GetContext(ctx, q, &claimed, `
@@ -694,12 +698,16 @@ func checkHostOneTimeEnrollSecretDB(ctx context.Context, q sqlx.QueryerContext, 
 				WHERE h.id = ? AND h.uuid != '' AND mwe.id != ?
 			) OR EXISTS (
 				SELECT 1 FROM hosts WHERE id = ? AND platform NOT IN ('', 'windows')
-			)`, matchedHostID, *s.MDMWindowsEnrollmentID, matchedHostID); err != nil {
+			) OR (? AND NOT EXISTS (
+				SELECT 1 FROM hosts h JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+				WHERE h.id = ? AND h.uuid != '' AND mwe.id = ?
+			))`, matchedHostID, *s.MDMWindowsEnrollmentID, matchedHostID,
+			matchedAgentEnrolled, matchedHostID, *s.MDMWindowsEnrollmentID); err != nil {
 			return ctxerr.Wrap(ctx, err, "check windows mdm enrollment claims on matched host")
 		}
 		if claimed {
 			return ctxerr.Wrap(ctx, &fleet.EnrollmentRejectedError{Reason: fleet.EnrollmentRejectedOneTimeSecretIdentifierMismatch, HostID: &matchedHostID},
-				"one-time enroll secret landing on a host claimed by another windows mdm enrollment or not windows")
+				"one-time enroll secret landing on an enrolled host, a host claimed by another windows mdm enrollment, or not windows")
 		}
 	}
 

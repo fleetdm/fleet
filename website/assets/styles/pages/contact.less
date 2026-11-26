@@ -1,5 +1,12 @@
 #contact {
   background: linear-gradient(180deg, #E8F1F6 0%, #FFF 13.57%);
+  #number-of-hosts {
+    -moz-appearance: textfield;
+    &::-webkit-outer-spin-button, &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
   label {
     font-weight: 700;
     font-size: 14px;
@@ -24,6 +31,30 @@
   }
   .form-control {
     color: #515774;
+  }
+  [purpose='bottom-demo-button'] {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding: 64px 0px;
+    [purpose='cta-button'] {
+      .primary-button();
+      display: flex;
+      min-width: 140px;
+    }
+  }
+  [purpose='demo-checklist'] {
+    margin-bottom: 24px;
+    > p {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    [purpose='checklist'] {
+      .checklist();
+      p {
+        margin-bottom: 8px;
+      }
+    }
   }
   [purpose='note'] {
     display: flex;

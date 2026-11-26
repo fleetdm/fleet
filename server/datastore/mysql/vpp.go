@@ -3488,6 +3488,7 @@ WHERE
 	// so the Configuration dict (which varies by team / adam_id) can be
 	// inlined and per-host $FLEET_VAR_* tokens can be substituted.
 	subHost := apple_mdm.AppConfigSubstitutionHost{
+		HostID:         hostID,
 		UUID:           hostData.UUID,
 		HardwareSerial: hostData.HardwareSerial,
 		Platform:       hostData.Platform,

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.3",
+      "version": "2026.3.0.1",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PhpStorm %' AND publisher = 'JetBrains s.r.o.') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PhpStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '263.7307.215') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PhpStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '263.7307.352') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('phpstorm.exe','phpstorm64.exe'));"
       },
-      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2026.3-aarch64.exe",
+      "installer_url": "https://download.jetbrains.com/webide/PhpStorm-2026.3.0.1-aarch64.exe",
       "install_script_ref": "683ebebe",
       "uninstall_script_ref": "909d4772",
-      "sha256": "afc553361d7020c98e1ee7cab7607e5b900baa561fd6fc2d871bc006ab709724",
+      "sha256": "37f886a05db0dd85d0da4a6d6da512ffebc49743107995c2f284293b72886808",
       "default_categories": [
         "Developer tools"
       ]

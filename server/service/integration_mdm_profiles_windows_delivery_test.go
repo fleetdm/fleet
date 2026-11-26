@@ -94,6 +94,25 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		require.NotEmpty(t, profileDetail(t, name), "profile %s ran out of retries and must surface the device error", name)
 	}
 
+	// A real Windows device acks every command nested inside the <Atomic>, not just the wrapper, and Fleet builds
+	// a failed profile's detail out of those nested statuses. The fixture has to send them for the detail
+	// assertions below to mean anything.
+	appendNestedStatuses := func(c fleet.ProtoCmdOperation, msgID, status string) {
+		nested := append(append([]fleet.SyncMLCmd{}, c.Cmd.ReplaceCommands...), c.Cmd.AddCommands...)
+		for _, n := range nested {
+			cmdRef, verb := n.CmdID.Value, n.XMLName.Local
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdRef,
+				Cmd:     &verb,
+				Data:    &status,
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+	}
+
 	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
@@ -104,8 +123,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		require.NoError(t, err)
 		atomicCmds := 0
 		for _, c := range cmds {
+			// Only the profile installs get the status under test; the protocol commands are always acked as OK.
+			cmdStatus := syncml.CmdStatusOK
 			if c.Verb == "Atomic" {
 				atomicCmds++
+				cmdStatus = status
 			}
 
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
@@ -113,10 +135,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				MsgRef:  &msgID,
 				CmdRef:  new(c.Cmd.CmdID.Value),
 				Cmd:     new(c.Verb),
-				Data:    new(status),
+				Data:    new(cmdStatus),
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
+			appendNestedStatuses(c, msgID, cmdStatus)
 		}
 		require.Equal(t, wantProfileInstalls, atomicCmds)
 		cmds, err = mdmDevice.SendResponse()
@@ -145,25 +168,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 	retriesBeforeFailure := servermdm.MaxWindowsProfileRetries
 	t.Run(fmt.Sprintf("retries %d times before marking as failed", retriesBeforeFailure), func(t *testing.T) {
-		// A real Windows device acks every command nested inside the <Atomic>, not just the wrapper, and Fleet builds
-		// a failed profile's detail out of those nested statuses. The fixture has to send them for the detail
-		// assertions below to mean anything.
-		appendNestedStatuses := func(c fleet.ProtoCmdOperation, msgID, status string) {
-			nested := append(append([]fleet.SyncMLCmd{}, c.Cmd.ReplaceCommands...), c.Cmd.AddCommands...)
-			for _, n := range nested {
-				cmdRef, verb := n.CmdID.Value, n.XMLName.Local
-				mdmDevice.AppendResponse(fleet.SyncMLCmd{
-					XMLName: xml.Name{Local: fleet.CmdStatus},
-					MsgRef:  &msgID,
-					CmdRef:  &cmdRef,
-					Cmd:     &verb,
-					Data:    &status,
-					Items:   nil,
-					CmdID:   fleet.CmdID{Value: uuid.NewString()},
-				})
-			}
-		}
-
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			mysqltest.DumpTable(t, q, "host_mdm_windows_profiles")
@@ -304,6 +308,31 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		expectedRetryCounts["N1"] = servermdm.MaxWindowsProfileRetries
 		checkRetryCounts(t)
 		requireDetailOnceFailed(t, "N1")
+	})
+
+	// N1 is failed with its retries used up by the subtest above.
+	t.Run("resend after failure restores the retries", func(t *testing.T) {
+		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		var n1UUID string
+		for _, p := range storedProfs {
+			if p.Name == "N1" {
+				n1UUID = p.ProfileUUID
+			}
+		}
+		require.NotEmpty(t, n1UUID)
+
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", h.ID, n1UUID), nil, http.StatusAccepted)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
+		checkProfilesStatus(t)
+		expectedRetryCounts["N1"] = 0
+		checkRetryCounts(t)
+
+		// Failing again now uses one of the restored retries instead of failing the profile for good.
+		verifyCommands(1, syncml.CmdStatusAtomicFailed)
+		checkProfilesStatus(t)
+		expectedRetryCounts["N1"] = 1
+		checkRetryCounts(t)
 	})
 }
 

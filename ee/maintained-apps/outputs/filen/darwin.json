@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.54",
+      "version": "3.0.55",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop' AND version_compare(bundle_short_version, '3.0.54') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop' AND version_compare(bundle_short_version, '3.0.55') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.filen.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.filen.io/@filen/desktop/release/v3.0.54/Filen_mac_arm64.dmg",
+      "installer_url": "https://cdn.filen.io/@filen/desktop/release/v3.0.55/Filen_mac_arm64.dmg",
       "install_script_ref": "e5827215",
       "uninstall_script_ref": "25647dcc",
-      "sha256": "da2228e126e7fe1356e7b8513edc83312a7f183e8e0679cb1a9ab722a1632cc1",
+      "sha256": "74076ba28b26b87996b783c875783cbce46d18815c4f3a2bedafb41399fe9fee",
       "default_categories": [
         "Productivity"
       ]

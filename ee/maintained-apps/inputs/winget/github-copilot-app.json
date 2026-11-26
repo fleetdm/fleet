@@ -1,0 +1,11 @@
+{
+  "name": "GitHub Copilot",
+  "slug": "github-copilot-app/windows",
+  "package_identifier": "GitHub.CopilotApp",
+  "unique_identifier": "GitHub Copilot",
+  "open_process_names": ["github.exe"],
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
