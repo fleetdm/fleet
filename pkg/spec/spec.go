@@ -384,14 +384,6 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 		}
 	}
 
-	// The escaping hint uses the form the source used, $var or ${var}.
-	literalRef := func(env string, startPos int) string {
-		if startPos+1 < len(s) && s[startPos+1] == '{' {
-			return "${" + env + "}"
-		}
-		return "$" + env
-	}
-
 	var err *multierror.Error
 	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		switch {
@@ -425,9 +417,8 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 						return "", false
 					}
 				}
-				ref := literalRef(env, startPos)
-				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q; if you intended the literal string %s then please escape it as \\%s.",
-					fleet.ServerSecretPrefix, env, ref, ref))
+				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
+					fleet.ServerSecretPrefix, env))
 				return "", false
 			default:
 				// Leave as-is for server to handle
@@ -445,7 +436,11 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 		v, ok := lookupEnv(env)
 		if !ok {
-			ref := literalRef(env, startPos)
+			// If the source used ${var} braced syntax, the hint should reflect that.
+			ref := "$" + env
+			if startPos+1 < len(s) && s[startPos+1] == '{' {
+				ref = "${" + env + "}"
+			}
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set; if you intended the literal string %s then please escape it as \\%s.",
 				env, ref, ref))
 			return "", false

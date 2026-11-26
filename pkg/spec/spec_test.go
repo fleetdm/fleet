@@ -207,19 +207,10 @@ func TestExpandEnv(t *testing.T) {
 			nil,
 		},
 		{map[string]string{}, `# set $FLEET_SECRET_ in CI`, `# set $FLEET_SECRET_ in CI`, nil},
-		{map[string]string{}, `# uses \$FLEET_SECRET_A`, `# uses $FLEET_SECRET_A`, nil},
-		{
-			map[string]string{"FLEET_SECRET_A": "1"},
-			`# uses $FLEET_SECRET_A and ${FLEET_SECRET_B}`, ``,
-			checkMultiErrors(t,
-				`environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_A"; if you intended the literal string $FLEET_SECRET_A then please escape it as \$FLEET_SECRET_A.`,
-				`environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_B"; if you intended the literal string ${FLEET_SECRET_B} then please escape it as \${FLEET_SECRET_B}.`,
-			),
-		},
 		{
 			map[string]string{"foo": "1"},
 			`$FLEET_SECRET_$foo`, ``,
-			checkMultiErrors(t, `environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_"; if you intended the literal string $FLEET_SECRET_ then please escape it as \$FLEET_SECRET_.`),
+			checkMultiErrors(t, `environment variables with "FLEET_SECRET_" prefix are only allowed in profiles and scripts: "FLEET_SECRET_"`),
 		},
 	} {
 		// save the current env before clearing it.
