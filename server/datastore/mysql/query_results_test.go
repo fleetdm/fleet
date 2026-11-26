@@ -40,6 +40,7 @@ func TestQueryResults(t *testing.T) {
 		{"CleanupExcessQueryResultRows", testCleanupExcessQueryResultRows},
 		{"CleanupExcessQueryResultRowsManyQueries", testCleanupExcessQueryResultRowsManyQueries},
 		{"WritesDoNotBlockOtherHosts", testQueryResultWritesDoNotBlockOtherHosts},
+		{"CleanupSkipsRowsBeingWritten", testCleanupSkipsQueryResultRowsBeingWritten},
 		{"ListHostReports", testListHostReports},
 	}
 	for _, c := range cases {
@@ -368,6 +369,94 @@ func testUpdateQueryResultsLastFetched(t *testing.T, ds *Datastore) {
 	for _, r := range rowsFor(host1.ID) {
 		require.Equal(t, later, r.LastFetched.UTC())
 	}
+
+	// Rows held by an in-flight write are skipped instead of waited on.
+	var host2IDs []uint
+	for _, r := range rowsFor(host2.ID) {
+		host2IDs = append(host2IDs, r.ID)
+	}
+	require.Len(t, host2IDs, 2)
+	tx, err :=ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback() }()
+	_, err = tx.ExecContext(ctx, `UPDATE query_results SET last_fetched = last_fetched WHERE id = ?`, host2IDs[0])
+	require.NoError(t, err)
+
+	evenLater := later.Add(30 * time.Minute)
+	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	require.NoError(t, ds.UpdateQueryResultsLastFetched(waitCtx, append(host1IDs, host2IDs...), evenLater))
+	require.NoError(t, tx.Rollback())
+	for _, r := range rowsFor(host1.ID) {
+		require.Equal(t, evenLater, r.LastFetched.UTC())
+	}
+	for _, r := range rowsFor(host2.ID) {
+		if r.ID == host2IDs[0] {
+			require.Equal(t, fetched, r.LastFetched.UTC())
+		} else {
+			require.Equal(t, evenLater, r.LastFetched.UTC())
+		}
+	}
+}
+
+func testCleanupSkipsQueryResultRowsBeingWritten(t *testing.T, ds *Datastore) {
+	orig := deleteQueryResultsBatchSize
+	deleteQueryResultsBatchSize = 2
+	t.Cleanup(func() { deleteQueryResultsBatchSize = orig })
+
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Test User", "test@example.com", true)
+	query := test.NewQuery(t, ds, nil, "Query", "SELECT 1", user.ID, true)
+	const rowsPerHost = 3
+	hostIDs := make([]uint, 0, 3)
+	for i := range 3 {
+		host := test.NewHost(t, ds, fmt.Sprintf("host%d", i), "", fmt.Sprintf("key%d", i), fmt.Sprintf("uuid%d", i), time.Now())
+		hostIDs = append(hostIDs, host.ID)
+		rows := make([]*fleet.ScheduledQueryResultRow, 0, rowsPerHost)
+		for range rowsPerHost {
+			rows = append(rows, &fleet.ScheduledQueryResultRow{
+				QueryID: query.ID, HostID: host.ID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "1"}`)),
+			})
+		}
+		_, err := ds.OverwriteQueryResultRows(ctx, rows, fleet.DefaultMaxQueryReportRows, 0)
+		require.NoError(t, err)
+	}
+	storedRows := func(hostID uint) int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &n, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ?`, query.ID, hostID))
+		return n
+	}
+	pending := func() bool {
+		var p bool
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &p, `SELECT results_cleanup_pending FROM queries WHERE id = ?`, query.ID))
+		return p
+	}
+
+	query.Query = "SELECT 2"
+	require.NoError(t, ds.SaveQuery(ctx, query, true, false))
+	require.True(t, pending())
+
+	// Simulate the middle host is replacing its results: all its rows, more than a page, are held.
+	var heldIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &heldIDs, `SELECT id FROM query_results WHERE query_id = ? AND host_id = ?`, query.ID, hostIDs[1]))
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback() }()
+	require.NoError(t, deleteQueryResultsByID(ctx, tx, heldIDs))
+
+	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	require.NoError(t, ds.CleanupStaleQueryResults(waitCtx))
+	require.Zero(t, storedRows(hostIDs[0]))
+	require.Zero(t, storedRows(hostIDs[2]))
+	require.True(t, pending())
+
+	// Simulate the write failed for the middle host, so its rows are back; the next run deletes them.
+	require.NoError(t, tx.Rollback())
+	require.Equal(t, rowsPerHost, storedRows(hostIDs[1]))
+	require.NoError(t, ds.CleanupStaleQueryResults(ctx))
+	require.Zero(t, storedRows(hostIDs[1]))
+	require.False(t, pending())
 }
 
 func testCountResultsForQuery(t *testing.T, ds *Datastore) {

@@ -140,8 +140,9 @@ const (
 // deleteQueryResultsBeforeID deletes a query's rows with id below beforeID (only rows with data
 // if onlyWithData), reading and deleting one page of batchSize rows at a time. Rows are deleted
 // by primary key: a range DELETE on query_id locks every row of the report, and the gaps between
-// them, while hosts keep writing results for it.
-func (ds *Datastore) deleteQueryResultsBeforeID(ctx context.Context, queryID, beforeID uint, onlyWithData bool, batchSize int) error {
+// them, while hosts keep writing results for it. It reports whether any row was skipped because
+// another transaction held it, in which case a later run has to finish the job.
+func (ds *Datastore) deleteQueryResultsBeforeID(ctx context.Context, queryID, beforeID uint, onlyWithData bool, batchSize int) (skipped bool, err error) {
 	selectStmt := selectQueryResultsPageStmt
 	if onlyWithData {
 		selectStmt = selectQueryResultsWithDataPageStmt
@@ -154,24 +155,54 @@ func (ds *Datastore) deleteQueryResultsBeforeID(ctx context.Context, queryID, be
 			HostID uint `db:"host_id"`
 		}
 		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &page, selectStmt, queryID, fromHostID, beforeID, batchSize); err != nil {
-			return ctxerr.Wrap(ctx, err, "selecting query_results page to delete")
+			return skipped, ctxerr.Wrap(ctx, err, "selecting query_results page to delete")
 		}
 		if len(page) == 0 {
-			return nil
+			return skipped, nil
 		}
 		ids := make([]uint, 0, len(page))
 		for _, row := range page {
 			ids = append(ids, row.ID)
 		}
-		if err := deleteQueryResultsByID(ctx, ds.writer(ctx), ids); err != nil {
-			return err
+		deleted, err := ds.deleteUnlockedQueryResults(ctx, ids)
+		if err != nil {
+			return skipped, err
 		}
 		if len(page) < batchSize {
-			return nil
+			return skipped || deleted < len(ids), nil
 		}
-		// The last host may have more rows past this page; its deleted rows won't match again.
-		fromHostID = page[len(page)-1].HostID
+		lastHostID := page[len(page)-1].HostID
+		if deleted < len(ids) {
+			// Skipped rows match again, so step past the last host; its unread rows are left for the
+			// next run along with the skipped ones.
+			skipped = true
+			lastHostID++
+		}
+		// Otherwise the last host may have more rows past this page; its deleted rows won't match again.
+		fromHostID = lastHostID
 	}
+}
+
+// deleteUnlockedQueryResults deletes the rows with the given ids that no other transaction holds
+// and returns how many it deleted. Waiting on a host's in-flight results write would keep every
+// other row of the page locked, stalling those hosts' writes until it commits; the held rows are
+// usually being replaced by that write anyway.
+func (ds *Datastore) deleteUnlockedQueryResults(ctx context.Context, ids []uint) (int, error) {
+	var deleted int
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Without the hint MySQL reads ids from a covering secondary index, locking all of it.
+		stmt, args, err := sqlx.In(`SELECT id FROM query_results FORCE INDEX (PRIMARY) WHERE id IN (?) FOR UPDATE SKIP LOCKED`, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building lock query results statement")
+		}
+		var locked []uint
+		if err := sqlx.SelectContext(ctx, tx, &locked, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "locking query results to delete")
+		}
+		deleted = len(locked)
+		return deleteQueryResultsByID(ctx, tx, locked)
+	})
+	return deleted, err
 }
 
 // queryResultHostDisplayNameExpr mirrors fleet.HostDisplayName so sorting and
@@ -426,19 +457,33 @@ func (ds *Datastore) QueryResultRowsForHostByQuery(ctx context.Context, hostID u
 // UpdateQueryResultsLastFetched updates rows by primary key: an update by (query_id, host_id)
 // takes next-key locks on the secondary index, which block other hosts inserting results for
 // the same query. Both secondary indexes include last_fetched, so their entries for the updated
-// rows are still rewritten.
+// rows are still rewritten. Rows another transaction holds are skipped rather than waited on, as
+// in deleteUnlockedQueryResults: a host rewriting them sets a newer last_fetched itself.
 func (ds *Datastore) UpdateQueryResultsLastFetched(ctx context.Context, ids []uint, lastFetched time.Time) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	stmt, args, err := sqlx.In(`UPDATE query_results SET last_fetched = GREATEST(last_fetched, ?) WHERE id IN (?)`, lastFetched, ids)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building update query results last fetched")
-	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query results last fetched")
-	}
-	return nil
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		stmt, args, err := sqlx.In(`SELECT id FROM query_results FORCE INDEX (PRIMARY) WHERE id IN (?) FOR UPDATE SKIP LOCKED`, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building lock query results statement")
+		}
+		var locked []uint
+		if err := sqlx.SelectContext(ctx, tx, &locked, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "locking query results to update last fetched")
+		}
+		if len(locked) == 0 {
+			return nil
+		}
+		stmt, args, err = sqlx.In(`UPDATE query_results SET last_fetched = GREATEST(last_fetched, ?) WHERE id IN (?)`, lastFetched, locked)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building update query results last fetched")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating query results last fetched")
+		}
+		return nil
+	})
 }
 
 // Above any id a BIGINT UNSIGNED query_results.id will reach.
@@ -459,7 +504,7 @@ func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "selecting discarded queries")
 	}
 	for _, queryID := range queryIDs {
-		if err := ds.deleteQueryResultsBeforeID(ctx, queryID, uint(maxID.Int64)+1, false, deleteQueryResultsBatchSize); err != nil { //nolint:gosec // dismiss G115
+		if _, err := ds.deleteQueryResultsBeforeID(ctx, queryID, uint(maxID.Int64)+1, false, deleteQueryResultsBatchSize); err != nil { //nolint:gosec // dismiss G115
 			return ctxerr.Wrapf(ctx, err, "cleaning up discarded results of query %d", queryID)
 		}
 	}
@@ -467,8 +512,13 @@ func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
 }
 
 func (ds *Datastore) deleteStaleQueryResults(ctx context.Context, queryID, validFromID uint) error {
-	if err := ds.deleteQueryResultsBeforeID(ctx, queryID, validFromID, false, deleteQueryResultsBatchSize); err != nil {
+	skipped, err := ds.deleteQueryResultsBeforeID(ctx, queryID, validFromID, false, deleteQueryResultsBatchSize)
+	if err != nil {
 		return err
+	}
+	// Nothing else finds the stale rows this run skipped once the query is no longer pending.
+	if skipped {
+		return nil
 	}
 	// A later edit that cleared the results again moved the cutoff, so the query stays pending.
 	// updated_at is kept: this isn't an edit of the report.
@@ -519,7 +569,7 @@ func (ds *Datastore) CleanupStaleQueryResults(ctx context.Context) error {
 		if _, ok := existing[queryID]; ok {
 			continue
 		}
-		if err := ds.deleteQueryResultsBeforeID(ctx, queryID, allQueryResultsBeforeID, false, deleteQueryResultsBatchSize); err != nil {
+		if _, err := ds.deleteQueryResultsBeforeID(ctx, queryID, allQueryResultsBeforeID, false, deleteQueryResultsBatchSize); err != nil {
 			return ctxerr.Wrapf(ctx, err, "cleaning up results of deleted query %d", queryID)
 		}
 	}
@@ -592,7 +642,7 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 	// primary key: a DELETE filtered by query_id and id scans (and locks) the query's whole
 	// secondary index range, stalling every host writing results for that query.
 	for _, c := range queryCutoffs {
-		if err := ds.deleteQueryResultsBeforeID(ctx, c.QueryID, c.CutoffID, true, batchSize); err != nil {
+		if _, err := ds.deleteQueryResultsBeforeID(ctx, c.QueryID, c.CutoffID, true, batchSize); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "cleaning up query %d", c.QueryID)
 		}
 	}
