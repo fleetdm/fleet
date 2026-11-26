@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -4200,18 +4201,68 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 
 		require.Len(t, *events, 1)
-		require.Contains(t, (*events)[0], globalSecret)
+		require.Contains(t, (*events)[0], `FLEET_SECRET="`+globalSecret+`"`)
+		require.NotContains(t, (*events)[0], windowsEnrollSecretPolicyURI)
 	})
 
-	t.Run("disabled: a global secret XML can't carry is not installed", func(t *testing.T) {
-		serveFleetdMetadata(t, http.StatusOK)
-		svc, ds, events := newService(t, false)
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{{Secret: "a\x01b"}}, nil
-		}
-		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
-		require.Empty(t, *events)
-	})
+	for _, tc := range []struct{ name, secret string }{
+		{"double quote", `a"b&<c>`},
+		{"trailing backslash", `ab\`},
+		{"non-ASCII character", "añb"},
+	} {
+		secret := tc.secret
+		t.Run("disabled: a global secret with a "+tc.name+" goes to the registry ahead of the install", func(t *testing.T) {
+			serveFleetdMetadata(t, http.StatusOK)
+			svc, ds, events := newService(t, false)
+			ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+				return []*fleet.EnrollSecret{{Secret: secret}}, nil
+			}
+			require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+			require.Len(t, *events, 1)
+			raw := strings.TrimPrefix((*events)[0], "insert:")
+			require.NotContains(t, raw, "FLEET_SECRET=")
+
+			// Parsed the way delivery parses it.
+			cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(raw))
+			require.NoError(t, err)
+			var verbs []string
+			for _, cmd := range cmds {
+				verbs = append(verbs, cmd.XMLName.Local)
+			}
+			require.Equal(t, []string{"Add", "Replace", "Add", "Exec"}, verbs)
+			require.Equal(t, windowsEnrollSecretADMXInstallURI, *cmds[0].Items[0].Target)
+			require.Equal(t, windowsEnrollSecretPolicyURI, *cmds[1].Items[0].Target)
+			// Results for these aren't stored, so they must not look like a queued command to the response handler.
+			require.True(t, fleet.IsFleetInternalCmdID(cmds[0].CmdID.Value))
+			require.True(t, fleet.IsFleetInternalCmdID(cmds[1].CmdID.Value))
+
+			// The policy value is escaped twice, as an attribute inside the <Data> text.
+			var policy struct {
+				Data struct {
+					Value string `xml:"value,attr"`
+				} `xml:"data"`
+			}
+			require.NoError(t, xml.Unmarshal([]byte("<p>"+html.UnescapeString(cmds[1].Items[0].Data.Content)+"</p>"), &policy))
+			require.Equal(t, secret, policy.Data.Value)
+		})
+	}
+
+	for _, tc := range []struct{ name, secret string }{
+		{"a character XML can't carry", "a\x01b"},
+		{"a custom variable", `a"$FLEET_SECRET_FOO`},
+		{"a host secret variable", "a${FLEET_HOST_SECRET_ENROLL_SECRET}"},
+	} {
+		secret := tc.secret
+		t.Run("disabled: a global secret with "+tc.name+" is not installed", func(t *testing.T) {
+			serveFleetdMetadata(t, http.StatusOK)
+			svc, ds, events := newService(t, false)
+			ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+				return []*fleet.EnrollSecret{{Secret: secret}}, nil
+			}
+			require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+			require.Empty(t, *events)
+		})
+	}
 
 	t.Run("an install skipped for missing metadata leaves no secret behind", func(t *testing.T) {
 		// A minted secret nobody is delivered is still a live credential for the enrollment, so it must not be created ahead of
@@ -4221,6 +4272,37 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 		require.Empty(t, *events)
 	})
+}
+
+func TestProcessIncomingMDMCmdsDoesNotResendEnrollSecretADMX(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: "device-1", HostUUID: "host-1", EnrolledActivityAt: new(time.Now())}
+
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, _ fleet.EnrichedSyncML, _ []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		return nil, nil
+	}
+	var resendLookup []string
+	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
+		resendLookup = cmdUUIDs
+		return nil, nil
+	}
+
+	status418 := func(cmdRef string) string {
+		return `<Status><CmdID>s-` + cmdRef + `</CmdID><MsgRef>1</MsgRef><CmdRef>` + cmdRef + `</CmdRef><Cmd>Add</Cmd><Data>418</Data></Status>`
+	}
+	raw := `<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD><VerProto>DM/1.2</VerProto><SessionID>1</SessionID>` +
+		`<MsgID>1</MsgID><Source><LocURI>device-1</LocURI></Source></SyncHdr><SyncBody>` +
+		status418(fleetdEnrollSecretCmdIDPrefix+"admx") + status418("profile-add") + `<Final/></SyncBody></SyncML>`
+	reqMsg := &fleet.SyncML{}
+	require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
+	reqMsg.Raw = []byte(raw)
+
+	_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+	require.NoError(t, err)
+	// The device answers 418 to the ADMX ingest on every resent fleetd install. Resending it as a Replace would clone that install.
+	require.Equal(t, []string{"profile-add"}, resendLookup)
 }
 
 func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {
