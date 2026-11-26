@@ -2282,9 +2282,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	downloadAttempted := true
 	if preInstallConditionFailed {
 		downloadAttempted = false
-	}
-	// fleetd and the server set these exit codes before the installer is downloaded.
-	if result.InstallScriptExitCode != nil {
+	} else if result.InstallScriptExitCode != nil {
+		// fleetd and the server set these exit codes before the installer is downloaded.
 		switch *result.InstallScriptExitCode {
 		case fleet.ExitCodeScriptsDisabled, fleet.ExitCodeInstallerNotFound, fleet.ExitCodeFleetVarResolutionFailed:
 			downloadAttempted = false
