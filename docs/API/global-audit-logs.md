@@ -3678,6 +3678,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -3723,6 +3727,7 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
@@ -3770,6 +3775,10 @@ This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
 - "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps, or if the VPP token was deleted before the install finished.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app. Empty for Microsoft Store apps, which Fleet installs with a script.
 - "install_uuid": ID of the Microsoft Store app installation. Only present for Microsoft Store apps.
@@ -3839,6 +3848,10 @@ This activity contains the following fields:
 - "software_title_id": ID of the updated app's software title.
 - "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
 - "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
