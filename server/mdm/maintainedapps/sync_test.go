@@ -11,6 +11,7 @@ import (
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -395,4 +396,26 @@ func TestFetchAppsListFallbackOverrideViaEnvVar(t *testing.T) {
 	require.Len(t, apps.Apps, 1)
 	assert.Equal(t, "test-app", apps.Apps[0].Slug)
 	assert.True(t, fallbackWasCalled.Load())
+}
+
+func TestUpsertMaintainedAppsDarwinIdentifierOverride(t *testing.T) {
+	ds := new(mock.Store)
+	got := make(map[string]string)
+	ds.UpsertMaintainedAppFunc = func(_ context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+		got[app.Slug] = app.UniqueIdentifier
+		return app, nil
+	}
+	ds.ClearRemovedFleetMaintainedAppsFunc = func(context.Context, []string) error { return nil }
+
+	err := upsertMaintainedApps(t.Context(), &AppsList{Version: 2, Apps: []appListing{
+		{Name: "ChatGPT Desktop", Slug: "chatgpt/darwin", Platform: "darwin", UniqueIdentifier: "com.openai.chat"},
+		{Name: "ChatGPT Desktop", Slug: "chatgpt/windows", Platform: "windows", UniqueIdentifier: "ChatGPT"},
+		{Name: "Mozilla Firefox", Slug: "firefox/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox"},
+	}}, ds)
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		"chatgpt/darwin":  "com.openai.codex",
+		"chatgpt/windows": "ChatGPT",
+		"firefox/darwin":  "org.mozilla.firefox",
+	}, got)
 }

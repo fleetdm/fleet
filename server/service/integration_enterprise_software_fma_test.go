@@ -3833,3 +3833,108 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, emptyResp.RequestUUID)
 	require.Zero(t, teamPinCount(), "removing all software via GitOps must delete all team pins")
 }
+
+func (s *integrationEnterpriseTestSuite) TestFMAChatGPTUsesCodexBundleIdentifier() {
+	t := s.T()
+	ctx := t.Context()
+
+	const slug = "chatgpt/darwin"
+	startFMAServers(t, s.ds, map[string]*fmaTestState{
+		"/" + slug + ".json": {version: "26.1120.50957", installerBytes: []byte("chatgpt"), installerPath: "/chatgpt.zip"},
+	})
+
+	newTeam := func(suffix string) fleet.Team {
+		var resp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new(t.Name() + suffix)}, http.StatusOK, &resp)
+		return *resp.Team
+	}
+	// Current ChatGPT builds report the discontinued Codex app's bundle identifier.
+	newChatGPTHost := func(team fleet.Team, suffix string) *fleet.Host {
+		host := createOrbitEnrolledHost(t, "darwin", suffix, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		_, err := s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+			{Name: "ChatGPT", Version: "26.1120.50957", Source: "apps", BundleIdentifier: "com.openai.codex"},
+		})
+		require.NoError(t, err)
+		return host
+	}
+	installerTitle := func(teamID uint) (installerID, titleID uint) {
+		var row struct {
+			ID      uint `db:"id"`
+			TitleID uint `db:"title_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT si.id, si.title_id FROM software_installers si
+				JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+				WHERE fma.slug = ? AND si.global_or_team_id = ?`, slug, teamID)
+		})
+		return row.ID, row.TitleID
+	}
+	hostTitle := func(host *fleet.Host) uint {
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID, `
+				SELECT s.title_id FROM host_software hs JOIN software s ON s.id = hs.software_id
+				WHERE hs.host_id = ? AND s.bundle_identifier = 'com.openai.codex'`, host.ID)
+		})
+		return titleID
+	}
+	requireInstalledInSelfService := func(host *fleet.Host) {
+		var resp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &resp,
+			"self_service", "true")
+		require.Len(t, resp.Software, 1)
+		require.NotNil(t, resp.Software[0].SoftwarePackage)
+		require.Len(t, resp.Software[0].InstalledVersions, 1)
+		require.Equal(t, "26.1120.50957", resp.Software[0].InstalledVersions[0].Version)
+	}
+	applyGitOps := func(team fleet.Team) {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new(slug), SelfService: true}}, TeamName: team.Name},
+			http.StatusAccepted, &resp, "fleet_name", team.Name, "fleet_id", fmt.Sprint(team.ID))
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+	}
+
+	app, err := s.ds.GetMaintainedAppBySlug(ctx, slug, nil)
+	require.NoError(t, err)
+	require.Equal(t, "com.openai.codex", app.UniqueIdentifier)
+
+	// GitOps links the installer to the title hosts report ChatGPT under, and re-applying moves nothing.
+	gitopsTeam := newTeam("gitops")
+	gitopsHost := newChatGPTHost(gitopsTeam, "gitops")
+	applyGitOps(gitopsTeam)
+	installerID, titleID := installerTitle(gitopsTeam.ID)
+	require.Equal(t, hostTitle(gitopsHost), titleID)
+	requireInstalledInSelfService(gitopsHost)
+
+	applyGitOps(gitopsTeam)
+	againInstallerID, againTitleID := installerTitle(gitopsTeam.ID)
+	require.Equal(t, installerID, againInstallerID)
+	require.Equal(t, titleID, againTitleID)
+
+	// Adding it in the UI links to the same title.
+	uiTeam := newTeam("ui")
+	uiHost := newChatGPTHost(uiTeam, "ui")
+	var addResp addFleetMaintainedAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps",
+		&addFleetMaintainedAppRequest{AppID: app.ID, TeamID: &uiTeam.ID, SelfService: true}, http.StatusOK, &addResp)
+	require.Equal(t, titleID, addResp.SoftwareTitleID)
+	requireInstalledInSelfService(uiHost)
+
+	// The title and its software are named after ChatGPT, not the retired Codex app.
+	require.NoError(t, s.ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	var names struct {
+		Title    string `db:"title_name"`
+		Software string `db:"software_name"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &names, `
+			SELECT st.name AS title_name, s.name AS software_name
+			FROM software_titles st JOIN software s ON s.title_id = st.id
+			WHERE st.id = ?`, titleID)
+	})
+	require.Equal(t, "ChatGPT Desktop", names.Title)
+	require.Equal(t, "ChatGPT Desktop", names.Software)
+}
