@@ -282,7 +282,7 @@ func run(cfg Config) error {
 			// Otherwise auto-detect all versions (no filtering)
 
 			switch {
-			case affected.EcosystemSpecific == nil || len(affected.EcosystemSpecific.Binaries) == 0:
+			case !hasUsableBinaries(affected.EcosystemSpecific):
 				entriesWithoutBinaries++
 			case !isUbuntuKernelSource(affected.EcosystemSpecific.Binaries):
 				entriesWithBinaries++
@@ -315,7 +315,7 @@ func run(cfg Config) error {
 				vulnToUse = modifiedVuln
 			}
 
-			rows := ubuntuRows(affected, fixed, packages, *vulnToUse)
+			rows := ubuntuRows(affected, introduced, fixed, packages, *vulnToUse)
 			addUbuntuRows(artifacts, ubuntuVer, rows)
 			if inToday {
 				addUbuntuRows(todayArtifacts, ubuntuVer, rows)
@@ -424,6 +424,15 @@ const (
 	maxUbuntuEntriesWithoutBinariesPercent = 1.0
 )
 
+// hasUsableBinaries reports whether an entry lists at least one binary with both a name and a
+// version. Renamed fields inside the binary objects would still parse, with every name and
+// version empty, so a non-empty list alone does not show the data is there.
+func hasUsableBinaries(es *EcosystemSpecific) bool {
+	return es != nil && slices.ContainsFunc(es.Binaries, func(b Binary) bool {
+		return b.Name != "" && b.Version != ""
+	})
+}
+
 // checkUbuntuBinariesCoverage fails the run when too many entries lack ecosystem_specific.binaries.
 // If Canonical dropped or renamed the field, records would still parse and every binary key would
 // silently disappear from the artifacts. Kernel entries are left out of the ratio because they are
@@ -434,7 +443,7 @@ func checkUbuntuBinariesCoverage(withBinaries, withoutBinaries int) error {
 		return nil
 	}
 	if pct := 100 * float64(withoutBinaries) / float64(total); pct > maxUbuntuEntriesWithoutBinariesPercent {
-		return fmt.Errorf("%d of %d non-kernel Ubuntu entries (%.1f%%) are without ecosystem_specific.binaries, above the %.0f%% limit; the upstream format may have changed",
+		return fmt.Errorf("%d of %d non-kernel Ubuntu entries (%.1f%%) are without ecosystem_specific.binaries carrying a binary_name and binary_version, above the %.0f%% limit; the upstream format may have changed",
 			withoutBinaries, total, pct, maxUbuntuEntriesWithoutBinariesPercent)
 	}
 	return nil
@@ -446,9 +455,10 @@ type ubuntuRow struct {
 }
 
 // ubuntuRows returns the rows for one affected entry: base under each source package name, plus
-// a row for each binary built from it. upstreamFixed and affected.Versions are the entry's values
-// before transformVuln, so a per-CVE override of base still carries to the binaries.
-func ubuntuRows(affected Affected, upstreamFixed string, packages []string, base ProcessedVuln) []ubuntuRow {
+// a row for each binary built from it. upstreamIntroduced, upstreamFixed and affected.Versions are
+// the entry's values before transformVuln, so a per-CVE override of base still carries to the
+// binaries.
+func ubuntuRows(affected Affected, upstreamIntroduced, upstreamFixed string, packages []string, base ProcessedVuln) []ubuntuRow {
 	rows := make([]ubuntuRow, 0, len(packages))
 	for _, pkg := range packages {
 		rows = append(rows, ubuntuRow{pkg: pkg, vuln: base})
@@ -460,10 +470,11 @@ func ubuntuRows(affected Affected, upstreamFixed string, packages []string, base
 		if bin.Name == "" || slices.Contains(packages, bin.Name) {
 			continue
 		}
-		rows = append(rows, ubuntuRow{
-			pkg:  bin.Name,
-			vuln: ubuntuBinaryVuln(base, bin.Version, upstreamFixed, affected.Versions),
-		})
+		vuln, ok := ubuntuBinaryVuln(base, bin.Version, upstreamIntroduced, upstreamFixed, affected.Versions)
+		if !ok {
+			continue
+		}
+		rows = append(rows, ubuntuRow{pkg: bin.Name, vuln: vuln})
 	}
 	return rows
 }
@@ -483,20 +494,25 @@ func isUbuntuKernelSource(binaries []Binary) bool {
 // ubuntuBinaryVuln adapts the source row to a binary on its own version line, where the source's
 // versions would never match and its fixed version would be the wrong "resolved in". base is a
 // copy whose Versions slice is shared with the source row, so the field is replaced, never edited.
-func ubuntuBinaryVuln(base ProcessedVuln, binaryVersion, upstreamFixed string, upstreamVersions []string) ProcessedVuln {
+// It returns false when the binary gets no row: a non-zero introduced bound is a version on the
+// source's line, so a range on the binary's own line has no lower bound to compare against.
+func ubuntuBinaryVuln(base ProcessedVuln, binaryVersion, upstreamIntroduced, upstreamFixed string, upstreamVersions []string) (ProcessedVuln, bool) {
 	if binaryVersion == "" {
-		return base
+		return base, true
 	}
 	switch {
 	case upstreamFixed != "":
 		if binaryVersion != upstreamFixed {
+			if upstreamIntroduced != "" && upstreamIntroduced != "0" {
+				return ProcessedVuln{}, false
+			}
 			base.Fixed = binaryVersion
 			base.Versions = nil
 		}
 	case len(upstreamVersions) > 0 && !slices.Contains(upstreamVersions, binaryVersion):
 		base.Versions = []string{binaryVersion}
 	}
-	return base
+	return base, true
 }
 
 func addUbuntuRows(artifacts map[string]*ArtifactData, ubuntuVer string, rows []ubuntuRow) {

@@ -950,6 +950,24 @@ func TestRunUbuntuBinaryExpansion(t *testing.T) {
 			},
 		},
 		{
+			name: "fix, binary on its own version line, source with an introduced bound",
+			affected: func() []map[string]any {
+				a := testUbuntuAffected(eco, "inetutils", "2:2.4-3ubuntu1", []string{"2:2.4-3"},
+					[]testUbuntuBinary{
+						{"inetutils-telnet", "2:2.4-3ubuntu1"},
+						{"telnet", "0.17+2.4-3ubuntu1"},
+					})
+				a["ranges"] = []map[string]any{{"type": "ECOSYSTEM", "events": []map[string]string{{"introduced": "2:2.3-1"}, {"fixed": "2:2.4-3ubuntu1"}}}}
+				return []map[string]any{a}
+			}(),
+			want: func() map[string][]ProcessedVuln {
+				r := row("2:2.4-3ubuntu1", []string{"2:2.4-3"})
+				r.Introduced = "2:2.3-1"
+				// telnet gets no row: the bound is on inetutils' version line, not telnet's.
+				return map[string][]ProcessedVuln{"inetutils": {r}, "inetutils-telnet": {r}}
+			}(),
+		},
+		{
 			name: "fix, binary without a version",
 			affected: []map[string]any{testUbuntuAffected(eco, "curl", "8.5.0-2ubuntu10.6",
 				[]string{"8.5.0-2ubuntu10"},
@@ -2377,6 +2395,15 @@ func TestRunFailsWhenUbuntuEntriesLackBinaries(t *testing.T) {
 			return []testUbuntuBinary{{fmt.Sprintf("%s-%d", prefix, i), "1.0-1ubuntu1"}}
 		}
 	}
+	renamedBinaryFields := func(nameKey, versionKey string) []map[string]any {
+		out := entries("pkg", 1000, noBinaries)
+		for i, a := range out {
+			a["ecosystem_specific"] = map[string]any{"binaries": []map[string]string{
+				{nameKey: fmt.Sprintf("libpkg-%d", i), versionKey: "1.0-1ubuntu1"},
+			}}
+		}
+		return out
+	}
 	kernelBinaries := func(i int) []testUbuntuBinary {
 		return []testUbuntuBinary{{fmt.Sprintf("linux-image-6.8.0-%d-generic", i), "6.8.0-60.63"}}
 	}
@@ -2395,6 +2422,16 @@ func TestRunFailsWhenUbuntuEntriesLackBinaries(t *testing.T) {
 			// Kernel entries are most of the real data; counting them would dilute this below 1%.
 			name:     "binaries missing from non-kernel entries only",
 			affected: append(entries("linux-flavor", 100000, kernelBinaries), entries("pkg", 1000, noBinaries)...),
+			wantErr:  true,
+		},
+		{
+			name:     "binary_name renamed",
+			affected: renamedBinaryFields("name", "binary_version"),
+			wantErr:  true,
+		},
+		{
+			name:     "binary_version renamed",
+			affected: renamedBinaryFields("binary_name", "version"),
 			wantErr:  true,
 		},
 		{
