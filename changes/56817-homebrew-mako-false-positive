@@ -1,0 +1,1 @@
+- Fixed false positive vulnerabilities (CVE-2022-40023, CVE-2026-41205, CVE-2026-44307, CVE-2026-102991) reported for the makojs web bundler installed with Homebrew (`mako`), which was incorrectly matched to the CPE of the Mako Python template library.
