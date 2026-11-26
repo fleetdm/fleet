@@ -88,7 +88,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "fluidvoice", "syncovery", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "elgato-wave-link", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "fluidvoice", "syncovery", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "elgato-wave-link", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query", "adobe-acrobat-reader":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -223,6 +223,9 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "elgato-wave-link", UniqueIdentifier: "com.elgato.WaveLink3", InstallerFormat: "dmg", Name: "Elgato Wave Link", Slug: "elgato-wave-link/darwin"}}, //nolint:gosec // G101: cask token, not a credential
 		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
 		{"", inputApp{Token: "xquartz", UniqueIdentifier: "org.xquartz.X11", InstallerFormat: "pkg", Name: "XQuartz", Slug: "xquartz/darwin"}},
+		// The slug differs from the real one so the Adobe manifest enricher, which
+		// fetches from Adobe, doesn't run.
+		{"", inputApp{Token: "adobe-acrobat-reader", UniqueIdentifier: "com.adobe.Reader", InstallerFormat: "dmg", Name: "Adobe Acrobat Reader", Slug: "adobe-acrobat-reader-test/darwin"}},
 		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
 		{"", inputApp{Token: "zen", UniqueIdentifier: "app.zen-browser.zen", InstallerFormat: "dmg", Name: "Zen Browser", Slug: "zen/darwin"}},
 		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
@@ -445,6 +448,13 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.xquartz.X11';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'org.macosforge.xquartz.X11' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = 'org.xquartz.X11' AND version_compare(bundle_short_version, '1.0') < 0));",
+					out.Queries.Patched,
+				)
+			case "adobe-acrobat-reader":
+				// The unified Acrobat app counts as Reader, but only Reader's version is checked.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier IN ('com.adobe.Reader', 'com.adobe.Acrobat.Pro');", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '1.0') < 0) OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro');",
 					out.Queries.Patched,
 				)
 			case "enpass", "gog-galaxy":

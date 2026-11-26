@@ -176,6 +176,12 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// The patch policy generated below inherits this match.
 		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE %s;", chatGPTBundleMatch(""))
 	}
+	if input.Token == "adobe-acrobat-reader" {
+		// Adobe's updater can migrate Reader to the unified Adobe Acrobat app, which
+		// runs as Reader when it isn't licensed. Reader's installer won't install
+		// alongside it, so a host with it already has Reader.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier IN ('%s', '%s');", out.UniqueIdentifier, acrobatBundleID)
+	}
 	if input.Token == "syncovery" {
 		// Syncovery.app/Contents/MacOS/BackgroundScheduler.app shares the app's
 		// bundle identifier but has its own version ("9"), which always sorts below
@@ -497,6 +503,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			xquartzLegacyBundleID, out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "adobe-acrobat-reader" {
+		// Only Reader's version counts: Acrobat is patched by its own FMA, and the
+		// install script skips hosts that have it, so they pass.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0) OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s');",
+			out.UniqueIdentifier, out.Version, acrobatBundleID,
+		)
+	}
 	if input.Token == "roboform" {
 		// RoboForm 9 reports com.SiberSystems.RoboForm from the same path, as does the
 		// installer that RoboForm 10's disk image ships as RoboForm.app. Installing
@@ -592,6 +606,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	return out, nil
 }
+
+// acrobatBundleID is the bundle identifier of the unified Adobe Acrobat app.
+const acrobatBundleID = "com.adobe.Acrobat.Pro"
 
 // xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.
 const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"

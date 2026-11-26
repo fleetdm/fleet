@@ -3,8 +3,8 @@
     {
       "version": "26.003.22110",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '26.003.22110') < 0);",
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier IN ('com.adobe.Reader', 'com.adobe.Acrobat.Pro');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '26.003.22110') < 0) OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.adobe.Reader' AND a.bundle_executable != '');"
       },
       "installer_url": "https://ardownload2.adobe.com/pub/adobe/reader/mac/AcrobatDC/2600322110/AcroRdrDC_2600322110_MUI.dmg",
