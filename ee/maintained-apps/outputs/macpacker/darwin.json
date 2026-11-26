@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.3.0",
+      "version": "1.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sarensx.MacPacker';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sarensx.MacPacker' AND version_compare(bundle_short_version, '1.3.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sarensx.MacPacker' AND version_compare(bundle_short_version, '1.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.sarensx.MacPacker' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/sarensw/MacPacker/releases/download/v1.3.0/MacPacker_v1.3.0.zip",
+      "installer_url": "https://github.com/sarensw/MacPacker/releases/download/v1.3.1/MacPacker_v1.3.1.zip",
       "install_script_ref": "52fe228a",
       "uninstall_script_ref": "6a6bd9e8",
-      "sha256": "c1703906ac34a47780a13718785c14959aba72cdfecd9c71d0c0b3c218aecbab",
+      "sha256": "fddaec2994ad913394c6f2490d5c02cfd133f9b3af0602d4adc5250904f7efca",
       "default_categories": [
         "Productivity"
       ]

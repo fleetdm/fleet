@@ -3304,3 +3304,97 @@ func TestCustomInstallScriptsDoNotUseOldVarNameDerivation(t *testing.T) {
 		require.NotContains(t, string(b), `tr '.-' '__'`, "%s derives APP_WAS_RUNNING_ the old way", filepath.Base(path))
 	}
 }
+
+func TestChatGPTInstallOwnership(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+	b, err := os.ReadFile("../../inputs/homebrew/scripts/chatgpt-install.sh")
+	require.NoError(t, err)
+	i := strings.Index(string(b), "is_app_owner() {")
+	require.Positive(t, i)
+	script := string(b)[i:]
+
+	for _, tt := range []struct {
+		name, owner, console, last, want string
+		copyFails, chownFails            bool
+	}{
+		{name: "preserve existing owner", owner: "alice", console: "bob", want: "alice"},
+		{name: "root owned install", owner: "root", console: "alice", want: "alice"},
+		{name: "fresh install", console: "alice", want: "alice"},
+		{name: "logged out", owner: "root", console: "root", last: "alice", want: "alice"},
+		{name: "invalid owner", owner: "deleted", console: "bob", want: "bob"},
+		{name: "setup assistant", console: "_mbsetupuser", last: "alice", want: "alice"},
+		{name: "no user", console: "loginwindow"},
+		{name: "invalid last user", console: "root", last: "deleted"},
+		{name: "chown failure", console: "alice", want: "alice", chownFails: true},
+		{name: "copy failure", owner: "alice", console: "alice", copyFails: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			appDir := filepath.Join(dir, "Applications")
+			sourceDir := filepath.Join(dir, "installer")
+			require.NoError(t, os.MkdirAll(appDir, 0o755))
+			require.NoError(t, os.MkdirAll(filepath.Join(sourceDir, "ChatGPT.app"), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(sourceDir, "ChatGPT.app", "version"), []byte("new"), 0o644))
+			if tt.owner != "" {
+				require.NoError(t, os.MkdirAll(filepath.Join(appDir, "ChatGPT.app"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(appDir, "ChatGPT.app", "version"), []byte("old"), 0o644))
+			}
+			stubs := `
+ditto() { :; }
+stat() { if [[ "$3" == /dev/console ]]; then echo "$CONSOLE"; else echo "$OWNER"; fi; }
+defaults() { [[ "$3" == lastUserName ]] && echo "$LAST"; }
+id() { [[ "$2" == alice || "$2" == bob ]]; }
+quit_and_track_application() { :; }
+relaunch_application() { echo relaunched; }
+sudo() {
+  case "$1" in
+    chown) printf 'ownership %s\n' "$*"; [[ "$CHOWN_FAILS" != true ]];;
+    cp)
+      if [[ "$COPY_FAILS" == true ]]; then
+        mkdir -p "${4%/}/ChatGPT.app" && printf new > "${4%/}/ChatGPT.app/version"
+        return 1
+      fi
+      command "$@";;
+    *) command "$@";;
+  esac
+}
+`
+			cmd := exec.Command(bash, "-c", stubs+script)
+			cmd.Env = append(os.Environ(), "APPDIR="+appDir+"/", "TMPDIR="+sourceDir,
+				"OWNER="+tt.owner, "CONSOLE="+tt.console, "LAST="+tt.last,
+				"COPY_FAILS="+strconv.FormatBool(tt.copyFails), "CHOWN_FAILS="+strconv.FormatBool(tt.chownFails))
+			out, err := cmd.CombinedOutput()
+			if tt.copyFails {
+				require.Error(t, err, string(out))
+				require.NotContains(t, string(out), "ownership ")
+				require.NotContains(t, string(out), "relaunched")
+			} else {
+				require.NoError(t, err, string(out))
+				require.Contains(t, string(out), "relaunched")
+			}
+			if tt.want != "" {
+				require.Contains(t, string(out), "ownership chown -R "+tt.want+":staff "+appDir+"//ChatGPT.app")
+			} else {
+				require.NotContains(t, string(out), "ownership ")
+			}
+			if tt.chownFails {
+				require.Contains(t, string(out), "Failed to assign ownership")
+			} else if tt.want == "" && !tt.copyFails {
+				require.Contains(t, string(out), "stays owned by root")
+			}
+			version, err := os.ReadFile(filepath.Join(appDir, "ChatGPT.app", "version"))
+			require.NoError(t, err)
+			if tt.copyFails {
+				require.Equal(t, "old", string(version))
+			} else {
+				require.Equal(t, "new", string(version))
+			}
+		})
+	}
+}

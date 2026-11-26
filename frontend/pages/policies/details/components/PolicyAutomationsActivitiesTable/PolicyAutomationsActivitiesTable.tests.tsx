@@ -12,7 +12,11 @@ import {
 import { ActivityType } from "interfaces/activity";
 import { IPolicy, IPolicyAutomationActivity } from "interfaces/policy";
 import policiesAPI from "services/entities/policies";
-import { createCustomRenderer } from "test/test-utils";
+import {
+  createCustomRenderer,
+  expectTruncationTooltip,
+  mockTruncatedTextLayout,
+} from "test/test-utils";
 
 import {
   getAutomationRunDisplayName,
@@ -542,6 +546,10 @@ describe("PolicyAutomationsActivitiesTable", () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("renders the header, run count, and a host link", async () => {
     (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
       mockResponse([mockActivity()], 1)
@@ -558,6 +566,23 @@ describe("PolicyAutomationsActivitiesTable", () => {
     expect(await screen.findByText("Anna's MacBook Pro")).toBeInTheDocument();
     expect(screen.getByText("1 run")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search hosts")).toBeInTheDocument();
+  });
+
+  it("shows the full host name in a tooltip when it is truncated", async () => {
+    const longHostName = `DESKTOP-${"0123456789ABCDEF".repeat(8)}`;
+    mockTruncatedTextLayout();
+    (policiesAPI.getAutomationActivities as jest.Mock).mockResolvedValue(
+      mockResponse([mockActivity({ host_display_name: longHostName })], 1)
+    );
+
+    const { user } = render(
+      <PolicyAutomationsActivitiesTable
+        policy={mockPolicy}
+        canResetPolicy={false}
+      />
+    );
+
+    await expectTruncationTooltip(user, longHostName);
   });
 
   it("prefills the host search and fetches that host's runs", async () => {

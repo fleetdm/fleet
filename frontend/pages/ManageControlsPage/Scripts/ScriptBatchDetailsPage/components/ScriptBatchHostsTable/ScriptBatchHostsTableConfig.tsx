@@ -52,6 +52,8 @@ const generateColumnConfigs = (
       Cell: (cellProps: ITableStringCellProps) => (
         <span className="host-name-cell">
           <LinkCell
+            className="w400"
+            tooltipTruncate
             value={cellProps.row.original.display_name}
             path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
             customOnClick={(e) => {

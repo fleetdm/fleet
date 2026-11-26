@@ -69,6 +69,8 @@ const generateReportColumnConfigsFromResults = (
           }
           return (
             <LinkCell
+              className="w400"
+              tooltipTruncate
               value={cellProps.cell.value}
               path={PATHS.HOST_REPORT_RESULTS(hostID, queryId)}
             />
