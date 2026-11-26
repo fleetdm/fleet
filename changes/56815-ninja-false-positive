@@ -1,0 +1,1 @@
+- Fixed false positive vulnerability CVE-2021-4336 reported for the ninja build tool installed with Homebrew, pip, pacman or Chocolatey (`ninja`), which was incorrectly matched to the CPE of ITRS Group's monitor-ninja.
