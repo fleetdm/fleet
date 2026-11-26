@@ -18,6 +18,7 @@ func TestRedisInstallAttempts(t *testing.T) {
 		testResetAttempts,
 		testRecordSetsExpiry,
 		testCountsAreScopedToHostAndInstaller,
+		testResetInstallerAttempts,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -131,4 +132,32 @@ func ttlSeconds(t *testing.T, counter *redisInstallAttemptCounter, hostID uint, 
 	ttl, err := redigo.Int(conn.Do("TTL", counter.key(hostID, softwareInstallerID)))
 	require.NoError(t, err)
 	return float64(ttl)
+}
+
+func testResetInstallerAttempts(t *testing.T, counter *redisInstallAttemptCounter) {
+	ctx := t.Context()
+
+	// Record attempts for installer 40 on two hosts and for installer 400, whose key starts
+	// with the same digits, then reset installer 40.
+	_, err := counter.RecordAttempt(ctx, 30, 40, time.Hour)
+	require.NoError(t, err)
+	_, err = counter.RecordAttempt(ctx, 31, 40, time.Hour)
+	require.NoError(t, err)
+	_, err = counter.RecordAttempt(ctx, 30, 400, time.Hour)
+	require.NoError(t, err)
+
+	require.NoError(t, counter.ResetInstallerAttempts(ctx, []uint{40}))
+
+	// Installer 40 counts 0 on both hosts.
+	count, err := counter.CountAttempts(ctx, 30, 40)
+	require.NoError(t, err)
+	require.Zero(t, count)
+	count, err = counter.CountAttempts(ctx, 31, 40)
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	// Installer 400 keeps its count.
+	count, err = counter.CountAttempts(ctx, 30, 400)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
 }
