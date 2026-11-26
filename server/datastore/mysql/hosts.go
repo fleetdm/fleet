@@ -731,14 +731,44 @@ const (
 	hostOSNameSelect    = "\n  COALESCE(os.name, '') AS os_name"
 	hostOSVersionSelect = "\n  COALESCE(os.version, '') AS os_version_only"
 	hostOSSelect        = hostOSNameSelect + "," + hostOSVersionSelect
-	hostOSInventoryJoin = "\n  LEFT JOIN host_operating_system hos ON hos.host_id = h.id"
-	hostOSRowJoin       = "\n  LEFT JOIN operating_systems os ON os.id = hos.os_id"
-	hostOSJoin          = hostOSInventoryJoin + hostOSRowJoin
+	hostOSJoin          = `
+  LEFT JOIN host_operating_system hos ON hos.host_id = h.id
+  LEFT JOIN operating_systems os ON os.id = hos.os_id`
 )
+
+// hostAPIOSFields are the fields setHostAPIOS reads, so a list loads all of them or none.
+var hostAPIOSFields = []string{"os_name", "os_version_only", "os_version"}
 
 // setHostAPIOS turns the OS inventory row loaded by hostOSSelect into the os_name and os_version the API returns.
 func setHostAPIOS(h *fleet.Host) {
 	h.OSName, h.OSVersionOnly = fleet.HostAPIOS(h.OSName, h.OSVersionOnly, h.OSVersion)
+}
+
+type hostFields map[string]struct{}
+
+func (f hostFields) want(field string) bool {
+	if f == nil {
+		return true
+	}
+	_, ok := f[field]
+	return ok
+}
+
+func newHostFields(selectFields []string) hostFields {
+	if len(selectFields) == 0 {
+		return nil
+	}
+	// The service loads more host data by id, and omitUnknownLinuxDiskEncryption reads platform.
+	fields := hostFields{"id": {}, "platform": {}}
+	for _, f := range selectFields {
+		fields[f] = struct{}{}
+	}
+	if slices.ContainsFunc(hostAPIOSFields, fields.want) {
+		for _, f := range hostAPIOSFields {
+			fields[f] = struct{}{}
+		}
+	}
+	return fields
 }
 
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -986,9 +1016,7 @@ const hostMDMSelect = `,
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
-const hostMDMJoin = hostMDMDataJoin + hostDiskEncryptionJoin + hostDEPAssignmentsJoin + "\n"
-
-const hostMDMDataJoin = `
+const hostMDMJoin = `
   LEFT JOIN (
 	SELECT
 	  hm.is_server,
@@ -1004,12 +1032,10 @@ const hostMDMDataJoin = `
 	FROM
 	  host_mdm hm
 	  LEFT JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
-  ) hmdm ON hmdm.host_id = h.id`
-
-const (
-	hostDiskEncryptionJoin = "\n  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id"
-	hostDEPAssignmentsJoin = "\n  LEFT JOIN host_dep_assignments hdep ON hdep.host_id = h.id" //nolint:gosec // G101 false positive
-)
+  ) hmdm ON hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+  LEFT JOIN host_dep_assignments hdep ON hdep.host_id = h.id
+  `
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
 	var hostsByOS []struct {
@@ -1041,8 +1067,8 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 }
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	fields := hostReportFields(opt.ReportColumns)
-	sql := "SELECT" + strings.TrimPrefix(selectHostFields(hostListSelect, fields), ",")
+	fields := newHostFields(opt.SelectFields)
+	sql := hostListSelectSQL(fields, !opt.DisableIssues)
 
 	if opt.DeviceMapping && fields.want("device_mapping") {
 		// Use a correlated subquery in the SELECT list (rather than a derived-table
@@ -1061,9 +1087,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`, deviceMappingTranslateSourceColumn("he"))
 	}
 
-	if !opt.DisableIssues {
-		sql += selectHostFields(hostIssuesSelect, fields)
-	}
 	sql += "\n"
 
 	var params []interface{}
@@ -1091,9 +1114,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params, hostFilterList)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts: apply host filters")
-	}
-	if fields != nil {
-		sql = dropUnusedHostJoins(sql, hostListOptionalJoins)
 	}
 
 	hosts := []*fleet.Host{}
@@ -1211,16 +1231,13 @@ const (
 	hostFilterList
 )
 
-const (
-	hostSeenTimesJoin = "\n    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)"
-	hostUpdatesJoin   = "\n    LEFT JOIN host_updates hu ON (h.id = hu.host_id)"
-	hostTeamsJoin     = "\n    LEFT JOIN teams t ON (h.team_id = t.id)"
-	hostDisksJoin     = "\n    LEFT JOIN host_disks hd ON hd.host_id = h.id"
-	hostOrbitInfoJoin = "\n    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id"
-	hostAutopilotJoin = "\n    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL"
-	hostListJoins     = hostSeenTimesJoin + hostUpdatesJoin + hostTeamsJoin + hostDisksJoin + hostOrbitInfoJoin + hostAutopilotJoin
-	hostIssuesJoin    = `LEFT JOIN host_issues ON h.id = host_issues.host_id`
-)
+const hostListJoins = `
+    LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN teams t ON (h.team_id = t.id)
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
+    LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL`
 
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 // applyHostFilters splices the WHERE clause and its associated joins onto sqlStmt.
@@ -1371,7 +1388,7 @@ func (ds *Datastore) applyHostFilters(
 
 	failingPoliciesJoin := ""
 	if !opt.DisableIssues {
-		failingPoliciesJoin = hostIssuesJoin
+		failingPoliciesJoin = `LEFT JOIN host_issues ON h.id = host_issues.host_id`
 	}
 
 	operatingSystemJoin := ""
@@ -1724,11 +1741,9 @@ const hostMDMSeenTimeJoin = `
 // state, so a checked-out device with a fresh detail_updated_at still reads
 // online for up to MobileOnlineWindow after checkout. See Host.mobileStatus
 // for the Go mirror.
-const (
-	hostMobileMDMEnrollmentJoin = "\n\tLEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')"
-	hostMobileMDMSeenJoin       = "\n\tLEFT JOIN nano_seen_times nstm ON nstm.id = nesm.id"
-	hostMobileMDMSeenTimeJoin   = hostMobileMDMEnrollmentJoin + hostMobileMDMSeenJoin
-)
+const hostMobileMDMSeenTimeJoin = `
+	LEFT JOIN nano_enrollments nesm ON nesm.id = h.uuid AND nesm.enabled = 1 AND nesm.type IN ('Device', 'User Enrollment (Device)')
+	LEFT JOIN nano_seen_times nstm ON nstm.id = nesm.id`
 
 // hostEffectiveLastSeenExpr is the effective "last seen" time for a host: the greatest of the osquery
 // seen_time and the MDM seen time, then detail_updated_at (treating the Never sentinel as null),
@@ -8063,4 +8078,98 @@ func (ds *Datastore) CleanupHostIssues(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "cleanup host issues")
 	}
 	return nil
+}
+
+type hostFieldExpr struct {
+	field string
+	expr  string
+}
+
+func hostListSelectSQL(fields hostFields, withIssues bool) string {
+	return selectHostListSQL(hostListSelect, fields, withIssues)
+}
+
+func selectHostListSQL(exprs []hostFieldExpr, fields hostFields, withIssues bool) string {
+	sql := "SELECT" + strings.TrimPrefix(selectHostFields(exprs, fields), ",")
+	if withIssues {
+		sql += selectHostFields(hostIssuesSelect, fields)
+	}
+	return sql
+}
+
+func selectHostFields(exprs []hostFieldExpr, fields hostFields) string {
+	var sb strings.Builder
+	for _, e := range exprs {
+		if fields.want(e.field) {
+			sb.WriteString(",\n    ")
+			sb.WriteString(e.expr)
+		}
+	}
+	return sb.String()
+}
+
+var hostListSelect = []hostFieldExpr{
+	{"id", "h.id"},
+	{"osquery_host_id", "h.osquery_host_id"},
+	{"created_at", "h.created_at"},
+	{"updated_at", "h.updated_at"},
+	{"detail_updated_at", "h.detail_updated_at"},
+	{"node_key", "h.node_key"},
+	{"hostname", "h.hostname"},
+	{"uuid", "h.uuid"},
+	{"platform", "h.platform"},
+	{"osquery_version", "h.osquery_version"},
+	{"os_version", "h.os_version"},
+	{"build", "h.build"},
+	{"platform_like", "h.platform_like"},
+	{"code_name", "h.code_name"},
+	{"uptime", "h.uptime"},
+	{"memory", "h.memory"},
+	{"cpu_type", "h.cpu_type"},
+	{"cpu_subtype", "h.cpu_subtype"},
+	{"cpu_brand", "h.cpu_brand"},
+	{"cpu_physical_cores", "h.cpu_physical_cores"},
+	{"cpu_logical_cores", "h.cpu_logical_cores"},
+	{"hardware_vendor", "h.hardware_vendor"},
+	{"hardware_model", "h.hardware_model"},
+	{"hardware_version", "h.hardware_version"},
+	{"hardware_serial", "h.hardware_serial"},
+	{"computer_name", "h.computer_name"},
+	{"primary_ip_id", "h.primary_ip_id"},
+	{"distributed_interval", "h.distributed_interval"},
+	{"logger_tls_period", "h.logger_tls_period"},
+	{"config_tls_refresh", "h.config_tls_refresh"},
+	{"primary_ip", "h.primary_ip"},
+	{"primary_mac", "h.primary_mac"},
+	{"label_updated_at", "h.label_updated_at"},
+	{"last_enrolled_at", "h.last_enrolled_at"},
+	{"refetch_requested", "h.refetch_requested"},
+	{"refetch_critical_queries_until", "h.refetch_critical_queries_until"},
+	{"team_id", "h.team_id"},
+	{"policy_updated_at", "h.policy_updated_at"},
+	{"public_ip", "h.public_ip"},
+	{"orbit_node_key", "h.orbit_node_key"},
+	{"gigs_disk_space_available", "COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available"},
+	{"percent_disk_space_available", "COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available"},
+	{"gigs_total_disk_space", "COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space"},
+	{"gigs_all_disk_space", "hd.gigs_all_disk_space"},
+	{"disk_encryption_enabled", "hd.encrypted as disk_encryption_enabled"},
+	{"seen_time", "COALESCE(hst.seen_time, h.created_at) AS seen_time"},
+	{"last_mdm_checked_in_at", "nstm.seen_time AS last_mdm_checked_in_at"},
+	{"team_name", "t.name AS team_name"},
+	{"software_updated_at", "COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at"},
+	{"last_restarted_at", "h.last_restarted_at"},
+	{"timezone", "h.timezone"},
+	{"orbit_version", "hoi.version AS orbit_version"},
+	{"fleet_desktop_version", "hoi.desktop_version AS fleet_desktop_version"},
+	{"group_tag", "had.group_tag AS group_tag"},
+	{"os_name", hostOSNameSelect},
+	{"os_version_only", hostOSVersionSelect},
+	{"mdm_host_data", strings.TrimPrefix(hostMDMSelect, ",")},
+}
+
+var hostIssuesSelect = []hostFieldExpr{
+	{"failing_policies_count", "COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count"},
+	{"critical_vulnerabilities_count", "COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count"},
+	{"total_issues_count", "COALESCE(host_issues.total_issues_count, 0) AS total_issues_count"},
 }

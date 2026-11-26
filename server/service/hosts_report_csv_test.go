@@ -30,8 +30,7 @@ func TestHostsReportMatchesBufferedRendering(t *testing.T) {
 		return hosts
 	}
 
-	all := bufferedHostsReportCSV(t, newHosts(), nil)
-	header, err := csv.NewReader(bytes.NewBufferString(all)).Read()
+	header, err := hostsReportHeader()
 	require.NoError(t, err)
 	cases := [][]string{nil, {"hostname", "status", "issues", "mdm.enrollment_status", "device_mapping", "fleet_name", "hardware_marketing_name"}}
 	for _, col := range header {
@@ -49,13 +48,6 @@ func TestHostsReportMatchesBufferedRendering(t *testing.T) {
 		hostsReportResponse{Columns: []string{"hostname", "status"}}.HijackRender(t.Context(), rr)
 		require.Equal(t, http.StatusOK, rr.Code)
 		require.Equal(t, "hostname,status\n", rr.Body.String())
-	})
-
-	t.Run("invalid column", func(t *testing.T) {
-		rr := httptest.NewRecorder()
-		hostsReportResponse{Columns: []string{"hostname", "nosuchcolumn"}, Hosts: newHosts()}.HijackRender(t.Context(), rr)
-		require.Equal(t, http.StatusBadRequest, rr.Code)
-		require.Contains(t, rr.Body.String(), `invalid column name: \"nosuchcolumn\"`)
 	})
 }
 

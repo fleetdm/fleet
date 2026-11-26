@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -14056,40 +14057,47 @@ func testListHostsReportColumns(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	listers := map[string]func(fleet.TeamFilter, fleet.HostListOptions) ([]*fleet.Host, error){
-		"hosts": func(f fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	listers := []struct {
+		name      string
+		orderKeys common_mysql.OrderKeyAllowlist
+		list      func(fleet.TeamFilter, fleet.HostListOptions) ([]*fleet.Host, error)
+	}{
+		{"hosts", hostAllowedOrderKeys, func(f fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 			return ds.ListHosts(ctx, f, opt)
-		},
-		"label": func(f fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		}},
+		{"label", hostsInLabelAllowedOrderKeys, func(f fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 			return ds.ListHostsInLabel(ctx, f, label.ID, opt)
-		},
+		}},
 	}
 	for _, c := range cases {
-		for listName, list := range listers {
-			t.Run(listName+" "+c.name, func(t *testing.T) {
+		for _, lister := range listers {
+			list := lister.list
+			t.Run(lister.name+" "+c.name, func(t *testing.T) {
 				opt := c.opt
 				opt.ListOptions = fleet.ListOptions{OrderKey: "display_name", TestSecondaryOrderKey: "id"}
 				all, err := list(c.filter, opt)
-				if err != nil {
-					return // the filter doesn't apply to this list
-				}
+				require.NoError(t, err)
 				want := hostsReportRows(t, all)
 				for i, col := range want[0] {
-					opt.ReportColumns = []string{col}
+					opt.SelectFields = fleet.HostCSVColumnFields([]string{col})
 					got, err := list(c.filter, opt)
 					require.NoError(t, err, col)
 					require.Equal(t, reportColumn(want, i), reportColumn(hostsReportRows(t, got), i), col)
 				}
 
-				for _, key := range slices.Sorted(maps.Keys(hostAllowedOrderKeys)) {
+				for _, key := range slices.Sorted(maps.Keys(lister.orderKeys)) {
+					if opt.DisableIssues && strings.Contains(lister.orderKeys[key], "host_issues.") {
+						continue // sorting by issues needs the issues join
+					}
+					if !opt.DeviceMapping && strings.Contains(lister.orderKeys[key], "dm.") {
+						continue // the label list only joins dm when loading device mapping (fails on main too)
+					}
 					for _, dir := range []fleet.OrderDirection{fleet.OrderAscending, fleet.OrderDescending} {
 						opt.ListOptions = fleet.ListOptions{OrderKey: key, OrderDirection: dir, TestSecondaryOrderKey: "id"}
-						opt.ReportColumns = nil
+						opt.SelectFields = nil
 						all, err := list(c.filter, opt)
-						if err != nil {
-							continue
-						}
-						opt.ReportColumns = []string{"hostname"}
+						require.NoError(t, err, "%s %s", key, dir)
+						opt.SelectFields = []string{"hostname"}
 						got, err := list(c.filter, opt)
 						require.NoError(t, err, "%s %s", key, dir)
 						require.Equal(t, hostIDs(all), hostIDs(got), "%s %s", key, dir)
@@ -16688,5 +16696,47 @@ func testAggregatedMDMStatusPersonalByTeamAndPlatform(t *testing.T, ds *Datastor
 			require.Equal(t, c.wantPersonal, status.EnrolledPersonalHostsCount)
 			require.Equal(t, c.wantManualPersonal, status.EnrolledManualPersonalHostsCount)
 		})
+	}
+}
+
+// A select list entry whose field doesn't match its expression's column would load the wrong value,
+// or nothing, into that field when it's selected on its own.
+func TestHostSelectListsMatchHostFields(t *testing.T) {
+	dbFields := map[string]struct{}{}
+	var walk func(t reflect.Type)
+	walk = func(t reflect.Type) {
+		for f := range t.Fields() {
+			ft := f.Type
+			if ft.Kind() == reflect.Pointer {
+				ft = ft.Elem()
+			}
+			if f.Anonymous && ft.Kind() == reflect.Struct {
+				walk(ft)
+				continue
+			}
+			name, _, _ := strings.Cut(f.Tag.Get("db"), ",")
+			if name == "" {
+				name = strings.ToLower(f.Name)
+			}
+			dbFields[name] = struct{}{}
+		}
+	}
+	walk(reflect.TypeFor[fleet.Host]())
+
+	columnName := regexp.MustCompile(`(\w+)\s*$`)
+	for name, list := range map[string][]hostFieldExpr{
+		"hostListSelect":     hostListSelect,
+		"hostsInLabelSelect": hostsInLabelSelect,
+		"hostIssuesSelect":   hostIssuesSelect,
+	} {
+		seen := map[string]struct{}{}
+		for _, e := range list {
+			require.Contains(t, dbFields, e.field, "%s: %q isn't a Host db field", name, e.field)
+			require.NotContains(t, seen, e.field, "%s: %q is listed twice", name, e.field)
+			seen[e.field] = struct{}{}
+			m := columnName.FindStringSubmatch(e.expr)
+			require.NotNil(t, m, "%s: %q", name, e.expr)
+			require.Equal(t, e.field, m[1], "%s: the expression for %q loads column %q", name, e.field, m[1])
+		}
 	}
 }

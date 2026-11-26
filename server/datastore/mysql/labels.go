@@ -1346,35 +1346,47 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		return nil, ctxerr.Wrap(ctx, err, "confirming label existence")
 	}
 
-	fields := hostReportFields(opt.ReportColumns)
-	query := "\n    SELECT" + strings.TrimPrefix(selectHostFields(hostsInLabelSelect, fields), ",")
-	if !opt.DisableIssues {
-		query += selectHostFields(hostIssuesSelect, fields)
+	queryFmt := `
+    %s
+    FROM label_membership lm
+    JOIN hosts h ON (lm.host_id = h.id)
+    LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+    LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+    LEFT JOIN host_orbit_info hoi ON (h.id = hoi.host_id)` + hostOSJoin + `
+    %s
+    %s
+		%s
+`
+	failingIssuesJoin := `LEFT JOIN host_issues ON h.id = host_issues.host_id`
+	if opt.DisableIssues {
+		failingIssuesJoin = ""
 	}
+
+	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
+	SELECT
+		host_id,
+		CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', %s)), ']') AS device_mapping
+	FROM
+		host_emails
+	GROUP BY
+		host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
+	if !opt.DeviceMapping {
+		deviceMappingJoin = ""
+	}
+
+	fields := newHostFields(opt.SelectFields)
+	selectSQL := hostsInLabelSelectSQL(fields, !opt.DisableIssues)
 	if opt.DeviceMapping && fields.want("device_mapping") {
-		query += `,
+		selectSQL += `,
 	COALESCE(dm.device_mapping, 'null') as device_mapping`
 	}
-	query += `
-    FROM label_membership lm
-    JOIN hosts h ON (lm.host_id = h.id)` + hostInLabelSeenTimesJoin + hostMobileMDMSeenTimeJoin + hostInLabelUpdatesJoin +
-		hostInLabelDisksJoin + hostInLabelOrbitInfoJoin + hostOSJoin + `
-    ` + hostMDMJoin
-	if !opt.DisableIssues {
-		query += `
-    ` + hostIssuesJoin
-	}
-	if opt.DeviceMapping {
-		query += hostInLabelDeviceMappingJoin()
-	}
-	query += "\n"
+
+	query := fmt.Sprintf(queryFmt, selectSQL, hostMDMJoin, failingIssuesJoin, deviceMappingJoin)
 
 	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "applying label query filters")
-	}
-	if fields != nil {
-		query = dropUnusedHostJoins(query, hostsInLabelOptionalJoins)
 	}
 
 	hosts := []*fleet.Host{}
@@ -1868,4 +1880,64 @@ func (ds *Datastore) RemoveLabelsFromHost(ctx context.Context, hostID uint, labe
 		return ctxerr.Wrap(ctx, err, "delete from label_membership")
 	}
 	return nil
+}
+
+func hostsInLabelSelectSQL(fields hostFields, withIssues bool) string {
+	return selectHostListSQL(hostsInLabelSelect, fields, withIssues)
+}
+
+var hostsInLabelSelect = []hostFieldExpr{
+	{"id", "h.id"},
+	{"osquery_host_id", "h.osquery_host_id"},
+	{"created_at", "h.created_at"},
+	{"updated_at", "h.updated_at"},
+	{"detail_updated_at", "h.detail_updated_at"},
+	{"node_key", "h.node_key"},
+	{"hostname", "h.hostname"},
+	{"uuid", "h.uuid"},
+	{"platform", "h.platform"},
+	{"osquery_version", "h.osquery_version"},
+	{"os_version", "h.os_version"},
+	{"build", "h.build"},
+	{"platform_like", "h.platform_like"},
+	{"code_name", "h.code_name"},
+	{"uptime", "h.uptime"},
+	{"memory", "h.memory"},
+	{"cpu_type", "h.cpu_type"},
+	{"cpu_subtype", "h.cpu_subtype"},
+	{"cpu_brand", "h.cpu_brand"},
+	{"cpu_physical_cores", "h.cpu_physical_cores"},
+	{"cpu_logical_cores", "h.cpu_logical_cores"},
+	{"hardware_vendor", "h.hardware_vendor"},
+	{"hardware_model", "h.hardware_model"},
+	{"hardware_version", "h.hardware_version"},
+	{"hardware_serial", "h.hardware_serial"},
+	{"computer_name", "h.computer_name"},
+	{"primary_ip_id", "h.primary_ip_id"},
+	{"distributed_interval", "h.distributed_interval"},
+	{"logger_tls_period", "h.logger_tls_period"},
+	{"config_tls_refresh", "h.config_tls_refresh"},
+	{"primary_ip", "h.primary_ip"},
+	{"primary_mac", "h.primary_mac"},
+	{"label_updated_at", "h.label_updated_at"},
+	{"last_enrolled_at", "h.last_enrolled_at"},
+	{"refetch_requested", "h.refetch_requested"},
+	{"refetch_critical_queries_until", "h.refetch_critical_queries_until"},
+	{"team_id", "h.team_id"},
+	{"policy_updated_at", "h.policy_updated_at"},
+	{"public_ip", "h.public_ip"},
+	{"gigs_disk_space_available", "COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available"},
+	{"percent_disk_space_available", "COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available"},
+	{"gigs_total_disk_space", "COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space"},
+	{"seen_time", "COALESCE(hst.seen_time, h.created_at) as seen_time"},
+	{"last_mdm_checked_in_at", "nstm.seen_time AS last_mdm_checked_in_at"},
+	{"software_updated_at", "COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at"},
+	{"last_restarted_at", "h.last_restarted_at"},
+	{"timezone", "h.timezone"},
+	{"orbit_version", "hoi.version AS orbit_version"},
+	{"fleet_desktop_version", "hoi.desktop_version AS fleet_desktop_version"},
+	{"team_name", "(SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name"},
+	{"os_name", hostOSNameSelect},
+	{"os_version_only", hostOSVersionSelect},
+	{"mdm_host_data", strings.TrimPrefix(hostMDMSelect, ",")},
 }

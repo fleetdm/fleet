@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -3761,18 +3762,22 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 	out := &hostsReportCSVWriter{w: w, columns: r.Columns}
 	if err := gocsv.MarshalCSV(r.Hosts, out); err != nil {
-		switch {
-		case out.csv != nil:
-			// The response has already started, so the error can't be sent.
-			logging.WithErr(ctx, err)
-		case errors.As(err, new(*fleet.BadRequestError)):
-			encodeError(ctx, err, w)
-		default:
-			logging.WithErr(ctx, err)
+		logging.WithErr(ctx, err)
+		// Once rows are streaming (e.g. the client went away mid-download) the 200 is already sent.
+		if out.csv == nil {
 			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
 		}
 	}
 }
+
+// hostsReportHeader is every report column, in gocsv's order, as gocsv derives it from the csv tags.
+var hostsReportHeader = sync.OnceValues(func() ([]string, error) {
+	header, err := gocsv.MarshalString([]*fleet.HostResponse{})
+	if err != nil {
+		return nil, err
+	}
+	return csv.NewReader(strings.NewReader(header)).Read()
+})
 
 // hostsReportCSVWriter receives every column gocsv marshals and writes only the requested ones, in
 // order, straight to the response, instead of buffering the whole CSV and parsing it back.
@@ -3821,8 +3826,6 @@ func (cw *hostsReportCSVWriter) Error() error {
 	return cw.csv.Error()
 }
 
-// hostsReportColumnIndexes returns the header positions of the requested columns, or of every
-// column in its documented order when none are requested.
 func hostsReportColumnIndexes(header, columns []string) ([]int, error) {
 	byName := make(map[string]int, len(header))
 	for i, name := range header {
@@ -3961,12 +3964,19 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		// enable device_mapping retrieval, as no column means all columns
 		req.Opts.DeviceMapping = true
 	}
-	req.Opts.ReportColumns = cols
+	header, err := hostsReportHeader()
+	if err != nil {
+		return hostsReportResponse{Err: ctxerr.Wrap(ctx, err, "hosts report columns")}, nil
+	}
+	if _, err := hostsReportColumnIndexes(header, cols); err != nil {
+		if az, ok := authzctx.FromContext(ctx); ok {
+			az.SetChecked()
+		}
+		return hostsReportResponse{Err: ctxerr.Wrap(ctx, err)}, nil
+	}
+	req.Opts.SelectFields = fleet.HostCSVColumnFields(cols)
 
-	var (
-		hosts []*fleet.Host
-		err   error
-	)
+	var hosts []*fleet.Host
 
 	if req.LabelID == nil {
 		hosts, err = svc.ListHosts(ctx, req.Opts)
