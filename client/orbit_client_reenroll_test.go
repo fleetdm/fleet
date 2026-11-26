@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -335,4 +336,83 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		require.NoFileExists(t, certPath)
 		require.Equal(t, 1, restartCalls)
 	})
+}
+
+func TestGetNodeKeyOrEnrollMissingDirDoesNotEnroll(t *testing.T) {
+	// A long interval makes a retry hang the test instead of passing.
+	t.Setenv("FLEETD_ENROLL_RETRY_INTERVAL", "1h")
+	nodeKeyPath := filepath.Join(t.TempDir(), "removed", "secret-orbit-node-key.txt")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("server must not be called when the node key directory is missing, got %s", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+	var restarts int
+	oc.receiverUpdateCancelFunc = func() { restarts++ }
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := oc.getNodeKeyOrEnroll()
+		errCh <- err
+	}()
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, errNodeKeyDirMissing)
+		require.Equal(t, 1, restarts, "orbit should exit when its root dir is gone")
+	case <-time.After(10 * time.Second):
+		t.Fatal("getNodeKeyOrEnroll retried instead of failing on a missing directory")
+	}
+}
+
+func TestEnrollAndWriteNodeKeyFileRetriesWriteWithoutReenrolling(t *testing.T) {
+	dir := t.TempDir()
+	nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
+	// A non-empty directory at the key's path makes the final rename fail after a successful enroll.
+	require.NoError(t, os.MkdirAll(filepath.Join(nodeKeyPath, "blocker"), 0o700))
+
+	var enrollCalls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		enrollCalls++
+		writeEnrollResponse(t, w, fmt.Sprintf("key-%d", enrollCalls))
+	}))
+	defer srv.Close()
+
+	oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+	for range 2 {
+		_, err := oc.enrollAndWriteNodeKeyFile()
+		require.ErrorContains(t, err, "replace orbit node key file")
+	}
+	require.Equal(t, 1, enrollCalls, "a failed write must be retried without enrolling again")
+
+	require.NoError(t, os.RemoveAll(nodeKeyPath))
+	key, err := oc.enrollAndWriteNodeKeyFile()
+	require.NoError(t, err)
+	require.Equal(t, "key-1", key)
+	require.Equal(t, 1, enrollCalls)
+	requireNodeKey(t, nodeKeyPath, "key-1")
+	require.Empty(t, oc.unsavedNodeKey)
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "temp files should have been cleaned up")
+}
+
+func TestGetNodeKeyOrEnrollSavesUnsavedKeyOverStaleOne(t *testing.T) {
+	_, nodeKeyPath := newNodeKeyFile(t, "stale-key")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("server must not be called when an unsaved node key is pending, got %s", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+	oc.unsavedNodeKey = "pending-key"
+	key, err := oc.getNodeKeyOrEnroll()
+	require.NoError(t, err)
+	require.Equal(t, "pending-key", key)
+	requireNodeKey(t, nodeKeyPath, "pending-key")
+	require.Empty(t, oc.unsavedNodeKey)
 }

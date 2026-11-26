@@ -54,6 +54,10 @@ type OrbitClient struct {
 	// re-enrolls (overwriting the existing key).
 	forceReenroll bool
 
+	// unsavedNodeKey is a node key the server issued that couldn't be written to disk. Writing it is retried instead of enrolling
+	// again, because every enroll rotates the server-side key and is recorded as a new enrollment. Guarded by enrollLock.
+	unsavedNodeKey string
+
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
@@ -818,11 +822,14 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	// A present, non-empty key is reused unless the server has been rejecting it (forceReenroll). Read it once so the reuse check and
 	// the log message below agree even if a concurrent 401 flips it.
 	forced := oc.reenrollForced()
-	if err == nil && len(bytes.TrimSpace(orbitNodeKey)) > 0 && !forced {
+	if err == nil && len(bytes.TrimSpace(orbitNodeKey)) > 0 && !forced && oc.unsavedNodeKey == "" {
 		return string(orbitNodeKey), nil
 	}
 
 	switch {
+	case oc.unsavedNodeKey != "":
+		// The server already rotated the key, so the one on disk (if any) is stale.
+		log.Info().Str("server", oc.BaseURL.String()).Msg("retrying write of orbit node key from a previous enroll")
 	case forced:
 		// The node key on disk was repeatedly rejected with a 401; re-enroll to obtain a fresh one.
 		log.Info().Str("server", oc.BaseURL.String()).Msg("orbit node key was rejected by the server, re-enrolling")
@@ -851,6 +858,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			switch {
 			case IsNotFoundErr(err):
 				// Do not retry if the endpoint does not exist.
+				return retry.ErrorOutcomeDoNotRetry
+			case errors.Is(err, errNodeKeyDirMissing):
+				// Retrying won't recreate the directory; only a reinstall does.
 				return retry.ErrorOutcomeDoNotRetry
 			case errors.Is(err, ErrEndUserAuthRequired):
 				// If we get an ErrEndUserAuthRequired error, then the user
@@ -887,6 +897,15 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 		if IsNotFoundErr(err) {
 			return "", errors.New("enroll endpoint does not exist")
 		}
+		if errors.Is(err, errNodeKeyDirMissing) {
+			// Orbit can't work without its root dir. Once it exits, the service manager usually can't relaunch it (the binary lived under
+			// that dir) until fleetd is reinstalled.
+			if oc.receiverUpdateCancelFunc != nil {
+				log.Info().Err(err).Msg("orbit root directory is gone, exiting")
+				oc.receiverUpdateCancelFunc()
+			}
+			return "", err
+		}
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 	}
 	// Enrollment succeeded and the new key has been written, so clear any armed re-enroll / 401 streak.
@@ -912,18 +931,41 @@ func (oc *OrbitClient) GetNodeKey() (string, error) {
 	return string(orbitNodeKey), nil
 }
 
+// errNodeKeyDirMissing is returned instead of enrolling when the node key's directory is gone (e.g. the root dir was removed while
+// orbit runs): the key couldn't be saved, so the enroll would only rotate the server-side key.
+var errNodeKeyDirMissing = errors.New("orbit node key directory does not exist")
+
+// enrollAndWriteNodeKeyFile enrolls and saves the new node key. If a previous call enrolled but failed to save the key, it retries
+// saving that key without enrolling again. Callers must hold enrollLock.
 func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
-	orbitNodeKey, err := oc.enroll()
-	if err != nil {
-		return "", fmt.Errorf("enroll request: %w", err)
+	dir := filepath.Dir(oc.nodeKeyFilePath)
+	if _, err := os.Stat(dir); errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("%w: %s", errNodeKeyDirMissing, dir)
 	}
 
+	orbitNodeKey := oc.unsavedNodeKey
+	if orbitNodeKey == "" {
+		var err error
+		orbitNodeKey, err = oc.enroll()
+		if err != nil {
+			return "", fmt.Errorf("enroll request: %w", err)
+		}
+	}
+	if err := oc.writeNodeKeyFile(orbitNodeKey); err != nil {
+		oc.unsavedNodeKey = orbitNodeKey
+		return "", err
+	}
+	oc.unsavedNodeKey = ""
+	return orbitNodeKey, nil
+}
+
+func (oc *OrbitClient) writeNodeKeyFile(orbitNodeKey string) error {
 	// Write the new node key atomically: write+restrict a temp file in the same directory, then rename it over the destination. This
 	// guarantees we never truncate or remove an existing, still-valid node key until the new key is fully on disk, so a crash
 	// mid-write (or an enroll that is ultimately rejected) cannot leave the host with an empty or missing node key file.
 	tmp, err := os.CreateTemp(filepath.Dir(oc.nodeKeyFilePath), ".orbit-node-key-*")
 	if err != nil {
-		return "", fmt.Errorf("create temp orbit node key file: %w", err)
+		return fmt.Errorf("create temp orbit node key file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	renamed := false
@@ -946,29 +988,29 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 		// Restrict file access before the key material is written so the secret is never on disk
 		// with default (inherited) permissions.
 		if err := platform.ChmodRestrictFile(tmpPath); err != nil {
-			return "", fmt.Errorf("apply ACLs: %w", err)
+			return fmt.Errorf("apply ACLs: %w", err)
 		}
 	}
 	if _, err := tmp.WriteString(orbitNodeKey); err != nil {
-		return "", fmt.Errorf("write temp orbit node key file: %w", err)
+		return fmt.Errorf("write temp orbit node key file: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
-		return "", fmt.Errorf("sync temp orbit node key file: %w", err)
+		return fmt.Errorf("sync temp orbit node key file: %w", err)
 	}
 	if err := closeTmp(); err != nil {
-		return "", fmt.Errorf("close temp orbit node key file: %w", err)
+		return fmt.Errorf("close temp orbit node key file: %w", err)
 	}
 	// os.Rename atomically replaces the destination; this matches orbit's existing atomic-write pattern (e.g. pkg/update). On Windows
 	// a rename can fail with a sharing violation if another process (e.g. antivirus/EDR) holds the destination open at this instant
 	// (orbit already contends with Windows file-in-use locking elsewhere, see orbit/pkg/platform). On failure we don't leave an empty
-	// or partial file: the prior key stays on disk. enroll() has already rotated the server-side key by this point, so that on-disk
-	// key is now stale and the host will 401 and re-enroll via the debounce path on a later attempt (self-healing).
+	// or partial file: the prior key stays on disk. That key is stale (the server already rotated it), so the caller keeps the new
+	// key in unsavedNodeKey and retries this write instead of using it.
 	if err := os.Rename(tmpPath, oc.nodeKeyFilePath); err != nil {
-		return "", fmt.Errorf("replace orbit node key file: %w", err)
+		return fmt.Errorf("replace orbit node key file: %w", err)
 	}
 	renamed = true
 
-	return orbitNodeKey, nil
+	return nil
 }
 
 func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any, resp any) error {
