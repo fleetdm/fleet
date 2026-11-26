@@ -4,7 +4,7 @@
       "version": "26.10.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'MySQL Workbench' AND publisher = 'Oracle Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MySQL Workbench' AND publisher = 'Oracle Corporation' AND version_compare(version, '26.10.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MySQL Workbench' AND publisher = 'Oracle Corporation' AND version_compare(version, '26.10.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mysql workbench.exe');"
       },
       "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-26.10.0.1-winx64.msi",
