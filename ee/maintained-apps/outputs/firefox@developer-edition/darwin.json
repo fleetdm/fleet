@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "162.0b1",
+      "version": "162.0b2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND version_compare(bundle_version, '16226.11.23') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND version_compare(bundle_version, '16226.11.25') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/162.0b1/mac/en-US/Firefox%20162.0b1.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/162.0b2/mac/en-US/Firefox%20162.0b2.dmg",
       "install_script_ref": "2c31e901",
       "uninstall_script_ref": "b4870637",
-      "sha256": "3ab47495f1b98f5576b7b5dd5764cb5dc015268b85ab042aa76f6bff5302a0f0",
+      "sha256": "a737ac9df80249e4b61327c4c971c10b014739deada83fd307c4f7945fa2d1f3",
       "default_categories": [
         "Browsers"
       ]

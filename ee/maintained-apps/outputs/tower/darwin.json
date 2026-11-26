@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "18.0",
+      "version": "18.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.fournova.Tower3';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fournova.Tower3' AND version_compare(bundle_short_version, '18.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fournova.Tower3' AND version_compare(bundle_short_version, '18.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.fournova.Tower3' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.git-tower.com/apps/tower3-mac/564-dc219b7f/Tower-18.0-564.zip",
+      "installer_url": "https://www.git-tower.com/apps/tower3-mac/568-1befb557/Tower-18.5-568.zip",
       "install_script_ref": "2b10ccea",
       "uninstall_script_ref": "2195d85b",
-      "sha256": "fb1c031f3cf151a8d59368e27a227d5f63358c65db77f4698cf3b374359112dc",
+      "sha256": "950898ff838223c99851c0409382d5632e336df45b6f8f8a4c55275b2094a2c0",
       "default_categories": [
         "Developer tools"
       ]
