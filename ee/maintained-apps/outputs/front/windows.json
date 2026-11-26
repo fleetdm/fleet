@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.81.2",
+      "version": "3.82.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Front %.%.%' AND publisher = 'Front';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Front %.%.%' AND publisher = 'Front' AND version_compare(version, '3.81.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Front %.%.%' AND publisher = 'Front' AND version_compare(version, '3.82.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'front.exe');"
       },
-      "installer_url": "https://dl.frontapp.com/desktop/builds/3.81.2/Front-user-3.81.2.exe",
+      "installer_url": "https://dl.frontapp.com/desktop/builds/3.82.3/Front-user-3.82.3.exe",
       "install_script_ref": "55744040",
       "uninstall_script_ref": "73554868",
-      "sha256": "97455acce18619e5fe4b5eaa7b2bca9308759bb6f04add18bf7fec05b3b2ff3b",
+      "sha256": "c9b591ed7534bd3324fcd157c3efa1af9fba74edfc835528a90c154a859f26ba",
       "default_categories": [
         "Communication"
       ]

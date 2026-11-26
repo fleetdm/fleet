@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.2.0",
+      "version": "8.3.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.gitify';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.gitify' AND version_compare(bundle_short_version, '8.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.gitify' AND version_compare(bundle_short_version, '8.3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.gitify' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/gitify-app/gitify/releases/download/v8.2.0/Gitify-8.2.0-universal-mac.zip",
+      "installer_url": "https://github.com/gitify-app/gitify/releases/download/v8.3.0/Gitify-8.3.0-universal-mac.zip",
       "install_script_ref": "e68e27cb",
       "uninstall_script_ref": "18527b05",
-      "sha256": "6ff9ea3b12eb0fc886864324df551278dddfa20af564bd533ebcb07878392a24",
+      "sha256": "e6d6dd6cdbf09050a414e108658b067cdf42dfacaad774d9625599fb03e8aead",
       "default_categories": [
         "Utilities"
       ]
