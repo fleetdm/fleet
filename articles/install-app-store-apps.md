@@ -82,24 +82,101 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 ## Managed configuration
 
-### Apple (VPP)
+### iOS and iPadOS managed configuration
 
-Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+The **Configuration** field does more than set the app's managed configuration (App Config). It can also set options in the install command Fleet sends to the host, like per-app VPN or keeping the app after the host unenrolls.
 
-Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+New or updated configuration isn't applied until the end user fully quits and reopens the app. If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt.
 
-New or updated configuration isn't applied until the end user fully quits and reopens the app.
+For App Store apps, Fleet sends the updated configuration to hosts in scope when you save it. For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), the field works the same way, but changes apply only the next time the app is installed or updated on each host.
 
-This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+Write the configuration as a `<dict>` whose only key is `Command`. Put the app's managed configuration under `Configuration`, and add install options next to it.
+
+Fleet supports any managed configuration option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102). It also keeps Zoom on the host after it unenrolls, and sends Zoom's traffic through a per-app VPN.
 
 ```xml
 <dict>
-  <key>ForceLoginWithSSO</key>
-  <true />
-  <key>SetSSOURL</key>
-  <string>example</string>
+  <key>Command</key>
+  <dict>
+    <key>Configuration</key>
+    <dict>
+      <key>ForceLoginWithSSO</key>
+      <true />
+      <key>SetSSOURL</key>
+      <string>example</string>
+    </dict>
+    <key>ManagementFlags</key>
+    <integer>0</integer>
+    <key>Attributes</key>
+    <dict>
+      <key>VPNUUID</key>
+      <string>5C2F8F4E-2B7A-4C3D-9E1F-0A6B8D3C7E21</string>
+    </dict>
+  </dict>
 </dict>
 ```
+
+`Command` supports these keys. Fleet rejects any other key.
+
+| Key | What it does |
+| --- | ------------ |
+| `Configuration` | The app's managed configuration, as a `<dict>`. |
+| `ManagementFlags` | What happens to the app when the host unenrolls. `1` (default) removes the app. `0` keeps it. `4` prevents backup of the app's data, and `5` does both `1` and `4`. |
+| `Attributes` | App attributes from Apple's [InstallApplication command](https://developer.apple.com/documentation/devicemanagement/install-application-command), as a `<dict>`: `VPNUUID`, `DNSProxyUUID`, `ContentFilterUUID`, `RelayUUID`, `CellularSliceUUID`, `AssociatedDomains`, `AssociatedDomainsEnableDirectDownloads`, `Removable`, `Hideable`, `Lockable`, and `TapToPayScreenLock`. |
+
+If you leave out a key, Fleet uses its default. Fleet always sets the rest of the install command itself, like the app's ID and `ChangeManagementState`.
+
+<details>
+<summary>Fleet's default install command</summary>
+
+This is the `InstallApplication` command Fleet sends to install an app. Keys you set in `Command` replace or add to these keys. Fleet fills in the placeholders:
+
+- `APP_STORE_ID` is the app's App Store ID. For [in-house apps (.ipa)](https://fleetdm.com/guides/deploy-software-packages), Fleet sends `ManifestURL` instead of `iTunesStoreID`.
+- `Configuration` is the `Configuration` from your `Command`. If you don't set one, Fleet leaves it out.
+- `COMMAND_UUID` is a unique ID Fleet generates for each command.
+
+On personal (BYOD) hosts, Fleet leaves out `ChangeManagementState`, because Apple rejects it there.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Command</key>
+  <dict>
+    <key>InstallAsManaged</key>
+    <true/>
+    <key>ManagementFlags</key>
+    <integer>1</integer>
+    <key>ChangeManagementState</key>
+    <string>Managed</string>
+    <key>Options</key>
+    <dict>
+      <key>PurchaseMethod</key>
+      <integer>1</integer>
+    </dict>
+    <key>Configuration</key>
+    <dict>
+      <!-- The app's managed configuration -->
+    </dict>
+    <key>RequestType</key>
+    <string>InstallApplication</string>
+    <key>iTunesStoreID</key>
+    <integer>APP_STORE_ID</integer>
+  </dict>
+  <key>CommandUUID</key>
+  <string>COMMAND_UUID</string>
+</dict>
+</plist>
+```
+
+</details>
+
+> **Note:** On personal (BYOD) hosts, Apple always removes managed apps when the host unenrolls, even if `ManagementFlags` is `0`.
+
+> **Note:** Fleet sends attributes even if the host's iOS or iPadOS version doesn't support them yet. If the host rejects the install, the error shows in the install details on **Host details > Activity**.
 
 ### Google Play (Android)
 
@@ -204,10 +281,6 @@ If the end user declined, installing the app again from **Host details** usually
 [AppLock](https://developer.apple.com/documentation/devicemanagement/applock) forces the selected app to open on the supervised device and prevents the use of other apps.
 
 Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode. You can use an automation tool like [Tines](https://www.tines.com/) and leverage our [API](https://fleetdm.com/docs/rest-api/rest-api#os-settings) to delete the AppLock configuration profile during the scheduled update window.
-
-#### iOS and iPadOS managed configuration
-
-If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
 
 ### Google Play (Android)
 
