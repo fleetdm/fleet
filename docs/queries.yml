@@ -5026,3 +5026,48 @@ spec:
   purpose: Informational
   tags: filevault, users
   contributors: kitzy,jakestenger
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get unsigned or ad-hoc signed processes on macOS
+  platform: darwin
+  description: Lists running processes outside Apple's protected system folders whose executable is unsigned or only ad-hoc signed, meaning no Developer ID or App Store signature. Developer tools like Homebrew binaries can show up here too, so treat results as leads to review rather than alerts.
+  query: |-
+    WITH exes AS (
+      SELECT DISTINCT path FROM processes
+      WHERE path != ''
+        AND path NOT LIKE '/System/%'
+        AND path NOT LIKE '/bin/%'
+        AND path NOT LIKE '/sbin/%'
+        AND (path NOT LIKE '/usr/%' OR path LIKE '/usr/local/%')
+    )
+    SELECT e.path, s.signed, s.identifier, s.team_identifier
+    FROM exes e
+    JOIN signature s ON s.path = e.path AND s.hash_resources = 0
+    WHERE s.arch = ''
+      AND (s.signed = 0 OR s.authority = '');
+  purpose: Detection
+  tags: hunting, code signing, threat detection
+  remediation: Check where the binary came from and confirm with the device owner whether it's expected.
+  contributors: Manik-733
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get launch agents and daemons that run from user-writable folders (macOS)
+  platform: darwin
+  description: Finds LaunchAgents and LaunchDaemons outside /System whose program or arguments point into a user's home folder, /tmp, or /var/folders, a common way for malware to persist (MITRE ATT&CK T1543.001, T1543.004). Some legit app updaters live in these folders too, so review results before acting.
+  query: |-
+    SELECT path, label, program, program_arguments, run_at_load, keep_alive, username
+    FROM launchd
+    WHERE path NOT LIKE '/System/%'
+      AND (
+        (program || ' ' || program_arguments) LIKE '%/Users/%'
+        OR (program || ' ' || program_arguments) LIKE '%/tmp/%'
+        OR (program || ' ' || program_arguments) LIKE '%/var/folders/%'
+      );
+  purpose: Detection
+  tags: hunting, persistence, MITRE, ATT&CK, threat detection
+  remediation: Open the plist at the listed path, check what it launches, and confirm with the device owner. Unload and remove it if it isn't expected.
+  contributors: Manik-733
