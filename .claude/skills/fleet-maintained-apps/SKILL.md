@@ -203,7 +203,6 @@ A green run means the installer downloaded, installed, registered under the exis
 | `exists_query` (winget) | Replaces the generated exists query; the patched query is derived from it (a WHERE body with ` OR ` is parenthesized for you). |
 | `open_process_names` / `open_process_name_prefix` (winget) | The processes the open query matches when the app's exe isn't `<name>.exe`. Set at most one. |
 | `use_display_version_for_patch` (winget) | Compare against `AppsAndFeaturesEntries` `DisplayVersion` instead of `PackageVersion`. Hard-errors when the manifest has no DisplayVersion. |
-| `use_display_version_when_listed` (winget) | Same, but keeps `PackageVersion` when the manifest has no DisplayVersion (winget lists one only when it differs). For vendors whose registry version only sometimes differs (MySQL Workbench `26.10.0.1` registers `26.10.1`). |
 | `installer_scope` (winget) | Must match a `Scope` in the manifest (an installer with no scope accepts the input's). It selects the manifest entry; it doesn't make the installer honor that scope. Always set it. |
 | `installer_locale` (winget) | Only match installers with this `InstallerLocale` (unset matches any, so a manifest whose only installer is `ko-KR` gets picked silently). A root-level locale isn't read. |
 | `nested_installer_type` (winget) | Pick among zip installers that differ only by what's inside (Paint.NET: `wix`). |
