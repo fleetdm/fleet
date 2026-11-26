@@ -223,7 +223,10 @@ func run(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesUnparseable := 0
 	filesWithdrawn := 0
+	entriesWithBinaries := 0
+	entriesWithoutBinaries := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -238,6 +241,7 @@ func run(cfg Config) error {
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
 			filesSkipped++
+			filesUnparseable++
 			return nil
 		}
 		if osvData.Withdrawn != "" {
@@ -276,6 +280,13 @@ func run(cfg Config) error {
 				}
 			}
 			// Otherwise auto-detect all versions (no filtering)
+
+			switch {
+			case affected.EcosystemSpecific == nil || len(affected.EcosystemSpecific.Binaries) == 0:
+				entriesWithoutBinaries++
+			case !isUbuntuKernelSource(affected.EcosystemSpecific.Binaries):
+				entriesWithBinaries++
+			}
 
 			cveID := extractCVEID(osvData)
 			if cveID == "" {
@@ -327,6 +338,13 @@ func run(cfg Config) error {
 
 	log.Printf("Processed %d files, skipped %d files, ignored %d withdrawn", filesProcessed, filesSkipped, filesWithdrawn)
 	log.Printf("Discovered %d Ubuntu versions", len(artifacts))
+	log.Printf("Entries without ecosystem_specific.binaries: %d of %d non-kernel", entriesWithoutBinaries, entriesWithBinaries+entriesWithoutBinaries)
+	if err := checkParseFailures(filesUnparseable); err != nil {
+		return err
+	}
+	if err := checkUbuntuBinariesCoverage(entriesWithBinaries, entriesWithoutBinaries); err != nil {
+		return err
+	}
 
 	// Write full artifacts
 	for ver, artifact := range artifacts {
@@ -385,6 +403,40 @@ func run(cfg Config) error {
 		}
 	}
 
+	return nil
+}
+
+// checkParseFailures fails the run when any input file could not be parsed. Skipping it would
+// publish artifacts that silently lack its vulnerabilities; failing keeps the last good release
+// in place and lets the failed workflow raise the alert.
+func checkParseFailures(n int) error {
+	if n > 0 {
+		return fmt.Errorf("%d file(s) could not be parsed; see the log above", n)
+	}
+	return nil
+}
+
+const (
+	// minUbuntuEntriesForBinariesCheck keeps small inputs from tripping the check. A full run has
+	// about 240,000 such entries across releases.
+	minUbuntuEntriesForBinariesCheck = 1000
+	// maxUbuntuEntriesWithoutBinariesPercent is far above today's rate, about one entry per release.
+	maxUbuntuEntriesWithoutBinariesPercent = 1.0
+)
+
+// checkUbuntuBinariesCoverage fails the run when too many entries lack ecosystem_specific.binaries.
+// If Canonical dropped or renamed the field, records would still parse and every binary key would
+// silently disappear from the artifacts. Kernel entries are left out of the ratio because they are
+// most of the data and would hide a drop everywhere else.
+func checkUbuntuBinariesCoverage(withBinaries, withoutBinaries int) error {
+	total := withBinaries + withoutBinaries
+	if total < minUbuntuEntriesForBinariesCheck {
+		return nil
+	}
+	if pct := 100 * float64(withoutBinaries) / float64(total); pct > maxUbuntuEntriesWithoutBinariesPercent {
+		return fmt.Errorf("%d of %d non-kernel Ubuntu entries (%.1f%%) are without ecosystem_specific.binaries, above the %.0f%% limit; the upstream format may have changed",
+			withoutBinaries, total, pct, maxUbuntuEntriesWithoutBinariesPercent)
+	}
 	return nil
 }
 
@@ -698,6 +750,7 @@ func runRHEL(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesUnparseable := 0
 	filesWithdrawn := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
@@ -713,6 +766,7 @@ func runRHEL(cfg Config) error {
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
 			filesSkipped++
+			filesUnparseable++
 			return nil
 		}
 		if osvData.Withdrawn != "" {
@@ -803,6 +857,9 @@ func runRHEL(cfg Config) error {
 
 	log.Printf("Processed %d files, skipped %d files, ignored %d withdrawn", filesProcessed, filesSkipped, filesWithdrawn)
 	log.Printf("Discovered %d RHEL versions", len(artifacts))
+	if err := checkParseFailures(filesUnparseable); err != nil {
+		return err
+	}
 
 	for ver, artifact := range artifacts {
 		artifact.Generated = cfg.GeneratedTimestamp
@@ -976,6 +1033,7 @@ func runAndroid(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesUnparseable := 0
 	filesWithdrawn := 0
 	skippedNonAndroid := 0
 	skippedNonEcosystem := 0
@@ -995,6 +1053,7 @@ func runAndroid(cfg Config) error {
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
 			filesSkipped++
+			filesUnparseable++
 			return nil
 		}
 		if osvData.Withdrawn != "" {
@@ -1100,6 +1159,9 @@ func runAndroid(cfg Config) error {
 	log.Printf("Affected entries: %d total, skipped — non-Android ecosystem: %d, non-ECOSYSTEM range: %d, non-version prefix: %d",
 		totalAffectedEntries, skippedNonAndroid, skippedNonEcosystem, skippedNonVersion)
 	log.Printf("Discovered %d Android versions", len(collected))
+	if err := checkParseFailures(filesUnparseable); err != nil {
+		return err
+	}
 
 	// Android mode always ingests the full OSV corpus (deltas are rejected
 	// above), so reading zero usable files means the input is broken (wrong or

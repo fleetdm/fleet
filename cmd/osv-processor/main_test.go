@@ -2311,3 +2311,111 @@ func TestWithdrawnAdvisories(t *testing.T) {
 		})
 	}
 }
+
+func TestRunFailsOnUnparseableFile(t *testing.T) {
+	for _, tc := range []struct {
+		platform  string
+		ecosystem string
+		fixed     string
+		run       func(Config) error
+	}{
+		{"ubuntu", "Ubuntu:24.04:LTS", "1.2.3", run},
+		{"rhel", "Red Hat:enterprise_linux:9::baseos", "1.2.3", runRHEL},
+		{"android", "Android", "16:2026-10-01", runAndroid},
+	} {
+		t.Run(tc.platform, func(t *testing.T) {
+			input, output := t.TempDir(), t.TempDir()
+			write := func(name string, ecosystemSpecific any) {
+				t.Helper()
+				affected := map[string]any{
+					"package": map[string]string{"name": "test-package", "ecosystem": tc.ecosystem},
+					"ranges": []any{map[string]any{
+						"type":   "ECOSYSTEM",
+						"events": []any{map[string]string{"introduced": "0"}, map[string]string{"fixed": tc.fixed}},
+					}},
+				}
+				if ecosystemSpecific != nil {
+					affected["ecosystem_specific"] = ecosystemSpecific
+				}
+				data, err := json.Marshal(map[string]any{
+					"id": name, "schema_version": "1.7.5",
+					"published": "2026-10-01T00:00:00Z", "modified": "2026-10-01T00:00:00Z",
+					"upstream": []string{name}, "aliases": []string{name},
+					"affected": []any{affected},
+				})
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(filepath.Join(input, name+".json"), data, 0o600))
+			}
+			write("CVE-2026-12345", nil)
+			// binaries as plain names instead of objects: the shape change this guards against.
+			write("CVE-2026-23456", map[string]any{"binaries": []string{"test-package-bin"}})
+
+			cfg := testUbuntuRunConfig(input, output)
+			cfg.Platform = tc.platform
+			err := tc.run(cfg)
+			require.ErrorContains(t, err, "1 file(s) could not be parsed")
+
+			written, err := os.ReadDir(output)
+			require.NoError(t, err)
+			require.Empty(t, written, "no artifact may be written when an input file cannot be parsed")
+		})
+	}
+}
+
+func TestRunFailsWhenUbuntuEntriesLackBinaries(t *testing.T) {
+	const eco = "Ubuntu:24.04:LTS"
+	entries := func(prefix string, n int, binaries func(i int) []testUbuntuBinary) []map[string]any {
+		out := make([]map[string]any, 0, n)
+		for i := range n {
+			out = append(out, testUbuntuAffected(eco, fmt.Sprintf("%s-%d", prefix, i), "1.0-1ubuntu1", nil, binaries(i)))
+		}
+		return out
+	}
+	noBinaries := func(int) []testUbuntuBinary { return nil }
+	withBinary := func(prefix string) func(int) []testUbuntuBinary {
+		return func(i int) []testUbuntuBinary {
+			return []testUbuntuBinary{{fmt.Sprintf("%s-%d", prefix, i), "1.0-1ubuntu1"}}
+		}
+	}
+	kernelBinaries := func(i int) []testUbuntuBinary {
+		return []testUbuntuBinary{{fmt.Sprintf("linux-image-6.8.0-%d-generic", i), "6.8.0-60.63"}}
+	}
+
+	cases := []struct {
+		name     string
+		affected []map[string]any
+		wantErr  bool
+	}{
+		{
+			name:     "binaries missing everywhere",
+			affected: entries("pkg", 1000, noBinaries),
+			wantErr:  true,
+		},
+		{
+			// Kernel entries are most of the real data; counting them would dilute this below 1%.
+			name:     "binaries missing from non-kernel entries only",
+			affected: append(entries("linux-flavor", 100000, kernelBinaries), entries("pkg", 1000, noBinaries)...),
+			wantErr:  true,
+		},
+		{
+			name:     "a few entries without binaries",
+			affected: append(entries("pkg", 1000, withBinary("libpkg")), entries("other", 5, noBinaries)...),
+			wantErr:  false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			input, output := t.TempDir(), t.TempDir()
+			writeTestUbuntuRecord(t, input, "CVE-2026-0001", tc.affected...)
+			err := run(testUbuntuRunConfig(input, output))
+			if !tc.wantErr {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, "without ecosystem_specific.binaries")
+			written, err := os.ReadDir(output)
+			require.NoError(t, err)
+			require.Empty(t, written)
+		})
+	}
+}
