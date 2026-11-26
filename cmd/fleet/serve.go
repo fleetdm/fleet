@@ -337,6 +337,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
+	if err := mds.EncryptConditionalAccessSecrets(cmd.Context()); err != nil {
+		initFatal(err, "encrypting conditional access secrets")
+	}
+
 	var redisPool fleet.RedisPool
 	var redisWrapperDS *mysqlredis.Datastore
 	var configETagStore fleet.ConfigETagStore
