@@ -1,8 +1,11 @@
-import { screen } from "@testing-library/react";
 import React from "react";
 import { Column } from "react-table";
 
-import { renderWithSetup } from "test/test-utils";
+import {
+  expectTruncationTooltip,
+  mockTruncatedTextLayout,
+  renderWithSetup,
+} from "test/test-utils";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
@@ -19,11 +22,7 @@ describe("QueryResultsTableConfig - Host column", () => {
 
   it("shows the full host name in a tooltip when it is truncated", async () => {
     const longHostName = `DESKTOP-${"0123456789ABCDEF".repeat(8)}`;
-    // jsdom has no layout, so report a text box narrower than its content.
-    jest
-      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
-      .mockReturnValue(352);
-    jest.spyOn(Element.prototype, "scrollWidth", "get").mockReturnValue(1000);
+    mockTruncatedTextLayout();
     const hostColumn = generateColumnConfigsFromRows<IResultRow>([
       { host_display_name: longHostName, host_id: 1, name: "osquery" },
     ]).find((column) => column.id === "Host") as IColumnWithCell;
@@ -36,15 +35,6 @@ describe("QueryResultsTableConfig - Host column", () => {
       />
     );
 
-    await user.hover(
-      screen.getByText(longHostName, {
-        selector: ".data-table__tooltip-truncated-text",
-      })
-    );
-    expect(
-      await screen.findByText(longHostName, {
-        selector: ".truncated-tooltip.show",
-      })
-    ).toBeVisible();
+    await expectTruncationTooltip(user, longHostName);
   });
 });
