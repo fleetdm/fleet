@@ -68,4 +68,60 @@ describe("ActivityTypeDropdown", () => {
 
     expect(onSelect).toHaveBeenCalledWith("viewed_host_unlock_pin");
   });
+
+  it("focuses the search input when reopened after selecting an option", async () => {
+    const user = userEvent.setup();
+    const Wrapper = () => {
+      const [value, setValue] = React.useState("");
+      return <ActivityTypeDropdown value={value} onSelect={setValue} />;
+    };
+    render(<Wrapper />);
+
+    await user.click(screen.getByText("All types"));
+    await user.click(screen.getByText("Wiped host"));
+    expect(
+      screen.queryByRole("textbox", { name: "Search activity types" })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Wiped host"));
+    const searchInput = screen.getByRole("textbox", {
+      name: "Search activity types",
+    });
+    expect(searchInput).toHaveFocus();
+  });
+
+  it.each([
+    ["clicking outside", "click-outside"],
+    ["pressing Escape", "escape"],
+    ["clicking the dropdown again", "toggle"],
+  ])("clears the search text after closing by %s", async (_, closeBy) => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <button type="button">Outside</button>
+        <ActivityTypeDropdown value="" onSelect={noop} />
+      </div>
+    );
+
+    await user.click(screen.getByText("All types"));
+    await user.keyboard("wiped");
+    expect(screen.queryByText("Added App Store app")).not.toBeInTheDocument();
+
+    if (closeBy === "click-outside") {
+      await user.click(screen.getByRole("button", { name: "Outside" }));
+    } else if (closeBy === "escape") {
+      await user.keyboard("{Escape}");
+    } else {
+      await user.click(screen.getByText("All types"));
+    }
+    expect(
+      screen.queryByRole("textbox", { name: "Search activity types" })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("All types"));
+    expect(
+      screen.getByRole("textbox", { name: "Search activity types" })
+    ).toHaveValue("");
+    expect(screen.getByText("Added App Store app")).toBeInTheDocument();
+  });
 });

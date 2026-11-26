@@ -169,10 +169,14 @@ const ActivityTypeDropdown = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuIsOpen]);
 
+  // Covers every close path (selection, click outside, Escape, Tab, toggle).
+  useEffect(() => {
+    if (!menuIsOpen) setSearchQuery("");
+  }, [menuIsOpen]);
+
   const handleChange = (option: SingleValue<CustomOptionType>) => {
     if (option === null) return;
 
-    setSearchQuery("");
     onSelect(option.value !== "all" ? option.value : "");
     selectRef.current?.blur();
   };
