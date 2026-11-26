@@ -3901,18 +3901,37 @@ func (s *integrationEnterpriseTestSuite) TestFMAChatGPTUsesCodexBundleIdentifier
 	require.NoError(t, err)
 	require.Equal(t, "com.openai.codex", app.UniqueIdentifier)
 
+	// Builds from before the rebuild left a title that carries the app's catalog name. The installer must
+	// not land on it, even when it's added before any host reports a current build.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_titles (name, source, bundle_identifier, extension_for)
+			VALUES ('ChatGPT Desktop', 'apps', 'com.openai.chat', '')`)
+		return err
+	})
+
 	// GitOps links the installer to the title hosts report ChatGPT under, and re-applying moves nothing.
 	gitopsTeam := newTeam("gitops")
-	gitopsHost := newChatGPTHost(gitopsTeam, "gitops")
 	applyGitOps(gitopsTeam)
+	gitopsHost := newChatGPTHost(gitopsTeam, "gitops")
 	installerID, titleID := installerTitle(gitopsTeam.ID)
 	require.Equal(t, hostTitle(gitopsHost), titleID)
 	requireInstalledInSelfService(gitopsHost)
+
+	var policyResp fleet.CreatePolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies",
+		fleet.CreatePolicyRequest{TeamID: &gitopsTeam.ID, Type: new("patch"), SoftwareTitleID: &titleID}, http.StatusOK, &policyResp)
+	require.NotNil(t, policyResp.Policy)
 
 	applyGitOps(gitopsTeam)
 	againInstallerID, againTitleID := installerTitle(gitopsTeam.ID)
 	require.Equal(t, installerID, againInstallerID)
 	require.Equal(t, titleID, againTitleID)
+	var getPolicyResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyResp.Policy.ID), nil, http.StatusOK, &getPolicyResp)
+	require.NotNil(t, getPolicyResp.Policy)
+	require.NotNil(t, getPolicyResp.Policy.PatchSoftware)
+	require.Equal(t, titleID, getPolicyResp.Policy.PatchSoftware.SoftwareTitleID)
 
 	// Adding it in the UI links to the same title.
 	uiTeam := newTeam("ui")

@@ -3695,6 +3695,31 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			require.Equal(t, tt.expectedUpgradeCode, actual.UpgradeCode)
 		})
 	}
+
+	// A package's bundle identifier is read from its metadata and can differ from what hosts report, so it
+	// falls back to a title with the same name (covered above). A Fleet-maintained app's comes from the
+	// catalog, so it only falls back to a title that has no bundle identifier.
+	resolveBundleID := func(payload *fleet.UploadSoftwareInstallerPayload) *string {
+		id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, ds.writer(ctx), payload)
+		require.NoError(t, err)
+		var bundleID *string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &bundleID, `SELECT bundle_identifier FROM software_titles WHERE id = ?`, id)
+		})
+		return bundleID
+	}
+	for _, payload := range []*fleet.UploadSoftwareInstallerPayload{
+		{Title: "Existing Title", Source: "apps", BundleIdentifier: "com.fma.moved", FleetMaintainedAppID: new(uint(3))},
+		// Adding the app with edited scripts drops its ID, but not its catalog name.
+		{Title: "Existing Title", Source: "apps", BundleIdentifier: "com.fma.edited", FMAName: "Existing Title"},
+	} {
+		bundleID := resolveBundleID(payload)
+		require.NotNil(t, bundleID)
+		require.Equal(t, payload.BundleIdentifier, *bundleID)
+	}
+	require.Nil(t, resolveBundleID(&fleet.UploadSoftwareInstallerPayload{
+		Title: "Existing Title Without Bundle", Source: "apps", BundleIdentifier: "com.fma.unbundled", FleetMaintainedAppID: new(uint(3)),
+	}))
 }
 
 func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) {

@@ -64,6 +64,7 @@ func TestUp_20261126170810(t *testing.T) {
 		oldTitle := addTitle(t, f, "ChatGPT Desktop", "com.openai.chat")
 		codexTitle := addTitle(t, f, "Codex", "com.openai.codex")
 		firefoxTitle := addTitle(t, f, "Mozilla Firefox", "org.mozilla.firefox")
+		strayTitle := addTitle(t, f, "ChatGPT", "com.example.stray")
 
 		teamA := addTeam(t, f, "A")
 		teamB := addTeam(t, f, "B")
@@ -71,6 +72,8 @@ func TestUp_20261126170810(t *testing.T) {
 		teamD := addTeam(t, f, "D")
 		teamE := addTeam(t, f, "E")
 		teamF := addTeam(t, f, "F")
+		teamG := addTeam(t, f, "G")
+		teamH := addTeam(t, f, "H")
 		const noTeam = 0
 
 		// Fleet A: ChatGPT FMA with two cached versions, plus everything keyed on its title.
@@ -95,6 +98,12 @@ func TestUp_20261126170810(t *testing.T) {
 			INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, software_title_id, updated_at)
 			VALUES (?, ?, ?, '2026-01-02 03:04:05')`, upcomingA, installerA2, oldTitle)
 		execNoErr(t, f.db, `UPDATE software_installers SET updated_at = '2026-01-02 03:04:05' WHERE id = ?`, installerA2)
+		execNoErr(t, f.db, `
+			INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
+			VALUES ('notification-a', 1, 'pending', 'patch', '{}', '2027-01-01 00:00:00')`)
+		execNoErr(t, f.db, `
+			INSERT INTO patch_notification_apps (notification_uuid, policy_id, software_title_id, software_installer_id)
+			VALUES ('notification-a', ?, ?, ?)`, patchPolicyA, oldTitle, installerA2)
 
 		// Fleet B: an uploaded package already owns the com.openai.codex title, so it's skipped.
 		installerB := addInstaller(t, f, teamB, oldTitle, &chatgptFMA, "2.0")
@@ -127,6 +136,14 @@ func TestUp_20261126170810(t *testing.T) {
 		execNoErr(t, f.db, `INSERT INTO vpp_apps (adam_id, platform, title_id) VALUES ('123', 'darwin', ?)`, codexTitle)
 		execNoErr(t, f.db, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, team_id, name) VALUES ('123', 'darwin', ?, ?, '')`, teamF, teamF)
 
+		// Fleet G: ChatGPT is on the com.openai.codex title as well, so it's skipped.
+		installerG := addInstaller(t, f, teamG, oldTitle, &chatgptFMA, "2.0")
+		installerGCodex := addInstaller(t, f, teamG, codexTitle, &chatgptFMA, "2.0")
+
+		// Fleet H: its installers are on two titles, which can't be merged without picking one, so it's skipped.
+		installerH1 := addInstaller(t, f, teamH, oldTitle, &chatgptFMA, "1.0")
+		installerH2 := addInstaller(t, f, teamH, strayTitle, &chatgptFMA, "2.0")
+
 		applyNext(t, f.db)
 
 		check := func(t *testing.T) {
@@ -153,6 +170,9 @@ func TestUp_20261126170810(t *testing.T) {
 			var policyID int64
 			require.NoError(t, f.db.Get(&policyID, `SELECT id FROM policies WHERE team_id = ? AND patch_software_title_id = ?`, teamA, codexTitle))
 			require.Equal(t, patchPolicyA, policyID)
+			var notificationTitle int64
+			require.NoError(t, f.db.Get(&notificationTitle, `SELECT software_title_id FROM patch_notification_apps WHERE notification_uuid = 'notification-a'`))
+			require.Equal(t, codexTitle, notificationTitle)
 
 			require.Equal(t, codexTitle, titleOf(t, f, installerNoTeam))
 			var noTeamPolicyTitle int64
@@ -171,6 +191,10 @@ func TestUp_20261126170810(t *testing.T) {
 
 			require.Equal(t, oldTitle, titleOf(t, f, installerE))
 			require.Equal(t, oldTitle, titleOf(t, f, installerF))
+			require.Equal(t, oldTitle, titleOf(t, f, installerG))
+			require.Equal(t, codexTitle, titleOf(t, f, installerGCodex))
+			require.Equal(t, oldTitle, titleOf(t, f, installerH1))
+			require.Equal(t, strayTitle, titleOf(t, f, installerH2))
 
 			// The install time shown in self-service is updated_at, so moving rows must keep it.
 			type moved struct {

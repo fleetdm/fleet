@@ -97,26 +97,32 @@ func Up_20261126170810(tx *sql.Tx) error {
 
 	var moved, skipped int
 	for fleetID, g := range byFleet {
-		// A fleet gets one installer per title. When something else already installs
-		// com.openai.codex there (an uploaded ChatGPT package, the former Codex app), leave the
-		// fleet as it is rather than deleting an admin's installer. A fleet has one patch policy
-		// per title, so an existing one on the target is a conflict too.
+		if len(g.oldTitles) > 1 {
+			logger.Info.Printf("Left the ChatGPT installers of fleet ID %d as they are: they are on more than one software title.\n", fleetID)
+			skipped++
+			continue
+		}
+
+		// A fleet gets one installer per title. When something already installs com.openai.codex
+		// there (an uploaded ChatGPT package, the former Codex app), leave the fleet as it is rather
+		// than deleting an admin's installer. A fleet has one patch policy per title, so an existing
+		// one on the target is a conflict too.
 		var conflict bool
 		if err := tx.QueryRow(`
 			SELECT
-				EXISTS (SELECT 1 FROM software_installers WHERE global_or_team_id = ? AND title_id = ?
-					AND (fleet_maintained_app_id IS NULL OR fleet_maintained_app_id <> ?))
-				OR EXISTS (SELECT 1 FROM in_house_apps WHERE global_or_team_id = ? AND title_id = ?)
+				EXISTS (SELECT 1 FROM software_installers WHERE global_or_team_id = ? AND title_id = ?)
 				OR EXISTS (SELECT 1 FROM vpp_apps va
 					JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND vat.platform = va.platform
 					WHERE va.title_id = ? AND vat.global_or_team_id = ?)
 				OR EXISTS (SELECT 1 FROM policies WHERE team_id = ? AND patch_software_title_id = ?)`,
-			fleetID, targetID, chatgpt.ID, fleetID, targetID, targetID, fleetID, fleetID, targetID,
+			fleetID, targetID, targetID, fleetID, fleetID, targetID,
 		).Scan(&conflict); err != nil {
 			return fmt.Errorf("checking com.openai.codex title conflicts for fleet %d: %w", fleetID, err)
 		}
-		if conflict || len(g.oldTitles) > 1 {
-			logger.Info.Printf("Left the ChatGPT installer of fleet ID %d on its current software title: the com.openai.codex title is already in use in that fleet, or its installers span several titles.\n", fleetID)
+		if conflict {
+			logger.Info.Printf("Left the ChatGPT installer of fleet ID %d on its current software title: the com.openai.codex title "+
+				"already has software or a patch policy in that fleet. To move it, delete that software or policy, then delete "+
+				"ChatGPT and add it again.\n", fleetID)
 			skipped++
 			continue
 		}
