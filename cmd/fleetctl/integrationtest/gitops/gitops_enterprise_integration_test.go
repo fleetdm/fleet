@@ -36,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	mock_pkg "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -5003,9 +5004,26 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGenerateGitopsExceptionsRound
 	t.Cleanup(manifestServer.Close)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
+	teamName := "exceptions_" + uuid.NewString()
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+	assetsByBearer := map[string][]vpp.Asset{}
+	testing_utils.StartAndServeVPPServerWithAssets(t, assetsByBearer)
+	tokenData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Acme", "Acme US")
+	require.NoError(t, err)
+	tok, err := s.DS.InsertVPPToken(ctx, tokenData)
+	require.NoError(t, err)
+	_, err = s.DS.UpdateVPPTokenTeams(ctx, tok.ID, []uint{team.ID})
+	require.NoError(t, err)
+	tok, err = s.DS.GetVPPToken(ctx, tok.ID)
+	require.NoError(t, err)
+	assetsByBearer[tok.Token] = []vpp.Asset{{AdamID: "1", PricingParam: "STDQ", AvailableCount: 5}}
+
 	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "exceptions.mobileconfig")
+	require.NoError(t, os.WriteFile(profilePath, []byte(test.GenerateMDMAppleProfile("exceptions-profile", "com.example.exceptions", uuid.NewString())), 0o644))
 	globalFile := filepath.Join(dir, "global.yml")
-	require.NoError(t, os.WriteFile(globalFile, []byte(`
+	require.NoError(t, os.WriteFile(globalFile, fmt.Appendf(nil, `
 agent_options:
 controls:
 org_settings:
@@ -5014,14 +5032,18 @@ org_settings:
   org_info:
     org_name: Fleet
   secrets: [{"secret":"exceptions_global_secret"}]
+  mdm:
+    volume_purchasing_program:
+      - location: Acme US
+        fleets:
+          - %s
 labels:
   - name: exceptions-global-label
     label_membership_type: dynamic
     query: SELECT 1
 policies:
 reports:
-`), 0o644))
-	teamName := "exceptions_" + uuid.NewString()
+`, teamName), 0o644))
 	teamFile := filepath.Join(dir, "team.yml")
 	require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, `
 name: %[2]s
@@ -5034,6 +5056,8 @@ labels:
 software:
   fleet_maintained_apps:
     - slug: %[1]s
+  app_store_apps:
+    - app_store_id: "1"
 policies:
   - name: exceptions-patch-policy
     type: patch
@@ -5048,10 +5072,21 @@ policies:
     labels_include_any:
       - exceptions-global-label
       - exceptions-fleet-label
+  - name: exceptions-vpp-policy
+    query: SELECT 1;
+    platform: darwin
+    install_software:
+      app_store_id: "1"
 controls:
+  apple_settings:
+    configuration_profiles:
+      - path: %[3]s
+        labels_include_any:
+          - exceptions-global-label
+          - exceptions-fleet-label
 agent_options:
 reports:
-`, slug, teamName), 0o644))
+`, slug, teamName, profilePath), 0o644))
 	unassignedFile := filepath.Join(dir, "unassigned.yml")
 	require.NoError(t, os.WriteFile(unassignedFile, []byte(`name: Unassigned
 controls:
@@ -5061,8 +5096,6 @@ software:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile, "-f", unassignedFile,
 	}))
-	team, err := s.DS.TeamByName(ctx, teamName)
-	require.NoError(t, err)
 
 	appConf, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
@@ -5133,10 +5166,10 @@ software:
 	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: &team.ID},
 		fleet.TeamFilter{User: test.UserAdmin})
 	require.NoError(t, err)
-	require.Len(t, titles, 1)
+	require.Len(t, titles, 2)
 	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
-	require.Len(t, pols, 3)
+	require.Len(t, pols, 4)
 	for _, p := range pols {
 		switch p.Name {
 		case "exceptions-patch-policy":
@@ -5145,8 +5178,14 @@ software:
 			require.NotNil(t, p.SoftwareInstallerID)
 		case "exceptions-label-policy":
 			require.Len(t, p.LabelsIncludeAny, 2)
+		case "exceptions-vpp-policy":
+			require.NotNil(t, p.VPPAppsTeamsID)
 		}
 	}
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Len(t, profs[0].LabelsIncludeAny, 2)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
