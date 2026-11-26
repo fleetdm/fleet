@@ -1,0 +1,1 @@
+- Fixed `fleetctl generate-gitops` on Fleet Free leaving scripts out of `default.yml`, which made applying the export with `fleetctl gitops` delete every script.
