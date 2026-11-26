@@ -1,7 +1,4 @@
 #replace-workspace-one {
-  @heading-lineheight: 120%;
-  @text-lineheight: 150%;
-
   // Applies the section spacing scale from spacing.less for one breakpoint.
   // page-content has a single gap, so the quote gets the difference as padding
   // (never negative, in case @around-quote is the smaller token at a tier).
@@ -28,7 +25,7 @@
     }
   }
 
-  .section-spacing(@section-160; @section-200; @section-64; 64px);
+  .section-spacing(@section-160; @section-200; @section-64; @page-padding);
 
   p {
     margin-bottom: 0px;
@@ -40,7 +37,7 @@
   }
 
   [purpose='page-container'] {
-    padding: 64px;
+    padding: @page-padding;
   }
 
   [purpose='page-content'] {
@@ -68,19 +65,19 @@
   }
 
   [purpose='page-hero'] {
-    padding: 48px 0 0;
+    padding: @section-48 0 0;
     display: flex;
     align-items: center;
     align-content: center;
     justify-content: flex-start;
-    gap: 48px 8px;
+    gap: @section-48 @inner-padding-xs;
     align-self: stretch;
   }
 
   [purpose='page-hero-content'] {
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: @section-gap;
     max-width: 600px;
     text-align: left;
   }
@@ -95,35 +92,21 @@
 
   [purpose='page-hero-headings'] {
     h4 {
-      color: @core-fleet-black-75;
+      .kicker-title();
       font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
-      font-family: 'Roboto Mono';
-      font-size: 16px;
-      font-style: normal;
-      font-weight: 400;
-      line-height: @text-lineheight;
-      text-transform: uppercase;
       margin-bottom: 0px;
     }
     h1 {
+      .page-heading();
       color: @core-fleet-black;
       margin-bottom: 0px;
-      font-family: Inter;
-      font-size: 48px;
-      font-style: normal;
-      font-weight: 800;
-      line-height: 120%;
     }
   }
 
   [purpose='page-hero-text'] {
     p {
+      .body-l();
       color: @core-fleet-black-75;
-
-      font-size: 16px;
-      font-style: normal;
-      font-weight: 400;
-      line-height: 150%;
     }
   }
 
@@ -136,26 +119,18 @@
   [purpose='feature-text'] {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: @inner-padding;
     max-width: 800px;
     align-self: center;
     text-align: left;
     h2 {
+      .section-heading();
       color: @core-fleet-black;
-
-      font-size: 32px;
-      font-style: normal;
-      font-weight: 800;
-      line-height: 120%;
       margin-bottom: 0px;
     }
     p {
+      .body-l();
       color: @core-fleet-black-75;
-
-      font-size: 16px;
-      font-style: normal;
-      font-weight: 400;
-      line-height: 150%;
       margin-bottom: 0px;
       // max-width: 800px;
     }
@@ -176,15 +151,15 @@
   [purpose='supported-os-grid'] {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 48px 48px;
-    margin-top: 32px;
+    gap: @section-48 @section-48;
+    margin-top: @section-gap;
   }
 
   [purpose='supported-os'] {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: @inner-padding;
     width: 120px;
     img {
       height: 40px;
@@ -213,7 +188,7 @@
     [purpose='section-heading'] {
       align-self: center;
       text-align: center;
-      gap: 16px;
+      gap: @inner-padding;
       max-width: 702px;
       [purpose='kicker-text'] {
         display: flex;
@@ -223,11 +198,8 @@
         }
       }
       h2 {
+        .section-heading();
         color: @core-fleet-black;
-        font-size: 32px;
-        font-style: normal;
-        font-weight: 800;
-        line-height: 120%;
         margin-bottom: 0px;
       }
     }
@@ -260,17 +232,15 @@
     }
     [purpose='banner-text'] {
       display: flex;
-      padding: 64px 48px;
+      padding: @page-padding @page-padding-sm;
       flex-direction: column;
       align-items: flex-start;
-      gap: 32px;
+      gap: @section-gap;
       flex: 1 0 0;
       width: 50%;
       p {
+        .body-l();
         color: @core-fleet-black-75;
-        font-size: 16px;
-        font-weight: 400;
-        line-height: 24px;
         strong {
           color: @core-fleet-black-75;
         }
@@ -289,10 +259,10 @@
       }
       [purpose='banner-item'] {
         display: flex;
-        padding: 24px 0;
+        padding: @section-gap-sm 0;
         flex-direction: column;
         align-items: flex-start;
-        gap: 8px;
+        gap: @inner-padding-xs;
         align-self: stretch;
         &:first-of-type {
           padding-top: 0;
@@ -312,19 +282,19 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 64px;
+    gap: @section-64;
     width: 100%;
     &.sm-gap {
-      gap: 48px;
+      gap: @section-48;
       [purpose='feature'] {
-        flex: 0 1 ~'calc((100% - 2 * 48px) / 3)';
+        flex: 0 1 ~'calc((100% - 2 * @{section-48}) / 3)';
       }
     }
     [purpose='feature'] {
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      flex: 0 1 ~'calc((100% - 2 * 64px) / 3)';
+      gap: @inner-padding;
+      flex: 0 1 ~'calc((100% - 2 * @{section-64}) / 3)';
       min-width: 0;
       margin-bottom: 0;
       text-align: left;
@@ -335,9 +305,7 @@
         margin-bottom: 0px;
       }
       p {
-        font-size: 14px;
-        font-weight: 400;
-        line-height: 21px;
+        .body-m();
         margin-bottom: 0px;
       }
     }
@@ -346,39 +314,38 @@
   [purpose='button-row'] {
     display: flex;
     flex-direction: row;
-    gap: 24px;
+    gap: @section-gap-sm;
   }
 
   [purpose='cta-button'] {
     .primary-button();
     display: flex;
     min-width: 140px;
-    gap: 4px;
+    gap: @inner-padding-xxs;
   }
 
   [purpose='quote-and-logos'] {
     display: flex;
     flex-direction: row;
-    gap: 64px;
+    gap: @section-64;
   }
   [purpose='section-quote'] {
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: flex-start;
-    gap: 24px;
+    gap: @section-gap-sm;
     align-self: center;
     max-width: 50%;
     [purpose='quote-content'] {
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      gap: 16px;
+      gap: @inner-padding;
     }
     [purpose='quote-text'] {
       color: @core-fleet-black-75;
       text-align: left;
-      font-family: Inter;
       font-size: 18px;
       font-style: italic;
       font-weight: 400;
@@ -390,7 +357,7 @@
       flex-direction: row;
       justify-content: flex-start;
       align-items: flex-start;
-      gap: 16px;
+      gap: @inner-padding;
       align-self: center;
     }
     [purpose='quote-author-image'] {
@@ -407,20 +374,13 @@
       align-items: flex-start;
     }
     [purpose='author-name'] {
+      .body-s();
       color: @core-fleet-black;
-      font-family: Inter;
-      font-size: 12px;
-      font-style: normal;
       font-weight: 700;
-      line-height: 150%;
     }
     [purpose='author-title'] {
+      .body-s();
       color: @core-fleet-black-75;
-      font-family: Inter;
-      font-size: 12px;
-      font-style: normal;
-      font-weight: 400;
-      line-height: 150%;
     }
   }
 
@@ -490,12 +450,12 @@
     display: flex;
     align-items: flex-start;
     align-content: flex-start;
-    column-gap: 64px;
+    column-gap: @section-64;
     align-self: stretch;
     flex-wrap: wrap;
     [purpose='feature-item'] {
       max-width: 50%;
-      gap: 48px;
+      gap: @section-48;
       flex: 1 0 40%;
       [purpose='feature-image'] {
         img {
@@ -509,7 +469,7 @@
     [purpose='image-caption'] {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: @inner-padding;
     }
   }
 
@@ -517,28 +477,20 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: @inner-padding;
     flex: 1 0 46%;
     h5 {
       color: @core-fleet-black;
 
       /* Title XS */
-      font-family: Inter;
       font-size: 16px;
-      font-style: normal;
       font-weight: 700;
       line-height: 120%;
       margin-bottom: 0px;
     }
-  p {
+    p {
+      .body-l();
       color: @core-fleet-black-75;
-
-      /* Body/MD */
-      font-family: Inter;
-      font-size: 16px;
-      font-style: normal;
-      font-weight: 400;
-      line-height: 150%;
     }
 
   }
@@ -551,10 +503,8 @@
       text-align: left;
     }
     [purpose='section-heading'] p {
+      .body-l();
       color: @core-fleet-black-75;
-      font-size: 16px;
-      font-weight: 400;
-      line-height: 150%;
     }
     [purpose='feature-with-image-row'] [purpose='feature-item'] [purpose='feature-image'] img {
       aspect-ratio: 2 / 1;
@@ -564,7 +514,7 @@
   [purpose='faq-section'] {
     display: flex;
     flex-direction: column;
-    gap: 48px;
+    gap: @section-48;
     h2 {
       .section-heading();
       text-align: center;
@@ -583,8 +533,8 @@
 
       [purpose='accordion-item'] {
         border-bottom: 1px solid @core-fleet-black-10;
-        margin-top: 24px;
-        margin-bottom: 16px;
+        margin-top: @section-gap-sm;
+        margin-bottom: @inner-padding;
       }
     }
     [purpose='accordion-header'] {
@@ -594,7 +544,7 @@
       justify-content: space-between;
       align-items: center;
       font-weight: 700;
-      margin-bottom: 16px;
+      margin-bottom: @inner-padding;
       p {
         margin-bottom: 0px;
       }
@@ -609,7 +559,7 @@
       }
     }
     [purpose='accordion-answer'] {
-      padding: 0 40px 16px 0;
+      padding: 0 40px @inner-padding 0;
       p {
         margin-bottom: 0px;
       }
@@ -619,29 +569,27 @@
   [purpose='section-heading'] {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: @section-gap-sm;
     max-width: 663px;
     h2 {
       .section-heading();
       color: @core-fleet-black;
-      font-family: Inter;
-      font-style: normal;
     }
   }
   [purpose='tweets-container'] {
     max-width: 1072px;
-    padding-left: 64px;
-    padding-right: 64px;
+    padding-left: @page-padding;
+    padding-right: @page-padding;
   }
   [parasails-component='scrollable-tweets'] {
     [purpose='tweets'] {
       margin-top: 40px;
       margin-bottom: 0px;
-      padding-left: 64px;
+      padding-left: @page-padding;
     }
     [purpose='tweet-card'] {
       [purpose='quote'] {
-        margin-bottom: 24px;
+        margin-bottom: @section-gap-sm;
       }
     }
   }
@@ -653,43 +601,32 @@
     margin-right: auto;
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: @section-gap;
     h1 {
+      .page-heading();
       color: @core-fleet-black;
       text-align: center;
-
-      font-family: Inter;
-      font-size: 48px;
-      font-style: normal;
-      font-weight: 800;
-      line-height: 120%;
     }
     h4 {
-      color: @core-fleet-black-75;
+      .kicker-title();
       font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
-      font-family: 'Roboto Mono';
-      font-size: 16px;
-      font-style: normal;
-      font-weight: 400;
-      line-height: 150%;
-      text-transform: uppercase;
       margin-bottom: 0px;
     }
     [purpose='button-row'] {
-      margin-top: 16px;
+      margin-top: @inner-padding;
     }
   }
 
-  @media (max-width: 1200px) {
-    .section-spacing(@section-160-lg; @section-200-lg; @section-64-lg; 64px);
+  @media (max-width: 1199px) {
+    .section-spacing(@section-160-lg; @section-200-lg; @section-64-lg; @page-padding);
     [purpose='page-hero'] {
-      padding-top: 48px;
+      padding-top: @section-48;
       padding-bottom: 0;
 
       display: flex;
       flex-direction: row;
       align-items: center;
-      gap: 48px 8px;
+      gap: @section-48 @inner-padding-xs;
     }
     [purpose='page-hero-image'] {
       max-width: 50%;
@@ -702,13 +639,13 @@
 
   }
   @media (max-width: 991px) {
-    .section-spacing(@section-160-md; @section-200-md; @section-64-md; 48px);
+    .section-spacing(@section-160-md; @section-200-md; @section-64-md; @page-padding-sm);
 
     [purpose='page-container'] {
-      padding: 48px;
+      padding: @page-padding-sm;
     }
     [purpose='page-hero'] {
-      padding-top: 32px;
+      padding-top: @section-gap;
       padding-bottom: 0;
       flex-direction: column;
       flex-wrap: nowrap;
@@ -725,7 +662,7 @@
       }
     }
     [purpose='supported-os-grid'] {
-      gap: 24px;
+      gap: @section-gap-sm;
     }
     // Let each distro fill its column so five still fit at 768px.
     [purpose='supported-os'] {
@@ -735,7 +672,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 48px;
+      gap: @section-48;
 
       [purpose='section-quote'] {
         max-width: 560px;
@@ -817,21 +754,21 @@
     }
 
     [purpose='three-column-list'] {
-      gap: 48px;
+      gap: @section-48;
       [purpose='feature'] {
-        flex-basis: ~'calc((100% - 2 * 48px) / 3)';
+        flex-basis: ~'calc((100% - 2 * @{section-48}) / 3)';
       }
     }
     [purpose='banner'] {
       [purpose='banner-text'] {
-        padding: 48px 32px;
+        padding: @page-padding-sm @section-gap;
       }
     }
 
   }
 
   @media (max-width: 767px) {
-    .section-spacing(@section-160-sm; @section-200-sm; @section-64-sm; 32px);
+    .section-spacing(@section-160-sm; @section-200-sm; @section-64-sm; @page-padding-tablet);
 
     // Flex instead of grid so a partial last row of distros is centered.
     [purpose='supported-os-grid'] {
@@ -840,18 +777,18 @@
       justify-content: center;
     }
     [purpose='supported-os'] {
-      flex: 0 0 ~'calc((100% - 3 * 24px) / 4)';
+      flex: 0 0 ~'calc((100% - 3 * @{section-gap-sm}) / 4)';
     }
 
     [purpose='page-container'] {
-      padding: 32px;
+      padding: @page-padding-tablet;
     }
     [purpose='page-hero'] {
-      padding-top: 32px;
+      padding-top: @section-gap;
       padding-bottom: 0;
       flex-direction: column;
       flex-wrap: nowrap;
-      gap: 48px;
+      gap: @section-48;
     }
     [purpose='page-hero-content'] {
       max-width: 100%;
@@ -874,7 +811,7 @@
       [purpose='feature-item'] {
         max-width: unset;
         width: 100%;
-        gap: 32px;
+        gap: @section-gap;
         flex: unset;
         align-items: center;
         [purpose='feature-image'] {
@@ -889,7 +826,7 @@
       [purpose='image-caption'] {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: @inner-padding;
       }
     }
     [purpose='top-section'], [purpose='hardware-section'] {
@@ -918,7 +855,7 @@
     [purpose='quote-and-logos'] {
       display: flex;
       flex-direction: column;
-      gap: 48px;
+      gap: @section-48;
 
       [purpose='logo-grid'] {
         display: flex;
@@ -1000,24 +937,21 @@
   }
 
   @media (max-width: 575px) {
-    .section-spacing(@section-160-xs; @section-200-xs; @section-64-xs; 32px);
+    .section-spacing(@section-160-xs; @section-200-xs; @section-64-xs; @page-padding-tablet);
 
     [purpose='page-container'] {
-      padding-left: 24px;
-      padding-right: 24px;
+      padding-left: @page-padding-mobile;
+      padding-right: @page-padding-mobile;
     }
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
-        padding-left: 24px;
+        padding-left: @page-padding-mobile;
       }
     }
 
     [purpose='page-hero-headings'] {
       h4 {
         font-size: 16px;
-      }
-      h1 {
-        font-size: 32px;
       }
     }
     [purpose='page-hero-image'] {
@@ -1029,7 +963,7 @@
       }
     }
     [purpose='supported-os'] {
-      flex-basis: ~'calc((100% - 24px) / 2)';
+      flex-basis: ~'calc((100% - @{section-gap-sm}) / 2)';
     }
     [purpose='three-column-list'] {
       gap: 40px;
@@ -1043,16 +977,6 @@
       }
     }
 
-    [purpose='page-hero-headings'], [purpose='bottom-cta'] {
-      h1 {
-        font-size: 32px;
-      }
-    }
-    [purpose='top-section'] [purpose='section-heading'], [purpose='hardware-section'] [purpose='section-heading'], [purpose='feature-text'] {
-      h2 {
-        font-size: 24px;
-      }
-    }
     [purpose='quote-and-logos'] {
       [purpose='logo-grid'] {
         width: 100%;
@@ -1119,14 +1043,14 @@
 
   @media (max-width: 375px) {
     [purpose='tweets-container'] {
-      padding-left: 16px;
-      padding-right: 16px;
+      padding-left: @inner-padding;
+      padding-right: @inner-padding;
     }
     [purpose='button-row'] {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: @inner-padding;
       [purpose='cta-button'] {
         width: 100%;
       }
@@ -1136,9 +1060,9 @@
     }
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
-        margin-top: 32px;
+        margin-top: @section-gap;
         margin-bottom: 0px;
-        padding-left: 16px;
+        padding-left: @inner-padding;
       }
     }
 
@@ -1150,7 +1074,7 @@
   [purpose='section-buttons'] {
     display: flex;
     flex-direction: row;
-    gap: 24px;
+    gap: @section-gap-sm;
     align-items: center;
     white-space: nowrap;
   }
@@ -1158,12 +1082,12 @@
   [purpose='section-with-image'] {
     display: flex;
     flex-direction: row;
-    gap: 64px;
+    gap: @section-64;
 
     [purpose='feature-text'] {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: @section-gap-sm;
       max-width: 50%;
     }
     [purpose='section-image'] {
@@ -1193,16 +1117,16 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: 32px;
-    margin-top: 48px;
-    padding: 32px 40px;
+    gap: @section-gap;
+    margin-top: @section-48;
+    padding: @section-gap 40px;
     border-radius: 16px;
     // page-section (this callout's parent in the pain-card block) sets
     // align-items: flex-start, which otherwise shrinks this to its content
     // width instead of the full section width the other callout gets.
     align-self: stretch;
     width: 100%;
-    background: #F8F8F8;
+    background: @ui-off-white;
     border: 1px solid @core-fleet-black-10;
     // Stacks and centers everything instead of the default left-text,
     // right-button row. Used for the callout that closes the pain-card list.
@@ -1221,7 +1145,7 @@
         font-size: 20px;
         font-weight: 700;
         line-height: 128%;
-        margin-bottom: 4px;
+        margin-bottom: @inner-padding-xxs;
       }
       p {
         color: @core-fleet-black-75;
@@ -1240,7 +1164,7 @@
     [purpose='section-buttons'] {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: @section-gap-sm;
       align-items: flex-start;
     }
   }
@@ -1249,7 +1173,7 @@
     [purpose='callout'] {
       flex-direction: column;
       align-items: flex-start;
-      padding: 24px;
+      padding: @section-gap-sm;
       [purpose='cta-button'] {
         width: 100%;
       }
@@ -1266,7 +1190,7 @@
     [purpose='section-buttons'] {
       display: flex;
       flex-direction: row;
-      gap: 24px;
+      gap: @section-gap-sm;
       align-items: center;
     }
   }
@@ -1275,7 +1199,7 @@
     [purpose='section-buttons'] {
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: @section-gap-sm;
       align-items: flex-start;
     }
   }
@@ -1283,13 +1207,13 @@
   [purpose='comparison'] {
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: @section-gap;
   }
 
   [purpose='comparison-intro'] {
     max-width: 640px;
     h2 {
-      margin-bottom: 12px;
+      margin-bottom: @inner-padding-sm;
     }
   }
 
@@ -1302,8 +1226,8 @@
   [purpose='comparison-head'] {
     display: grid;
     grid-template-columns: 2fr 1.4fr 1.4fr;
-    gap: 24px;
-    padding: 14px 24px;
+    gap: @section-gap-sm;
+    padding: 14px @section-gap-sm;
     background: @ui-off-white;
     border-bottom: 1px solid @core-fleet-black-10;
     span {
@@ -1316,8 +1240,8 @@
   [purpose='comparison-row'] {
     display: grid;
     grid-template-columns: 2fr 1.4fr 1.4fr;
-    gap: 24px;
-    padding: 18px 24px;
+    gap: @section-gap-sm;
+    padding: 18px @section-gap-sm;
     align-items: start;
     &:not(:last-of-type) {
       border-bottom: 1px solid @core-fleet-black-10;
@@ -1353,7 +1277,7 @@
         text-indent: 0;
         width: 18px;
         height: 18px;
-        margin-right: 8px;
+        margin-right: @inner-padding-xs;
         vertical-align: -4px;
         background-size: 18px 18px;
         background-repeat: no-repeat;
@@ -1391,7 +1315,7 @@
     }
     [purpose='comparison-row'] {
       grid-template-columns: 1fr;
-      gap: 12px;
+      gap: @inner-padding-sm;
       padding: 20px;
     }
     [purpose='comparison-cell'] [purpose='comparison-label'] {
@@ -1428,15 +1352,15 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 12px;
+    gap: @inner-padding-sm;
     max-width: 880px;
-    margin: 32px auto 0;
+    margin: @section-gap auto 0;
   }
   [purpose='capability'] {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
+    gap: @inner-padding-xs;
+    padding: 10px @inner-padding;
     border: 1px solid @core-fleet-black-10;
     border-radius: 999px;
     background: @accent-white;
@@ -1468,7 +1392,7 @@
   // Insets are percentages of the box width, matching where that image's built-in card starts.
   [purpose='feature-with-image-row'] [purpose='feature-item'] [purpose='feature-image'] {
     position: relative;
-    background: #F5F6F7;
+    background: @ui-off-white;
     border-radius: 24px;
     overflow: hidden;
     aspect-ratio: 126 / 71;
@@ -1481,7 +1405,7 @@
       object-fit: cover;
       object-position: left top;
       border-top-left-radius: 12px;
-      box-shadow: 0 0 0 1px @core-fleet-black-10, 0 8px 24px rgba(25, 33, 71, 0.08);
+      box-shadow: 0 0 0 1px @core-fleet-black-10, 0 8px 24px fade(@core-fleet-black, 8%);
     }
     &::after {
       content: '';
@@ -1490,7 +1414,7 @@
       right: 0;
       bottom: 0;
       height: 40%;
-      background: linear-gradient(to bottom, rgba(245, 246, 247, 0), #F5F6F7);
+      background: linear-gradient(to bottom, fade(@ui-off-white, 0%), @ui-off-white);
       pointer-events: none;
     }
     &.pre-framed {
@@ -1525,6 +1449,22 @@
     }
     &.mollie img {
       height: 22px;
+    }
+  }
+}
+
+#replace-workspace-one {
+  [purpose='quote-and-logos'] [purpose='logo-grid'].mobile-only {
+    display: none;
+  }
+  @media (max-width: 575px) {
+    [purpose='quote-and-logos'] [purpose='logo-grid'] {
+      &.desktop-only {
+        display: none;
+      }
+      &.mobile-only {
+        display: flex;
+      }
     }
   }
 }
