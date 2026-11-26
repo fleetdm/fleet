@@ -1,4 +1,0 @@
-- **Breaking change:** Removed deprecated API keys that were returned next to their replacements. Report endpoints return and accept `report_id`, `report_ids`, `reports`, `inherited_report_count`, and `live_report_results` instead of `query_id`, `query_ids`, `queries`, `inherited_query_count`, and `live_query_results`, and requests that send the old names get a 422 error.
-- **Breaking change:** `GET`, `POST`, and `PATCH /api/v1/fleet/reports/:id` return the report only under `report`, not also under `query`.
-- **Breaking change:** Removed `mia_count` from `GET /api/v1/fleet/host_summary` (use `missing_30_days_count`) and `host_hostname` from live report result rows (use the row's `host_display_name` or the result's `host` object).
-- **Breaking change:** Report activity details use `report_id`, `report_ids`, `report_name`, and `query` instead of `query_id`, `query_ids`, `query_name`, and `query_sql`. Activities stored before Fleet 5 are returned with the new names.

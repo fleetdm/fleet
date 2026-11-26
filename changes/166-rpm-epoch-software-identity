@@ -1,1 +1,0 @@
-- Fixed a host being able to hide vulnerabilities on other hosts' RPM packages by reporting a different package epoch. The epoch is now part of an RPM package's identity, so hosts that report different epochs for the same package version get separate software versions.

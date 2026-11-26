@@ -1,1 +1,0 @@
-- **Breaking change:** Renamed the `server_settings` keys `live_query_disabled`, `query_reports_disabled`, and `query_report_cap` to `live_reporting_disabled`, `discard_reports_data`, and `report_cap` in the API, GitOps YAML, and `fleetctl`. The old names are rejected, and a database migration moves the saved values.

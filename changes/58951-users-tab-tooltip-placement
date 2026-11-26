@@ -1,1 +1,0 @@
-- Fixed the placement of tooltips on disabled controls on the setup experience **Users** page, and stopped showing the GitOps mode tooltip when MDM is off.

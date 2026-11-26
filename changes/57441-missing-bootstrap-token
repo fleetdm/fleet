@@ -1,1 +1,0 @@
-- Fixed an issue where Fleet cleared the macOS bootstrap token on re-enrollment, but aren't guaranteed a new escrow. This stops clearing it out on enrollment, and overrides only when a new SetBootstrapToken command comes in.

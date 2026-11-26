@@ -1,2 +1,0 @@
-- **Breaking change:** `PATCH /api/v1/fleet/setup_experience` no longer accepts `enable_release_device_manually` and `manual_agent_install` (use `apple_enable_release_device_manually` and `macos_manual_agent_install`). The old names are rejected.
-- **Breaking change:** Removed the `bootstrap_package` host filter from `GET /api/v1/fleet/hosts` and the other host list endpoints (use `macos_bootstrap_package`). The old name is rejected.

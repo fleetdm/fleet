@@ -1,1 +1,0 @@
-- Custom SCEP proxy certificate requests on macOS, iOS, iPadOS, Windows, and Android now only accept the one-time challenge Fleet sent to that host for that certificate. Certificates that were being delivered during the upgrade are retried automatically.

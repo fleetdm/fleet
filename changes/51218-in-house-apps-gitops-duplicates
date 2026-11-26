@@ -1,1 +1,0 @@
-- Fixed a bug where duplicate in-house apps could be added via GitOps.

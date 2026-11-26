@@ -1,2 +1,0 @@
-- Reduced database load from listing a host's software (host details page, self-service, and `GET /hosts/:id/software`).
-- Fixed the host software list's vulnerable filter and CVE search returning titles for a host with no software inventory when other hosts had matching versions.

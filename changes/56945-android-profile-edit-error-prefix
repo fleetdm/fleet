@@ -1,1 +1,0 @@
-- Fixed Android configuration profile validation errors to say "Couldn't edit." instead of "Couldn't add." when editing a profile.
