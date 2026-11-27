@@ -4210,12 +4210,11 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		{"trailing backslash", `ab\`},
 		{"non-ASCII character", "añb"},
 	} {
-		secret := tc.secret
 		t.Run("disabled: a global secret with a "+tc.name+" goes to the registry ahead of the install", func(t *testing.T) {
 			serveFleetdMetadata(t, http.StatusOK)
 			svc, ds, events := newService(t, false)
 			ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-				return []*fleet.EnrollSecret{{Secret: secret}}, nil
+				return []*fleet.EnrollSecret{{Secret: tc.secret}}, nil
 			}
 			require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 			require.Len(t, *events, 1)
@@ -4243,7 +4242,7 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 				} `xml:"data"`
 			}
 			require.NoError(t, xml.Unmarshal([]byte("<p>"+html.UnescapeString(cmds[1].Items[0].Data.Content)+"</p>"), &policy))
-			require.Equal(t, secret, policy.Data.Value)
+			require.Equal(t, tc.secret, policy.Data.Value)
 		})
 	}
 
@@ -4252,12 +4251,11 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		{"a custom variable", `a"$FLEET_SECRET_FOO`},
 		{"a host secret variable", "a${FLEET_HOST_SECRET_ENROLL_SECRET}"},
 	} {
-		secret := tc.secret
 		t.Run("disabled: a global secret with "+tc.name+" is not installed", func(t *testing.T) {
 			serveFleetdMetadata(t, http.StatusOK)
 			svc, ds, events := newService(t, false)
 			ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-				return []*fleet.EnrollSecret{{Secret: secret}}, nil
+				return []*fleet.EnrollSecret{{Secret: tc.secret}}, nil
 			}
 			require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 			require.Empty(t, *events)
