@@ -55,23 +55,23 @@ Any of these turns MDM removal from a security incident into a help desk ticket.
 
 ## The real gap: a copied certificate
 
-At past jobs, I've had a work laptop and a personal one, and just wanted to check something quickly without switching computers. Say an engineer copies the sign-in certificate from their work Mac to their personal one. They never remove MDM.
+At past jobs, I've had a work laptop and a personal one, and just wanted to check something quickly without switching computers. An engineer in that spot might copy the sign-in certificate from their work Mac to their personal one. They never remove MDM.
 
 That's a personal Mac borrowing the identity of an enrolled one. Whether it works depends on how your devices prove who they are.
 
-**Fleet with Okta.** At sign-in, Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes. Fleet marks the key non-exportable. But it sits in the login keychain, not the Secure Enclave. The employee knows the keychain password, so a determined one can likely extract it with third-party tools. (On Windows, the key stays in the TPM.) We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
+**Fleet with Okta.** At sign-in, Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes. Fleet marks the key non-exportable. But it sits in the login keychain, not the Secure Enclave. The employee knows the keychain password, so a determined one can likely extract the key with third-party tools. (On Windows, the key stays in the TPM.) We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
 
 **Jamf, or any MDM, with Okta management attestation.** Jamf installs a certificate from Okta in the login keychain, and Okta [recommends making it non-exportable](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm). A copy makes the personal Mac look managed. Okta's own posture checks, like OS version, do run on the personal Mac, so it has to pass those itself.
 
 **Jamf, Intune, or Fleet with Entra.** Entra identifies the Mac by a key created at Platform SSO registration. Since August 2025, new registrations [keep that key in the Secure Enclave](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#device-identity-key-storage), which never lets it out. Macs registered before then need to register again, and after that there's nothing to copy.
 
-Is this a big deal? For most companies, no. The employee still needs a real, enrolled, compliant work computer, and deleting that host in Fleet kills its certificate. Most people who try it want convenience, not your data. But it means conditional access isn't always checking what it seems to check.
+Is this a big deal? For most companies, no. The employee still needs a real, enrolled, compliant work computer, and if you use Fleet, deleting that host kills its certificate. Most people who try it want convenience, not your data. But it means conditional access isn't always checking what it seems to check.
 
 ## How to close the gap on a Mac
 
 **Use Entra with a Secure Enclave key.** If you're on Entra, deploy [Platform SSO with a Secure Enclave key](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet). It works with Jamf, Intune, or Fleet.
 
-**On Okta, FastPass is a partial fix.** [FastPass](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass) keeps its key in the Secure Enclave. That only helps if Okta blocks Okta Verify on personal Macs, and today Okta tells personal Macs apart using the same certificate an employee can copy. Until that's fixed, Okta can't fully close this gap on a Mac.
+**On Okta, FastPass is a partial fix.** [FastPass](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass) keeps its key in the Secure Enclave. That only helps if Okta blocks Okta Verify on personal Macs, and today Okta tells personal Macs apart using the same certificate an employee can copy. Until Okta can tell personal Macs apart without that certificate, it can't fully close this gap.
 
 ## Set it up
 
