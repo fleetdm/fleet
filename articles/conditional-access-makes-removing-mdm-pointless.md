@@ -13,11 +13,11 @@
 
 Every few months, someone on [Apple's forums](https://discussions.apple.com/thread/253448874) or [Jamf Nation](https://community.jamf.com/t5/jamf-pro/preventing-removal-of-mdm-profile/m-p/147549) asks how to stop employees from removing MDM. A developer with admin rights deletes the enrollment profile, or a contractor wipes their MacBook and skips enrollment, and IT finds out weeks later.
 
-The replies split two ways: take away admin rights, or buy something that can't be removed, like Absolute. Both made sense once. Most IT teams I talk to have since stopped worrying about MDM removal, and they're right to.
+The replies split two ways: take away admin rights, or buy something that can't be removed, like Absolute. Most IT teams I talk to have since stopped worrying about MDM removal, and they're right to.
 
 ## Why removing MDM used to matter
 
-MDM is how IT knows a Mac is encrypted, patched, and running the right security tools. Remove it, and IT is blind.
+MDM is how IT knows a Mac is encrypted, patched, and running the right security tools. Remove it, and IT loses control.
 
 Apple solved most of this years ago. Macs bought through Apple Business enroll during setup with [Automated Device Enrollment](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web), and the enrollment can be made non-removable. Fleet's default enrollment profile does this. Wipe the Mac, and Setup Assistant enrolls it again. The gap is Macs enrolled by hand, and Fleet can [block those](https://fleetdm.com/docs/configuration/yaml-files#controls) with `only_allow_apple_business_enrollment`.
 
@@ -55,11 +55,11 @@ Any of these turns MDM removal from a security incident into a help desk ticket.
 
 ## The real gap: a copied certificate
 
-At past jobs, I've had a work laptop and a personal one, and just wanted to check something quickly without switching computers. Picture an engineer who feels the same way. They don't remove MDM from anything. They copy the sign-in certificate from the work Mac to their personal Mac.
+At past jobs, I've had a work laptop and a personal one, and just wanted to check something quickly without switching computers. Say an engineer copies the sign-in certificate from their work Mac to their personal one. They never remove MDM.
 
 That's a personal Mac borrowing the identity of an enrolled one. Whether it works depends on how your devices prove who they are.
 
-**Fleet with Okta.** At sign-in, Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes. Fleet marks the key non-exportable, but it sits in the login keychain, not the Secure Enclave, and the keychain is locked with a password the employee knows, so a determined employee can likely get it out with third-party tools. (On Windows, the key stays in the TPM.) We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
+**Fleet with Okta.** At sign-in, Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes. Fleet marks the key non-exportable. But it sits in the login keychain, not the Secure Enclave. The employee knows the keychain password, so a determined one can likely extract it with third-party tools. (On Windows, the key stays in the TPM.) We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
 
 **Jamf, or any MDM, with Okta management attestation.** Jamf installs a certificate from Okta in the login keychain, and Okta [recommends making it non-exportable](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm). A copy makes the personal Mac look managed. Okta's own posture checks, like OS version, do run on the personal Mac, so it has to pass those itself.
 
@@ -69,9 +69,9 @@ Is this a big deal? For most companies, no. The employee still needs a real, enr
 
 ## How to close the gap on a Mac
 
-**Use Entra with a Secure Enclave key.** If you're on Entra, deploy [Platform SSO with a Secure Enclave key](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet). This is the strongest option on a Mac today, with Jamf, Intune, or Fleet.
+**Use Entra with a Secure Enclave key.** If you're on Entra, deploy [Platform SSO with a Secure Enclave key](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet). It works with Jamf, Intune, or Fleet.
 
-**On Okta, FastPass is a partial fix.** [FastPass](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass) keeps its key in the Secure Enclave. That only helps if Okta blocks Okta Verify on personal Macs, and today Okta tells personal Macs apart using the same certificate an employee can copy. A fully hardware-bound answer for Okta is what our [bug](https://github.com/fleetdm/fleet/issues/60032) tracks.
+**On Okta, FastPass is a partial fix.** [FastPass](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass) keeps its key in the Secure Enclave. That only helps if Okta blocks Okta Verify on personal Macs, and today Okta tells personal Macs apart using the same certificate an employee can copy. Until that's fixed, Okta can't fully close this gap on a Mac.
 
 ## Set it up
 
@@ -82,7 +82,7 @@ Is this a big deal? For most companies, no. The employee still needs a real, enr
 
 ## Guard the right door
 
-Stop asking whether employees can remove MDM. With conditional access, it doesn't matter. Ask whether a computer you've never seen can borrow the identity of one you have. On a Mac, the answer comes down to where the key lives.
+The question isn't whether employees can remove MDM. It's whether a computer you've never seen can borrow the identity of one you have. On a Mac, the answer comes down to where the key lives.
 
 <a href="https://fleetdm.com/contact">Get a demo</a> to see conditional access with your IdP.
 
