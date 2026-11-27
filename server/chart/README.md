@@ -137,9 +137,19 @@ read](#replay-read-change-storage)), but no request uses it yet.
   bucket ends after `t`, like a `host_scd_data` row with `valid_from = t`.
 - `host_scd_change_state` has one row per dataset: `changes_from` is the hour of
   the first collection that wrote changes, and `covered_from` is the instant from
-  which the changes are complete (it starts equal to `changes_from`). Cleanup does
-  not move `covered_from`, so changes older than the retention cutoff are gone
-  even when `covered_from` is earlier; reads must stay within retention.
+  which the changes are complete. It starts equal to `changes_from` and moves to
+  `changes_from - 32 days` when the history collected before it has been
+  converted (see [Converting history](#converting-history-change-storage));
+  `convert_cursor` is that conversion's progress. Cleanup does not move
+  `covered_from`, so changes older than the retention cutoff are gone even when
+  `covered_from` is earlier; reads must stay within retention.
+
+The writers of the change storage (collection, conversion, and both scrubs)
+hold a per-dataset MySQL named lock (`withSCDChangeLock`), because each one
+writes from what it read. Collection and conversion skip their work when the
+lock is held and return `api.ErrChangeStorageBusy`; the scrubs wait for it. A
+collection skipped this way records its hour's changes at the next collection's
+hour, as after a failure, so replay lags the snapshot read by one hour there.
 
 The state at an instant is the current sets with every change at or after it
 undone. The layout is packed by hour because a chart request reads every change in its
@@ -233,6 +243,32 @@ The read-side aggregation for both strategies lives in `GetSCDData`
    first. The first call for a dataset starts from the `host_scd_data` rows live
    just before the hour, so its changes are true differences from the stored
    history; on a new install every set is written as added.
+7. `CVEDataset.Collect` then converts the history collected before the change
+   storage started, a step at a time, for up to `cveConvertBudget` (5 minutes)
+   per collection and at least one step. See [Converting
+   history](#converting-history-change-storage).
+
+### Converting history (change storage)
+
+`ConvertSCDHistory` (`internal/mysql/convert.go`) writes changes for the
+`host_scd_data` history in `[changes_from - 32 days, changes_from)`, so replay
+can answer a 31-day request soon after an upgrade. Replay reads changes from less
+than 31 days back, so nothing earlier is converted. The collector owns every
+change from `changes_from` on.
+
+- An entity's host set at an instant is the union of its rows with
+  `valid_from <= instant < valid_to`, which is what the snapshot read counts at a
+  bucket end after that instant. A change is written at every instant where that
+  set changes: where a row starts, and where one ends without a replacement.
+- One call converts `scdConvertStepHours` (24) hours and saves `convert_cursor`.
+  A step starts by loading the rows live just before the cursor, walks the rows
+  starting within the step in `valid_from` order, and holds about one host set
+  per entity. It first deletes the changes in its range, so a step repeated
+  after a failure writes the same rows. When nothing is live it skips to the
+  next row's start, so a new install finishes on the first step.
+- The last step sets `covered_from` to `changes_from - 32 days`.
+- A scrub between two steps is safe because each step reloads its starting
+  state from `host_scd_data`, which the scrub has already cleared.
 
 Retention: a separate cleanup cron calls `CleanupData(days)` →
 `CleanupSCDData`, which deletes *closed* rows older than the cutoff in batches.
@@ -295,8 +331,9 @@ list. It is not wired into `GetChartData` yet.
 
 All reads run in one read-only transaction, so a collection that commits part
 way through cannot leave a change whose effect is missing from the current sets
-already read. Buckets that end before the change storage started hold the state
-it started from, not the history.
+already read. Only buckets that end at or after `covered_from` hold the history:
+while a conversion is part way, earlier buckets hold a mix of the state the
+change storage started from and the converted changes.
 
 ### Key invariant: nil vs empty
 
@@ -323,12 +360,13 @@ which enqueues a worker job *after* the config commit:
 
 - **Global disable** → `chart_scrub_dataset_global` job →
   `Service.ScrubDatasetGlobal` → `DeleteAllForDataset` (batched delete of all rows
-  for the dataset, then its change storage, state row last).
+  for the dataset, then its change storage, state row first, under the change
+  storage lock).
 - **Per-fleet disable** → `chart_scrub_dataset_fleet` job →
   `Service.ScrubDatasetFleet` → resolve the fleets' host IDs into a mask, then
   `ApplyScrubMaskToDataset` walks every row and `BlobANDNOT`s the mask out, then
-  does the same to the dataset's current sets and changes, deleting what is left
-  empty. Both are idempotent.
+  does the same to the dataset's current sets and changes under the change
+  storage lock, deleting what is left empty. Both are idempotent.
 
 The worker jobs live in `server/worker/chart_scrub.go`. Note the dataset-name
 strings (`"uptime"`, `"cve"`) are mirrored in three places — the `Dataset.Name()`
@@ -438,7 +476,8 @@ mocks elsewhere can crash if an interface method is missing.
 | `internal/service/host_cache.go` | Per-filter mask cache (TTL + singleflight) |
 | `internal/service/handler.go` | Route registration + endpoint decode |
 | `internal/mysql/data.go` | SCD read/write: `RecordBucketData`, `GetSCDData`, cleanup, scrub |
-| `internal/mysql/changes.go` | Change storage: `RecordSCDChanges`, its encoding, cleanup and scrub |
+| `internal/mysql/changes.go` | Change storage: `RecordSCDChanges`, its encoding, writer lock, cleanup and scrub |
+| `internal/mysql/convert.go` | Conversion of `host_scd_data` history into changes: `ConvertSCDHistory` |
 | `internal/mysql/replay.go` | Replay read of the change storage: `ReplaySCDChanges` |
 | `internal/mysql/charts.go` | Host-filter SQL, online-host query, CVE collection + tracked-CVE filter |
 | `bootstrap/bootstrap.go` | `New(...)` — wires the context together |

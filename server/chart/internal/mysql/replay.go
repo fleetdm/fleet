@@ -16,8 +16,9 @@ import (
 // ReplaySCDChanges answers a snapshot chart request from the change storage. It returns what GetSCDData returns
 // with api.SampleStrategySnapshot for the same history: per bucket, the number of hosts in filterMask that at least
 // one matching entity holds at the bucket's end, with the same labels and the same meaning of nil and empty
-// filterMask and entityIDs. Buckets that end before the change storage started (host_scd_change_state.covered_from)
-// hold the state it started from, not the history.
+// filterMask and entityIDs, for buckets that end at or after host_scd_change_state.covered_from. Earlier buckets do
+// not hold the history: before any conversion they hold the state the change storage started from, and while
+// ConvertSCDHistory is part way they hold that state with some of the converted changes undone.
 //
 // It starts from the current sets of the matching entities, counting for each host how many of them hold it, and
 // walks the changes newest first, undoing each. A bucket is recorded once every change at or after its end is

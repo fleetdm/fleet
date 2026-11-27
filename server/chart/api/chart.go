@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/RoaringBitmap/roaring"
@@ -115,7 +116,16 @@ type DatasetStore interface {
 	// empty set, has no hosts. Snapshot datasets call it after
 	// RecordBucketData, with the same bitmaps.
 	RecordSCDChanges(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error
+
+	// ConvertSCDHistory converts one bounded step of the history collected
+	// before the change storage started into changes, and reports whether more
+	// remains. Snapshot datasets call it after RecordSCDChanges.
+	ConvertSCDHistory(ctx context.Context, dataset string) (more bool, err error)
 }
+
+// ErrChangeStorageBusy is returned by the change storage writers that skip
+// their work while another writer of the same dataset, such as a scrub, runs.
+var ErrChangeStorageBusy = errors.New("chart change storage is busy")
 
 // MetricCVE is the metric name of the vulnerability-exposure (CVE) dataset.
 // The CVE entity filters apply only to this metric.

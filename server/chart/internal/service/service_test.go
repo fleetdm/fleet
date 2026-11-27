@@ -105,6 +105,7 @@ type mockDatastore struct {
 	recordBucketDataInvoked bool
 	recordSCDChangesFn      func(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error
 	recordSCDChangesInvoked bool
+	convertSCDHistoryFn     func(ctx context.Context, dataset string) (bool, error)
 	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
 	hostIDsInFleetsFn       func(ctx context.Context, fleetIDs []uint) ([]uint, error)
 	applyScrubMaskFn        func(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error
@@ -155,6 +156,13 @@ func (m *mockDatastore) RecordSCDChanges(ctx context.Context, dataset string, ho
 		return m.recordSCDChangesFn(ctx, dataset, hour, entityBitmaps)
 	}
 	return nil
+}
+
+func (m *mockDatastore) ConvertSCDHistory(ctx context.Context, dataset string) (bool, error) {
+	if m.convertSCDHistoryFn != nil {
+		return m.convertSCDHistoryFn(ctx, dataset)
+	}
+	return false, nil
 }
 
 func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
@@ -1058,12 +1066,18 @@ func TestCollectDatasetsCVE(t *testing.T) {
 		require.Equal(t, affected, entityBitmaps)
 		return nil
 	}
+	ds.convertSCDHistoryFn = func(_ context.Context, dataset string) (bool, error) {
+		calls = append(calls, "ConvertSCDHistory")
+		require.Equal(t, "cve", dataset)
+		return false, nil
+	}
 
 	err := svc.CollectDatasets(t.Context(), now, nil)
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
 	assert.Equal(t, wantTracked, gotCVEs, "CollectibleCVEs result must be forwarded as the cves filter")
-	require.Equal(t, []string{"RecordBucketData", "RecordSCDChanges"}, calls, "the change storage is written after the full-copy rows")
+	require.Equal(t, []string{"RecordBucketData", "RecordSCDChanges", "ConvertSCDHistory"}, calls,
+		"the change storage is written after the full-copy rows, and history is converted after both")
 }
 
 // TestCollectDatasetsCVEEmptyTracked verifies that when CollectibleCVEs

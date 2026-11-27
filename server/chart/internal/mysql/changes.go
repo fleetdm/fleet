@@ -3,6 +3,8 @@ package mysql
 import (
 	"cmp"
 	"context"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/binary"
 	"errors"
 	"slices"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart"
+	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -41,6 +44,59 @@ var (
 	// scdChangeScrubPage is how many host_scd_changes rows the fleet scrub reads at a time.
 	scdChangeScrubPage = 16
 )
+
+// scdChangeLockPollSeconds is how long one GET_LOCK call waits when a writer waits for the change storage lock, so
+// the wait notices a cancelled context.
+const scdChangeLockPollSeconds = 5
+
+// scdChangeLockName is the SQL expression for a dataset's change storage lock name. Named locks are global to the
+// MySQL server, so the name includes the database; GET_LOCK rejects names longer than 64 characters.
+const scdChangeLockName = `LEFT(CONCAT('chart_changes:', ?, ':', IFNULL(DATABASE(), '')), 64)`
+
+// withSCDChangeLock runs fn while holding the dataset's change storage lock, which serializes the writers of the
+// change storage: collection, conversion and the scrubs. Each writes from what it read, so one running in the
+// middle of another would write from a stale read. When wait is false and another session holds the lock, it
+// returns api.ErrChangeStorageBusy without running fn.
+//
+// The lock is a MySQL named lock held by the session of a connection kept for the whole call, so it is released
+// if Fleet stops.
+func (ds *Datastore) withSCDChangeLock(ctx context.Context, dataset string, wait bool, fn func() error) error {
+	conn, err := ds.primary.Connx(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get connection for chart change lock")
+	}
+	defer func() { _ = conn.Close() }()
+
+	timeout := 0
+	if wait {
+		timeout = scdChangeLockPollSeconds
+	}
+	for {
+		var got sql.NullInt64
+		if err := conn.GetContext(ctx, &got, `SELECT GET_LOCK(`+scdChangeLockName+`, ?)`, dataset, timeout); err != nil {
+			return ctxerr.Wrap(ctx, err, "acquire chart change lock")
+		}
+		if !got.Valid {
+			return ctxerr.New(ctx, "acquire chart change lock: GET_LOCK returned NULL")
+		}
+		if got.Int64 == 1 {
+			break
+		}
+		if !wait {
+			return api.ErrChangeStorageBusy
+		}
+	}
+	defer func() {
+		// A cancelled ctx must not keep the lock: release on a context that outlives it, and if that fails, close
+		// the session instead of returning it to the pool.
+		releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		if _, err := conn.ExecContext(releaseCtx, `DO RELEASE_LOCK(`+scdChangeLockName+`)`, dataset); err != nil {
+			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+		}
+	}()
+	return fn()
+}
 
 // entityChange is one entity's change within a host_scd_changes row.
 type entityChange struct {
@@ -147,7 +203,16 @@ func encodeChanges(chs []entityChange) []byte {
 // Every write appends: a second call for the same hour adds rows that hold the changes since the first. Each
 // transaction writes one host_scd_changes row together with the current sets of the entities it covers, so a
 // failure part way leaves the two consistent and the next call records what is left.
+//
+// While another writer of the dataset holds the change storage lock, it returns api.ErrChangeStorageBusy and
+// writes nothing; the next call records the changes since the last one written.
 func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error {
+	return ds.withSCDChangeLock(ctx, dataset, false, func() error {
+		return ds.recordSCDChanges(ctx, dataset, hour, entityBitmaps)
+	})
+}
+
+func (ds *Datastore) recordSCDChanges(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error {
 	hour = hour.UTC()
 	// Every read here decides what to write next, so a stale replica would write wrong differences.
 	ctx = ctxdb.RequirePrimary(ctx, true)
@@ -221,6 +286,9 @@ func (ds *Datastore) RecordSCDChanges(ctx context.Context, dataset string, hour 
 		return nil
 	}
 	slices.SortFunc(changes, func(a, b pending) int { return cmp.Compare(a.key, b.key) })
+	if ds.testHookSCDChangesBeforeWrite != nil {
+		ds.testHookSCDChangesBeforeWrite()
+	}
 
 	var seq uint32
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &seq,
@@ -335,10 +403,10 @@ func writeCurrentSets(ctx context.Context, exec sqlx.ExecerContext, dataset stri
 // just before hour, then records hour as the start of the changes. It is safe to repeat after a failure: it
 // starts by clearing what an earlier attempt, or a global scrub interrupted after deleting the state row, left.
 func (ds *Datastore) startChanges(ctx context.Context, dataset string, hour time.Time, keys map[string]uint32) (map[uint32]*roaring.Bitmap, error) {
-	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_changes WHERE dataset = ? LIMIT ?`, dataset, scdChangeDeleteBatch); err != nil {
+	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_changes WHERE dataset = ? LIMIT ?`, scdChangeDeleteBatch, dataset); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "clear chart changes")
 	}
-	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_current WHERE dataset = ? LIMIT ?`, dataset, scdCurrentDeleteBatch); err != nil {
+	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_current WHERE dataset = ? LIMIT ?`, scdCurrentDeleteBatch, dataset); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "clear chart current sets")
 	}
 
@@ -495,12 +563,12 @@ func (ds *Datastore) loadCurrentSets(ctx context.Context, dataset string) (map[u
 
 // deleteInBatches runs stmt, which must end in "LIMIT ?", with args and limit until it deletes fewer than limit
 // rows.
-func (ds *Datastore) deleteInBatches(ctx context.Context, stmt string, arg any, limit int) error {
+func (ds *Datastore) deleteInBatches(ctx context.Context, stmt string, limit int, args ...any) error {
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, arg, limit)
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, append(args, limit)...)
 		if err != nil {
 			return err
 		}
@@ -514,19 +582,26 @@ func (ds *Datastore) deleteInBatches(ctx context.Context, stmt string, arg any, 
 	}
 }
 
-// deleteSCDChangesForDataset removes a dataset's change storage. The state row goes first: a collection that runs
-// after a failure part way then starts over from host_scd_data instead of diffing against what is left.
+// deleteSCDChangesForDataset removes a dataset's change storage, waiting for the change storage lock. The state row
+// goes first: a collection that runs after a failure part way then starts over from host_scd_data instead of
+// diffing against what is left.
 func (ds *Datastore) deleteSCDChangesForDataset(ctx context.Context, dataset string, batchSize int) error {
+	return ds.withSCDChangeLock(ctx, dataset, true, func() error {
+		return ds.deleteSCDChangesForDatasetLocked(ctx, dataset, batchSize)
+	})
+}
+
+func (ds *Datastore) deleteSCDChangesForDatasetLocked(ctx context.Context, dataset string, batchSize int) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_scd_change_state WHERE dataset = ?`, dataset); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete chart change state for dataset")
 	}
-	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_changes WHERE dataset = ? LIMIT ?`, dataset, scdChangeDeleteBatch); err != nil {
+	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_changes WHERE dataset = ? LIMIT ?`, scdChangeDeleteBatch, dataset); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete chart changes for dataset")
 	}
-	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_current WHERE dataset = ? LIMIT ?`, dataset, batchSize); err != nil {
+	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_current WHERE dataset = ? LIMIT ?`, batchSize, dataset); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete chart current sets for dataset")
 	}
-	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_entities WHERE dataset = ? LIMIT ?`, dataset, batchSize); err != nil {
+	if err := ds.deleteInBatches(ctx, `DELETE FROM host_scd_entities WHERE dataset = ? LIMIT ?`, batchSize, dataset); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete chart entity keys for dataset")
 	}
 	return nil
@@ -562,9 +637,15 @@ func (ds *Datastore) cleanupSCDChanges(ctx context.Context, cutoff time.Time) er
 	return nil
 }
 
-// scrubSCDChanges clears the hosts in mask from a dataset's current sets and changes. Sets left empty are deleted,
-// as are changes left with no hosts and rows left with no changes.
+// scrubSCDChanges clears the hosts in mask from a dataset's current sets and changes, waiting for the change
+// storage lock. Sets left empty are deleted, as are changes left with no hosts and rows left with no changes.
 func (ds *Datastore) scrubSCDChanges(ctx context.Context, dataset string, mask *roaring.Bitmap) error {
+	return ds.withSCDChangeLock(ctx, dataset, true, func() error {
+		return ds.scrubSCDChangesLocked(ctx, dataset, mask)
+	})
+}
+
+func (ds *Datastore) scrubSCDChangesLocked(ctx context.Context, dataset string, mask *roaring.Bitmap) error {
 	current, err := ds.loadCurrentSets(ctx, dataset)
 	if err != nil {
 		return err
