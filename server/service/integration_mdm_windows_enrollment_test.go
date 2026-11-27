@@ -2359,18 +2359,38 @@ func (s *integrationMDMTestSuite) TestWindowsMDMHostsSharingUUID() {
 
 	s.simulateMDMWindowsQueries(t, duplicate, ownerDevice)
 	requireOwner(t)
-	connectedToFleet := func(h *fleet.Host) bool {
+	profile, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name: "uuid-owner-" + uuid.NewString(), SyncML: []byte("<Replace></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+		ProfileUUID: profile.ProfileUUID, ProfileName: profile.Name, HostUUID: owner.UUID, CommandUUID: uuid.NewString(),
+		OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified), Checksum: []byte("checksum"),
+	}}))
+	countProfiles := func(profiles *[]fleet.HostMDMProfile) int {
+		if profiles == nil {
+			return 0
+		}
+		return len(*profiles)
+	}
+	hostMDM := func(h *fleet.Host) (connected bool, profiles int) {
 		var resp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Host.MDM.ConnectedToFleet)
-		return *resp.Host.MDM.ConnectedToFleet
+		return *resp.Host.MDM.ConnectedToFleet, countProfiles(resp.Host.MDM.Profiles)
 	}
-	require.True(t, connectedToFleet(owner))
-	require.False(t, connectedToFleet(duplicate))
+	connected, profiles := hostMDM(owner)
+	require.True(t, connected)
+	require.Equal(t, 1, profiles)
+	connected, profiles = hostMDM(duplicate)
+	require.False(t, connected)
+	require.Zero(t, profiles, "the owner's profiles are not the duplicate's")
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", duplicate.ID), nil, http.StatusOK)
 	requireOwner(t)
-	require.True(t, connectedToFleet(owner))
+	connected, profiles = hostMDM(owner)
+	require.True(t, connected)
+	require.Equal(t, 1, profiles)
 }
 
 // TestWindowsMDMEntraEnrollmentBoundToEntraDevice covers Entra enrollments, which name their device only by a device-reported

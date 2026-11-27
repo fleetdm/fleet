@@ -832,7 +832,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // forgetEndUserAfterWindowsResetDB clears the previous end user of a host coming back from a reset, before the reset status goes.
 func forgetEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	var hostID uint
-	err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
+	err := sqlx.GetContext(ctx, tx, &hostID, windowsHostIDOfUUIDOwnerFirst, hostUUID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
@@ -2306,6 +2306,16 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 		WHERE mdm_device_id = ? AND (host_uuid <> ? OR deleted_host_team_id IS NOT NULL)`
 	var updated bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		updated = false
+		// A device ID that matches no enrollment must not claim the UUID, or it would lock out the host that has one.
+		var enrollmentIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &enrollmentIDs,
+			`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ? FOR UPDATE`, mdmDeviceID); err != nil {
+			return ctxerr.Wrap(ctx, err, "lock windows enrollment to link")
+		}
+		if len(enrollmentIDs) == 0 {
+			return nil
+		}
 		// Claimed even when the link is unchanged, so a linked UUID left without an owner gets one on the next osquery check-in.
 		if err := claimWindowsMDMUUIDOwnerDB(ctx, tx, hostUUID, hostID, windowsMDMOwnerClaimedByLink); err != nil {
 			return err

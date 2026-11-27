@@ -5885,7 +5885,7 @@ func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
 	}
 }
 
-// A host sharing its UUID with the owner of the UUID's Windows MDM state links nothing, and that is not an error.
+// A host sharing its UUID with the owner of the UUID's Windows MDM state links nothing, and callers can tell it from no change.
 func TestLinkWindowsHostMDMEnrollmentUUIDOwnedByOtherHost(t *testing.T) {
 	t.Parallel()
 
@@ -5895,9 +5895,10 @@ func TestLinkWindowsHostMDMEnrollmentUUIDOwnedByOtherHost(t *testing.T) {
 	}
 
 	linked, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", true)
-	require.NoError(t, err)
+	require.True(t, IsWindowsMDMLinkRefused(err), "got %v", err)
 	require.False(t, linked)
 	require.False(t, ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked)
+	require.False(t, IsWindowsMDMLinkRefused(nil))
 }
 
 func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {

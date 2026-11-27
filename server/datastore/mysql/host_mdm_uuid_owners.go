@@ -27,10 +27,9 @@ const hostIsWindowsMDMOwner = `EXISTS (
 // windowsHostIDOfUUIDOwnerFirst selects the host with the UUID bound to its placeholder: its Windows MDM owner, else the lowest id.
 const windowsHostIDOfUUIDOwnerFirst = `SELECT h.id FROM hosts h WHERE h.uuid = ? ORDER BY ` + hostIsWindowsMDMOwner + ` DESC, h.id LIMIT 1`
 
-// windowsMDMOwnerIsLive is true when the owner row aliased hmuo still owns anything: its host exists and an enrollment is linked to
-// its UUID.
-const windowsMDMOwnerIsLive = `EXISTS (SELECT 1 FROM hosts ho WHERE ho.id = hmuo.host_id)
-	AND EXISTS (SELECT 1 FROM mdm_windows_enrollments mweo WHERE mweo.host_uuid = hmuo.host_uuid)`
+// windowsMDMOwnerIsLive is true while the owner row aliased hmuo's host exists with that UUID. Losing its enrollment, as on
+// re-enrollment, doesn't end ownership: only deleting the host hands the device to another.
+const windowsMDMOwnerIsLive = `EXISTS (SELECT 1 FROM hosts ho WHERE ho.id = hmuo.host_id AND ho.uuid = hmuo.host_uuid)`
 
 // claimWindowsMDMUUIDOwnerDB makes hostID the owner of hostUUID's Windows MDM state, or returns a
 // *fleet.WindowsMDMUUIDOwnedByOtherHostError if another host is its live owner: what a host reports about its device can be faked,

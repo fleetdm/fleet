@@ -1948,6 +1948,9 @@ scan:
 	}
 
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID, false)
+	if osquery_utils.IsWindowsMDMLinkRefused(err) {
+		return false
+	}
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: link by DevDetail failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
 		ctxerr.Handle(ctx, err)
@@ -2063,6 +2066,9 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 	}
 
 	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID, false)
+	if osquery_utils.IsWindowsMDMLinkRefused(err) {
+		return false
+	}
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "windows mdm: autopilot link failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
 		ctxerr.Handle(ctx, err)

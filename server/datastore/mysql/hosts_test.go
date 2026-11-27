@@ -6385,6 +6385,11 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 	// no team Windows config profile //
 	/////////////////////////////
 
+	// Only a host that owns its UUID's Windows MDM state is listed by its Windows profiles.
+	for _, h := range hosts {
+		require.NoError(t, claimWindowsMDMUUIDOwnerDB(ctx, ds.writer(ctx), h.UUID, h.ID, "test"))
+	}
+
 	windowsProfile := fleet.MDMWindowsConfigProfile{
 		ProfileUUID:      uuid.New().String(),
 		Name:             "test-windows-profile",

@@ -96,18 +96,29 @@ func testWindowsMDMUUIDOwners(t *testing.T, ds *Datastore) {
 		require.True(t, fleet.IsNotFound(err), "the refused enrollment is not stored")
 	})
 
-	t.Run("an owner that no longer owns anything is replaced", func(t *testing.T) {
-		// Its UUID's enrollment was removed, for example by the stale enrollment cleanup.
+	t.Run("only an owner whose host is gone is replaced", func(t *testing.T) {
+		// Losing its enrollment, as between the two steps of a re-enrollment, doesn't end ownership.
 		unenrolledUUID := uuid.NewString()
 		unenrolled, next := newHost(unenrolledUUID), newHost(unenrolledUUID)
 		device := insertWindowsEnrollment(t, ds, uuid.NewString(), "")
 		_, err := link(unenrolled, device)
 		require.NoError(t, err)
 		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID))
-		assert.Zero(t, ownerOf(t, unenrolledUUID))
+		assert.Equal(t, unenrolled.ID, ownerOf(t, unenrolledUUID))
 		_, err = link(next, insertWindowsEnrollment(t, ds, uuid.NewString(), ""))
+		requireOwnedByOther(t, err, unenrolled)
+		reenrolled := insertWindowsEnrollment(t, ds, uuid.NewString(), "")
+		updated, err := link(unenrolled, reenrolled)
 		require.NoError(t, err)
-		assert.Equal(t, next.ID, ownerOf(t, unenrolledUUID))
+		assert.True(t, updated)
+
+		// A device ID that matches no enrollment claims nothing.
+		unclaimedUUID := uuid.NewString()
+		unclaimed := newHost(unclaimedUUID)
+		updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, unclaimed.ID, unclaimedUUID, uuid.NewString())
+		require.NoError(t, err)
+		assert.False(t, updated)
+		assert.Zero(t, ownerOf(t, unclaimedUUID))
 
 		// Its host row is gone without deleteHosts.
 		goneUUID := uuid.NewString()
@@ -180,6 +191,15 @@ func testWindowsMDMUUIDOwners(t *testing.T, ds *Datastore) {
 		assert.Contains(t, listedIDs, owner.ID)
 		assert.NotContains(t, listedIDs, stale.ID)
 
+		profileUUID := InsertWindowsProfileForTest(t, ds, 0)
+		installWindowsProfilesAsVerified(t, ds, []string{sharedUUID}, []string{profileUUID})
+		listed, err = ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			ProfileUUIDFilter: &profileUUID, ProfileStatusFilter: new(fleet.OSSettingsVerified),
+		})
+		require.NoError(t, err)
+		require.Len(t, listed, 1)
+		assert.Equal(t, owner.ID, listed[0].ID)
+
 		lite, err := ds.WindowsHostLiteByUUID(ctx, sharedUUID)
 		require.NoError(t, err)
 		assert.Equal(t, owner.ID, lite.ID)
@@ -209,13 +229,34 @@ func testWindowsMDMUUIDOwners(t *testing.T, ds *Datastore) {
 		assert.Nil(t, device.DeletedHostTeamID)
 		assert.Equal(t, owner.ID, ownerOf(t, sharedUUID))
 
+		// Nor does deleting it along with a host of another platform.
+		stale = newHost(sharedUUID)
+		mac := test.NewHost(t, ds, "uuid-owner-mac-"+uuid.NewString(), "10.0.0.2", "mac-"+uuid.NewString(), sharedUUID, time.Now(),
+			test.WithPlatform("darwin"))
+		require.NoError(t, ds.DeleteHosts(ctx, []uint{stale.ID, mac.ID}))
+		device, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
+		assert.Nil(t, device.DeletedHostTeamID)
+		assert.Equal(t, owner.ID, ownerOf(t, sharedUUID))
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "uuid-owner-later-" + uuid.NewString()})
+		require.NoError(t, err)
 		next := newHost(sharedUUID)
+		later := newHost(sharedUUID, test.WithTeamID(team.ID))
 		require.NoError(t, ds.DeleteHost(ctx, owner.ID))
 		assert.Zero(t, profileRows(t))
 		device, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 		require.NoError(t, err)
 		require.NotNil(t, device.DeletedHostTeamID)
+		assert.Zero(t, *device.DeletedHostTeamID)
 		assert.Zero(t, ownerOf(t, sharedUUID))
+
+		// A host deleted after the owner keeps the fleet the owner's deletion recorded.
+		require.NoError(t, ds.DeleteHost(ctx, later.ID))
+		device, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
+		require.NotNil(t, device.DeletedHostTeamID)
+		assert.Zero(t, *device.DeletedHostTeamID)
 
 		// Deleting the owner is how an admin hands the device to the host that remains.
 		updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, next.ID, next.UUID, deviceID)

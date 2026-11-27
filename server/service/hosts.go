@@ -2076,9 +2076,17 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				return nil, err
 			}
 
-			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+			// Profiles are keyed by UUID, so a host sharing its UUID with the owner, possibly in another fleet, must not show them.
+			ownerID, err := svc.ds.GetWindowsMDMUUIDOwner(ctx, host.UUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
+				return nil, ctxerr.Wrap(ctx, err, "get windows mdm owner of host uuid")
+			}
+			var profs []fleet.HostMDMWindowsProfile
+			if ownerID == 0 || ownerID == host.ID {
+				profs, err = svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
+				}
 			}
 			if profs == nil {
 				profs = []fleet.HostMDMWindowsProfile{}

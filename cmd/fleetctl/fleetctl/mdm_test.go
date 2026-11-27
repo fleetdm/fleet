@@ -251,6 +251,7 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 				return fleet.DiskEncryptionConfig{}, nil
 			}
+			ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 				return nil, nil
 			}
@@ -1778,6 +1779,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 		return fleet.DiskEncryptionConfig{}, nil
 	}
+	ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}

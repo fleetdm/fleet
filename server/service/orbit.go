@@ -139,7 +139,11 @@ func (svc *Service) reverseLinkWindowsMDMEnrollment(ctx context.Context, host *f
 		if svc.windowsHostClaimedByOtherHardware(ctx, device, host.UUID, lookup.idKey, lookup.id) {
 			return
 		}
-		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true); err != nil {
+		_, err = osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true)
+		if osquery_utils.IsWindowsMDMLinkRefused(err) {
+			return
+		}
+		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
 				"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
 			ctxerr.Handle(ctx, err)
@@ -798,21 +802,27 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured && !appConfig.MDM.EnableTurnOnWindowsMDMManually {
-		if isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-			// checkWindowsMDMUUIDOwner would refuse the enrollment, and fleetd would retry it on every config fetch.
+		needsEnrollment := isEligibleForWindowsMDMEnrollment(host, mdmInfo)
+		needsMigration := !needsEnrollment && appConfig.MDM.WindowsMigrationEnabled && isEligibleForWindowsMDMMigration(host, mdmInfo)
+		if needsEnrollment || needsMigration {
+			// checkWindowsMDMUUIDOwner would refuse the enrollment, and fleetd would retry it on every config fetch. A migration would
+			// also unenroll the device from its current MDM first.
 			ownerID, err := svc.ds.GetWindowsMDMUUIDOwner(ctx, host.UUID)
 			if err != nil {
 				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "get windows mdm owner of host uuid")
 			}
-			if ownerID == 0 || ownerID == host.ID {
-				discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
-				if err != nil {
-					return fleet.OrbitConfig{}, err
-				}
-				notifs.WindowsMDMDiscoveryEndpoint = discoURL
-				notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+			if ownerID != 0 && ownerID != host.ID {
+				needsEnrollment, needsMigration = false, false
 			}
-		} else if appConfig.MDM.WindowsMigrationEnabled && isEligibleForWindowsMDMMigration(host, mdmInfo) {
+		}
+		if needsEnrollment {
+			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
+			if err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+			notifs.WindowsMDMDiscoveryEndpoint = discoURL
+			notifs.NeedsProgrammaticWindowsMDMEnrollment = true
+		} else if needsMigration {
 			notifs.NeedsMDMMigration = true
 
 			// Set the host to refetch the "critical queries" quickly for some time,

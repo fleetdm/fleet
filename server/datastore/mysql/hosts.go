@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -588,13 +589,14 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 	for _, id := range hostIDs {
 		deleting[id] = struct{}{}
 	}
-	keptUUIDs := make(map[string]bool)
+	ownerStays, keptUUIDs := make(map[string]struct{}), make(map[string]struct{})
 	for _, info := range hostInfos {
 		if info.WindowsOwnerID == nil {
 			continue
 		}
 		if _, ok := deleting[*info.WindowsOwnerID]; !ok {
-			keptUUIDs[strings.ToLower(info.UUID)] = true
+			ownerStays[strings.ToLower(info.UUID)] = struct{}{}
+			keptUUIDs[strings.ToLower(info.UUID)] = struct{}{}
 		}
 	}
 	for _, info := range hostInfos {
@@ -605,7 +607,7 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 
 	hostUUIDs := make([]string, 0, len(hostInfos))
 	for _, info := range hostInfos {
-		if !keptUUIDs[strings.ToLower(info.UUID)] {
+		if _, kept := keptUUIDs[strings.ToLower(info.UUID)]; !kept {
 			hostUUIDs = append(hostUUIDs, info.UUID)
 		}
 	}
@@ -719,7 +721,7 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 			touchOnly = append(touchOnly, info.UUID)
 			continue
 		}
-		if keptUUIDs[strings.ToLower(info.UUID)] {
+		if _, stays := ownerStays[strings.ToLower(info.UUID)]; stays {
 			continue
 		}
 		windowsHosts = append(windowsHosts, windowsEnrollmentFleetHost{
@@ -2239,7 +2241,7 @@ func filterHostsByProfileStatus(sqlstmt string, opt fleet.HostListOptions, param
 		WHERE
 			hwap.host_uuid = h.uuid
 			AND hwap.profile_uuid = ?
-			AND hwap.status = ?)`
+			AND hwap.status = ?) AND ` + hostIsWindowsMDMOwner
 		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMAndroidProfileUUIDPrefix):
 			sqlstmt += ` AND EXISTS (
 		SELECT
@@ -2311,17 +2313,35 @@ func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, h
 	}
 	// One statement per fleet rather than per host. Fleet IDs start at 1, so 0 stands for no fleet. It is stored as 0, not NULL,
 	// because NULL means no fleet was recorded and sends the host to the default fleet.
-	uuidsByTeam := make(map[uint][]string)
-	for _, owner := range owners {
-		teamID := ptr.ValOrZero(owner.TeamID)
-		uuidsByTeam[teamID] = append(uuidsByTeam[teamID], owner.UUID)
+	type fleetKey struct {
+		teamID  uint
+		isOwner bool
 	}
-	for _, teamID := range slices.Sorted(maps.Keys(uuidsByTeam)) {
-		for uuids := range slices.Chunk(uuidsByTeam[teamID], 5000) {
+	uuidsByTeam := make(map[fleetKey][]string)
+	for _, owner := range owners {
+		key := fleetKey{teamID: ptr.ValOrZero(owner.TeamID), isOwner: owner.IsOwner}
+		uuidsByTeam[key] = append(uuidsByTeam[key], owner.UUID)
+	}
+	keys := slices.SortedFunc(maps.Keys(uuidsByTeam), func(a, b fleetKey) int {
+		if c := cmp.Compare(a.teamID, b.teamID); c != 0 || a.isOwner == b.isOwner {
+			return c
+		}
+		if a.isOwner {
+			return 1
+		}
+		return -1
+	})
+	for _, key := range keys {
+		// A host deleted after the owner keeps the fleet its owner's deletion recorded.
+		keepMarker := ""
+		if !key.isOwner {
+			keepMarker = " AND deleted_host_team_id IS NULL"
+		}
+		for uuids := range slices.Chunk(uuidsByTeam[key], 5000) {
 			stmt, args, err := sqlx.In(`
 				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ?, fleetd_present_at = NULL
-				WHERE host_uuid IN (?)`,
-				teamID, uuids)
+				WHERE host_uuid IN (?)`+keepMarker,
+				key.teamID, uuids)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build record of deleted windows hosts' fleets")
 			}
