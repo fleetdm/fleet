@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/str"
+	platformhttp "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 // Proxy holds functionality to send requests to Entra via Fleet's MS proxy.
@@ -227,14 +228,14 @@ func (p *Proxy) get(path string, query url.Values, response any) error {
 	}
 	getRequest, err := http.NewRequest("GET", getURL, nil)
 	if err != nil {
-		return fmt.Errorf("get create request: %w", err)
+		return fmt.Errorf("get create request: %w", platformhttp.MaskURLError(err))
 	}
 	if err := p.setHeaders(getRequest); err != nil {
 		return fmt.Errorf("get set headers: %w", err)
 	}
 	resp, err := p.c.Do(getRequest)
 	if err != nil {
-		return fmt.Errorf("get request: %w", err)
+		return fmt.Errorf("get request: %w", platformhttp.MaskURLError(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -257,14 +258,14 @@ func (p *Proxy) delete(path string, query url.Values, response any) error {
 	}
 	deleteRequest, err := http.NewRequest("DELETE", deleteURL, nil)
 	if err != nil {
-		return fmt.Errorf("delete create request: %w", err)
+		return fmt.Errorf("delete create request: %w", platformhttp.MaskURLError(err))
 	}
 	if err := p.setHeaders(deleteRequest); err != nil {
 		return fmt.Errorf("delete set headers: %w", err)
 	}
 	resp, err := p.c.Do(deleteRequest)
 	if err != nil {
-		return fmt.Errorf("delete request: %w", err)
+		return fmt.Errorf("delete request: %w", platformhttp.MaskURLError(err))
 	}
 	defer resp.Body.Close()
 	switch resp.StatusCode {
