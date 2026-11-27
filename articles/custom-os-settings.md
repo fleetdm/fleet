@@ -148,7 +148,7 @@ Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at t
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
-On Windows, Fleet does not support user-scoped profiles on devices shared by multiple users. User-scoped profiles are delivered to the currently signed-in user, so the user who completes the initial enrollment receives all user-scoped profiles defined at that time. If an admin adds or changes user-scoped profiles later, they may be delivered to a different user.
+On Windows, Fleet delivers user-scoped profiles to every end user who signs in to the host after the profile is created. User-scoped settings are only applied to a user who's signed in, so a user who hasn't signed in since the profile was created doesn't have the profile yet.
 
 How to deliver user-scoped configuration profiles:
 
@@ -198,7 +198,7 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
-Fleet delivers user-scoped profiles after an end user signs in to the host. Until then, they show **Pending**. If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
+Fleet delivers user-scoped profiles after an end user signs in to the host, and again for each user who signs in later. Until the first user signs in, the profile shows **Pending**. If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
 
 #### Upgrading from below 4.71.0
 
@@ -275,6 +275,12 @@ To see the status of a specific setting, hover over the setting's row in the **C
 When editing a profile via Fleet's GitOps workflow, the profile's status will begin updating to "Pending" within 30 seconds. In larger installations, it may take a few minutes for the status to apply to all hosts.
 
 Editing a profile's labels sets the status to "Pending" for newly targeted hosts.
+
+On the **Controls > OS settings** tab, a user icon marks user-scoped profiles in the **Configuration profiles** table.
+
+To see the status of a user-scoped profile for each user, head to **Hosts**, select a host, and select the **Controls** tab. Hover over the **User-scoped** tag next to the profile name to see the users it's **Verified for**, **Pending for**, and **Failed for**. Select the profile's row to see the error for each user.
+
+On Windows, a user-scoped profile is "Failed" if it failed for any user. After the profile is "Verified" for the first user, it stays "Verified" while other users wait to sign in. **Pending for** only lists users who signed in since the profile was created.
 
 ### Verified
 

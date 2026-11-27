@@ -5117,6 +5117,7 @@ Returns the information of the specified host.
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
+          "users": null,
           "detail": "",
           "self_service": true,
           "hidden": false
@@ -5128,6 +5129,7 @@ Returns the information of the specified host.
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
+          "users": null,
           "detail": "",
           "self_service": false,
           "hidden": true
@@ -5139,8 +5141,27 @@ Returns the information of the specified host.
           "operation_type": "",
           "scope": "device",
           "managed_local_account": "",
+          "users": null,
           "detail": "",
           "self_service": true,
+          "hidden": false
+        },
+        {
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e389abc",
+          "name": "profile4",
+          "status": "verified",
+          "operation_type": "install",
+          "scope": "user",
+          "managed_local_account": "annachao",
+          "users": [
+            {
+              "username": "annachao",
+              "status": "verified",
+              "detail": ""
+            }
+          ],
+          "detail": "",
+          "self_service": false,
           "hidden": false
         }
       ]
@@ -5150,6 +5171,14 @@ Returns the information of the specified host.
 ```
 
 A profile with `"status": null` is a self-service profile the host can install but hasn't yet. Once the end user or an IT admin installs it, `status` follows the same values as any other profile.
+
+> `managed_local_account` is deprecated as of Fleet 5.2.0. It is maintained for backwards compatibility. Please use `users` instead.
+
+`scope` is `"user"` for a user-scoped profile (macOS and Windows hosts) and `"device"` for a device-scoped profile. For a user-scoped profile, `users` lists each user the profile applies to and its status for that user: `verified`, `verifying`, `pending`, or `failed`. `detail` contains the error if the profile failed for that user.
+
+On macOS, `users` has one user. On Windows, `users` has every user who has signed in since the profile was created, so a user who hasn't signed in yet isn't listed.
+
+For a user-scoped profile, `status` is the status for the host as a whole. It's `failed` if the profile failed for any user. Once the profile is `verified` for the first user, `status` stays `verified`.
 
 #### Example (company-owned iOS/iPadOS)
 `GET /api/v1/fleet/hosts/121`
@@ -5482,6 +5511,7 @@ A profile with `"status": null` is a self-service profile the host can install b
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
+          "users": null,
           "detail": ""
         }
       ]
@@ -5681,6 +5711,7 @@ A profile with `"status": null` is a self-service profile the host can install b
           "operation_type": "install",
           "scope": null,
           "managed_local_account": null,
+          "users": null,
           "detail": ""
         }
       ]
@@ -6736,6 +6767,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
           "operation_type": "install",
           "scope": "device",
           "managed_local_account": "",
+          "users": null,
           "detail": "",
           "self_service": true,
           "hidden": false
@@ -6747,6 +6779,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
           "operation_type": "",
           "scope": "device",
           "managed_local_account": "",
+          "users": null,
           "detail": "",
           "self_service": true,
           "hidden": false
@@ -6758,6 +6791,8 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
 ```
 
 A profile with `"status": null` is a self-service profile the host can install but hasn't yet.
+
+`profiles` has the same `scope` and `users` fields as ["Get host"](#get-host). `managed_local_account` is deprecated as of Fleet 5.2.0. Please use `users` instead.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
@@ -9520,6 +9555,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "description": "Configures passcode settings",
       "platform": "darwin",
       "identifier": "com.example.profile",
+      "scope": "System",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
@@ -9539,6 +9575,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "name": "Example Windows profile",
       "payload_display_name": "Windows profile",
       "platform": "windows",
+      "scope": "device",
       "description": "Configures firewall rules",
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
@@ -9563,6 +9600,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
   }
 }
 ```
+
+For macOS profiles, `scope` is `"System"` for a profile that applies to the host and `"User"` for a profile that applies to users on the host. For Windows profiles, `scope` is `"device"` or `"user"`. A Windows profile is user-scoped if any of its `<LocURI>` elements target `./User`.
 
 If one or more assigned labels are deleted the profile is considered broken (`broken: true`). It won’t be applied to new hosts.
 
