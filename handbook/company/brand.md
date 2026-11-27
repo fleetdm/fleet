@@ -259,10 +259,10 @@ Use these colors, sampled from Cloud City artwork, as a starting point when crea
     </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-glass-64x64@2x.png" alt="Glass domes in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
-      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Glass domes</strong><br>Domes range from pale frosted to blue. These vary the most between illustrations.</td>
-      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#BFD4E0;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#BFD4E0</div></td>
-      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#B5CCDA;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#B5CCDA</div></td>
-      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#45768B;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#45768B</div></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Glass domes</strong><br>Aqua glass that shades to blue-teal toward the base.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#AAE3E2;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#AAE3E2</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#71C8C2;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#71C8C2</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#436C83;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#436C83</div></td>
     </tr>
     <tr>
       <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-walls-64x64@2x.png" alt="Tower walls in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
