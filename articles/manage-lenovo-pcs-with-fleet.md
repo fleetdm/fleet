@@ -2,7 +2,7 @@
 
 I'm one of those people who enjoys poking around in BIOS setup. I realize it's not a popular hobby, though if you clicked on a guide about Lenovo BIOS settings, you might be one too. So I was a little too pleased when companies moving off Intune prompted this question around what would happen to their BIOS settings.
 
-The BIOS is the small program that wakes a PC up before Windows or Linux does. It decides whether Secure Boot (which only lets trusted software start) is on, whether the TPM (a tiny chip that guards encryption keys) works, and what the PC can start from. Your disk encryption and EDR count on all of that, and like anything else, the BIOS needs patches. So there are two jobs, keeping the BIOS updated and keeping its settings locked down, and Lenovo makes tools for both: System Update and Commercial Vantage for updates, and the Think BIOS Config Tool for settings. Intune just runs those tools. Fleet can too, on Linux as well as Windows.
+The BIOS is the small program that wakes a PC up before Windows or Linux does. It decides whether Secure Boot (which only lets trusted software start) is on, whether the TPM (a tiny chip that guards encryption keys) works, and what the PC can start from. Your disk encryption and your EDR (the security software that watches devices for attackers) both count on those answers, and like anything else, the BIOS needs patches. So there are two jobs, keeping the BIOS updated and keeping its settings locked down. Lenovo makes tools for both, and Intune just runs them. Fleet can too, on Linux as well as Windows.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ The BIOS is the small program that wakes a PC up before Windows or Linux does. I
 
 ## Step 1: Label your Lenovo PCs
 
-A label is a group of hosts that match a query, a bit like a saved search that keeps itself up to date. Navigate to **Hosts**, click **Filter by platform or label**, then **Add label**. Name it **Lenovo** and use this query:
+Everything after this should only touch Lenovo PCs, so start by gathering them up. A label is a group of hosts that match a query, a bit like a saved search that keeps itself up to date. Go to **Hosts**, click **Filter by platform or label**, then **Add label**. Name it **Lenovo** and give it this query:
 
 ```sql
 SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Lenovo%';
@@ -22,9 +22,11 @@ SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Lenovo%';
 
 ## Step 2: Keep the BIOS, firmware, and drivers up to date
 
-[Lenovo System Update](https://docs.lenovocdrt.com/guides/sus/su_dg/) is a Fleet-maintained app. Navigate to **Software**, click **Add software**, and add **Lenovo System Update** for Windows, targeting the **Lenovo** label.
+Lenovo's [System Update](https://docs.lenovocdrt.com/guides/sus/su_dg/) app already knows which updates each model needs. Your job is to make sure every PC has it, and to nudge it when a BIOS falls behind.
 
-Adding an app doesn't install it. For that, you need a policy (a yes-or-no question Fleet asks every host on a schedule) and a policy automation (what Fleet does when a host says "no"). Add a policy that fails when System Update is missing. Under **Target**, choose **Custom** and check **Lenovo**, so your other PCs don't fail it and get Lenovo software pushed to them:
+System Update is a Fleet-maintained app. In **Software**, click **Add software** and add **Lenovo System Update** for Windows, targeting the **Lenovo** label.
+
+Adding an app doesn't install it, though. For that you need a policy (a yes-or-no question Fleet asks every host on a schedule) and a policy automation (what Fleet does when a host answers "no"). Add a policy that fails when System Update is missing. Under **Target**, choose **Custom** and check **Lenovo**, so your other PCs don't fail it and end up with Lenovo software they never asked for:
 
 ```sql
 SELECT 1 FROM programs WHERE name = 'Lenovo System Update';
@@ -32,9 +34,7 @@ SELECT 1 FROM programs WHERE name = 'Lenovo System Update';
 
 Then, on the **Policies** page, click the policy's **Automation** column, choose **Install software**, pick **Lenovo System Update**, and click **Save**.
 
-If you'd rather use [Lenovo Commercial Vantage](https://docs.lenovocdrt.com/guides/lcv/deployment/), upload it as a custom package with the install command `VantageInstaller.exe Install -Vantage -SuHelper` and manage it with [Lenovo's policies](https://docs.lenovocdrt.com/guides/lcv/configuration/).
-
-Next, navigate to **Controls** > **Scripts** and upload `lenovo-update-bios-firmware-drivers.ps1`:
+Next, in **Controls** > **Scripts**, upload the script that does the updating, `lenovo-update-bios-firmware-drivers.ps1`:
 
 ```powershell
 $tvsu = "${env:ProgramFiles(x86)}\Lenovo\System Update\tvsu.exe"
@@ -43,15 +43,15 @@ Start-Process -FilePath $tvsu -Wait -ArgumentList `
   '/CM -search A -action INSTALL -packagetypes 2,3,4 -includerebootpackages 3 -noreboot -noicon -nolicense'
 ```
 
-`-packagetypes 2,3,4` picks drivers, BIOS, and firmware. The two reboot flags install updates that need a restart without forcing one, so nobody's laptop restarts in the middle of a meeting, and the update finishes whenever they next restart. (`-noreboot` only works for the one kind of restart this script includes; Lenovo's [command-line reference](https://docs.lenovocdrt.com/guides/sus/su_dg/su_dg_ch5/) has the details.)
+`-packagetypes 2,3,4` picks drivers, BIOS, and firmware. `-includerebootpackages 3` lets in updates that need a restart, and `-noreboot` holds off that restart until the person at the keyboard gets to it, so nobody's laptop reboots in the middle of a meeting. Lenovo's [command-line reference](https://docs.lenovocdrt.com/guides/sus/su_dg/su_dg_ch5/) covers its other reboot types, which this script leaves out.
 
-To notice when a BIOS falls behind, you'll use another policy. Start by running this as a live report (a one-off query with answers right away) to see what your hosts call themselves:
+To notice when a BIOS falls behind, you'll use another policy. First, run this as a live report (a one-off query that answers right away) to see what your hosts call themselves:
 
 ```sql
 SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;
 ```
 
-Then add one policy per model, also targeted at **Lenovo**, with the model exactly as the report shows it and the minimum BIOS version from Lenovo's support page:
+Then add one policy per model, also targeted at **Lenovo**. Use the model name exactly as the report shows it and the minimum BIOS version from Lenovo's support page:
 
 ```sql
 SELECT 1 FROM system_info s, platform_info p
@@ -59,15 +59,19 @@ WHERE s.hardware_model != 'YOUR-MODEL'
    OR version_compare(p.version, 'X.Y.Z') >= 0;
 ```
 
-Fleet doesn't track Lenovo's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when Lenovo ships a new one. If keeping that number current by hand is a problem for your team, [tell us](https://fleetdm.com/support).
+Fleet doesn't track Lenovo's latest BIOS for each model, so this policy is only as current as the version you type in. When Lenovo ships a new one, bump the number. If keeping it current by hand is a problem for your team, [tell us](https://fleetdm.com/support).
 
-Finally, click each BIOS policy's **Automation** column, choose **Run script**, pick the script, and click **Save**. Fleet runs the script when a host first fails the policy and tries up to three times.
+Finally, click each BIOS policy's **Automation** column, choose **Run script**, pick the script, and click **Save**. Fleet runs it when a host first fails the policy and tries up to three times.
 
 > **Note:** Fleet stops a script after 300 seconds by default, and driver downloads can take longer. Raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in your agent options, for example to `1800`.
 
+If your team prefers [Lenovo Commercial Vantage](https://docs.lenovocdrt.com/guides/lcv/deployment/), that works too. Upload it as a custom package with the install command `VantageInstaller.exe Install -Vantage -SuHelper` and manage it with [Lenovo's policies](https://docs.lenovocdrt.com/guides/lcv/configuration/).
+
 ## Step 3: Lock down BIOS settings
 
-ThinkPads let you change BIOS settings through [WMI](https://docs.lenovocdrt.com/ref/bios/wmi/wmi_guide/) (Windows' built-in way to read and change system settings), so there's nothing extra to install. Upload `lenovo-bios-security-settings.ps1`:
+An up-to-date BIOS still needs the right settings, or Secure Boot and the TPM are just good intentions. ThinkPads accept settings through [WMI](https://docs.lenovocdrt.com/ref/bios/wmi/wmi_guide/) (Windows' built-in way to read and change system settings), so a short script does the job with nothing extra to install. If you built a Think BIOS Config Tool setup for Intune, you can keep it. The tool is a PowerShell module, so a Fleet script can run it too.
+
+Upload `lenovo-bios-security-settings.ps1`:
 
 ```powershell
 $set = Get-WmiObject -Class Lenovo_SetBiosSetting -Namespace root\wmi
@@ -85,11 +89,11 @@ Write-Output "Save -> $r"
 if ($r -ne 'Success') { exit 1 }
 ```
 
-Fleet swaps in the real password for `$FLEET_SECRET_BIOS_PASSWORD` before the script reaches the device. If you don't use a supervisor password, drop `$pw` and the `WmiOpcodeInterface` line. The order matters: Lenovo's WMI guide sets the values, then gives the password, then saves.
+The script follows the order in Lenovo's WMI guide, which sets the values, then gives the password, then saves. Fleet swaps in the real password for `$FLEET_SECRET_BIOS_PASSWORD` before the script reaches the device. If you don't use a supervisor password, drop `$pw` and the `WmiOpcodeInterface` line.
 
 The setting names come from Lenovo's [ThinkPad BIOS settings reference](https://docs.lenovocdrt.com/ref/bios/bios_guide/). `SecurityChip` is Lenovo's name for the TPM. On AMD models, use `AmdVt` instead of `VirtualizationTechnology`, and expect different names altogether on ThinkCentre and ThinkStation PCs.
 
-Lenovo doesn't have a single switch for USB or network boot. USB boot lives in `BootOrder`. Network (PXE) boot, which lets a PC start from a server instead of its own disk, needs the UEFI network stacks this script turns off. If your team reimages PCs over the network, that will stop working, so try the script on one PC of each model first.
+Lenovo doesn't have a single switch for USB or network boot. USB boot is part of `BootOrder`, which this script leaves alone. Network (PXE) boot, which lets a PC start from a server instead of its own disk, needs the UEFI network stacks this script turns off. If your team reimages PCs over the network, that will stop working, so try the script on one PC of each model first.
 
 To check each setting, add a policy (targeted at **Lenovo**, like the others) that reads it with [`wmi_bios_info`](https://fleetdm.com/tables/wmi_bios_info):
 
@@ -97,7 +101,7 @@ To check each setting, add a policy (targeted at **Lenovo**, like the others) th
 SELECT 1 FROM wmi_bios_info WHERE name = 'VirtualizationTechnology' AND value = 'Enable';
 ```
 
-To see the exact names and values, run `SELECT name, value FROM wmi_bios_info;` as a live report on one PC of each model. Secure Boot and the TPM have their own tables:
+To see the exact names and values, run `SELECT name, value FROM wmi_bios_info;` as a live report on one PC of each model. Secure Boot and the TPM have tables of their own:
 
 ```sql
 SELECT 1 FROM secureboot WHERE secure_boot = 1;
@@ -107,13 +111,13 @@ SELECT 1 FROM secureboot WHERE secure_boot = 1;
 SELECT 1 FROM tpm_info WHERE enabled = 1 AND activated = 1;
 ```
 
-Give these policies the settings script as a **Run script** automation, like in step 2. If someone changes a setting, the policy fails the next time it runs and Fleet changes it back. Use both: the supervisor password keeps people from changing settings in the first place, and the policy tidies up after anyone who manages it anyway.
+Give these policies the settings script as a **Run script** automation, like in step 2. If someone changes a setting, the policy fails the next time it runs and Fleet changes it back. The supervisor password keeps people from changing settings in the first place, and the policy tidies up after anyone who manages it anyway, so it's worth having both.
 
-If you already built a Think BIOS Config Tool file for Intune, keep it. The tool is a PowerShell module, so a Fleet script can run it too.
+Last, keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), because BitLocker and a locked-down BIOS look out for each other. A surprise BitLocker recovery prompt can be the first sign that something in the startup chain changed. Before the help desk reads out a recovery key, have them check Fleet for a recent Secure Boot change, BIOS setting change, or BIOS update. If nothing explains it, investigate before unlocking.
 
 ## Step 4: Do the same on Linux
 
-System Update, Commercial Vantage, and the Think BIOS Config Tool are Windows-only. On Linux:
+System Update, Commercial Vantage, and the Think BIOS Config Tool are Windows-only. Lenovo hasn't left Linux out, though. It just uses open-source tools there.
 
 - **Updates:** Lenovo firmware is [listed on the Linux Vendor Firmware Service](https://fwupd.org/lvfs/search?value=lenovo), and [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs it.
 - **Settings:** On its Linux-certified PCs from 2020 on, Lenovo supports changing BIOS settings through the kernel's `thinklmi` driver. See Lenovo's [ThinkLMI guide](https://download.lenovo.com/pccbbs/mobiles_pdf/lenovo_bios_setup_linux_wmi_sysfs_1.2.pdf).
@@ -155,10 +159,6 @@ WHERE path = '/sys/class/firmware-attributes/thinklmi/attributes/VirtualizationT
 
 For a wider check-up, run `fwupdmgr security --json` as a script. It grades the PC's firmware protections from HSI:0 (insecure) to HSI:4 (secure) using fwupd's [Host Security ID](https://fwupd.github.io/libfwupdplugin/hsi.html).
 
-## Treat a surprise BitLocker prompt as a clue
-
-Keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), because BitLocker and a locked-down BIOS back each other up. An unexpected BitLocker recovery prompt can be the first sign that something in the startup chain changed. Before the help desk reads out a recovery key, have them check Fleet for a recent Secure Boot change, BIOS setting change, or BIOS update. If nothing explains it, investigate before unlocking.
-
 ## Manage it with GitOps
 
 If you manage Fleet with GitOps, the label goes in `default.yml`:
@@ -170,7 +170,7 @@ labels:
     label_membership_type: dynamic
 ```
 
-Merge it into your existing `labels`, since GitOps deletes labels that aren't listed. Everything else lives in a fleet file, and each script a policy runs must also be listed in that fleet's `controls.scripts`. A fleet file for your workstations might look like this:
+Merge it into your existing `labels`, since GitOps deletes any label that isn't listed. Everything else lives in a fleet file (the YAML file for one fleet, Fleet's name for a group of hosts), and each script a policy runs must also be listed in that fleet's `controls.scripts`. A fleet file for your workstations might look like this:
 
 ```yaml
 name: Workstations
@@ -224,8 +224,6 @@ Store the BIOS password as a GitHub or GitLab secret named `FLEET_SECRET_BIOS_PA
 
 ## Further reading
 
-Once all this is running, nobody should need to open BIOS setup on these PCs again. That's good news for your help desk, and only mildly disappointing for people like me.
-
 If you're coming from Intune, these Lenovo guides cover the same tools:
 
 - [Think BIOS Config Tool](https://docs.lenovocdrt.com/guides/tbct_v2/) and its [Intune packaging guide](https://docs.lenovocdrt.com/dpm/manage/think-bios-config-tool.html)
@@ -233,6 +231,8 @@ If you're coming from Intune, these Lenovo guides cover the same tools:
 - [Lenovo System Update deployment guide](https://docs.lenovocdrt.com/guides/sus/su_dg/)
 
 None of this needs Windows Autopilot or Entra. For new PCs, see [Windows zero touch without Entra or Autopilot](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot), and if you're wondering what it costs to drop Microsoft 365 E3 altogether, we [priced it out](https://fleetdm.com/articles/leaving-e3-entirely). Managing Dell or HP too? See [Manage Dell PCs with Fleet](https://fleetdm.com/guides/manage-dell-pcs-with-fleet) and [Manage HP PCs with Fleet](https://fleetdm.com/guides/manage-hp-pcs-with-fleet).
+
+Once all this is running, nobody should need to open BIOS setup on these PCs again. That's good news for your help desk, and only mildly disappointing for people like me.
 
 If you're a Fleet customer, we can help you get this set up quickly as part of your Fast Track. Either way, if you run into any trouble, let us know. We're happy to help, and there's a friendly community of kind people who are happy to help too: [get support](https://fleetdm.com/support).
 
