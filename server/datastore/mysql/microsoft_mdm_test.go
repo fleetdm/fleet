@@ -104,6 +104,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsUnlinkedEnrollmentZTDRegistrationID", testMDMWindowsUnlinkedEnrollmentZTDRegistrationID},
 		{"TestMDMWindowsClaimEnrolledActivity", testMDMWindowsClaimEnrolledActivity},
 		{"TestMDMWindowsSetEnrollmentFleetdPresent", testMDMWindowsSetEnrollmentFleetdPresent},
+		{"TestUpdateMDMWindowsEnrollmentsHostUUIDLiveHostGuard", testUpdateMDMWindowsEnrollmentsHostUUIDLiveHostGuard},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
 		{"TestMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID", testMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID},
 		{"TestWindowsSCEPStatusProbeQueuedOnAck", testWindowsSCEPStatusProbeQueuedOnAck},
@@ -7866,7 +7867,7 @@ func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
 	gone := newEnrollment(uuid.NewString())
 	setTimes(gone.ID, old, old)
 	host5 := test.NewHost(t, ds, "win-relinked", "10.0.0.5", uuid.NewString(), uuid.NewString(), now, test.WithPlatform("windows"))
-	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host5.UUID, relinked.MDMDeviceID, "")
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host5.UUID, relinked.MDMDeviceID)
 	require.NoError(t, err)
 	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{relinked.ID, gone.ID}, cutoff)
 	require.NoError(t, err)
@@ -7879,7 +7880,7 @@ func testCleanupStaleMDMWindowsEnrollments(t *testing.T, ds *Datastore) {
 	recreated := newEnrollment(uuid.NewString())
 	setTimes(recreated.ID, old, old)
 	test.NewHost(t, ds, "win-recreated", "10.0.0.6", uuid.NewString(), recreated.HostUUID, now, test.WithPlatform("windows"))
-	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, recreated.HostUUID, recreated.MDMDeviceID, "")
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, recreated.HostUUID, recreated.MDMDeviceID)
 	require.NoError(t, err)
 	deleted, err = deleteStaleMDMWindowsEnrollmentsByIDs(ctx, ds.writer(ctx), []uint{recreated.ID}, cutoff)
 	require.NoError(t, err)
@@ -9412,6 +9413,10 @@ func testMDMWindowsSetEnrollmentFleetdPresent(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, previous.UUID))
 		require.True(t, fleetdPresent(t, device))
 
+		// Delete the previous host so the live-host guard allows the relink (simulates a re-image
+		// where the admin deleted the old host record first).
+		require.NoError(t, ds.DeleteHost(ctx, previous.ID))
+
 		linkWindowsEnrollment(t, ds, device, next.UUID)
 		require.False(t, fleetdPresent(t, device), "presence on the previous host says nothing about the next one")
 
@@ -9420,6 +9425,94 @@ func testMDMWindowsSetEnrollmentFleetdPresent(t *testing.T, ds *Datastore) {
 
 		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, next.UUID))
 		require.True(t, fleetdPresent(t, device))
+	})
+}
+
+func testUpdateMDMWindowsEnrollmentsHostUUIDLiveHostGuard(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(t *testing.T, hostUUID string) *fleet.MDMWindowsEnrolledDevice {
+		t.Helper()
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-GUARD",
+			MDMEnrollType:          "Device",
+			MDMEnrollUserID:        "user@example.com",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.22621",
+			HostUUID:               hostUUID,
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return d
+	}
+
+	t.Run("unlinked enrollment can be claimed by any host", func(t *testing.T) {
+		host := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := newEnrollment(t, "")
+		updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, updated)
+	})
+
+	t.Run("relink refused when current host is live", func(t *testing.T) {
+		victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		attacker := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := newEnrollment(t, victim.UUID)
+
+		updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, attacker.UUID, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.False(t, updated, "relink to a different host must be refused when the current host is live")
+
+		// Verify enrollment still belongs to victim.
+		got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.Equal(t, victim.UUID, got.HostUUID)
+	})
+
+	t.Run("relink allowed when current host is deleted", func(t *testing.T) {
+		victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		replacement := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := newEnrollment(t, victim.UUID)
+
+		require.NoError(t, ds.DeleteHost(ctx, victim.ID))
+
+		updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, replacement.UUID, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, updated, "relink must succeed when the current host was deleted")
+
+		got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.Equal(t, replacement.UUID, got.HostUUID)
+	})
+
+	t.Run("relink allowed when deleted-host marker is set", func(t *testing.T) {
+		victim := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		replacement := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := newEnrollment(t, victim.UUID)
+
+		// Set the deleted-host marker (simulates host deletion bookkeeping).
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE mdm_windows_enrollments SET deleted_host_team_id = 1 WHERE mdm_device_id = ?`,
+				device.MDMDeviceID)
+			return err
+		})
+
+		updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, replacement.UUID, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.True(t, updated, "relink must succeed when the deleted-host marker is set")
+	})
+
+	t.Run("same host re-reports unchanged", func(t *testing.T) {
+		host := newOneTimeSecretTestHost(t, ds, "windows", nil)
+		device := newEnrollment(t, host.UUID)
+
+		updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, device.MDMDeviceID)
+		require.NoError(t, err)
+		require.False(t, updated, "same host re-reporting should be a no-op")
 	})
 }
 
@@ -9609,7 +9702,7 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Once the enrollment is linked, the serial lookup no longer returns it.
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID, "")
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
 	require.NoError(t, err)
 	require.True(t, updated)
 	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-1")
@@ -9626,7 +9719,7 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Linking one of them resolves the ambiguity: a single unlinked row is left, so the lookup returns it again.
-	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "33333333-3333-3333-3333-333333333333", secondTwin.MDMDeviceID, "")
+	updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "33333333-3333-3333-3333-333333333333", secondTwin.MDMDeviceID)
 	require.NoError(t, err)
 	require.True(t, updated)
 	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
@@ -10063,7 +10156,7 @@ func testMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID(t *testing.
 	// Once linked, the host is reported. That is the only state the warning fires on.
 	host := test.NewHost(t, ds, "hwid-enrolled", "10.0.0.31", "hwid-enrolled-key", "hwid-enrolled-uuid", time.Now())
 	deviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{hardwareID: hwID})
-	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, deviceID, "")
+	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, deviceID)
 	require.NoError(t, err)
 	got, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hwID)
 	require.NoError(t, err)

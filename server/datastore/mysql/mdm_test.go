@@ -129,7 +129,6 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		windowsEnrollment.HostUUID,
 		windowsEnrollment.MDMDeviceID,
-		"",
 	)
 	require.NoError(t, err)
 	windowsEnrollment, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(

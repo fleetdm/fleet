@@ -2228,22 +2228,21 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string, hostHardwareSerial string) (bool, error) {
-	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically signals a new MDM
-	// enrollment in certain cases, as it is the first time we associate a host with an enrollment. A deleted host's enrollment's
-	// deleted host marker also counts as a new link.
+func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
+	// The first condition ensures we only update when the host UUID differs (change detection) or the enrollment carries a
+	// deleted-host marker (re-link after host deletion).
 	//
-	// The serial guard prevents a rogue agent from hijacking an enrollment already linked to a different host: a relink of a bound
-	// row is allowed only when the enrollment is unlinked (host_uuid = ''), the enrollment has no serial on record, or the serials
-	// match (legitimate re-image of the same hardware). When the enrollment carries a serial but the caller's is empty (host record
-	// not yet populated), the relink is deferred until the caller's serial is known; this costs one extra detail-query cycle for
-	// legitimate re-images but closes the window where a freshly enrolled rogue host could claim the enrollment before its own
-	// serial is recorded.
-	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ?, fleetd_present_at = NULL
-		WHERE mdm_device_id = ?
-		AND (host_uuid <> ? OR deleted_host_team_id IS NOT NULL)
-		AND (host_uuid = '' OR hardware_serial IS NULL OR hardware_serial = '' OR hardware_serial = ?)`
-	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID, hostHardwareSerial)
+	// The live-host guard prevents a rogue agent from hijacking an enrollment already linked to another host: when the
+	// enrollment is bound to a host that still exists in the hosts table, the relink is refused. This check uses only
+	// server-side state (host record existence), not agent-supplied values, so it cannot be bypassed by a crafted agent
+	// payload. The relink is allowed when the enrollment is unlinked (host_uuid = ''), carries a deleted-host marker, or
+	// the linked host record no longer exists (deleted by an admin or aged out).
+	stmt := `UPDATE mdm_windows_enrollments mwe SET mwe.host_uuid = ?, mwe.fleetd_present_at = NULL
+		WHERE mwe.mdm_device_id = ?
+		AND (mwe.host_uuid <> ? OR mwe.deleted_host_team_id IS NOT NULL)
+		AND (mwe.host_uuid = '' OR mwe.deleted_host_team_id IS NOT NULL
+			OR NOT EXISTS (SELECT 1 FROM hosts h WHERE h.uuid = mwe.host_uuid))`
+	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
 	}
