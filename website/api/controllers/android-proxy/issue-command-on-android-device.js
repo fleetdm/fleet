@@ -78,10 +78,10 @@ module.exports = {
 
 
   exits: {
-    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     success: { description: 'The command was successfully issued to the Android device. The AMAPI Operation is returned.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The specified device is no longer managed by the Android enterprise.', responseType: 'notFound' },
@@ -121,6 +121,13 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['devices', deviceId],
+    }).intercept('invalidResourceId', ()=>{
+      return {'invalidResourceId': 'A provided resource ID is not valid.'};
+    });
+
     // Build the AMAPI Command body from declared inputs (not req.body) so the proxy's accepted surface
     // stays explicit. Use `!== undefined` rather than truthy checks because Fleet relies on forwarding
     // an empty newPassword ("") to clear the device passcode and an empty wipeParams ({}) for WIPE.
@@ -159,11 +166,6 @@ module.exports = {
     // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
     let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
-
-    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
-      androidEnterpriseId,
-      segments: ['devices', deviceId],
-    }).intercept('invalidResourceId', 'invalidResourceId');
 
     // Issue the command to the device for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.

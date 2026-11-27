@@ -16,7 +16,7 @@ module.exports = {
     segments: {
       type: ['string'],
       required: true,
-      description: 'Alternating collection names and resource IDs.',
+      description: 'Pairs of collection name and resource ID.',
       example: ['devices', '3a1b2c3d4e5f', 'operations', '1700000000000'],
     },
   },
@@ -28,16 +28,20 @@ module.exports = {
       outputType: 'string',
     },
     invalidResourceId: {
-      description: 'A provided segment is not a valid resource ID.'
+      description: 'A provided ID is not a valid resource ID.'
     },
   },
 
 
   fn: async function ({androidEnterpriseId, segments}) {
 
-    // Each segment must be exactly one path segment of the resource name.
-    for (let segment of segments) {
-      if (!/^[A-Za-z0-9_.-]+$/.test(segment) || segment === '.' || segment === '..') {
+    if (segments.length === 0 || segments.length % 2 !== 0) {
+      throw new Error(`Expected pairs of collection name and resource ID, but got ${segments.length} segment(s).`);
+    }
+
+    // Every part must be exactly one path segment of the resource name.
+    for (let part of [androidEnterpriseId, ...segments]) {
+      if (!/^[A-Za-z0-9_.-]+$/.test(part) || part === '.' || part === '..') {
         throw 'invalidResourceId';
       }
     }

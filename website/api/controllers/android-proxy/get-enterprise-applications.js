@@ -20,10 +20,10 @@ module.exports = {
 
 
   exits: {
-    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     success: { description: 'The device of an Android enterprise was successfully retrieved.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     notFound: { description: 'App not found', responseType: 'notFound' },
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
@@ -57,14 +57,16 @@ module.exports = {
       throw 'unauthorized';
     }
 
-    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
-    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
-    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
-
     let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
       androidEnterpriseId,
       segments: ['applications', applicationId],
-    }).intercept('invalidResourceId', 'invalidResourceId');
+    }).intercept('invalidResourceId', ()=>{
+      return {'invalidResourceId': 'A provided resource ID is not valid.'};
+    });
+
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
 
     // Get the device for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.

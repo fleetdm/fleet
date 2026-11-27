@@ -32,10 +32,10 @@ module.exports = {
 
 
   exits: {
-    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     success: { description: 'The policy applications of an Android enterprise was successfully updated.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     policyNotFound: { description: 'Specified policy not found', responseType: 'notFound' },
@@ -71,15 +71,17 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['policies', policyId],
+    }).intercept('invalidResourceId', ()=>{
+      return {'invalidResourceId': 'A provided resource ID is not valid.'};
+    });
+
 
     // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
     let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
-
-    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
-      androidEnterpriseId,
-      segments: ['policies', policyId],
-    }).intercept('invalidResourceId', 'invalidResourceId');
 
     // Update the policy applications for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
