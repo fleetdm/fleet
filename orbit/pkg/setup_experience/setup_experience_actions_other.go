@@ -21,6 +21,18 @@ func HideDesktop(_ uint32) error {
 
 func localAccountExists(_ string) bool { return false }
 
+func localAccountEnabled(_ string) bool { return false }
+
 func teardownProvisioningAccount(_ string, _ string) error {
 	return errors.New("provisioning account teardown is only supported on Windows")
+}
+
+func applyProvisioningPackage(_ string) error {
+	return errors.New("provisioning packages are only supported on Windows")
+}
+
+func entraJoined() bool { return false }
+
+func restartWindows() error {
+	return errors.New("restart is only supported on Windows")
 }

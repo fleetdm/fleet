@@ -34,6 +34,9 @@ type passwordPage struct {
 	// create makes the account with the chosen password. It's called at most
 	// once successfully; a policy error lets the user try again.
 	create func(password string) error
+	// joining makes this the wait page shown while the device joins Entra
+	// instead of the password form.
+	joining bool
 
 	listener net.Listener
 	server   *http.Server
@@ -68,6 +71,16 @@ func newPasswordPage(minLength int, create func(string) error) (*passwordPage, e
 	return p, nil
 }
 
+// newJoinPage serves the wait page shown while the device joins Entra.
+func newJoinPage() (*passwordPage, error) {
+	p, err := newPasswordPage(0, nil)
+	if err != nil {
+		return nil, err
+	}
+	p.joining = true
+	return p, nil
+}
+
 // URL is the page address to open in the kiosk.
 func (p *passwordPage) URL() string {
 	return fmt.Sprintf("http://%s/?t=%s", p.listener.Addr(), p.token)
@@ -83,6 +96,7 @@ type passwordPageData struct {
 	Token     string
 	Error     string
 	Done      bool
+	Joining   bool
 }
 
 func (p *passwordPage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +110,11 @@ func (p *passwordPage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action 'self'")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	data := passwordPageData{MinLength: p.minLength, Token: p.token}
+	data := passwordPageData{MinLength: p.minLength, Token: p.token, Joining: p.joining}
+	if p.joining && r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		p.mu.Lock()

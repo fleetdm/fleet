@@ -28,6 +28,15 @@ const ProvisioningAccountName = "fleet-provision"
 // setup. It's a file so the prompt survives a reboot before that login.
 const pinEnrollmentPendingFilename = "windows_pin_enrollment_pending"
 
+// entraJoinPackageFilename is an Entra bulk-join provisioning package the image
+// placed in the orbit root directory. When present, setup ends by joining the
+// device to Entra instead of creating a local account.
+const entraJoinPackageFilename = "entra-join.ppkg"
+
+// entraJoinPendingFilename marks that the join package was applied and the
+// device hasn't yet restarted with the join in place.
+const entraJoinPendingFilename = "windows_entra_join_pending"
+
 // pinEnrollmentDelay gives a brand-new profile time to finish its first-logon
 // setup before the PIN prompt opens, so the prompt lands on a ready desktop.
 const pinEnrollmentDelay = 30 * time.Second
@@ -145,11 +154,11 @@ func (s *WindowsSetupExperiencer) pinPendingPath() string {
 // from the IdP identity is still waiting for its PIN prompt. Other hosts keep
 // the one-shot setup experience.
 func WindowsZeroTouchActive(rootDir string) bool {
-	if localAccountExists(ProvisioningAccountName) {
+	if localAccountEnabled(ProvisioningAccountName) {
 		return true
 	}
-	_, err := os.Stat(filepath.Join(rootDir, pinEnrollmentPendingFilename))
-	return err == nil
+	return fileExists(filepath.Join(rootDir, pinEnrollmentPendingFilename)) ||
+		fileExists(filepath.Join(rootDir, entraJoinPendingFilename))
 }
 
 // NeedsFrequentPolling implements fleetclient.FrequentPoller: Run is the clock
@@ -157,7 +166,7 @@ func WindowsZeroTouchActive(rootDir string) bool {
 func (s *WindowsSetupExperiencer) NeedsFrequentPolling() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return !s.finished || s.pinPendingUser != ""
+	return !s.finished || s.pinPendingUser != "" || fileExists(filepath.Join(s.rootDir, entraJoinPendingFilename))
 }
 
 // Run implements fleet.OrbitConfigReceiver.
@@ -168,7 +177,7 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 	if s.pinPendingUser != "" {
 		// The account was created; the provisioning account must be gone before
 		// the end user's first login.
-		if localAccountExists(ProvisioningAccountName) {
+		if localAccountEnabled(ProvisioningAccountName) {
 			s.retryTeardown()
 			return nil
 		}
@@ -176,6 +185,12 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 	if s.finished {
+		// Setup is over, so an enabled provisioning account is a failed teardown.
+		if localAccountEnabled(ProvisioningAccountName) {
+			s.retryTeardown()
+			return nil
+		}
+		s.restartAfterEntraJoin()
 		return nil
 	}
 
@@ -341,6 +356,10 @@ func (s *WindowsSetupExperiencer) startPasswordPage() {
 	if s.passwordPage != nil {
 		return
 	}
+	if pkg := filepath.Join(s.rootDir, entraJoinPackageFilename); fileExists(pkg) {
+		s.startEntraJoin(pkg)
+		return
+	}
 	if s.cachedIdP == nil {
 		log.Info().Msg("windows setup experience: software done, waiting for IdP identity")
 		return
@@ -378,6 +397,81 @@ func (s *WindowsSetupExperiencer) startPasswordPage() {
 	s.passwordPage = page
 	log.Info().Str("username", username).Msg("windows setup experience: waiting for end user to choose a password")
 	go s.completeSetup(page, username)
+}
+
+// startEntraJoin shows a wait page and joins the device to Entra with the
+// image's bulk-join package. s.mu must be held.
+func (s *WindowsSetupExperiencer) startEntraJoin(pkg string) {
+	page, err := newJoinPage()
+	if err != nil {
+		log.Error().Err(err).Msg("windows setup experience: starting Entra join page")
+		return
+	}
+	if err := s.openURL(page.URL()); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: opening Entra join page")
+		_ = page.Close()
+		return
+	}
+	s.passwordPage = page
+	log.Info().Msg("windows setup experience: joining Entra")
+	go s.completeEntraJoin(page, pkg)
+}
+
+// completeEntraJoin applies the bulk-join package, then tears down the
+// provisioning account. Windows restarts on its own shortly after the package
+// is applied, and the end user signs in with their Entra account.
+func (s *WindowsSetupExperiencer) completeEntraJoin(page *passwordPage, pkg string) {
+	err := applyProvisioningPackage(pkg)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err != nil {
+		// Run starts the join again on a later poll.
+		log.Error().Err(err).Msg("windows setup experience: applying Entra join package")
+		_ = page.Close()
+		s.passwordPage = nil
+		return
+	}
+	if err := os.WriteFile(filepath.Join(s.rootDir, entraJoinPendingFilename), nil, constant.DefaultFileMode); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: recording pending Entra join")
+	}
+	// The package holds the bulk enrollment token.
+	if err := os.Remove(pkg); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: removing Entra join package")
+	}
+	// If teardown fails, Run retries it on later polls.
+	if err := teardownProvisioningAccount(ProvisioningAccountName, ""); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: tearing down provisioning account")
+	}
+	_ = page.Close()
+	s.finish()
+	log.Info().Msg("windows setup experience: complete (Entra join)")
+}
+
+// restartAfterEntraJoin restarts the device once the join completes. The join
+// can finish after the sign-in screen is already up, and that sign-in screen
+// rejects Entra accounts until the next boot. s.mu must be held.
+func (s *WindowsSetupExperiencer) restartAfterEntraJoin() {
+	pending := filepath.Join(s.rootDir, entraJoinPendingFilename)
+	if !fileExists(pending) || !entraJoined() {
+		return
+	}
+	if err := os.Remove(pending); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: clearing pending Entra join")
+		return
+	}
+	// Someone already signed in, so the sign-in screen worked.
+	if _, _, present, err := s.interactiveSession(); err != nil || present {
+		return
+	}
+	log.Info().Msg("windows setup experience: Entra join complete, restarting")
+	if err := restartWindows(); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: restarting after Entra join")
+	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // completeSetup waits for the password page to create the account, then tears

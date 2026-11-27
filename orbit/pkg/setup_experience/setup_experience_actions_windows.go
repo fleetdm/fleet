@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
@@ -20,12 +19,12 @@ import (
 
 var (
 	procWTSLogoffSession = windows.NewLazySystemDLL("wtsapi32.dll").NewProc("WTSLogoffSession")
-	procDeleteProfile    = windows.NewLazySystemDLL("userenv.dll").NewProc("DeleteProfileW")
 )
 
 // Windows account flags and NetAPI levels (lmaccess.h).
 const (
 	ufScript             = 0x0001
+	ufAccountDisable     = 0x0002
 	ufNormalAccount      = 0x0200
 	usePrivUser          = 1
 	userInfoFullName     = 1011
@@ -37,6 +36,7 @@ var (
 	netapi32                 = windows.NewLazySystemDLL("netapi32.dll")
 	procNetUserAdd           = netapi32.NewProc("NetUserAdd")
 	procNetUserDel           = netapi32.NewProc("NetUserDel")
+	procNetUserGetInfo       = netapi32.NewProc("NetUserGetInfo")
 	procNetUserModalsGet     = netapi32.NewProc("NetUserModalsGet")
 	procNetUserSetInfo       = netapi32.NewProc("NetUserSetInfo")
 	procNetLocalGroupAddMbrs = netapi32.NewProc("NetLocalGroupAddMembers")
@@ -189,6 +189,21 @@ func localAccountExists(username string) bool {
 	return err == nil
 }
 
+// localAccountEnabled reports whether a local account named username exists
+// and isn't disabled.
+func localAccountEnabled(username string) bool {
+	namePtr, err := windows.UTF16PtrFromString(username)
+	if err != nil {
+		return false
+	}
+	var info *userInfo1
+	if ret, _, _ := procNetUserGetInfo.Call(0, uintptr(unsafe.Pointer(namePtr)), 1, uintptr(unsafe.Pointer(&info))); ret != 0 || info == nil {
+		return false
+	}
+	defer procNetAPIBufferFree.Call(uintptr(unsafe.Pointer(info))) //nolint:errcheck
+	return info.Flags&ufAccountDisable == 0
+}
+
 // systemTool returns the System32 path of a Windows tool, so a SYSTEM process
 // doesn't resolve it through PATH.
 func systemTool(name string) string {
@@ -199,31 +214,29 @@ func systemTool(name string) string {
 	return filepath.Join(dir, name)
 }
 
-// teardownProvisioningAccount logs off the provisioning session and deletes the
-// account and its profile, so the end user's first login is to their own
-// account (newUser).
+// teardownProvisioningAccount logs off the provisioning session and disables
+// the account, so the end user's first login is to their own account (newUser).
+// The account and its profile are kept: Windows ties the MDM enrollment made
+// during setup to the signed-in account and removes it when that account's
+// profile is deleted.
 func teardownProvisioningAccount(username string, newUser string) error {
-	// Look up the SID before the account is gone; the profile is keyed by it.
-	sid, _, _, err := windows.LookupSID("", username)
-	if err != nil {
-		log.Warn().Err(err).Str("username", username).Msg("looking up provisioning account SID")
-	}
-
 	// LogonUI reads these when it starts at logoff, so set them first: select
 	// the new user, keep the provisioning account off the sign-in screen, and
-	// stop Winlogon from auto-logging in an account that's about to be deleted.
-	if err := selectLogonUser(newUser); err != nil {
-		log.Warn().Err(err).Msg("selecting new user on the sign-in screen")
+	// stop Winlogon from auto-logging in an account that's about to be disabled.
+	if newUser != "" {
+		if err := selectLogonUser(newUser); err != nil {
+			log.Warn().Err(err).Msg("selecting new user on the sign-in screen")
+		}
 	}
 	if err := hideFromSignInScreen(username, true); err != nil {
 		log.Warn().Err(err).Msg("hiding provisioning account from the sign-in screen")
 	}
-	// Keep the account if this fails, so a retry clears its stored password first.
+	// Leave the account enabled if this fails, so a retry clears its stored password first.
 	if err := clearAutoLogon(username); err != nil {
 		return fmt.Errorf("clearing provisioning auto-logon: %w", err)
 	}
 
-	// Log off the provisioning session so the account isn't in use when deleted.
+	// Log off the provisioning session before disabling the account.
 	// Re-check the session: the account may have signed in again since setup began.
 	if user, sessionID, present, err := execuser.InteractiveSession(); err == nil && present && strings.EqualFold(user, username) {
 		if rc, _, err := procWTSLogoffSession.Call(uintptr(windows.Handle(0)), uintptr(sessionID), 1); rc == 0 {
@@ -231,24 +244,40 @@ func teardownProvisioningAccount(username string, newUser string) error {
 		}
 	}
 
-	// The account can stay in use for a few seconds after logoff.
-	var out []byte
-	for i := 0; ; i++ {
-		time.Sleep(3 * time.Second)
-		if out, err = exec.Command(systemTool("net.exe"), "user", username, "/delete").CombinedOutput(); err == nil { //nolint:gosec
-			break
-		}
-		if i == 4 {
-			return fmt.Errorf("net user /delete (%s): %w: %s", username, err, strings.TrimSpace(string(out)))
-		}
+	out, err := exec.Command(systemTool("net.exe"), "user", username, "/active:no").CombinedOutput() //nolint:gosec
+	if err != nil {
+		return fmt.Errorf("net user /active:no (%s): %w: %s", username, err, strings.TrimSpace(string(out)))
 	}
-	log.Info().Str("username", username).Msg("deleted provisioning account")
-	if err := hideFromSignInScreen(username, false); err != nil {
-		log.Debug().Err(err).Msg("removing provisioning account sign-in screen entry")
-	}
+	log.Info().Str("username", username).Msg("disabled provisioning account")
+	return nil
+}
 
-	if sid != nil {
-		deleteProfile(sid.String())
+// applyProvisioningPackage installs a provisioning package (.ppkg) as SYSTEM.
+func applyProvisioningPackage(path string) error {
+	ps := filepath.Join(systemTool("WindowsPowerShell"), "v1.0", "powershell.exe")
+	script := "$ErrorActionPreference = 'Stop'; Install-ProvisioningPackage -PackagePath '" + strings.ReplaceAll(path, "'", "''") + "' -QuietInstall -ForceInstall | Out-Null"
+	out, err := exec.Command(ps, "-NoProfile", "-NonInteractive", "-Command", script).CombinedOutput() //nolint:gosec
+	if err != nil {
+		return fmt.Errorf("Install-ProvisioningPackage: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// entraJoined reports whether the device is joined to an Entra tenant.
+func entraJoined() bool {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo`, registry.ENUMERATE_SUB_KEYS)
+	if err != nil {
+		return false
+	}
+	defer k.Close()
+	names, err := k.ReadSubKeyNames(1)
+	return err == nil && len(names) > 0
+}
+
+func restartWindows() error {
+	out, err := exec.Command(systemTool("shutdown.exe"), "/r", "/t", "0", "/f").CombinedOutput() //nolint:gosec
+	if err != nil {
+		return fmt.Errorf("shutdown /r: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
@@ -268,27 +297,6 @@ func hideFromSignInScreen(username string, hide bool) error {
 		return err
 	}
 	return nil
-}
-
-// deleteProfile removes a deleted account's profile folder and ProfileList
-// entry. The profile can stay loaded for a few seconds after logoff, so retry.
-func deleteProfile(sid string) {
-	sidPtr, err := windows.UTF16PtrFromString(sid)
-	if err != nil {
-		return
-	}
-	for i := 0; ; i++ {
-		ok, _, err := procDeleteProfile.Call(uintptr(unsafe.Pointer(sidPtr)), 0, 0)
-		if ok != 0 {
-			log.Info().Str("sid", sid).Msg("deleted provisioning profile")
-			return
-		}
-		if i == 5 {
-			log.Warn().Err(err).Str("sid", sid).Msg("deleting provisioning profile")
-			return
-		}
-		time.Sleep(5 * time.Second)
-	}
 }
 
 // selectLogonUser makes the sign-in screen default to username instead of the
@@ -321,7 +329,7 @@ func selectLogonUser(username string) error {
 
 // clearAutoLogon removes the Winlogon auto-logon the provisioning unattend.xml
 // configured, which otherwise keeps the account's plaintext password in the
-// registry and fails on the next boot by trying to sign in a deleted account.
+// registry and fails on the next boot by trying to sign in a disabled account.
 func clearAutoLogon(username string) error {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon`, registry.QUERY_VALUE|registry.SET_VALUE)
 	if err != nil {
