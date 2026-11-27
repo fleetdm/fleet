@@ -1,0 +1,1 @@
+- Fixed long custom host vital values being cut off in the host details Vitals card. They now truncate with an ellipsis and show the full value in a tooltip on hover.

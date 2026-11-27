@@ -806,7 +806,7 @@ export const buildHostVitals = ({
           className={`${baseClass}__custom-vital`}
           key={`custom-host-vital-${vital.custom_host_vital_id}`}
           title={title}
-          value={displayValue}
+          value={<TooltipTruncatedText value={displayValue} />}
         />
       ),
     });
