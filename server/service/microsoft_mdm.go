@@ -1579,9 +1579,10 @@ func (svc *Service) deleteRegistryEnrollSecretPolicy(ctx context.Context, enroll
 		return nil
 	}
 	// Only an install that sent the secret through the registry leaves the policy behind, and a Delete on a device without it fails
-	// with 404: a device that already had fleetd, or one whose host was deleted and whose fleetd re-enrolled on its own.
-	sent, err := svc.ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctx, enrolledDevice.ID, syncml.FleetdWindowsInstallerGUID,
-		windowsEnrollSecretPolicyURI)
+	// with 404: a device that already had fleetd, or one whose host was deleted and whose fleetd re-enrolled on its own. Read from
+	// the primary: the installs were queued moments ago, and presence is recorded right after, so a missed one isn't retried.
+	sent, err := svc.ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID,
+		syncml.FleetdWindowsInstallerGUID, windowsEnrollSecretPolicyURI)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking for an enroll secret sent through the registry")
 	}
