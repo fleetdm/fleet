@@ -62,6 +62,18 @@ Once a request is unpacked, the PD decides (live on the call, if it went to the 
 - **Not going to work on it:** move the issue to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board and off the intake & outtake board and notify the requester.
 
 
+### Review a community pull request
+
+Community pull requests (PRs) come from open source contributors, customers, and Fleeties outside the product group. The Engineering Manager (EM) of the owning product group [classifies each community PR](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and assigns product changes to the product group's Product Designer (PD). A product change is anything that changes the UI, user-facing behavior, REST API responses or endpoints, configuration options, CLI commands, or the meaning of the documentation.
+
+The goal is to respond to the contributor within one business day of the PR being assigned to you. When a community PR is assigned to you:
+
+1. **Understand the why**: Read the PR and any linked issue. If the problem the contributor is solving isn't clear, ask them in a PR comment.
+2. **Decide whether to pursue it**: Use the same [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization) as any other request.
+3. **If we're not going to pursue it**: Thank the contributor, explain why, invite them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) if they haven't already, and close the PR.
+4. **If we're going to pursue it**: Create a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) and link it to the PR. Draft the change like any other story, including wireframes for UI changes and updates to the reference docs. Then comment on the PR with the expected behavior so the contributor can update their changes, and assign the PR back to the EM for code review.
+
+
 ### Drafting
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
