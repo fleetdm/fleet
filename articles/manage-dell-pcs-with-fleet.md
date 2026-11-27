@@ -2,7 +2,7 @@
 
 The BIOS is the small program built into a PC that wakes everything up when you press the power button. It runs before Windows or Linux, and before your EDR (the security software watching for attacks), so if there's a hole in it, every security tool you bought is sitting on top of that hole. That's why Dell ships its own tools for updating the BIOS, locking down its settings, and checking that nobody has tampered with it.
 
-Plenty of IT teams are moving off Intune these days, and Dell's integrations with it are one of the things they'd like to keep. I took the question of what happens to all of that after Intune on a long walk with Claude, and the answer was simpler than I expected. Those integrations come down to installing Dell's tools, running them with a script, and running them again when a device drifts. Nothing about that needs Intune. Fleet does the same thing with software, scripts, and policies, on Linux as well as Windows.
+I took the question of what happens to Dell's Intune integrations after you leave Intune on a long walk with Claude, and the answer was simpler than I expected. Those integrations come down to installing Dell's tools, running them with a script, and running them again whenever a PC falls behind or a setting gets changed back. Nothing about that needs Intune. Fleet does the same thing with software, scripts, and policies, on Linux as well as Windows.
 
 ![Walking and running distance for November, peaking at 16.7 miles on November 22](../website/assets/images/articles/walking-and-running-distance-november-585x711@2x.jpg)
 
@@ -28,9 +28,9 @@ SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Dell%';
 
 Two Dell tools do most of the work. [Dell Command | Update](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/dell-command-update-cli-commands?guid=guid-92619086-5f7c-4a05-bce2-0d560c15e8ed&lang=en-us) fetches BIOS, firmware, and driver updates, and [Dell Command | Configure](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/) (`cctk` on the command line) changes BIOS settings.
 
-Dell Command | Update is a Fleet-maintained app, which means Fleet packages it for you. Go to **Software**, click **Add software**, and add **Dell Command Update** for Windows, targeting the **Dell** label. Dell Command | Configure isn't, so download it from Dell and add it under **Software** > **Add software** > **Custom package**, also targeting **Dell**.
+Dell Command | Update is a Fleet-maintained app, which means Fleet packages it for you. Go to **Software**, click **Add software**, and add **Dell Command Update** for Windows, targeting the **Dell** label. Dell Command | Configure isn't Fleet-maintained, so download it from Dell and add it under **Software** > **Add software** > **Custom package**, also targeting **Dell**.
 
-Adding an app to Fleet doesn't install it anywhere, so each tool also needs a policy. A policy is a yes-or-no question Fleet asks every host about once an hour, and this one asks whether Dell Command | Update is installed. When you save it, and every policy below, set **Target** to **Custom** and check **Dell**.
+Adding an app to Fleet doesn't install it anywhere, so each tool also needs a policy. A policy is a yes-or-no question Fleet asks every host about once an hour, and this one asks whether Dell Command | Update is installed. Go to **Policies**, click **Add policy**, and use the query below. When you save it, and every policy after it, set **Target** to **Custom** and check **Dell**, so only Dells get asked.
 
 ```sql
 SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';
@@ -60,13 +60,13 @@ exit $code
 
 BitLocker can ask for its recovery key after a BIOS update, which is a rough way to start a Monday, so `-autoSuspendBitLocker=enable` has it sit out the next restart. Add `-updateSeverity=security,critical` if you only want the urgent stuff, and see Dell's [CLI reference](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/command-line-interface-error-codes?guid=guid-fbb96b06-4603-423a-baec-cbf5963d8948&lang=en-us) for the other exit codes.
 
-So, how do you know when a PC falls behind? Start with a live report that lists each PC's model and BIOS version, so you know which models you have:
+To see which PCs have fallen behind, start with a live report that lists each PC's model and BIOS version:
 
 ```sql
 SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;
 ```
 
-Then add one policy per model. Each policy checks one model. A PC of that model passes only if its BIOS is at least version X.Y.Z, and every other model passes automatically. Copy the model name from the live report and the minimum version from Dell's support page, exactly as written:
+Then add one policy per model. A PC of that model passes only if its BIOS is at least version X.Y.Z, and every other model passes automatically, so each policy only nags the model it's about. Copy the model name from the live report and the minimum version from Dell's support page, exactly as written:
 
 ```sql
 SELECT 1 FROM system_info s, platform_info p
@@ -74,7 +74,7 @@ WHERE s.hardware_model != 'YOUR-MODEL'
    OR version_compare(p.version, 'X.Y.Z') >= 0;
 ```
 
-Fleet doesn't track Dell's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when Dell ships a new one. If keeping up with that sounds like a chore, [we'd like to hear about it](https://fleetdm.com/support).
+Fleet doesn't track Dell's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when Dell ships a new one, and if that turns into a chore, [talk to us](https://fleetdm.com/support).
 
 Set each BIOS policy's automation to **Run script** with `dell-update-bios-firmware-drivers.ps1`. Fleet runs it when a host starts failing and tries up to three times. Anything that needs a restart finishes the next time the user restarts.
 
@@ -163,13 +163,15 @@ pw='$FLEET_SECRET_BIOS_PASSWORD'
   --UefiBootPathSecurity=AlwaysExceptInternalHdd "--ValSetupPwd=$pw"
 ```
 
-Attach it to Linux copies of the step 4 policies. Those read settings through the kernel's [`dell-wmi-sysman`](https://kernel.org/doc/Documentation/ABI/testing/sysfs-class-firmware-attributes) driver, which shows each BIOS setting as a small file for `file_lines` to read. The `secureboot` policy works here as-is:
+Attach it to Linux copies of the step 4 policies. Those read settings through the kernel's [`dell-wmi-sysman`](https://kernel.org/doc/Documentation/ABI/testing/sysfs-class-firmware-attributes) driver, which shows each BIOS setting as a small file for `file_lines` to read, like this one:
 
 ```sql
 SELECT 1 FROM file_lines
 WHERE path = '/sys/class/firmware-attributes/dell-wmi-sysman/attributes/UefiNwStack/current_value'
   AND line = 'Disabled';
 ```
+
+The `secureboot` policy works on Linux as-is.
 
 For a wider check, run `fwupdmgr security --json` as a script. It returns fwupd's [Host Security ID](https://fwupd.github.io/libfwupdplugin/hsi.html), a report card for firmware protections from HSI:0 (insecure) to HSI:4 (secure).
 
@@ -240,17 +242,17 @@ policies:
 
 Store the BIOS password as a GitHub or GitLab secret named `FLEET_SECRET_BIOS_PASSWORD` and pass it to your GitOps workflow, as described in [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
+The BIOS will still be the first thing to run when someone presses the power button, ahead of Windows, Linux, and every security tool you bought. The difference is that now Fleet checks on it every hour.
+
 ## Further reading
 
-If you're coming from Intune, this guide replaces:
+If you're coming from Intune, these are the Dell integrations this guide stands in for:
 
 - [Dell Command | Update with Microsoft Intune](https://www.dell.com/support/manuals/en-us/command-update/admx_rg/using-microsoft-intune?guid=guid-8e1f9749-35cc-46cd-82cd-bc9576b32575&lang=en-us)
 - [Dell Command | Endpoint Configure for Microsoft Intune](https://www.dell.com/support/kbdoc/en-us/000214308/dell-command-endpoint-configure-for-microsoft-intune)
 - [Capture Dell Trusted Device telemetry with Microsoft Intune](https://www.dell.com/support/kbdoc/en-us/000222830/capture-dell-trusted-device-telemetry-with-microsoft-intune)
 
 None of this needs Windows Autopilot or Entra. For new PCs, see [Windows zero touch without Entra or Autopilot](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot), and if you're wondering what it costs to drop Microsoft 365 E3 altogether, we [priced it out](https://fleetdm.com/articles/leaving-e3-entirely). Got [HP](https://fleetdm.com/guides/manage-hp-pcs-with-fleet) or [Lenovo](https://fleetdm.com/guides/manage-lenovo-pcs-with-fleet) PCs too? They have guides of their own.
-
-The BIOS will still be the first thing to run when someone presses the power button, ahead of Windows, Linux, and every security tool you bought. The difference is that now Fleet checks on it every hour.
 
 If you're a Fleet customer, we can help you get this set up quickly as part of your Fast Track. Either way, if you run into any trouble, let us know. We're happy to help, and there's a friendly community of kind people who are happy to help too: [get support](https://fleetdm.com/support).
 
