@@ -2337,7 +2337,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 
 	// fleetd sends the final result again if the request fails, so the result can already be stored.
-	resultAlreadyStored := false
+	var resultAlreadyStored bool
 	if existingInstall != nil && existingInstall.Status != fleet.SoftwareInstallPending {
 		resultAlreadyStored = true
 	}
