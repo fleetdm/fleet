@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -599,6 +602,44 @@ func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionProtection(outcom
 	return nil
 }
 
+// restartVolume is a fully encrypted C: that outlives the receivers built on it, each of which models a fresh orbit.
+type restartVolume struct {
+	protectionOn     bool
+	bootProtector    bool
+	recoveryPassword string
+	rotations        int
+	enables          int
+}
+
+func (v *restartVolume) receiver(t *testing.T, rootDir string, client DiskEncryptionKeySetter) *windowsMDMBitlockerConfigReceiver {
+	r, ok := ApplyWindowsMDMBitlockerFetcherMiddleware(time.Hour, client, &bitlocker.COMWorker{}, rootDir).(*windowsMDMBitlockerConfigReceiver)
+	require.True(t, ok)
+	r.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+		protection := bitlocker.ProtectionStatusOff
+		if v.protectionOn {
+			protection = bitlocker.ProtectionStatusOn
+		}
+		return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: &bitlocker.EncryptionStatus{
+			ConversionStatus: bitlocker.ConversionStatusFullyEncrypted, ProtectionStatus: protection,
+		}}}, nil
+	}
+	r.execHasBootUnsealProtectorFn = func(string) (bool, error) { return v.bootProtector, nil }
+	r.execHasRecoveryPasswordFn = func(string) (bool, error) { return v.recoveryPassword != "", nil }
+	r.execRotateRecoveryKeyFn = func(string) (string, error) {
+		require.FileExists(t, filepath.Join(rootDir, constant.BitLockerEscrowPendingFileName),
+			"the escrow has to be recorded as pending before the key changes")
+		// Like the real rotation, this replaces every recovery password and adds a boot protector if there is none.
+		v.rotations++
+		v.recoveryPassword = fmt.Sprintf("key-%d", v.rotations)
+		v.bootProtector = true
+		return v.recoveryPassword, nil
+	}
+	r.execAddTPMProtectorFn = func(string) error { v.bootProtector = true; return nil }
+	r.execEnableProtectionFn = func(string) error { v.enables++; v.protectionOn = true; return nil }
+	r.restartPendingFn = func() (bool, error) { return false, nil }
+	return r
+}
+
 func TestBitlockerOperations(t *testing.T) {
 	var logBuf bytes.Buffer
 
@@ -698,6 +739,62 @@ func TestBitlockerOperations(t *testing.T) {
 		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err) // the dummy receiver never returns an error
 		require.True(t, encryptFnCalled, "encryption function should have been called")
+	})
+
+	t.Run("the escrow is pending from before the key changes until Fleet hears how it went", func(t *testing.T) {
+		for _, tc := range []struct {
+			name          string
+			encrypted     bool
+			failKeyChange bool
+			failServer    bool
+			wantPending   bool
+		}{
+			{name: "encryption escrowed", wantPending: false},
+			{name: "encryption not escrowed", failServer: true, wantPending: true},
+			{name: "encryption failure reported", failKeyChange: true, wantPending: false},
+			{name: "encryption failure not reported", failKeyChange: true, failServer: true, wantPending: true},
+			{name: "rotation escrowed", encrypted: true, wantPending: false},
+			{name: "rotation not escrowed", encrypted: true, failServer: true, wantPending: true},
+			{name: "rotation failure reported", encrypted: true, failKeyChange: true, wantPending: false},
+			{name: "rotation failure not reported", encrypted: true, failKeyChange: true, failServer: true, wantPending: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				setupTest()
+				pendingPath := filepath.Join(t.TempDir(), constant.BitLockerEscrowPendingFileName)
+				enrollReceiver.escrowPendingPath = pendingPath
+				changeKey := func(string) (string, error) {
+					require.FileExists(t, pendingPath, "the escrow has to be recorded as pending before the key changes")
+					if tc.failKeyChange {
+						return "", errors.New("error changing the key")
+					}
+					return "new-key", nil
+				}
+				enrollReceiver.execEncryptVolumeFn = changeKey
+				enrollReceiver.execRotateRecoveryKeyFn = changeKey
+				if tc.encrypted {
+					enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+						return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: &bitlocker.EncryptionStatus{
+							ConversionStatus: bitlocker.ConversionStatusFullyEncrypted,
+						}}}, nil
+					}
+				}
+				shouldFailServerUpdate = tc.failServer
+
+				require.NoError(t, enrollReceiver.Run(makeConfig()))
+				require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+				if !tc.wantPending {
+					require.NoFileExists(t, pendingPath)
+					return
+				}
+				require.FileExists(t, pendingPath)
+
+				if enrollReceiver.pendingRecoveryKey != "" {
+					shouldFailServerUpdate = false
+					require.NoError(t, enrollReceiver.Run(makeConfig()))
+					require.NoFileExists(t, pendingPath, "escrowing the held key settles it")
+				}
+			})
+		}
 	})
 
 	t.Run("encryption skipped based on various current statuses", func(t *testing.T) {
@@ -1216,6 +1313,144 @@ func TestBitlockerOperations(t *testing.T) {
 			require.Equal(t, "rotated-key", escrowed, "the key Fleet receives must be the one on the volume")
 			require.Equal(t, 1, enables, "protection is restored only once the key is escrowed")
 			require.Empty(t, enrollReceiver.pendingRecoveryKey, "the held key is cleared after a successful escrow")
+		})
+
+		// After a restart the rotated key is still on the volume, where it looks like a recovery password Fleet has.
+		// With protection on, the server asks for the repair only until it sees the boot protector the rotation added. For a
+		// server that would discard the key on an error report, that is the only chance to replace it.
+		t.Run("a key lost in a restart is rotated again while the server asks for the repair", func(t *testing.T) {
+			for _, tc := range []struct {
+				protectionOn bool
+				capable      bool
+			}{
+				{protectionOn: false, capable: true},
+				{protectionOn: false, capable: false},
+				{protectionOn: true, capable: true},
+				{protectionOn: true, capable: false},
+			} {
+				t.Run(fmt.Sprintf("protection on: %t, server keeps the key on errors: %t", tc.protectionOn, tc.capable), func(t *testing.T) {
+					setupTest()
+					if !tc.capable {
+						clientMock.Capabilities = fleet.CapabilityMap{}
+					}
+					rootDir := t.TempDir()
+					pendingPath := filepath.Join(rootDir, constant.BitLockerEscrowPendingFileName)
+					vol := &restartVolume{protectionOn: tc.protectionOn}
+					shouldFailServerUpdate = true
+
+					require.NoError(t, vol.receiver(t, rootDir, clientMock).Run(protectionCfg))
+					require.Equal(t, 1, vol.rotations)
+					require.Zero(t, vol.enables)
+					content, err := os.ReadFile(pendingPath)
+					require.NoError(t, err)
+					require.Empty(t, content, "local users can read the root directory, so the key must not be written there")
+
+					shouldFailServerUpdate = false
+					var escrowed []string
+					prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+					t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
+					clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
+						escrowed = append(escrowed, string(p.EncryptionKey))
+						return nil
+					}
+					restarted := vol.receiver(t, rootDir, clientMock)
+					require.True(t, restarted.NeedsFrequentPolling())
+					require.NoError(t, restarted.Run(protectionCfg))
+
+					require.Equal(t, 2, vol.rotations)
+					require.Equal(t, []string{"key-2"}, escrowed, "Fleet must end up with the key on the volume")
+					require.True(t, vol.protectionOn)
+					require.NoFileExists(t, pendingPath)
+					require.False(t, restarted.NeedsFrequentPolling())
+				})
+			}
+		})
+
+		// The rotation added the boot protector that was missing, so the server no longer asks for the repair.
+		t.Run("a key lost in a restart is reported when the server asks for nothing", func(t *testing.T) {
+			setupTest()
+			rootDir := t.TempDir()
+			pendingPath := filepath.Join(rootDir, constant.BitLockerEscrowPendingFileName)
+			vol := &restartVolume{protectionOn: true}
+			shouldFailServerUpdate = true
+			require.NoError(t, vol.receiver(t, rootDir, clientMock).Run(protectionCfg))
+			require.Equal(t, 1, vol.rotations)
+
+			var sent []fleet.OrbitHostDiskEncryptionKeyPayload
+			reportFails := true
+			prevEscrow := clientMock.SetOrUpdateDiskEncryptionKeyImpl
+			t.Cleanup(func() { clientMock.SetOrUpdateDiskEncryptionKeyImpl = prevEscrow })
+			clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(p fleet.OrbitHostDiskEncryptionKeyPayload) error {
+				if reportFails {
+					return errors.New("server unreachable")
+				}
+				sent = append(sent, p)
+				return nil
+			}
+			restarted := vol.receiver(t, rootDir, clientMock)
+			require.NoError(t, restarted.Run(&fleet.OrbitConfig{}))
+			require.Empty(t, sent)
+			require.Greater(t, time.Until(restarted.protectionRetryAfter), protectionSuccessBackoff, "a failed report backs off")
+
+			reportFails = false
+			restarted.protectionRetryAfter = time.Time{}
+			require.NoError(t, restarted.Run(&fleet.OrbitConfig{}))
+			require.Len(t, sent, 1)
+			require.Empty(t, sent[0].EncryptionKey)
+			require.Equal(t, errRecoveryKeyLost.Error(), sent[0].ClientError)
+			require.FileExists(t, pendingPath, "only a new key in Fleet settles the loss")
+			require.False(t, restarted.NeedsFrequentPolling())
+
+			require.NoError(t, restarted.Run(&fleet.OrbitConfig{}))
+			require.Len(t, sent, 1, "the report is not repeated")
+
+			// A reported error makes the server ask for encryption, which rotates an encrypted volume.
+			restarted.encryptionRetryAfter = time.Time{}
+			require.NoError(t, restarted.Run(&fleet.OrbitConfig{
+				Notifications: fleet.OrbitConfigNotifications{EnforceBitLockerEncryption: true},
+			}))
+			require.Equal(t, 2, vol.rotations)
+			require.Len(t, sent, 2)
+			require.Equal(t, "key-2", string(sent[1].EncryptionKey))
+			require.NoFileExists(t, pendingPath)
+		})
+
+		t.Run("a server that would discard the escrowed key is not told about a lost one", func(t *testing.T) {
+			setupTest()
+			clientMock.Capabilities = fleet.CapabilityMap{}
+			rootDir := t.TempDir()
+			pendingPath := filepath.Join(rootDir, constant.BitLockerEscrowPendingFileName)
+			require.NoError(t, os.WriteFile(pendingPath, nil, constant.DefaultFileMode))
+			vol := &restartVolume{protectionOn: true, bootProtector: true, recoveryPassword: "key-unknown"}
+
+			r := vol.receiver(t, rootDir, clientMock)
+			require.NoError(t, r.Run(&fleet.OrbitConfig{}))
+			require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "an error report would discard the key it holds")
+			require.Contains(t, logBuf.String(), "this server would discard the host's escrowed recovery key")
+			require.FileExists(t, pendingPath, "a later repair or encryption request still settles it")
+			require.False(t, r.NeedsFrequentPolling())
+		})
+
+		t.Run("a held key escrowed before a restart leaves nothing to report", func(t *testing.T) {
+			setupTest()
+			rootDir := t.TempDir()
+			pendingPath := filepath.Join(rootDir, constant.BitLockerEscrowPendingFileName)
+			vol := &restartVolume{protectionOn: true}
+			shouldFailServerUpdate = true
+
+			r := vol.receiver(t, rootDir, clientMock)
+			require.NoError(t, r.Run(protectionCfg))
+			require.FileExists(t, pendingPath)
+
+			shouldFailServerUpdate = false
+			r.protectionRetryAfter = time.Time{}
+			require.NoError(t, r.Run(&fleet.OrbitConfig{}))
+			require.Empty(t, r.pendingRecoveryKey)
+			require.NoFileExists(t, pendingPath)
+
+			clientMock.SetOrUpdateDiskEncryptionKeyInvoked = false
+			require.NoError(t, vol.receiver(t, rootDir, clientMock).Run(&fleet.OrbitConfig{}))
+			require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		})
 
 		t.Run("skips a second attempt inside the throttle window", func(t *testing.T) {

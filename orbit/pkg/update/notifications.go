@@ -3,6 +3,8 @@ package update
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	fleetscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
@@ -566,6 +569,18 @@ type windowsMDMBitlockerConfigReceiver struct {
 	// the escrow without rotating again, avoiding orphan protectors.
 	pendingRecoveryKey string
 
+	// escrowPendingPath is a file that exists from just before the volume's recovery key changes until Fleet has the
+	// new one, so a restart that loses pendingRecoveryKey is noticed. It holds no key, because local users can read
+	// orbit's root directory. Empty disables it.
+	escrowPendingPath string
+
+	// recoveryKeyLost means orbit started with escrowPendingPath present, so the volume may carry a recovery key that
+	// Fleet never received.
+	recoveryKeyLost bool
+
+	// lostKeyReported means Fleet was told about the lost key, or cannot be told, so this process does not repeat it.
+	lostKeyReported bool
+
 	// ensures only one script execution runs at a time
 	mu sync.Mutex
 
@@ -606,8 +621,9 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 	frequency time.Duration,
 	encryptionResult DiskEncryptionKeySetter,
 	comWorker *bitlocker.COMWorker,
+	rootDir string,
 ) fleet.OrbitConfigReceiver {
-	return &windowsMDMBitlockerConfigReceiver{
+	w := &windowsMDMBitlockerConfigReceiver{
 		Frequency:                    frequency,
 		EncryptionResult:             encryptionResult,
 		execEncryptVolumeFn:          comWorker.EncryptVolume,
@@ -620,17 +636,27 @@ func ApplyWindowsMDMBitlockerFetcherMiddleware(
 		execEnableProtectionFn:       comWorker.EnableProtection,
 		execSetTPMAndPINProtectorFn:  comWorker.SetTPMAndPINProtector,
 	}
+	if rootDir != "" {
+		w.escrowPendingPath = filepath.Join(rootDir, constant.BitLockerEscrowPendingFileName)
+		_, err := os.Stat(w.escrowPendingPath)
+		// Unknown counts as lost: the cost is a rotation, where the alternative is a key nobody holds.
+		w.recoveryKeyLost = !errors.Is(err, os.ErrNotExist)
+		if err != nil && w.recoveryKeyLost {
+			log.Error().Err(err).Msg("cannot tell whether a restart lost a BitLocker recovery key, assuming it did")
+		}
+	}
+	return w
 }
 
-// NeedsFrequentPolling reports whether a PIN outcome or recovery key is held for retry on later config runs (see
-// client.FrequentPoller).
+// NeedsFrequentPolling reports whether a PIN outcome or recovery key is held, or a lost key is unreported, for retry on
+// later config runs (see client.FrequentPoller).
 func (w *windowsMDMBitlockerConfigReceiver) NeedsFrequentPolling() bool {
 	if !w.mu.TryLock() {
 		// Busy with an operation whose result may need retrying.
 		return true
 	}
 	defer w.mu.Unlock()
-	return w.heldPINOutcome != nil || w.pendingRecoveryKey != ""
+	return w.heldPINOutcome != nil || w.pendingRecoveryKey != "" || (w.recoveryKeyLost && !w.lostKeyReported)
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
@@ -737,11 +763,16 @@ func (w *windowsMDMBitlockerConfigReceiver) retryHeldPINOutcome() {
 	w.reportPINOutcome(*w.heldPINOutcome)
 }
 
-// retryHeldRecoveryKeyEscrow sends a recovery key that a repair rotated but could not escrow, when the server is no longer
-// asking for anything. Rotating also adds a boot protector, and the server stops asking for the repair once it sees one,
-// so without this the key would never reach Fleet and the admin would be left holding a key the volume no longer accepts.
+// retryHeldRecoveryKeyEscrow sends a recovery key that a repair rotated but could not escrow, or reports one a restart
+// lost, when the server is no longer asking for anything. Rotating also adds a boot protector, and the server stops
+// asking for the repair once it sees one, so without this the key would never reach Fleet and the admin would be left
+// holding a key the volume no longer accepts.
 func (w *windowsMDMBitlockerConfigReceiver) retryHeldRecoveryKeyEscrow() {
-	if w.pendingRecoveryKey == "" || time.Now().Before(w.protectionRetryAfter) {
+	if time.Now().Before(w.protectionRetryAfter) {
+		return
+	}
+	if w.pendingRecoveryKey == "" {
+		w.reportLostRecoveryKey()
 		return
 	}
 	if err := w.updateFleetServer(w.pendingRecoveryKey, nil); err != nil {
@@ -750,7 +781,55 @@ func (w *windowsMDMBitlockerConfigReceiver) retryHeldRecoveryKeyEscrow() {
 		return
 	}
 	log.Info().Msg("escrowed a recovery key held from an earlier BitLocker repair")
+	w.releaseRecoveryKey()
+}
+
+// recordEscrowPending is called before the volume's recovery key changes.
+func (w *windowsMDMBitlockerConfigReceiver) recordEscrowPending() {
+	if w.escrowPendingPath == "" {
+		return
+	}
+	if err := os.WriteFile(w.escrowPendingPath, nil, constant.DefaultFileMode); err != nil {
+		log.Error().Err(err).Msg("could not record the pending recovery key escrow, a restart before it lands will lose the key")
+	}
+}
+
+// releaseRecoveryKey is called once Fleet has the volume's current recovery key, or holds an error that makes it ask for
+// a new one.
+func (w *windowsMDMBitlockerConfigReceiver) releaseRecoveryKey() {
 	w.pendingRecoveryKey = ""
+	w.recoveryKeyLost = false
+	w.lostKeyReported = false
+	if w.escrowPendingPath == "" {
+		return
+	}
+	if err := os.Remove(w.escrowPendingPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Error().Err(err).Msg("could not remove the pending recovery key escrow record")
+	}
+}
+
+// errRecoveryKeyLost is what Fleet shows for the host until a new key is escrowed.
+var errRecoveryKeyLost = errors.New("fleetd restarted before Fleet received the BitLocker recovery key it rotated, so " +
+	"the key Fleet holds may not unlock this disk. fleetd will rotate the key again")
+
+// reportLostRecoveryKey tells Fleet that the key it holds may not unlock the volume. The server answers a reported error
+// by asking for encryption, which rotates the key and escrows a new one.
+func (w *windowsMDMBitlockerConfigReceiver) reportLostRecoveryKey() {
+	if !w.recoveryKeyLost || w.lostKeyReported {
+		return
+	}
+	if !w.serverKeepsKeyOnError() {
+		log.Warn().Msg("not reporting a recovery key lost in a restart to Fleet: this server would discard the host's escrowed recovery key")
+		w.lostKeyReported = true
+		return
+	}
+	if err := w.updateFleetServer("", errRecoveryKeyLost); err != nil {
+		log.Error().Err(err).Msg("could not report a recovery key lost in a restart to Fleet, will retry")
+		w.protectionRetryAfter = time.Now().Add(w.Frequency)
+		return
+	}
+	log.Warn().Msg("reported a recovery key lost in a restart to Fleet")
+	w.lostKeyReported = true
 }
 
 // protectionSuccessBackoff is how long the agent waits after successfully restoring protection. It only has to outlast
@@ -845,9 +924,9 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
 	}
-	// A held recovery key means a previous pass rotated but could not escrow it, so there is still work to do even
-	// though the volume now looks healthy.
-	if hasProtector && protectionAlreadyOn && w.pendingRecoveryKey == "" {
+	// A held or lost recovery key means a previous pass rotated but could not escrow it, so there is still work to do
+	// even though the volume now looks healthy.
+	if hasProtector && protectionAlreadyOn && w.pendingRecoveryKey == "" && !w.recoveryKeyLost {
 		log.Debug().Msg("BitLocker protection is already on and the volume can unseal at boot, nothing to repair")
 		w.protectionRetryAfter = time.Now().Add(w.Frequency)
 		return
@@ -864,8 +943,15 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 			log.Warn().Err(err).Msg("cannot determine whether a recovery password is present, rotating to be sure")
 			hasRecoveryPassword = false
 		}
-		if !hasRecoveryPassword {
+		switch {
+		case hasRecoveryPassword && w.recoveryKeyLost:
+			log.Warn().Msgf("the recovery password on %s may be one Fleet never received, rotating before restoring protection",
+				targetVolume)
+		case !hasRecoveryPassword:
 			log.Info().Msgf("no recovery password on %s, rotating before restoring protection", targetVolume)
+		}
+		if !hasRecoveryPassword || w.recoveryKeyLost {
+			w.recordEscrowPending()
 			recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
 			if err != nil {
 				log.Error().Err(err).Msg("could not rotate the recovery key, not restoring protection")
@@ -891,7 +977,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptEnableBitlockerProtection() {
 			w.protectionRetryAfter = time.Now().Add(w.Frequency)
 			return
 		}
-		w.pendingRecoveryKey = ""
+		w.releaseRecoveryKey()
 	}
 
 	// A rotation above may already have added the TPM protector, which the add treats as success.
@@ -966,7 +1052,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 			log.Error().Err(serverErr).Msg("failed to escrow cached recovery key to Fleet Server")
 			return
 		}
-		w.pendingRecoveryKey = ""
+		w.releaseRecoveryKey()
 		w.encryptionRetryAfter = time.Now().Add(encryptionSuccessBackoff)
 		return
 	}
@@ -1022,12 +1108,15 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 	if encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
 		log.Debug().Msg("disk is already encrypted, rotating recovery key")
 
+		w.recordEscrowPending()
 		recoveryKey, err := w.execRotateRecoveryKeyFn(targetVolume)
 		if err != nil {
 			log.Error().Err(err).Msg("recovery key rotation failed")
 			if serverErr := w.updateFleetServer("", err); serverErr != nil {
 				log.Error().Err(serverErr).Msg("failed to send key rotation failure to Fleet Server")
+				return
 			}
+			w.releaseRecoveryKey()
 			return
 		}
 
@@ -1036,6 +1125,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 			w.pendingRecoveryKey = recoveryKey
 			return
 		}
+		w.releaseRecoveryKey()
 		w.encryptionRetryAfter = time.Now().Add(encryptionSuccessBackoff)
 		return
 	}
@@ -1048,6 +1138,7 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 		return
 	}
 
+	w.recordEscrowPending()
 	recoveryKey, encryptionErr := w.performEncryption(targetVolume)
 	// before reporting the error to the server, check if the error we've got is valid.
 	// see the description of w.isMisreportedDecryptionError and issue #15916.
@@ -1067,10 +1158,11 @@ func (w *windowsMDMBitlockerConfigReceiver) attemptBitlockerEncryption() {
 
 	if encryptionErr != nil {
 		log.Error().Err(encryptionErr).Msg("failed to encrypt the volume")
+		w.releaseRecoveryKey()
 		return
 	}
 
-	w.pendingRecoveryKey = ""
+	w.releaseRecoveryKey()
 	w.encryptionRetryAfter = time.Now().Add(encryptionSuccessBackoff)
 }
 
@@ -1127,7 +1219,7 @@ func (w *windowsMDMBitlockerConfigReceiver) isMisreportedDecryptionError(err *bi
 // already holds. An older server overwrites the stored key with the empty value in this payload, which is worse than
 // staying silent: the volume is still encrypted, and the admin loses the only key Fleet can show them.
 func (w *windowsMDMBitlockerConfigReceiver) reportKeylessError(err error, what string) {
-	if !w.EncryptionResult.GetServerCapabilities().Has(fleet.CapabilityWindowsDiskEncryptionErrorKeepsKey) {
+	if !w.serverKeepsKeyOnError() {
 		log.Warn().Err(err).Msgf(
 			"not reporting %s to Fleet: this server would discard the host's escrowed recovery key", what)
 		return
@@ -1135,6 +1227,11 @@ func (w *windowsMDMBitlockerConfigReceiver) reportKeylessError(err error, what s
 	if serverErr := w.updateFleetServer("", err); serverErr != nil {
 		log.Error().Err(serverErr).Msgf("failed to report %s to Fleet Server", what)
 	}
+}
+
+// serverKeepsKeyOnError reports whether the server records a client error without discarding the key it holds.
+func (w *windowsMDMBitlockerConfigReceiver) serverKeepsKeyOnError() bool {
+	return w.EncryptionResult.GetServerCapabilities().Has(fleet.CapabilityWindowsDiskEncryptionErrorKeepsKey)
 }
 
 func (w *windowsMDMBitlockerConfigReceiver) updateFleetServer(key string, err error) error {
