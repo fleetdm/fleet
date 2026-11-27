@@ -36,6 +36,9 @@ type HostConditionalAccessStatus struct {
 	// This field is used to know if Fleet needs to update the status on Entra.
 	Compliant *bool `db:"compliant"`
 
+	// Verified is whether DeviceID was verified against an Entra-signed source.
+	Verified bool `db:"verified"`
+
 	// DisplayName is the host's display name to reported to Entra.
 	DisplayName string `db:"display_name"`
 	// OSVersion is the host's OS version reported to Entra
@@ -43,4 +46,15 @@ type HostConditionalAccessStatus struct {
 
 	// UpdateCreateTimestamps holds the timestamps of the entry.
 	UpdateCreateTimestamps
+}
+
+// WindowsHostEntraDeviceIDState is what the Windows Entra device ID ingestion reads about a host.
+type WindowsHostEntraDeviceIDState struct {
+	// Status is the host's stored status, nil if it has none.
+	Status *HostConditionalAccessStatus
+	// EnrollmentEntraDeviceID is the deviceid claim signed into the host's latest Windows MDM enrollment, if any.
+	EnrollmentEntraDeviceID string
+	// AutopilotEntraDeviceID is the Entra device ID of the host's Autopilot record, if any. Graph reports the
+	// all-zero UUID when the record has no device.
+	AutopilotEntraDeviceID string
 }
