@@ -20,7 +20,7 @@ func TestRefresh(t *testing.T) {
 		installed   []byte // nil means no file
 		wantUpdated bool
 	}{
-		{"missing file", nil, false},
+		{"missing file", nil, true},
 		{"current bundle", Bundle, false},
 		{"old bundle", []byte("##\n## Bundle of CA Root Certificates\n## old\n"), true},
 		{"bundle with roots stripped by a script", bytes.TrimSuffix(Bundle, []byte("-----END CERTIFICATE-----\n")), true},
@@ -40,10 +40,6 @@ func TestRefresh(t *testing.T) {
 
 			entries, err := os.ReadDir(dir)
 			require.NoError(t, err)
-			if tc.installed == nil {
-				require.Empty(t, entries)
-				return
-			}
 			require.Len(t, entries, 1, "temp file left behind")
 
 			content, err := os.ReadFile(path)

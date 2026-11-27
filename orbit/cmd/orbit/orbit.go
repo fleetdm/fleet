@@ -1257,7 +1257,7 @@ func orbitAction(c *cli.Context) error {
 				}
 				options = append(options, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
 			} else {
-				log.Info().Msg("No cert chain available. Relying on system store.")
+				log.Error().Msg("no CA bundle available, osquery TLS connections to Fleet will fail")
 			}
 		}
 	}

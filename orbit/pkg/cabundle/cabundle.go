@@ -21,16 +21,14 @@ var Bundle []byte
 
 // Refresh overwrites <rootDir>/certs.pem with Bundle if they differ, and reports whether it did.
 // Package upgrades and auto-updates never rewrite the installed file, so without this hosts keep
-// the bundle of the fleetctl version that built their package. A missing file is left missing.
+// the bundle of the fleetctl version that built their package. A missing file is restored, because
+// osquery doesn't fall back to the system store without it.
 //
 // Callers must not call it when a Fleet certificate (--fleet-certificate) is configured.
 func Refresh(rootDir string) (bool, error) {
 	path := filepath.Join(rootDir, FileName)
 	installed, err := os.ReadFile(path)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-		return false, nil
-	case err != nil:
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false, fmt.Errorf("read %s: %w", path, err)
 	}
 	if bytes.Equal(installed, Bundle) {

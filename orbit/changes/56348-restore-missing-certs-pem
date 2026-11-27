@@ -1,0 +1,1 @@
+- Fixed fleetd losing osquery connectivity to Fleet when `certs.pem` was missing from the orbit root directory. Orbit now restores the embedded CA bundle on startup.
