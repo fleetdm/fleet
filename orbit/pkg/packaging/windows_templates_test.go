@@ -147,3 +147,24 @@ func TestWindowsWixTemplateServiceEnvironment(t *testing.T) {
 		assert.Contains(t, windowsServiceEnvironment(t, opt), "ORBIT_END_USER_EMAIL=user@example.com")
 	})
 }
+
+func TestWindowsInstallerUtilsSecretFileACL(t *testing.T) {
+	var buf bytes.Buffer
+	require.NoError(t, windowsPSInstallerUtils.Execute(&buf, Options{}))
+	script := buf.String()
+
+	start := strings.Index(script, "function Update-OrbitSecret {")
+	require.NotEqual(t, -1, start)
+	end := strings.Index(script[start:], "\n}\n")
+	require.NotEqual(t, -1, end)
+	fn := script[start : start+end]
+
+	restrict := strings.Index(fn, "[System.IO.File]::SetAccessControl($targetSecretFile, $secretFileSecurity)")
+	write := strings.Index(fn, "Set-Content -NoNewline -Path $targetSecretFile -Value $updateSecret")
+	require.NotEqual(t, -1, restrict)
+	require.NotEqual(t, -1, write)
+	assert.Less(t, restrict, write, "DACL is set before writing")
+	assert.Contains(t, fn, `"D:PAI(A;;FA;;;SY)(A;;FA;;;BA)"`, "same DACL as a bundled secret.txt")
+	assert.Equal(t, 1, strings.Count(fn, "Set-Content"))
+	assert.Contains(t, fn, "[System.IO.File]::Create($targetSecretFile, 4096, [System.IO.FileOptions]::None, $secretFileSecurity)")
+}

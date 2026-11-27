@@ -585,6 +585,18 @@ function Update-OrbitSecret {
   {
     Write-Host "Updating secret"
     $targetSecretFile = $Env:Programfiles + "\\Orbit\\secret.txt"
+
+    # Same DACL a secret.txt bundled in the package gets (see wix/transform.go), set before writing. A failure here is
+    # logged rather than failing the install.
+    try {
+      $secretFileSecurity = New-Object System.Security.AccessControl.FileSecurity
+      $secretFileSecurity.SetSecurityDescriptorSddlForm("D:PAI(A;;FA;;;SY)(A;;FA;;;BA)", [System.Security.AccessControl.AccessControlSections]::Access)
+      Remove-Item -Path $targetSecretFile -Force -ErrorAction "SilentlyContinue"
+      [System.IO.File]::Create($targetSecretFile, 4096, [System.IO.FileOptions]::None, $secretFileSecurity).Dispose()
+      [System.IO.File]::SetAccessControl($targetSecretFile, $secretFileSecurity)
+    } catch {
+      Write-Host "Failed to restrict the secret file: $($_.Exception.Message)" -ForegroundColor Red
+    }
     Set-Content -NoNewline -Path $targetSecretFile -Value $updateSecret
 
     Start-Sleep -Milliseconds 1000

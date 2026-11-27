@@ -502,6 +502,17 @@ func moveDeliveredEnrollSecretToFile(secret string, clearDelivered func() error,
 	return nil
 }
 
+// restrictEnrollSecretFile gives the enroll secret file the permissions writeRestrictedFile uses. A missing file is a no-op and a
+// failure is only logged, so it never blocks enrollment.
+func restrictEnrollSecretFile(path string) {
+	if _, err := os.Stat(path); err != nil {
+		return
+	}
+	if err := platform.ChmodRestrictFile(path); err != nil {
+		log.Warn().Err(err).Msg("failed to restrict the enroll secret file")
+	}
+}
+
 // writeRestrictedFile restricts the file before writing to it, so the contents are never on disk with inherited permissions.
 func writeRestrictedFile(path, contents string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constant.DefaultFileMode)
@@ -640,6 +651,10 @@ func orbitAction(c *cli.Context) error {
 	// Checked before anything below sets enroll-secret, so it judges only what the caller passed.
 	if enrollSecretPath != "" && c.String("enroll-secret") != "" {
 		return errors.New("enroll-secret and enroll-secret-path may not be specified together")
+	}
+
+	if runtime.GOOS == "windows" && enrollSecretPath != "" {
+		restrictEnrollSecretFile(enrollSecretPath)
 	}
 
 	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored.
