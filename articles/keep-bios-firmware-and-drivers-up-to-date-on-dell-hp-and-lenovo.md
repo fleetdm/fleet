@@ -1,8 +1,8 @@
 # Keep BIOS, firmware, and drivers up to date on Dell, HP, and Lenovo
 
-I read BIOS release notes for fun, which I realize is not a great look. My excuse is that firmware runs before Windows or Linux and before your EDR, so if there's a hole in it, every security tool you bought is sitting on top of that hole. Keeping that layer patched is a big part of why Dell, HP, and Lenovo ship their own update tools.
+Firmware runs before Windows or Linux and before your EDR, so if there's a hole in it, every security tool you bought is sitting on top of that hole. Keeping that layer patched is a big part of why Dell, HP, and Lenovo ship their own update tools.
 
-When I talk with IT admins leaving Intune, BIOS updates are one of the things they quietly worry about losing. I took the question on a long walk with Claude, and the answer was simpler than I expected. Intune's OEM integrations, like HP Connect and Dell Command | Update, come down to running the vendor's update tooling, on a schedule or when a device falls behind. Nothing about that needs Intune. Fleet does the same thing with software, scripts, and policies, on Linux as well as Windows.
+I took the question of what happens to BIOS updates after Intune on a long walk with Claude, and the answer was simpler than I expected. Intune's OEM integrations, like HP Connect and Dell Command | Update, come down to running the vendor's update tooling, on a schedule or when a device falls behind. Nothing about that needs Intune. Fleet does the same thing with software, scripts, and policies, on Linux as well as Windows.
 
 ## Prerequisites
 
