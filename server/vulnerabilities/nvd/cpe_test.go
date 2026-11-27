@@ -2230,6 +2230,24 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "",
 		},
 		{
+			// "ninja" is the ninja-build tool, which has no CPE of its own. Without a translation it
+			// matched itrsgroup:ninja (ITRS monitor-ninja) and inherited its CVEs (CVE-2021-4336).
+			software: fleet.Software{Name: "ninja", Source: "homebrew_packages", Version: "1.13.2"},
+			cpe:      "",
+		},
+		{
+			software: fleet.Software{Name: "ninja", Source: "python_packages", Version: "1.13.0"},
+			cpe:      "",
+		},
+		{
+			software: fleet.Software{Name: "ninja", Source: "pacman_packages", Version: "1.13.0", Release: "1"},
+			cpe:      "",
+		},
+		{
+			software: fleet.Software{Name: "ninja", Source: "chocolatey_packages", Version: "1.13.0"},
+			cpe:      "",
+		},
+		{
 			software: fleet.Software{
 				Name:          "VLC",
 				ApplicationID: new("org.videolan.vlc"),

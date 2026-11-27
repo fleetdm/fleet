@@ -28,6 +28,15 @@
   },
   {
     "software": {
+      "name": ["ninja"],
+      "source": ["homebrew_packages", "python_packages", "pacman_packages", "chocolatey_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["us.zoom.xos"],
       "source": ["apps"]
     },
