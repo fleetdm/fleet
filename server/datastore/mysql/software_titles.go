@@ -871,10 +871,12 @@ FROM software_titles st
 		-- software because software installers may not have entries in software
 		-- for their software title. If we do want vulnerable only, then we have to
 		-- INNER JOIN because a CVE implies a specific software version.
+		{{$cveJoin := yesNo $.VulnerableOnly "INNER" "LEFT"}}
+		{{$softwareJoin = printf "%s JOIN software s ON s.title_id = st.id" $cveJoin}}
 		-- CVEs are only reached through versions installed in the requested scope, so a
 		-- title isn't matched by a version that is only installed in another fleet.
-		{{$cveJoin := yesNo $.VulnerableOnly "INNER" "LEFT"}}
-		{{$softwareJoin = printf "%s JOIN software s ON s.title_id = st.id %[1]s JOIN software_host_counts shc ON shc.software_id = s.id AND shc.team_id = %d AND shc.global_stats = %s %[1]s JOIN software_cve scve ON shc.software_id = scve.software_id" $cveJoin (teamID $) (yesNo (hasTeamID $) "0" "1") }}
+		{{$softwareJoin = printf "%s %s JOIN software_host_counts shc ON shc.software_id = s.id AND shc.team_id = %d AND shc.global_stats = %s" $softwareJoin $cveJoin (teamID $) (yesNo (hasTeamID $) "0" "1")}}
+		{{$softwareJoin = printf "%s %s JOIN software_cve scve ON shc.software_id = scve.software_id" $softwareJoin $cveJoin}}
 	{{end}}
 	{{if and $.VulnerableOnly (or $.KnownExploit $.MinimumCVSS $.MaximumCVSS)}}
 		{{$softwareJoin = printf "%s INNER JOIN cve_meta cm ON scve.cve = cm.cve" $softwareJoin}}

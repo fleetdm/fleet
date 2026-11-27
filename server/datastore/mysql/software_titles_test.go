@@ -2157,30 +2157,27 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 func testListSoftwareTitlesVulnerableFilterFleetScope(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	fleet1, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	fleet2, err := ds.NewTeam(ctx, &fleet.Team{Name: "fleet2"})
 	require.NoError(t, err)
 
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleet1.ID, []uint{host1.ID})))
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
-	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host2.ID})))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&fleet2.ID, []uint{host2.ID})))
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
-	// Same title everywhere, but only the version installed in team2 is vulnerable.
-	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
-		{Name: "foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.foo"},
-	})
+	// Same title everywhere, but only the version installed in fleet2 is vulnerable.
+	foo := func(version string) []fleet.Software {
+		return []fleet.Software{{Name: "foo", Version: version, Source: "apps", BundleIdentifier: "com.example.foo"}}
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, foo("1.0"))
 	require.NoError(t, err)
-	sw, err := ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
-		{Name: "foo", Version: "2.0", Source: "apps", BundleIdentifier: "com.example.foo"},
-	})
+	sw, err := ds.UpdateHostSoftware(ctx, host2.ID, foo("2.0"))
 	require.NoError(t, err)
 	require.Len(t, sw.Inserted, 1)
-	_, err = ds.UpdateHostSoftware(ctx, host3.ID, []fleet.Software{
-		{Name: "foo", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.foo"},
-	})
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, foo("1.0"))
 	require.NoError(t, err)
 
 	const cve = "CVE-2024-9999"
@@ -2200,14 +2197,14 @@ func testListSoftwareTitlesVulnerableFilterFleetScope(t *testing.T, ds *Datastor
 	globalUser := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	cases := []struct {
-		name   string
-		teamID *uint
-		want   []string
+		name    string
+		fleetID *uint
+		want    []string
 	}{
 		{"all fleets", nil, []string{"foo"}},
-		{"no team", new(uint(0)), nil},
-		{"fleet without the vulnerable version", &team1.ID, nil},
-		{"fleet with the vulnerable version", &team2.ID, []string{"foo"}},
+		{"unassigned", new(uint(0)), nil},
+		{"fleet without the vulnerable version", &fleet1.ID, nil},
+		{"fleet with the vulnerable version", &fleet2.ID, []string{"foo"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2224,7 +2221,7 @@ func testListSoftwareTitlesVulnerableFilterFleetScope(t *testing.T, ds *Datastor
 				{"name search", fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{MatchQuery: "foo"}}, []string{"foo"}},
 			}
 			for _, check := range checks {
-				check.opts.TeamID = c.teamID
+				check.opts.TeamID = c.fleetID
 				titles, count, _, err := ds.ListSoftwareTitles(ctx, check.opts, fleet.TeamFilter{User: globalUser})
 				require.NoError(t, err)
 				names := make([]string, 0, len(titles))
