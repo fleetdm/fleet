@@ -363,7 +363,7 @@ func TestSetupExperienceScriptFleetVariables(t *testing.T) {
 }
 
 func TestSetupExperienceScriptNameWithFolder(t *testing.T) {
-	ctx := test.UserContext(context.Background(), test.UserAdmin)
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ds := new(mock.Store)
 	svc, _ := newTestServiceWithMock(t, ds)

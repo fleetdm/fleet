@@ -866,20 +866,31 @@ func validateOutputPaths(files map[string]any) error {
 }
 
 // singleFileNames returns the file name each script or asset name is exported under. Path separators become "-", and a
-// name changed that way is numbered when it matches another; other characters are kept, because fleetctl gitops reads
-// the name back from the file name.
+// name changed that way is numbered when it matches another, ignoring case as macOS and Windows do; other characters are
+// kept, because fleetctl gitops reads the name back from the file name.
 func singleFileNames(names []string) []string {
-	taken := make(map[string]bool, len(names))
+	taken := make(map[string]struct{}, len(names))
 	for _, name := range names {
-		taken[name] = true
+		taken[strings.ToLower(name)] = struct{}{}
 	}
 	separators := strings.NewReplacer("/", "-", `\`, "-")
 	fileNames := make([]string, len(names))
 	for i, name := range names {
 		fileNames[i] = name
-		if mapped := separators.Replace(name); mapped != name {
-			fileNames[i] = uniqueFilename(mapped, taken)
+		mapped := separators.Replace(name)
+		if mapped == name {
+			continue
 		}
+		ext := filepath.Ext(mapped)
+		base := strings.TrimSuffix(mapped, ext)
+		for n := 2; ; n++ {
+			if _, ok := taken[strings.ToLower(mapped)]; !ok {
+				break
+			}
+			mapped = fmt.Sprintf("%s-%d%s", base, n, ext)
+		}
+		taken[strings.ToLower(mapped)] = struct{}{}
+		fileNames[i] = mapped
 	}
 	return fileNames
 }

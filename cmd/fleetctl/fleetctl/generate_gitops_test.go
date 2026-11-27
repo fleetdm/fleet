@@ -1609,6 +1609,11 @@ func TestGenerateGitopsScriptAndAssetFileNames(t *testing.T) {
 			"names that match once replaced", []string{"tools/cleanup.sh", "tools-cleanup.sh", `tools\cleanup.sh`}, "wifi",
 			[]string{"scripts/tools-cleanup-2.sh", "scripts/tools-cleanup.sh", "scripts/tools-cleanup-3.sh"}, "assets/wifi.json",
 		},
+		// macOS and Windows file systems ignore case.
+		{
+			"names that differ only in case once replaced", []string{"Tools/cleanup.sh", "tools-cleanup.sh"}, "wifi",
+			[]string{"scripts/Tools-cleanup-2.sh", "scripts/tools-cleanup.sh"}, "assets/wifi.json",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
