@@ -727,9 +727,15 @@ func TestApplyLabelSpecsActivitiesWithReplica(t *testing.T) {
 	require.Equal(t, "new-label", created.Name)
 	require.NotZero(t, created.ID)
 
-	// A host-membership-only change must be detected even though the replica still has the old membership.
-	dsOpts.RunReplication("labels", "label_membership")
+	// Reapplying the same spec before replication must not log a second created_label.
 	activities = activities[:0]
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "new-label", LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{}},
+	}, nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, activities)
+
+	// A host-membership-only change must be detected even though the replica still has the old membership.
 	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 		{Name: "new-label", LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{h1.HardwareSerial}},
 	}, nil, nil)
@@ -738,6 +744,14 @@ func TestApplyLabelSpecsActivitiesWithReplica(t *testing.T) {
 	edited, ok := activities[0].(fleet.ActivityTypeEditedLabel)
 	require.True(t, ok, "expected ActivityTypeEditedLabel, got %T", activities[0])
 	require.Equal(t, created.ID, edited.ID)
+
+	// Reapplying the same membership before replication must not log a spurious edited_label.
+	activities = activities[:0]
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "new-label", LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{h1.HardwareSerial}},
+	}, nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, activities)
 }
 
 func TestLabelCrossTeamHostMembership(t *testing.T) {

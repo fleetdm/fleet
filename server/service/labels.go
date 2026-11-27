@@ -772,7 +772,10 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	} else {
 		scopeFilter.TeamID = new(uint(0)) // filter to fetch global labels only
 	}
-	beforeApply, err := svc.ds.LabelsByName(ctx, regularSpecNames, scopeFilter)
+	// The before/after snapshots are read from the primary: a lagging replica would hide labels or memberships
+	// written moments earlier, dropping activities or logging spurious ones.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+	beforeApply, err := svc.ds.LabelsByName(primaryCtx, regularSpecNames, scopeFilter)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "look up labels before apply")
 	}
@@ -794,7 +797,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		if !ok || existing.LabelMembershipType != fleet.LabelMembershipTypeManual || spec.Hosts == nil {
 			continue
 		}
-		ids, err := svc.ds.LabelMembershipHostIDs(ctx, existing.ID)
+		ids, err := svc.ds.LabelMembershipHostIDs(primaryCtx, existing.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get pre-apply label host IDs")
 		}
@@ -809,9 +812,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return err
 	}
 
-	// Emit created/edited activities for regular specs that were applied. Read from the primary: a replica may not
-	// have the labels just written yet, which would silently drop their activities.
-	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+	// Emit created/edited activities for regular specs that were applied.
 	afterApply, err := svc.ds.LabelsByName(primaryCtx, regularSpecNames, scopeFilter)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "look up labels after apply for activity")
