@@ -1,0 +1,1 @@
+- New script and Apple declaration (DDM) asset names can no longer contain `/` or `\`, and `fleetctl generate-gitops` now replaces those characters with `-` in exported file names instead of creating nested folders.

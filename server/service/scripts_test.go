@@ -1456,7 +1456,7 @@ func TestUpdateScriptValidatesFileType(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
-		return &fleet.Script{ID: id, Name: map[uint]string{1: "fix.py", 2: "fix.ps1", 3: "fix.sh"}[id]}, nil
+		return &fleet.Script{ID: id, Name: map[uint]string{1: "fix.py", 2: "fix.ps1", 3: "fix.sh", 4: "tools/fix.sh"}[id]}, nil
 	}
 	ds.UpdateScriptContentsFunc = func(ctx context.Context, scriptID uint, contents string) (*fleet.Script, error) {
 		return &fleet.Script{ID: scriptID, ScriptContents: contents}, nil
@@ -1482,6 +1482,7 @@ func TestUpdateScriptValidatesFileType(t *testing.T) {
 		{"sh with python shebang", 3, "#!/usr/bin/env python3\nprint(1)", shErr},
 		{"py with python shebang", 1, "#!/usr/bin/env python3\nprint(\"ok\")", ""},
 		{"ps1 without shebang", 2, "Write-Host hi", ""},
+		{"saved name with a folder", 4, "echo hi", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds.UpdateScriptContentsFuncInvoked = false
@@ -1500,6 +1501,27 @@ func TestUpdateScriptValidatesFileType(t *testing.T) {
 	}
 }
 
+func TestScriptNamesWithFolders(t *testing.T) {
+	ds := new(mock.Store)
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+
+	const nameErr = `The file name must not contain "/" or "\".`
+	_, err := svc.NewScript(ctx, nil, `tools\fix.sh`, strings.NewReader("echo hi"))
+	require.ErrorContains(t, err, nameErr)
+	_, err = svc.BatchSetScripts(ctx, nil, nil, []fleet.ScriptPayload{{Name: "tools/fix.sh", ScriptContents: []byte("echo hi")}}, false)
+	require.ErrorContains(t, err, nameErr)
+	require.False(t, ds.NewScriptFuncInvoked)
+	require.False(t, ds.BatchSetScriptsFuncInvoked)
+}
 func TestBatchScriptCancelReplicaLag(t *testing.T) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)

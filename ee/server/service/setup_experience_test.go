@@ -362,6 +362,23 @@ func TestSetupExperienceScriptFleetVariables(t *testing.T) {
 	require.True(t, ds.SetSetupExperienceScriptFuncInvoked)
 }
 
+func TestSetupExperienceScriptNameWithFolder(t *testing.T) {
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+	svc, _ := newTestServiceWithMock(t, ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+
+	err := svc.SetSetupExperienceScript(ctx, nil, `tools\potato.sh`, bytes.NewReader([]byte("echo hi")))
+	require.ErrorContains(t, err, `The file name must not contain "/" or "\".`)
+	require.False(t, ds.SetSetupExperienceScriptFuncInvoked)
+}
+
 func TestSetupExperienceScriptDeprecationWarning(t *testing.T) {
 	ctx := test.UserContext(t.Context(), test.UserAdmin)
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})

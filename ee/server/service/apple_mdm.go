@@ -158,6 +158,10 @@ func (svc *Service) CreateAppleDDMAsset(ctx context.Context, teamID *uint, name 
 		return "", authzErr
 	}
 
+	if err := validateAppleDDMAssetName(name); err != nil {
+		return "", err
+	}
+
 	identifier, _, err := svc.validateAppleDDMAsset(ctx, data)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating Apple DDM asset")
@@ -202,6 +206,13 @@ func (svc *Service) assetActivityTeam(ctx context.Context, teamID *uint) (*uint,
 		return nil, nil, ctxerr.Wrap(ctx, err, "loading team for asset activity")
 	}
 	return teamID, &tm.Name, nil
+}
+
+func validateAppleDDMAssetName(name string) error {
+	if strings.ContainsAny(name, `/\`) {
+		return &fleet.BadRequestError{Message: `Asset name must not contain "/" or "\".`}
+	}
+	return nil
 }
 
 func (svc *Service) validateAppleDDMAsset(ctx context.Context, data []byte) (identifier, assetType string, err error) {
@@ -310,6 +321,12 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 
 	if err := svc.authz.Authorize(ctx, &fleet.DDMAssetAuthz{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	for _, a := range assets {
+		if err := validateAppleDDMAssetName(a.Name); err != nil {
+			return ctxerr.Wrapf(ctx, err, "validating asset %q", a.Name)
+		}
 	}
 
 	// Secrets may not be available during a dry run (e.g. GitOps), so skip

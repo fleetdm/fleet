@@ -37,7 +37,17 @@ func (s Script) AuthzType() string {
 	return "script"
 }
 
+// ValidateNewScript validates a script that is being added, including its file name.
 func (s *Script) ValidateNewScript() error {
+	if strings.ContainsAny(s.Name, `/\`) {
+		return errors.New(`The file name must not contain "/" or "\".`)
+	}
+	return s.ValidateScript()
+}
+
+// ValidateScript validates a script's contents for the file type its name gives. Editing a saved script calls it directly,
+// since the name can't change.
+func (s *Script) ValidateScript() error {
 	if s.Name == "" {
 		return errors.New("The file name must not be empty.")
 	}

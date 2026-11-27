@@ -441,6 +441,15 @@ func TestCreateAppleDDMAsset(t *testing.T) {
 		ds.CreateAppleDDMAssetFuncInvoked = false
 	})
 
+	t.Run("Name with a path separator is rejected", func(t *testing.T) {
+		defer reset()
+		for _, name := range []string{"a/asset", `a\asset`} {
+			_, err := svc.CreateAppleDDMAsset(ctx, nil, name, validData)
+			require.ErrorContains(t, err, "Asset name must not contain", name)
+		}
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
 	t.Run("Malformed JSON is rejected", func(t *testing.T) {
 		defer reset()
 		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", []byte(`{not json`))
@@ -587,6 +596,20 @@ func TestBatchSetAppleDDMAssets(t *testing.T) {
 			{Name: "same", Contents: assetData("id.b")},
 		}, false)
 		require.Error(t, err)
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Name with a path separator is rejected", func(t *testing.T) {
+		defer reset()
+		for _, name := range []string{"a/b", `a\b`} {
+			err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{{Name: name, Contents: assetData("id.a")}}, false)
+			require.ErrorContains(t, err, "Asset name must not contain", name)
+		}
+		// A dry run skips validating assets that reference secrets, but not their names.
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{
+			{Name: "a/b", Contents: assetData("$FLEET_SECRET_ASSET")},
+		}, true)
+		require.ErrorContains(t, err, "Asset name must not contain")
 		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
 	})
 
