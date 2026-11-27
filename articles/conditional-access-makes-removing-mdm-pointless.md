@@ -4,9 +4,9 @@
 
 ## Key takeaways
 
-- **Removing MDM locks the user out.** When your sign-in system checks that a Mac is enrolled, a Mac without MDM can't open email, chat, or other work apps.
+- **Removing MDM locks the user out.** When your sign-in system checks that a Mac is enrolled, a Mac without MDM loses email, chat, and other work apps the next time someone signs in.
 - **The bigger risk is a copied certificate.** An employee can copy the certificate from their work Mac to their personal Mac without removing MDM. With some setups, the personal Mac then gets in.
-- **Keeping the key in hardware fixes it.** Entra can store a Mac's identity in the Secure Enclave, a chip that won't let the key out. Okta setups, including Fleet's, can't do this yet.
+- **Keeping the key in hardware fixes it.** Entra can store a Mac's identity in the Secure Enclave, a locked-off part of the Mac's processor that won't let the key out. Okta setups, including Fleet's, can't fully close this gap yet.
 
 <a purpose="cta-button" href="https://fleetdm.com/guides/conditional-access">Explore conditional access</a>
 
@@ -56,11 +56,11 @@ At past jobs, I had a work laptop and a personal one, and sometimes I just wante
 
 Whether that works depends on how your setup recognizes a device.
 
-**Fleet with Okta.** Fleet looks up which computer the certificate belongs to and checks that computer. A copied certificate points to the work Mac, which is enrolled and up to date, so the personal Mac gets in. Fleet tells macOS not to let anyone export the key, but that's only a software rule. The key is stored in the login keychain, which is protected by the employee's own password. Free tools like [chainbreaker](https://github.com/n0fate/chainbreaker) can read that file and pull out every key in it. Starting with macOS Tahoe 26.4, this [got harder](https://eclecticlight.co/2026/10/02/how-to-copy-login-keychains-that-can-be-unlocked/): the employee would first have to turn off System Integrity Protection (SIP), a macOS safety feature. On Windows, the key is stored in the TPM, a security chip, so it's much harder to copy. We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032). We'd rather you hear it from us.
+**Fleet with Okta.** Fleet looks up which computer the certificate belongs to and checks that computer. A copied certificate points to the work Mac, which is enrolled and up to date, so the personal Mac gets in. Fleet tells macOS not to let anyone export the key, but that's only a software rule. The key is stored in the login keychain, which is protected by the employee's own password. Free tools like [chainbreaker](https://github.com/n0fate/chainbreaker) can read that file and pull out every key in it. Starting with macOS Tahoe 26.4, this [got harder](https://eclecticlight.co/2026/10/02/how-to-copy-login-keychains-that-can-be-unlocked/): the employee would first have to turn off System Integrity Protection (SIP), which protects macOS system files. On Windows, the key is stored in the TPM, the PC's security hardware, so it's much harder to copy. We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032). We'd rather you hear it from us.
 
-**Jamf, or any MDM, with Okta's managed-device check.** Jamf puts a certificate from Okta in the login keychain, and Okta [recommends blocking exports](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm). A copied certificate makes the personal Mac look managed. Okta's own checks, like the macOS version, still run on the personal Mac, so it has to pass those.
+**Jamf, or any MDM, with Okta management attestation.** This is Okta's check for whether a device is managed. Jamf puts a certificate from Okta in the login keychain, and Okta [recommends blocking exports](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm). A copied certificate makes the personal Mac look managed. Okta's own checks, like the macOS version, still run on the personal Mac, so it has to pass those.
 
-**Jamf, Intune, or Fleet with Entra.** Entra recognizes a Mac by a key it creates when the Mac registers. Since August 2025, Entra [stores that key in the Secure Enclave](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#device-identity-key-storage), a chip inside the Mac that never lets it out. Macs that registered earlier need to register again. After that, there's nothing to copy.
+**Jamf, Intune, or Fleet with Entra.** Entra recognizes a Mac by a key it creates when the Mac registers. Since August 2025, Entra [stores that key in the Secure Enclave](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#device-identity-key-storage), which never lets it out. Macs that registered earlier need to register again. After that, there's nothing to copy.
 
 Is this a big deal? For most companies, no. The employee still needs a real work computer that's enrolled and passing your checks. If you use Fleet, deleting that computer from Fleet stops its certificate from working. Most people who try this want convenience, not your data. But it means conditional access isn't always checking the computer you think it is.
 
@@ -82,7 +82,7 @@ Someone could turn SIP back on after copying the key, so this makes copying hard
 
 - **Macs and PCs with Entra.** Add Fleet as a compliance partner and set up Platform SSO. [Guide](https://fleetdm.com/guides/entra-conditional-access-integration)
 - **Macs and PCs with Okta.** Add Fleet to Okta, install the certificates, and choose which Fleet policies block sign-in. [Guide](https://fleetdm.com/guides/okta-conditional-access-integration)
-- **Personal iPhones and Android phones.** Use Okta's managed-device check, set up through Fleet. If a phone leaves Fleet, Okta Verify is removed with it. [Guide](https://fleetdm.com/guides/configure-okta-management-attestation-for-mobile-devices)
+- **Personal iPhones and Android phones.** Use Okta management attestation, set up through Fleet. If a phone leaves Fleet, Okta Verify is removed with it. [Guide](https://fleetdm.com/guides/configure-okta-management-attestation-for-mobile-devices)
 - **Linux.** Use [Duo](https://fleetdm.com/guides/duo-conditional-access-integration) or [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration) today. Linux browsers store certificates in regular files, so also use Fleet policies to check the computer.
 
 ## What to worry about instead
