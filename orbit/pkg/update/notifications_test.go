@@ -555,6 +555,77 @@ func TestRunScripts(t *testing.T) {
 		require.Contains(t, logBuf.String(), "received notification to run scripts [c]")
 		require.Contains(t, logBuf.String(), "running scripts [c] succeeded")
 	})
+
+	t.Run("pending scripts wait for the first dynamic check", func(t *testing.T) {
+		t.Cleanup(logBuf.Reset)
+
+		testConfig := &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{
+			PendingScriptExecutionIDs: []string{"a"},
+		}}
+
+		releaseCheck := make(chan struct{})
+		enabledCh := make(chan bool, 1)
+		runner := &runScriptsConfigReceiver{
+			runScriptsFn: func(r *scripts.Runner, s []string) error {
+				enabledCh <- r.ScriptExecutionEnabled
+				return nil
+			},
+			testGetFleetdConfig: func() (*fleet.MDMAppleFleetdConfig, error) {
+				<-releaseCheck
+				return &fleet.MDMAppleFleetdConfig{EnableScripts: true}, nil
+			},
+			dynamicScriptsEnabledCheckInterval: time.Hour,
+			firstDynamicCheckTimeout:           time.Minute,
+		}
+		runner.runDynamicScriptsEnabledCheck()
+
+		// the config with pending scripts arrives before the profile was read
+		require.NoError(t, runner.Run(testConfig))
+		select {
+		case <-enabledCh:
+			t.Fatal("scripts ran before the first dynamic check completed")
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		close(releaseCheck)
+		select {
+		case enabled := <-enabledCh:
+			require.True(t, enabled)
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for scripts to run")
+		}
+		waitForRun(t, runner)
+	})
+
+	t.Run("first dynamic check timeout", func(t *testing.T) {
+		t.Cleanup(logBuf.Reset)
+
+		releaseCheck := make(chan struct{})
+		t.Cleanup(func() { close(releaseCheck) })
+		runner := &runScriptsConfigReceiver{
+			testGetFleetdConfig: func() (*fleet.MDMAppleFleetdConfig, error) {
+				<-releaseCheck
+				return &fleet.MDMAppleFleetdConfig{EnableScripts: true}, nil
+			},
+			dynamicScriptsEnabledCheckInterval: time.Hour,
+			firstDynamicCheckTimeout:           100 * time.Millisecond,
+		}
+		runner.runDynamicScriptsEnabledCheck()
+
+		start := time.Now()
+		require.False(t, runner.scriptsEnabled())
+		require.GreaterOrEqual(t, time.Since(start), 100*time.Millisecond)
+		require.Contains(t, logBuf.String(), "timed out waiting for the first check")
+	})
+
+	t.Run("static flag does not wait", func(t *testing.T) {
+		runner := &runScriptsConfigReceiver{
+			ScriptsExecutionEnabled:  true,
+			firstDynamicCheckDone:    make(chan struct{}),
+			firstDynamicCheckTimeout: time.Hour,
+		}
+		require.True(t, runner.scriptsEnabled())
+	})
 }
 
 type mockDiskEncryptionKeySetter struct {

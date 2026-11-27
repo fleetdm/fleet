@@ -1,0 +1,1 @@
+- Fixed a race on macOS hosts deployed without `--enable-scripts` (for example, via `fleetd-base.pkg` during automatic enrollment) where scripts and software installs queued before startup could fail with "Scripts are disabled" right after fleetd started.
