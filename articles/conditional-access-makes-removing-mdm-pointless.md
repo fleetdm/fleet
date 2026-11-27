@@ -87,7 +87,7 @@ An employee could turn SIP back on afterward, so this raises the bar without clo
 
 The question isn't whether employees can remove MDM. It's whether a computer you've never seen can borrow the identity of one you have. On a Mac, the answer comes down to where the key lives.
 
-And the person copying a certificate isn't your enemy. They're telling you the secure path takes longer than the shortcut. So shorten it. With [User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account), IT manages a work-only slice of a personal Mac, in its own encrypted volume, and leaves the rest alone. Give people a front door, and fewer of them will look for a window.
+And the person copying a certificate isn't your enemy. They're telling you the secure path takes longer than the shortcut. So shorten it, and let people enroll the personal devices they actually reach for. On iPhones and iPads, [User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) lets IT manage work apps and data while personal data stays private. Give people a front door, and fewer of them will look for a window.
 
 <a href="https://fleetdm.com/contact">Get a demo</a> to see conditional access with your IdP.
 
