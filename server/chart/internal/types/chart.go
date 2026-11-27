@@ -125,6 +125,20 @@ type Datastore interface {
 		entityIDs []string,
 	) ([]api.DataPoint, error)
 
+	// ReplaySCDChanges returns what GetSCDData returns with the snapshot
+	// strategy, computed from the change storage instead of host_scd_data:
+	// it starts from the current sets and undoes changes newest first.
+	// Buckets that end before the change storage started hold the state it
+	// started from.
+	ReplaySCDChanges(
+		ctx context.Context,
+		dataset string,
+		startDate, endDate time.Time,
+		bucketSize time.Duration,
+		filterMask *roaring.Bitmap,
+		entityIDs []string,
+	) ([]api.DataPoint, error)
+
 	// GetHostIDsForFilter returns the host IDs that match the given host filter.
 	GetHostIDsForFilter(ctx context.Context, hostFilter *HostFilter) ([]uint, error)
 

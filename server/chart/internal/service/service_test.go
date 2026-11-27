@@ -164,6 +164,10 @@ func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDat
 	return nil, nil
 }
 
+func (m *mockDatastore) ReplaySCDChanges(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
+	return nil, nil
+}
+
 func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
 	if m.getHostIDsForFilterFunc != nil {
 		return m.getHostIDsForFilterFunc(ctx, hostFilter)

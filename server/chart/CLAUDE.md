@@ -12,7 +12,8 @@ Quick reminders (full detail in the README):
 - External code only touches `bootstrap.New` and the `api` package.
 - Charts read from one table, `host_scd_data` (slowly-changing-dimension type-2),
   with host-sets stored as roaring bitmaps. The `cve` dataset is also written to
-  the change storage (`internal/mysql/changes.go`), which nothing reads yet. Work in op form (`*roaring.Bitmap`); only
+  the change storage (`internal/mysql/changes.go`); its replay read
+  (`internal/mysql/replay.go`) is not wired into any request yet. Work in op form (`*roaring.Bitmap`); only
   cross the storage boundary via `BitmapToBlob` / `DecodeBitmap`.
 - Mind the **nil vs empty-slice** semantics on `HostFilter.TeamIDs` and
   `GetSCDData` `entityIDs` — they are load-bearing; don't normalize them away.
