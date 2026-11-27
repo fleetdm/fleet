@@ -23,6 +23,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"firefox@esr/windows":              {FirefoxESRVersionShortener},
 	"geany/windows":                    {GeanyVersionShortener},
 	"hoppscotch/windows":               {HoppscotchVersionShortener},
+	"keepass/windows":                  {KeePassVersionShortener},
 	"megasync/windows":                 {MEGAsyncVersionShortener},
 	"sublime-text/windows":             {SublimeTextFileVersion},
 	"telegram/windows":                 {TelegramVersionShortener},

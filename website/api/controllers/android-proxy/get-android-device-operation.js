@@ -27,6 +27,7 @@ module.exports = {
     success: { description: 'The operation for a device of an Android enterprise was successfully retrieved.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     // Unlike the other android-proxy actions, this one reserves 404 for a single meaning: the Android
     // management API has no record of this operation. The Fleet server treats that as evidence the
     // command can never complete and eventually marks it failed, so nothing about *this website's*
@@ -67,6 +68,13 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['devices', deviceId, 'operations', operationId],
+    }).intercept('invalidResourceId', ()=>{
+      return {'invalidResourceId': 'A provided resource ID is not valid.'};
+    });
+
 
     // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
@@ -84,7 +92,7 @@ module.exports = {
       if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'get_device_operation'}; }
       sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let getOperationResult = await androidManagementConnection.enterprises.devices.operations.get({
-        name: `enterprises/${androidEnterpriseId}/devices/${deviceId}/operations/${operationId}`,
+        name: resourceName,
       });
       return getOperationResult.data;
     }).intercept({status: 429}, ()=>{

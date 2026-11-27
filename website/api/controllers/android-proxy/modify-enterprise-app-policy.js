@@ -35,6 +35,7 @@ module.exports = {
     success: { description: 'The policy applications of an Android enterprise was successfully updated.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     policyNotFound: { description: 'Specified policy not found', responseType: 'notFound' },
@@ -70,6 +71,13 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['policies', policyId],
+    }).intercept('invalidResourceId', ()=>{
+      return {'invalidResourceId': 'A provided resource ID is not valid.'};
+    });
+
 
     // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
@@ -91,7 +99,7 @@ module.exports = {
       switch (googleAction) {
         case 'removePolicyApplications': {
           let response = await androidManagementConnection.enterprises.policies.removePolicyApplications({
-            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            name: resourceName,
             requestBody: { packageNames },
           });
           return response.data;
@@ -99,7 +107,7 @@ module.exports = {
 
         default: {
           let response = await androidManagementConnection.enterprises.policies.modifyPolicyApplications({
-            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            name: resourceName,
             requestBody: { changes },
           });
           return response.data;
