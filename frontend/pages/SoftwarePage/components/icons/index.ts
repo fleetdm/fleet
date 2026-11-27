@@ -938,7 +938,6 @@ import Shortcat from "./png/Shortcat.png";
 import Shotcut from "./png/Shotcut.png";
 import Shottr from "./png/Shottr.png";
 import Sidenotes from "./png/Sidenotes.png";
-import Sigmaos from "./png/Sigmaos.png";
 import Signal from "./png/Signal.png";
 import SimpleComic from "./png/SimpleComic.png";
 import Sketch from "./png/Sketch.png";
@@ -2155,7 +2154,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   shotcut: Shotcut,
   shottr: Shottr,
   sidenotes: Sidenotes,
-  sigmaos: Sigmaos,
   signal: Signal,
   "simple comic": SimpleComic,
   sketch: Sketch,

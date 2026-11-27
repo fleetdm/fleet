@@ -344,7 +344,6 @@ func TestBundleVersionAppsShortenToShortVersion(t *testing.T) {
 		version  string
 		expected string
 	}{
-		{slug: "sigmaos/darwin", version: "1.19.0.4", expected: "1.19.0"},
 		{slug: "malwarebytes/darwin", version: "5.29.2.4310", expected: "5.29.2"},
 		{slug: "malwarebytes/darwin", version: "5.28.4.4244", expected: "5.28.4"},
 		{slug: "plex-media-server/darwin", version: "1.43.5.11079", expected: "1.43.5"},
