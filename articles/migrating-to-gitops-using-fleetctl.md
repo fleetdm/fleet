@@ -35,6 +35,8 @@ It is generally not recommended to store sensitive information such as Fleet enr
 
 To have `generate-gitops` output sensitive info in plaintext in your files, you may use the `--insecure` option. Caveat emptor!
 
+If enroll secrets, labels, or software are excepted from GitOps management (**Settings** > **Integrations** > **Change management**), the generated files leave out those keys, even with `--insecure`, because `fleetctl gitops` rejects them. The command lists each key it left out at the end.
+
 ## Other options
 
 The `generate-gitops` tool includes a few other options to make migrating to GitOps easier:
