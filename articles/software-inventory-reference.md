@@ -26,11 +26,20 @@
 | OS | Name | Version | Architecture | Kernel version | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- |
 | macOS | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| Windows 10, 11, and Server | ✅ | ✅ | ✅ | ✅ | ✅ Matched against Microsoft security bulletins. | Also reports display version, such as 23H2, and installation type. |
+| Windows 10, 11, and Server | ✅ | ✅ | ✅ | ✅ | ✅ Matched against Microsoft security bulletins. | Also reports display version, such as 23H2, and installation type. Windows IoT Enterprise is untested. |
 | Linux | ✅ | ✅ | ✅ | ✅ | ✅ Kernel vulnerabilities, on supported distributions. | Collected on recognized distributions only. See the table below. |
 | ChromeOS | ✅ | ✅ | ✅ | ✅ | ❌ | The kernel version repeats the OS version. |
-| Android | ✅ | ✅ | ❌ | ❌ | ✅ Matched against the Android security patch level. | — |
+| Android | ✅ | ✅ | ❌ | ✅ | ✅ Matched against the Android security patch level. | — |
 | iOS and iPadOS | ✅ | ✅ | ❌ | ❌ | ❌ | — |
+| tvOS | ❌ | ❌ | ❌ | ❌ | ❌ | Enrolling Apple TV hosts is [coming soon](https://github.com/fleetdm/fleet/issues/38791). |
+| Fire OS, and Android (AOSP) desk phones and room devices | ❌ | ❌ | ❌ | ❌ | ❌ | These devices don't include Google services. Fleet enrolls Android hosts through Google's Android Management API. AOSP support is requested in [#32525](https://github.com/fleetdm/fleet/issues/32525). |
+| Samsung Tizen and LG webOS | ❌ | ❌ | ❌ | ❌ | ❌ | Smart TV and signage OSs that don't let you install Fleet's agent. |
+| Windows Embedded and Windows CE | ❌ | ❌ | ❌ | ❌ | ❌ | Windows Embedded 7 and 8.1 are older than Fleet's agent supports. Windows CE isn't based on desktop Windows. |
+| Windows IoT Core | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet's agent doesn't support Windows IoT Core. |
+| AIX, Solaris, and HP-UX | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet's agent has no build for these. |
+| VMware ESXi | ❌ | ❌ | ❌ | ❌ | ❌ | ESXi isn't Linux, and it doesn't let you install Fleet's agent. |
+| Network and security appliances | ❌ | ❌ | ❌ | ❌ | ❌ | Includes Cisco IOS XE, Cisco Meraki (MR, MS, and MX), Junos, ArubaOS, Huawei VRP, PAN-OS, FortiOS, and SonicOS. These OSs are locked by the vendor. Use the vendor's API or SNMP. |
+| Conferencing devices, printers, and real-time OSs | ❌ | ❌ | ❌ | ❌ | ❌ | Includes Cisco RoomOS, HP FutureSmart, Xerox ConnectKey, and real-time OSs. Their firmware is locked by the vendor. |
 
 ### Linux distributions
 
@@ -44,7 +53,7 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 | <img src="../website/assets/images/os-icon-nixos-40x40@2x.png" alt="NixOS logo" width="40" /> | | | | |
 | NixOS<br>Unstable | | | | |
 
-✅\* means Fleet collects software on the distribution, with a caveat in the notes below the table. Kernel vulnerability coverage varies by distribution. See [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage).
+✅\* means Fleet collects software on the distribution, with a caveat in the notes below the table. Kernel vulnerability coverage varies by distribution. See [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage). Untested means Fleet hasn't installed its agent on the distribution or confirmed that it collects software.
 
 | Distribution | Collected |
 | --- | --- |
@@ -81,6 +90,10 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 | AMD Ryzen AI Developer Platform | ✅ |
 | NVIDIA DGX OS (DGX Spark, DGX Station, and DGX servers) | ✅\* |
 | Raspberry Pi OS 64-bit | ✅\* |
+| Parrot OS | Untested |
+| UniFi OS | Untested |
+| Arista EOS | Untested |
+| Check Point Gaia | Untested |
 | Raspberry Pi OS 32-bit | ❌ |
 | Alpine | ❌ |
 | elementary OS | ❌ |
@@ -89,13 +102,14 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 | Clear Linux | ❌ |
 | Photon OS | ❌ |
 | Solus | ❌ |
-| Parrot OS | ❌ |
 | Vanilla OS | ❌ |
 | openSUSE MicroOS and Aeon | ❌ |
 | SteamOS | ❌ |
 | Bazzite, Bluefin, and Aurora | ❌ |
 | Fedora Atomic desktops (Silverblue, Kinoite, and others) | ❌ |
 | Ubuntu Core | ❌ |
+| AXIS OS | ❌ |
+| BrightSign OS | ❌ |
 | IGEL OS | ❌ |
 | Sailfish OS (Jolla Phone) | ❌ |
 | Any other distribution | ❌ |
@@ -104,9 +118,12 @@ Fleet treats Linux as a first-class platform, not an afterthought. It's open sou
 - NVIDIA DGX OS reports as Ubuntu (DGX OS 7 as Ubuntu 24.04, DGX OS 6 as Ubuntu 22.04) because its `/etc/os-release` is Ubuntu's. Fleet doesn't read `/etc/dgx-release`, so the host appears as Ubuntu on the **Software** > **OS** page and the DGX OS version isn't reported. DGX Spark is arm64; use the `arm64` fleetd package.
 - NixOS hosts enroll with the NixOS module instead of a package from `fleetctl package`, and Fleet collects their software as [Nix packages](#packages). Learn how in [Enroll NixOS hosts](https://fleetdm.com/guides/enroll-hosts#enroll-nixos-hosts).
 - Raspberry Pi OS 64-bit reports as Debian and is covered. Raspberry Pi OS 32-bit reports as `raspbian`, which Fleet doesn't recognize.
-- Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Parrot OS, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
+- Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
 - Fedora Atomic desktops, Bazzite, Bluefin, and Aurora use rpm-ostree, which keeps the OS read-only. Fleet's standard agent package can't be installed on them, but you can repackage it. Learn how in [Enroll rpm-ostree hosts](https://fleetdm.com/guides/enroll-hosts#enroll-rpm-ostree-hosts). On these hosts, Fleet collects RPM packages only after you add the `nobody` user to `/etc/passwd`, which is a step in that guide. Learn more in [#58969](https://github.com/fleetdm/fleet/issues/58969). Native rpm-ostree support is tracked in [#48694](https://github.com/fleetdm/fleet/issues/48694).
 - SteamOS also has a read-only OS, and Fleet's agent package can't be installed on it.
+- Fleet hasn't tested UniFi OS, Arista EOS, Check Point Gaia, or Parrot OS. Fleet collects software only if the platform value in `/etc/os-release` is on Fleet's [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). `parrot` is on the list. Arista EOS installs third-party software as EOS extensions.
+- Check Point Gaia is based on Red Hat Enterprise Linux. Check with Check Point before you install third-party software on a Gaia appliance.
+- AXIS OS 12 and later doesn't give root access, and BrightSign OS runs only BrightSign-approved code, so Fleet's agent can't be installed on them.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
 - [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
 - [Sailfish OS](https://sailfishos.org/), used on the [Jolla Phone](https://commerce.jolla.com/products/jolla-phone-october-2026), reports its platform as `sailfishos`, which Fleet doesn't recognize. Fleet has no MDM support for Sailfish OS, and Android apps that run through Jolla AppSupport aren't collected.
@@ -201,9 +218,72 @@ If Fleet already collects an AI tool as another type, such as a macOS app or an 
 | macOS widgets (`source`: `apps`) | macOS, as part of their app | ✅ | ✅ | ✅ | ✅ | ✅ | Collected under Apps. Widgets are WidgetKit extensions that ship inside apps that already appear there. |
 | Shortcuts and Android ringtones | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | No MDM API exposes them. |
 
+## Drivers
+
+Fleet doesn't list drivers in software inventory, but you can report on them. ✅ in **Shown in Fleet** means Fleet stores the value and shows it in the UI or API. **Available in reports** lists the tables to use in a report.
+
+| Type | Shown in Fleet | Available in reports | Vulnerabilities | Caveats |
+| --- | --- | --- | --- | --- |
+| Windows drivers | ❌ | ✅ Windows: [drivers](https://fleetdm.com/tables/drivers), [amcache_driver_packages](https://fleetdm.com/tables/amcache_driver_packages), and [amcache_driver_binaries](https://fleetdm.com/tables/amcache_driver_binaries) | ❌ | `drivers` lists drivers in use, with name, version, provider, manufacturer, date, image path, and signing status. `amcache_driver_binaries` adds SHA-1 hashes. The Amcache tables need Fleet's agent 1.64.0 or later. |
+| macOS kernel and system extensions | ❌ | ✅ macOS: [kernel_extensions](https://fleetdm.com/tables/kernel_extensions) and [system_extensions](https://fleetdm.com/tables/system_extensions) | ❌ | System extensions report the Apple Developer Team ID. |
+| Linux kernel modules | ❌ | ✅ Linux: [kernel_modules](https://fleetdm.com/tables/kernel_modules) | ❌ | No version column. Kernel vulnerabilities are matched under [Operating systems](#operating-systems), on supported distributions. |
+
+- Fleet doesn't match drivers against vulnerabilities. Attackers can load a legitimate, signed driver that has a known vulnerability to run code in the Windows kernel. To find these drivers, write a policy that compares `amcache_driver_binaries` hashes against a blocklist, such as Microsoft's [recommended driver block rules](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/app-control-for-business/design/microsoft-recommended-driver-block-rules).
+- Fleet doesn't show which driver updates are available or pending. Windows driver updates are requested in [#29903](https://github.com/fleetdm/fleet/issues/29903) and [#54997](https://github.com/fleetdm/fleet/issues/54997).
+
+## BIOS and firmware
+
+Fleet doesn't list firmware in software inventory, but you can report on most of it. ✅ in **Shown in Fleet** means Fleet stores the value and shows it in the UI or API. **Available in reports** lists the tables to use in a report.
+
+| Type | Shown in Fleet | Available in reports | Vulnerabilities | Caveats |
+| --- | --- | --- | --- | --- |
+| System firmware (BIOS or UEFI) | ❌ | ✅ macOS, Windows, Linux: [platform_info](https://fleetdm.com/tables/platform_info) | ❌ | Reports vendor, version, release date, and firmware type (UEFI, BIOS, or iBoot). Fleet doesn't check firmware for known vulnerabilities, such as LogoFAIL and PKfail ([CVE-2024-8105](https://nvd.nist.gov/vuln/detail/CVE-2024-8105)). |
+| SMBIOS structures | ❌ | ✅ macOS, Linux: [smbios_tables](https://fleetdm.com/tables/smbios_tables) | N/A | Needs an Intel-compatible host. Not available on Windows. |
+| CPU microcode | ❌ | ✅ macOS, Windows, Linux: `cpu_microcode` in [system_info](https://fleetdm.com/tables/system_info) | ❌ | On Linux, microcode packages appear under [Packages](#packages) and are matched like other packages on supported distributions. Fleet doesn't match the running microcode version against CPU vulnerabilities, such as Downfall ([CVE-2022-40982](https://nvd.nist.gov/vuln/detail/CVE-2022-40982)). |
+| BIOS settings | ❌ | ✅ Windows: [wmi_bios_info](https://fleetdm.com/tables/wmi_bios_info) | N/A | Reads setting names and values on Dell, HP, and Lenovo PCs. On some Dell PCs, it needs Dell Command \| Monitor. Config-defined WMI tables, which could read PC makers' own BIOS data such as Dell Trusted Device results, are requested in [#59971](https://github.com/fleetdm/fleet/issues/59971). |
+| Firmware and BIOS passwords | ✅ macOS (Apple silicon): Recovery Lock password. Requires Fleet Premium and MDM. | ✅ macOS (Intel): [firmwarepasswd](https://fleetdm.com/tables/firmwarepasswd) | N/A | Fleet sets, escrows, and rotates Recovery Lock passwords. Learn more in [Recovery Lock passwords](https://fleetdm.com/guides/recovery-lock-password). Setting a BIOS password on Windows is [coming soon](https://github.com/fleetdm/fleet/issues/57800). Escrowing a unique BIOS password per Windows host is requested in [#59972](https://github.com/fleetdm/fleet/issues/59972). Fleet doesn't report whether a BIOS password is set on Windows or Linux hosts. |
+| Secure Boot state | ❌ | ✅ macOS, Windows, Linux: [secureboot](https://fleetdm.com/tables/secureboot) | N/A | Columns vary by platform. |
+| Secure Boot certificates (db and dbx) | ❌ | ✅ Linux: [secureboot_certificates](https://fleetdm.com/tables/secureboot_certificates) | ❌ | Shows each certificate's issuer, expiry date, and whether it's revoked. Doesn't show hash entries in dbx, and most revocations are hashes. Not collected on Windows. See the notes below the table. |
+| TPM | ❌ | ✅ Windows: [tpm_info](https://fleetdm.com/tables/tpm_info) | ❌ | Reports manufacturer, spec and firmware version, and whether the TPM is activated, enabled, and owned. Not collected on Linux. Macs don't have a TPM. |
+| Intel Management Engine (ME) | ❌ | ✅ Windows, Linux: [intel_me_info](https://fleetdm.com/tables/intel_me_info) | ❌ | Version only. |
+| AMD Secure Processor (PSP) | ❌ | ❌ | ❌ | — |
+| Mac security chip and component firmware | ❌ | ✅ macOS: [ibridge_info](https://fleetdm.com/tables/ibridge_info) and [device_firmware](https://fleetdm.com/tables/device_firmware) | ❌ | `ibridge_info` reports T1 and T2 chip firmware. `device_firmware` is best effort, and can include SSD controller firmware. |
+| Mac firmware integrity | ❌ | ✅ Intel Macs without a T2 chip: [firmware_eficheck_integrity_check](https://fleetdm.com/tables/firmware_eficheck_integrity_check) | N/A | Runs Apple's `eficheck`. Needs Fleet's agent. |
+| iPhone and iPad modem firmware | ✅ iOS, iPadOS | N/A | ❌ | On the **Host details** page, under **Vitals** > **View all**. Not collected on personally-owned (BYOD) hosts. |
+| Android bootloader | ✅ Android | N/A | ❌ | Fleet also shows the security update version and Google's security posture. The security update version is matched under [Operating systems](#operating-systems). Bootloader lock state isn't collected. |
+| USB and peripheral devices | ❌ | ✅ macOS, Linux: [usb_devices](https://fleetdm.com/tables/usb_devices). Windows: [amcache_device_pnp](https://fleetdm.com/tables/amcache_device_pnp) | N/A | Reports device vendor, model, and version, not firmware. `amcache_device_pnp` also lists devices that were connected before, and needs Fleet's agent 1.64.0 or later. USB inventory on Windows is requested in [#26953](https://github.com/fleetdm/fleet/issues/26953). |
+| PCI devices | ❌ | ✅ macOS, Linux: [pci_devices](https://fleetdm.com/tables/pci_devices) | N/A | Reports each device's vendor, model, and driver. Doesn't report firmware versions. Not available on Windows. |
+| Network adapter, SSD, Thunderbolt, and embedded controller firmware on PCs | ❌ | ❌ | ❌ | Fleet doesn't read firmware versions for these components. |
+| Baseboard management controllers (BMCs), such as iDRAC and iLO | ❌ | ❌ | ❌ | BMCs run separately from the host OS. An AMI MegaRAC BMC vulnerability, [CVE-2024-54085](https://nvd.nist.gov/vuln/detail/CVE-2024-54085), is on CISA's Known Exploited Vulnerabilities list. |
+
+- Fleet doesn't show which BIOS or firmware updates are available or pending on a host.
+  - Windows: Fleet's agent lists pending Windows updates, but not driver or firmware offers. Fleet can install Dell Command Update, Lenovo System Update, and Lenovo Dock Manager as Fleet-maintained apps, but doesn't run their scans or read the results. HP Image Assistant isn't a Fleet-maintained app. Running Dell Command Update and HP Image Assistant is requested in [#51145](https://github.com/fleetdm/fleet/issues/51145). Managing Windows driver and firmware updates and BIOS settings is requested in [#60037](https://github.com/fleetdm/fleet/issues/60037).
+  - macOS: [software_update](https://fleetdm.com/tables/software_update) lists pending macOS updates and needs Fleet's agent 1.63.0 or later. macOS updates include Mac firmware.
+  - Linux: Fleet doesn't read pending firmware updates from fwupd.
+- Update history: [windows_update_history](https://fleetdm.com/tables/windows_update_history) shows whether Windows Update installs succeeded or failed. Updates installed by PC makers' tools or fwupd aren't recorded.
+- Fleet doesn't report whether a Windows host supports DFCI, the firmware interface Intune uses to manage UEFI settings.
+- Secure Boot certificates: Microsoft UEFI CA 2011, which signs Linux boot loaders, expired on June 27, 2026. Hosts with expired certificates still boot, but can't boot future boot loaders signed only with Microsoft UEFI CA 2023. Use `secureboot_certificates` to find Linux hosts that don't have the 2023 certificate yet.
+- On Windows, a table that reports each host's progress through Microsoft's 2023 Secure Boot certificate update is [coming soon](https://github.com/fleetdm/fleet/issues/51382). It doesn't list db or dbx entries. Until then, follow [Microsoft is rotating every Windows PC's Secure Boot keys](https://fleetdm.com/articles/microsoft-is-rotating-every-windows-pcs-secure-boot-keys).
+- Fleet doesn't compare firmware against known-good versions or detect firmware implants. The only exception is `eficheck` on Intel Macs without a T2 chip.
+- Fleet doesn't build a firmware software bill of materials (SBOM).
+
+### Processor and hardware details
+
+Fleet stores more hardware details than the **Host details** page shows. The rest are in the API.
+
+| Detail | Host details page | API | Available in reports | Caveats |
+| --- | --- | --- | --- | --- |
+| Processor type (architecture), such as `x86_64` or `arm64e` | ✅ | ✅ `cpu_type` | ✅ [system_info](https://fleetdm.com/tables/system_info) | Not shown for iOS and iPadOS hosts. |
+| CPU model, such as Apple M3 Pro or Intel Core i7 | ❌ | ✅ `cpu_brand` | ✅ [system_info](https://fleetdm.com/tables/system_info) | — |
+| CPU physical and logical cores | ❌ | ✅ `cpu_physical_cores` and `cpu_logical_cores` | ✅ [system_info](https://fleetdm.com/tables/system_info) | — |
+| Hardware model and serial number | ✅ | ✅ `hardware_model` and `hardware_serial` | ✅ [system_info](https://fleetdm.com/tables/system_info) | — |
+| Hardware vendor and hardware version | ❌ | ✅ `hardware_vendor` and `hardware_version` | ✅ [system_info](https://fleetdm.com/tables/system_info) | — |
+
+- A CSV exported from the **Hosts** page includes only the columns shown in the table. To export every field, call the hosts report endpoint without the `columns` parameter. Learn more in the [REST API](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv) reference.
+
 ## Data collected
 
-The tables above list what Fleet stores for each software type. Two things apply to every type:
+The tables above list what Fleet stores for each software type. Drivers, BIOS, firmware, and hardware details aren't software types, so the rest of this section doesn't apply to them. Two things apply to every software type:
 
 - **Install count:** Fleet counts how many hosts in your Fleet run each title and each version.
 - **Vulnerability details:** Fleet Premium adds the CVE publish date, CVSS score, EPSS probability, and CISA KEV status.
