@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>AllowSigned</key>
+			<true/>
+			<key>BlockAllIncoming</key>
+			<false/>
+			<key>EnableFirewall</key>
+			<true/>
+			<key>EnableStealthMode</key>
+			<true/>
+			<key>EnableLogging</key>
+			<true/>
+			<key>LoggingOption</key>
+			<string>detail</string>
+			<key>PayloadDescription</key>
+			<string>CIS 2.2.1, 2.2.2 and 3.6 - Firewall enabled, stealth mode on, logging on</string>
+			<key>PayloadDisplayName</key>
+			<string>CIS Firewall</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis.firewall.7B3E2C1A-5D4F-4E8B-9A6C-2F1D3E4B5A60</string>
+			<key>PayloadOrganization</key>
+			<string>Fleet</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.firewall</string>
+			<key>PayloadUUID</key>
+			<string>7B3E2C1A-5D4F-4E8B-9A6C-2F1D3E4B5A60</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Applies CIS Level 2 firewall controls: firewall enabled, stealth mode enabled, and detailed logging enabled</string>
+	<key>PayloadDisplayName</key>
+	<string>CIS - Firewall, stealth mode and logging</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis.firewall.profile.C4A1F2E3-8B7D-4C6E-A5F9-1D2E3F4A5B6C</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>C4A1F2E3-8B7D-4C6E-A5F9-1D2E3F4A5B6C</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -1,0 +1,22 @@
+{
+    "Type": "com.apple.configuration.passcode.settings",
+    "Identifier": "com.fleetdm.config.passcode.settings.cis",
+    "Payload": {
+        "RequirePasscode": true,
+        "RequireAlphanumericPasscode": true,
+        "MinimumLength": 15,
+        "MinimumComplexCharacters": 1,
+        "MaximumFailedAttempts": 5,
+        "FailedAttemptsResetInMinutes": 15,
+        "MaximumPasscodeAgeInDays": 365,
+        "PasscodeReuseLimit": 24,
+        "MaximumGracePeriodInMinutes": 1,
+        "MaximumInactivityInMinutes": 15,
+        "CustomRegex": {
+            "Regex": "^(?=.*[A-Z])(?=.*[a-z]).*$",
+            "Description": {
+                "default": "Password must contain at least one uppercase and one lowercase letter."
+            }
+        }
+    }
+}
