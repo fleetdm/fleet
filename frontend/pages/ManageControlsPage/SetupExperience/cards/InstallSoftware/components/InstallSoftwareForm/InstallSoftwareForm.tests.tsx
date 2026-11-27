@@ -306,6 +306,32 @@ describe("InstallSoftware", () => {
     expect(checkbox).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("explains how to turn on Windows MDM when the Windows checkbox is disabled", async () => {
+    const { user } = render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareWindows={false}
+        isWindowsMdmEnabled={false}
+        currentTeamId={1}
+        softwareTitles={[createMockSoftwareTitle()]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    await user.hover(screen.getByText("Cancel setup if software fails"));
+
+    expect(await screen.findByText(/to use this feature/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Windows MDM" })).toHaveAttribute(
+      "href",
+      "/settings/integrations/mdm/windows"
+    );
+    expect(
+      screen.queryByText(/if any software fails, the end user will be prompted/)
+    ).not.toBeInTheDocument();
+  });
+
   it("should disable adding software for macos with manual agent install", async () => {
     render(
       <InstallSoftwareForm
