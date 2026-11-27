@@ -83,11 +83,11 @@ An employee could turn SIP back on afterward, so this raises the bar without clo
 - **Personal iPhones and Android phones.** Use Okta management attestation, delivered to Okta Verify through Fleet. When a phone leaves Fleet, Okta Verify goes with it. [Guide](https://fleetdm.com/guides/configure-okta-management-attestation-for-mobile-devices)
 - **Linux.** Use [Duo](https://fleetdm.com/guides/duo-conditional-access-integration) or [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration) today. Browsers keep Linux certificates in files, so pair them with policy checks.
 
-## Guard the right door
+## What to worry about instead
 
-The question isn't whether employees can remove MDM. It's whether a computer you've never seen can borrow the identity of one you have. On a Mac, the answer comes down to where the key lives.
+With conditional access, you don't need to worry much about employees removing MDM. Worry instead about a personal computer using a certificate copied from a work one. On a Mac, the fix is keeping the device's key in the Secure Enclave, where it can't be copied.
 
-And the person copying a certificate isn't your enemy. They're telling you the secure path takes longer than the shortcut. So shorten it, and let people enroll the personal devices they actually reach for. On iPhones and iPads, [User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) lets IT manage work apps and data while personal data stays private. Give people a front door, and fewer of them will look for a window.
+Someone who copies a certificate usually isn't trying to cause harm. They just want a faster way to get their work done. So give them a supported way to do it. For example, let them enroll their personal iPhone or iPad with [User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account), which lets IT manage work apps and data while personal data stays private.
 
 <a href="https://fleetdm.com/contact">Get a demo</a> to see conditional access with your IdP.
 
