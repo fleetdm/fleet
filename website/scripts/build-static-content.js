@@ -1640,7 +1640,7 @@ module.exports = {
               faqItem.question = faqItem.question.replace(/`/g, '').trim();
               delete faqItem.answer;
             }
-          }
+          }//ﬁ
 
           // Note: The command descriptions are escaped because they include references to XML tags (e.g., <Data>) that can cause issues with Vue.
           command.description = _.escape(command.description);
