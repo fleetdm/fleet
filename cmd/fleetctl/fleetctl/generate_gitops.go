@@ -741,6 +741,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
+	if err := validateOutputPaths(cmd.FilesToWrite); err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: %s\n", err)
+		return ErrGeneric
+	}
+
 	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
 	softwareVersion := regexp.MustCompile(`(?m)^([ \t]+version: )([^"\n].*)$`)
 	// Add comments to the result.
@@ -848,6 +853,46 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 		Token:    token,
 	})
 	return token
+}
+
+// validateOutputPaths checks that each path is one filepath.IsLocal accepts on this OS and has no backslash.
+func validateOutputPaths(files map[string]any) error {
+	for path := range files {
+		if !filepath.IsLocal(path) || strings.Contains(path, `\`) {
+			return fmt.Errorf("%q is not a valid path in the output directory", path)
+		}
+	}
+	return nil
+}
+
+// singleFileNames returns the file name each script or asset name is exported under. Path separators become "-", and a
+// name changed that way is numbered when it matches another, ignoring case as macOS and Windows do; other characters are
+// kept, because fleetctl gitops reads the name back from the file name.
+func singleFileNames(names []string) []string {
+	taken := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		taken[strings.ToLower(name)] = struct{}{}
+	}
+	separators := strings.NewReplacer("/", "-", `\`, "-")
+	fileNames := make([]string, len(names))
+	for i, name := range names {
+		fileNames[i] = name
+		mapped := separators.Replace(name)
+		if mapped == name {
+			continue
+		}
+		ext := filepath.Ext(mapped)
+		base := strings.TrimSuffix(mapped, ext)
+		for n := 2; ; n++ {
+			if _, ok := taken[strings.ToLower(mapped)]; !ok {
+				break
+			}
+			mapped = fmt.Sprintf("%s-%d%s", base, n, ext)
+		}
+		taken[strings.ToLower(mapped)] = struct{}{}
+		fileNames[i] = mapped
+	}
+	return fileNames
 }
 
 var footguns = []rune{'/', '\\', ':', '*', '?', '"', '<', '>', '|'}
@@ -2037,15 +2082,21 @@ func (cmd *GenerateGitopsCommand) generateAssets(teamId *uint, teamName string) 
 		return nil, nil
 	}
 
+	assetFileNames := make([]string, len(assets))
+	for i, asset := range assets {
+		assetFileNames[i] = asset.Name + ".json"
+	}
+	assetFileNames = singleFileNames(assetFileNames)
+
 	result := make([]map[string]any, 0, len(assets))
-	for _, asset := range assets {
+	for i, asset := range assets {
 		contents, err := cmd.Client.DownloadDDMAsset(asset.AssetUUID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting asset contents: %s\n", err)
 			return nil, err
 		}
 
-		fileName := fmt.Sprintf("assets/%s.json", asset.Name)
+		fileName := "assets/" + assetFileNames[i]
 		if teamId == nil {
 			fileName = fmt.Sprintf("lib/%s", fileName)
 		} else {
@@ -2078,10 +2129,16 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 		return nil, nil
 	}
 
+	scriptFileNames := make([]string, len(scripts))
+	for i, script := range scripts {
+		scriptFileNames[i] = script.Name
+	}
+	scriptFileNames = singleFileNames(scriptFileNames)
+
 	scriptSlice := make([]map[string]interface{}, len(scripts))
 	// For each script, get the contents and add a new file for output.
 	for i, script := range scripts {
-		fileName := fmt.Sprintf("scripts/%s", script.Name)
+		fileName := "scripts/" + scriptFileNames[i]
 		if teamId == nil {
 			fileName = fmt.Sprintf("lib/%s", fileName)
 		} else {

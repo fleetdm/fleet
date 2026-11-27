@@ -441,6 +441,15 @@ func TestCreateAppleDDMAsset(t *testing.T) {
 		ds.CreateAppleDDMAssetFuncInvoked = false
 	})
 
+	t.Run("Name with a path separator is rejected", func(t *testing.T) {
+		defer reset()
+		for _, name := range []string{"a/asset", `a\asset`} {
+			_, err := svc.CreateAppleDDMAsset(ctx, nil, name, validData)
+			require.ErrorContains(t, err, "Asset name must not contain", name)
+		}
+		require.False(t, ds.CreateAppleDDMAssetFuncInvoked)
+	})
+
 	t.Run("Malformed JSON is rejected", func(t *testing.T) {
 		defer reset()
 		_, err := svc.CreateAppleDDMAsset(ctx, nil, "asset", []byte(`{not json`))
@@ -548,6 +557,10 @@ func TestBatchSetAppleDDMAssets(t *testing.T) {
 	ds.BatchSetAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error) {
 		return &fleet.MDMAppleDDMAssetsBatchChanges{}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		require.Nil(t, teamID)
+		return []*fleet.DDMAsset{{Name: "saved/b"}}, nil
+	}
 	reset := func() { ds.BatchSetAppleDDMAssetsFuncInvoked = false }
 
 	t.Run("Observer cannot batch set", func(t *testing.T) {
@@ -588,6 +601,30 @@ func TestBatchSetAppleDDMAssets(t *testing.T) {
 		}, false)
 		require.Error(t, err)
 		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Name with a path separator is rejected", func(t *testing.T) {
+		defer reset()
+		for _, name := range []string{"a/b", `a\b`} {
+			err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{{Name: name, Contents: assetData("id.a")}}, false)
+			require.ErrorContains(t, err, "Asset name must not contain", name)
+		}
+		// A dry run skips validating assets that reference secrets, but not their names.
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{
+			{Name: "a/b", Contents: assetData("$FLEET_SECRET_ASSET")},
+		}, true)
+		require.ErrorContains(t, err, "Asset name must not contain")
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Name saved in the fleet can be sent again", func(t *testing.T) {
+		defer reset()
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{{Name: "Saved/b", Contents: assetData("id.s")}}, false)
+		require.ErrorContains(t, err, "Asset name must not contain")
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+		err = svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{{Name: "saved/b", Contents: assetData("id.s")}}, false)
+		require.NoError(t, err)
+		require.True(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
 	})
 
 	t.Run("Dry run does not write", func(t *testing.T) {

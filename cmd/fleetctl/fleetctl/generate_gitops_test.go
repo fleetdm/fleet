@@ -3,6 +3,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -46,6 +47,11 @@ type MockClient struct {
 	// no EULA uploaded on either platform
 	WithoutEULAs bool
 	Exceptions   fleet.GitOpsExceptions
+	// replace fleet 1's script with scripts of these names, and override its asset name
+	ScriptNames []string
+	AssetName   string
+	// override the platform of software title 1's package
+	PackagePlatform string
 }
 
 func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
@@ -119,9 +125,16 @@ func (c *MockClient) ListTeams(query string) ([]fleet.Team, error) {
 	return teams, nil
 }
 
-func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
+func (c MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 	switch query {
 	case "fleet_id=1":
+		if len(c.ScriptNames) > 0 {
+			scripts := make([]*fleet.Script, 0, len(c.ScriptNames))
+			for i, name := range c.ScriptNames {
+				scripts = append(scripts, &fleet.Script{ID: uint(100 + i), TeamID: new(uint(1)), Name: name})
+			}
+			return scripts, nil
+		}
 		return []*fleet.Script{{
 			ID:              2,
 			TeamID:          ptr.Uint(1),
@@ -232,7 +245,7 @@ func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
 		return []*fleet.DDMAsset{{AssetUUID: "global-asset-uuid", Name: "Global Asset", Identifier: "com.example.global-asset"}}, nil
 	}
 	if *teamID == 1 {
-		return []*fleet.DDMAsset{{AssetUUID: "team-asset-uuid", Name: "Team Asset", Identifier: "com.example.team-asset"}}, nil
+		return []*fleet.DDMAsset{{AssetUUID: "team-asset-uuid", Name: cmp.Or(c.AssetName, "Team Asset"), Identifier: "com.example.team-asset"}}, nil
 	}
 	return nil, nil
 }
@@ -248,6 +261,9 @@ func (MockClient) DownloadDDMAsset(assetUUID string) ([]byte, error) {
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
+	if scriptID >= 100 {
+		return fmt.Appendf(nil, "script %d", scriptID), nil
+	}
 	if scriptID == 2 {
 		return []byte("pop goes the weasel!"), nil
 	}
@@ -711,7 +727,7 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 }
 
 //nolint:gocritic // ignore captLocal
-func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+func (c MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	switch ID {
 	case 1:
 		if *teamID != 1 {
@@ -730,7 +746,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				PostInstallScript: "bar",
 				UninstallScript:   "baz",
 				SelfService:       true,
-				Platform:          "darwin",
+				Platform:          cmp.Or(c.PackagePlatform, "darwin"),
 				URL:               "https://example.com/download/my-software.pkg",
 				Categories:        []string{"Browsers"},
 			}},
@@ -1573,6 +1589,75 @@ func runGenerateGitopsToDir(t *testing.T, client *MockClient) string {
 	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
 	require.NoError(t, createGenerateGitopsAction(client)(cliContext), buf.String())
 	return dir
+}
+
+func TestGenerateGitopsScriptAndAssetFileNames(t *testing.T) {
+	configureFMAManifestServer(t)
+
+	cases := []struct {
+		name        string
+		scriptNames []string
+		assetName   string
+		wantScripts []string
+		wantAsset   string
+	}{
+		{"plain names", []string{"Clean up (v2).ps1"}, "Wi-Fi data", []string{"scripts/Clean up (v2).ps1"}, "assets/Wi-Fi data.json"},
+		{"slashes", []string{"tools/v2/cleanup.ps1"}, "wifi/office", []string{"scripts/tools-v2-cleanup.ps1"}, "assets/wifi-office.json"},
+		{"backslashes", []string{`tools\v2\cleanup.ps1`}, `wifi\office`, []string{"scripts/tools-v2-cleanup.ps1"}, "assets/wifi-office.json"},
+		// The name that already was a file name keeps it.
+		{
+			"names that match once replaced", []string{"tools/cleanup.sh", "tools-cleanup.sh", `tools\cleanup.sh`}, "wifi",
+			[]string{"scripts/tools-cleanup-2.sh", "scripts/tools-cleanup.sh", "scripts/tools-cleanup-3.sh"}, "assets/wifi.json",
+		},
+		// macOS and Windows file systems ignore case.
+		{
+			"names that differ only in case once replaced", []string{"Tools/cleanup.sh", "tools-cleanup.sh"}, "wifi",
+			[]string{"scripts/Tools-cleanup-2.sh", "scripts/tools-cleanup.sh"}, "assets/wifi.json",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := runGenerateGitopsToDir(t, &MockClient{WithAssets: true, ScriptNames: tc.scriptNames, AssetName: tc.assetName})
+
+			fleetYML, err := os.ReadFile(filepath.Join(dir, "fleets", "team-a-👍.yml"))
+			require.NoError(t, err)
+			const lib = "lib/team-a-👍/"
+			assert.Contains(t, string(fleetYML), `"../`+lib+tc.wantAsset+`"`)
+			_, err = os.Stat(filepath.Join(dir, filepath.FromSlash(lib+tc.wantAsset)))
+			require.NoError(t, err)
+
+			for i, want := range tc.wantScripts {
+				assert.Contains(t, string(fleetYML), `"../`+lib+want+`"`)
+				script, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(lib+want)))
+				require.NoError(t, err)
+				assert.Equal(t, fmt.Sprintf("script %d", 100+i), string(script))
+			}
+		})
+	}
+}
+
+func TestGenerateGitopsInvalidOutputPath(t *testing.T) {
+	configureFMAManifestServer(t)
+	buf := new(bytes.Buffer)
+	dir := filepath.Join(t.TempDir(), "out")
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", dir, "")
+	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
+
+	// The platform becomes part of the install script's file name.
+	require.Error(t, createGenerateGitopsAction(&MockClient{PackagePlatform: `dar\win`})(cliContext))
+	assert.Contains(t, buf.String(), "is not a valid path in the output directory")
+	_, err := os.Stat(dir)
+	require.ErrorIs(t, err, os.ErrNotExist, "nothing should be written")
+}
+
+func TestValidateOutputPaths(t *testing.T) {
+	for _, path := range []string{"default.yml", "fleets/team-a.yml", "lib/scripts/Clean up (v2).ps1"} {
+		require.NoError(t, validateOutputPaths(map[string]any{path: ""}), path)
+	}
+	for _, path := range []string{"../a.sh", "/tmp/a.sh", `lib\scripts\a.ps1`, ""} {
+		require.Error(t, validateOutputPaths(map[string]any{path: ""}), path)
+	}
 }
 
 func TestGenerateGitopsFree(t *testing.T) {

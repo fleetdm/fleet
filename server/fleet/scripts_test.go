@@ -43,6 +43,22 @@ func TestScriptValidate(t *testing.T) {
 			wantErr: errors.New("The file name must not be empty."),
 		},
 		{
+			name: "name with a slash",
+			script: Script{
+				Name:           "a/test.sh",
+				ScriptContents: "valid",
+			},
+			wantErr: errors.New(`The file name must not contain "/" or "\".`),
+		},
+		{
+			name: "name with a backslash",
+			script: Script{
+				Name:           `a\test.ps1`,
+				ScriptContents: "valid",
+			},
+			wantErr: errors.New(`The file name must not contain "/" or "\".`),
+		},
+		{
 			name: "invalid extension",
 			script: Script{
 				Name:           "test.txt",
