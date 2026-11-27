@@ -81,6 +81,7 @@ module.exports = {
     success: { description: 'The command was successfully issued to the Android device. The AMAPI Operation is returned.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The specified device is no longer managed by the Android enterprise.', responseType: 'notFound' },
@@ -119,6 +120,13 @@ module.exports = {
     if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
       throw 'unauthorized';
     }
+
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['devices', deviceId],
+    }).intercept('invalidResourceId', ()=>{
+      return {'invalidResourceId': 'A provided resource ID is not valid.'};
+    });
 
     // Build the AMAPI Command body from declared inputs (not req.body) so the proxy's accepted surface
     // stays explicit. Use `!== undefined` rather than truthy checks because Fleet relies on forwarding
@@ -171,7 +179,7 @@ module.exports = {
       if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'issue_command'}; }
       sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let response = await androidManagementConnection.enterprises.devices.issueCommand({
-        name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
+        name: resourceName,
         requestBody: commandBody,
       });
       return response.data;
