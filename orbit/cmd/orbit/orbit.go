@@ -941,6 +941,11 @@ func orbitAction(c *cli.Context) error {
 
 		addSubsystem(&g, "update runner", updateRunner)
 
+		// Before the component retry below, which doesn't give up while the update server is unreachable.
+		if runtime.GOOS == "windows" && enrollSecretPath != "" {
+			restrictEnrollSecretFile(enrollSecretPath)
+		}
+
 		// if getting any of the targets fails, keep on
 		// retrying, the `updater.Get` method has built-in backoff functionality.
 		//
@@ -968,6 +973,9 @@ func orbitAction(c *cli.Context) error {
 		}
 	default:
 		log.Info().Msg("running with auto updates disabled")
+		if runtime.GOOS == "windows" && enrollSecretPath != "" {
+			restrictEnrollSecretFile(enrollSecretPath)
+		}
 		updater = update.NewDisabled(opt)
 		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 		if err != nil {
@@ -996,10 +1004,6 @@ func orbitAction(c *cli.Context) error {
 	// the Linux process shows its name while the server is unreachable.
 	if runtime.GOOS == "linux" {
 		update.ApplyRememberedAgentNames(c.String("root-dir"))
-	}
-
-	if runtime.GOOS == "windows" && enrollSecretPath != "" {
-		restrictEnrollSecretFile(enrollSecretPath)
 	}
 
 	// Clear leftover files from updates

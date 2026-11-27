@@ -168,4 +168,5 @@ func TestWindowsInstallerUtilsSecretFileACL(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(fn, "Set-Content"))
 	assert.Contains(t, fn, "[System.IO.File]::Create($targetSecretFile, 4096, [System.IO.FileOptions]::None, $secretFileSecurity)")
 	assert.NotContains(t, fn, "catch", "a failure to set the DACL must stop the install, not be swallowed")
+	assert.Contains(t, fn, "[System.IO.File]::Open($targetSecretFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)", "an existing file is restricted while held exclusively, without truncating it")
 }
