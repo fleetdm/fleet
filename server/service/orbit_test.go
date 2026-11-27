@@ -933,7 +933,8 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	attemptCounter := NewMemSoftwareInstallAttemptCounter()
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{InstallAttemptCounter: attemptCounter})
 
 	// Create admin user
 	user, err := ds.NewUser(ctx, &fleet.User{
@@ -1039,6 +1040,19 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 		)
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
+
+	// Count the install attempt, the failed policy install should count once
+	attempts, err := attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+
+	// Send the same result again while the replica still has the install as pending, the count
+	// should not change
+	err = svc.SaveHostSoftwareInstallResult(ctx, result)
+	require.NoError(t, err)
+	attempts, err = attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
 }
 
 // TestSaveHostSoftwareInstallResultAppOpenSkip verifies that an app-open result on a patch-when-closed
