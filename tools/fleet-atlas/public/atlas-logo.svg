@@ -1,0 +1,11 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Peak -->
+  <circle cx="12" cy="3"  r="2.98" fill="#63C740"/>
+  <!-- Crossbar: cool spectrum (blue, purple, teal) -->
+  <circle cx="3"  cy="12" r="2.98" fill="#5CABDF"/>
+  <circle cx="12" cy="12" r="2.98" fill="#C98DEF"/>
+  <circle cx="21" cy="12" r="2.98" fill="#3AEFC4"/>
+  <!-- Legs: both warm, grounds the icon -->
+  <circle cx="3"  cy="21" r="2.98" fill="#D66C7B"/>
+  <circle cx="21" cy="21" r="2.98" fill="#FAA669"/>
+</svg>
