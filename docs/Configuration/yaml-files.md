@@ -963,6 +963,58 @@ A `path:`/`paths:` file can define more than one app, so related apps can be gro
     - "👬 Communication"
 ```
 
+## vulnerability_dismissals
+
+_Available in Fleet Premium_
+
+Vulnerability dismissals hide CVEs that don't need action from the vulnerability lists and counts in the Fleet UI. Fleet keeps detecting them. Vulnerability automations (the vulnerabilities webhook, Jira, and Zendesk) leave out hosts in fleets where the CVE is dismissed. Learn more in [Create vulnerability dismissals](https://fleetdm.com/docs/rest-api/rest-api#create-vulnerability-dismissals).
+
+Dismissals can be specified in your `default.yml` file, which dismisses them for all fleets, and in `fleets/fleet-name.yml` and `fleets/unassigned.yml` files. They can be inline or in separate files in your `lib/` folder.
+
+Dismissals support `path:` (single file) and `paths:` (glob pattern) references. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
+
+- `cve` (required) is the CVE to dismiss, in the format `CVE-YYYY-<4 or more digits>` (case-insensitive). Each CVE can appear once per fleet.
+- `reason` (required) is why the vulnerability doesn't need action. Options are `false_positive`, `accepted_risk`, `compensating_control`, `no_patch_available`, and `not_applicable`.
+- `comment` is a note explaining the dismissal.
+- `expires_at` is the date the dismissal ends, in the format `YYYY-MM-DD`. The dismissal ends at the start of that day (UTC), and the CVE returns to the vulnerability lists. If omitted, the dismissal doesn't expire.
+
+> `vulnerability_dismissals` is optional. If it's omitted, existing dismissals for that fleet (or for all fleets, in `default.yml`) are preserved, including ones made in the Fleet UI. If it's included, it's the complete list of dismissals for that fleet, and dismissals not in the list are deleted. An empty list deletes every dismissal for that fleet.
+>
+> `fleetctl gitops` warns about a CVE that Fleet doesn't recognize, so you can dismiss a vulnerability before Fleet detects it. It also warns about entries whose `expires_at` has passed. Expired entries don't apply. Neither warning fails the run.
+>
+> To dismiss vulnerabilities in the Fleet UI while GitOps mode is on, enable the vulnerability dismissals exception under **Settings** > **Integrations** > **Change management**. With the exception enabled, a run fails if your YAML includes `vulnerability_dismissals`.
+
+### Example
+
+#### Inline
+
+`default.yml`, `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
+
+```yaml
+vulnerability_dismissals:
+  - cve: CVE-2022-30190
+    reason: compensating_control
+    comment: Mitigated by network rule. Review each quarter.
+    expires_at: "2027-01-30"
+  - cve: CVE-2022-40898
+    reason: false_positive
+    comment: Scanner matched the wrong package.
+  - path: ../lib/vulnerability-dismissals/apple-bundled.dismissals.yml
+```
+
+#### Separate file
+
+`lib/vulnerability-dismissals/apple-bundled.dismissals.yml`
+
+```yaml
+- cve: CVE-2023-27043
+  reason: no_patch_available
+  comment: Bundled with macOS. Apple controls the patch.
+- cve: CVE-2023-40217
+  reason: no_patch_available
+  comment: Bundled with macOS. Apple controls the patch.
+```
+
 ## org_settings and settings
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
@@ -981,7 +1033,7 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
   - `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
   - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
   - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
-  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+  - `exclude_vulnerabilities` is a list of specific CVEs to exclude. To dismiss a CVE across Fleet and record why, use [`vulnerability_dismissals`](#vulnerability-dismissals) instead. The chart already excludes dismissed CVEs, so you don't need to list them here.
  
 A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
@@ -1046,7 +1098,7 @@ The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-
 
 Can only be configured for "All fleets" (`org_settings`).
 
-> GitOps mode exceptions for labels, software, and enroll secrets can't be set in YAML. Configure them in the Fleet UI under **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
+> GitOps mode exceptions for labels, software, enroll secrets, and vulnerability dismissals can't be set in YAML. Configure them in the Fleet UI under **Settings** > **Integrations** > **Change management**. Learn more in the [GitOps mode guide](https://fleetdm.com/guides/gitops-mode).
 
 > If `gitops:` is not provided in your YAML file, any existing GitOps mode settings will be preserved.
 
@@ -1530,6 +1582,8 @@ org_settings:
 - `enable_vulnerabilities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
+
+The webhook leaves out hosts in fleets where the vulnerability is [dismissed](#vulnerability-dismissals), and skips the vulnerability if no affected hosts remain. Those hosts don't count as detections, so the webhook can still trigger later for hosts in other fleets.
 
 Can only be configured for "All fleets" (`org_settings`).
 

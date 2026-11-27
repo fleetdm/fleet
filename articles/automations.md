@@ -116,6 +116,8 @@ Fleet checks whether to trigger vulnerability automations once per hour by defau
 
 Once a CVE has been detected on any host, automations are not triggered if the CVE is detected on other hosts in subsequent periods. If the CVE has been remediated on all hosts, an automation may be triggered if the CVE is detected subsequently so long as the CVE is treated as "new" by Fleet. 
 
+Automations leave out hosts in fleets where a CVE is [dismissed](https://fleetdm.com/docs/rest-api/rest-api#create-vulnerability-dismissals), and skip the CVE if no affected hosts remain. Those hosts don't count as detections for the rule above, so automations can still trigger if Fleet later detects the CVE on hosts in another fleet while the CVE is treated as "new".
+
 For webhooks, if a new CVE is detected on more than one host during the same period that the initial detection occurred, a separate webhook request is triggered for each host by default.
 
 ## Host status automations

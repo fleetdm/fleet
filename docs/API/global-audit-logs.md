@@ -632,7 +632,7 @@ This activity does not contain any detail fields.
 Generated when a user enables a GitOps exception.
 
 This activity contains the following fields:
-- "exception": Name of the exception that was enabled. One of `"labels"`, `"software"`, `"secrets"`.
+- "exception": Name of the exception that was enabled. One of `"labels"`, `"software"`, `"secrets"`, `"vulnerability_dismissals"`.
 
 #### Example
 
@@ -647,7 +647,7 @@ This activity contains the following fields:
 Generated when a user disables a GitOps exception.
 
 This activity contains the following fields:
-- "exception": Name of the exception that was disabled. One of `"labels"`, `"software"`, `"secrets"`.
+- "exception": Name of the exception that was disabled. One of `"labels"`, `"software"`, `"secrets"`, `"vulnerability_dismissals"`.
 
 #### Example
 
@@ -3983,6 +3983,103 @@ This activity contains the following fields:
   "self_service_category_name": "🛟 Support",
   "fleet_name": "💻 Workstations",
   "fleet_id": 123
+}
+```
+
+## Vulnerabilities
+
+- [dismissed_vulnerabilities](#dismissed-vulnerabilities)
+- [edited_vulnerability_dismissal](#edited-vulnerability-dismissal)
+- [restored_vulnerabilities](#restored-vulnerabilities)
+- [ended_vulnerability_dismissal](#ended-vulnerability-dismissal)
+
+### dismissed_vulnerabilities
+
+Generated when one or more vulnerabilities are dismissed in the Fleet UI, with the API, or by `fleetctl gitops`.
+
+This activity contains the following fields:
+- "cves": The CVEs that were dismissed.
+- "reason": Why the vulnerabilities were dismissed. One of `"false_positive"`, `"accepted_risk"`, `"compensating_control"`, `"no_patch_available"`, `"not_applicable"`.
+- "comment": The note explaining the dismissal. Empty if there's no note.
+- "expires_at": When the dismissals end. `null` if they don't expire.
+- "fleet_id": ID of the fleet the vulnerabilities were dismissed for. `null` if they were dismissed for all fleets.
+- "fleet_name": Name of the fleet the vulnerabilities were dismissed for. `null` if they were dismissed for all fleets.
+
+#### Example
+
+```json
+{
+  "cves": ["CVE-2022-40898", "CVE-2024-8385"],
+  "reason": "false_positive",
+  "comment": "Scanner matched the wrong package.",
+  "expires_at": null,
+  "fleet_id": 12,
+  "fleet_name": "Workstations"
+}
+```
+
+### edited_vulnerability_dismissal
+
+Generated when a vulnerability dismissal's reason, comment, or expiry is edited.
+
+This activity contains the following fields:
+- "cve": The dismissed CVE.
+- "reason": Why the vulnerability is dismissed, after the edit.
+- "comment": The note explaining the dismissal, after the edit.
+- "expires_at": When the dismissal ends, after the edit. `null` if it doesn't expire.
+- "fleet_id": ID of the fleet the vulnerability is dismissed for. `null` if it's dismissed for all fleets.
+- "fleet_name": Name of the fleet the vulnerability is dismissed for. `null` if it's dismissed for all fleets.
+
+#### Example
+
+```json
+{
+  "cve": "CVE-2022-30190",
+  "reason": "compensating_control",
+  "comment": "Mitigated by network rule. Reviewed Jan 2027, next review in April.",
+  "expires_at": "2027-04-30T00:00:00Z",
+  "fleet_id": 12,
+  "fleet_name": "Workstations"
+}
+```
+
+### restored_vulnerabilities
+
+Generated when one or more vulnerability dismissals are deleted, which restores the vulnerabilities to the vulnerability lists and counts in the Fleet UI.
+
+This activity contains the following fields:
+- "cves": The CVEs that were restored.
+- "fleet_id": ID of the fleet the vulnerabilities were restored for. `null` if they were restored for all fleets.
+- "fleet_name": Name of the fleet the vulnerabilities were restored for. `null` if they were restored for all fleets.
+
+#### Example
+
+```json
+{
+  "cves": ["CVE-2018-25032", "CVE-2016-2177"],
+  "fleet_id": 12,
+  "fleet_name": "Workstations"
+}
+```
+
+### ended_vulnerability_dismissal
+
+Generated when Fleet ends a vulnerability dismissal automatically, because it expired or because CISA reported the vulnerability as actively exploited after it was dismissed. Dismissals with the reason `"false_positive"` don't end because of CISA.
+
+This activity contains the following fields:
+- "cve": The CVE whose dismissal ended.
+- "cause": Why the dismissal ended. One of `"expired"`, `"known_exploited"`.
+- "fleet_id": ID of the fleet the vulnerability was dismissed for. `null` if it was dismissed for all fleets.
+- "fleet_name": Name of the fleet the vulnerability was dismissed for. `null` if it was dismissed for all fleets.
+
+#### Example
+
+```json
+{
+  "cve": "CVE-2016-2108",
+  "cause": "expired",
+  "fleet_id": 12,
+  "fleet_name": "Workstations"
 }
 ```
 
