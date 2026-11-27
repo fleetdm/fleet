@@ -1,11 +1,10 @@
 # Conditional access makes removing the MDM pointless
 
-*Mac admins used to worry about employees removing MDM. Conditional access mostly solved that. The problem worth worrying about now is quieter: a work certificate copied onto a personal laptop.*
+*Mac admins used to worry about employees removing MDM. The problem worth worrying about now is quieter: a work certificate copied onto a personal laptop.*
 
 ## Key takeaways
 
 - **Removing MDM locks the user out.** Once single sign-on (SSO) checks enrollment, a Mac that leaves MDM loses email, chat, and every other work app at the next sign-in.
-- **Jamf, Intune, and Fleet can all enforce this.** They differ in which platforms and identity providers they support, and in how a device proves who it is.
 - **The real gap is a copied certificate.** An employee who copies their sign-in certificate onto a personal Mac never removes MDM. Depending on your setup, the personal Mac can still pass.
 - **A key in the Secure Enclave closes it.** Entra's Platform SSO keeps the Mac's identity in hardware, where it can't be copied. Okta setups, including Fleet's, aren't there yet.
 
@@ -35,7 +34,7 @@ Here's how Jamf, Intune, and Fleet compare:
 
 | | Mac | Windows | Linux |
 |---|---|---|---|
-| Jamf | Entra or Okta | No (Jamf doesn't manage Windows) | No |
+| Jamf | Entra or Okta | No | No |
 | Microsoft Intune | Entra | Entra | Entra, for web apps in Edge on Ubuntu and Red Hat |
 | Fleet | Okta, Entra, Duo, or PingFederate | Okta, Entra, Duo, or PingFederate | Duo or PingFederate, with Okta [coming soon](https://github.com/fleetdm/fleet/issues/53286) |
 
@@ -53,7 +52,7 @@ Any of these turns MDM removal from a security incident into a help desk ticket.
 
 At past jobs, I've had a work laptop and a personal one, and just wanted to check something quickly without switching computers. An engineer in that spot might copy the sign-in certificate from their work Mac to their personal one. They never remove MDM.
 
-That's a personal Mac borrowing the identity of an enrolled one. Whether it works depends on how your devices prove who they are.
+Whether it works depends on how your devices prove who they are.
 
 **Fleet with Okta.** Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, so the personal Mac passes. Fleet marks the key non-exportable, but macOS enforces that in software. The key sits in the login keychain, locked with the employee's own password, and open source tools like [chainbreaker](https://github.com/n0fate/chainbreaker) decrypt every key in that file, exportable or not. macOS Tahoe 26.4 [raised the bar](https://eclecticlight.co/2026/10/02/how-to-copy-login-keychains-that-can-be-unlocked/) by also requiring a secret protected by System Integrity Protection (SIP), so the employee would have to turn SIP off first. On Windows, the key stays in the TPM. We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
 
