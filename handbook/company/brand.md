@@ -210,6 +210,7 @@ Use these colors, sampled from Cloud City artwork, as a starting point when crea
 
 > Don't use these illustration colors in product UI or communications. Use the [core colors](https://fleetdm.com/handbook/company/brand#colors) instead.
 
+<div style="overflow-x:auto;">
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <thead>
     <tr>
@@ -314,6 +315,7 @@ Use these colors, sampled from Cloud City artwork, as a starting point when crea
     </tr>
   </tbody>
 </table>
+</div>
 
 ### Graphics
 
