@@ -12,6 +12,7 @@ export type IPolicyAutomationUpdate = Pick<
   | "script_id"
   | "profile_uuid"
   | "continuous_automations_enabled"
+  | "force_patch"
   | "patch_when_closed"
   | "notify_before_patching"
   | "patch_deadline"

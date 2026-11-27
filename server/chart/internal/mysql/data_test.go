@@ -57,6 +57,45 @@ func TestAggregateBucketAccumulateMultiEntity(t *testing.T) {
 	assert.Equal(t, uint64(4), chart.BlobPopcount(got), "union across entities = {1,2,3,4}")
 }
 
+func TestAggregateBucketAccumulateSubHourOffsets(t *testing.T) {
+	// A single sample for the 02:00-03:00 UTC hour.
+	sampleStart := time.Date(2026, 9, 27, 2, 0, 0, 0, time.UTC)
+	rows := []decodedSCDRow{rowFixture("", []uint{1}, sampleStart, sampleStart.Add(time.Hour))}
+
+	cases := []struct {
+		name       string
+		utcOffset  time.Duration
+		bucketSize time.Duration
+		wantStart  time.Time
+	}{
+		{"UTC hourly", 0, time.Hour, time.Date(2026, 9, 27, 2, 0, 0, 0, time.UTC)},
+		{"UTC 3-hour", 0, 3 * time.Hour, time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)},
+		{"New York hourly", -5 * time.Hour, time.Hour, time.Date(2026, 9, 27, 2, 0, 0, 0, time.UTC)},
+		{"Tehran 3-hour", 3*time.Hour + 30*time.Minute, 3 * time.Hour, time.Date(2026, 9, 27, 2, 30, 0, 0, time.UTC)},
+		{"India hourly", 5*time.Hour + 30*time.Minute, time.Hour, time.Date(2026, 9, 27, 2, 30, 0, 0, time.UTC)},
+		{"India daily", 5*time.Hour + 30*time.Minute, 24 * time.Hour, time.Date(2026, 9, 26, 18, 30, 0, 0, time.UTC)},
+		{"Nepal hourly", 5*time.Hour + 45*time.Minute, time.Hour, time.Date(2026, 9, 27, 2, 15, 0, 0, time.UTC)},
+		{"Newfoundland hourly", -(3*time.Hour + 30*time.Minute), time.Hour, time.Date(2026, 9, 27, 2, 30, 0, 0, time.UTC)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Buckets start at the viewer's local midnight, as computeBucketRange aligns them.
+			loc := time.FixedZone("viewer", int(tc.utcOffset.Seconds()))
+			dayStart := time.Date(2026, 9, 26, 0, 0, 0, 0, loc)
+
+			var hits []time.Time
+			for bucketStart := dayStart; bucketStart.Before(dayStart.Add(72 * time.Hour)); bucketStart = bucketStart.Add(tc.bucketSize) {
+				got := aggregateBucket(rows, bucketStart.UTC(), bucketStart.Add(tc.bucketSize).UTC(), api.SampleStrategyAccumulate)
+				if got != nil {
+					hits = append(hits, bucketStart.UTC())
+				}
+			}
+			require.Len(t, hits, 1, "the sample must be counted in exactly one bucket")
+			assert.Equal(t, tc.wantStart, hits[0])
+		})
+	}
+}
+
 func TestAggregateBucketSnapshotEndOfBucket(t *testing.T) {
 	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
 	bucketEnd := bucketStart.Add(24 * time.Hour)

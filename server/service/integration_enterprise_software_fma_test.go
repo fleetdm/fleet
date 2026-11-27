@@ -3106,6 +3106,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			TeamID:                       &teamID,
 			Type:                         new("patch"),
 			SoftwareTitleID:              &titleID,
+			AutomationType:               new(fleet.PolicyAutomationSoftware),
 			NotifyBeforePatching:         true,
 			ContinuousAutomationsEnabled: true,
 		}, http.StatusOK, &policyResp)
@@ -3129,7 +3130,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.True(t, titleResp.SoftwareTitle.Packages[0].PatchPolicy.NotifyBeforePatching)
 
 		// A modify payload carries only the delta, so the stored flag still conflicts.
-		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
+		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusUnprocessableEntity)
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
 		res.Body.Close()
@@ -3140,8 +3141,14 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Contains(t, errMsg, `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`)
 		res.Body.Close()
 
+		// Turning the flag off without another patch option is rejected.
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": false}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `If "automation_type" is "software", one of`)
+		res.Body.Close()
+
 		// Omitting continuous automations on modify still auto-sets it.
-		s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false, "notify_before_patching": false}, http.StatusOK).Body.Close()
+		s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false, "notify_before_patching": false, "force_patch": true}, http.StatusOK).Body.Close()
 		s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusOK).Body.Close()
 
 		getPolicyResp = fleet.GetPolicyByIDResponse{}
@@ -3161,7 +3168,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			"fleet_id", fmt.Sprint(teamID))
 		require.True(t, titleResp.SoftwareTitle.Packages[0].PatchPolicy.PatchDeadline)
 
-		res = s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusBadRequest)
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusUnprocessableEntity)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
 		res.Body.Close()
@@ -3181,6 +3188,169 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		}, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, `"notify_before_patching" is only supported for patch policies`)
+		res.Body.Close()
+	})
+
+	t.Run("force_patch", func(t *testing.T) {
+		resp := teamResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
+			Name: new("force_patch_team"),
+		}, http.StatusOK, &resp)
+		teamID := resp.Team.ID
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "some install script",
+			Filename:      "dummy_installer.pkg",
+			TeamID:        &teamID,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+		titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+		fma, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             "DummyApp",
+			Slug:             "force-patch-dummy/darwin",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.example.dummy",
+		})
+		require.NoError(t, err)
+		updateInstallerFMAID(fma.ID, teamID, titleID)
+
+		policyPath := func(policyID uint) string {
+			return fmt.Sprintf("/api/latest/fleet/policies/%d", policyID)
+		}
+		optionsConflictMsg := `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`
+		requiresSoftwareMsg := `If "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" is true, "automation_type" must be "software".`
+		requiresOptionMsg := `If "automation_type" is "software", one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" must be true.`
+
+		// create a patch policy with force_patch and patch_when_closed, the request should fail with 422
+		res := s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":                       teamID,
+			"type":                           "patch",
+			"software_title_id":              titleID,
+			"force_patch":                    true,
+			"patch_when_closed":              true,
+			"continuous_automations_enabled": true,
+		}, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, optionsConflictMsg)
+		res.Body.Close()
+
+		// create a patch policy with force_patch and the webhook automation, the request should fail with 422
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":          teamID,
+			"type":              "patch",
+			"software_title_id": titleID,
+			"automation_type":   "webhook_or_ticket",
+			"force_patch":       true,
+		}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresSoftwareMsg)
+		res.Body.Close()
+
+		// create a dynamic policy with force_patch, the request should fail
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":    teamID,
+			"name":        "dynamic-force-patch",
+			"query":       "SELECT 1;",
+			"force_patch": true,
+		}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `"force_patch" is only supported for patch policies`)
+		res.Body.Close()
+
+		// create an "All fleets" policy with force_patch, the request should fail
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"name":        "all-fleets-force-patch",
+			"query":       "SELECT 1;",
+			"force_patch": true,
+		}, http.StatusBadRequest)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, `"All fleets" policy cannot have force_patch`)
+		res.Body.Close()
+
+		// create a patch policy with the software automation and no patch option, the request should fail with 422
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":          teamID,
+			"type":              "patch",
+			"software_title_id": titleID,
+			"automation_type":   "software",
+		}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresOptionMsg)
+		res.Body.Close()
+
+		// create a patch policy with force_patch and no automation_type, the request should fail with 422
+		res = s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":          teamID,
+			"type":              "patch",
+			"software_title_id": titleID,
+			"force_patch":       true,
+		}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresSoftwareMsg)
+		res.Body.Close()
+
+		// create a patch policy with the software automation and force_patch, force_patch should be true
+		policyResp := fleet.CreatePolicyResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/policies", map[string]any{
+			"fleet_id":          teamID,
+			"type":              "patch",
+			"software_title_id": titleID,
+			"automation_type":   "software",
+			"force_patch":       true,
+		}, http.StatusOK, &policyResp)
+		policyID := policyResp.Policy.ID
+		require.True(t, policyResp.Policy.ForcePatch)
+		require.NotNil(t, policyResp.Policy.AutomationType)
+		require.Equal(t, fleet.PolicyAutomationSoftware, *policyResp.Policy.AutomationType)
+		require.False(t, policyResp.Policy.PatchWhenClosed)
+
+		// get and list the policy, force_patch should be true
+		getPolicyResp := fleet.GetPolicyByIDResponse{}
+		s.DoJSON("GET", policyPath(policyID), nil, http.StatusOK, &getPolicyResp)
+		require.True(t, getPolicyResp.Policy.ForcePatch)
+		listPolResp := fleet.ListPoliciesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &listPolResp, "fleet_id", fmt.Sprint(teamID))
+		require.Len(t, listPolResp.Policies, 1)
+		require.True(t, listPolResp.Policies[0].ForcePatch)
+
+		// update the policy to patch_when_closed, force_patch should be false
+		modResp := fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true, "continuous_automations_enabled": true},
+			http.StatusOK, &modResp)
+		require.True(t, modResp.Policy.PatchWhenClosed)
+		require.False(t, modResp.Policy.ForcePatch)
+
+		// update the policy with force_patch and notify_before_patching, the request should fail with 422
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"force_patch": true, "notify_before_patching": true},
+			http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, optionsConflictMsg)
+		res.Body.Close()
+
+		// update the policy to force_patch, patch_when_closed should be cleared on the policy and the title
+		modResp = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", policyPath(policyID), map[string]any{"force_patch": true}, http.StatusOK, &modResp)
+		require.True(t, modResp.Policy.ForcePatch)
+		require.False(t, modResp.Policy.PatchWhenClosed)
+		titleResp := getSoftwareTitleResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+			"fleet_id", fmt.Sprint(teamID))
+		require.NotEmpty(t, titleResp.SoftwareTitle.Packages)
+		require.NotNil(t, titleResp.SoftwareTitle.Packages[0].PatchPolicy)
+		require.False(t, titleResp.SoftwareTitle.Packages[0].PatchPolicy.PatchWhenClosed)
+
+		// remove the software automation, force_patch should be false
+		modResp = fleet.ModifyPolicyResponse{}
+		s.DoJSON("PATCH", policyPath(policyID), map[string]any{"automation_type": nil}, http.StatusOK, &modResp)
+		require.Nil(t, modResp.Policy.AutomationType)
+		require.False(t, modResp.Policy.ForcePatch)
+
+		// update the policy with force_patch and automation_type null, the request should fail with 422
+		res = s.Do("PATCH", policyPath(policyID), map[string]any{"force_patch": true, "automation_type": nil},
+			http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, requiresSoftwareMsg)
 		res.Body.Close()
 	})
 }
@@ -3832,4 +4002,173 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		http.StatusAccepted, &emptyResp, "fleet_name", team.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, emptyResp.RequestUUID)
 	require.Zero(t, teamPinCount(), "removing all software via GitOps must delete all team pins")
+}
+
+func (s *integrationEnterpriseTestSuite) TestPatchPolicyOptionsRequireSoftwareAutomation() {
+	t := s.T()
+	ctx := t.Context()
+
+	teamResp := teamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{Name: new(t.Name())}, http.StatusOK, &teamResp)
+	teamID := teamResp.Team.ID
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &teamID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+
+	fma, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "DummyApp",
+		Slug:             "patch-options-dummy/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example.dummy",
+	})
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE global_or_team_id = ? AND title_id = ?`,
+			fma.ID, teamID, titleID)
+		return err
+	})
+
+	requiresSoftwareMsg := `If "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" is true, "automation_type" must be "software".`
+	requiresOptionMsg := `If "automation_type" is "software", one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" must be true.`
+
+	// create a patch policy with patch_when_closed and no automation_type, the request should fail with 422
+	res := s.Do("POST", "/api/latest/fleet/policies", map[string]any{
+		"fleet_id":                       teamID,
+		"type":                           "patch",
+		"software_title_id":              titleID,
+		"patch_when_closed":              true,
+		"continuous_automations_enabled": true,
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresSoftwareMsg)
+	res.Body.Close()
+
+	// create a patch policy with the software automation and force_patch, the request should succeed
+	policyResp := fleet.CreatePolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", map[string]any{
+		"fleet_id":          teamID,
+		"type":              "patch",
+		"software_title_id": titleID,
+		"automation_type":   "software",
+		"force_patch":       true,
+	}, http.StatusOK, &policyResp)
+	policyPath := fmt.Sprintf("/api/latest/fleet/policies/%d", policyResp.Policy.ID)
+
+	// update the policy with patch_when_closed and automation_type null, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"patch_when_closed": true, "automation_type": nil}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresSoftwareMsg)
+	res.Body.Close()
+
+	// update the policy with automation_type software and continuous automations only, force_patch should stay true
+	modResp := fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"automation_type": "software", "continuous_automations_enabled": true},
+		http.StatusOK, &modResp)
+	require.True(t, modResp.Policy.ForcePatch)
+	require.True(t, modResp.Policy.ContinuousAutomationsEnabled)
+
+	// update the policy with automation_type software and force_patch false, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"automation_type": "software", "force_patch": false}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresOptionMsg)
+	res.Body.Close()
+
+	// update the policy with only force_patch false, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"force_patch": false}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresOptionMsg)
+	res.Body.Close()
+
+	// update the policy with force_patch false and patch_when_closed, force_patch should be false
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": false, "patch_when_closed": true, "continuous_automations_enabled": true},
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Policy.ForcePatch)
+	require.True(t, modResp.Policy.PatchWhenClosed)
+
+	// update the policy with only force_patch false while patch_when_closed is on, the policy should not change
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": false}, http.StatusOK, &modResp)
+	require.False(t, modResp.Policy.ForcePatch)
+	require.True(t, modResp.Policy.PatchWhenClosed)
+
+	// update the policy with force_patch false and automation_type null, the automation should be removed
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": false, "automation_type": nil}, http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	require.False(t, modResp.Policy.ForcePatch)
+
+	// update the policy without the software automation to force_patch, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"force_patch": true}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresSoftwareMsg)
+	res.Body.Close()
+
+	// update the policy without the software automation to patch_when_closed, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"patch_when_closed": true}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresSoftwareMsg)
+	res.Body.Close()
+
+	// update the policy without the software automation to force_patch and automation_type software, force_patch should be true
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": true, "automation_type": "software"}, http.StatusOK, &modResp)
+	require.NotNil(t, modResp.Policy.AutomationType)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
+	require.True(t, modResp.Policy.ForcePatch)
+	require.False(t, modResp.Policy.PatchWhenClosed)
+
+	// update the policy to patch_deadline and then remove the automation, patch_deadline should be cleared
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"force_patch": false, "patch_deadline": true}, http.StatusOK, &modResp)
+	require.True(t, modResp.Policy.PatchDeadline)
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"automation_type": nil}, http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	require.False(t, modResp.Policy.PatchDeadline)
+
+	// turn the software automation back on with patch_when_closed, patch_deadline should be false
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"automation_type": "software", "patch_when_closed": true}, http.StatusOK, &modResp)
+	require.True(t, modResp.Policy.PatchWhenClosed)
+	require.False(t, modResp.Policy.PatchDeadline)
+
+	// update the policy with only patch_when_closed false, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"patch_when_closed": false}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, requiresOptionMsg)
+	res.Body.Close()
+
+	// update the policy with patch_when_closed false and force_patch, force_patch should be true
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"patch_when_closed": false, "force_patch": true}, http.StatusOK, &modResp)
+	require.True(t, modResp.Policy.ForcePatch)
+	require.False(t, modResp.Policy.PatchWhenClosed)
+
+	// update the policy with the software automation with software_title_id and no automation_type, force_patch should stay true
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"software_title_id": titleID}, http.StatusOK, &modResp)
+	require.NotNil(t, modResp.Policy.AutomationType)
+	require.Equal(t, fleet.PolicyAutomationSoftware, *modResp.Policy.AutomationType)
+	require.True(t, modResp.Policy.ForcePatch)
+
+	// update the policy with the software automation with software_title_id null and no automation_type, the request should fail with 422
+	res = s.Do("PATCH", policyPath, map[string]any{"software_title_id": nil}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"software_title_id" can only be null when the policy's "automation_type" isn't "software".`)
+	res.Body.Close()
+
+	// remove the automation, then send software_title_id and no automation_type, the request should fail with 422
+	modResp = fleet.ModifyPolicyResponse{}
+	s.DoJSON("PATCH", policyPath, map[string]any{"automation_type": nil}, http.StatusOK, &modResp)
+	require.Nil(t, modResp.Policy.AutomationType)
+	res = s.Do("PATCH", policyPath, map[string]any{"software_title_id": titleID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `"software_title_id" can only be set when the policy's "automation_type" is "software".`)
+	res.Body.Close()
 }

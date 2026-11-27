@@ -1,0 +1,404 @@
+#!/bin/bash
+
+# variables
+LOGGED_IN_USER=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ { print $3 }')
+# functions
+
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
+
+expand_pkgid_and_map() {
+  local PKGID="$1"
+  local FUNC="$2"
+  if [[ "$PKGID" == *"*" ]]; then
+    local prefix="${PKGID%\*}"
+    echo "Expanding wildcard for PKGID: $PKGID"
+    for receipt in $(pkgutil --pkgs | grep "^${prefix}"); do
+      echo "Processing $receipt"
+      "$FUNC" "$receipt"
+    done
+  else
+    "$FUNC" "$PKGID"
+  fi
+}
+
+app_pids() {
+  local bundle_id="$1" uid out pid puid exe
+  uid=$(id -u "$2") || return 1
+  out=$(ps -axo pid=,uid=,comm=) || return 1
+  while read -r pid puid exe; do
+    [[ "$puid" == "$uid" && "$exe" == *.app/Contents/MacOS/* ]] || continue
+    if grep -qixF -- "$bundle_id" <<< "$(defaults read "${exe%/Contents/MacOS/*}/Contents/Info" CFBundleIdentifier 2>/dev/null)"; then
+      echo "$pid"
+    fi
+  done <<< "$out"
+}
+
+force_quit_application() {
+  local bundle_id="$1" console_user="$2" pids kill_cmd=(kill)
+  [[ $EUID -ne 0 ]] || kill_cmd=(sudo -u "$console_user" kill)
+  if ! pids=$(app_pids "$bundle_id" "$console_user"); then
+    echo "Couldn't check whether application '$bundle_id' is running."
+    return 1
+  fi
+  if [[ -z "$pids" ]]; then
+    if ! app_process_running "$bundle_id" &&
+      [[ "$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)" == "false" ]]; then
+      echo "Application '$bundle_id' is no longer running."
+      return 0
+    fi
+    echo "Found no process to stop for application '$bundle_id'."
+    return 1
+  fi
+  echo "Stopping application '$bundle_id'..."
+  "${kill_cmd[@]}" -TERM $pids 2>/dev/null
+  for _ in {1..10}; do
+    sleep 1
+    if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+      echo "Application '$bundle_id' stopped."
+      return 0
+    fi
+  done
+  if [[ -n "$pids" ]]; then
+    echo "Application '$bundle_id' didn't stop; forcing it to quit."
+    "${kill_cmd[@]}" -KILL $pids 2>/dev/null
+    for _ in {1..5}; do
+      sleep 1
+      if pids=$(app_pids "$bundle_id" "$console_user") && [[ -z "$pids" ]]; then
+        echo "Application '$bundle_id' stopped."
+        return 0
+      fi
+    done
+  fi
+  echo "Application '$bundle_id' did not stop."
+  return 1
+}
+
+
+forget_pkg() {
+  local PKGID="$1"
+  expand_pkgid_and_map "$PKGID" forget_receipt
+}
+
+forget_receipt() {
+  local PKGID="$1"
+  sudo pkgutil --forget "$PKGID"
+}
+
+quit_application() {
+  local bundle_id="$1"
+  local timeout_duration=10
+
+  local app_running
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    return
+  fi
+
+  echo "Quitting application '$bundle_id'..."
+
+  local quit_success=false still_running quit_error
+  SECONDS=0
+  while (( SECONDS < timeout_duration )); do
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      echo "Application '$bundle_id' isn't running."
+      quit_success=true
+      break
+    fi
+    sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
+  done
+
+  if [[ "$quit_success" = false ]]; then
+    echo "Application '$bundle_id' did not quit."
+    [[ -z "$quit_error" ]] || echo "Last quit error: $quit_error"
+    force_quit_application "$bundle_id" "$console_user" || return 1
+  fi
+}
+
+
+remove_launchctl_service() {
+  local service="$1"
+  local booleans=("true" "false")
+  local plist_status
+  local paths
+  local should_sudo
+
+  echo "Removing launchctl service ${service}"
+
+  local console_user
+  local console_uid=""
+  if [[ $EUID -eq 0 ]]; then
+    console_user=$(stat -f "%Su" /dev/console)
+    if [[ -n "$console_user" && "$console_user" != "root" && "$console_user" != "loginwindow" ]]; then
+      console_uid=$(id -u "$console_user")
+    fi
+  fi
+
+  # A wildcard label can't be used with launchctl or as a plist name, so expand
+  # it to the labels of currently loaded services that match the pattern.
+  local services=("$service")
+  if [[ "$service" == *"*"* ]]; then
+    local regex
+    # Escape regex metacharacters, turn '*' into '.*', and anchor the pattern so
+    # it matches a full label rather than a substring.
+    regex=$(printf '%s' "$service" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')
+    regex="^${regex}$"
+    services=()
+    local id
+    # Match every loaded job by label regardless of PID; launchctl list reports
+    # loaded-but-not-running jobs with a "-" in the PID column.
+    while read -r _ _ id; do
+      [[ "$id" =~ $regex ]] && services+=("$id")
+    done < <(
+      launchctl list 2>/dev/null | tail -n +2
+      if [[ -n "$console_uid" ]]; then
+        launchctl print "gui/${console_uid}" 2>/dev/null | awk '/^\tservices = [{]$/ { f = 1; next } f && /^\t[}]$/ { f = 0 } f'
+      fi
+    )
+    if [[ ${#services[@]} -eq 0 ]]; then
+      echo "No loaded launchctl service matches ${service}"
+      return
+    fi
+  fi
+
+  local service_label
+  for service_label in "${services[@]}"; do
+    for should_sudo in "${booleans[@]}"; do
+      if [[ $should_sudo == "false" && -n "$console_uid" ]]; then
+        if launchctl print "gui/${console_uid}/${service_label}" &>/dev/null; then
+          launchctl bootout "gui/${console_uid}/${service_label}"
+          sleep 1
+        fi
+      else
+        plist_status=$(launchctl list "${service_label}" 2>/dev/null)
+
+        if [[ $plist_status == \{* ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo launchctl remove "${service_label}"
+          else
+            launchctl remove "${service_label}"
+          fi
+          sleep 1
+        fi
+      fi
+
+      paths=(
+        "/Library/LaunchAgents/${service_label}.plist"
+        "/Library/LaunchDaemons/${service_label}.plist"
+      )
+
+      # if not using sudo, prepend the home directory to the paths
+      if [[ $should_sudo == "false" ]]; then
+        local user_home="${HOME}"
+        if [[ -n "$console_uid" ]]; then
+          user_home="/Users/${console_user}"
+        fi
+        for i in "${!paths[@]}"; do
+          paths[i]="${user_home}${paths[i]}"
+        done
+      fi
+
+      for path in "${paths[@]}"; do
+        if [[ -e "$path" ]]; then
+          if [[ $should_sudo == "true" ]]; then
+            sudo rm -f -- "$path"
+          else
+            rm -f -- "$path"
+          fi
+        fi
+      done
+    done
+  done
+}
+
+remove_pkg_files() {
+  local PKGID="$1"
+  expand_pkgid_and_map "$PKGID" remove_receipt_files
+}
+
+remove_receipt_files() {
+  local PKGID="$1"
+  local PKGINFO VOLUME INSTALL_LOCATION FULL_INSTALL_LOCATION
+
+  echo "pkgutil --pkg-info-plist \"$PKGID\""
+  PKGINFO=$(pkgutil --pkg-info-plist "$PKGID")
+  VOLUME=$(echo "$PKGINFO" | awk '/<key>volume<\/key>/ {getline; gsub(/.*<string>|<\/string>.*/, ""); print}')
+  INSTALL_LOCATION=$(echo "$PKGINFO" | awk '/<key>install-location<\/key>/ {getline; gsub(/.*<string>|<\/string>.*/, ""); print}')
+
+  if [ -z "$INSTALL_LOCATION" ] || [ "$INSTALL_LOCATION" = "/" ]; then
+    FULL_INSTALL_LOCATION="$VOLUME"
+  else
+    FULL_INSTALL_LOCATION="$VOLUME/$INSTALL_LOCATION"
+    FULL_INSTALL_LOCATION=$(echo "$FULL_INSTALL_LOCATION" | sed 's|//|/|g')
+  fi
+
+  echo "sudo pkgutil --only-files --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | tr '\\\\n' '\\\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
+  sudo pkgutil --only-files --files "$PKGID" | sed "s|^|/${INSTALL_LOCATION}/|" | tr '\n' '\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf
+
+  echo "sudo pkgutil --only-dirs --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | grep '\\.app$' | tr '\\\\n' '\\\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
+  sudo pkgutil --only-dirs --files "$PKGID" | sed "s|^|${FULL_INSTALL_LOCATION}/|" | grep '\.app$' | tr '\n' '\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf
+
+  root_app_dir=$(
+    sudo pkgutil --only-dirs --files "$PKGID" \
+      | sed "s|^|${FULL_INSTALL_LOCATION}/|" \
+      | grep 'Applications' \
+      | awk '{ print length, $0 }' \
+      | sort -n \
+      | head -n1 \
+      | cut -d' ' -f2-
+  )
+  if [ -n "$root_app_dir" ]; then
+    echo "sudo rmdir -p \"$root_app_dir\" 2>/dev/null || :"
+    sudo rmdir -p "$root_app_dir" 2>/dev/null || :
+  fi
+}
+
+remove_system_path() {
+  local target="$1"
+  local parent name rel top expected
+  parent="$(dirname "$target")"
+  name="$(basename "$target")"
+  rel="${parent#/}"
+  top="/${rel%%/*}"
+  expected="$(cd -P "$top" 2>/dev/null && pwd -P)${parent#"$top"}"
+
+  (
+    cd -P "$parent" 2>/dev/null || exit 1
+    if [[ "$(pwd -P)" != "$expected" ]]; then
+      echo "Skipped $target: a folder in its path is a symlink."
+      exit 0
+    fi
+    rm -rf "./$name"
+  ) || echo "Failed to remove $target."
+}
+
+trash() {
+  local logged_in_user="$1"
+  local target_file="$2"
+  local timestamp="$(date +%Y-%m-%d-%s)"
+  local rand="$(jot -r 1 0 99999)"
+  local trash=""
+
+  # Paths in the user's home are moved to their Trash as the user: the user
+  # controls those paths and ~/.Trash, so as root the move could be redirected
+  # into a root-only directory. Other paths are deleted as root by
+  # remove_system_path. At the login window there's no user Trash, so home
+  # paths are skipped. Removal is best-effort and never fails the uninstall.
+  if [[ "$target_file" == ~* ]]; then
+    if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
+      echo "Not logged into a non-root GUI; skipping $target_file."
+      return
+    fi
+    # replace ~ with /Users/$logged_in_user
+    target_file="/Users/$logged_in_user${target_file:1}"
+    trash="/Users/$logged_in_user/.Trash"
+  fi
+
+  # If the target contains glob characters, expand it and remove each match.
+  if [[ "$target_file" == *[*?[]* ]]; then
+    local file file_name
+    local matched=false
+    local i=0
+    # compgen -G expands the (quoted) pattern itself, so paths containing
+    # spaces glob correctly; reading line by line keeps each match intact.
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      [[ -e "$file" || -L "$file" ]] || continue
+      matched=true
+      i=$((i + 1))
+      file_name="$(basename "$file")"
+      echo "removing $file."
+      if [[ -z "$trash" ]]; then
+        remove_system_path "$file"
+      else
+        # The per-match counter keeps matches that share a basename from
+        # overwriting each other in the trash.
+        sudo -u "$logged_in_user" mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
+      fi
+    done < <(compgen -G "$target_file" 2>/dev/null)
+    if [[ "$matched" == false ]]; then
+      echo "$target_file doesn't exist."
+    fi
+    return
+  fi
+
+  local file_name="$(basename "${target_file}")"
+
+  if [[ -e "$target_file" ]]; then
+    echo "removing $target_file."
+    if [[ -z "$trash" ]]; then
+      remove_system_path "$target_file"
+    else
+      sudo -u "$logged_in_user" mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
+    fi
+  else
+    echo "$target_file doesn't exist."
+  fi
+}
+
+# Acrobat Reader can be installed alongside Acrobat. Its receipts match
+# com.adobe.acrobat.DC.*, and it shares Adobe's updater (ARMDC) and some user
+# data with Acrobat, so keep those while Reader is installed.
+READER_INSTALLED=false
+for app in /Applications/*.app /Applications/*/*.app; do
+  if [[ -d "$app" && "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" == "com.adobe.Reader" ]]; then
+    echo "Adobe Acrobat Reader is installed at '$app'. Keeping what it shares with Acrobat."
+    READER_INSTALLED=true
+    break
+  fi
+done
+
+remove_launchctl_service 'Adobe_Genuine_Software_Integrity_Service'
+remove_launchctl_service 'com.adobe.AAM.Startup-1.0'
+remove_launchctl_service 'com.adobe.AAM.Updater-1.0'
+remove_launchctl_service 'com.adobe.agsservice'
+if [[ "$READER_INSTALLED" == false ]]; then
+  remove_launchctl_service 'com.adobe.ARMDC.Communicator'
+  remove_launchctl_service 'com.adobe.ARMDC.SMJobBlessHelper'
+  remove_launchctl_service 'com.adobe.ARMDCHelper.cc24aef4a1b90ed56a725c38014c95072f92651fb65e1bf9c8e43c37a23d420d'
+fi
+quit_application 'com.adobe.Acrobat.Pro' || exit 1
+quit_application 'com.adobe.distiller'
+for pkgid in $(pkgutil --pkgs | grep '^com\.adobe\.acrobat\.DC\.' | grep -v '^com\.adobe\.acrobat\.DC\.reader\.'); do
+  remove_pkg_files "$pkgid"
+  forget_pkg "$pkgid"
+done
+remove_pkg_files 'com.adobe.AcroServicesUpdater'
+forget_pkg 'com.adobe.AcroServicesUpdater'
+if [[ "$READER_INSTALLED" == false ]]; then
+  remove_pkg_files 'com.adobe.armdc.app.pkg'
+  forget_pkg 'com.adobe.armdc.app.pkg'
+fi
+remove_pkg_files 'com.adobe.PDApp.AdobeApplicationManager.installer.pkg'
+forget_pkg 'com.adobe.PDApp.AdobeApplicationManager.installer.pkg'
+sudo rm -rf '/Applications/Adobe Acrobat DC'
+if [[ "$READER_INSTALLED" == false ]]; then
+  trash "$LOGGED_IN_USER" '~/Library/Application Support/Adobe/Acrobat'
+  trash "$LOGGED_IN_USER" '~/Library/Caches/Acrobat'
+  trash "$LOGGED_IN_USER" '~/Library/Preferences/Adobe/Acrobat'
+fi
+trash "$LOGGED_IN_USER" '~/Library/Caches/com.adobe.Acrobat.Pro'
+trash "$LOGGED_IN_USER" '~/Library/HTTPStorages/com.adobe.Acrobat.Pro'
+trash "$LOGGED_IN_USER" '~/Library/HTTPStorages/com.adobe.Acrobat.Pro.binarycookies'
+trash "$LOGGED_IN_USER" '~/Library/Preferences/com.adobe.Acrobat.Pro.plist'
+trash "$LOGGED_IN_USER" '~/Library/Saved Application State/com.adobe.Acrobat.Pro.savedState'
+trash "$LOGGED_IN_USER" '~/Library/WebKit/com.adobe.Acrobat.Pro'

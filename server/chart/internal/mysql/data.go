@@ -397,10 +397,10 @@ type decodedSCDRow struct {
 }
 
 // aggregateBucket returns the merged bitmap for a single bucket given the
-// sample strategy. For Accumulate, ORs every overlapping row (entity dimension
-// collapses into the union — correct for "distinct hosts seen doing anything
-// tracked"). For Snapshot, picks the row active at bucketEnd per entity and
-// ORs across entities.
+// sample strategy. For Accumulate, ORs every row whose midpoint falls in the
+// bucket (entity dimension collapses into the union — correct for "distinct
+// hosts seen doing anything tracked"). For Snapshot, picks the row active at
+// bucketEnd per entity and ORs across entities.
 func aggregateBucket(rows []decodedSCDRow, bucketStart, bucketEnd time.Time, strategy api.SampleStrategy) *roaring.Bitmap {
 	if strategy == api.SampleStrategySnapshot {
 		// Per entity, the row "active at bucketEnd" is the one whose
@@ -422,10 +422,14 @@ func aggregateBucket(rows []decodedSCDRow, bucketStart, bucketEnd time.Time, str
 		return merged
 	}
 
-	// Accumulate: OR every row that overlaps the bucket.
+	// Accumulate: each row covers one sample period (a UTC hour), but bucket
+	// edges follow the viewer's UTC offset, which can be :30 or :45. Counting
+	// any overlap would put a row that straddles an edge in two buckets, so
+	// count each row only in the bucket that contains its midpoint.
 	var merged *roaring.Bitmap
 	for _, r := range rows {
-		if !r.validFrom.Before(bucketEnd) || !r.validTo.After(bucketStart) {
+		mid := r.validFrom.Add(r.validTo.Sub(r.validFrom) / 2)
+		if mid.Before(bucketStart) || !mid.Before(bucketEnd) {
 			continue
 		}
 		merged = orInto(merged, r.bitmap)

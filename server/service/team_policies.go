@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"reflect"
 	"slices"
 	"strconv"
@@ -38,6 +39,10 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 
 	if err := checkAutomationTypeLicense(ctx, tp.AutomationType); err != nil {
 		return nil, err
+	}
+	// Check the patch options against each other before the checks for each option.
+	if fleet.PatchOptionsConflict(tp.PatchWhenClosed, tp.NotifyBeforePatching, tp.PatchDeadline, tp.ForcePatch) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(fleet.ErrPolicyPatchOptionsMutuallyExclusive, http.StatusUnprocessableEntity))
 	}
 	if err := normalizePatchPolicyCreate(&tp); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "patch policy fields")
@@ -167,8 +172,8 @@ func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy
 	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate patch_software")
 	}
-	// Set force_patch from the installer and other options, since install_software is deprecated.
-	if policy.Type == fleet.PolicyTypePatch && policy.InstallSoftware != nil &&
+	// Set force_patch for the response from the software automation and the other patch options, since it isn't stored.
+	if policy.Type == fleet.PolicyTypePatch && policy.SoftwareInstallerID != nil &&
 		!policy.PatchWhenClosed && !policy.NotifyBeforePatching && !policy.PatchDeadline {
 		policy.ForcePatch = true
 	}
@@ -386,6 +391,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		PatchWhenClosed:              p.PatchWhenClosed,
 		NotifyBeforePatching:         p.NotifyBeforePatching,
 		PatchDeadline:                p.PatchDeadline,
+		ForcePatch:                   p.ForcePatch,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
 		ProfileUUID:                  p.ProfileUUID,
@@ -755,20 +761,37 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.ContinuousAutomationsEnabled != nil {
 		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
+	forcePatch := ptr.ValOrZero(p.ForcePatch)
 	patchWhenClosed := policy.PatchWhenClosed
+	notifyBeforePatching := policy.NotifyBeforePatching
+	patchDeadline := policy.PatchDeadline
+	// Turn off the patch options read from the database, options sent in the request are applied next.
+	if forcePatch {
+		patchWhenClosed = false
+		notifyBeforePatching = false
+		patchDeadline = false
+	}
 	if p.PatchWhenClosed != nil {
 		patchWhenClosed = *p.PatchWhenClosed
 	}
-	notifyBeforePatching := policy.NotifyBeforePatching
 	if p.NotifyBeforePatching != nil {
 		notifyBeforePatching = *p.NotifyBeforePatching
 	}
-	patchDeadline := policy.PatchDeadline
 	if p.PatchDeadline != nil {
 		patchDeadline = *p.PatchDeadline
 	}
-	if fleet.PatchOptionsConflict(patchWhenClosed, notifyBeforePatching, patchDeadline) {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error()})
+	if fleet.PatchOptionsConflict(patchWhenClosed, notifyBeforePatching, patchDeadline, forcePatch) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(fleet.ErrPolicyPatchOptionsMutuallyExclusive, http.StatusUnprocessableEntity))
+	}
+
+	// This policy has a software automation and the request doesn't set any options
+	if policy.Type == fleet.PolicyTypePatch && policy.SoftwareInstallerID != nil &&
+		(!p.AutomationType.Set || p.AutomationType.Value == fleet.PolicyAutomationSoftware) &&
+		!forcePatch && !patchWhenClosed && !notifyBeforePatching && !patchDeadline {
+		// Return an error when this request turns off the policy's current option or force_patch.
+		if policy.PatchWhenClosed || policy.NotifyBeforePatching || policy.PatchDeadline || p.ForcePatch != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errors.New(errSoftwareAutomationRequiresPatchOption), http.StatusUnprocessableEntity))
+		}
 	}
 	if notifyBeforePatching && policy.Platform != "darwin" {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()})

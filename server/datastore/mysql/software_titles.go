@@ -844,6 +844,29 @@ SELECT
 		,IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) as auto_update_window_end
 	{{end}}
 FROM software_titles st
+	{{if and .VulnerableOnly (not .ListOptions.MatchQuery)}}
+		-- Without a search no CVE column is read, so resolve the vulnerable titles once instead of
+		-- joining every (version, CVE) row and grouping them back. Keep it first in the join order,
+		-- otherwise MySQL probes the LEFT JOINs below before applying it.
+		INNER JOIN (
+			SELECT DISTINCT s.title_id
+			FROM (SELECT DISTINCT software_id FROM software_cve) sc
+			INNER JOIN software s ON s.id = sc.software_id
+			INNER JOIN software_host_counts shc ON shc.software_id = s.id AND shc.team_id = {{teamID .}} AND shc.global_stats = {{yesNo (hasTeamID .) "0" "1"}}
+			{{if or .KnownExploit .MinimumCVSS .MaximumCVSS}}
+			-- Most CVEs fall in some CVSS band, so stopping at each version's first match beats the
+			-- optimizer's default of materializing every match. Known exploits are rare, where it's the reverse.
+			WHERE EXISTS (
+				SELECT {{if not .KnownExploit}}/*+ SEMIJOIN(FIRSTMATCH) */{{end}} 1 FROM software_cve scve
+				INNER JOIN cve_meta cm ON cm.cve = scve.cve
+				WHERE scve.software_id = sc.software_id
+				{{if .KnownExploit}} AND cm.cisa_known_exploit = 1 {{end}}
+				{{if .MinimumCVSS}} AND cm.cvss_score >= ? {{end}}
+				{{if .MaximumCVSS}} AND cm.cvss_score <= ? {{end}}
+			)
+			{{end}}
+		) vuln_titles ON vuln_titles.title_id = st.id
+	{{end}}
 	{{if and (hasTeamID .) (or .AvailableForInstall .SelfServiceOnly (and .PackagesOnly (not .ListOptions.MatchQuery)))}}
 		-- These filters only keep titles with an installer, VPP app or in-house app in the fleet.
 		-- A packages_only with a search query also keeps titles without a package, so it can't use the inner join
@@ -866,15 +889,19 @@ FROM software_titles st
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
 	LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = {{teamID .}}
 {{with $softwareJoin := " "}}
-	{{if or $.ListOptions.MatchQuery $.VulnerableOnly}}
+	{{if $.ListOptions.MatchQuery}}
 		-- If we do a match but not vulnerable only, we want a LEFT JOIN on
 		-- software because software installers may not have entries in software
 		-- for their software title. If we do want vulnerable only, then we have to
 		-- INNER JOIN because a CVE implies a specific software version.
 		{{$cveJoin := yesNo $.VulnerableOnly "INNER" "LEFT"}}
-		{{$softwareJoin = printf "%s JOIN software s ON s.title_id = st.id %[1]s JOIN software_cve scve ON s.id = scve.software_id" $cveJoin }}
+		{{$softwareJoin = printf "%s JOIN software s ON s.title_id = st.id" $cveJoin}}
+		-- CVEs are only reached through versions installed in the requested scope, so a
+		-- title isn't matched by a version that is only installed in another fleet.
+		{{$softwareJoin = printf "%s %s JOIN software_host_counts shc ON shc.software_id = s.id AND shc.team_id = %d AND shc.global_stats = %s" $softwareJoin $cveJoin (teamID $) (yesNo (hasTeamID $) "0" "1")}}
+		{{$softwareJoin = printf "%s %s JOIN software_cve scve ON shc.software_id = scve.software_id" $softwareJoin $cveJoin}}
 	{{end}}
-	{{if and $.VulnerableOnly (or $.KnownExploit $.MinimumCVSS $.MaximumCVSS)}}
+	{{if and $.ListOptions.MatchQuery $.VulnerableOnly (or $.KnownExploit $.MinimumCVSS $.MaximumCVSS)}}
 		{{$softwareJoin = printf "%s INNER JOIN cve_meta cm ON scve.cve = cm.cve" $softwareJoin}}
 	  	{{if $.KnownExploit}}
 		  {{$softwareJoin = printf "%s AND cm.cisa_known_exploit = 1" $softwareJoin}}

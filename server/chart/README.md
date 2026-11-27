@@ -159,7 +159,10 @@ granularity** regardless of the *display* resolution requested at read time.
   insert). Repeated samples within the same bucket OR-merge into the existing row
   (ODKU on `uniq_entity_bucket`). A sample in a new bucket starts a fresh row. No
   explicit close step, no cross-bucket collapse.
-- **Read:** a bucket's value = OR of every row whose interval overlaps the bucket.
+- **Read:** a bucket's value = OR of every row whose midpoint falls in the bucket.
+  Bucket edges follow the client's `tz_offset`, which can be :30 or :45, so an
+  hourly row can straddle an edge; using the midpoint counts it in exactly one
+  bucket.
 
 ### `SampleStrategySnapshot`
 
