@@ -49,6 +49,7 @@ func TestScim(t *testing.T) {
 		{"ApplyScimGroupPatchResendOnRenameWithRemovals", testApplyScimGroupPatchResendOnRenameWithRemovals},
 		{"ApplyScimGroupPatchResendSkipsNoOps", testApplyScimGroupPatchResendSkipsNoOps},
 		{"ReplaceScimGroupValidation", testScimGroupReplaceValidation},
+		{"ScimGroupDisplayNameCollision", testScimGroupDisplayNameCollision},
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
 		{"ScimLastRequest", testScimLastRequest},
@@ -1460,6 +1461,32 @@ func testApplyScimGroupPatchResendSkipsNoOps(t *testing.T, ds *Datastore) {
 	require.NotNil(t, directHost)
 	assertHostProfileStatus(t, ds, strangerHost.UUID, hostProfileStatus{prof.ProfileUUID, fleet.MDMDeliveryPending})
 	assertHostProfileStatus(t, ds, directHost.UUID, hostProfileStatus{prof.ProfileUUID, fleet.MDMDeliveryVerifying})
+}
+
+func testScimGroupDisplayNameCollision(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	var existsErr fleet.AlreadyExistsError
+
+	foo := &fleet.ScimGroup{ExternalID: new("ext-foo"), DisplayName: "Foo"}
+	_, err := ds.CreateScimGroup(ctx, foo)
+	require.NoError(t, err)
+
+	// display_name is unique under a case-insensitive collation.
+	_, err = ds.CreateScimGroup(ctx, &fleet.ScimGroup{ExternalID: new("ext-foo-lower"), DisplayName: "foo"})
+	require.ErrorAs(t, err, &existsErr)
+
+	bar := &fleet.ScimGroup{ExternalID: new("ext-bar"), DisplayName: "Bar"}
+	_, err = ds.CreateScimGroup(ctx, bar)
+	require.NoError(t, err)
+	bar.DisplayName = "FOO"
+	require.ErrorAs(t, ds.ReplaceScimGroup(ctx, bar), &existsErr)
+
+	// A case-only rename doesn't collide with the group's own name.
+	foo.DisplayName = "FOO"
+	require.NoError(t, ds.ReplaceScimGroup(ctx, foo))
+	got, err := ds.ScimGroupByID(ctx, foo.ID, true)
+	require.NoError(t, err)
+	require.Equal(t, "FOO", got.DisplayName)
 }
 
 func testScimGroupReplaceValidation(t *testing.T, ds *Datastore) {

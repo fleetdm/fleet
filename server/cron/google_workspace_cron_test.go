@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
@@ -57,6 +59,12 @@ type syncRecorder struct {
 	createdGroups  []*fleet.ScimGroup
 	replacedGroups []*fleet.ScimGroup
 	deletedGroups  []uint
+	// groupWriteNames records the display name of every group create/replace
+	// attempt, including ones rejected by groupNameTaken.
+	groupWriteNames []string
+	// groupNameTaken, when set, makes group writes with a matching display name
+	// fail the way the datastore reports a display-name collision.
+	groupNameTaken func(name string) bool
 
 	lastRequest *fleet.ScimLastRequest
 }
@@ -89,12 +97,20 @@ func newSyncRecorder(appConfig *fleet.AppConfig, existingUsers []fleet.ScimUser,
 		return nil, nil
 	}
 	r.ds.CreateScimGroupFunc = func(_ context.Context, group *fleet.ScimGroup) (uint, error) {
+		r.groupWriteNames = append(r.groupWriteNames, group.DisplayName)
+		if r.groupNameTaken != nil && r.groupNameTaken(group.DisplayName) {
+			return 0, groupNameTakenError{name: group.DisplayName}
+		}
 		nextID++
 		group.ID = nextID
 		r.createdGroups = append(r.createdGroups, group)
 		return nextID, nil
 	}
 	r.ds.ReplaceScimGroupFunc = func(_ context.Context, group *fleet.ScimGroup) error {
+		r.groupWriteNames = append(r.groupWriteNames, group.DisplayName)
+		if r.groupNameTaken != nil && r.groupNameTaken(group.DisplayName) {
+			return groupNameTakenError{name: group.DisplayName}
+		}
 		r.replacedGroups = append(r.replacedGroups, group)
 		return nil
 	}
@@ -108,6 +124,13 @@ func newSyncRecorder(appConfig *fleet.AppConfig, existingUsers []fleet.ScimUser,
 	}
 	return r
 }
+
+type groupNameTakenError struct{ name string }
+
+func (e groupNameTakenError) Error() string {
+	return fmt.Sprintf("ScimGroup %q already exists", e.name)
+}
+func (e groupNameTakenError) IsExists() bool { return true }
 
 func scimUser(extID, userName, dept string, active bool) fleet.ScimUser {
 	return fleet.ScimUser{
@@ -343,4 +366,152 @@ func TestGoogleWorkspaceSyncGroupMembershipUpdate(t *testing.T) {
 	require.NoError(t, runSync(t, r, dir))
 	require.Len(t, r.replacedGroups, 1)
 	assert.Equal(t, []uint{1}, r.replacedGroups[0].ScimUsers)
+}
+
+func scimGroup(id uint, extID, name string) fleet.ScimGroup {
+	return fleet.ScimGroup{ID: id, ExternalID: new(extID), DisplayName: name}
+}
+
+func gwGroup(extID, name string) *fleet.GoogleWorkspaceGroup {
+	return &fleet.GoogleWorkspaceGroup{ExternalID: extID, DisplayName: name}
+}
+
+func reversed[T any](s []T) []T {
+	out := slices.Clone(s)
+	slices.Reverse(out)
+	return out
+}
+
+func TestGoogleWorkspaceSyncGroupNameCollisions(t *testing.T) {
+	t.Run("existing group keeps its name against a new case variant", func(t *testing.T) {
+		pull := []*fleet.GoogleWorkspaceGroup{gwGroup("grpA", "infrastructure"), gwGroup("grpB", "Infrastructure")}
+		for _, order := range [][]*fleet.GoogleWorkspaceGroup{pull, reversed(pull)} {
+			r := newSyncRecorder(gwAppConfig(), nil, []fleet.ScimGroup{scimGroup(5, "grpB", "Infrastructure")})
+			require.NoError(t, runSync(t, r, &fakeDirectory{groups: order}))
+
+			assert.Equal(t, []string{"infrastructure (grpA)"}, r.groupWriteNames)
+			assert.Empty(t, r.replacedGroups)
+			assert.Equal(t, "success", r.lastRequest.Status)
+		}
+	})
+
+	t.Run("existing group keeps its name against a new exact duplicate", func(t *testing.T) {
+		r := newSyncRecorder(gwAppConfig(), nil, []fleet.ScimGroup{scimGroup(5, "grpB", "X")})
+		dir := &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpA", "X"), gwGroup("grpB", "X")}}
+		require.NoError(t, runSync(t, r, dir))
+
+		assert.Equal(t, []string{"X (grpA)"}, r.groupWriteNames)
+		assert.Empty(t, r.replacedGroups)
+	})
+
+	t.Run("new case variants in one pull", func(t *testing.T) {
+		r := newSyncRecorder(gwAppConfig(), nil, nil)
+		dir := &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grp1", "Foo"), gwGroup("grp2", "foo")}}
+		require.NoError(t, runSync(t, r, dir))
+
+		require.Len(t, r.createdGroups, 2)
+		assert.Equal(t, "Foo", r.createdGroups[0].DisplayName)
+		assert.Equal(t, "foo (grp2)", r.createdGroups[1].DisplayName)
+		assert.Equal(t, "success", r.lastRequest.Status)
+	})
+
+	t.Run("case-only rename of the holder", func(t *testing.T) {
+		existing := []fleet.ScimGroup{scimGroup(5, "grpA", "Foo"), scimGroup(6, "grpB", "foo (grpB)")}
+		r := newSyncRecorder(gwAppConfig(), nil, existing)
+		dir := &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpB", "foo"), gwGroup("grpA", "FOO")}}
+		require.NoError(t, runSync(t, r, dir))
+
+		require.Len(t, r.replacedGroups, 1)
+		assert.Equal(t, uint(5), r.replacedGroups[0].ID)
+		assert.Equal(t, "FOO", r.replacedGroups[0].DisplayName)
+		assert.Empty(t, r.createdGroups)
+	})
+
+	t.Run("steady state makes no writes in either order", func(t *testing.T) {
+		pull := []*fleet.GoogleWorkspaceGroup{gwGroup("grpA", "Foo"), gwGroup("grpB", "foo")}
+		for _, order := range [][]*fleet.GoogleWorkspaceGroup{pull, reversed(pull)} {
+			existing := []fleet.ScimGroup{scimGroup(5, "grpA", "Foo"), scimGroup(6, "grpB", "foo (grpB)")}
+			r := newSyncRecorder(gwAppConfig(), nil, existing)
+			require.NoError(t, runSync(t, r, &fakeDirectory{groups: order}))
+			assert.Empty(t, r.groupWriteNames)
+		}
+	})
+
+	t.Run("create retries with the suffix when the name is taken", func(t *testing.T) {
+		r := newSyncRecorder(gwAppConfig(), nil, nil)
+		r.groupNameTaken = func(name string) bool { return name == "Cafe" }
+		require.NoError(t, runSync(t, r, &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpA", "Cafe")}}))
+
+		assert.Equal(t, []string{"Cafe", "Cafe (grpA)"}, r.groupWriteNames)
+		require.Len(t, r.createdGroups, 1)
+		assert.Equal(t, "Cafe (grpA)", r.createdGroups[0].DisplayName)
+		assert.Equal(t, "success", r.lastRequest.Status)
+	})
+
+	t.Run("update retries with the suffix when the name is taken", func(t *testing.T) {
+		r := newSyncRecorder(gwAppConfig(), nil, []fleet.ScimGroup{scimGroup(5, "grpA", "Old")})
+		r.groupNameTaken = func(name string) bool { return name == "Cafe" }
+		require.NoError(t, runSync(t, r, &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpA", "Cafe")}}))
+
+		require.Len(t, r.replacedGroups, 1)
+		assert.Equal(t, "Cafe (grpA)", r.replacedGroups[0].DisplayName)
+		assert.Equal(t, "success", r.lastRequest.Status)
+	})
+
+	t.Run("update skips the retry write when already stored under the suffix", func(t *testing.T) {
+		r := newSyncRecorder(gwAppConfig(), nil, []fleet.ScimGroup{scimGroup(5, "grpA", "Cafe (grpA)")})
+		r.groupNameTaken = func(name string) bool { return name == "Cafe" }
+		require.NoError(t, runSync(t, r, &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpA", "Cafe")}}))
+
+		assert.Equal(t, []string{"Cafe"}, r.groupWriteNames)
+		assert.Empty(t, r.replacedGroups)
+		assert.Equal(t, "success", r.lastRequest.Status)
+	})
+
+	t.Run("failure after the retry is reported", func(t *testing.T) {
+		r := newSyncRecorder(gwAppConfig(), nil, nil)
+		r.groupNameTaken = func(string) bool { return true }
+		err := runSync(t, r, &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpA", "Cafe")}})
+		require.ErrorContains(t, err, "partial sync")
+
+		assert.Equal(t, []string{"Cafe", "Cafe (grpA)"}, r.groupWriteNames)
+		assert.Empty(t, r.createdGroups)
+		assert.Equal(t, "error", r.lastRequest.Status)
+	})
+}
+
+// The mock datastore can't reproduce the display_name collation, so this runs
+// the group sync against MySQL.
+func TestGoogleWorkspaceSyncGroupNameCollisionsMySQL(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	ctx := t.Context()
+
+	_, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{ExternalID: new("grpB"), DisplayName: "Infrastructure"})
+	require.NoError(t, err)
+
+	pull := []*fleet.GoogleWorkspaceGroup{
+		gwGroup("grpA", "infrastructure"),
+		gwGroup("grpB", "Infrastructure"),
+		gwGroup("grpC", "Cafe"),
+		gwGroup("grpD", "Café"),
+	}
+	want := map[string]string{
+		"grpA": "infrastructure (grpA)",
+		"grpB": "Infrastructure",
+		"grpC": "Cafe",
+		"grpD": "Café (grpD)",
+	}
+	intg := gwAppConfig().Integrations.GoogleWorkspace[0]
+	for i, order := range [][]*fleet.GoogleWorkspaceGroup{pull, reversed(pull), pull} {
+		dir := &fakeDirectory{groups: order}
+		require.NoError(t, syncGoogleWorkspaceDirectory(ctx, ds, fakeFactory(dir, nil), intg, slog.New(slog.DiscardHandler)), "run %d", i)
+
+		groups, err := listAllScimGroups(ctx, ds)
+		require.NoError(t, err)
+		got := make(map[string]string, len(groups))
+		for _, g := range groups {
+			got[*g.ExternalID] = g.DisplayName
+		}
+		require.Equal(t, want, got, "run %d", i)
+	}
 }

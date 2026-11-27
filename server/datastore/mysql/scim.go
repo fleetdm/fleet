@@ -953,6 +953,9 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 			group.DisplayName,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("ScimGroup", group.DisplayName), "insert scim group")
+			}
 			return ctxerr.Wrap(ctx, err, "insert scim group")
 		}
 
@@ -1225,6 +1228,9 @@ func updateScimGroupAttributes(ctx context.Context, tx sqlx.ExtContext, group *f
 		group.ID,
 	)
 	if err != nil {
+		if IsDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("ScimGroup", group.DisplayName), "update scim group")
+		}
 		return ctxerr.Wrap(ctx, err, "update scim group")
 	}
 

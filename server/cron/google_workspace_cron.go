@@ -2,13 +2,16 @@ package cron
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 )
 
@@ -247,9 +250,17 @@ func syncGoogleWorkspaceGroups(
 	}
 
 	seen := make(map[string]struct{}, len(gwGroups))
-	// scim_groups.display_name is UNIQUE; disambiguate collisions within the pull
-	// so one duplicate name can't fail the whole sync.
+	// scim_groups.display_name is UNIQUE under a case-insensitive collation, but
+	// Google only requires group emails to be unique. A group already stored
+	// under its own name keeps it whatever order Google lists groups in, since
+	// labels and profile variables key on the name; any other group whose name
+	// is taken gets its external ID appended.
 	usedDisplayNames := make(map[string]struct{}, len(gwGroups))
+	for _, gg := range gwGroups {
+		if ex, ok := existingByExtID[gg.ExternalID]; ok && gg.ExternalID != "" && holdsDisplayName(ex, gg) {
+			usedDisplayNames[displayNameKey(baseDisplayName(gg))] = struct{}{}
+		}
+	}
 	failed := 0
 
 	for _, gg := range gwGroups {
@@ -265,31 +276,29 @@ func syncGoogleWorkspaceGroups(
 			}
 		}
 
-		displayName := uniqueDisplayName(gg.DisplayName, gg.ExternalID, usedDisplayNames)
+		ex := existingByExtID[gg.ExternalID]
+		suffixed := fmt.Sprintf("%s (%s)", baseDisplayName(gg), gg.ExternalID)
+		displayName := baseDisplayName(gg)
+		if ex == nil || !holdsDisplayName(ex, gg) {
+			displayName = uniqueDisplayName(displayName, suffixed, usedDisplayNames)
+		}
 		desired := &fleet.ScimGroup{
 			ExternalID:  new(gg.ExternalID),
 			DisplayName: displayName,
 			ScimUsers:   memberIDs,
 		}
-
-		if ex, ok := existingByExtID[gg.ExternalID]; ok {
+		if ex != nil {
 			desired.ID = ex.ID
-			if scimGroupNeedsUpdate(ex, desired) {
-				if err := ds.ReplaceScimGroup(ctx, desired); err != nil {
-					// Best-effort: log and skip so one bad group doesn't abort the sync.
-					failed++
-					logger.ErrorContext(ctx, "google workspace sync: skipping group that failed to update",
-						"display_name", displayName, "external_id", gg.ExternalID, "err", err)
-				}
-			}
-			continue
 		}
 
-		if _, err := ds.CreateScimGroup(ctx, desired); err != nil {
+		if err := writeGoogleWorkspaceGroup(ctx, ds, ex, desired, suffixed, usedDisplayNames, logger); err != nil {
+			// Best-effort: log and skip so one bad group doesn't abort the sync.
 			failed++
-			logger.ErrorContext(ctx, "google workspace sync: skipping group that failed to create",
-				"display_name", displayName, "external_id", gg.ExternalID, "err", err)
-			continue
+			msg := "google workspace sync: skipping group that failed to create"
+			if ex != nil {
+				msg = "google workspace sync: skipping group that failed to update"
+			}
+			logger.ErrorContext(ctx, msg, "display_name", desired.DisplayName, "external_id", gg.ExternalID, "err", err)
 		}
 	}
 
@@ -312,18 +321,68 @@ func syncGoogleWorkspaceGroups(
 	return failed, nil
 }
 
-// uniqueDisplayName returns a display name guaranteed not to collide with one
-// already used in this sync pass, appending the group's external ID if needed.
-func uniqueDisplayName(displayName, externalID string, used map[string]struct{}) string {
-	candidate := displayName
-	if candidate == "" {
-		candidate = externalID
+// writeGoogleWorkspaceGroup creates desired, or replaces ex with it if anything
+// changed. The collation also equates names that differ by accents, emoji or
+// trailing spaces, which displayNameKey doesn't model, so a write rejected for
+// a taken name is retried once with suffixed.
+func writeGoogleWorkspaceGroup(
+	ctx context.Context,
+	ds fleet.Datastore,
+	ex, desired *fleet.ScimGroup,
+	suffixed string,
+	usedDisplayNames map[string]struct{},
+	logger *slog.Logger,
+) error {
+	write := func() error {
+		if ex == nil {
+			_, err := ds.CreateScimGroup(ctx, desired)
+			return err
+		}
+		if !scimGroupNeedsUpdate(ex, desired) {
+			return nil
+		}
+		return ds.ReplaceScimGroup(ctx, desired)
 	}
-	if _, taken := used[candidate]; taken {
-		candidate = fmt.Sprintf("%s (%s)", candidate, externalID)
+
+	err := write()
+	var existsErr fleet.AlreadyExistsError
+	if !errors.As(err, &existsErr) || desired.DisplayName == suffixed {
+		return err
 	}
-	used[candidate] = struct{}{}
-	return candidate
+	logger.DebugContext(ctx, "google workspace sync: group display name taken, retrying with external ID suffix",
+		"display_name", desired.DisplayName, "external_id", ptr.ValOrZero(desired.ExternalID))
+	desired.DisplayName = suffixed
+	usedDisplayNames[displayNameKey(suffixed)] = struct{}{}
+	return write()
+}
+
+// baseDisplayName is the name a Google group is stored under when nothing
+// else claims it.
+func baseDisplayName(gg *fleet.GoogleWorkspaceGroup) string {
+	if gg.DisplayName == "" {
+		return gg.ExternalID
+	}
+	return gg.DisplayName
+}
+
+// holdsDisplayName reports whether the stored group already has gg's name,
+// ignoring case so a case-only rename in Google keeps ownership.
+func holdsDisplayName(ex *fleet.ScimGroup, gg *fleet.GoogleWorkspaceGroup) bool {
+	return displayNameKey(ex.DisplayName) == displayNameKey(baseDisplayName(gg))
+}
+
+func displayNameKey(name string) string {
+	return strings.ToLower(name)
+}
+
+// uniqueDisplayName returns name, or suffixed if a group in this sync pass
+// already claimed name, and records the result as claimed.
+func uniqueDisplayName(name, suffixed string, used map[string]struct{}) string {
+	if _, taken := used[displayNameKey(name)]; taken {
+		name = suffixed
+	}
+	used[displayNameKey(name)] = struct{}{}
+	return name
 }
 
 func scimUserNeedsUpdate(existing, desired *fleet.ScimUser) bool {
