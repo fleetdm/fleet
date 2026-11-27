@@ -612,7 +612,7 @@ SELECT 'w', name, checksum FROM mdm_windows_configuration_profiles WHERE team_id
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updates fleet.MDMProfilesUpdates, err error) {
-	var windowsRollupHostUUIDs []string
+	var windowsRollupHostUUIDs, appleDeclRollupHostUUIDs []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		// Pass profilesVariablesByIdentifier to Windows profiles to save variable associations
@@ -625,7 +625,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
-		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations, profilesVariablesByIdentifier); err != nil {
+		if updates.AppleDeclaration, appleDeclRollupHostUUIDs, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
@@ -644,9 +644,10 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 		return nil
 	})
 	if err == nil {
-		// Post-commit async refresh of the Windows rollup for hosts whose profile rows were deleted by
+		// Post-commit async refresh of the Windows and Apple declaration rollups for hosts whose rows were deleted by
 		// the batch set; a crash before it completes is healed by the hourly reconcile.
 		ds.dispatchWindowsProfilesStatusRollupRefresh(ctx, windowsRollupHostUUIDs)
+		ds.dispatchAppleStatusRollupRefresh(ctx, appleDeclarationsStatusRollup, appleDeclRollupHostUUIDs)
 	}
 	return updates, err
 }
@@ -1039,6 +1040,12 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_declarations`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_declarations")
 			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles_status`); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_profiles_status")
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_declarations_status`); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_declarations_status")
+			}
 		case "windows":
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
@@ -1260,6 +1267,10 @@ func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{host.UUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after verification update")
 			}
+			return nil
+		}
+		if err := appleProfilesStatusRollup.refreshDB(ctx, tx, []string{host.UUID}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating apple profiles status rollup after verification update")
 		}
 		return nil
 	})
@@ -2438,6 +2449,11 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after resend")
 			}
 		}
+		if r, ok := appleStatusRollupForTable(table); ok {
+			if err := r.refreshDB(ctx, tx, []string{hostUUID}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating apple status rollup after resend")
+			}
+		}
 
 		return nil
 	})
@@ -2719,7 +2735,8 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL%s WHERE %s = ? AND status = ?`, table, setRetries, column)
 
 	var count int64
-	var windowsHostUUIDs []string
+	var rollupHostUUIDs []string
+	appleRollup, isApple := appleStatusRollupForTable(table)
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var secretEnrollmentIDs []uint
 		if table == "host_mdm_windows_profiles" {
@@ -2745,9 +2762,9 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 		// writes, so it cannot miss a row the update touched; rows already NULL are harmless extras (the recompute is idempotent). The
 		// refresh itself is dispatched asynchronously after commit: the affected set scales with the fleet (a fleet-wide failed-profile
 		// resend touches every host), and a crash before it completes is healed by the hourly reconcile.
-		if table == "host_mdm_windows_profiles" {
-			if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs,
-				`SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND status IS NULL`,
+		if table == "host_mdm_windows_profiles" || isApple {
+			if err := sqlx.SelectContext(ctx, tx, &rollupHostUUIDs,
+				fmt.Sprintf(`SELECT host_uuid FROM %s WHERE %s = ? AND status IS NULL`, table, column),
 				profileUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "selecting affected hosts for batch resend")
 			}
@@ -2755,7 +2772,11 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 		return nil
 	})
 	if err == nil {
-		ds.dispatchWindowsProfilesStatusRollupRefresh(ctx, windowsHostUUIDs)
+		if isApple {
+			ds.dispatchAppleStatusRollupRefresh(ctx, appleRollup, rollupHostUUIDs)
+		} else {
+			ds.dispatchWindowsProfilesStatusRollupRefresh(ctx, rollupHostUUIDs)
+		}
 	}
 	return count, err
 }
@@ -3606,15 +3627,20 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 					return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
 				}
 				// The rows above now have status NULL, which the summary reports as pending, so refresh
-				// the per-host Windows profile status rollup in the same transaction.
+				// the per-host profile status rollup in the same transaction.
+				hostUUIDs := make([]string, 0, len(hostCertsToRenew))
+				for _, hostCertToRenew := range hostCertsToRenew {
+					hostUUIDs = append(hostUUIDs, hostCertToRenew.HostUUID)
+				}
+				// This path only updates profile rows, so no rollup row can be orphaned.
 				if table == "host_mdm_windows_profiles" {
-					hostUUIDs := make([]string, 0, len(hostCertsToRenew))
-					for _, hostCertToRenew := range hostCertsToRenew {
-						hostUUIDs = append(hostUUIDs, hostCertToRenew.HostUUID)
-					}
-					// This path only updates profile rows, so no rollup row can be orphaned.
 					if err := updateWindowsProfilesStatusRollupDB(ctx, tx, hostUUIDs, true); err != nil {
 						return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after certificate renewal")
+					}
+				}
+				if r, ok := appleStatusRollupForTable(table); ok {
+					if err := r.refreshDB(ctx, tx, hostUUIDs, true); err != nil {
+						return ctxerr.Wrap(ctx, err, "updating apple status rollup after certificate renewal")
 					}
 				}
 				return nil

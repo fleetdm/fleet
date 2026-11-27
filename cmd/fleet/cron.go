@@ -1589,6 +1589,14 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			// Self-healing safety net for the per-host Apple profile and declaration status rollups. This reconciles any drift and
+			// removes orphan rows.
+			"apple_mdm_status_rollups_reconcile",
+			func(ctx context.Context) error {
+				return ds.ReconcileAppleMDMStatusRollups(ctx)
+			},
+		),
+		schedule.WithJob(
 			"increment_policy_violation_days",
 			func(ctx context.Context) error {
 				return ds.IncrementPolicyViolationDays(ctx)

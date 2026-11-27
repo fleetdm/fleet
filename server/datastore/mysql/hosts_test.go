@@ -10403,6 +10403,16 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
+          INSERT IGNORE INTO host_mdm_apple_profiles_status (host_uuid, status) VALUES (?, 'pending')
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT IGNORE INTO host_mdm_apple_declarations_status (host_uuid, status) VALUES (?, 'pending')
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid)
           VALUES (?)
 	`, host.UUID)

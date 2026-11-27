@@ -2104,14 +2104,16 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 `
 
 	var windowsRowsAffected int64
+	var appleRollupsToRefresh []appleStatusRollup
 	for _, update := range []struct {
-		query     string
-		isWindows bool
+		query       string
+		isWindows   bool
+		appleRollup *appleStatusRollup
 	}{
-		{appleUpdateStatusQuery, false},
-		{windowsUpdateStatusQuery, true},
-		{declarationUpdateStatusQuery, false},
-		{androidUpdateStatusQuery, false},
+		{appleUpdateStatusQuery, false, &appleProfilesStatusRollup},
+		{windowsUpdateStatusQuery, true, nil},
+		{declarationUpdateStatusQuery, false, &appleDeclarationsStatusRollup},
+		{androidUpdateStatusQuery, false, nil},
 	} {
 		updateStmt, args, err := sqlx.Named(update.query, namedParams)
 		if err != nil {
@@ -2129,6 +2131,25 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		}
 		if update.isWindows {
 			windowsRowsAffected, _ = res.RowsAffected()
+		}
+		if n, _ := res.RowsAffected(); n > 0 && update.appleRollup != nil {
+			appleRollupsToRefresh = append(appleRollupsToRefresh, *update.appleRollup)
+		}
+	}
+
+	if len(appleRollupsToRefresh) > 0 {
+		stmt, args, err := sqlx.In(`SELECT uuid FROM hosts WHERE id IN (?)`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare apple hosts lookup for status rollup")
+		}
+		var hostUUIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select apple hosts for status rollup")
+		}
+		for _, r := range appleRollupsToRefresh {
+			if err := r.refreshDB(ctx, tx, hostUUIDs, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "update apple status rollup for variable resend")
+			}
 		}
 	}
 
@@ -2310,7 +2331,11 @@ func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.F
 		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "resend CA profiles")
 		}
-		return nil
+		hostsStmt, hostsArgs, err := sqlx.In(`SELECT uuid FROM hosts WHERE id IN (?)`, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare hosts lookup for CA profiles resend")
+		}
+		return refreshAppleProfilesStatusRollupForHostsQueryDB(ctx, tx, hostsStmt, hostsArgs...)
 	}
 
 	// One profile at a time, driven by its team's hosts, since host_mdm_apple_profiles has no index by profile alone.
@@ -2332,8 +2357,23 @@ func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.F
 				hmap.status IS NOT NULL`, ptr.UintOrNilIfZero(p.TeamID), p.ProfileUUID, fleet.MDMOperationTypeInstall); err != nil {
 			return ctxerr.Wrap(ctx, err, "resend CA profile to all hosts")
 		}
+		if err := refreshAppleProfilesStatusRollupForHostsQueryDB(ctx, tx,
+			`SELECT uuid FROM hosts WHERE team_id <=> ?`, ptr.UintOrNilIfZero(p.TeamID)); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+// refreshAppleProfilesStatusRollupForHostsQueryDB refreshes the Apple profiles status rollup of the hosts whose UUIDs the
+// query returns, after their profile rows were reset to be resent.
+func refreshAppleProfilesStatusRollupForHostsQueryDB(ctx context.Context, tx sqlx.ExtContext, query string, args ...any) error {
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select hosts for apple profiles status rollup")
+	}
+	// The resend only updates rows, so no rollup row can be orphaned.
+	return ctxerr.Wrap(ctx, appleProfilesStatusRollup.refreshDB(ctx, tx, hostUUIDs, true), "update apple profiles status rollup for CA profiles resend")
 }
 
 // triggerResendDeviceNamesForIDPChange re-queues host-name enforcement rows so the

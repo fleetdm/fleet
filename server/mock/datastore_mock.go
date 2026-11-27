@@ -1670,6 +1670,8 @@ type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*
 
 type ReconcileWindowsProfilesStatusFunc func(ctx context.Context) error
 
+type ReconcileAppleMDMStatusRollupsFunc func(ctx context.Context) error
+
 type GetWindowsMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error)
 
 type ListWindowsProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error)
@@ -5131,6 +5133,9 @@ type DataStore struct {
 
 	ReconcileWindowsProfilesStatusFunc        ReconcileWindowsProfilesStatusFunc
 	ReconcileWindowsProfilesStatusFuncInvoked bool
+
+	ReconcileAppleMDMStatusRollupsFunc        ReconcileAppleMDMStatusRollupsFunc
+	ReconcileAppleMDMStatusRollupsFuncInvoked bool
 
 	GetWindowsMDMHostForReconcileFunc        GetWindowsMDMHostForReconcileFunc
 	GetWindowsMDMHostForReconcileFuncInvoked bool
@@ -12382,6 +12387,13 @@ func (s *DataStore) ReconcileWindowsProfilesStatus(ctx context.Context) error {
 	s.ReconcileWindowsProfilesStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReconcileWindowsProfilesStatusFunc(ctx)
+}
+
+func (s *DataStore) ReconcileAppleMDMStatusRollups(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileAppleMDMStatusRollupsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileAppleMDMStatusRollupsFunc(ctx)
 }
 
 func (s *DataStore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {

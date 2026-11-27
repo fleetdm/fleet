@@ -706,32 +706,42 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return deleteMDMAppleDeclarationAndPostProcessing(ctx, tx, declUUID)
+	var affectedHostUUIDs []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		hosts, err := deleteMDMAppleDeclarationAndPostProcessing(ctx, tx, declUUID)
+		affectedHostUUIDs = hosts
+		return err
 	})
-}
-
-func deleteMDMAppleDeclarationAndPostProcessing(ctx context.Context, tx sqlx.ExtContext, declUUID string) error {
-	if err := deleteMDMAppleDeclaration(ctx, tx, declUUID); err != nil {
+	if err != nil {
 		return err
 	}
-	// cancel any pending host installs immediately for this declaration
-	if err := cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, []string{declUUID}); err != nil {
-		return err
-	}
+	ds.dispatchAppleStatusRollupRefresh(ctx, appleDeclarationsStatusRollup, affectedHostUUIDs)
 	return nil
 }
 
+// deleteMDMAppleDeclarationAndPostProcessing returns the hosts whose declaration rows changed; the tx owner refreshes their
+// status rollup after commit.
+func deleteMDMAppleDeclarationAndPostProcessing(ctx context.Context, tx sqlx.ExtContext, declUUID string) ([]string, error) {
+	if err := deleteMDMAppleDeclaration(ctx, tx, declUUID); err != nil {
+		return nil, err
+	}
+	// cancel any pending host installs immediately for this declaration
+	return cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, []string{declUUID})
+}
+
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var affectedHostUUIDs []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
 			return err
 		}
 
 		// cancel any pending host installs immediately for this profile
-		if err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}); err != nil {
+		hosts, err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID})
+		if err != nil {
 			return err
 		}
+		affectedHostUUIDs = hosts
 
 		if err := deleteMDMProfileOptIns(ctx, tx, []string{profileUUID}); err != nil {
 			return err
@@ -739,6 +749,11 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	ds.dispatchAppleStatusRollupRefresh(ctx, appleProfilesStatusRollup, affectedHostUUIDs)
+	return nil
 }
 
 func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtContext, id uint, uuid string) error {
@@ -774,7 +789,9 @@ func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtConte
 	return nil
 }
 
-func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+// cancelAppleHostInstallsForDeletedMDMProfiles returns the hosts that had rows for the profiles; the tx owner refreshes their
+// status rollup after commit.
+func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) ([]string, error) {
 	// For Apple profiles, we can safely delete the rows for hosts where status
 	// is NULL and operation type is install, but if the status is not NULL, the
 	// install command _may_ have been sent to the host, we need to change the
@@ -784,7 +801,12 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	// that the host received it yet).
 
 	if len(profileUUIDs) == 0 {
-		return nil
+		return nil, nil
+	}
+
+	affectedHostUUIDs, err := selectHostUUIDsWithRowsDB(ctx, tx, "host_mdm_apple_profiles", "profile_uuid", profileUUIDs)
+	if err != nil {
+		return nil, err
 	}
 
 	const delStmt = `
@@ -797,11 +819,11 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 
 	stmt, args, err := sqlx.In(delStmt, profileUUIDs, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in statement")
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
 	}
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_profiles that have not been sent to host")
+		return nil, ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_profiles that have not been sent to host")
 	}
 
 	const deactivateNanoStmt = `
@@ -821,10 +843,10 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 
 	stmt, args, err = sqlx.In(deactivateNanoStmt, profileUUIDs, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in statement")
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deactivating nano_enrollment_queue for commands that were pending send to host")
+		return nil, ctxerr.Wrap(ctx, err, "deactivating nano_enrollment_queue for commands that were pending send to host")
 	}
 
 	// we set the ignore_error flag if install status was "pending" or "failed"
@@ -845,14 +867,27 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove,
 		[]fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed}, profileUUIDs, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in statement")
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
 	}
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host_mdm_apple_profiles to pending remove")
+		return nil, ctxerr.Wrap(ctx, err, "updating host_mdm_apple_profiles to pending remove")
 	}
 
-	return nil
+	return affectedHostUUIDs, nil
+}
+
+// selectHostUUIDsWithRowsDB returns the distinct hosts that have rows in table whose column is one of values.
+func selectHostUUIDsWithRowsDB(ctx context.Context, q sqlx.QueryerContext, table, column string, values []string) ([]string, error) {
+	stmt, args, err := sqlx.In(`SELECT DISTINCT host_uuid FROM `+table+` WHERE `+column+` IN (?)`, values)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "building select of affected hosts in %s", table)
+	}
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, q, &hostUUIDs, stmt, args...); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "selecting affected hosts in %s", table)
+	}
+	return hostUUIDs, nil
 }
 
 // deleteMDMProfileOptIns deletes all rows referencing the profiles with the given UUIDs.
@@ -872,7 +907,9 @@ func deleteHostMDMProfileOptIns(ctx context.Context, tx sqlx.ExtContext, hostUUI
 	return ctxerr.Wrap(ctx, err, "executing delete for mdm profile opt ins")
 }
 
-func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sqlx.ExtContext, declUUIDs []string) error {
+// cancelAppleHostInstallsForDeletedMDMDeclarations returns the hosts that had rows for the declarations; the tx owner refreshes
+// their status rollup after commit.
+func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sqlx.ExtContext, declUUIDs []string) ([]string, error) {
 	// For Apple declarations, we can safely delete the rows for hosts where
 	// status is NULL and operation type is install, but if the status is not
 	// NULL, we need to change the operation to remove and set the status to NULL
@@ -881,7 +918,12 @@ func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sq
 	// (which will not include the deleted declaration(s) anymore).
 
 	if len(declUUIDs) == 0 {
-		return nil
+		return nil, nil
+	}
+
+	affectedHostUUIDs, err := selectHostUUIDsWithRowsDB(ctx, tx, "host_mdm_apple_declarations", "declaration_uuid", declUUIDs)
+	if err != nil {
+		return nil, err
 	}
 
 	const delStmt = `
@@ -894,11 +936,11 @@ func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sq
 
 	stmt, args, err := sqlx.In(delStmt, declUUIDs, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed}, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in statement")
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
 	}
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that have not been sent to host")
+		return nil, ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that have not been sent to host")
 	}
 
 	const updStmt = `
@@ -914,18 +956,19 @@ func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sq
 
 	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove, declUUIDs, fleet.MDMOperationTypeInstall)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building in statement")
+		return nil, ctxerr.Wrap(ctx, err, "building in statement")
 	}
 
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host_mdm_apple_declarations that may have been sent to host")
+		return nil, ctxerr.Wrap(ctx, err, "updating host_mdm_apple_declarations that may have been sent to host")
 	}
 
-	return nil
+	return affectedHostUUIDs, nil
 }
 
 func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var affectedHostUUIDs []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const loadStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`
 		var globalOrTmID uint
 		if teamID != nil {
@@ -936,7 +979,9 @@ func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID
 		switch {
 		case err == nil:
 			// Declaration exists, delete it.
-			return deleteMDMAppleDeclarationAndPostProcessing(ctx, tx, declUUID)
+			hosts, err := deleteMDMAppleDeclarationAndPostProcessing(ctx, tx, declUUID)
+			affectedHostUUIDs = hosts
+			return err
 		case errors.Is(err, sql.ErrNoRows):
 			// Declaration doesn't exist, nothing to do.
 			return nil
@@ -944,6 +989,11 @@ func (ds *Datastore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID
 			return ctxerr.Wrap(ctx, err, "load apple mdm declaration")
 		}
 	})
+	if err != nil {
+		return err
+	}
+	ds.dispatchAppleStatusRollupRefresh(ctx, appleDeclarationsStatusRollup, affectedHostUUIDs)
+	return nil
 }
 
 func deleteMDMAppleDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
@@ -1224,7 +1274,7 @@ WHERE
 			ds.logger.ErrorContext(ctx, "resend custom scep profile: host mdm apple profiles not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
 		}
 
-		return nil
+		return appleProfilesStatusRollup.refreshDB(ctx, tx, []string{hostUUID}, true)
 	})
 }
 
@@ -2426,10 +2476,14 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 // deleteMDMOSCustomSettingsForHost deletes configuration profiles and
 // declarations for a host based on its platform.
 func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sqlx.ExtContext, uuid, platform string) error {
+	appleTables := []string{
+		"host_mdm_apple_profiles", "host_mdm_apple_declarations",
+		"host_mdm_apple_profiles_status", "host_mdm_apple_declarations_status",
+	}
 	tableMap := map[string][]string{
-		"darwin":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
-		"ios":     {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
-		"ipados":  {"host_mdm_apple_profiles", "host_mdm_apple_declarations"},
+		"darwin":  appleTables,
+		"ios":     appleTables,
+		"ipados":  appleTables,
 		"windows": {"host_mdm_windows_profiles"},
 		"android": {"host_mdm_android_profiles"},
 	}
@@ -3264,7 +3318,12 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 			return err
 		}
 	}
-	return nil
+
+	hostUUIDs := make([]string, 0, len(profs))
+	for _, p := range profs {
+		hostUUIDs = append(hostUUIDs, p.HostUUID)
+	}
+	return appleProfilesStatusRollup.refreshDB(ctx, tx, hostUUIDs, false)
 }
 
 // transferAdoptedMDMManagedCertificatesDB moves the managed certificate rows of host profiles
@@ -3475,6 +3534,13 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 		return err
 	}
 
+	hostUUIDs := make([]string, 0, len(payload))
+	for _, p := range payload {
+		hostUUIDs = append(hostUUIDs, p.HostUUID)
+	}
+	if err := appleProfilesStatusRollup.refreshDB(ctx, ds.writer(ctx), hostUUIDs, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating apple profiles status rollup after bulk upsert")
+	}
 	return nil
 }
 
@@ -3492,11 +3558,13 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 		}
 		if ignoreError ||
 			(*profile.Status == fleet.MDMDeliveryVerifying || *profile.Status == fleet.MDMDeliveryVerified) {
-			_, err := ds.writer(ctx).ExecContext(ctx, `
+			if _, err := ds.writer(ctx).ExecContext(ctx, `
           DELETE FROM host_mdm_apple_profiles
           WHERE host_uuid = ? AND command_uuid = ?
-        `, profile.HostUUID, profile.CommandUUID)
-			return err
+        `, profile.HostUUID, profile.CommandUUID); err != nil {
+				return err
+			}
+			return appleProfilesStatusRollup.refreshDB(ctx, ds.writer(ctx), []string{profile.HostUUID}, false)
 		}
 	}
 
@@ -3546,7 +3614,10 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
           WHERE host_uuid = ? AND command_uuid = ?
         `, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
 		}
-		return err
+		if err != nil {
+			return err
+		}
+		return appleProfilesStatusRollup.refreshDB(ctx, tx, []string{profile.HostUUID}, true)
 	})
 	return err
 }
@@ -3631,40 +3702,32 @@ func sqlCaseMDMAppleStatus(cfg fleet.DiskEncryptionConfig) string {
 `
 }
 
-// sqlJoinMDMAppleProfilesStatus returns a SQL snippet that can be used to join a table derived from
-// host_mdm_apple_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
-// it derives a boolean value for each status category. The value will be 1 if the host has any
-// profile in the given status category. Separate columns are used for status of the filevault profile
-// vs. all other profiles. The snippet assumes the hosts table to be aliased as 'h'.
+// sqlJoinMDMAppleProfilesStatus returns a SQL snippet that joins the maintained host_mdm_apple_profiles_status rollup to
+// the hosts table. For each host it exposes a boolean for each status category of its profiles (prof_*) and, separately,
+// of its filevault profile (fv_*). The rollup holds only the highest-priority bucket per host, which is all
+// sqlCaseMDMAppleStatus needs since it checks the categories in the same priority order. The snippet assumes the hosts
+// table to be aliased as 'h'.
 func sqlJoinMDMAppleProfilesStatus() string {
-	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
-	// complicate usage in other queries (e.g., list hosts).
 	var (
 		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
 		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
 		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
 		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
-		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
-		filevault = fmt.Sprintf("'%s'", mobileconfig.FleetFileVaultPayloadIdentifier)
 	)
 	return `
 	LEFT JOIN (
-		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
-		-- filevault profiles are treated separately
 		SELECT
 			host_uuid,
-			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_pending,
-			MAX( IF(status = ` + failed + ` AND profile_identifier != ` + filevault + `, 1, 0)) AS prof_failed,
-			MAX( IF(status = ` + verifying + ` AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verifying,
-			MAX( IF(status = ` + verified + `  AND profile_identifier != ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS prof_verified,
-			MAX( IF((status IS NULL OR status = ` + pending + `) AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_pending,
-			MAX( IF(status = ` + failed + ` AND profile_identifier = ` + filevault + `, 1, 0)) AS fv_failed,
-			MAX( IF(status = ` + verifying + ` AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verifying,
-			MAX( IF(status = ` + verified + `  AND profile_identifier = ` + filevault + ` AND operation_type = ` + install + `, 1, 0)) AS fv_verified
+			status = ` + pending + ` AS prof_pending,
+			status = ` + failed + ` AS prof_failed,
+			status = ` + verifying + ` AS prof_verifying,
+			status = ` + verified + ` AS prof_verified,
+			filevault_status = ` + pending + ` AS fv_pending,
+			filevault_status = ` + failed + ` AS fv_failed,
+			filevault_status = ` + verifying + ` AS fv_verifying,
+			filevault_status = ` + verified + ` AS fv_verified
 		FROM
-			host_mdm_apple_profiles
-		GROUP BY
-			host_uuid) hmap ON h.uuid = hmap.host_uuid
+			host_mdm_apple_profiles_status) hmap ON h.uuid = hmap.host_uuid
 `
 }
 
@@ -3727,37 +3790,264 @@ func sqlJoinDeviceNameStatus() string {
 `
 }
 
-// sqlJoinMDMAppleDeclarationsStatus returns a SQL snippet that can be used to join a table derived from
-// host_mdm_apple_declarations (grouped by host_uuid and status) and the hosts table. For each host_uuid,
-// it derives a boolean value for each status category. The value will be 1 if the host has any
-// declaration in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+// sqlJoinMDMAppleDeclarationsStatus returns a SQL snippet that joins the maintained host_mdm_apple_declarations_status
+// rollup to the hosts table. For each host it exposes a boolean for each status category of its declarations (decl_*),
+// see sqlJoinMDMAppleProfilesStatus. The snippet assumes the hosts table to be aliased as 'h'.
 func sqlJoinMDMAppleDeclarationsStatus() string {
-	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
-	// complicate usage in other queries (e.g., list hosts).
 	var (
-		failed            = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
-		pending           = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
-		verifying         = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
-		verified          = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
-		install           = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
-		reservedDeclNames = fmt.Sprintf("'%s', '%s', '%s'", fleetmdm.FleetMacOSUpdatesProfileName, fleetmdm.FleetIOSUpdatesProfileName, fleetmdm.FleetIPadOSUpdatesProfileName)
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
 	)
 	return `
 	LEFT JOIN (
-		-- declaration statuses grouped by host uuid, boolean value will be 1 if host has any declaration with the given status
 		SELECT
 			host_uuid,
-			MAX( IF((status IS NULL OR status = ` + pending + `), 1, 0)) AS decl_pending,
-			MAX( IF(status = ` + failed + `, 1, 0)) AS decl_failed,
-			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + ` , 1, 0)) AS decl_verifying,
-			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + ` , 1, 0)) AS decl_verified
+			status = ` + pending + ` AS decl_pending,
+			status = ` + failed + ` AS decl_failed,
+			status = ` + verifying + ` AS decl_verifying,
+			status = ` + verified + ` AS decl_verified
 		FROM
-			host_mdm_apple_declarations
-		WHERE
-			declaration_name NOT IN(` + reservedDeclNames + `)
-		GROUP BY
-			host_uuid) hmad ON h.uuid = hmad.host_uuid
+			host_mdm_apple_declarations_status) hmad ON h.uuid = hmad.host_uuid
 `
+}
+
+// appleStatusRollupBatchSize bounds how many host UUIDs are recomputed per statement in appleStatusRollup.refreshDB and per
+// page in ReconcileAppleMDMStatusRollups.
+const appleStatusRollupBatchSize = 1000
+
+// appleStatusRollupAsyncRefreshTimeout bounds a single async rollup refresh.
+const appleStatusRollupAsyncRefreshTimeout = 15 * time.Minute
+
+// appleStatusRollup is a per-host rollup of the aggregate delivery status of an Apple source table
+// (host_mdm_apple_profiles or host_mdm_apple_declarations), read by sqlJoinMDMAppleProfilesStatus and
+// sqlJoinMDMAppleDeclarationsStatus. Every path that inserts, updates the status/operation_type of, or deletes rows in the
+// source table MUST refresh it for the affected hosts, on the same transaction/connection that made the change. If a path
+// misses it, the hourly apple_mdm_status_rollups_reconcile cron heals the drift.
+type appleStatusRollup struct {
+	table       string
+	sourceTable string
+	// upsertStmt recomputes the rollup rows for the hosts in its IN (?) from their current source rows.
+	upsertStmt string
+}
+
+// appleHostStatusBucketExpr reduces a group of Apple profile or declaration rows (aliased as 's') matching filter to a single
+// status bucket. Its priority order (failed > pending > verifying > verified, install-only for verifying/verified, NULL
+// treated as pending) is the one sqlCaseMDMAppleStatus evaluates.
+func appleHostStatusBucketExpr(filter string) string {
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+	)
+	return `CASE
+		WHEN SUM(CASE WHEN s.status = ` + failed + ` AND ` + filter + ` THEN 1 ELSE 0 END) > 0 THEN ` + failed + `
+		WHEN SUM(CASE WHEN (s.status IS NULL OR s.status = ` + pending + `) AND ` + filter + ` THEN 1 ELSE 0 END) > 0 THEN ` + pending + `
+		WHEN SUM(CASE WHEN s.operation_type = ` + install + ` AND s.status = ` + verifying + ` AND ` + filter + ` THEN 1 ELSE 0 END) > 0 THEN ` + verifying + `
+		WHEN SUM(CASE WHEN s.operation_type = ` + install + ` AND s.status = ` + verified + ` AND ` + filter + ` THEN 1 ELSE 0 END) > 0 THEN ` + verified + `
+		ELSE ''
+	END`
+}
+
+var (
+	appleProfilesStatusRollup = func() appleStatusRollup {
+		filevault := fmt.Sprintf("'%s'", mobileconfig.FleetFileVaultPayloadIdentifier)
+		return appleStatusRollup{
+			table:       "host_mdm_apple_profiles_status",
+			sourceTable: "host_mdm_apple_profiles",
+			upsertStmt: `
+INSERT INTO host_mdm_apple_profiles_status (host_uuid, status, filevault_status)
+SELECT s.host_uuid,
+	` + appleHostStatusBucketExpr(`s.profile_identifier != `+filevault) + `,
+	` + appleHostStatusBucketExpr(`s.profile_identifier = `+filevault) + `
+FROM host_mdm_apple_profiles s
+WHERE s.host_uuid IN (?)
+GROUP BY s.host_uuid
+ON DUPLICATE KEY UPDATE status = VALUES(status), filevault_status = VALUES(filevault_status)`,
+		}
+	}()
+
+	appleDeclarationsStatusRollup = func() appleStatusRollup {
+		reservedDeclNames := fmt.Sprintf("'%s', '%s', '%s'", fleetmdm.FleetMacOSUpdatesProfileName, fleetmdm.FleetIOSUpdatesProfileName, fleetmdm.FleetIPadOSUpdatesProfileName)
+		return appleStatusRollup{
+			table:       "host_mdm_apple_declarations_status",
+			sourceTable: "host_mdm_apple_declarations",
+			upsertStmt: `
+INSERT INTO host_mdm_apple_declarations_status (host_uuid, status)
+SELECT s.host_uuid,
+	` + appleHostStatusBucketExpr(`s.declaration_name NOT IN (`+reservedDeclNames+`)`) + `
+FROM host_mdm_apple_declarations s
+WHERE s.host_uuid IN (?)
+GROUP BY s.host_uuid
+ON DUPLICATE KEY UPDATE status = VALUES(status)`,
+		}
+	}()
+)
+
+// appleStatusRollupForTable returns the status rollup of an Apple host source table, false for other tables.
+func appleStatusRollupForTable(sourceTable string) (appleStatusRollup, bool) {
+	switch sourceTable {
+	case appleProfilesStatusRollup.sourceTable:
+		return appleProfilesStatusRollup, true
+	case appleDeclarationsStatusRollup.sourceTable:
+		return appleDeclarationsStatusRollup, true
+	}
+	return appleStatusRollup{}, false
+}
+
+// orphanDeleteStmt drops rollup rows for hosts in the IN (?) batch that no longer have any source rows. The NOT EXISTS checks
+// the orphan condition at execution time.
+func (r appleStatusRollup) orphanDeleteStmt() string {
+	return `
+DELETE FROM ` + r.table + `
+WHERE host_uuid IN (?)
+	AND NOT EXISTS (SELECT 1 FROM ` + r.sourceTable + ` s WHERE s.host_uuid = ` + r.table + `.host_uuid)`
+}
+
+// refreshDB recomputes the rollup rows for the given hosts from their current source rows. skipOrphanDelete can be set when
+// the caller knows every host still has source rows (e.g. it only updated or inserted rows).
+func (r appleStatusRollup) refreshDB(ctx context.Context, ext sqlx.ExtContext, hostUUIDs []string, skipOrphanDelete bool) error {
+	seen := make(map[string]struct{}, len(hostUUIDs))
+	uniqueHostUUIDs := make([]string, 0, len(hostUUIDs))
+	for _, u := range hostUUIDs {
+		if _, ok := seen[u]; ok || u == "" {
+			continue
+		}
+		seen[u] = struct{}{}
+		uniqueHostUUIDs = append(uniqueHostUUIDs, u)
+	}
+
+	return common_mysql.BatchProcessSimple(uniqueHostUUIDs, appleStatusRollupBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(r.upsertStmt, batch)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "building upsert for %s", r.table)
+		}
+		if _, err := ext.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "upserting %s rows", r.table)
+		}
+		if skipOrphanDelete {
+			return nil
+		}
+		stmt, args, err = sqlx.In(r.orphanDeleteStmt(), batch)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "building orphan-delete for %s", r.table)
+		}
+		if _, err := ext.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting orphan %s rows", r.table)
+		}
+		return nil
+	})
+}
+
+// dispatchAppleStatusRollupRefresh refreshes the rollup for the given hosts asynchronously. Bulk admin operations use it so
+// their request latency does not scale with fleet size. If the process dies before or during the refresh, the hourly
+// apple_mdm_status_rollups_reconcile cron heals the drift.
+func (ds *Datastore) dispatchAppleStatusRollupRefresh(ctx context.Context, r appleStatusRollup, hostUUIDs []string) {
+	if len(hostUUIDs) == 0 {
+		return
+	}
+	if ds.testSynchronousAppleRollupDispatch {
+		if err := r.refreshDB(ctx, ds.writer(ctx), hostUUIDs, false); err != nil {
+			ds.logger.ErrorContext(ctx, "synchronous apple status rollup refresh failed", "table", r.table, "hosts", len(hostUUIDs), "err", err)
+		}
+		return
+	}
+	go func() {
+		// Detach from the request context so the refresh outlives the HTTP request that triggered it.
+		bgCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), appleStatusRollupAsyncRefreshTimeout)
+		defer cancel()
+		if err := r.refreshDB(bgCtx, ds.writer(bgCtx), hostUUIDs, false); err != nil {
+			ds.logger.ErrorContext(bgCtx, "async apple status rollup refresh failed; hourly reconcile will heal",
+				"table", r.table, "hosts", len(hostUUIDs), "err", err)
+		}
+	}()
+}
+
+// ReconcileAppleMDMStatusRollups recomputes host_mdm_apple_profiles_status and host_mdm_apple_declarations_status from their
+// source tables for every host, and removes rollup rows for hosts that no longer have any source rows. Each pass pages by
+// host_uuid in bounded batches, one statement per page.
+func (ds *Datastore) ReconcileAppleMDMStatusRollups(ctx context.Context) error {
+	batchSize := appleStatusRollupBatchSize
+	if ds.testAppleStatusRollupReconcileBatchSize > 0 {
+		batchSize = ds.testAppleStatusRollupReconcileBatchSize
+	}
+
+	for _, r := range []appleStatusRollup{appleProfilesStatusRollup, appleDeclarationsStatusRollup} {
+		var rowsChanged, orphansRemoved int64
+		// exec runs stmt with the IN (?) bound to hostUUIDs and returns the number of affected rows.
+		exec := func(stmt string, hostUUIDs []string) (int64, error) {
+			stmt, args, err := sqlx.In(stmt, hostUUIDs)
+			if err != nil {
+				return 0, err
+			}
+			res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+			if err != nil {
+				return 0, err
+			}
+			n, _ := res.RowsAffected()
+			return n, nil
+		}
+
+		// Pass 1: recompute the rollup for every host that currently has source rows.
+		cursor := ""
+		for {
+			var hostUUIDs []string
+			if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostUUIDs, `
+SELECT DISTINCT host_uuid FROM `+r.sourceTable+` WHERE host_uuid > ? ORDER BY host_uuid LIMIT ?`,
+				cursor, batchSize); err != nil {
+				return ctxerr.Wrapf(ctx, err, "paging hosts of %s for status reconcile", r.sourceTable)
+			}
+			if len(hostUUIDs) == 0 {
+				break
+			}
+			n, err := exec(r.upsertStmt, hostUUIDs)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "reconciling %s", r.table)
+			}
+			rowsChanged += n
+			if len(hostUUIDs) < batchSize {
+				break
+			}
+			cursor = hostUUIDs[len(hostUUIDs)-1]
+		}
+
+		// Pass 2: remove rollup rows for hosts that no longer have any source rows. Candidates come from a non-locking read; the
+		// DELETE re-checks NOT EXISTS at execution time.
+		cursor = ""
+		for {
+			var candidateUUIDs []string
+			if err := sqlx.SelectContext(ctx, ds.writer(ctx), &candidateUUIDs, `
+SELECT r.host_uuid
+FROM `+r.table+` r
+LEFT JOIN `+r.sourceTable+` s ON s.host_uuid = r.host_uuid
+WHERE r.host_uuid > ? AND s.host_uuid IS NULL
+ORDER BY r.host_uuid LIMIT ?`,
+				cursor, batchSize); err != nil {
+				return ctxerr.Wrapf(ctx, err, "paging orphan %s rows", r.table)
+			}
+			if len(candidateUUIDs) == 0 {
+				break
+			}
+			n, err := exec(r.orphanDeleteStmt(), candidateUUIDs)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "removing orphan %s rows", r.table)
+			}
+			orphansRemoved += n
+			if len(candidateUUIDs) < batchSize {
+				break
+			}
+			cursor = candidateUUIDs[len(candidateUUIDs)-1]
+		}
+
+		if rowsChanged > 0 || orphansRemoved > 0 {
+			ds.logger.InfoContext(ctx, "reconciled apple status rollup",
+				"table", r.table, "rows_changed", rowsChanged, "orphans_removed", orphansRemoved)
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
@@ -5133,7 +5423,7 @@ WHERE h.uuid = ? AND (
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint,
 	incomingDeclarations []*fleet.MDMAppleDeclaration, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
-) (updatedDB bool, err error) {
+) (updatedDB bool, rollupHostUUIDs []string, err error) {
 	// First, build a list of names (which are usually filenames) for the incoming declarations.
 	// We will keep the existing ones if there's a match and no change.
 	// At the same time, index the incoming declarations keyed by name for ease of processing.
@@ -5148,7 +5438,7 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 	teamIDOrZero := ds.teamIDPtrToUint(tmID)
 	existingDecls, err := ds.getExistingDeclarations(ctx, tx, incomingNames, teamIDOrZero)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "load existing declarations")
+		return false, nil, ctxerr.Wrap(ctx, err, "load existing declarations")
 	}
 
 	// figure out which declarations we should not delete, and put those into keepNames list
@@ -5163,42 +5453,42 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 
 	deletedDeclUUIDs, deletedDeclarations, err := ds.deleteObsoleteDeclarations(ctx, tx, keepNames, teamIDOrZero)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
+		return false, nil, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
 	}
 	if len(deletedDeclUUIDs) > 0 {
 		// cancel installs of the deleted declarations immediately
-		if err := cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, deletedDeclUUIDs); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted declarations")
+		if rollupHostUUIDs, err = cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, deletedDeclUUIDs); err != nil {
+			return false, nil, ctxerr.Wrap(ctx, err, "cancel installs of deleted declarations")
 		}
 	}
 
 	insertedOrUpdatedDeclarations, err := ds.insertOrUpdateDeclarations(ctx, tx, incomingDeclarations, teamIDOrZero)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "insert/update declarations")
+		return false, nil, ctxerr.Wrap(ctx, err, "insert/update declarations")
 	}
 
 	updatedLabels, err := ds.updateDeclarationsLabelAssociations(ctx, tx, incomingDeclarationsMap, teamIDOrZero)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "update declaration label associations")
+		return false, nil, ctxerr.Wrap(ctx, err, "update declaration label associations")
 	}
 
 	updatedVars, err := ds.updateDeclarationsVariableAssociations(ctx, tx, incomingDeclarationsMap, teamIDOrZero, profilesVariablesByIdentifier)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "update declaration variable associations")
+		return false, nil, ctxerr.Wrap(ctx, err, "update declaration variable associations")
 	}
 
 	updatedAssets, err := ds.updateDeclarationsAssetAssociations(ctx, tx, incomingDeclarationsMap, teamIDOrZero)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "update declaration asset associations")
+		return false, nil, ctxerr.Wrap(ctx, err, "update declaration asset associations")
 	}
 
 	updatedActivations, err := batchSetDeclarationActivationsDB(ctx, tx, incomingDeclarations, teamIDOrZero)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "update declaration activations")
+		return false, nil, ctxerr.Wrap(ctx, err, "update declaration activations")
 	}
 
 	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels || updatedVars || updatedAssets ||
-		updatedActivations, nil
+		updatedActivations, rollupHostUUIDs, nil
 }
 
 // updateDeclarationsAssetAssociations reconciles mdm_apple_declaration_asset_references
@@ -6420,7 +6710,7 @@ ON DUPLICATE KEY UPDATE
 			return ctxerr.Wrap(ctx, err, "deleting pending removals")
 		}
 
-		return nil
+		return appleDeclarationsStatusRollup.refreshDB(ctx, tx, []string{hostUUID}, false)
 	})
 
 	return ctxerr.Wrap(ctx, err, "updating host declarations")
@@ -6428,8 +6718,10 @@ ON DUPLICATE KEY UPDATE
 
 func (ds *Datastore) SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *fleet.MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error {
 	stmt := `UPDATE host_mdm_apple_declarations SET status = ?, detail = ?, variables_updated_at = COALESCE(?, variables_updated_at) WHERE host_uuid = ? AND declaration_uuid = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, status, detail, variablesUpdatedAt, hostUUID, declarationUUID)
-	return ctxerr.Wrap(ctx, err, "set host declaration status")
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, status, detail, variablesUpdatedAt, hostUUID, declarationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set host declaration status")
+	}
+	return appleDeclarationsStatusRollup.refreshDB(ctx, ds.writer(ctx), []string{hostUUID}, true)
 }
 
 func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, scope fleet.PayloadScope, status *fleet.MDMDeliveryStatus, detail string) error {
@@ -6449,16 +6741,19 @@ func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostU
     AND scope = ?
   `
 
-	_, err := ds.writer(ctx).ExecContext(
+	if _, err := ds.writer(ctx).ExecContext(
 		ctx, stmt,
 		// SET ...
 		status, detail,
 		// WHERE ...
 		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending, hostUUID, scope,
-	)
-	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
+	}
+	return appleDeclarationsStatusRollup.refreshDB(ctx, ds.writer(ctx), []string{hostUUID}, true)
 }
 
+// MDMAppleSetRemoveDeclarationsAsPending doesn't refresh the status rollup: NULL and pending fall in the same bucket.
 func (ds *Datastore) MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, hostUUID string, declarationUUIDs []string) error {
 	stmt := `
   UPDATE host_mdm_apple_declarations
@@ -7538,8 +7833,7 @@ func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	// This could occur when the host re-enrolls in MDM with outstanding Pending commands.
 	// This could also occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.
 	// After the entry is deleted, the mdm_apple_profile_manager job will try to requeue the profile.
-	stmt := fmt.Sprintf(`
-	DELETE hmap FROM host_mdm_apple_profiles AS hmap
+	where := fmt.Sprintf(`
 WHERE (
         hmap.status IS NULL
         OR hmap.status = '%s'
@@ -7555,12 +7849,19 @@ WHERE (
         WHERE
             ne.device_id = hmap.host_uuid
             AND ne.enabled = 1
-    );`,
+    )`,
 		fleet.MDMDeliveryPending)
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostUUIDs, `SELECT DISTINCT hmap.host_uuid FROM host_mdm_apple_profiles AS hmap`+where); err != nil {
+		return ctxerr.Wrap(ctx, err, "select hosts with stale host_mdm_apple_profiles")
+	}
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE hmap FROM host_mdm_apple_profiles AS hmap`+where); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete from host_mdm_apple_profiles")
 	}
-	return nil
+	return appleProfilesStatusRollup.refreshDB(ctx, ds.writer(ctx), hostUUIDs, false)
 }
 
 func (ds *Datastore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string, olderThan time.Duration) error {
@@ -9472,9 +9773,11 @@ ON DUPLICATE KEY UPDATE
 	status = NULL,
 	detail = '',
 	retries = 0`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, profile.ProfileUUID, profile.ProfileIdentifier, profile.ProfileName,
-		profile.Checksum, profile.SecretsUpdatedAt, profile.Scope, fleet.MDMOperationTypeInstall)
-	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile install")
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, profile.ProfileUUID, profile.ProfileIdentifier, profile.ProfileName,
+		profile.Checksum, profile.SecretsUpdatedAt, profile.Scope, fleet.MDMOperationTypeInstall); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue host mdm apple profile install")
+	}
+	return appleProfilesStatusRollup.refreshDB(ctx, ds.writer(ctx), []string{hostUUID}, true)
 }
 
 func (ds *Datastore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUID, profileUUID string) error {
@@ -9485,12 +9788,14 @@ WHERE host_uuid = ? AND profile_uuid = ? AND operation_type = ? AND status IS NU
 		hostUUID, profileUUID, fleet.MDMOperationTypeInstall); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unsent host mdm apple profile install")
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_mdm_apple_profiles
 SET operation_type = ?, status = NULL, detail = '', retries = 0
 WHERE host_uuid = ? AND profile_uuid = ?`,
-		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
-	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
+		fleet.MDMOperationTypeRemove, hostUUID, profileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
+	}
+	return appleProfilesStatusRollup.refreshDB(ctx, ds.writer(ctx), []string{hostUUID}, false)
 }
 
 func (ds *Datastore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
