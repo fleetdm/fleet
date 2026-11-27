@@ -1,0 +1,1 @@
+* Fixed "Fleet server URL not found" after MDM is turned off on a Mac that was enrolled. The app now falls back to the Fleet URL that fleetd saved from the configuration profile (requires a fleetd version that makes `fleet_url.txt` readable).

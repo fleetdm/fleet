@@ -181,11 +181,10 @@ To test end to end locally (a dev-signed app/extension against your local Fleet 
 |------|-----|---------|
 | `/Library/Managed Preferences/com.fleetdm.fleetd.config.plist` | `FleetURL` | Fleet server URL delivered via the fleetd MDM configuration profile. Checked first. |
 | `/Library/LaunchDaemons/com.fleetdm.orbit.plist` | `EnvironmentVariables.ORBIT_FLEET_URL` | Fleet server URL baked in by `fleetctl package --fleet-url`. Used when the managed preference is absent (Macs that aren't MDM-enrolled). |
+| `/opt/orbit/fleet_url.txt` | — | Fleet server URL that orbit saved from the configuration profile. Used when neither plist provides a URL (Macs whose profile was removed, e.g. MDM turned off). |
 | `/opt/orbit/identifier` | — | Device authentication token (rotates hourly) |
 
-A scheme-less value such as `fleet.example.com:8080` is treated as HTTPS, matching orbit. If neither plist provides a URL, the app displays an error and quits.
-
-> **Note:** A Mac enrolled with `--use-system-config` whose configuration profile was later removed keeps the URL only in `/opt/orbit/fleet_url.txt`, which only root can read, so the app can't use it. Re-deliver the profile or reinstall fleetd with `--fleet-url`.
+A scheme-less value such as `fleet.example.com:8080` is treated as HTTPS, matching orbit. If none of these provides a URL, the app displays an error and quits.
 
 ### URL Scheme
 
