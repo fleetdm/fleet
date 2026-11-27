@@ -94,4 +94,5 @@ module.exports.policies = {
   'view-cybersecurity': true,
   'view-windows': true,
   'view-apple': true,
+  'view-compare': true,
 };
