@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.2.3",
+      "version": "4.4.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(bundle_short_version, '4.2.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(bundle_short_version, '4.4.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path LIKE '/Applications/QGIS-final-%.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.qgis.org/downloads/macos/pr/qgis_pr_final-4_2_3.dmg",
+      "installer_url": "https://download.qgis.org/downloads/macos/pr/qgis_pr_final-4_4_0.dmg",
       "install_script_ref": "697e1510",
       "uninstall_script_ref": "06c5d7d0",
-      "sha256": "cf3af3d3d228a0e2a0ab7fb6b37052ae78064d0aef93b12f41f9bd724fd23401",
+      "sha256": "0c87c163ab6d797479fc13957b0ecc80a3a5f78da99da2bd1219368f480a51cb",
       "default_categories": [
         "Productivity"
       ]
