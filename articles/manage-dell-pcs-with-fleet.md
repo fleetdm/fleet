@@ -6,17 +6,19 @@ I took the question of what happens to all of that after Intune on a long walk w
 
 ![Walking and running distance for November, peaking at 16.7 miles on November 22](../website/assets/images/articles/walking-and-running-distance-november-585x711@2x.jpg)
 
+In my defense, firmware is a big topic (see November 22).
+
 ## Prerequisites
 
 - Fleet Premium, for policy automations.
 - Hosts enrolled with fleetd, with [scripts enabled](https://fleetdm.com/guides/scripts), in a fleet. (Automations don't work on policies for "All fleets".)
-- If your Dell PCs have a BIOS admin password, a custom variable named `BIOS_PASSWORD`. Add it in **Controls** > **Variables** first. Fleet won't save a script that mentions a variable it hasn't heard of.
+- If your Dell PCs have a BIOS admin password, a custom variable named `BIOS_PASSWORD`. Add it in **Controls** > **Variables** first, because Fleet won't save a script that mentions a variable it hasn't heard of.
 
-> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every PC. That still keeps it out of your scripts and Git, which matters most. Fleet already runs in production on Dell hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
+> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every PC. That still keeps it out of your scripts and Git, which is what matters most. Fleet already runs in production on Dell hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
 
 ## Step 1: Label your Dell PCs
 
-A label is a group of hosts that match a query, and this one rounds up your Dells. Navigate to **Hosts**, click **Filter by platform or label**, then **Add label**. Name it **Dell** and use this query:
+A label is a group of hosts that match a query, and this one rounds up your Dells. Go to **Hosts**, click **Filter by platform or label**, then **Add label**. Name it Dell and use this query:
 
 ```sql
 SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Dell%';
@@ -24,21 +26,21 @@ SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Dell%';
 
 ## Step 2: Install Dell's tools
 
-[Dell Command | Update](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/dell-command-update-cli-commands?guid=guid-92619086-5f7c-4a05-bce2-0d560c15e8ed&lang=en-us) fetches BIOS, firmware, and driver updates. It's a Fleet-maintained app, so navigate to **Software**, click **Add software**, and add **Dell Command Update** for Windows, targeting the **Dell** label.
+Dell makes two tools you'll lean on. [Dell Command | Update](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/dell-command-update-cli-commands?guid=guid-92619086-5f7c-4a05-bce2-0d560c15e8ed&lang=en-us) fetches BIOS, firmware, and driver updates, and [Dell Command | Configure](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/) (`cctk`) changes BIOS settings.
 
-Adding an app doesn't install it, so you also need a policy. Policies are yes-or-no questions Fleet asks every host about once an hour. This one asks whether Dell Command | Update is installed. When you save it, and every policy below, set **Target** to **Custom** and check **Dell**.
+Dell Command | Update is a Fleet-maintained app, so go to **Software**, click **Add software**, and add **Dell Command Update** for Windows, targeting the **Dell** label. For Dell Command | Configure, download it from Dell and add it under **Software** > **Add software** > **Custom package**, also targeting **Dell**.
+
+Adding an app doesn't install it, so Dell Command | Update also needs a policy. Policies are yes-or-no questions Fleet asks every host about once an hour, and this one asks whether the app is installed. When you save it, and every policy below, set **Target** to **Custom** and check **Dell**.
 
 ```sql
 SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';
 ```
 
-Then, on the **Policies** page, click the policy's **Automation** column, choose **Install software** from the **Automation** dropdown, pick **Dell Command Update**, and click **Save**. Every Dell that answers "no" now gets it.
-
-[Dell Command | Configure](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/) (`cctk`) changes BIOS settings. Download it from Dell and add it under **Software** > **Add software** > **Custom package**, targeting the **Dell** label.
+Then, on the **Policies** page, click the policy's **Automation** column, choose **Install software** from the **Automation** dropdown, pick **Dell Command Update**, and click **Save**. From then on, any Dell that answers "no" gets it.
 
 ## Step 3: Keep the BIOS, firmware, and drivers up to date
 
-Navigate to **Controls** > **Scripts** and upload `dell-update-bios-firmware-drivers.ps1`:
+Go to **Controls** > **Scripts** and upload `dell-update-bios-firmware-drivers.ps1`:
 
 ```powershell
 $dcu = "${env:ProgramFiles(x86)}\Dell\CommandUpdate\dcu-cli.exe"
@@ -56,13 +58,13 @@ exit $code
 
 BitLocker can ask for its recovery key after a BIOS update, which is a rough way to start a Monday, so `-autoSuspendBitLocker=enable` has it sit out the next restart. Add `-updateSeverity=security,critical` if you only want the urgent stuff, and see Dell's [CLI reference](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/command-line-interface-error-codes?guid=guid-fbb96b06-4603-423a-baec-cbf5963d8948&lang=en-us) for the other exit codes.
 
-So, how do you know when a PC falls behind? First, run this as a live report (a one-off question your hosts answer right away):
+So, how do you know when a PC falls behind? Start by running this as a live report (a one-off question your hosts answer right away). It lists each PC's model and BIOS version, so you know which models you have:
 
 ```sql
 SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;
 ```
 
-Then add a policy for each model, copying the model name and minimum version from Dell's support page exactly:
+Then add a policy for each model. Every other model passes it automatically, and this model passes only if its BIOS is at least version X.Y.Z. Copy the model name from the live report and the minimum version from Dell's support page, exactly:
 
 ```sql
 SELECT 1 FROM system_info s, platform_info p
@@ -70,9 +72,9 @@ WHERE s.hardware_model != 'YOUR-MODEL'
    OR version_compare(p.version, 'X.Y.Z') >= 0;
 ```
 
-Fleet doesn't track Dell's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when Dell ships a new one. That bit of upkeep hasn't held anyone back in regulated industries, and [we're around](https://fleetdm.com/support) if you'd like a hand.
+Fleet doesn't track Dell's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when Dell ships a new one. If that upkeep worries you, [let us know](https://fleetdm.com/support).
 
-Set each BIOS policy's automation to **Run script** with this script. Fleet runs it when a host starts failing and tries up to three times, and anything that needs a restart finishes the next time the user restarts.
+Set each BIOS policy's automation to **Run script** with `dell-update-bios-firmware-drivers.ps1`. Fleet runs it when a host starts failing and tries up to three times. Anything that needs a restart finishes the next time the user restarts.
 
 > **Note:** Fleet stops a script after 5 minutes by default, and BIOS downloads can take longer. Raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in the fleet's agent options, for example to `1800` seconds.
 
@@ -92,7 +94,9 @@ exit $LASTEXITCODE
 
 Fleet fills in `$FLEET_SECRET_BIOS_PASSWORD` before the script reaches the PC. (No BIOS password? Drop `$pw` and `--ValSetupPwd`.)
 
-The script turns on Secure Boot (only trusted, signed software gets to start the PC), the TPM (a tiny chip that guards encryption keys), and virtualization, and turns off PXE boot (starting the PC from the network). Dell has no single switch for USB boot, so `--UefiBootPathSecurity=AlwaysExceptInternalHdd` asks for the BIOS admin password before booting from anything but the internal drive, which leaves a stranger with a USB stick out of luck. Dell's [security profile](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/security-profile?guid=guid-66ba0e99-ad94-42f0-a162-00a673fd138e) suggests the rest.
+The script turns on Secure Boot (only trusted, signed software gets to start the PC), the TPM (a tiny chip that guards encryption keys), and virtualization. It also turns off PXE boot, which starts the PC from the network.
+
+Dell has no single switch for USB boot, so `--UefiBootPathSecurity=AlwaysExceptInternalHdd` asks for the BIOS admin password before booting from anything but the internal drive. A stranger with a USB stick gets a password prompt and not much else. For other settings worth turning on, see Dell's [security profile](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/security-profile?guid=guid-66ba0e99-ad94-42f0-a162-00a673fd138e).
 
 To check each setting, add a policy. On Dells from 2018 on, [`wmi_bios_info`](https://fleetdm.com/tables/wmi_bios_info) reads BIOS settings by the same names `cctk` uses:
 
@@ -110,11 +114,11 @@ SELECT 1 FROM secureboot WHERE secure_boot = 1;
 SELECT 1 FROM tpm_info WHERE enabled = 1 AND activated = 1;
 ```
 
-Set these policies' automation to **Run script** with the settings script. If someone flips a setting, the policy fails at the next check and Fleet flips it back. The BIOS password keeps them from flipping it in the first place, so use both.
+Set these policies' automation to **Run script** with `dell-bios-security-settings.ps1`. If someone flips a setting, the policy fails at the next check and Fleet flips it back. The BIOS password keeps them from flipping it in the first place, so use both.
 
 ## Step 5: Check Dell Trusted Device BIOS verification
 
-[Dell Trusted Device](https://www.dell.com/support/kbdoc/en-us/000130811/how-to-run-bios-verification-using-dell-trusted-device) compares the BIOS on the PC with a known-good copy on Dell's servers, a bit like checking your Lego castle against the picture on the box. Fleet policies can't yet read arbitrary WMI classes (WMI is Windows' catalog of system details), so you'll run a script instead ([#59971](https://github.com/fleetdm/fleet/issues/59971)). That hasn't been a blocker on Dell hardware in healthcare, finance, or government, and we're [happy to help](https://fleetdm.com/support) with yours.
+[Dell Trusted Device](https://www.dell.com/support/kbdoc/en-us/000130811/how-to-run-bios-verification-using-dell-trusted-device) compares the BIOS on the PC with a known-good copy on Dell's servers. Fleet policies can't yet read arbitrary WMI classes (WMI is Windows' catalog of system details), so you'll run a script instead ([#59971](https://github.com/fleetdm/fleet/issues/59971)). If you need this as a policy, [tell us](https://fleetdm.com/support).
 
 For Dell Trusted Device 2.1 through 6.0, upload `dell-trusted-device-bios-verification.ps1`:
 
@@ -169,11 +173,11 @@ For a wider check, run `fwupdmgr security --json` as a script. It returns fwupd'
 
 ## Treat a surprise BitLocker prompt as a signal
 
-None of this replaces disk encryption, so [keep enforcing it](https://fleetdm.com/guides/enforce-disk-encryption). The two even back each other up. A BitLocker recovery prompt nobody expected can be the first sign that something in the boot chain changed. Before the help desk reads out a recovery key, have them look the host up in Fleet. Did Secure Boot turn off, did the BIOS verification fail, or was there a BIOS update? If nothing explains it, dig in before unlocking.
+None of this replaces disk encryption, so [keep enforcing it](https://fleetdm.com/guides/enforce-disk-encryption). The two back each other up. A BitLocker recovery prompt nobody expected can be the first sign that something in the boot chain changed. Before the help desk reads out a recovery key, have them look the host up in Fleet. Did Secure Boot turn off, did the BIOS verification fail, or was there a BIOS update? If nothing explains it, dig in before unlocking.
 
 ## Manage it with GitOps
 
-`default.yml`:
+To manage all of this as code, add the label to the `labels` in `default.yml`:
 
 ```yaml
 labels:
@@ -182,7 +186,7 @@ labels:
     label_membership_type: dynamic
 ```
 
-Add this to the `labels` you already have, since GitOps removes labels that aren't listed. Policy automations live in a fleet file, which must also list each script under `controls.scripts`. `fleets/workstations.yml`:
+Keep the labels you already have in that list, since GitOps removes labels that aren't listed. Policy automations live in a fleet file, which must also list each script under `controls.scripts`. For example, `fleets/workstations.yml`:
 
 ```yaml
 name: Workstations
