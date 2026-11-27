@@ -819,6 +819,45 @@ func TestWeChatPatchedQueryBuild(t *testing.T) {
 	}
 }
 
+func TestNessusAgentQueries(t *testing.T) {
+	const daemon = "/Library/NessusAgent/run/sbin/nessusd"
+	cases := []struct {
+		caskVersion string
+		wantPatched string
+	}{
+		{
+			"11.2.4,30485",
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path = '" + daemon + "') OR EXISTS (SELECT 1 FROM signature WHERE path = '" + daemon + "' AND cdhash IN ('fb84d79e98783adf9fdbbf18756de07a27aac4da', '123e446262bedfcfac096106c1b4a386c44b13b9'));",
+		},
+		{"99.0.0,1", "SELECT 1;"},
+	}
+	tempDir := t.TempDir()
+	i := &brewIngester{logger: slog.New(slog.DiscardHandler)}
+	for _, c := range cases {
+		caskJSON, err := json.Marshal(brewCask{
+			Token:   "tenable-nessus-agent",
+			Name:    []string{"Tenable Nessus Agent"},
+			URL:     "https://example.com/NessusAgent.dmg",
+			Version: c.caskVersion,
+		})
+		require.NoError(t, err)
+		caskPath := path.Join(tempDir, "tenable-nessus-agent.json")
+		require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+		out, err := i.ingestOne(t.Context(), inputApp{
+			Token:            "tenable-nessus-agent",
+			UniqueIdentifier: "com.tenablesecurity.NessusAgent.Preferences",
+			InstallerFormat:  "dmg",
+			Name:             "Nessus Agent",
+			CaskPath:         caskPath,
+		})
+		require.NoError(t, err, "caskVersion %q", c.caskVersion)
+		require.Equal(t, "SELECT 1 FROM file WHERE path = '"+daemon+"';", out.Queries.Exists)
+		require.Equal(t, c.wantPatched, out.Queries.Patched, "caskVersion %q", c.caskVersion)
+		require.Equal(t, "SELECT 1;", out.Queries.Open)
+	}
+}
+
 // TestBundleVersionPatchedQueryUsesCaskVersion verifies that the bundle_version
 // patched query keeps the full cask version when a shortener cuts the manifest
 // version down to bundle_short_version.

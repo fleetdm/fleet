@@ -183,6 +183,11 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// does. The patch policy generated below inherits this filter.
 		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.app/Contents/%%';", out.UniqueIdentifier)
 	}
+	if input.Token == "tenable-nessus-agent" {
+		// The pkg installs a daemon and a preference pane, no .app, so nothing
+		// shows up in apps.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM file WHERE path = '%s';", nessusAgentDaemonPath)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -537,6 +542,13 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		}
 	}
 
+	if input.Token == "tenable-nessus-agent" {
+		out.Queries.Patched = nessusAgentPatchedQuery(out.Version)
+		if _, ok := nessusAgentCDHashes[out.Version]; !ok {
+			i.logger.WarnContext(ctx, "no code-directory hashes recorded for this Nessus Agent version; patch policy passes on every host", "version", out.Version)
+		}
+	}
+
 	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
 	switch input.Token {
 	case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
@@ -582,6 +594,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			chatGPTBundleMatch("a."),
 		)
 	}
+	if input.Token == "tenable-nessus-agent" {
+		// The agent is a daemon that runs all the time and has no window to close.
+		out.Queries.Open = "SELECT 1;"
+	}
 	if pathFilter, ok := qgisPathFilters[input.Token]; ok {
 		// Only this channel's copy counts as open; the other channel doesn't block its install.
 		out.Queries.Open = fmt.Sprintf(
@@ -591,6 +607,31 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	}
 
 	return out, nil
+}
+
+const nessusAgentDaemonPath = "/Library/NessusAgent/run/sbin/nessusd"
+
+// nessusAgentCDHashes maps a Nessus Agent version to the code-directory hashes
+// (arm64, x86_64) of its nessusd. Nothing the pkg installs carries the agent
+// version where osquery can read it: the receipt is always 1.0.0, the
+// preference pane is always 2.0, and the binaries have no Info.plist.
+var nessusAgentCDHashes = map[string][]string{
+	"11.2.4": {"fb84d79e98783adf9fdbbf18756de07a27aac4da", "123e446262bedfcfac096106c1b4a386c44b13b9"},
+}
+
+// nessusAgentPatchedQuery passes when the agent is absent or its nessusd is
+// the given version's build. Any other build counts as outdated, including a
+// newer one the agent updated itself to. A version with no recorded hashes
+// passes on every host.
+func nessusAgentPatchedQuery(version string) string {
+	hashes, ok := nessusAgentCDHashes[version]
+	if !ok {
+		return "SELECT 1;"
+	}
+	return fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path = '%[1]s') OR EXISTS (SELECT 1 FROM signature WHERE path = '%[1]s' AND cdhash IN ('%[2]s'));",
+		nessusAgentDaemonPath, strings.Join(hashes, "', '"),
+	)
 }
 
 // xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.

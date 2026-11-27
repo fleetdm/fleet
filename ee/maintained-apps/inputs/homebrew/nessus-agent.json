@@ -1,0 +1,8 @@
+{
+  "name": "Nessus Agent",
+  "slug": "nessus-agent/darwin",
+  "unique_identifier": "com.tenablesecurity.NessusAgent.Preferences",
+  "token": "tenable-nessus-agent",
+  "installer_format": "dmg",
+  "default_categories": ["Security"]
+}
