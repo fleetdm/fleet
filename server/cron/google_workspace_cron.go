@@ -249,7 +249,32 @@ func syncGoogleWorkspaceGroups(
 		}
 	}
 
+	// Guard against an empty pull, which would otherwise delete every group.
+	if len(gwGroups) == 0 {
+		logger.WarnContext(ctx, "google workspace returned no groups; skipping group deletion to avoid data loss")
+		return 0, nil
+	}
+
+	// Delete groups no longer in Google Workspace before naming the rest, so a
+	// group that replaced one can take its name in the same sync.
 	seen := make(map[string]struct{}, len(gwGroups))
+	for _, gg := range gwGroups {
+		if gg.ExternalID != "" {
+			seen[gg.ExternalID] = struct{}{}
+		}
+	}
+	failed := 0
+	for extID, ex := range existingByExtID {
+		if _, ok := seen[extID]; ok {
+			continue
+		}
+		if err := ds.DeleteScimGroup(ctx, ex.ID); err != nil {
+			failed++
+			logger.ErrorContext(ctx, "google workspace sync: failed to delete group no longer in directory",
+				"scim_group_id", ex.ID, "external_id", extID, "err", err)
+		}
+	}
+
 	// scim_groups.display_name is UNIQUE under a case-insensitive collation, but
 	// Google only requires group emails to be unique. A group already stored
 	// under its own name keeps it whatever order Google lists groups in, since
@@ -261,13 +286,11 @@ func syncGoogleWorkspaceGroups(
 			usedDisplayNames[displayNameKey(baseDisplayName(gg))] = struct{}{}
 		}
 	}
-	failed := 0
 
 	for _, gg := range gwGroups {
 		if gg.ExternalID == "" {
 			continue
 		}
-		seen[gg.ExternalID] = struct{}{}
 
 		memberIDs := make([]uint, 0, len(gg.MemberExternalIDs))
 		for _, memberExtID := range gg.MemberExternalIDs {
@@ -299,22 +322,6 @@ func syncGoogleWorkspaceGroups(
 				msg = "google workspace sync: skipping group that failed to update"
 			}
 			logger.ErrorContext(ctx, msg, "display_name", desired.DisplayName, "external_id", gg.ExternalID, "err", err)
-		}
-	}
-
-	// Delete groups no longer in Google Workspace (guard against an empty pull).
-	if len(gwGroups) == 0 {
-		logger.WarnContext(ctx, "google workspace returned no groups; skipping group deletion to avoid data loss")
-		return failed, nil
-	}
-	for extID, ex := range existingByExtID {
-		if _, ok := seen[extID]; ok {
-			continue
-		}
-		if err := ds.DeleteScimGroup(ctx, ex.ID); err != nil {
-			failed++
-			logger.ErrorContext(ctx, "google workspace sync: failed to delete group no longer in directory",
-				"scim_group_id", ex.ID, "external_id", extID, "err", err)
 		}
 	}
 

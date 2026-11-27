@@ -437,6 +437,18 @@ func TestGoogleWorkspaceSyncGroupNameCollisions(t *testing.T) {
 		}
 	})
 
+	t.Run("group replaced in Google takes the name in the same sync", func(t *testing.T) {
+		r := newSyncRecorder(gwAppConfig(), nil, []fleet.ScimGroup{scimGroup(5, "grpOld", "Sales")})
+		r.groupNameTaken = func(name string) bool { return name == "Sales" && !slices.Contains(r.deletedGroups, 5) }
+		require.NoError(t, runSync(t, r, &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpNew", "Sales")}}))
+
+		assert.Equal(t, []uint{5}, r.deletedGroups)
+		assert.Equal(t, []string{"Sales"}, r.groupWriteNames)
+		require.Len(t, r.createdGroups, 1)
+		assert.Equal(t, "Sales", r.createdGroups[0].DisplayName)
+		assert.Equal(t, "success", r.lastRequest.Status)
+	})
+
 	t.Run("create retries with the suffix when the name is taken", func(t *testing.T) {
 		r := newSyncRecorder(gwAppConfig(), nil, nil)
 		r.groupNameTaken = func(name string) bool { return name == "Cafe" }
@@ -513,5 +525,26 @@ func TestGoogleWorkspaceSyncGroupNameCollisionsMySQL(t *testing.T) {
 			got[*g.ExternalID] = g.DisplayName
 		}
 		require.Equal(t, want, got, "run %d", i)
+	}
+}
+
+func TestGoogleWorkspaceSyncReplacedGroupMySQL(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	ctx := t.Context()
+
+	_, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{ExternalID: new("grpOld"), DisplayName: "Sales"})
+	require.NoError(t, err)
+
+	intg := gwAppConfig().Integrations.GoogleWorkspace[0]
+	dir := &fakeDirectory{groups: []*fleet.GoogleWorkspaceGroup{gwGroup("grpNew", "Sales")}}
+	for i := range 2 {
+		require.NoError(t, syncGoogleWorkspaceDirectory(ctx, ds, fakeFactory(dir, nil), intg, slog.New(slog.DiscardHandler)), "run %d", i)
+
+		groups, err := listAllScimGroups(ctx, ds)
+		require.NoError(t, err)
+		require.Len(t, groups, 1, "run %d", i)
+		require.NotNil(t, groups[0].ExternalID)
+		require.Equal(t, "grpNew", *groups[0].ExternalID, "run %d", i)
+		require.Equal(t, "Sales", groups[0].DisplayName, "run %d", i)
 	}
 }
