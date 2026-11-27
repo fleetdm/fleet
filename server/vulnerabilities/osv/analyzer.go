@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
@@ -346,24 +345,18 @@ func isVulnerable(softwareVersion string, vuln OSVVulnerability, isKernelPackage
 		return false
 	}
 
-	// No explicit versions list - use range-based matching
+	// No explicit versions list - use range-based matching, ordered as dpkg orders versions
 	introduced := vuln.Introduced
 	if introduced == "" {
 		introduced = "0"
 	}
 
-	if introduced != "0" {
-		cmp := feednvd.SmartVerCmp(softwareVersion, introduced)
-		if cmp == -1 { // softwareVersion < introduced
-			return false
-		}
+	if introduced != "0" && utils.Dpkgvercmp(softwareVersion, introduced) < 0 {
+		return false
 	}
 
-	if vuln.Fixed != "" {
-		cmp := feednvd.SmartVerCmp(softwareVersion, vuln.Fixed)
-		if cmp != -1 { // softwareVersion >= fixed (not vulnerable)
-			return false
-		}
+	if vuln.Fixed != "" && utils.Dpkgvercmp(softwareVersion, vuln.Fixed) >= 0 {
+		return false
 	}
 
 	return true

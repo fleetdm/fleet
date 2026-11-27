@@ -351,6 +351,46 @@ func TestIsVulnerable(t *testing.T) {
 			expected:        true,
 		},
 		{
+			name:            "Range - Ubuntu revision numbers compare numerically",
+			softwareVersion: "1.0-2ubuntu9",
+			vuln: OSVVulnerability{
+				CVE:   "CVE-2024-5555",
+				Fixed: "1.0-2ubuntu10",
+			},
+			isKernelPackage: false,
+			expected:        true,
+		},
+		{
+			name:            "Range - rebuild suffix after the fixed revision is not vulnerable",
+			softwareVersion: "10.5.0-4ubuntu2.1cross1",
+			vuln: OSVVulnerability{
+				CVE:   "CVE-2024-5555",
+				Fixed: "10.5.0-4ubuntu2cross1",
+			},
+			isKernelPackage: false,
+			expected:        false,
+		},
+		{
+			name:            "Range - tilde pre-release sorts before the fix",
+			softwareVersion: "2.4~rc1-1",
+			vuln: OSVVulnerability{
+				CVE:   "CVE-2024-5555",
+				Fixed: "2.4-1",
+			},
+			isKernelPackage: false,
+			expected:        true,
+		},
+		{
+			name:            "Range - higher epoch is not vulnerable",
+			softwareVersion: "1:1.0-1",
+			vuln: OSVVulnerability{
+				CVE:   "CVE-2024-5555",
+				Fixed: "2.0-1",
+			},
+			isKernelPackage: false,
+			expected:        false,
+		},
+		{
 			name:            "Empty versions list with no range (vulnerable by default)",
 			softwareVersion: "1.0.0",
 			vuln: OSVVulnerability{

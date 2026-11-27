@@ -1,0 +1,2 @@
+* Fixed Ubuntu OSV vulnerability scanning missing packages whose binary name differs from their source package name.
+* Fixed Ubuntu OSV vulnerability matching to order package versions the way dpkg does, which had reported some patched packages as vulnerable.

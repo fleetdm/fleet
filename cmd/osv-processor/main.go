@@ -37,7 +37,15 @@ type Affected struct {
 }
 
 type EcosystemSpecific struct {
-	Severity string `json:"severity,omitempty"`
+	Severity string   `json:"severity,omitempty"`
+	Binaries []Binary `json:"binaries,omitempty"`
+}
+
+// Binary is a binary package built from an Ubuntu source package. On an entry with a fix,
+// Version is the binary's fixed version; without a fix, it is its currently published version.
+type Binary struct {
+	Name    string `json:"binary_name"`
+	Version string `json:"binary_version"`
 }
 
 type Package struct {
@@ -215,7 +223,10 @@ func run(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesUnparseable := 0
 	filesWithdrawn := 0
+	entriesWithBinaries := 0
+	entriesWithoutBinaries := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -230,6 +241,7 @@ func run(cfg Config) error {
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
 			filesSkipped++
+			filesUnparseable++
 			return nil
 		}
 		if osvData.Withdrawn != "" {
@@ -269,6 +281,13 @@ func run(cfg Config) error {
 			}
 			// Otherwise auto-detect all versions (no filtering)
 
+			switch {
+			case !hasUsableBinaries(affected.EcosystemSpecific):
+				entriesWithoutBinaries++
+			case !isUbuntuKernelSource(affected.EcosystemSpecific.Binaries):
+				entriesWithBinaries++
+			}
+
 			cveID := extractCVEID(osvData)
 			if cveID == "" {
 				cveID = osvData.ID
@@ -296,43 +315,13 @@ func run(cfg Config) error {
 				vulnToUse = modifiedVuln
 			}
 
-			for _, pkg := range packages {
-				if _, exists := artifacts[ubuntuVer]; !exists {
-					artifacts[ubuntuVer] = &ArtifactData{
-						SchemaVersion:   "1.0",
-						UbuntuVersion:   ubuntuVer,
-						Vulnerabilities: make(map[string][]ProcessedVuln),
-					}
-				}
-				artifacts[ubuntuVer].Vulnerabilities[pkg] = append(artifacts[ubuntuVer].Vulnerabilities[pkg], *vulnToUse)
-			}
-
-			// Add to today's delta artifact if this file was changed today
+			rows := ubuntuRows(affected, introduced, fixed, packages, *vulnToUse)
+			addUbuntuRows(artifacts, ubuntuVer, rows)
 			if inToday {
-				for _, pkg := range packages {
-					if _, exists := todayArtifacts[ubuntuVer]; !exists {
-						todayArtifacts[ubuntuVer] = &ArtifactData{
-							SchemaVersion:   "1.0",
-							UbuntuVersion:   ubuntuVer,
-							Vulnerabilities: make(map[string][]ProcessedVuln),
-						}
-					}
-					todayArtifacts[ubuntuVer].Vulnerabilities[pkg] = append(todayArtifacts[ubuntuVer].Vulnerabilities[pkg], *vulnToUse)
-				}
+				addUbuntuRows(todayArtifacts, ubuntuVer, rows)
 			}
-
-			// Add to yesterday's delta artifact if this file was changed yesterday
 			if inYesterday {
-				for _, pkg := range packages {
-					if _, exists := yesterdayArtifacts[ubuntuVer]; !exists {
-						yesterdayArtifacts[ubuntuVer] = &ArtifactData{
-							SchemaVersion:   "1.0",
-							UbuntuVersion:   ubuntuVer,
-							Vulnerabilities: make(map[string][]ProcessedVuln),
-						}
-					}
-					yesterdayArtifacts[ubuntuVer].Vulnerabilities[pkg] = append(yesterdayArtifacts[ubuntuVer].Vulnerabilities[pkg], *vulnToUse)
-				}
+				addUbuntuRows(yesterdayArtifacts, ubuntuVer, rows)
 			}
 		}
 
@@ -349,6 +338,13 @@ func run(cfg Config) error {
 
 	log.Printf("Processed %d files, skipped %d files, ignored %d withdrawn", filesProcessed, filesSkipped, filesWithdrawn)
 	log.Printf("Discovered %d Ubuntu versions", len(artifacts))
+	log.Printf("Entries without ecosystem_specific.binaries: %d of %d non-kernel", entriesWithoutBinaries, entriesWithBinaries+entriesWithoutBinaries)
+	if err := checkParseFailures(filesUnparseable); err != nil {
+		return err
+	}
+	if err := checkUbuntuBinariesCoverage(entriesWithBinaries, entriesWithoutBinaries); err != nil {
+		return err
+	}
 
 	// Write full artifacts
 	for ver, artifact := range artifacts {
@@ -408,6 +404,130 @@ func run(cfg Config) error {
 	}
 
 	return nil
+}
+
+// checkParseFailures fails the run when any input file could not be parsed. Skipping it would
+// publish artifacts that silently lack its vulnerabilities; failing keeps the last good release
+// in place and lets the failed workflow raise the alert.
+func checkParseFailures(n int) error {
+	if n > 0 {
+		return fmt.Errorf("%d file(s) could not be parsed; see the log above", n)
+	}
+	return nil
+}
+
+const (
+	// minUbuntuEntriesForBinariesCheck keeps small inputs from tripping the check. A full run has
+	// about 240,000 such entries across releases.
+	minUbuntuEntriesForBinariesCheck = 1000
+	// maxUbuntuEntriesWithoutBinariesPercent is far above today's rate, about one entry per release.
+	maxUbuntuEntriesWithoutBinariesPercent = 1.0
+)
+
+// hasUsableBinaries reports whether an entry lists at least one binary with both a name and a
+// version. Renamed fields inside the binary objects would still parse, with every name and
+// version empty, so a non-empty list alone does not show the data is there.
+func hasUsableBinaries(es *EcosystemSpecific) bool {
+	return es != nil && slices.ContainsFunc(es.Binaries, func(b Binary) bool {
+		return b.Name != "" && b.Version != ""
+	})
+}
+
+// checkUbuntuBinariesCoverage fails the run when too many entries lack ecosystem_specific.binaries.
+// If Canonical dropped or renamed the field, records would still parse and every binary key would
+// silently disappear from the artifacts. Kernel entries are left out of the ratio because they are
+// most of the data and would hide a drop everywhere else.
+func checkUbuntuBinariesCoverage(withBinaries, withoutBinaries int) error {
+	total := withBinaries + withoutBinaries
+	if total < minUbuntuEntriesForBinariesCheck {
+		return nil
+	}
+	if pct := 100 * float64(withoutBinaries) / float64(total); pct > maxUbuntuEntriesWithoutBinariesPercent {
+		return fmt.Errorf("%d of %d non-kernel Ubuntu entries (%.1f%%) are without ecosystem_specific.binaries carrying a binary_name and binary_version, above the %.0f%% limit; the upstream format may have changed",
+			withoutBinaries, total, pct, maxUbuntuEntriesWithoutBinariesPercent)
+	}
+	return nil
+}
+
+type ubuntuRow struct {
+	pkg  string
+	vuln ProcessedVuln
+}
+
+// ubuntuRows returns the rows for one affected entry: base under each source package name, plus
+// a row for each binary built from it. upstreamIntroduced, upstreamFixed and affected.Versions are
+// the entry's values before transformVuln, so a per-CVE override of base still carries to the
+// binaries.
+func ubuntuRows(affected Affected, upstreamIntroduced, upstreamFixed string, packages []string, base ProcessedVuln) []ubuntuRow {
+	rows := make([]ubuntuRow, 0, len(packages))
+	for _, pkg := range packages {
+		rows = append(rows, ubuntuRow{pkg: pkg, vuln: base})
+	}
+	if affected.EcosystemSpecific == nil || isUbuntuKernelSource(affected.EcosystemSpecific.Binaries) {
+		return rows
+	}
+	for _, bin := range affected.EcosystemSpecific.Binaries {
+		if bin.Name == "" || slices.Contains(packages, bin.Name) {
+			continue
+		}
+		vuln, ok := ubuntuBinaryVuln(base, bin.Version, upstreamIntroduced, upstreamFixed, affected.Versions)
+		if !ok {
+			continue
+		}
+		rows = append(rows, ubuntuRow{pkg: bin.Name, vuln: vuln})
+	}
+	return rows
+}
+
+// isUbuntuKernelSource reports whether binaries come from a kernel source. Kernel entries are not
+// expanded: the analyzer maps linux-image-* to the source key itself, and headers, modules and
+// tools must not inherit kernel CVEs. Matching on binaries rather than the source name keeps
+// linux-firmware, linuxptp and similar sources expandable.
+func isUbuntuKernelSource(binaries []Binary) bool {
+	return slices.ContainsFunc(binaries, func(b Binary) bool {
+		return strings.HasPrefix(b.Name, "linux-image-") ||
+			strings.HasPrefix(b.Name, "linux-headers-") ||
+			strings.HasPrefix(b.Name, "linux-modules-")
+	})
+}
+
+// ubuntuBinaryVuln adapts the source row to a binary on its own version line, where the source's
+// versions would never match and its fixed version would be the wrong "resolved in". base is a
+// copy whose Versions slice is shared with the source row, so the field is replaced, never edited.
+// It returns false when the binary gets no row: a non-zero introduced bound is a version on the
+// source's line, so a range on the binary's own line has no lower bound to compare against.
+func ubuntuBinaryVuln(base ProcessedVuln, binaryVersion, upstreamIntroduced, upstreamFixed string, upstreamVersions []string) (ProcessedVuln, bool) {
+	if binaryVersion == "" {
+		return base, true
+	}
+	switch {
+	case upstreamFixed != "":
+		if binaryVersion != upstreamFixed {
+			if upstreamIntroduced != "" && upstreamIntroduced != "0" {
+				return ProcessedVuln{}, false
+			}
+			base.Fixed = binaryVersion
+			base.Versions = nil
+		}
+	case len(upstreamVersions) > 0 && !slices.Contains(upstreamVersions, binaryVersion):
+		base.Versions = []string{binaryVersion}
+	}
+	return base, true
+}
+
+func addUbuntuRows(artifacts map[string]*ArtifactData, ubuntuVer string, rows []ubuntuRow) {
+	artifact, ok := artifacts[ubuntuVer]
+	if !ok {
+		artifact = &ArtifactData{
+			SchemaVersion:   "1.0",
+			UbuntuVersion:   ubuntuVer,
+			Vulnerabilities: make(map[string][]ProcessedVuln),
+		}
+		artifacts[ubuntuVer] = artifact
+	}
+	for _, row := range rows {
+		artifact.Vulnerabilities[row.pkg] = append(artifact.Vulnerabilities[row.pkg], row.vuln)
+	}
 }
 
 func buildVersionFilter(versions, excludeVersions string) (targetVersions, excludedVersions map[string]bool) {
@@ -646,6 +766,7 @@ func runRHEL(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesUnparseable := 0
 	filesWithdrawn := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
@@ -661,6 +782,7 @@ func runRHEL(cfg Config) error {
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
 			filesSkipped++
+			filesUnparseable++
 			return nil
 		}
 		if osvData.Withdrawn != "" {
@@ -751,6 +873,9 @@ func runRHEL(cfg Config) error {
 
 	log.Printf("Processed %d files, skipped %d files, ignored %d withdrawn", filesProcessed, filesSkipped, filesWithdrawn)
 	log.Printf("Discovered %d RHEL versions", len(artifacts))
+	if err := checkParseFailures(filesUnparseable); err != nil {
+		return err
+	}
 
 	for ver, artifact := range artifacts {
 		artifact.Generated = cfg.GeneratedTimestamp
@@ -924,6 +1049,7 @@ func runAndroid(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesUnparseable := 0
 	filesWithdrawn := 0
 	skippedNonAndroid := 0
 	skippedNonEcosystem := 0
@@ -943,6 +1069,7 @@ func runAndroid(cfg Config) error {
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
 			filesSkipped++
+			filesUnparseable++
 			return nil
 		}
 		if osvData.Withdrawn != "" {
@@ -1048,6 +1175,9 @@ func runAndroid(cfg Config) error {
 	log.Printf("Affected entries: %d total, skipped — non-Android ecosystem: %d, non-ECOSYSTEM range: %d, non-version prefix: %d",
 		totalAffectedEntries, skippedNonAndroid, skippedNonEcosystem, skippedNonVersion)
 	log.Printf("Discovered %d Android versions", len(collected))
+	if err := checkParseFailures(filesUnparseable); err != nil {
+		return err
+	}
 
 	// Android mode always ingests the full OSV corpus (deltas are rejected
 	// above), so reading zero usable files means the input is broken (wrong or
