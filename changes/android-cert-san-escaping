@@ -1,0 +1,1 @@
+- Fixed Android certificate templates so that a comma in a host variable's value can no longer add entries to the certificate's subject alternative name (SAN). Values substituted into a SAN are also no longer backslash-escaped, so characters such as `+` reach the certificate unchanged.

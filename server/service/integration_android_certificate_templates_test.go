@@ -614,8 +614,9 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
 	caID, _ := s.createTestCertificateAuthority(t, ctx)
 
 	// Insert an IdP account that the Android host will be associated with so the
-	// $FLEET_VAR_HOST_END_USER_IDP_USERNAME variable resolves at delivery time.
-	idpUsername := fmt.Sprintf("san.idp.%s@example.com", strings.ReplaceAll(uuid.NewString(), "-", ""))
+	// $FLEET_VAR_HOST_END_USER_IDP_USERNAME variable resolves at delivery time. The '+' and ','
+	// are escaped differently in a subject name and in a SAN.
+	idpUsername := fmt.Sprintf("san+idp.%s@example.com,DNS=vpn.example.com", strings.ReplaceAll(uuid.NewString(), "-", ""))
 	require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
 		Username: idpUsername,
 		Fullname: "SAN Test User",
@@ -678,9 +679,11 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
 
 	require.NotNil(t, getCertResp.Certificate)
 	require.Equal(t, fleet.CertificateTemplateDelivered, getCertResp.Certificate.Status)
-	require.Equal(t, fmt.Sprintf("CN=%s", idpUsername), getCertResp.Certificate.SubjectName)
+	subjectUsername := strings.NewReplacer("+", `\+`, ",", `\,`).Replace(idpUsername)
+	sanUsername := strings.ReplaceAll(idpUsername, ",", "%2C")
+	require.Equal(t, fmt.Sprintf("CN=%s", subjectUsername), getCertResp.Certificate.SubjectName)
 	require.Equal(t,
-		fmt.Sprintf("DNS=wifi.example.com, UPN=%s, EMAIL=%s", idpUsername, idpUsername),
+		fmt.Sprintf("DNS=wifi.example.com, UPN=%s, EMAIL=%s", sanUsername, sanUsername),
 		getCertResp.Certificate.SubjectAlternativeName)
 }
 

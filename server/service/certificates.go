@@ -277,7 +277,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 	var endUsersMemo []fleet.HostEndUser
 
 	subjectName, ok, err := svc.expandCertVar(ctx, certificate, certificate.SubjectName,
-		"Could not replace certificate variables", host, &endUsersMemo)
+		"Could not replace certificate variables", host, &endUsersMemo, escapeDNValue)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 
 	if certificate.SubjectAlternativeName != "" {
 		san, ok, err := svc.expandCertVar(ctx, certificate, certificate.SubjectAlternativeName,
-			"Could not replace certificate variables in subject_alternative_name", host, &endUsersMemo)
+			"Could not replace certificate variables in subject_alternative_name", host, &endUsersMemo, escapeSANValue)
 		if err != nil {
 			return nil, err
 		}
