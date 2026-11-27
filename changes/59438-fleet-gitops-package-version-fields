@@ -1,0 +1,1 @@
+- Fixed the `fleet-gitops` validator rejecting `self_service`, `categories`, and labels on each package in a software package YAML file. The validator now accepts them per version and reports the same fleet-level vs package-level conflicts that `fleetctl gitops` rejects.
