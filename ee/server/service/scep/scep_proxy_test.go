@@ -18,6 +18,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -367,32 +368,52 @@ func TestValidateIdentifier(t *testing.T) {
 		assert.Contains(t, err.Error(), "profile status (verified) is not 'pending'")
 	})
 
-	t.Run("Windows profile skips status check", func(t *testing.T) {
-		ds := new(mock.DataStore)
-		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-			return &fleet.GroupedCertificateAuthorities{
-				CustomScepProxy: []fleet.CustomSCEPProxyCA{
-					{Name: "test-ca", URL: "https://scep.example.com/scep"},
-				},
-			}, nil
-		}
-		verifiedStatus := fleet.MDMDeliveryVerified
-		ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
-			return &fleet.HostMDMCertificateProfile{
-				HostUUID:    hostUUID,
-				ProfileUUID: profileUUID,
-				Status:      &verifiedStatus, // Not pending, but should pass for Windows
-				Type:        fleet.CAConfigCustomSCEPProxy,
-				CAName:      "test-ca",
-			}, nil
-		}
-		svc := newTestService(ds)
+	// Windows rows go to verifying as soon as the device acknowledges the install, before the SCEP exchange is over.
+	t.Run("Windows profile status check", func(t *testing.T) {
+		for _, tc := range []struct {
+			status *fleet.MDMDeliveryStatus
+			ok     bool
+		}{
+			{status: new(fleet.MDMDeliveryPending), ok: true},
+			{status: new(fleet.MDMDeliveryVerifying), ok: true},
+			{status: nil},
+			{status: new(fleet.MDMDeliveryVerified)},
+			{status: new(fleet.MDMDeliveryFailed)},
+		} {
+			name := "null"
+			if tc.status != nil {
+				name = string(*tc.status)
+			}
+			t.Run(name, func(t *testing.T) {
+				ds := new(mock.DataStore)
+				ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+					return &fleet.GroupedCertificateAuthorities{
+						CustomScepProxy: []fleet.CustomSCEPProxyCA{
+							{Name: "test-ca", URL: "https://scep.example.com/scep"},
+						},
+					}, nil
+				}
+				ds.GetWindowsHostMDMCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+					return &fleet.HostMDMCertificateProfile{
+						HostUUID:    hostUUID,
+						ProfileUUID: profileUUID,
+						Status:      tc.status,
+						Type:        fleet.CAConfigCustomSCEPProxy,
+						CAName:      "test-ca",
+					}, nil
+				}
+				svc := newTestService(ds)
 
-		// Windows profiles skip status check
-		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "test-ca", "")
-		scepURL, err := svc.validateIdentifier(ctx, identifier, false)
-		require.NoError(t, err)
-		assert.Equal(t, "https://scep.example.com/scep", scepURL)
+				scepURL, err := svc.validateIdentifier(ctx, makeIdentifier("host-uuid", "w-profile-uuid", "test-ca", ""), false)
+				if !tc.ok {
+					var badReq *scepserver.BadRequestError
+					require.ErrorAs(t, err, &badReq)
+					return
+				}
+				require.NoError(t, err)
+				assert.Equal(t, "https://scep.example.com/scep", scepURL)
+			})
+		}
 	})
 
 	t.Run("NDES CA not configured", func(t *testing.T) {
@@ -500,6 +521,7 @@ func TestValidateIdentifier(t *testing.T) {
 				Type:                 fleet.CAConfigNDES,
 				CAName:               "NDES",
 				ChallengeRetrievedAt: &expiredTime,
+				CommandUUID:          "command-uuid",
 			}, nil
 		}
 		ds.ResendWindowsHostCertificateProfileFunc = func(ctx context.Context, hostUUID, profileUUID string) error {
@@ -509,7 +531,7 @@ func TestValidateIdentifier(t *testing.T) {
 		}
 		svc := newTestService(ds)
 
-		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "NDES", "")
+		identifier := makeIdentifier("host-uuid", "w-profile-uuid", "NDES", "command-uuid")
 		_, err := svc.validateIdentifier(ctx, identifier, true)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "challenge password has expired")
@@ -1699,4 +1721,142 @@ func TestGetNDESSCEPChallengeStatusClassification(t *testing.T) {
 			assert.Equal(t, tc.wantTerminal, IsTerminalNDESChallengeError(err))
 		})
 	}
+}
+
+// A Windows NDES request must carry the command UUID of the delivery the host is installing, because nothing else in
+// the URL is secret. A request that doesn't is turned away without touching the CA or the host's profile.
+func TestSCEPProxyWindowsNDESCommandBinding(t *testing.T) {
+	var ndesHits int
+	ndes := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ndesHits++
+		if r.URL.Query().Get("operation") == "PKIOperation" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte("ndes-response"))
+	}))
+	t.Cleanup(ndes.Close)
+
+	const commandUUID = "11111111-2222-4333-8444-555555555555"
+	newDS := func(t *testing.T, platformPrefix string, status fleet.MDMDeliveryStatus, rowCommandUUID string,
+		challengeRetrievedAt time.Time,
+	) *mock.DataStore {
+		ds := new(mock.DataStore)
+		ds.GetGroupedCertificateAuthoritiesFunc = func(context.Context, bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{NDESSCEP: &fleet.NDESSCEPProxyCA{URL: ndes.URL + "/scep"}}, nil
+		}
+		row := func(_ context.Context, hostUUID, profileUUID, caName string) (*fleet.HostMDMCertificateProfile, error) {
+			p := &fleet.HostMDMCertificateProfile{
+				HostUUID:             hostUUID,
+				ProfileUUID:          profileUUID,
+				Status:               &status,
+				Type:                 fleet.CAConfigNDES,
+				CAName:               caName,
+				ChallengeRetrievedAt: &challengeRetrievedAt,
+			}
+			if platformPrefix == fleet.MDMWindowsProfileUUIDPrefix {
+				p.CommandUUID = rowCommandUUID
+			}
+			return p, nil
+		}
+		ds.GetWindowsHostMDMCertificateProfileFunc = row
+		ds.GetAppleHostMDMCertificateProfileFunc = row
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(context.Context, string, string, string, bool) (bool, bool, error) {
+			return true, true, nil
+		}
+		ds.ResendWindowsHostCertificateProfileFunc = func(context.Context, string, string) error { return nil }
+		ds.ResendHostCertificateProfileFunc = func(context.Context, string, string) error { return nil }
+		ndesHits = 0
+		return ds
+	}
+	recent := time.Now().Add(-time.Minute)
+	expired := time.Now().Add(-58 * time.Minute)
+	logger := slog.New(slog.DiscardHandler)
+
+	requireRefused := func(t *testing.T, ds *mock.DataStore, err error) {
+		t.Helper()
+		var badReq *scepserver.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Zero(t, ndesHits, "the request must not reach NDES")
+		require.False(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked, "the request must not be charged to the host")
+		require.False(t, ds.ResendWindowsHostCertificateProfileFuncInvoked, "the request must not queue a redelivery")
+	}
+
+	for _, tc := range []struct {
+		name           string
+		rowCommandUUID string
+		identifier     string
+	}{
+		{name: "without a command UUID", rowCommandUUID: commandUUID, identifier: "host-uuid,w-profile-uuid,NDES"},
+		{name: "with an empty command UUID", rowCommandUUID: commandUUID, identifier: "host-uuid,w-profile-uuid,NDES,"},
+		{
+			name: "with another command UUID", rowCommandUUID: commandUUID,
+			identifier: "host-uuid,w-profile-uuid,NDES,99999999-2222-4333-8444-555555555555",
+		},
+		{name: "when the row has no command UUID", rowCommandUUID: "", identifier: "host-uuid,w-profile-uuid,NDES"},
+		{name: "when the row has no command UUID and the URL an empty one", rowCommandUUID: "", identifier: "host-uuid,w-profile-uuid,NDES,"},
+	} {
+		t.Run("PKIOperation "+tc.name+" is refused", func(t *testing.T) {
+			ds := newDS(t, fleet.MDMWindowsProfileUUIDPrefix, fleet.MDMDeliveryVerifying, tc.rowCommandUUID, recent)
+			_, err := NewSCEPProxyService(ds, logger, nil).PKIOperation(t.Context(), []byte("junk"), url.PathEscape(tc.identifier))
+			requireRefused(t, ds, err)
+		})
+		t.Run("GetCACaps "+tc.name+" is refused", func(t *testing.T) {
+			ds := newDS(t, fleet.MDMWindowsProfileUUIDPrefix, fleet.MDMDeliveryVerifying, tc.rowCommandUUID, recent)
+			_, err := NewSCEPProxyService(ds, logger, nil).GetCACaps(t.Context(), url.PathEscape(tc.identifier))
+			requireRefused(t, ds, err)
+		})
+		t.Run("GetCACert "+tc.name+" is refused", func(t *testing.T) {
+			ds := newDS(t, fleet.MDMWindowsProfileUUIDPrefix, fleet.MDMDeliveryVerifying, tc.rowCommandUUID, recent)
+			_, _, err := NewSCEPProxyService(ds, logger, nil).GetCACert(t.Context(), "default", url.PathEscape(tc.identifier))
+			requireRefused(t, ds, err)
+		})
+	}
+
+	matching := url.PathEscape("host-uuid,w-profile-uuid,NDES," + commandUUID)
+
+	t.Run("PKIOperation with the delivery's command UUID is forwarded and a CA failure is charged", func(t *testing.T) {
+		ds := newDS(t, fleet.MDMWindowsProfileUUIDPrefix, fleet.MDMDeliveryVerifying, commandUUID, recent)
+		var gotOnlyIfVerifying bool
+		ds.SetMDMWindowsHostProfileFailedOrRetryFunc = func(_ context.Context, _, _, _ string, onlyIfVerifying bool) (bool, bool, error) {
+			gotOnlyIfVerifying = onlyIfVerifying
+			return true, true, nil
+		}
+		_, err := NewSCEPProxyService(ds, logger, nil).PKIOperation(t.Context(), []byte("pki-message"), matching)
+		require.ErrorContains(t, err, "Could not do PKIOperation on SCEP server")
+		require.NotZero(t, ndesHits)
+		require.True(t, ds.SetMDMWindowsHostProfileFailedOrRetryFuncInvoked)
+		require.False(t, gotOnlyIfVerifying)
+	})
+
+	t.Run("GetCACaps and GetCACert with the delivery's command UUID are forwarded", func(t *testing.T) {
+		ds := newDS(t, fleet.MDMWindowsProfileUUIDPrefix, fleet.MDMDeliveryPending, commandUUID, recent)
+		svc := NewSCEPProxyService(ds, logger, nil)
+		res, err := svc.GetCACaps(t.Context(), matching)
+		require.NoError(t, err)
+		require.Equal(t, "ndes-response", string(res))
+		res, _, err = svc.GetCACert(t.Context(), "default", matching)
+		require.NoError(t, err)
+		require.Equal(t, "ndes-response", string(res))
+		require.Equal(t, 2, ndesHits)
+	})
+
+	t.Run("expired challenge is redelivered only for the delivery's command UUID", func(t *testing.T) {
+		ds := newDS(t, fleet.MDMWindowsProfileUUIDPrefix, fleet.MDMDeliveryVerifying, commandUUID, expired)
+		_, err := NewSCEPProxyService(ds, logger, nil).PKIOperation(t.Context(), []byte("junk"),
+			url.PathEscape("host-uuid,w-profile-uuid,NDES"))
+		requireRefused(t, ds, err)
+
+		_, err = NewSCEPProxyService(ds, logger, nil).PKIOperation(t.Context(), []byte("pki-message"), matching)
+		require.ErrorContains(t, err, "challenge password has expired")
+		require.True(t, ds.ResendWindowsHostCertificateProfileFuncInvoked)
+		require.Zero(t, ndesHits)
+	})
+
+	t.Run("Apple NDES keeps the three-field identifier", func(t *testing.T) {
+		ds := newDS(t, fleet.MDMAppleProfileUUIDPrefix, fleet.MDMDeliveryPending, "", recent)
+		res, err := NewSCEPProxyService(ds, logger, nil).GetCACaps(t.Context(), url.PathEscape("host-uuid,a-profile-uuid,NDES"))
+		require.NoError(t, err)
+		require.Equal(t, "ndes-response", string(res))
+	})
 }

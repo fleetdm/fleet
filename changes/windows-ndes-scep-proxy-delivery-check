@@ -1,0 +1,1 @@
+- The SCEP proxy now checks that requests for Windows NDES certificate profiles belong to the profile delivery the host is installing. Deliveries already in progress when Fleet is upgraded are retried once with the new URL.

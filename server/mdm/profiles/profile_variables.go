@@ -266,6 +266,14 @@ func ReplaceNDESSCEPProxyURLVariable(mdmURL string, hostUUID string, profileUUID
 	return ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPProxyURLRegexp, profileContents, proxyURL)
 }
 
+// ReplaceWindowsNDESSCEPProxyURLVariable replaces the NDES SCEP proxy URL variable in a Windows profile. The URL carries
+// the install command UUID, which the proxy requires to match the host's current delivery.
+func ReplaceWindowsNDESSCEPProxyURLVariable(mdmURL, hostUUID, profileUUID, commandUUID, profileContents string) string {
+	proxyURL := fmt.Sprintf("%s%s%s", mdmURL, SCEPProxyPath,
+		url.PathEscape(fmt.Sprintf("%s,%s,NDES,%s", hostUUID, profileUUID, commandUUID)))
+	return ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPProxyURLRegexp, profileContents, proxyURL)
+}
+
 func HydrateHost(ctx context.Context, ds fleet.Datastore, hostLite fleet.Host, onHostCountMismatch func(int) error) (fleet.Host, bool, error) {
 	if hostLite.ID != 0 { // already hydrated; return as-is
 		return hostLite, true, nil

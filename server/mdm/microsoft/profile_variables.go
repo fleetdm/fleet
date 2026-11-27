@@ -79,6 +79,8 @@ type ProfilePreprocessDependencies struct {
 type ProfilePreprocessParams struct {
 	HostUUID    string
 	ProfileUUID string
+	// CommandUUID is the install command that will deliver the processed profile.
+	CommandUUID string
 }
 
 // preprocessWindowsProfileContents processes Windows configuration profiles to replace Fleet variables
@@ -223,7 +225,11 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarNDESSCEPChallengeRegexp, result, challenge)
 
 		case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
-			result = profiles.ReplaceNDESSCEPProxyURLVariable(deps.AppConfig.MDMUrl(), params.HostUUID, params.ProfileUUID, result)
+			if params.CommandUUID == "" {
+				return profileContents, ctxerr.New(deps.Context, "building NDES SCEP proxy URL: missing command UUID")
+			}
+			result = profiles.ReplaceWindowsNDESSCEPProxyURLVariable(deps.AppConfig.MDMUrl(), params.HostUUID, params.ProfileUUID,
+				params.CommandUUID, result)
 
 		case fleetVar == string(fleet.FleetVarConditionalAccessSCEPURL):
 			scepURL, err := url.JoinPath(deps.AppConfig.ServerSettings.ServerURL, fleet.ConditionalAccessSCEPPath)

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"log/slog"
@@ -462,6 +463,75 @@ func TestHTTPHandlerWithIdentifierRouting(t *testing.T) {
 
 			require.Equal(t, c.wantStatus, resp.StatusCode)
 			require.Equal(t, c.wantIdentifier, svc.identifier)
+		})
+	}
+}
+
+// TestHTTPHandlerWithIdentifierAccessLog checks that the SCEP proxy access log keeps the fourth identifier field out of the
+// logged path, however the client encodes it, and logs everything else as before.
+func TestHTTPHandlerWithIdentifierAccessLog(t *testing.T) {
+	const secret = "secret-value"
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	svc := &identifierRecordingService{}
+	server := httptest.NewServer(scepserver.MakeHTTPHandlerWithIdentifier(scepserver.MakeServerEndpointsWithIdentifier(svc),
+		"/mdm/scep/proxy/", logger))
+	t.Cleanup(server.Close)
+
+	cases := []struct {
+		name     string
+		method   string
+		path     string
+		wantPath string
+	}{
+		{"escaped commas", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret,
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
+		{"literal commas", http.MethodGet, "/mdm/scep/proxy/host,profile,ca," + secret,
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
+		{"pkiclient.exe suffix", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret + "/pkiclient.exe",
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED/pkiclient.exe"},
+		{"post", http.MethodPost, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret,
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
+		{"post with pkiclient.exe suffix", http.MethodPost, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret + "/pkiclient.exe",
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED/pkiclient.exe"},
+		{"double-encoded commas", http.MethodGet, "/mdm/scep/proxy/host%252Cprofile%252Cca%252C" + secret,
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
+		{"fields after the fourth", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret + "%2C" + secret,
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
+		{"fourth field the second unescape rejects", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2Cca%2C" + secret + "%25zz",
+			"/mdm/scep/proxy/host%2Cprofile%2Cca%2CREDACTED"},
+		{"three fields with escaped commas", http.MethodGet, "/mdm/scep/proxy/host%2Cprofile%2CNDES",
+			"/mdm/scep/proxy/host%2Cprofile%2CNDES"},
+		{"three fields with literal commas", http.MethodGet, "/mdm/scep/proxy/host,profile,NDES/pkiclient.exe",
+			"/mdm/scep/proxy/host,profile,NDES/pkiclient.exe"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			logs.Reset()
+			const query = "?operation=GetCACaps&message=ca-name"
+			req, err := http.NewRequestWithContext(t.Context(), c.method, server.URL+c.path+query, nil)
+			require.NoError(t, err)
+			req.Header.Set("User-Agent", "scep-test-agent")
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			_, _ = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+
+			require.NotContains(t, logs.String(), secret)
+			var line map[string]any
+			require.NoError(t, json.Unmarshal(logs.Bytes(), &line))
+			delete(line, "time")
+			require.Equal(t, map[string]any{
+				"level":      "INFO",
+				"msg":        "",
+				"method":     c.method,
+				"status":     float64(http.StatusOK),
+				"proto":      "HTTP/1.1",
+				"host":       "127.0.0.1",
+				"user_agent": "scep-test-agent",
+				"path":       c.wantPath + query,
+			}, line)
 		})
 	}
 }

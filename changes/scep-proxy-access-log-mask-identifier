@@ -1,0 +1,1 @@
+- The SCEP proxy access log now masks the fourth field of the request identifier (after the host, profile, and certificate authority) in the logged path.

@@ -3,6 +3,7 @@ package scep
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -341,11 +341,10 @@ func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, 
 // ("hostUUID,profileUUID,caName,challenge"). It intentionally does no validation beyond the two leading fields; full
 // validation lives in validateIdentifier.
 func parseHostAndProfileFromSCEPIdentifier(identifier string) (hostUUID, profileUUID string, ok bool) {
-	parsed, err := url.PathUnescape(identifier)
+	parts, err := scepserver.SplitIdentifier(identifier)
 	if err != nil {
 		return "", "", false
 	}
-	parts := strings.Split(parsed, ",")
 	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 		return "", "", false
 	}
@@ -388,12 +387,11 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		return "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
-	parsedID, err := url.PathUnescape(identifier)
+	parsedIDs, err := scepserver.SplitIdentifier(identifier)
 	if err != nil {
 		// Should never happen since the identifier comes in as a path variable
 		return "", ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
 	}
-	parsedIDs := strings.Split(parsedID, ",")
 	if len(parsedIDs) < 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
 		// Return error that implements kithttp.StatusCoder interface
 		return "", &scepserver.BadRequestError{Message: "invalid identifier in URL path"}
@@ -417,8 +415,10 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	}
 
 	challengeScope := fleet.ChallengeScope{HostUUID: hostUUID, ProfileUUID: profileUUID, CAName: caName}
+	isWindows := strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix)
 
 	var certReq scepCertificateRequest
+	var windowsCommandUUID string
 
 	switch {
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
@@ -437,6 +437,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		}
 		if profile != nil {
 			certReq = &hostMDMCertificateProfileAdapter{profile: profile}
+			windowsCommandUUID = profile.CommandUUID
 		}
 
 	case strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix):
@@ -464,11 +465,11 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		// Return error that implements kithttp.StatusCoder interface
 		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
 	}
-	// We skip windows profiles for this check here as they instantly go to verifying when sent out, might change for windows renewal.
-	if certReq.GetStatus() != fleet.MDMDeliveryPending && !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+	// Windows rows move to verifying when the device acknowledges the install, which can be before its SCEP exchange is over.
+	status := certReq.GetStatus()
+	if status != fleet.MDMDeliveryPending && (!isWindows || status != fleet.MDMDeliveryVerifying) {
 		// This could happen if Fleet DB was updated before the profile was updated on the host.
 		// We expect another certificate request from the host once the profile is updated.
-		status := certReq.GetStatus()
 		if status == "" {
 			status = "null"
 		}
@@ -484,6 +485,12 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		if groupedCAs.NDESSCEP == nil {
 			// Return error that implements kithttp.StatusCoder interface
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
+		}
+		// This route is unauthenticated and a failed PKIOperation is charged to the host's profile, so the install
+		// command UUID in the fourth field is what authorizes a Windows request. A refused request must change nothing.
+		if isWindows && (windowsCommandUUID == "" ||
+			subtle.ConstantTimeCompare([]byte(fleetChallenge), []byte(windowsCommandUUID)) != 1) {
+			return "", &scepserver.BadRequestError{Message: "identifier does not match the profile's current delivery"}
 		}
 		challengeRetrievedAt := certReq.GetChallengeRetrievedAt()
 		if checkChallenge && challengeRetrievedAt != nil && challengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
