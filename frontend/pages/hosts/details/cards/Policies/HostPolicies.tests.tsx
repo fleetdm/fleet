@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 import React, { useCallback, useState } from "react";
 
@@ -142,6 +142,72 @@ describe("HostPolicies", () => {
     renderWithContext({ policies });
 
     expect(screen.getByText("3 policies")).toBeInTheDocument();
+  });
+
+  describe("search", () => {
+    const policies = [
+      createMockHostPolicy({
+        id: 1,
+        name: "Disk encryption",
+        response: "pass",
+      }),
+      createMockHostPolicy({
+        id: 2,
+        name: "Firewall enabled",
+        response: "fail",
+      }),
+      createMockHostPolicy({
+        id: 3,
+        name: "Gatekeeper enabled",
+        response: "pass",
+      }),
+    ];
+
+    it("filters policies by name, case-insensitively, and updates the count", async () => {
+      const { user } = renderWithSetup(
+        <HostPolicies {...baseProps} policies={policies} />
+      );
+
+      await user.type(screen.getByPlaceholderText("Search by name"), "ENABLED");
+
+      await waitFor(() =>
+        expect(screen.getByText("2 policies")).toBeInTheDocument()
+      );
+      expect(screen.queryAllByText("Firewall enabled").length).toBeGreaterThan(
+        0
+      );
+      expect(
+        screen.queryAllByText("Gatekeeper enabled").length
+      ).toBeGreaterThan(0);
+      expect(screen.queryAllByText("Disk encryption")).toHaveLength(0);
+    });
+
+    it("shows a no-match empty state when nothing matches", async () => {
+      const { user } = renderWithSetup(
+        <HostPolicies {...baseProps} policies={policies} canManagePolicies />
+      );
+
+      await user.type(screen.getByPlaceholderText("Search by name"), "zzz");
+
+      expect(
+        await screen.findByText("No items match the current search criteria")
+      ).toBeInTheDocument();
+      expect(screen.queryByText("No policies checked")).not.toBeInTheDocument();
+    });
+
+    it("does not render search for device users", () => {
+      renderWithContext({
+        policies,
+        deviceUser: true,
+        showHiddenPolicies: false,
+        hasHiddenPolicies: false,
+        onToggleShowHiddenPolicies: noop,
+      });
+
+      expect(
+        screen.queryByPlaceholderText("Search by name")
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("does not render for iOS hosts", () => {
