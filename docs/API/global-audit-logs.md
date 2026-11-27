@@ -3764,7 +3764,7 @@ This activity contains the following fields:
 
 ### installed_all_self_service_software
 
-Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed_software) activity is also generated for each queued title.
+Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed-software) activity is also generated for each queued title.
 
 This activity contains the following fields:
 - "host_id": ID of the host.

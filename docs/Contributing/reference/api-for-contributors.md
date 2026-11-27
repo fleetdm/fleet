@@ -3890,7 +3890,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 - The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
 
-> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors). `fleetd` agents will always report vital errors to Fleet.
+> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./configuration-for-contributors.md#fleet-enable-post-client-debug-errors). `fleetd` agents will always report vital errors to Fleet.
 
 `POST /api/v1/fleet/device/{token}/debug/errors`
 

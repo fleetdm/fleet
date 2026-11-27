@@ -28,7 +28,7 @@ Fleet automatically opens the default web browser and directs the end user to lo
 
 The sign-in page only works for a host that Fleet is currently waiting on. If the end user signs in with the wrong account, they can sign in again with the right one until the host finishes enrolling. Enrollment completes within about 30 seconds of a successful sign-in. After that, signing in again from the same page won't change the account linked to the host.
 
-Fleet records every link between a host and an IdP account in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs#bound_host_to_idp_account), including any account it replaced, and records a separate [audit log entry](https://fleetdm.com/docs/using-fleet/audit-logs#refused_host_idp_account_change) when a sign-in that arrives after enrollment is not applied.
+Fleet records every link between a host and an IdP account in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs#bound-host-to-idp-account), including any account it replaced, and records a separate [audit log entry](https://fleetdm.com/docs/using-fleet/audit-logs#refused-host-idp-account-change) when a sign-in that arrives after enrollment is not applied.
 
 Until the end user logs in, Fleet opens a new browser tab with the login page every 5 minutes. If your IdP settings in **Settings > Integrations > Identity provider (IdP)** are wrong, the end user can't log in, and new tabs keep opening. Fleet doesn't show a clear error yet: the **Sign in** button may spin forever, or the end user sees a generic "Something's gone wrong" page. This is a [known bug](https://github.com/fleetdm/fleet/issues/54343).
 
