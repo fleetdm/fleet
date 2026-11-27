@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261104211402, Down_20261104211402)
+	MigrationClient.AddMigration("Clean up Microsoft compliance partner host statuses and add the verified column", Up_20261104211402, Down_20261104211402)
 }
 
 // Up_20261104211402 prepares the Entra device IDs for one owner per device ID:

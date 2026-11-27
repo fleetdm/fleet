@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261125193603, Down_20261125193603)
+	MigrationClient.AddMigration("Store the Microsoft compliance partner proxy secret as a blob", Up_20261125193603, Down_20261125193603)
 }
 
 func Up_20261125193603(tx *sql.Tx) error {

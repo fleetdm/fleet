@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261117174518, Down_20261117174518)
+	MigrationClient.AddMigration("Rename report server settings", Up_20261117174518, Down_20261117174518)
 }
 
 // reportServerSettingsKeyRenames are the stored server settings renamed from "query" to "report".

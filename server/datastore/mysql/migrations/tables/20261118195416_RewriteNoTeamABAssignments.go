@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261118195416, Down_20261118195416)
+	MigrationClient.AddMigration("Clear Apple Business fleet assignments set to No team", Up_20261118195416, Down_20261118195416)
 }
 
 // Up_20261118195416 rewrites "No team", in any letter case, in the stored Apple Business assignments to the empty string that

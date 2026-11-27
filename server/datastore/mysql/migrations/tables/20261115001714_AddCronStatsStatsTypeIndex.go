@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261115001714, Down_20261115001714)
+	MigrationClient.AddMigration("Index cron stats by name, stats type, and creation time", Up_20261115001714, Down_20261115001714)
 }
 
 func Up_20261115001714(tx *sql.Tx) error {

@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261116102943, Down_20261116102943)
+	MigrationClient.AddMigration("Add the policies webhooks and tickets enabled column", Up_20261116102943, Down_20261116102943)
 }
 
 // Up_20261116102943 copies the webhook or ticket choice from the failing_policies_webhook.policy_ids

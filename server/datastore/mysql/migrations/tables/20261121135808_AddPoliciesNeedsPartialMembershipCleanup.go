@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261121135808, Down_20261121135808)
+	MigrationClient.AddMigration("Add policy columns for partial membership cleanup", Up_20261121135808, Down_20261121135808)
 }
 
 func Up_20261121135808(tx *sql.Tx) error {

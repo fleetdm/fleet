@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261125175650, Down_20261125175650)
+	MigrationClient.AddMigration("Clear software installer HTTP ETags", Up_20261125175650, Down_20261125175650)
 }
 
 // Up_20261125175650 clears stored ETags. A replaced package used to keep the ETag of its URL's download, and conditional downloads

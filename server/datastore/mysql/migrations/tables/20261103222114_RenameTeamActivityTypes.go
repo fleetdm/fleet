@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261103222114, Down_20261103222114)
+	MigrationClient.AddMigration("Rename team activity types to fleet activity types", Up_20261103222114, Down_20261103222114)
 }
 
 // Up_20261103222114 renames the activity types that had "team" in their name. The activity_type index keeps each UPDATE selective, and

@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261117182335, Down_20261117182335)
+	MigrationClient.AddMigration("Rename macOS settings to Apple settings and custom settings to configuration profiles", Up_20261117182335, Down_20261117182335)
 }
 
 // A parent is listed before the keys under it, so the children are found at the renamed path.

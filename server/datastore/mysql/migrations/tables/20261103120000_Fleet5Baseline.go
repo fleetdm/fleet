@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261103120000, Down_20261103120000)
+	MigrationClient.AddMigration("Create the Fleet 5 baseline schema", Up_20261103120000, Down_20261103120000)
 }
 
 const Fleet5BaselineVersion = 20261103120000

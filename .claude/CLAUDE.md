@@ -85,7 +85,7 @@ make lint-js              # JS/TS linters
 
 ### Database
 ```bash
-make migration name=CamelCaseName   # Create new migration
+make migration name=CamelCaseName title="Sentence case title"   # Create new migration
 make db-reset                       # Reset dev database
 ```
 

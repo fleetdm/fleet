@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261105132801, Down_20261105132801)
+	MigrationClient.AddMigration("Add platform prefixes to recovery lock and require all software settings", Up_20261105132801, Down_20261105132801)
 }
 
 // platformPrefixConfigKeys are the stored settings renamed to put the platform first. Parent is the dot path of the object

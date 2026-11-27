@@ -11,6 +11,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 type MigrationRecord struct {
@@ -21,6 +23,7 @@ type MigrationRecord struct {
 
 type Migration struct {
 	Version  int64
+	Title    string              // sentence-case description, logged when a go migration runs
 	Next     int64               // next version, or -1 if none
 	Previous int64               // previous version, -1 if none
 	Source   string              // path to .sql script
@@ -45,8 +48,7 @@ func (c *Client) runMigration(db *sql.DB, m *Migration, direction bool) error {
 		}
 
 	case ".go":
-		name, date := parseNameAndDate(m.Source)
-		log.Printf("[%s] %s\n", date, name)
+		log.Printf("[%s] %s\n", migrationDate(m.Source), m.Title)
 
 		tx, err := db.Begin()
 		if err != nil {
@@ -73,24 +75,53 @@ func (c *Client) runMigration(db *sql.DB, m *Migration, direction bool) error {
 	return nil
 }
 
-var (
-	upperReplace         = regexp.MustCompile("([a-z])([A-Z])")       // e.g. UpdateBuiltin -> Update Builtin
-	allUpperWordsReplace = regexp.MustCompile("([A-Z]+)([A-Z][a-z])") // e.g. IDIn -> ID In
-)
-
-func parseNameAndDate(source string) (name string, date string) {
-	parts := strings.SplitN(strings.TrimSuffix(filepath.Base(source), ".go"), "_", 2)
-	// Stripping seconds [:8] because Fleet developers add seconds when re-arranging new migrations
+func migrationDate(source string) string {
+	// Only the date is parsed because Fleet developers bump the seconds when re-arranging new migrations
 	// e.g.: 2022/10/10 15:43:46 fail to parse time: parsing time "20201021104586": second out of range
-	datePart := parts[0][:8]
-	mt, err := time.Parse("20060102", datePart)
+	datePart, _, _ := strings.Cut(filepath.Base(source), "_")
+	if len(datePart) < 8 {
+		log.Fatalf("fail to parse time from migration %s", filepath.Base(source))
+	}
+	mt, err := time.Parse("20060102", datePart[:8])
 	if err != nil {
 		log.Fatalf("fail to parse time: %s", err)
 	}
-	name = upperReplace.ReplaceAllString(parts[1], "$1 $2")     // add spaces in the filename
-	name = allUpperWordsReplace.ReplaceAllString(name, "$1 $2") // add spaces in the filename
-	date = mt.Format("2006-01-02")
-	return
+	return mt.Format("2006-01-02")
+}
+
+var capitalizedWord = regexp.MustCompile(`^\p{Lu}\p{Ll}`)
+
+// ValidateTitle checks that title is a migration title in sentence case, e.g. "Add an index on hosts platform".
+// Acronyms and proper nouns may be capitalized, but a title with every word capitalized is rejected as title case.
+func ValidateTitle(title string) error {
+	if strings.TrimSpace(title) == "" {
+		return errors.New("migration title is required")
+	}
+	if strings.TrimSpace(title) != title {
+		return errors.New("migration title must not start or end with whitespace")
+	}
+	first, _ := utf8.DecodeRuneInString(title)
+	if !unicode.IsUpper(first) {
+		return fmt.Errorf("migration title must be in sentence case, starting with an uppercase letter: %q", title)
+	}
+	if strings.HasSuffix(title, ".") {
+		return fmt.Errorf("migration title must not end with a period: %q", title)
+	}
+	var words, capitalized int
+	for _, w := range strings.Fields(title)[1:] {
+		first, _ := utf8.DecodeRuneInString(w)
+		if !unicode.IsLetter(first) {
+			continue
+		}
+		words++
+		if capitalizedWord.MatchString(w) {
+			capitalized++
+		}
+	}
+	if words >= 2 && capitalized == words {
+		return fmt.Errorf("migration title must be in sentence case, not title case: %q", title)
+	}
+	return nil
 }
 
 // look for migration scripts with names in the form:
@@ -119,9 +150,12 @@ func NumericComponent(name string) (int64, error) {
 	return n, e
 }
 
-func CreateMigration(name, migrationType, dir string, t time.Time) ([]string, error) {
+func CreateMigration(name, title, migrationType, dir string, t time.Time) ([]string, error) {
 	if migrationType != "go" && migrationType != "sql" {
 		return nil, errors.New("migration type must be 'go' or 'sql'")
+	}
+	if err := ValidateTitle(title); err != nil {
+		return nil, err
 	}
 
 	timestamp := t.Format("20060102150405")
@@ -135,7 +169,8 @@ func CreateMigration(name, migrationType, dir string, t time.Time) ([]string, er
 
 	var paths []string
 
-	migrationPath, err := writeTemplateToFile(fpath, tmpl, timestamp)
+	data := migrationTemplateData{Timestamp: timestamp, Title: title}
+	migrationPath, err := writeTemplateToFile(fpath, tmpl, data)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +178,7 @@ func CreateMigration(name, migrationType, dir string, t time.Time) ([]string, er
 
 	if migrationType == "go" {
 		fpath := strings.Replace(filepath.Join(dir, filename), ".go", "_test.go", 1)
-		migrationTestPath, err := writeTemplateToFile(fpath, goSqlMigrationTestTemplate, timestamp)
+		migrationTestPath, err := writeTemplateToFile(fpath, goSqlMigrationTestTemplate, data)
 		if err != nil {
 			return nil, err
 		}
@@ -166,6 +201,11 @@ func (c *Client) FinalizeMigration(tx *sql.Tx, direction bool, v int64) error {
 	return tx.Commit()
 }
 
+type migrationTemplateData struct {
+	Timestamp string
+	Title     string
+}
+
 var sqlMigrationTemplate = template.Must(template.New("goose.sql-migration").Parse(`
 -- +goose Up
 -- SQL in section 'Up' is executed when this migration is applied
@@ -184,14 +224,14 @@ import (
 )
 
 func init() {
-    MigrationClient.AddMigration(Up_{{.}}, Down_{{.}})
+    MigrationClient.AddMigration({{printf "%q" .Title}}, Up_{{.Timestamp}}, Down_{{.Timestamp}})
 }
 
-func Up_{{.}}(tx *sql.Tx) error {
+func Up_{{.Timestamp}}(tx *sql.Tx) error {
     return nil
 }
 
-func Down_{{.}}(tx *sql.Tx) error {
+func Down_{{.Timestamp}}(tx *sql.Tx) error {
     return nil
 }
 `))
@@ -201,7 +241,7 @@ package tables
 
 import "testing"
 
-func TestUp_{{.}}(t *testing.T) {
+func TestUp_{{.Timestamp}}(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	//

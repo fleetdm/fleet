@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261118174438, Down_20261118174438)
+	MigrationClient.AddMigration("Add host AI sessions tables", Up_20261118174438, Down_20261118174438)
 }
 
 func Up_20261118174438(tx *sql.Tx) error {

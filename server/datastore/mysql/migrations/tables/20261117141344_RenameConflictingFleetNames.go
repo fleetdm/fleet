@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261117141344, Down_20261117141344)
+	MigrationClient.AddMigration("Rename fleets whose names conflict or are reserved", Up_20261117141344, Down_20261117141344)
 }
 
 const fleetNameMaxLength20261117141344 = 255

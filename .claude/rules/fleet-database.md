@@ -14,13 +14,14 @@ paths:
 - Structure:
   ```go
   func init() {
-      MigrationClient.AddMigration(Up_YYYYMMDDHHMMSS, Down_YYYYMMDDHHMMSS)
+      MigrationClient.AddMigration("Sentence case title", Up_YYYYMMDDHHMMSS, Down_YYYYMMDDHHMMSS)
   }
   func Up_YYYYMMDDHHMMSS(tx *sql.Tx) error { ... }
   func Down_YYYYMMDDHHMMSS(tx *sql.Tx) error { return nil }  // always no-op
   ```
 - Test pattern: `applyUpToPrev(t)` → set up data → `applyNext(t, db)` → verify
-- Create with: `make migration name=YourChangeName`
+- The title is logged when the migration runs. Write it in sentence case, describing what the migration does (e.g. "Add an index on hosts platform"), not a respacing of the filename
+- Create with: `make migration name=YourChangeName title="Sentence case title"`
 
 ## Migrations
 - Guard schema changes so a failed migration can be retried

@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261118180104, Down_20261118180104)
+	MigrationClient.AddMigration("Add the CONDITIONAL_ACCESS_SCEP_CHALLENGE fleet variable", Up_20261118180104, Down_20261118180104)
 }
 
 func Up_20261118180104(tx *sql.Tx) error {

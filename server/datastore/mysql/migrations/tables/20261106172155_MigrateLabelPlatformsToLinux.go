@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261106172155, Down_20261106172155)
+	MigrationClient.AddMigration("Change Ubuntu and CentOS label platforms to Linux", Up_20261106172155, Down_20261106172155)
 }
 
 // Up_20261106172155 moves dynamic labels targeting the retired "ubuntu" and "centos" platforms to

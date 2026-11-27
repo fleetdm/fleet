@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261124032357, Down_20261124032357)
+	MigrationClient.AddMigration("Add the throttled retry time to host DEP assignments", Up_20261124032357, Down_20261124032357)
 }
 
 // Up_20261124032357 adds when a throttled profile assignment may be retried, as asked by Apple. Rows

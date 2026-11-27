@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261105074613, Down_20261105074613)
+	MigrationClient.AddMigration("Add Google conditional access tables", Up_20261105074613, Down_20261105074613)
 }
 
 func Up_20261105074613(tx *sql.Tx) error {

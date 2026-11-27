@@ -12,12 +12,14 @@ Create a migration for: $ARGUMENTS
 
 ## Process
 
-### 1. Generate Timestamp and Name
-Use `make migration name=CamelCaseName` if available, or generate manually:
+### 1. Generate Timestamp, Name, and Title
+Use `make migration name=CamelCaseName title="Sentence case title"` if available, or generate manually:
 ```bash
 date +%Y%m%d%H%M%S
 ```
 The migration name should be descriptive CamelCase (e.g., `AddRecoveryLockAutoRotateAt`, `CreateTableSoftwareInstallers`).
+The title is logged when the migration runs. Write it in sentence case and describe what the migration does
+(e.g., "Add the recovery lock auto-rotate time to hosts"). Only the first word, acronyms, and proper nouns are capitalized.
 
 ### 2. Create Migration File
 Location: `server/datastore/mysql/migrations/tables/{TIMESTAMP}_{Name}.go`
@@ -28,7 +30,7 @@ package tables
 import "database/sql"
 
 func init() {
-	MigrationClient.AddMigration(Up_{TIMESTAMP}, Down_{TIMESTAMP})
+	MigrationClient.AddMigration("{Sentence case title}", Up_{TIMESTAMP}, Down_{TIMESTAMP})
 }
 
 func Up_{TIMESTAMP}(tx *sql.Tx) error {

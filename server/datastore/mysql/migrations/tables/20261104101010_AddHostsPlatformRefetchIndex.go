@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261104101010, Down_20261104101010)
+	MigrationClient.AddMigration("Add a hosts index for the iOS and iPadOS refetch cron", Up_20261104101010, Down_20261104101010)
 }
 
 func Up_20261104101010(tx *sql.Tx) error {

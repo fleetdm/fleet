@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261112132606, Down_20261112132606)
+	MigrationClient.AddMigration("Remove the HOST_END_USER_EMAIL_IDP fleet variable", Up_20261112132606, Down_20261112132606)
 }
 
 // Up_20261112132606 removes $FLEET_VAR_HOST_END_USER_EMAIL_IDP, which Fleet 5 no longer supports. The foreign key deletes its links to

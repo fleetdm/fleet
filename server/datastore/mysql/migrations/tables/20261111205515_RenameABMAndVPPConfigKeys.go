@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261111205515, Down_20261111205515)
+	MigrationClient.AddMigration("Rename team keys in Apple Business and VPP settings to fleet keys", Up_20261111205515, Down_20261111205515)
 }
 
 // abmVPPConfigKeyRenames are the keys, by the config list they are in, that move from "team" to "fleet" naming.

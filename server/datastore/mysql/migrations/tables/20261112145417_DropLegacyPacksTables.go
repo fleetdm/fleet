@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261112145417, Down_20261112145417)
+	MigrationClient.AddMigration("Drop the legacy packs tables", Up_20261112145417, Down_20261112145417)
 }
 
 func Up_20261112145417(tx *sql.Tx) error {

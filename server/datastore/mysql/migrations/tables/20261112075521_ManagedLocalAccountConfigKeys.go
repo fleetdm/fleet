@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261112075521, Down_20261112075521)
+	MigrationClient.AddMigration("Rename managed local account settings with platform prefixes", Up_20261112075521, Down_20261112075521)
 }
 
 // Up_20261112075521 moves the managed local account settings to their Fleet 5 names under setup_experience in the global

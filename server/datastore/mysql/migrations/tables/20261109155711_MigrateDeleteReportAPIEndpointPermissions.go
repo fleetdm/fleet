@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261109155711, Down_20261109155711)
+	MigrationClient.AddMigration("Move delete report API endpoint permissions to the delete by ID endpoint", Up_20261109155711, Down_20261109155711)
 }
 
 func Up_20261109155711(tx *sql.Tx) error {
