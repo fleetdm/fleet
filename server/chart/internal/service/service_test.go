@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -838,6 +839,109 @@ func TestGetChartDataScopesDataByViewer(t *testing.T) {
 		require.NotNil(t, gotFilter)
 		assert.Equal(t, []uint{3}, gotFilter.TeamIDs,
 			"explicit fleet_id narrows to that team; authz (not the filter) enforced access above")
+	})
+}
+
+func TestGetChartDataTimeout(t *testing.T) {
+	blockUntilDone := func(ctx context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	require422 := func(t *testing.T, err error) {
+		t.Helper()
+		var msgErr *platform_http.UserMessageError
+		require.ErrorAs(t, err, &msgErr)
+		require.Equal(t, http.StatusUnprocessableEntity, msgErr.StatusCode())
+		require.Contains(t, err.Error(), "filters")
+	}
+
+	t.Run("deadline returns 422 at each storage call", func(t *testing.T) {
+		for _, stage := range []string{"host filter", "resolve CVEs", "SCD data"} {
+			t.Run(stage, func(t *testing.T) {
+				ds := &mockDatastore{}
+				switch stage {
+				case "host filter":
+					ds.getHostIDsForFilterFunc = func(ctx context.Context, _ *types.HostFilter) ([]uint, error) {
+						<-ctx.Done()
+						return nil, ctx.Err()
+					}
+				case "resolve CVEs":
+					ds.resolveCVEEntitiesFn = func(ctx context.Context, _ types.CVEChartFilter) ([]string, error) {
+						<-ctx.Done()
+						return nil, ctx.Err()
+					}
+				case "SCD data":
+					ds.getSCDDataFunc = blockUntilDone
+				}
+				svc := newCVEService(ds)
+				svc.requestTimeout = 50 * time.Millisecond
+
+				_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+				require422(t, err)
+			})
+		}
+	})
+
+	t.Run("another request's deadline in a shared host filter fetch returns 422", func(t *testing.T) {
+		entered := make(chan struct{})
+		var fetches atomic.Int32
+		ds := &mockDatastore{}
+		ds.getHostIDsForFilterFunc = func(ctx context.Context, _ *types.HostFilter) ([]uint, error) {
+			if fetches.Add(1) > 1 {
+				return nil, errors.New("second request did not share the first one's fetch")
+			}
+			close(entered)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		svc := newCVEService(ds)
+		svc.requestTimeout = 500 * time.Millisecond
+
+		firstErr := make(chan error, 1)
+		go func() {
+			_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+			firstErr <- err
+		}()
+		<-entered
+		// The second request's own deadline is far away, so only the first
+		// request's deadline, reaching it through the shared fetch, can end it.
+		svc.requestTimeout = time.Minute
+
+		started := time.Now()
+		_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+		require.Less(t, time.Since(started), 5*time.Second)
+		require422(t, err)
+		require422(t, <-firstErr)
+	})
+
+	t.Run("store error passes through", func(t *testing.T) {
+		storeErr := errors.New("boom")
+		ds := &mockDatastore{}
+		ds.getSCDDataFunc = func(context.Context, string, time.Time, time.Time, time.Duration, api.SampleStrategy, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
+			return nil, storeErr
+		}
+		svc := newCVEService(ds)
+
+		_, err := svc.GetChartData(premiumCtx(t), "cve", api.RequestOpts{Days: 7})
+		require.ErrorIs(t, err, storeErr)
+		var msgErr *platform_http.UserMessageError
+		require.NotErrorAs(t, err, &msgErr)
+	})
+
+	t.Run("client disconnect is not a 422", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(premiumCtx(t))
+		ds := &mockDatastore{}
+		ds.getSCDDataFunc = func(ctx context.Context, dataset string, start, end time.Time, size time.Duration, strategy api.SampleStrategy, mask *roaring.Bitmap, ids []string) ([]api.DataPoint, error) {
+			cancel()
+			return blockUntilDone(ctx, dataset, start, end, size, strategy, mask, ids)
+		}
+		svc := newCVEService(ds)
+
+		_, err := svc.GetChartData(ctx, "cve", api.RequestOpts{Days: 7})
+		require.ErrorIs(t, err, context.Canceled)
+		var msgErr *platform_http.UserMessageError
+		require.NotErrorAs(t, err, &msgErr)
 	})
 }
 

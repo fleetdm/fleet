@@ -37,8 +37,8 @@ datastore folds that observation into a slowly-changing-dimension (SCD) history 
 the `host_scd_data` table.
 
 On read, a chart request resolves which hosts the caller may see (a "filter mask"
-bitmap), walks the SCD history bucket by bucket, ANDs each bucket's host-set
-against the mask, and returns the population count per bucket. Everything is set
+bitmap), ORs the SCD history into one host-set per bucket, ANDs each bucket's
+host-set against the mask, and returns the population count per bucket. Everything is set
 math on bitmaps; a "value" on the chart is always a distinct-host count.
 
 ```
@@ -52,7 +52,7 @@ HTTP GET /api/_version_/fleet/charts/{metric}
        ├─ ViewerProvider.ViewerScope()      → team scope for authz + data
        ├─ authz.Authorize()                 → fail closed
        ├─ GetHostIDsForFilter() → mask      → cached per filter (hostFilterCache)
-       └─ GetSCDData(...) walks buckets, AND mask, popcount ─▶ []DataPoint
+       └─ GetSCDData(...) ORs rows per bucket, AND mask, popcount ─▶ []DataPoint
 ```
 
 ## Package layout
@@ -170,8 +170,8 @@ granularity** regardless of the *display* resolution requested at read time.
   the row open (`valid_to` stays sentinel); a **changed** sample closes the prior
   row at the new boundary and opens a new one. An entity that disappears from the
   input has its open row closed.
-- **Read:** for each entity, pick the row active at `bucketEnd`, then OR across
-  entities.
+- **Read:** OR every row active at `bucketEnd` (`valid_from < bucketEnd <=
+  valid_to`). The write path keeps at most one such row per entity.
 
 > **Snapshot collectors must call `RecordBucketData` even with an empty map.** An
 > empty input is meaningful — it means "no entities are in the tracked state right
@@ -179,7 +179,7 @@ granularity** regardless of the *display* resolution requested at read time.
 > (nothing to merge, no state to reconcile). See the comments in `datasets.go`
 > (`CVEDataset.Collect`) and `data.go` (`RecordBucketData`).
 
-The read-side aggregation for both strategies lives in `aggregateBucket`
+The read-side aggregation for both strategies lives in `GetSCDData`
 (`internal/mysql/data.go`).
 
 ## The write path (collection)
@@ -222,12 +222,19 @@ Open rows (sentinel `valid_to`) are never deleted.
    list → `NewBitmap`. This is memoized per canonicalized filter by `hostFilterCache`
    (60s TTL, singleflight-collapsed). The mask encodes "currently visible hosts,"
    which incidentally drops hosts deleted since the SCD rows were written.
-5. **Walk buckets.** `GetSCDData` selects every row overlapping the range,
-   decodes each once, then for each bucket: `aggregateBucket` (per strategy) → AND
-   the mask → `popcount` → one `DataPoint`. Zero buckets are emitted as `0`, not
-   omitted.
+5. **Aggregate buckets.** `GetSCDData` streams the rows overlapping the range one
+   at a time and ORs each into one accumulator per bucket it counts for (per
+   strategy), so memory is bounded by the bucket count, not the rows read. Each
+   accumulator is then AND-ed with the mask → `popcount` → one `DataPoint`. Zero
+   buckets are emitted as `0`, not omitted. Entity lists longer than
+   `scdEntityInListMax` are filtered in Go rather than sent as an `IN` list, which
+   MySQL stops using for an index range at a few thousand IDs.
 6. **Respond** with metric, visualization, `TotalHosts` (popcount of the mask),
    resolution label, applied filters, and the data points.
+
+The storage work of steps 4 and 5, including resolving the CVE filters to entity
+IDs, runs under a 30-second deadline (`chartRequestTimeout`). When it fires the
+request returns a 422 asking the user to narrow the filters.
 
 Bucket boundaries are aligned to the client's local time via `tz_offset`
 (`computeBucketRange`), so an "hourly" or "daily" chart lines up with the user's
@@ -241,8 +248,8 @@ slice. **Do not "normalize" one to the other.**
 - `HostFilter.TeamIDs`: `nil` = no team filter (all hosts); `[]uint{}` = team user
   with zero teams → SQL emits `1=0` (see nothing); `[]uint{0}` = no-team hosts
   (`team_id IS NULL`).
-- `GetSCDData` `entityIDs`: `nil` = match every entity; `[]uint{}` non-nil = match
-  nothing (zero-valued buckets), avoiding an `IN ()` syntax error.
+- `GetSCDData` `entityIDs`: `nil` = match every entity; `[]string{}` non-nil = match
+  nothing (zero-valued buckets) without running a query.
 - `TrackedCriticalCVEs` returns a non-nil empty slice when nothing matches so the
   caller can tell "filter resolved to empty" from "no filter."
 

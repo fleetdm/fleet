@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -42,7 +41,12 @@ const scdScrubWriteByteBudget = 2_000_000
 // tests can shrink it to exercise multi-batch behavior.
 var scdScrubWriteBatchCap = 1000
 
-// scdRow is a single row of host_scd_data as fetched by GetSCDData.
+// scdEntityInListMax is the largest entity list sent as an IN clause. With a few thousand IDs MySQL stops using the
+// list for an index range and reads every row of the dataset, so longer lists are filtered in Go instead. var (not
+// const) so tests can shrink it.
+var scdEntityInListMax = 2000
+
+// scdRow is a single row of host_scd_data as streamed by forEachSCDRow.
 type scdRow struct {
 	EntityID     string    `db:"entity_id"`
 	HostBitmap   []byte    `db:"host_bitmap"`
@@ -282,7 +286,7 @@ func (ds *Datastore) recordSnapshot(
 	return nil
 }
 
-// GetSCDData walks buckets of bucketSize across [startDate, endDate] and, for
+// GetSCDData splits [startDate, endDate] into buckets of bucketSize and, for
 // each bucket, aggregates the rows whose interval touches the bucket according
 // to the sample strategy:
 //   - Accumulate: OR every overlapping row (across all entities, unless the
@@ -291,10 +295,10 @@ func (ds *Datastore) recordSnapshot(
 //     like (future) software usage it's "distinct hosts seen doing anything
 //     tracked during the bucket" — the entity dimension collapses into the
 //     union of hosts touching any entity.
-//   - Snapshot: per entity, take the row active at bucketEnd; OR across
-//     entities. "State as of the end of the bucket" — for multi-entity datasets
-//     like CVE, this is the union of hosts affected by any tracked entity at
-//     bucketEnd.
+//   - Snapshot: OR every row active at bucketEnd (valid_from < bucketEnd <=
+//     valid_to). "State as of the end of the bucket" — for multi-entity
+//     datasets like CVE, this is the union of hosts affected by any tracked
+//     entity at bucketEnd.
 //
 // filterMask is AND-ed into every bucket's merged bitmap so results reflect
 // only hosts visible to the caller. Returns numBuckets =
@@ -302,8 +306,11 @@ func (ds *Datastore) recordSnapshot(
 // (the first label is startDate + bucketSize; the last label is endDate).
 // Zero-valued buckets are included with value 0, not omitted.
 //
+// Rows are streamed and OR-ed into one accumulator per bucket as they arrive,
+// so memory is bounded by the bucket count rather than by the rows read.
+//
 // The caller is responsible for passing bucket-aligned startDate/endDate (e.g.
-// local-midnight-aligned for tz-sensitive rendering); the walker does not
+// local-midnight-aligned for tz-sensitive rendering); GetSCDData does not
 // truncate.
 func (ds *Datastore) GetSCDData(
 	ctx context.Context,
@@ -322,129 +329,132 @@ func (ds *Datastore) GetSCDData(
 		return nil, nil
 	}
 
-	// Fetch every row whose validity interval overlaps any of the buckets. The
-	// walker filters precisely per bucket; this just narrows the scan.
-	firstBucketStart := startDate.Add(bucketSize)
-	lastBucketEnd := endDate.Add(bucketSize)
-	args := []any{dataset, lastBucketEnd, firstBucketStart}
-	var entityClause string
-	switch {
-	case entityIDs == nil:
-		// no clause — match every entity for this dataset
-	case len(entityIDs) == 0:
-		// explicit empty set — match nothing; avoids MySQL syntax error from `IN ()`
-		entityClause = " AND 1=0"
-	default:
-		entityClause = " AND entity_id IN (?)"
-		args = append(args, entityIDs)
-	}
+	// Bucket i is [windowStart + i*bucketSize, windowStart + (i+1)*bucketSize).
+	windowStart := startDate.Add(bucketSize)
+	windowEnd := windowStart.Add(time.Duration(numBuckets) * bucketSize)
+	snapshot := strategy == api.SampleStrategySnapshot
 
-	query := fmt.Sprintf(`
-		SELECT entity_id, host_bitmap, encoding_type, valid_from, valid_to
-		FROM host_scd_data
-		WHERE dataset = ?
-			AND valid_from <  ?
-			AND valid_to   >  ?%s`, entityClause)
-
-	expanded, expandedArgs, err := sqlx.In(query, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expand SCD query args")
-	}
-	expanded = ds.rebind(expanded)
-
-	var rows []scdRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, expanded, expandedArgs...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get SCD data")
-	}
-
-	// Decode every row to op form once before the per-bucket walk. Decode work
-	// is O(set bits) for roaring rows and O(byte count) for legacy dense rows;
-	// doing it once here avoids re-decoding the same row across overlapping
-	// buckets.
-	decoded := make([]decodedSCDRow, len(rows))
-	for i, r := range rows {
-		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType})
-		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "decode bitmap for entity %q", r.EntityID)
+	acc := make([]*roaring.Bitmap, numBuckets)
+	err := ds.forEachSCDRow(ctx, dataset, windowStart, windowEnd, entityIDs, func(_ string, bitmap *roaring.Bitmap, validFrom, validTo time.Time) {
+		// The query guarantees validFrom < windowEnd and validTo > windowStart.
+		// Clamping validTo keeps hi below numBuckets and keeps the sentinel
+		// from saturating the Duration.
+		if validTo.After(windowEnd) {
+			validTo = windowEnd
 		}
-		decoded[i] = decodedSCDRow{entityID: r.EntityID, bitmap: rb, validFrom: r.ValidFrom, validTo: r.ValidTo}
+		// Both strategies need validFrom < bucket end, so lo is the bucket
+		// holding validFrom. Integer division truncates toward zero, which
+		// only differs from floor for negative offsets, and those clamp to 0.
+		lo := max(int(validFrom.Sub(windowStart)/bucketSize), 0)
+		// toOffset > 0, so integer division is floor.
+		toOffset := validTo.Sub(windowStart)
+		var hi int
+		if snapshot {
+			// Last bucket whose end is <= validTo.
+			hi = int(toOffset/bucketSize) - 1
+		} else {
+			// Last bucket whose start is < validTo.
+			hi = int((toOffset - 1) / bucketSize)
+		}
+		for i := lo; i <= hi; i++ {
+			if acc[i] == nil {
+				acc[i] = bitmap.Clone()
+			} else {
+				acc[i].Or(bitmap)
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	results := make([]api.DataPoint, numBuckets)
-	for i := range numBuckets {
-		bucketStart := startDate.Add(time.Duration(i+1) * bucketSize)
-		bucketEnd := bucketStart.Add(bucketSize)
-		merged := aggregateBucket(decoded, bucketStart, bucketEnd, strategy)
-		if merged != nil && filterMask != nil {
-			merged = chart.BlobAND(merged, filterMask)
+	for i, bitmap := range acc {
+		var value uint64
+		if bitmap != nil {
+			if filterMask != nil {
+				value = bitmap.AndCardinality(filterMask)
+			} else {
+				value = bitmap.GetCardinality()
+			}
 		}
 		results[i] = api.DataPoint{
-			Timestamp: bucketStart,
-			Value:     int(chart.BlobPopcount(merged)), //nolint:gosec // host counts fit comfortably in int
+			Timestamp: windowStart.Add(time.Duration(i) * bucketSize),
+			Value:     int(value), //nolint:gosec // host counts fit comfortably in int
 		}
 	}
 	return results, nil
 }
 
-// decodedSCDRow is the in-memory op-form view of an scdRow, produced by
-// decoding the storage-form bytes once at SELECT time and shared across the
-// per-bucket aggregation walk.
-type decodedSCDRow struct {
-	entityID  string
-	bitmap    *roaring.Bitmap
-	validFrom time.Time
-	validTo   time.Time
-}
+// forEachSCDRow streams the rows of dataset whose validity overlaps (from, to)
+// and calls fn once per row as it arrives. fn must clone a bitmap it keeps.
+//
+// entityIDs: nil matches every entity; empty non-nil matches nothing and runs
+// no query; otherwise only the listed entities are passed to fn.
+func (ds *Datastore) forEachSCDRow(
+	ctx context.Context,
+	dataset string,
+	from, to time.Time,
+	entityIDs []string,
+	fn func(entityID string, bitmap *roaring.Bitmap, validFrom, validTo time.Time),
+) error {
+	query := `
+		SELECT entity_id, host_bitmap, encoding_type, valid_from, valid_to
+		FROM host_scd_data
+		WHERE dataset = ?
+			AND valid_from < ?
+			AND valid_to   > ?`
+	args := []any{dataset, to, from}
+	var allow map[string]struct{}
+	switch {
+	case entityIDs == nil:
+		// no entity filter
+	case len(entityIDs) == 0:
+		return nil
+	case len(entityIDs) <= scdEntityInListMax:
+		query += ` AND entity_id IN (?)`
+		args = append(args, entityIDs)
+	default:
+		allow = make(map[string]struct{}, len(entityIDs))
+		for _, id := range entityIDs {
+			allow[id] = struct{}{}
+		}
+	}
 
-// aggregateBucket returns the merged bitmap for a single bucket given the
-// sample strategy. For Accumulate, ORs every overlapping row (entity dimension
-// collapses into the union — correct for "distinct hosts seen doing anything
-// tracked"). For Snapshot, picks the row active at bucketEnd per entity and
-// ORs across entities.
-func aggregateBucket(rows []decodedSCDRow, bucketStart, bucketEnd time.Time, strategy api.SampleStrategy) *roaring.Bitmap {
-	if strategy == api.SampleStrategySnapshot {
-		// Per entity, the row "active at bucketEnd" is the one whose
-		// [valid_from, valid_to) covers the instant bucketEnd-ε. For interval
-		// boundaries, that's valid_from < bucketEnd AND valid_to >= bucketEnd.
-		// Write semantics ensure at most one such row per (entity, moment).
-		var merged *roaring.Bitmap
-		seen := make(map[string]struct{})
-		for _, r := range rows {
-			if !r.validFrom.Before(bucketEnd) || r.validTo.Before(bucketEnd) {
+	expanded, expandedArgs, err := sqlx.In(query, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "expand SCD query args")
+	}
+	expanded = ds.rebind(expanded)
+
+	// sqlclosecheck can't see through the QueryerContext interface to verify
+	// the deferred Close below.
+	rows, err := ds.reader(ctx).QueryxContext(ctx, expanded, expandedArgs...) //nolint:sqlclosecheck
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get SCD data")
+	}
+	defer rows.Close()
+
+	var r scdRow
+	for rows.Next() {
+		if err := rows.StructScan(&r); err != nil {
+			return ctxerr.Wrap(ctx, err, "scan SCD row")
+		}
+		if allow != nil {
+			if _, ok := allow[r.EntityID]; !ok {
 				continue
 			}
-			if _, dup := seen[r.entityID]; dup {
-				continue
-			}
-			seen[r.entityID] = struct{}{}
-			merged = orInto(merged, r.bitmap)
 		}
-		return merged
-	}
-
-	// Accumulate: OR every row that overlaps the bucket.
-	var merged *roaring.Bitmap
-	for _, r := range rows {
-		if !r.validFrom.Before(bucketEnd) || !r.validTo.After(bucketStart) {
-			continue
+		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType})
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "decode bitmap for entity %q", r.EntityID)
 		}
-		merged = orInto(merged, r.bitmap)
+		fn(r.EntityID, rb, r.ValidFrom, r.ValidTo)
 	}
-	return merged
-}
-
-// orInto returns merged OR rb. When merged is nil, returns a clone of rb so
-// subsequent ORs on merged don't mutate the source row's cached bitmap. Once
-// merged is non-nil, future ORs mutate merged in place (cheap; we own it).
-func orInto(merged, rb *roaring.Bitmap) *roaring.Bitmap {
-	if rb == nil || rb.IsEmpty() {
-		return merged
+	if err := rows.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "iterate SCD rows")
 	}
-	if merged == nil {
-		return rb.Clone()
-	}
-	merged.Or(rb)
-	return merged
+	return nil
 }
 
 // CleanupSCDData deletes closed SCD rows whose valid_to is older than the

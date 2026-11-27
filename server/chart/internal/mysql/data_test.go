@@ -14,113 +14,187 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// rowFixture is a compact way to declare a decodedSCDRow in tests.
-func rowFixture(entityID string, ids []uint, validFrom, validTo time.Time) decodedSCDRow {
-	return decodedSCDRow{
-		entityID:  entityID,
-		bitmap:    chart.NewBitmap(ids),
-		validFrom: validFrom,
-		validTo:   validTo,
-	}
+type scdSeedRow struct {
+	entityID  string
+	hostIDs   []uint
+	validFrom time.Time
+	validTo   time.Time
 }
 
-func TestAggregateBucketAccumulate(t *testing.T) {
-	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
-	bucketEnd := bucketStart.Add(24 * time.Hour)
+func TestGetSCDData(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
 
-	// Three accumulate rows within the bucket, each observed during a different
-	// hour. Accumulate semantics = union of all overlapping rows.
-	rows := []decodedSCDRow{
-		rowFixture("", []uint{1, 2}, bucketStart.Add(2*time.Hour), bucketStart.Add(3*time.Hour)),
-		rowFixture("", []uint{3}, bucketStart.Add(10*time.Hour), bucketStart.Add(11*time.Hour)),
-		rowFixture("", []uint{2, 4}, bucketStart.Add(15*time.Hour), bucketStart.Add(16*time.Hour)),
+	day := 24 * time.Hour
+	// With startDate = b - 24h, bucket 0 is [b, b+24h) and bucket 1 is [b+24h, b+48h).
+	b := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
+	before := b.Add(-time.Hour)
+	open := scdOpenSentinel
+	fourEntities := []scdSeedRow{
+		{"CVE-A", []uint{1}, before, open},
+		{"CVE-B", []uint{2}, before, open},
+		{"CVE-C", []uint{3}, before, open},
+		{"CVE-D", []uint{4}, before, open},
 	}
+	// A bucket per day starting at 18:30 UTC, as a UTC+5:30 client's midnight.
+	tzStart := time.Date(2026, 4, 20, 18, 30, 0, 0, time.UTC)
 
-	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategyAccumulate)
-	assert.Equal(t, uint64(4), chart.BlobPopcount(got), "union of {1,2}, {3}, {2,4} = {1,2,3,4}")
-}
-
-func TestAggregateBucketAccumulateMultiEntity(t *testing.T) {
-	bucketStart := time.Date(2026, 4, 21, 14, 0, 0, 0, time.UTC)
-	bucketEnd := bucketStart.Add(time.Hour)
-
-	// Future-style multi-entity accumulate dataset (e.g. software usage):
-	// entity = software name; bitmap = hosts that used that software this hour.
-	// Bucket value = distinct hosts using any tracked software during the hour.
-	rows := []decodedSCDRow{
-		rowFixture("slack", []uint{1, 2}, bucketStart, bucketEnd),
-		rowFixture("zoom", []uint{2, 3}, bucketStart, bucketEnd),
-		rowFixture("chrome", []uint{4}, bucketStart, bucketEnd),
+	cases := []struct {
+		name       string
+		rows       []scdSeedRow
+		strategy   api.SampleStrategy
+		start, end time.Time
+		bucketSize time.Duration
+		mask       *roaring.Bitmap
+		entityIDs  []string
+		inListMax  int
+		want       []int
+	}{
+		{
+			name: "accumulate unions rows inside the bucket",
+			rows: []scdSeedRow{
+				{"", []uint{1, 2}, b.Add(2 * time.Hour), b.Add(3 * time.Hour)},
+				{"", []uint{3}, b.Add(10 * time.Hour), b.Add(11 * time.Hour)},
+				{"", []uint{2, 4}, b.Add(15 * time.Hour), b.Add(16 * time.Hour)},
+			},
+			strategy: api.SampleStrategyAccumulate, start: b.Add(-day), end: b, bucketSize: day,
+			want: []int{4},
+		},
+		{
+			name: "snapshot takes the state at the bucket end, not the union",
+			rows: []scdSeedRow{
+				{"cve-A", []uint{1, 2, 3}, b, b.Add(14 * time.Hour)},
+				{"cve-A", []uint{1, 2}, b.Add(14 * time.Hour), open},
+			},
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
+			want: []int{2},
+		},
+		{
+			name: "snapshot ignores a row that opens and closes inside one bucket",
+			rows: []scdSeedRow{
+				{"x", []uint{1, 2}, b.Add(2 * time.Hour), b.Add(5 * time.Hour)},
+				{"y", []uint{3}, b.Add(20 * time.Hour), b.Add(30 * time.Hour)},
+			},
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b.Add(day), bucketSize: day,
+			want: []int{1, 0},
+		},
+		{
+			name: "accumulate counts a row that opens and closes inside one bucket",
+			rows: []scdSeedRow{
+				{"x", []uint{1, 2}, b.Add(2 * time.Hour), b.Add(5 * time.Hour)},
+				{"y", []uint{3}, b.Add(20 * time.Hour), b.Add(30 * time.Hour)},
+			},
+			strategy: api.SampleStrategyAccumulate, start: b.Add(-day), end: b.Add(day), bucketSize: day,
+			want: []int{3, 1},
+		},
+		{
+			name: "snapshot row boundaries on bucket ends",
+			rows: []scdSeedRow{
+				{"z", []uint{5, 6}, b, b.Add(day)},
+				{"w", []uint{7}, b.Add(day), b.Add(2 * day)},
+			},
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b.Add(day), bucketSize: day,
+			want: []int{2, 1},
+		},
+		{
+			name: "accumulate row boundaries on bucket ends",
+			rows: []scdSeedRow{
+				{"z", []uint{5, 6}, b, b.Add(day)},
+				{"w", []uint{7}, b.Add(day), b.Add(2 * day)},
+			},
+			strategy: api.SampleStrategyAccumulate, start: b.Add(-day), end: b.Add(day), bucketSize: day,
+			want: []int{2, 1},
+		},
+		{
+			name: "accumulate across buckets with a row from before the window and an open row",
+			rows: []scdSeedRow{
+				{"p", []uint{1}, b.Add(-2 * day), b.Add(30 * time.Hour)},
+				{"q", []uint{2}, b.Add(36 * time.Hour), open},
+			},
+			strategy: api.SampleStrategyAccumulate, start: b.Add(-day), end: b.Add(2 * day), bucketSize: day,
+			want: []int{1, 2, 1},
+		},
+		{
+			name: "accumulate excludes rows just outside the window",
+			rows: []scdSeedRow{
+				{"before", []uint{1}, b.Add(-2 * day), b},
+				{"after", []uint{2}, b.Add(day), open},
+				{"last", []uint{3}, b.Add(-2 * day), b.Add(day)},
+			},
+			strategy: api.SampleStrategyAccumulate, start: b.Add(-day), end: b, bucketSize: day,
+			want: []int{1},
+		},
+		{
+			name: "half-hour time zone",
+			rows: []scdSeedRow{
+				{"cve-A", []uint{1, 2}, time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC), time.Date(2026, 4, 22, 18, 0, 0, 0, time.UTC)},
+				{"cve-A", []uint{1, 2, 3}, time.Date(2026, 4, 22, 18, 0, 0, 0, time.UTC), time.Date(2026, 4, 23, 19, 0, 0, 0, time.UTC)},
+				{"cve-A", []uint{1}, time.Date(2026, 4, 23, 19, 0, 0, 0, time.UTC), open},
+				{"cve-B", []uint{4}, time.Date(2026, 4, 23, 19, 0, 0, 0, time.UTC), open},
+			},
+			strategy: api.SampleStrategySnapshot, start: tzStart, end: tzStart.Add(3 * day), bucketSize: day,
+			want: []int{3, 3, 2},
+		},
+		{
+			name:     "nil entityIDs matches every entity",
+			rows:     fourEntities,
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
+			want: []int{4},
+		},
+		{
+			name:     "empty entityIDs matches nothing but still returns every bucket",
+			rows:     fourEntities,
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b.Add(day), bucketSize: day,
+			entityIDs: []string{},
+			want:      []int{0, 0},
+		},
+		{
+			name:     "entityIDs exactly at the IN list limit",
+			rows:     fourEntities,
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
+			entityIDs: []string{"CVE-A", "CVE-B", "CVE-C", "CVE-missing"},
+			inListMax: 4,
+			want:      []int{3},
+		},
+		{
+			name:     "entityIDs above the IN list limit",
+			rows:     fourEntities,
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
+			entityIDs: []string{"CVE-A", "CVE-B", "CVE-C", "CVE-missing"},
+			inListMax: 2,
+			want:      []int{3},
+		},
+		{
+			name:     "filter mask",
+			rows:     fourEntities,
+			strategy: api.SampleStrategySnapshot, start: b.Add(-day), end: b, bucketSize: day,
+			mask: chart.NewBitmap([]uint{1, 3, 99}),
+			want: []int{2},
+		},
 	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer tdb.TruncateTables(t)
+			if c.inListMax > 0 {
+				prev := scdEntityInListMax
+				scdEntityInListMax = c.inListMax
+				t.Cleanup(func() { scdEntityInListMax = prev })
+			}
+			for _, r := range c.rows {
+				tdb.InsertSCDRowWithHostIDs(t, "cve", r.entityID, r.hostIDs, r.validFrom, r.validTo)
+			}
 
-	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategyAccumulate)
-	assert.Equal(t, uint64(4), chart.BlobPopcount(got), "union across entities = {1,2,3,4}")
-}
-
-func TestAggregateBucketSnapshotEndOfBucket(t *testing.T) {
-	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
-	bucketEnd := bucketStart.Add(24 * time.Hour)
-
-	// One entity "cve-A" changed state mid-bucket: affected hosts were {1,2,3}
-	// from hr 0 to hr 14, then {1,2} from hr 14 onward (H3 patched).
-	// End-of-bucket semantics should return only the *latest* state, not the OR.
-	rows := []decodedSCDRow{
-		rowFixture("cve-A", []uint{1, 2, 3}, bucketStart, bucketStart.Add(14*time.Hour)),
-		rowFixture("cve-A", []uint{1, 2}, bucketStart.Add(14*time.Hour), time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)),
+			pts, err := ds.GetSCDData(t.Context(), "cve", c.start, c.end, c.bucketSize, c.strategy, c.mask, c.entityIDs)
+			require.NoError(t, err)
+			require.Len(t, pts, len(c.want))
+			got := make([]int, len(pts))
+			for i, p := range pts {
+				got[i] = p.Value
+				require.Equal(t, c.start.Add(time.Duration(i+1)*c.bucketSize), p.Timestamp, "bucket %d label", i)
+			}
+			require.Equal(t, c.want, got)
+		})
 	}
-
-	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, uint64(2), chart.BlobPopcount(got), "end-of-bucket state is {1,2}, not union {1,2,3}")
-}
-
-func TestAggregateBucketSnapshotMultipleEntities(t *testing.T) {
-	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
-	bucketEnd := bucketStart.Add(24 * time.Hour)
-
-	sentinel := time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
-
-	// Two entities, each with an end-of-bucket state; snapshot returns OR across
-	// entities of each's latest row.
-	rows := []decodedSCDRow{
-		// cve-A: latest state {1,2}
-		rowFixture("cve-A", []uint{1, 2, 3}, bucketStart, bucketStart.Add(14*time.Hour)),
-		rowFixture("cve-A", []uint{1, 2}, bucketStart.Add(14*time.Hour), sentinel),
-		// cve-B: latest state {3,4}
-		rowFixture("cve-B", []uint{3, 4}, bucketStart.Add(5*time.Hour), sentinel),
-	}
-
-	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, uint64(4), chart.BlobPopcount(got), "union of cve-A end-state {1,2} and cve-B end-state {3,4}")
-}
-
-func TestAggregateBucketSnapshotEntityDisappears(t *testing.T) {
-	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
-	bucketEnd := bucketStart.Add(24 * time.Hour)
-
-	// Entity was active early in bucket but its row was closed mid-bucket with
-	// no replacement (entity disappeared — e.g., last affected host patched).
-	// End-of-bucket semantics exclude it: no row is active at bucketEnd.
-	rows := []decodedSCDRow{
-		rowFixture("cve-A", []uint{1, 2, 3}, bucketStart, bucketStart.Add(14*time.Hour)),
-	}
-
-	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, uint64(0), chart.BlobPopcount(got), "entity closed mid-bucket is absent at bucketEnd")
-}
-
-func TestAggregateBucketSnapshotRowClosedExactlyAtBucketEnd(t *testing.T) {
-	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
-	bucketEnd := bucketStart.Add(24 * time.Hour)
-
-	// Row's valid_to == bucketEnd. The row represents state up to (but not
-	// including) bucketEnd — i.e., the state just before the bucket ends.
-	// That's exactly what end-of-bucket semantics should pick.
-	rows := []decodedSCDRow{
-		rowFixture("cve-A", []uint{1, 2}, bucketStart, bucketEnd),
-	}
-
-	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, uint64(2), chart.BlobPopcount(got), "row whose valid_to equals bucketEnd covers bucketEnd-ε")
 }
 
 func TestCleanupSCDData(t *testing.T) {
@@ -345,33 +419,6 @@ func TestGetSCDDataMixedEncoding(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, pts, 1)
 	assert.Equal(t, 5, pts[0].Value, "union of dense {1,2,3} and roaring {3,4,5} = {1,2,3,4,5}")
-}
-
-// TestGetSCDDataEmptyEntityIDsReturnsZeroBuckets pins the non-nil empty
-// entityIDs contract: a caller signaling "filter requested but resolved to
-// nothing" must get zero-valued buckets across the date range — not an error
-// from `IN ()` and not an empty slice. Rows are seeded that would match if the
-// filter were nil; the empty-slice filter must exclude them.
-func TestGetSCDDataEmptyEntityIDsReturnsZeroBuckets(t *testing.T) {
-	tdb := testutils.SetupTestDB(t, "chart_mysql")
-	ds := NewDatastore(tdb.Conns(), tdb.Logger)
-
-	startDate := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
-	bucketSize := 24 * time.Hour
-	endDate := startDate.Add(3 * bucketSize)
-	validFrom := startDate.Add(-time.Hour)
-
-	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-A", []uint{1, 2, 3}, validFrom, scdOpenSentinel)
-	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-B", []uint{4, 5}, validFrom, scdOpenSentinel)
-
-	pts, err := ds.GetSCDData(t.Context(), "cve",
-		startDate, endDate, bucketSize,
-		api.SampleStrategySnapshot, nil, []string{})
-	require.NoError(t, err)
-	require.Len(t, pts, 3, "one bucket per slot across the date range, not an empty slice")
-	for i, dp := range pts {
-		assert.Zero(t, dp.Value, "bucket %d must be zero — empty entityIDs filter excludes all rows", i)
-	}
 }
 
 func testScrubOtherDatasetUnaffected(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {

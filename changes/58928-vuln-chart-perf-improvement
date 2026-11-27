@@ -1,0 +1,1 @@
+- Fixed the vulnerability exposure chart using gigabytes of Fleet server memory on instances with many hosts. A chart request that takes longer than 30 seconds now returns an error asking to narrow the filters instead of running until the request times out.

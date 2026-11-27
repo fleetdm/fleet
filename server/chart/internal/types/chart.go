@@ -103,11 +103,11 @@ type Datastore interface {
 	// on the sample strategy:
 	//   - Accumulate: OR every row that overlaps the bucket ("hosts observed at
 	//     any point during the bucket").
-	//   - Snapshot: for each entity, pick the row active at bucketEnd, then OR
-	//     across entities ("state as of the end of the bucket").
+	//   - Snapshot: OR every row active at bucketEnd ("state as of the end of
+	//     the bucket").
 	// filterMask is always applied via bitmap AND — callers build it via
 	// GetHostIDsForFilter + chart.NewBitmap, usually through a cache.
-	// The entity filter is applied via entity_id IN.
+	// The entity filter is applied via entity_id IN, or in Go for long lists.
 	GetSCDData(
 		ctx context.Context,
 		dataset string,
