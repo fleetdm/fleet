@@ -2114,6 +2114,16 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profiles = append(profiles, ct.ToHostMDMProfile())
 			}
 
+			// Retrieve static CA certificates associated with the host and marshal them into
+			// HostMDMProfile structs so that we can display them in the list of OS Settings items.
+			hostCAs, err := svc.ds.ListHostAndroidCACertificatesByUUID(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host android ca certificates")
+			}
+			for _, ca := range hostCAs {
+				profiles = append(profiles, ca.ToHostMDMProfile())
+			}
+
 		case "darwin", "ios", "ipados":
 			if ac.MDM.EnabledAndConfigured {
 				profs, err := svc.ds.GetHostMDMAppleProfiles(ctx, host.UUID)

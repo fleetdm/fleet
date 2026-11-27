@@ -1553,7 +1553,7 @@ allow {
 ##
 # Global admins, maintainers and gitops can read and write certificate templates.
 allow {
-  object.type == "certificate_template"
+  object.type == ["certificate_template", "android_ca_certificate"][_]
   subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
@@ -1562,21 +1562,21 @@ allow {
 allow {
   not is_null(object.fleet_id)
   object.fleet_id != 0
-  object.type == "certificate_template"
+  object.type == ["certificate_template", "android_ca_certificate"][_]
   team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 
 # Global admins, maintainers and gitops can list certificate templates.
 allow {
-  object.type == "certificate_template"
+  object.type == ["certificate_template", "android_ca_certificate"][_]
   subject.global_role == [admin, maintainer, gitops][_]
   action == list
 }
 
 # Team admins, maintainers and gitops can list certificate templates.
 allow {
-  object.type == "certificate_template"
+  object.type == ["certificate_template", "android_ca_certificate"][_]
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, gitops][_]
   action == list
 }

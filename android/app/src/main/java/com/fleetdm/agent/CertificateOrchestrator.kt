@@ -2,16 +2,20 @@ package com.fleetdm.agent
 
 import android.app.admin.DevicePolicyManager
 import android.content.Context
+import android.content.RestrictionsManager
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepClientImpl
+import java.io.ByteArrayInputStream
 import java.math.BigInteger
 import java.net.UnknownHostException
 import java.security.PrivateKey
 import java.security.cert.Certificate
+import java.security.cert.CertificateFactory
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
@@ -51,6 +55,7 @@ class CertificateOrchestrator(
 
     // DataStore key for storing installed certificates map as JSON
     private val INSTALLED_CERTIFICATES_KEY = stringPreferencesKey("installed_certificates")
+    private val INSTALLED_CA_CERTIFICATES_KEY = stringPreferencesKey("installed_ca_certificates")
 
     // JSON serializer instance
     private val json = Json {
@@ -108,6 +113,183 @@ class CertificateOrchestrator(
                 operation = bundle.getString("operation", HostCertificate.OPERATION_INSTALL),
                 uuid = bundle.getString("uuid", ""),
             )
+        }
+    }
+
+    /**
+     * Reads CA certificates from Android Managed Configuration.
+     *
+     * @param context Android context
+     * @return List of CA certificates, or null if none configured
+     */
+    fun getHostCACertificates(context: Context): List<HostCACertificate>? {
+        val restrictionsManager = context.getSystemService(RestrictionsManager::class.java)
+            ?: return null
+        val appRestrictions = restrictionsManager.applicationRestrictions
+
+        val certRequestList = appRestrictions.getParcelableArray("ca_certificates", Bundle::class.java)?.toList()
+        return certRequestList?.map { bundle ->
+            HostCACertificate(
+                id = bundle.getInt("id"),
+                sha256 = bundle.getString("sha256", ""),
+            )
+        }
+    }
+
+    internal suspend fun getInstalledCACertificates(context: Context): CACertificateStateMap {
+        certificateStorageMutex.withLock {
+            return try {
+                val prefs = context.prefDataStore.data.first()
+                val jsonString = prefs[INSTALLED_CA_CERTIFICATES_KEY] ?: return emptyMap()
+                json.decodeFromString<CACertificateStateMap>(jsonString)
+            } catch (e: Exception) {
+                FleetLog.e(TAG, "Failed to read installed CA certificates from DataStore: ${e.message}", e)
+                emptyMap()
+            }
+        }
+    }
+
+    internal suspend fun storeInstalledCACertificate(context: Context, caCert: InstalledCACertificate) {
+        certificateStorageMutex.withLock {
+            try {
+                context.prefDataStore.edit { preferences ->
+                    val existingJsonString = preferences[INSTALLED_CA_CERTIFICATES_KEY]
+                    val existingMap = if (existingJsonString != null) {
+                        try {
+                            json.decodeFromString<CACertificateStateMap>(existingJsonString)
+                        } catch (e: Exception) {
+                            FleetLog.w(TAG, "Failed to decode installed CA certificates: ${e.message}", e)
+                            emptyMap()
+                        }
+                    } else {
+                        emptyMap()
+                    }
+                    val updatedMap = existingMap.toMutableMap().apply {
+                        put(caCert.id, caCert)
+                    }
+                    preferences[INSTALLED_CA_CERTIFICATES_KEY] = json.encodeToString(updatedMap)
+                }
+            } catch (e: Exception) {
+                FleetLog.e(TAG, "Failed to store installed CA certificate: ${e.message}", e)
+            }
+        }
+    }
+
+    internal suspend fun removeInstalledCACertificate(context: Context, caId: Int) {
+        certificateStorageMutex.withLock {
+            try {
+                context.prefDataStore.edit { preferences ->
+                    val existingJsonString = preferences[INSTALLED_CA_CERTIFICATES_KEY] ?: return@edit
+                    val existingMap = try {
+                        json.decodeFromString<CACertificateStateMap>(existingJsonString)
+                    } catch (e: Exception) {
+                        FleetLog.w(TAG, "Failed to decode installed CA certificates: ${e.message}", e)
+                        emptyMap()
+                    }
+                    val updatedMap = existingMap.toMutableMap().apply {
+                        remove(caId)
+                    }
+                    preferences[INSTALLED_CA_CERTIFICATES_KEY] = json.encodeToString(updatedMap)
+                }
+            } catch (e: Exception) {
+                FleetLog.e(TAG, "Failed to remove installed CA certificate from DataStore: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun pemToDer(pem: String): ByteArray {
+        val certFactory = CertificateFactory.getInstance("X.509")
+        val cert = certFactory.generateCertificate(ByteArrayInputStream(pem.toByteArray(Charsets.UTF_8)))
+        return cert.encoded
+    }
+
+    suspend fun syncCACertificates(context: Context): Map<Int, Boolean> {
+        val keystore = deviceKeystoreManager ?: AndroidDeviceKeystoreManager(context)
+        val desiredCAs = getHostCACertificates(context) ?: emptyList()
+        val desiredIds = desiredCAs.map { it.id }.toSet()
+        val installedCAs = getInstalledCACertificates(context)
+
+        val results = mutableMapOf<Int, Boolean>()
+
+        // Step 1: Remove CAs that are no longer in desired configuration
+        for ((installedId, installedCA) in installedCAs) {
+            if (installedId !in desiredIds) {
+                Log.i(TAG, "Uninstalling removed CA certificate $installedId")
+                try {
+                    val derBytes = Base64.decode(installedCA.derBase64, Base64.NO_WRAP)
+                    keystore.uninstallCaCert(derBytes)
+                } catch (e: Exception) {
+                    FleetLog.e(TAG, "Error decoding or uninstalling CA $installedId: ${e.message}", e)
+                }
+                removeInstalledCACertificate(context, installedId)
+            }
+        }
+
+        // Step 2: Install desired CAs
+        for (desired in desiredCAs) {
+            results[desired.id] = syncSingleCACertificate(context, desired, installedCAs, keystore)
+        }
+
+        return results
+    }
+
+    private suspend fun syncSingleCACertificate(
+        context: Context,
+        desired: HostCACertificate,
+        installedCAs: CACertificateStateMap,
+        keystore: DeviceKeystoreManager,
+    ): Boolean {
+        val installedRecord = installedCAs[desired.id]
+        if (installedRecord != null && installedRecord.sha256 == desired.sha256) {
+            val derBytes = runCatching {
+                Base64.decode(installedRecord.derBase64, Base64.NO_WRAP)
+            }.getOrNull()
+            if (derBytes != null && keystore.hasCaCert(derBytes)) {
+                return true
+            }
+        }
+
+        Log.i(TAG, "Fetching and installing CA certificate ${desired.id}")
+        val fetchResult = apiClient.getCaCertificate(desired.id)
+        if (fetchResult.isFailure) {
+            val err = fetchResult.exceptionOrNull()?.message ?: "unknown error fetching CA"
+            FleetLog.e(TAG, "Failed to fetch CA certificate ${desired.id}: $err")
+            apiClient.updateCaCertificateStatus(desired.id, UpdateCertificateStatusStatus.FAILED, detail = err)
+            return false
+        }
+
+        val caResponse = fetchResult.getOrThrow()
+        return try {
+            val derBytes = pemToDer(caResponse.certificatePem)
+            val installSuccess = if (keystore.hasCaCert(derBytes)) {
+                true
+            } else {
+                keystore.installCaCert(derBytes)
+            }
+
+            if (installSuccess) {
+                val derBase64 = Base64.encodeToString(derBytes, Base64.NO_WRAP)
+                storeInstalledCACertificate(
+                    context,
+                    InstalledCACertificate(
+                        id = desired.id,
+                        sha256 = desired.sha256,
+                        derBase64 = derBase64,
+                    ),
+                )
+                apiClient.updateCaCertificateStatus(desired.id, UpdateCertificateStatusStatus.VERIFIED)
+                true
+            } else {
+                val err = "Keystore failed to install CA certificate"
+                FleetLog.e(TAG, "Failed to install CA certificate ${desired.id}: $err")
+                apiClient.updateCaCertificateStatus(desired.id, UpdateCertificateStatusStatus.FAILED, detail = err)
+                false
+            }
+        } catch (e: Exception) {
+            val err = "Error processing CA certificate: ${e.message}"
+            FleetLog.e(TAG, err, e)
+            apiClient.updateCaCertificateStatus(desired.id, UpdateCertificateStatusStatus.FAILED, detail = err)
+            false
         }
     }
 
@@ -979,3 +1161,17 @@ data class HostCertificate(val id: Int, val status: String, val operation: Strin
     fun shouldInstall(): Boolean = operation == OPERATION_INSTALL
     fun shouldRemove(): Boolean = operation == OPERATION_REMOVE
 }
+
+@Serializable
+data class InstalledCACertificate(
+    @SerialName("id")
+    val id: Int,
+    @SerialName("sha256")
+    val sha256: String,
+    @SerialName("der_base64")
+    val derBase64: String,
+)
+
+typealias CACertificateStateMap = Map<Int, InstalledCACertificate>
+
+data class HostCACertificate(val id: Int, val sha256: String)

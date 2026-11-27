@@ -1,0 +1,1 @@
+- Added support for uploading and distributing static root and intermediate CA certificates to Android hosts via the Fleet Android agent's CERT_INSTALL delegated scope.

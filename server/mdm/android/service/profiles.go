@@ -757,6 +757,17 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 			return ctxerr.Wrap(ctx, err, "list android host uuids with pending certificate templates")
 		}
 
+		// Also check for hosts with pending static CA certificates
+		caHostUUIDs, err := r.DS.ListAndroidHostUUIDsWithPendingCACertificates(ctx, afterHostUUID, batchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list android host uuids with pending ca certificates")
+		}
+		for _, uuid := range caHostUUIDs {
+			if !slices.Contains(hostUUIDs, uuid) {
+				hostUUIDs = append(hostUUIDs, uuid)
+			}
+		}
+
 		if len(hostUUIDs) == 0 {
 			break
 		}

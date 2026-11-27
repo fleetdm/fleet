@@ -377,6 +377,7 @@ export default {
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
   CERTIFICATES: `/${API_VERSION}/fleet/certificates`,
+  CERTIFICATES_CA: `/${API_VERSION}/fleet/certificates/ca`,
 
   // Certificate authority endpoints
   CERTIFICATE_AUTHORITIES: `/${API_VERSION}/fleet/certificate_authorities`,

@@ -4549,6 +4549,21 @@ type Datastore interface {
 	// a new one atomically. Only works for templates in 'delivered' status and with operation_type 'install'.
 	GetOrCreateFleetChallengeForCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) (string, error)
 
+	// Android CA Certificates
+	CreateAndroidCACertificate(ctx context.Context, cert *AndroidCACertificate) (*AndroidCACertificate, error)
+	GetAndroidCACertificateByID(ctx context.Context, id uint) (*AndroidCACertificate, error)
+	GetAndroidCACertificateByName(ctx context.Context, teamID uint, name string) (*AndroidCACertificate, error)
+	ListAndroidCACertificates(ctx context.Context, teamID uint, opts ListOptions) ([]*AndroidCACertificate, *PaginationMetadata, error)
+	DeleteAndroidCACertificate(ctx context.Context, id uint) error
+	GetHostScopedAndroidCACertificates(ctx context.Context, hostID uint) ([]*AndroidCACertificate, error)
+	GetHostScopedAndroidCACertificatesByUUID(ctx context.Context, hostUUID string) ([]*AndroidCACertificate, error)
+	CreatePendingAndroidCACertificatesForExistingHosts(ctx context.Context, caCertID uint, teamID uint) (int64, error)
+	CreatePendingAndroidCACertificatesForNewHost(ctx context.Context, host *Host) error
+	UpsertHostAndroidCACertificateStatus(ctx context.Context, hostID uint, hostUUID string, caCertID uint, status MDMDeliveryStatus, detail string) error
+	ListHostAndroidCACertificates(ctx context.Context, hostID uint) ([]*HostAndroidCACertificate, error)
+	ListHostAndroidCACertificatesByUUID(ctx context.Context, hostUUID string) ([]*HostAndroidCACertificate, error)
+	ListAndroidHostUUIDsWithPendingCACertificates(ctx context.Context, afterHostUUID string, limit int) ([]string, error)
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 

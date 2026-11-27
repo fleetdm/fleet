@@ -3,12 +3,16 @@ import React, { useState } from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-import certAPI, { ICertificate } from "services/entities/certificates";
+import certAPI from "services/entities/certificates";
 
 const baseClass = "delete-cert-template-modal";
 
 interface IDeleteCertModalProps {
-  cert: ICertificate;
+  cert: {
+    id: number;
+    name: string;
+    isCA?: boolean;
+  };
   onSuccess: () => void;
   onExit: () => void;
 }
@@ -20,12 +24,16 @@ const DeleteCertificateModal = ({
 }: IDeleteCertModalProps) => {
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const { name, id } = cert;
+  const { name, id, isCA } = cert;
 
   const onDelete = async () => {
     setIsUpdating(true);
     try {
-      await certAPI.deleteCert(id);
+      if (isCA) {
+        await certAPI.deleteCACert(id);
+      } else {
+        await certAPI.deleteCert(id);
+      }
       notify.success("Successfully deleted certificate.");
       setIsUpdating(false);
       onSuccess();

@@ -25,4 +25,12 @@
     <string name="certificate_template_operation_description">Operation to perform (install or remove)</string>
     <string name="host_uuid_title">Host UUID</string>
     <string name="host_uuid_description">The host UUID to present to Fleet during enrollment</string>
+    <string name="ca_certificates_title">CA certificates</string>
+    <string name="ca_certificates_description">Array of bundles containing CA certificate information</string>
+    <string name="ca_certificate_title">CA certificate</string>
+    <string name="ca_certificate_description">CA certificate information</string>
+    <string name="ca_certificate_id_title">CA certificate ID</string>
+    <string name="ca_certificate_id_description">CA certificate ID to be installed</string>
+    <string name="ca_certificate_sha256_title">CA certificate SHA-256</string>
+    <string name="ca_certificate_sha256_description">SHA-256 fingerprint of the CA certificate</string>
 </resources>
