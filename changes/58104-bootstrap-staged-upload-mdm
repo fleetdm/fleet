@@ -1,0 +1,1 @@
+* Fixed bootstrap package staged uploads returning an upload URL when Apple MDM is not configured.
