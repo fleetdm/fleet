@@ -307,6 +307,26 @@ To start the interview process, the Head of People will create a copy of the [ðŸ
 > **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
 
+### Review applicants
+
+Hiring managers review inbound applicants for their open positions in the [People pipeline dashboard](https://claude.ai/artifact/98Q2GyL2d3jFhpJHgnuMqY). The Head of People handles all candidate communication, including scheduling and rejections.
+
+To review applicants:
+
+1. Open the People pipeline dashboard, choose "ðŸ“¥ Applications" in the View menu, and select your position in the "Role" filter.
+2. Make sure "Reviewing as" shows your name, so decisions are attributed to you.
+3. On the "To review" tab, read each applicant's LinkedIn profile, location and application notes.
+4. For each applicant, choose one:
+   - **Add to pipeline**: the applicant is added to the position's candidate tracker and enters the interview process at the first stage. For Software Engineer applicants, the CTO selects the hiring manager (or "not sure yet") before adding.
+   - **Pass**: the applicant is not a fit. Do not contact the applicant. The Head of People sends rejections.
+   - **Save for later**: the applicant is not a fit for this opening, but should be considered for future roles. Add a short reason.
+5. Review new applicants at least [once a week] so that no applicant waits more than [X business days] for a decision.
+
+> Applicants who are already in a candidate tracker, or who are located in a country where [Fleet is unable to hire](https://fleetdm.com/handbook/company/leadership#incompatible-locations), are excluded from "To review" automatically.
+
+Hiring managers need **Contributor** access to the People pipeline dashboard and **edit** access to their position's candidate tracker. Ask the Head of People for access.
+
+
 ## Create a 30-60-90 day plan
 
 The hiring manager creates a 30-60-90 day plan outlining key role objectives to be reviewed in 1:1 meetings during the first three months of employment. To create the 30-60-90 day plan, use the prompts in the "Vision" section of the new teammates [1:1 meeting doc (TEMPLATE)](https://docs.google.com/document/d/1IkGQJ4PPU0MyW35Xo8BuvoUPKpStsmcw_nHWt71W2yE/edit#heading=h.uzxntzlyyaou) to ensure continuous support and alignment with company goals.
