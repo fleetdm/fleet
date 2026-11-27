@@ -20,6 +20,7 @@ module.exports = {
 
 
   exits: {
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     success: { description: 'The policy of an Android enterprise was successfully updated.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
@@ -62,6 +63,11 @@ module.exports = {
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
     let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['policies', policyId],
+    }).intercept('invalidResourceId', 'invalidResourceId');
+
     // Update the policy for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let modifyPoliciesResponse = await sails.helpers.flow.build(async () => {
@@ -74,7 +80,7 @@ module.exports = {
       if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'modify_policy'}; }
       sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let patchPoliciesResponse = await androidManagementConnection.enterprises.policies.patch({
-        name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+        name: resourceName,
         // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.
         // This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,

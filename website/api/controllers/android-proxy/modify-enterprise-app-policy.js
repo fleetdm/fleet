@@ -32,6 +32,7 @@ module.exports = {
 
 
   exits: {
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     success: { description: 'The policy applications of an Android enterprise was successfully updated.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
@@ -75,6 +76,11 @@ module.exports = {
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
     let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['policies', policyId],
+    }).intercept('invalidResourceId', 'invalidResourceId');
+
     // Update the policy applications for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let modifyApplicationPolicyResponse = await sails.helpers.flow.build(async () => {
@@ -91,7 +97,7 @@ module.exports = {
       switch (googleAction) {
         case 'removePolicyApplications': {
           let response = await androidManagementConnection.enterprises.policies.removePolicyApplications({
-            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            name: resourceName,
             requestBody: { packageNames },
           });
           return response.data;
@@ -99,7 +105,7 @@ module.exports = {
 
         default: {
           let response = await androidManagementConnection.enterprises.policies.modifyPolicyApplications({
-            name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+            name: resourceName,
             requestBody: { changes },
           });
           return response.data;

@@ -20,6 +20,7 @@ module.exports = {
 
 
   exits: {
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     success: { description: 'The device of an Android enterprise was successfully deleted.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
@@ -62,6 +63,11 @@ module.exports = {
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
     let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['devices', deviceId],
+    }).intercept('invalidResourceId', 'invalidResourceId');
+
     // Delete the device for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
     await sails.helpers.flow.build(async () => {
@@ -74,7 +80,7 @@ module.exports = {
       if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'delete_device'}; }
       sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       await androidManagementConnection.enterprises.devices.delete({
-        name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
+        name: resourceName,
       });
     }).intercept({status: 429}, ()=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
