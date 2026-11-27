@@ -3414,10 +3414,12 @@ This activity contains the following fields:
 - [added_app_store_app](#added-app-store-app)
 - [deleted_app_store_app](#deleted-app-store-app)
 - [installed_app_store_app](#installed-app-store-app)
+- [uninstalled_app_store_app](#uninstalled-app-store-app)
 - [edited_app_store_app](#edited-app-store-app)
 - [canceled_install_software](#canceled-install-software)
 - [canceled_uninstall_software](#canceled-uninstall-software)
 - [canceled_install_app_store_app](#canceled-install-app-store-app)
+- [canceled_uninstall_app_store_app](#canceled-uninstall-app-store-app)
 
 ### installed_software
 
@@ -3674,8 +3676,12 @@ Generated when an App Store app is added to Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -3721,8 +3727,9 @@ Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
 - "fleet_name": Name of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "fleet_id": ID of the fleet from which this App Store app was deleted, or `null` if it was deleted from no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -3767,12 +3774,17 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
 - "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps, or if the VPP token was deleted before the install finished.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "status": Status of the App Store app installation.
-- "command_uuid": UUID of the MDM command used to install the app.
+- "command_uuid": UUID of the MDM command used to install the app. Empty for Microsoft Store apps, which Fleet installs with a script.
+- "install_uuid": ID of the Microsoft Store app installation. Only present for Microsoft Store apps.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
-- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android").
+- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android", "windows").
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "from_auto_update": Whether the app was installed by an automatic update.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
@@ -3797,6 +3809,36 @@ This activity contains the following fields:
 }
 ```
 
+### uninstalled_app_store_app
+
+Generated when a Microsoft Store app is uninstalled on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the App Store app.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
+- "app_store_id": ID of the app on the Microsoft Store.
+- "script_execution_id": ID of the uninstall script run.
+- "self_service": Whether the uninstall was initiated by the end user from the My device UI.
+- "status": Status of the uninstall.
+- "host_platform": Platform of the host ("windows").
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's Surface Laptop",
+  "software_title": "ChatGPT",
+  "app_store_id": "9PLM9XGG6VKS",
+  "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
+  "self_service": false,
+  "status": "uninstalled",
+  "host_platform": "windows"
+}
+```
+
 ### edited_app_store_app
 
 Generated when an App Store app is updated in Fleet.
@@ -3804,8 +3846,12 @@ Generated when an App Store app is updated in Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
-- "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
+- "platform": Platform of the app (`android`, `darwin`, `ios`, `ipados`, or `windows`).
+- "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
+  - "id": ID of the VPP token.
+  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
 - "fleet_id": ID of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
@@ -3919,6 +3965,28 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
   "software_display_name": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}
+```
+
+### canceled_uninstall_app_store_app
+
+Generated when upcoming activity `uninstalled_app_store_app` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's Surface Laptop",
+  "software_title": "ChatGPT",
   "software_title_id": 12334
 }
 ```
