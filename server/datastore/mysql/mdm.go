@@ -697,7 +697,7 @@ func batchTrackUpdateConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, t
 	return nil
 }
 
-func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 	// this lists custom profiles, it explicitly filters out the fleet-reserved
 	// ones (reserved identifiers for Apple profiles, reserved names for Windows).
 
@@ -815,7 +815,24 @@ FROM (
 	}
 
 	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
-	stmt, args, err := appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt, mdmConfigProfilesAllowedOrderKeys)
+	stmt := selectStmt + " WHERE TRUE"
+	stmt, args = searchLike(stmt, args, opt.MatchQuery, "name")
+	if labelID != nil {
+		// Matches include and exclude label targets alike. Profile UUIDs are
+		// unique across platforms, so one IN list covers all profile tables.
+		stmt += `
+	AND profile_uuid IN (
+		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid, android_profile_uuid)
+		FROM mdm_configuration_profile_labels
+		WHERE label_id = ?
+		UNION
+		SELECT apple_declaration_uuid
+		FROM mdm_declaration_labels
+		WHERE label_id = ?
+	)`
+		args = append(args, *labelID, *labelID)
+	}
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(stmt, args, &opt, mdmConfigProfilesAllowedOrderKeys)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list MDM config profiles")
 	}

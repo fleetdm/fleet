@@ -1169,6 +1169,20 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		},
 	}, listResp.Profiles[2])
 
+	// filter team 2 by label: baz only targets tH
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp,
+		"fleet_id", fmt.Sprint(tm2.ID), "label_id", fmt.Sprint(lblBaz.ID))
+	require.Len(t, listResp.Profiles, 1)
+	require.Equal(t, tm2ProfH.ProfileUUID, listResp.Profiles[0].ProfileUUID)
+
+	// filter team 2 by label and name: bar targets tF, tG and tH
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp,
+		"fleet_id", fmt.Sprint(tm2.ID), "label_id", fmt.Sprint(lblBar.ID), "query", "tg")
+	require.Len(t, listResp.Profiles, 1)
+	require.Equal(t, tm2ProfG.ProfileUUID, listResp.Profiles[0].ProfileUUID)
+
 	// get the specific include-all label-based profile returns the information
 	var getProfResp getMDMConfigProfileResponse
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+tm2ProfG.ProfileUUID, nil, http.StatusOK, &getProfResp)

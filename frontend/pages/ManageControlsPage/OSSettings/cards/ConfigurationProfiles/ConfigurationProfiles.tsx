@@ -26,6 +26,9 @@ import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 import AddAssetModal from "./components/AddAssetModal";
 import AssetListItem from "./components/AssetListItem";
+import ConfigProfilesFilters, {
+  ConfigProfilesTypeFilter,
+} from "./components/ConfigProfilesFilters";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import DeleteAssetModal from "./components/DeleteAssetModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
@@ -82,6 +85,16 @@ const ConfigurationProfiles = ({
   const [showDeleteAssetModal, setShowDeleteAssetModal] = useState(false);
   const [isDeletingAsset, setIsDeletingAsset] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [labelIdFilter, setLabelIdFilter] = useState<number | undefined>();
+  const [typeFilter, setTypeFilter] = useState<ConfigProfilesTypeFilter>("all");
+  const hasActiveFilters =
+    searchQuery !== "" || labelIdFilter !== undefined || typeFilter !== "all";
+  // Assets have no label targets, so a label filter excludes them.
+  const showAssets =
+    assetsEnabled && typeFilter !== "profile" && labelIdFilter === undefined;
+  const showProfiles = typeFilter !== "asset";
+
   const selectedProfile = useRef<IMdmProfile | null>(null);
   const selectedAsset = useRef<IMdmAsset | null>(null);
   const selectedStatusHostCount = useRef<number | null>(null);
@@ -98,6 +111,8 @@ const ConfigurationProfiles = ({
         team_id: currentTeamId,
         page: currentPage,
         per_page: PROFILES_PER_PAGE,
+        query: searchQuery,
+        label_id: labelIdFilter,
       },
     ],
     () =>
@@ -105,9 +120,12 @@ const ConfigurationProfiles = ({
         fleet_id: currentTeamId,
         page: currentPage,
         per_page: PROFILES_PER_PAGE,
+        query: searchQuery,
+        label_id: labelIdFilter,
       }),
     {
-      enabled: mdmEnabled,
+      enabled: mdmEnabled && showProfiles,
+      keepPreviousData: true,
       refetchOnWindowFocus: false,
     }
   );
@@ -213,6 +231,28 @@ const ConfigurationProfiles = ({
     router.push(path.concat(`${queryString}page=${currentPage + 1}`));
   }, [router, path, currentPage, queryString]);
 
+  // Filters change the result set, so go back to the first page.
+  const resetToFirstPage = () => {
+    if (currentPage !== 0) {
+      router.replace(path.concat(`${queryString}page=0`));
+    }
+  };
+
+  const onSearchQueryChange = (value: string) => {
+    setSearchQuery(value.trim());
+    resetToFirstPage();
+  };
+
+  const onTypeFilterChange = (type: ConfigProfilesTypeFilter) => {
+    setTypeFilter(type);
+    resetToFirstPage();
+  };
+
+  const onLabelIdChange = (labelId: number | undefined) => {
+    setLabelIdFilter(labelId);
+    resetToFirstPage();
+  };
+
   const onClickInfo = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
     setShowConfigProfileStatusModal(true);
@@ -233,7 +273,10 @@ const ConfigurationProfiles = ({
   };
 
   const renderProfileList = () => {
-    if (isLoadingProfiles || (assetsEnabled && isLoadingAssets)) {
+    if (
+      (showProfiles && isLoadingProfiles) ||
+      (assetsEnabled && isLoadingAssets)
+    ) {
       return <Spinner />;
     }
 
@@ -241,17 +284,23 @@ const ConfigurationProfiles = ({
       return <DataError />;
     }
 
-    // Profiles are paginated server-side and assets aren't, so assets are
-    // listed once, on the first page.
+    // Profiles are paginated and filtered server-side and assets aren't, so
+    // assets are filtered here and listed once, on the first page.
+    const filteredAssets =
+      currentPage === 0 && showAssets
+        ? (assets ?? []).filter((asset) =>
+            asset.name.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : [];
     const listItems: IConfigProfilesListItem[] = [
-      ...(currentPage === 0 && assetsEnabled ? assets ?? [] : []).map(
+      ...filteredAssets.map(
         (asset): IConfigProfilesListItem => ({
           key: asset.asset_uuid,
           kind: "asset",
           asset,
         })
       ),
-      ...(profiles ?? []).map(
+      ...(showProfiles ? profiles ?? [] : []).map(
         (profile): IConfigProfilesListItem => ({
           key: profile.profile_uuid,
           kind: "profile",
@@ -259,6 +308,16 @@ const ConfigurationProfiles = ({
         })
       ),
     ];
+
+    if (!listItems.length && hasActiveFilters) {
+      return (
+        <EmptyState
+          variant="list"
+          header="No items match the current search criteria"
+          info="Try a different search or filter."
+        />
+      );
+    }
 
     if (!listItems.length) {
       return (
@@ -310,10 +369,11 @@ const ConfigurationProfiles = ({
           }
         />
         <Pagination
-          disableNext={!meta?.has_next_results}
+          disableNext={!showProfiles || !meta?.has_next_results}
           disablePrev={!meta?.has_previous_results}
           hidePagination={
-            !meta?.has_next_results && !meta?.has_previous_results
+            !showProfiles ||
+            (!meta?.has_next_results && !meta?.has_previous_results)
           }
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}
@@ -334,6 +394,13 @@ const ConfigurationProfiles = ({
       />
     </>
   );
+
+  // Hide the filters on an empty first page, where they'd filter nothing.
+  const isEmptyUnfiltered =
+    !hasActiveFilters &&
+    currentPage === 0 &&
+    !profiles?.length &&
+    !(assetsEnabled && assets?.length);
 
   const showAddProfileButton = mdmEnabled && canAddConfigurationProfile;
   const showAdvancedButton = assetsEnabled && canAddConfigurationProfile;
@@ -387,7 +454,21 @@ const ConfigurationProfiles = ({
           }
         />
       ) : (
-        renderProfileList()
+        <>
+          {!isEmptyUnfiltered && (
+            <ConfigProfilesFilters
+              currentTeamId={currentTeamId}
+              showTypeFilter={assetsEnabled}
+              searchQuery={searchQuery}
+              typeFilter={typeFilter}
+              labelId={labelIdFilter}
+              onSearchQueryChange={onSearchQueryChange}
+              onTypeFilterChange={onTypeFilterChange}
+              onLabelIdChange={onLabelIdChange}
+            />
+          )}
+          {renderProfileList()}
+        </>
       )}
       {showAddAssetModal && (
         <AddAssetModal

@@ -9519,6 +9519,8 @@ results (i.e., only profiles that are associated with "Unassigned" are listed).
 | Name                      | Type    | In     | Description                                                               |
 | ------------------------- | ------  | -----  | ------------------------------------------------------------------------- |
 | fleet_id                  | string  | query  | _Available in Fleet Premium_. The fleet id to filter profiles.              |
+| query                     | string  | query  | Search query keywords. Searchable fields include `name`.                  |
+| label_id                  | integer | query  | Filters to profiles that target the specified label, whether the label is included or excluded. |
 | page                      | integer | query  | Page number of the results to fetch.                                     |
 | per_page                  | integer | query  | Results per page.                                                        |
 | order_key                 | string  | query  | What to order results by. Can be ordered by `name`, `created_at`, or `uploaded_at`. |

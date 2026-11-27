@@ -420,7 +420,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.ListMDMConfigProfilesFunc = func(
-		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+		ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions,
 	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, &fleet.PaginationMetadata{}, nil
 	}

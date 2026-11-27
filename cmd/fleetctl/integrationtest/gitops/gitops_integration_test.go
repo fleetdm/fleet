@@ -197,7 +197,7 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	require.Len(t, profiles, 1)
 	assert.Contains(t, string(profiles[0].Mobileconfig), "$FLEET_SECRET_"+secretName1)
 	// Check Windows profiles
-	allProfiles, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	allProfiles, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, allProfiles, 2)
 	var windowsProfileUUID string

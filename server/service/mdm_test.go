@@ -1519,7 +1519,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 		return &cp, nil
 	}
-	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, labelID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string,
@@ -1557,11 +1557,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz list config profiles (no team)
-			_, _, err = svc.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+			_, _, err = svc.ListMDMConfigProfiles(ctx, nil, nil, fleet.ListOptions{})
 			checkShouldFail(t, err, tt.shouldFailGlobalRead)
 
 			// test authz list config profiles (team 1)
-			_, _, err = svc.ListMDMConfigProfiles(ctx, ptr.Uint(1), fleet.ListOptions{})
+			_, _, err = svc.ListMDMConfigProfiles(ctx, new(uint(1)), nil, fleet.ListOptions{})
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)

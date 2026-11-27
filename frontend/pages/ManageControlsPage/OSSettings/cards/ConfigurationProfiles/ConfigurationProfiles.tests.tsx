@@ -1,8 +1,10 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
+import { createMockLabel } from "__mocks__/labelsMock";
+import { getLabelsSummaryHandler } from "test/handlers/label-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
@@ -294,6 +296,144 @@ describe("ConfigurationProfiles assets", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Advanced" })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("ConfigurationProfiles search and filters", () => {
+  const firewall = {
+    profile_uuid: "w-1",
+    fleet_id: 0,
+    name: "Firewall",
+    platform: "windows",
+    identifier: null,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    checksum: null,
+  };
+
+  // Records each profiles request's query params and answers with Firewall
+  // unless the request is filtered.
+  const setupProfilesHandler = () => {
+    const requests: URLSearchParams[] = [];
+    mockServer.use(
+      http.get(baseUrl("/configuration_profiles"), ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        requests.push(params);
+        const filtered = params.has("query") || params.has("label_id");
+        return HttpResponse.json({
+          profiles: filtered ? [] : [firewall],
+          meta: { has_next_results: false, has_previous_results: false },
+        });
+      }),
+      http.get(baseUrl("/assets"), () =>
+        HttpResponse.json({ assets: [asset] })
+      ),
+      getLabelsSummaryHandler([
+        createMockLabel({ id: 7, name: "Engineering", label_type: "regular" }),
+      ])
+    );
+    return requests;
+  };
+
+  const renderPremium = (props: Record<string, unknown> = {}) => {
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: mdmEnabledConfig,
+        },
+      },
+    });
+    const results = render(
+      <ConfigurationProfiles {...baseProps} router={router} {...props} />
+    );
+    return { ...results, router };
+  };
+
+  it("sends the search query to the API and filters assets by name", async () => {
+    const requests = setupProfilesHandler();
+    const { user } = renderPremium();
+
+    expect(await screen.findByText("Firewall")).toBeInTheDocument();
+    expect(screen.getByText("Wi-Fi certificate")).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("Search by name"), "wi-fi");
+
+    await waitFor(() =>
+      expect(requests.some((r) => r.get("query") === "wi-fi")).toBe(true)
+    );
+    expect(await screen.findByText("Wi-Fi certificate")).toBeInTheDocument();
+    expect(screen.queryByText("Firewall")).not.toBeInTheDocument();
+  });
+
+  it("filters by label through the API and hides assets", async () => {
+    const requests = setupProfilesHandler();
+    const { user } = renderPremium();
+
+    expect(await screen.findByText("Firewall")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Filter by label" }));
+    await user.click(await screen.findByText("Engineering"));
+
+    await waitFor(() =>
+      expect(requests.some((r) => r.get("label_id") === "7")).toBe(true)
+    );
+    expect(
+      await screen.findByText("No items match the current search criteria")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Wi-Fi certificate")).not.toBeInTheDocument();
+  });
+
+  it("filters by type", async () => {
+    setupProfilesHandler();
+    const { user } = renderPremium();
+
+    expect(await screen.findByText("Firewall")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Filter by type" }));
+    await user.click(await screen.findByText("Assets"));
+
+    await waitFor(() =>
+      expect(screen.queryByText("Firewall")).not.toBeInTheDocument()
+    );
+    expect(screen.getByText("Wi-Fi certificate")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Filter by type" }));
+    await user.click(await screen.findByText("Profiles"));
+
+    expect(await screen.findByText("Firewall")).toBeInTheDocument();
+    expect(screen.queryByText("Wi-Fi certificate")).not.toBeInTheDocument();
+  });
+
+  it("returns to the first page when a filter changes", async () => {
+    setupProfilesHandler();
+    const { user, router } = renderPremium({ currentPage: 2 });
+
+    await user.type(
+      await screen.findByPlaceholderText("Search by name"),
+      "fire"
+    );
+
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith(
+        "/controls/os-settings/configuration-profiles?fleet_id=0&page=0"
+      )
+    );
+  });
+
+  it("hides the filters when there are no profiles or assets", async () => {
+    mockServer.use(emptyProfilesHandler, emptyAssetsHandler);
+    renderPremium();
+
+    expect(
+      await screen.findByRole("heading", { name: /No configuration profiles/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Search by name")
     ).not.toBeInTheDocument();
   });
 });
