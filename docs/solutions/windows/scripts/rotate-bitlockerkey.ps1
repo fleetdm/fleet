@@ -16,6 +16,9 @@
     Re-check client/orbit_client.go and server/service/orbit.go after every upgrade.
 
     Order of operations, so the drive always has a recovery key Fleet can show:
+      0. Confirm Fleet's disk encryption status for the host is "verified", through
+         the device endpoint Fleet Desktop uses (GET /api/latest/fleet/device/{token}).
+         Fleet skips storing keys when disk encryption is off but still answers 204.
       1. Add a new recovery password protector.
       2. Escrow it to Fleet.
       3a. Fleet confirmed (204)        -> remove the old recovery passwords.
@@ -119,8 +122,9 @@ try {
     }
     Write-Log "Volume: $MountPoint"
 
-    $NodeKeyPath = Join-Path $OrbitRoot 'secret-orbit-node-key.txt'
-    $EscrowUri   = "$FleetUrl/api/fleet/orbit/disk_encryption_key"
+    $NodeKeyPath     = Join-Path $OrbitRoot 'secret-orbit-node-key.txt'
+    $DeviceTokenPath = Join-Path $OrbitRoot 'identifier'
+    $EscrowUri       = "$FleetUrl/api/fleet/orbit/disk_encryption_key"
 
     # ----------------------------- preflight ---------------------------------
     Write-Log "Step 0: preflight checks"
@@ -140,6 +144,43 @@ try {
     $nodeKey = (Get-Content -Raw -Path $NodeKeyPath).Trim()
     # Add TLS 1.2 to the allowed protocols without removing newer ones (e.g. TLS 1.3).
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+    # The escrow endpoint answers 204 without storing anything when disk encryption
+    # is off for the host's fleet, and it can't confirm which key it stored. Fleet
+    # reports a BitLocker status only when disk encryption is on, so require
+    # "verified" (Fleet holds a working key) before changing anything.
+    if (-not (Test-Path $DeviceTokenPath)) {
+        throw "fleetd device token not found at $DeviceTokenPath. No changes made."
+    }
+    $deviceToken = (Get-Content -Raw -Path $DeviceTokenPath).Trim()
+    Write-Log "Checking the host's disk encryption status in Fleet"
+    $deStatus = $null
+    try {
+        # The token is part of the URL, so never log the URL or the raw exception.
+        $resp = Invoke-WebRequest -Uri "$FleetUrl/api/latest/fleet/device/$deviceToken`?exclude_software=true" `
+            -Method Get -UseBasicParsing -TimeoutSec 60 -MaximumRedirection 0
+        $deviceStatus = [int]$resp.StatusCode
+        if ($deviceStatus -eq 200) {
+            $deStatus = ($resp.Content | ConvertFrom-Json).host.mdm.os_settings.disk_encryption.status
+        }
+    }
+    catch {
+        $deviceStatus = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { $null }
+    }
+    finally {
+        $deviceToken = $null
+        $resp = $null
+    }
+    if ($deviceStatus -ne 200) {
+        throw "Could not read the host's disk encryption status from Fleet ($(if ($deviceStatus) { "HTTP $deviceStatus" } else { 'no response' })). No changes made."
+    }
+    if (-not $deStatus) {
+        throw "Fleet reports no disk encryption status for this host, so it wouldn't store a new key. Turn on disk encryption for the host's fleet. No changes made."
+    }
+    if ($deStatus -ne 'verified') {
+        throw "Fleet's disk encryption status for this host is '$deStatus'. Only rotate when it's 'verified'. No changes made."
+    }
+    Write-Log "Fleet disk encryption status: verified"
     Write-ProtectorState "Before rotation"
 
     # -------------------------- 1. add new protector -------------------------

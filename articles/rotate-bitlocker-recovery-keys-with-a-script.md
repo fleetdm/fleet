@@ -15,13 +15,11 @@ Until Fleet supports Windows key rotation, you can use the [`rotate-bitlockerkey
 - HTTPS access from the hosts to the Fleet server
 - The [`rotate-bitlockerkey.ps1`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/rotate-bitlockerkey.ps1) script, downloaded from GitHub
 
-> **Warning:** If disk encryption is off for a host's fleet, Fleet accepts the new key without storing it, and the script still reports success. The old key is removed, so no copy of the new key exists outside the host. Only run the script on hosts in fleets with disk encryption turned on.
-
 The script doesn't support hosts that use Fleet host identity certificates. It stops before making any changes on those hosts.
 
 ## How the script works
 
-The script detects the Fleet server URL and fleetd's install folder from the fleetd service, so you don't need to edit it. It adds a new recovery key to the OS volume and sends it to Fleet. What it does next depends on Fleet's response:
+The script detects the Fleet server URL and fleetd's install folder from the fleetd service, so you don't need to edit it. Before it changes anything, it asks Fleet for the host's disk encryption status and stops unless the status is **Verified**. This matters because Fleet accepts keys without storing them when disk encryption is off. Then it adds a new recovery key to the OS volume and sends it to Fleet. What it does next depends on Fleet's response:
 
 | Fleet's response | What the script does |
 |:---|:---|
@@ -62,7 +60,7 @@ The script runs the next time the host checks in with Fleet.
 4. Find `rotate-bitlockerkey.ps1` and select **Run script**.
 5. To check results, select the batch in the global activity feed.
 
-> **Note:** Don't run the script on hosts with a disk encryption status of **Enforcing** or **Action required**. On those hosts, fleetd may already be rotating the key, and the two rotations can remove each other's keys.
+> **Note:** The script skips hosts whose disk encryption status isn't **Verified**, without making changes. On hosts that are **Enforcing** or **Action required**, fleetd may already be rotating the key, and two rotations at once can remove each other's keys.
 
 ## Troubleshooting
 
@@ -86,9 +84,17 @@ BitLocker is still encrypting or decrypting the OS volume. Wait until the host's
 
 The script only sends keys over HTTPS. Set `$FleetUrl` to your Fleet server's HTTPS URL.
 
-**Output shows SUCCESS, but Fleet still shows the old key**
+**Output shows "Fleet reports no disk encryption status"**
 
-Disk encryption is probably off for the host's fleet, so Fleet didn't store the new key. Turn on disk encryption for the fleet in **Controls > OS settings > Disk encryption**, then run the script again.
+Disk encryption is off for the host's fleet, so Fleet wouldn't store a new key. The script made no changes. Turn on disk encryption for the fleet in **Controls > OS settings > Disk encryption**, wait until the host's status is **Verified**, then run the script again.
+
+**Output shows "Only rotate when it's 'verified'"**
+
+The host's disk encryption status in Fleet isn't **Verified** yet. The script made no changes. Wait until the status is **Verified**, then run the script again.
+
+**Output shows "Could not read the host's disk encryption status from Fleet"**
+
+The script couldn't reach Fleet, or Fleet rejected fleetd's device token, so it made no changes. An HTTP 401 usually means the token was just rotated. Run the script again.
 
 **Output shows "Could not remove old protector"**
 
