@@ -2533,18 +2533,46 @@ func cleanupLabelMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext,
 	return nil
 }
 
+// Bound the (report, host) pairs per lookup so MySQL's range optimizer keeps them as index ranges.
+var (
+	teamChangeQueryResultsHostBatchSize = 1000
+	teamChangeQueryResultsPairsPerRead  = 5000
+)
+
 func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	// Similar to cleanupPolicyMembershipOnTeamChange, hosts can belong to one team only, so we just delete all
 	// the query results of the hosts that belong to queries that are not global.
-	const cleanupQuery = `
-		DELETE FROM query_results
-		WHERE query_id IN (SELECT id FROM queries WHERE team_id IS NOT NULL) AND host_id IN (?)`
-	query, args, err := sqlx.In(cleanupQuery, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build cleanup query results query")
+	// The report IDs are read first: with a subquery, MySQL looks up query_results by report only and
+	// reads (and the DELETE locks) every stored row of every fleet report until the transfer commits,
+	// blocking other hosts' result writes. Results only exist for saved reports.
+	var queryIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &queryIDs, `SELECT id FROM queries WHERE team_id IS NOT NULL AND saved = 1`); err != nil {
+		return ctxerr.Wrap(ctx, err, "select fleet reports for query results cleanup")
 	}
-	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "exec cleanup query results query")
+	if len(queryIDs) == 0 {
+		return nil
+	}
+	for hostBatch := range slices.Chunk(hostIDs, teamChangeQueryResultsHostBatchSize) {
+		queryBatchSize := max(1, teamChangeQueryResultsPairsPerRead/len(hostBatch))
+		for queryBatch := range slices.Chunk(queryIDs, queryBatchSize) {
+			stmt, args, err := sqlx.In(`
+				SELECT id FROM query_results FORCE INDEX (idx_query_id_host_id_last_fetched)
+				WHERE query_id IN (?) AND host_id IN (?)`, queryBatch, hostBatch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build select query results of moved hosts")
+			}
+			var ids []uint
+			if err := sqlx.SelectContext(ctx, tx, &ids, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "select query results of moved hosts")
+			}
+			// Deleted by primary key: a DELETE by (query_id, host_id) takes next-key locks on the
+			// secondary index, which block other hosts inserting results for the same reports.
+			for idBatch := range slices.Chunk(ids, deleteQueryResultsBatchSize) {
+				if err := deleteQueryResultsByID(ctx, tx, idBatch); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }
