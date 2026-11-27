@@ -1,0 +1,1 @@
+* Reduced the memory the vulnerabilities job uses when matching Ubuntu and RHEL software against OSV data.

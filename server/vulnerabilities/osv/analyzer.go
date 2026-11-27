@@ -39,15 +39,13 @@ type OSVArtifact struct {
 	Vulnerabilities map[string][]OSVVulnerability `json:"vulnerabilities"`
 }
 
-// OSVVulnerability represents a single vulnerability for a package
+// OSVVulnerability represents a single vulnerability for a package. It holds only the fields
+// matching reads; the artifact's other row fields (published, modified, details) are left undecoded.
 type OSVVulnerability struct {
-	CVE        string    `json:"cve"`
-	Published  time.Time `json:"published"`
-	Modified   time.Time `json:"modified"`
-	Details    string    `json:"details"`
-	Introduced string    `json:"introduced"`
-	Fixed      string    `json:"fixed,omitempty"`
-	Versions   []string  `json:"versions,omitempty"`
+	CVE        string   `json:"cve"`
+	Introduced string   `json:"introduced"`
+	Fixed      string   `json:"fixed,omitempty"`
+	Versions   []string `json:"versions,omitempty"`
 }
 
 type softwareMatcher func(software []fleet.Software) []fleet.SoftwareVulnerability
