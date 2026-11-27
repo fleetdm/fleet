@@ -8,7 +8,7 @@
       "start": "2026-11-10T15:34:44Z",
       "end": "2026-11-10T16:34:44Z"
     },
-    "note": "Pre-upgrade, 4.94.1 (7e7d17b75a), ending at deploy start (run 42855917533 → rc-minor-fleet-v4.95.0 f4c34e5bbf). 100k hosts, WebSocket transport on, automations off; Ducks carries the #54733 data; vuln run 4 in cron_vulnerabilities since 14:37:23Z"
+    "note": "Pre-upgrade, 4.94.1 (7e7d17b75a), ending at deploy start (run 42855917533 → rc-minor-fleet-v4.96.0 f4c34e5bbf). 100k hosts, WebSocket transport on, automations off; Ducks carries the #54733 data; vuln run 4 in cron_vulnerabilities since 14:37:23Z"
   },
   "fleet_server": {
     "cpu_utilization": {
