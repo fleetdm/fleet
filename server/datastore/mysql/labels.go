@@ -966,11 +966,13 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	if filter.User != nil && includeHostCounts {
 		countFrom := "label_membership lm JOIN hosts h ON (lm.host_id = h.id)"
 		// When the team filter allows all hosts ("TRUE"),
-		// skip the join to the hosts table and count straight off the
-		// label_membership index.
+		// skip the join to the hosts table and count straight off label_membership.
 		teamFilter := ds.whereFilterHostsByTeams(filter, "h")
 		if teamFilter == "TRUE" {
-			countFrom = "label_membership lm"
+			// Scan the primary key, not idx_lm_label_id: hosts keep changing their label rows, and on recently
+			// changed secondary index pages MySQL checks each row against the primary key for visibility, which
+			// made the count several times slower while hosts check in.
+			countFrom = "label_membership lm FORCE INDEX (PRIMARY)"
 		}
 		query = fmt.Sprintf(`
 				WITH label_host_counts AS (
