@@ -3495,7 +3495,7 @@ This activity contains the following fields:
 - "status": Whether notification is displayed or failed.
 - "software_titles": Names of the software titles included in the notification.
 - "policy_ids": IDs of the patch policies included in the notification.
-- "time_before": Either 1 hour or 5 minutes before patch is forced.
+- "time_before": How long before the patch is forced the end user was notified, in seconds (e.g. `3600` for 1 hour, `300` for 5 minutes). `null` for the notification Fleet shows as soon as the apps are outdated, for patch policies with `patch_deadline` set to `true`.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
 - "script_execution_id": Execution ID of the script run that displayed the notification to the end user.
 - "exit_code": Exit code of the notification script. `0` on success; non-zero encodes the failure reason (e.g. `41` for a locked screen).
