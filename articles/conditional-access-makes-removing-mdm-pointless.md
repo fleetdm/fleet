@@ -25,9 +25,7 @@ Absolute takes the PC approach: an agent [built into the firmware](https://www.a
 
 ## Conditional access made removal pointless
 
-When someone signs in to a work app, your identity provider (IdP) checks that the device is enrolled. Remove MDM, and Slack stops working at the next sign-in.
-
-There are three common ways to check:
+When someone signs in to a work app, your identity provider (IdP) checks that the device is enrolled. Remove MDM, and Slack stops working at the next sign-in. There are three common ways to check:
 
 1. **A device certificate.** MDM installs a certificate, and the IdP asks the browser for it.
 2. **The IdP's own app.** Okta Verify or Microsoft's Company Portal looks for a signal only MDM delivers, and reports back.
@@ -43,15 +41,13 @@ Here's how Jamf, Intune, and Fleet compare:
 
 Sources: [Jamf](https://trusted.jamf.com/docs/win-modern-device-management), [Intune](https://learn.microsoft.com/en-us/intune/fundamentals/platform-guide-linux), [Fleet](https://fleetdm.com/guides/conditional-access).
 
-With Fleet, removing MDM also removes the sign-in certificate it installed. As a backstop, add this policy to conditional access, so a Mac that's still reporting but has left MDM fails too:
+Removing Fleet's MDM also removes the sign-in certificate it installed. As a backstop, add this conditional access policy, with your Fleet server's hostname:
 
 ```sql
 SELECT 1 FROM mdm WHERE enrolled = 'true' AND server_url LIKE '%fleet.example.com%';
 ```
 
-Replace `fleet.example.com` with your Fleet server's hostname.
-
-Any of these turns MDM removal from a security incident into a help desk ticket. So what's left?
+Any of these turns MDM removal from a security incident into a help desk ticket.
 
 ## The real gap: a copied certificate
 
@@ -59,7 +55,7 @@ At past jobs, I've had a work laptop and a personal one, and just wanted to chec
 
 That's a personal Mac borrowing the identity of an enrolled one. Whether it works depends on how your devices prove who they are.
 
-**Fleet with Okta.** At sign-in, Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes. Fleet marks the key non-exportable, but that's a rule macOS enforces in software. The key sits in the login keychain, not the Secure Enclave, and the keychain file is locked with the employee's own password. Open source tools like [chainbreaker](https://github.com/n0fate/chainbreaker) read the file directly and decrypt every private key in it, exportable or not. macOS Tahoe 26.4 [raised the bar](https://eclecticlight.co/2026/10/02/how-to-copy-login-keychains-that-can-be-unlocked/): login keychains now also need a secret stored in a folder protected by System Integrity Protection (SIP), so the employee would have to turn SIP off first. (On Windows, the key stays in the TPM.) We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
+**Fleet with Okta.** Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, so the personal Mac passes. Fleet marks the key non-exportable, but macOS enforces that in software. The key sits in the login keychain, locked with the employee's own password, and open source tools like [chainbreaker](https://github.com/n0fate/chainbreaker) decrypt every key in that file, exportable or not. macOS Tahoe 26.4 [raised the bar](https://eclecticlight.co/2026/10/02/how-to-copy-login-keychains-that-can-be-unlocked/) by also requiring a secret protected by System Integrity Protection (SIP), so the employee would have to turn SIP off first. On Windows, the key stays in the TPM. We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
 
 **Jamf, or any MDM, with Okta management attestation.** Jamf installs a certificate from Okta in the login keychain, and Okta [recommends making it non-exportable](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm). A copy makes the personal Mac look managed. Okta's own posture checks, like OS version, do run on the personal Mac, so it has to pass those itself.
 
@@ -69,17 +65,17 @@ Is this a big deal? For most companies, no. The employee still needs a real, enr
 
 ## How to close the gap on a Mac
 
-**Keep Macs current, and require SIP.** On macOS 26.4 or later, copying the key means turning off SIP, and Fleet can block any Mac that does. Add this policy to conditional access:
+**Keep Macs on macOS 26.4 or later, and require SIP.** Copying the key then means turning SIP off, which this conditional access policy catches:
 
 ```sql
 SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
 ```
 
-An employee could turn SIP back on after copying the key, so this raises the bar rather than closing the gap.
+An employee could turn SIP back on afterward, so this raises the bar without closing the gap.
 
 **Use Entra with a Secure Enclave key.** If you're on Entra, deploy [Platform SSO with a Secure Enclave key](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet). It works with Jamf, Intune, or Fleet.
 
-**On Okta, FastPass is a partial fix.** [FastPass](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass) keeps its key in the Secure Enclave. That only helps if Okta blocks Okta Verify on personal Macs, and today Okta tells personal Macs apart using the same certificate an employee can copy. Until Okta can tell personal Macs apart without that certificate, it can't fully close this gap.
+**On Okta, FastPass only partly helps.** Okta Verify keeps its [FastPass](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass) key in the Secure Enclave, but Okta decides which Macs count as managed using the same certificate an employee can copy. Okta can't fully close this gap yet.
 
 ## Set it up
 
