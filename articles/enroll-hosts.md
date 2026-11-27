@@ -167,23 +167,22 @@ In the Google Admin console:
 
 ## Unenroll
 
-Unenroll a host when Fleet should stop managing it, for example when you repurpose the device or give it to an employee through a buyback program.
+Unenroll a host when Fleet should stop managing it.
 
-1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
+If you don't want the host in Fleet, for example when you give it to an employee through a buyback program, wipe the host to remove everything MDM related:
 
-2. If MDM is turned on, turn it off:
-  - Windows: Skip to step 3 (Uninstall Fleet's agent).
+1. Remove the host from automatic enrollment programs:
+  - For Apple Business (AB) hosts, [release](https://fleetdm.com/guides/apple-mdm-setup#release-a-host-from-apple-business) or reassign the device in AB.
+  - For Autopilot hosts, de-register the device from Windows Autopilot.
+2. On the **Host details** page, select **Actions > Wipe**.
+
+If you want the device to remain in Fleet, but want MDM features off:
+
+1. Turn MDM off for the host:
   - macOS: On the **Host details** page, select **Actions > Turn off MDM**.
   - iOS/iPadOS and personal (BYOD) Android: On the **Host details** page, select **Actions > Unenroll**.
-  - Company-owned Android: On the **Host details** page, select **Actions > Wipe**.
 
-3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
-
-4. For Apple Business (AB) hosts, release or reassign the device in AB.
-
-5. Select **Actions > Delete** to [delete the host](https://fleetdm.com/guides/enroll-hosts#delete-a-host) from Fleet.
-
-> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details.
+> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts and Android hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) and the [Android MDM setup guide](https://fleetdm.com/guides/android-mdm-setup#re-enrolling-android-hosts) for details. This functionality is coming soon for [Windows](https://github.com/fleetdm/fleet/issues/49581) and [Linux](https://github.com/fleetdm/fleet/issues/59923).
 
 ### Delete a host
 
