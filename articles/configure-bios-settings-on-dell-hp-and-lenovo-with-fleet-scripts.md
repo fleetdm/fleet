@@ -39,7 +39,6 @@ Navigate to **Controls** > **Scripts** and upload a script for each OEM. Before 
 `dell-bios-security-settings.ps1`:
 
 ```powershell
-# Default install path. Check it on one device first.
 $cctk = "${env:ProgramFiles(x86)}\Dell\Command Configure\X86_64\cctk.exe"
 $pw = '$FLEET_SECRET_BIOS_PASSWORD'
 
@@ -69,7 +68,8 @@ Dell doesn't have a single switch for USB boot. Instead, `--UefiBootPathSecurity
 $ErrorActionPreference = 'Stop'
 if (-not (Get-Module -ListAvailable -Name HPCMSL)) {
   Install-PackageProvider -Name NuGet -Force | Out-Null
-  Install-Module -Name HPCMSL -Force -AcceptLicense
+  Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+  Install-Module -Name HPCMSL -AcceptLicense
 }
 Import-Module HPCMSL
 $pw = '$FLEET_SECRET_BIOS_PASSWORD'
@@ -88,7 +88,7 @@ foreach ($name in $settings.Keys) {
 
 HP's setting names come from the [HP BIOS administration guide](https://kaas.hpcloud.hp.com/pdf-public/pdf_12904670_en-US-1.pdf), and they're case sensitive. `Virtualization Technology (VTx)` is for Intel models. Compare the values against your Step 1 report before you roll this out.
 
-CMSL doesn't run on Linux, and HP's [Linux tools](https://ftp.ext.hp.com/pub/caps-softpaq/cmit/linuxtools/HP_LinuxTools.html) are experimental and need Secure Boot turned off unless you sign their kernel module. The `hp-bioscfg` kernel driver uses the same sysfs interface as the Lenovo Linux script below, so you can adapt that script for HP and check the result with a policy (Step 3). Test it on one device first. Fleet is already used in production with HP hardware in healthcare, finance, and government, and this hasn't been a blocker there. If it matters for your fleet, [let us know](https://fleetdm.com/support).
+CMSL doesn't run on Linux, and HP's [Linux tools](https://ftp.ext.hp.com/pub/caps-softpaq/cmit/linuxtools/HP_LinuxTools.html) are experimental and need Secure Boot turned off unless you sign their kernel module. The `hp-bioscfg` kernel driver uses the same sysfs interface as the Lenovo Linux script below, with HP's setting names as folder names (for example, `attributes/Secure Boot`), so you can adapt that script for HP and check the result with a policy (Step 3). Test it on one device first. Fleet is already used in production with HP hardware in healthcare, finance, and government, and this hasn't been a blocker there. If it matters for your fleet, [let us know](https://fleetdm.com/support).
 
 ### Lenovo
 
@@ -110,7 +110,7 @@ Write-Output "Save -> $r"
 if ($r -ne 'Success') { exit 1 }
 ```
 
-The names come from Lenovo's [ThinkPad BIOS settings reference](https://docs.lenovocdrt.com/ref/bios/bios_guide/). Use `AmdVt` instead of `VirtualizationTechnology` on AMD models. Lenovo doesn't have a USB boot or PXE boot switch either. The script turns off the UEFI IPv4 and IPv6 network stacks that network boot depends on, and USB boot is controlled through `BootOrder`.
+The names come from Lenovo's [ThinkPad BIOS settings reference](https://docs.lenovocdrt.com/ref/bios/bios_guide/). Use `AmdVt` instead of `VirtualizationTechnology` on AMD models. Lenovo doesn't have a USB boot or PXE boot switch either. The script turns off the UEFI IPv4 and IPv6 network stacks, which Lenovo's UEFI PXE boot runs on, and USB boot is controlled through `BootOrder`. Confirm with a test boot on one model before you roll it out.
 
 `lenovo-bios-security-settings.sh`, based on Lenovo's [ThinkLMI guide](https://download.lenovo.com/pccbbs/mobiles_pdf/lenovo_bios_setup_linux_wmi_sysfs_1.2.pdf):
 
@@ -137,9 +137,11 @@ Navigate to **Policies**, select your fleet, and add one policy per setting. A p
 SELECT 1 FROM wmi_bios_info WHERE name = 'VirtualizationTechnology' AND value = 'Enable';
 -- HP
 SELECT 1 FROM wmi_bios_info WHERE name = 'Network (PXE) Boot' AND value = 'Disable';
+-- Dell
+SELECT 1 FROM wmi_bios_info WHERE name = 'UefiNwStack' AND value = 'Disabled';
 ```
 
-Dell works the same way, with the names your Step 1 report returns.
+On most Dell models from 2018 on, the names match the `cctk` options. Older Dell PCs with Dell Command | Monitor report different names and values, so check your Step 1 report.
 
 Secure Boot has its own table, [`secureboot`](https://fleetdm.com/tables/secureboot), which works on Windows and Linux:
 

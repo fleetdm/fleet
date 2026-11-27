@@ -80,7 +80,8 @@ $hpia = 'C:\ProgramData\HP\HPIA'
 
 if (-not (Get-Module -ListAvailable -Name HPCMSL)) {
   Install-PackageProvider -Name NuGet -Force | Out-Null
-  Install-Module -Name HPCMSL -Force -AcceptLicense
+  Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+  Install-Module -Name HPCMSL -AcceptLicense
 }
 if (-not (Test-Path "$hpia\HPImageAssistant.exe")) {
   Import-Module HPCMSL
