@@ -833,11 +833,14 @@ def check_software(ctx, fs, software):
                     ctx.fail(f, f"The single package format in \"{ctx.rel(f)}\" is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-upgrade")
                     continue
                 pkgs = data if isinstance(data, list) else [data]
+                multiple = len(pkgs) > 1
+                if multiple and any(entry.get(k) for k in LABEL_KEYS):
+                    ctx.fail(src, f"{what}: labels can be specified only in the package file when adding multiple packages of the same software")
                 for pkg in pkgs:
                     if not isinstance(pkg, dict):
                         ctx.fail(f, "package entries must be mappings")
                         continue
-                    check_package(ctx, f, pkg, fs)
+                    check_package(ctx, f, pkg, fs, entry, multiple)
     elif packages is not None:
         ctx.fail(src, "software.packages must be a list")
 
@@ -895,7 +898,7 @@ def check_software(ctx, fs, software):
         walk_paths(ctx, isrc, {k: v for k, v in item.items() if k in ("install_script", "uninstall_script", "post_install_script", "pre_install_query", "icon")}, what)
 
 
-def check_package(ctx, f, pkg, fs):
+def check_package(ctx, f, pkg, fs, team_level, multiple):
     url = pkg.get("url")
     h = pkg.get("hash_sha256")
     if not url and not h:
@@ -913,12 +916,20 @@ def check_package(ctx, f, pkg, fs):
             ctx.fail(f, f"{Path(lower).name}: .exe and .tar.gz packages require both install_script and uninstall_script")
     if pkg.get("always_download") and h:
         ctx.fail(f, "always_download can't be combined with hash_sha256")
-    for k in LABEL_KEYS:
-        if k in pkg:
-            ctx.fail(f, f"'{k}' belongs on the fleet file's packages entry, not in the package file")
-    for k in ("self_service", "setup_experience", "categories"):
-        if k in pkg:
-            ctx.fail(f, f"'{k}' belongs on the fleet file's packages entry, not in the package file")
+    check_bool(ctx, f, pkg, "self_service", "package")
+    check_bool(ctx, f, pkg, "setup_experience", "package")
+    check_categories(ctx, f, pkg, "package")
+    check_label_keys(ctx, f, pkg, "package", fs.name, "software")
+    # fleetctl gitops lets a package file carry these per version, but not when
+    # the fleet file's packages entry sets the same field.
+    if team_level.get("self_service") is True and pkg.get("self_service") is True:
+        ctx.fail(f, "self_service and categories can be specified either in the fleet-level file or in the package YAML file")
+    if team_level.get("categories") and pkg.get("categories"):
+        ctx.fail(f, "self_service and categories can be specified either in the fleet-level file or in the package YAML file")
+    if multiple and "setup_experience" in pkg:
+        ctx.fail(f, "setup_experience can be specified only in the fleet-level file")
+    if not multiple and any(team_level.get(k) for k in LABEL_KEYS) and any(pkg.get(k) for k in LABEL_KEYS):
+        ctx.fail(f, "labels can be specified either in the fleet-level file or in the package YAML file")
     walk_paths(ctx, f, pkg, "package")
 
 
