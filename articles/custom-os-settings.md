@@ -158,7 +158,7 @@ On Windows, Fleet delivers each user-scoped profile to one user per host. Fleet 
 - **Hosts enrolled through Microsoft Entra ID** (Windows Autopilot, Entra join, or **Settings > Accounts > Access work or school**): Fleet delivers user-scoped profiles after an Entra user signs in. Windows applies them to the Entra user who is signed in when Fleet delivers them. Entra users who sign in later don't receive profiles that Fleet already delivered. Local (non-Entra) accounts on the host never receive user-scoped profiles.
 - **Hosts enrolled by installing fleetd**: Windows ties the MDM enrollment to the local account that was signed in when MDM turned on. Only that account receives user-scoped profiles, and they stay **Pending** while that account isn't signed in. Other accounts on the host, including accounts created later, don't receive them. If an IT admin was signed in when MDM turned on, the IT admin's account receives the user-scoped profiles, not the end user's.
 
-> On hosts enrolled by installing fleetd, deleting the account and profile of the user that MDM was turned on for removes the host from MDM. Windows deletes the enrollment and reverts the settings Fleet applied, and Fleet still shows MDM as "On" for the host.
+> On hosts enrolled by installing fleetd, deleting the account and profile of the user that MDM was turned on for removes the host from MDM. Windows deletes the enrollment, stops enforcing the settings Fleet applied, and removes the certificates Fleet installed. Fleet still shows MDM as "On" for the host.
 
 How to deliver user-scoped configuration profiles:
 
