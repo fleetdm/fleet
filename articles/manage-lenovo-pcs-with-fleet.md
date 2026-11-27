@@ -2,7 +2,7 @@
 
 I'm one of those people who enjoys poking around in BIOS setup. I realize it's not a popular hobby, though if you clicked on a guide about Lenovo BIOS settings, you might be one too. So I was a little too pleased when companies moving off Intune prompted this question around what would happen to their BIOS settings.
 
-The BIOS is the small program that wakes a PC up before Windows or Linux does. It decides what the PC can start from, whether Secure Boot is on, and whether the TPM works. Secure Boot only lets trusted software start, and the TPM is a tiny chip that guards encryption keys. Your disk encryption and EDR (the security software that watches devices for attackers) both count on those answers. And like anything else, it needs patches. So the job is to keep the BIOS updated and its settings locked down. Lenovo makes tools for both, and Intune just runs them. Fleet can too, on Linux as well as Windows.
+The BIOS is the small program that wakes a PC up before Windows or Linux does. It decides what the PC can start from, whether Secure Boot is on, and whether the TPM works. Secure Boot only lets trusted software start, and the TPM is a tiny chip that guards encryption keys. Your disk encryption and EDR (the security software that watches devices for attackers) both depend on those settings being right, and like any software, the BIOS needs patches now and then. So the job is to keep the BIOS updated and its settings locked down. Lenovo makes tools for both, and Intune just runs them. Fleet can run them too, and covers Linux with open-source tools.
 
 ## Prerequisites
 
@@ -35,6 +35,8 @@ SELECT 1 FROM programs WHERE name = 'Lenovo System Update';
 ```
 
 On the **Policies** page, click the policy's **Automation** column, choose **Install software**, pick **Lenovo System Update**, and click **Save**.
+
+If your team prefers [Lenovo Commercial Vantage](https://docs.lenovocdrt.com/guides/lcv/deployment/), that works too. Upload it as a custom package with the install command `VantageInstaller.exe Install -Vantage -SuHelper` and manage it with [Lenovo's policies](https://docs.lenovocdrt.com/guides/lcv/configuration/).
 
 ### Add the update script
 
@@ -69,17 +71,15 @@ Other models pass automatically, so each policy only judges its own. Fleet doesn
 
 ### Connect the policy to the script
 
-Click each BIOS policy's **Automation** column, choose **Run script**, pick the script, and click **Save**. When a host first fails, Fleet runs the script, trying up to three times in all.
+Click each BIOS policy's **Automation** column, choose **Run script**, pick the script, and click **Save**. When a host starts failing, Fleet runs the script, and tries again up to twice if it doesn't work.
 
 > **Note:** Fleet stops a script after 300 seconds by default, and driver downloads can take longer. Raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in your agent options, for example to `1800`.
-
-If your team prefers [Lenovo Commercial Vantage](https://docs.lenovocdrt.com/guides/lcv/deployment/), that works too: upload it as a custom package with the install command `VantageInstaller.exe Install -Vantage -SuHelper` and manage it with [Lenovo's policies](https://docs.lenovocdrt.com/guides/lcv/configuration/).
 
 ## Step 3: Lock down BIOS settings
 
 An up-to-date BIOS still needs the right settings, or Secure Boot and the TPM are just good intentions. ThinkPads accept settings through [WMI](https://docs.lenovocdrt.com/ref/bios/wmi/wmi_guide/) (Windows' built-in way to read and change system settings), so a short script does the job with nothing extra to install. If you built a Think BIOS Config Tool setup for Intune, you can keep it, since the tool is a PowerShell module a Fleet script can run.
 
-Upload `lenovo-bios-security-settings.ps1`:
+Upload `lenovo-bios-security-settings.ps1`. It turns on Secure Boot, the TPM, and virtualization, and turns off the UEFI network stacks, which closes off network (PXE) boot:
 
 ```powershell
 $set = Get-WmiObject -Class Lenovo_SetBiosSetting -Namespace root\wmi
@@ -101,7 +101,7 @@ Following Lenovo's WMI guide, the script sets the values, then gives the passwor
 
 The setting names come from Lenovo's [ThinkPad BIOS settings reference](https://docs.lenovocdrt.com/ref/bios/bios_guide/). `SecurityChip` is Lenovo's name for the TPM. On AMD models, use `AmdVt` instead of `VirtualizationTechnology`. ThinkCentre and ThinkStation PCs use different names altogether.
 
-Lenovo has no single switch for USB or network boot. USB boot lives in `BootOrder`, which this script leaves alone. Network (PXE) boot, which lets a PC start from a server instead of its own disk, depends on the UEFI network stacks this script turns off. If your team reimages PCs over the network, that stops working, so try the script on one PC of each model first.
+Network (PXE) boot lets a PC start from a server instead of its own disk. If your team reimages PCs that way, it stops working once the network stacks are off, so try the script on one PC of each model first. Lenovo has no single switch for USB boot. It lives in `BootOrder`, which this script leaves alone.
 
 To check each setting, add a policy targeted at **Lenovo** that reads it from [`wmi_bios_info`](https://fleetdm.com/tables/wmi_bios_info):
 
@@ -121,14 +121,14 @@ SELECT 1 FROM tpm_info WHERE enabled = 1 AND activated = 1;
 
 Give these policies the settings script as a **Run script** automation, like in step 2. If someone changes a setting, the policy fails on its next run and Fleet changes it back. The supervisor password stops most changes before they happen, and the policy tidies up after anyone who gets past it.
 
-Last, keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), because BitLocker and a locked-down BIOS look out for each other. A surprise BitLocker recovery prompt can be the first sign that something in the startup chain changed. Before the help desk reads out a recovery key, have them check Fleet for a recent BIOS update or setting change, Secure Boot included. If nothing explains it, investigate before unlocking.
+Last, keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), because BitLocker notices when the startup chain changes. A surprise BitLocker recovery prompt can be the first sign that something in the startup chain changed. Before the help desk reads out a recovery key, have them check Fleet for a recent BIOS update or setting change, Secure Boot included. If nothing explains it, investigate before unlocking.
 
 ## Step 4: Do the same on Linux
 
 System Update, Commercial Vantage, and the Think BIOS Config Tool are Windows-only. Lenovo hasn't left Linux out, though. It just uses open-source tools there.
 
-- **Updates:** Lenovo firmware is [listed on the Linux Vendor Firmware Service](https://fwupd.org/lvfs/search?value=lenovo), and [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs it.
-- **Settings:** On its Linux-certified PCs from 2020 on, Lenovo supports changing BIOS settings through the kernel's `thinklmi` driver. See Lenovo's [ThinkLMI guide](https://download.lenovo.com/pccbbs/mobiles_pdf/lenovo_bios_setup_linux_wmi_sysfs_1.2.pdf).
+- For updates, Lenovo firmware is [listed on the Linux Vendor Firmware Service](https://fwupd.org/lvfs/search?value=lenovo), and [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs it.
+- For settings, on its Linux-certified PCs from 2020 on, Lenovo supports changing BIOS settings through the kernel's `thinklmi` driver. See Lenovo's [ThinkLMI guide](https://download.lenovo.com/pccbbs/mobiles_pdf/lenovo_bios_setup_linux_wmi_sysfs_1.2.pdf).
 
 Upload `linux-update-firmware.sh` and attach it to a copy of the BIOS version policy from step 2 with its platform set to Linux:
 
@@ -143,7 +143,7 @@ if [ "$rc" -eq 2 ]; then exit 0; fi
 exit "$rc"
 ```
 
-`lenovo-bios-security-settings.sh` sets most of the same settings through `thinklmi`:
+Then upload `lenovo-bios-security-settings.sh`, which sets most of the same settings through `thinklmi`:
 
 ```bash
 #!/bin/bash
