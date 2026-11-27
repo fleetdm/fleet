@@ -1,0 +1,1 @@
+- Fixed fleetd re-enrolling over and over when it couldn't save its node key (for example, after its install directory was removed while it was running). Each re-enroll created a new `fleet_enrolled` activity and webhook delivery. fleetd now exits instead of enrolling when its install directory is gone, and retries only the save when the save fails after enrolling.
