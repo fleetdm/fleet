@@ -223,6 +223,7 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 				Name:                 "macOS - App up to date",
 				Type:                 fleet.PolicyTypePatch,
 				PatchSoftwareTitleID: new(patchSoftwareTitleID),
+				SoftwareInstallerID:  new(uint(1)),
 			},
 		}
 	}
@@ -242,6 +243,18 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		ds.ClearPreInstallQueryForTitleFunc = func(ctx context.Context, teamID uint, titleID uint) error {
 			return nil
 		}
+		ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+			return true, nil
+		}
+		ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+			return &fleet.SoftwareTitle{ID: id, Packages: []fleet.SoftwareInstaller{{InstallerID: 1}}}, nil
+		}
+		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: id, Name: "team1"}, nil
+		}
+		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{InstallerID: id, TitleID: new(patchSoftwareTitleID), SoftwareTitle: "App"}, nil
+		}
 		return ds
 	}
 
@@ -256,7 +269,7 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 			created.PatchWhenClosed = true
 			return created, nil
 		}
-		opts := &TestServerOpts{}
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
 		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
 			return nil
@@ -265,6 +278,7 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
 			Type:                         &patchType,
 			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			AutomationType:               new(fleet.PolicyAutomationSoftware),
 			PatchWhenClosed:              true,
 			ContinuousAutomationsEnabled: true,
 		})
@@ -278,10 +292,11 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 	// continuous_automations_enabled=false with patch_when_closed=true is rejected on create too.
 	t.Run("create rejects disabling continuous automations", func(t *testing.T) {
 		ds := setupDS()
-		svc, baseCtx := newTestService(t, ds, nil, nil)
+		svc, baseCtx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
 			Type:                         &patchType,
 			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			AutomationType:               new(fleet.PolicyAutomationSoftware),
 			PatchWhenClosed:              true,
 			ContinuousAutomationsEnabled: false,
 		})
@@ -685,6 +700,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			Platform:             "darwin",
 			Type:                 fleet.PolicyTypePatch,
 			PatchSoftwareTitleID: new(patchSoftwareTitleID),
+			SoftwareInstallerID:  new(uint(1)),
 		}
 	}
 
@@ -707,6 +723,18 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 		}
 		ds.ClearPreInstallQueryForTitleFunc = func(ctx context.Context, teamID uint, titleID uint) error {
 			return nil
+		}
+		ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+			return true, nil
+		}
+		ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+			return &fleet.SoftwareTitle{ID: id, Packages: []fleet.SoftwareInstaller{{InstallerID: 1}}}, nil
+		}
+		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: id, Name: "team1"}, nil
+		}
+		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{InstallerID: id, TitleID: new(patchSoftwareTitleID), SoftwareTitle: "App"}, nil
 		}
 		return ds
 	}
@@ -737,6 +765,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				payload: fleet.NewTeamPolicyPayload{
 					Type:                         &patchType,
 					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					AutomationType:               new(fleet.PolicyAutomationSoftware),
 					PatchWhenClosed:              true,
 					NotifyBeforePatching:         true,
 					ContinuousAutomationsEnabled: true,
@@ -749,6 +778,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				payload: fleet.NewTeamPolicyPayload{
 					Type:                         &patchType,
 					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					AutomationType:               new(fleet.PolicyAutomationSoftware),
 					NotifyBeforePatching:         true,
 					ContinuousAutomationsEnabled: true,
 				},
@@ -760,6 +790,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				payload: fleet.NewTeamPolicyPayload{
 					Type:                 &patchType,
 					PatchSoftwareTitleID: new(patchSoftwareTitleID),
+					AutomationType:       new(fleet.PolicyAutomationSoftware),
 					NotifyBeforePatching: true,
 				},
 				wantErr: `If "notify_before_patching" is true, "continuous_automations_enabled" can't be set to false.`,
@@ -781,6 +812,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				payload: fleet.NewTeamPolicyPayload{
 					Type:                         &patchType,
 					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					AutomationType:               new(fleet.PolicyAutomationSoftware),
 					PatchWhenClosed:              true,
 					PatchDeadline:                true,
 					ContinuousAutomationsEnabled: true,
@@ -793,6 +825,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				payload: fleet.NewTeamPolicyPayload{
 					Type:                         &patchType,
 					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					AutomationType:               new(fleet.PolicyAutomationSoftware),
 					NotifyBeforePatching:         true,
 					PatchDeadline:                true,
 					ContinuousAutomationsEnabled: true,
@@ -805,6 +838,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				payload: fleet.NewTeamPolicyPayload{
 					Type:                         &patchType,
 					PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+					AutomationType:               new(fleet.PolicyAutomationSoftware),
 					PatchDeadline:                true,
 					ContinuousAutomationsEnabled: true,
 				},
@@ -816,6 +850,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 				payload: fleet.NewTeamPolicyPayload{
 					Type:                 &patchType,
 					PatchSoftwareTitleID: new(patchSoftwareTitleID),
+					AutomationType:       new(fleet.PolicyAutomationSoftware),
 					PatchDeadline:        true,
 				},
 				wantErr: `If "patch_deadline" is true, "continuous_automations_enabled" can't be set to false.`,
@@ -824,7 +859,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 
 		for _, c := range cases {
 			ds := setupDS(c.installerPlatform)
-			svc, baseCtx := newTestService(t, ds, nil, nil)
+			svc, baseCtx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 			_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, c.payload)
 			require.Error(t, err, c.name)
 			require.ErrorContains(t, err, c.wantErr, c.name)
@@ -924,7 +959,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			created.NotifyBeforePatching = true
 			return created, nil
 		}
-		opts := &TestServerOpts{}
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
 		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
 			return nil
@@ -933,6 +968,7 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
 			Type:                         &patchType,
 			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			AutomationType:               new(fleet.PolicyAutomationSoftware),
 			NotifyBeforePatching:         true,
 			ContinuousAutomationsEnabled: true,
 		})
@@ -975,19 +1011,34 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			name           string
 			payload        fleet.ModifyPolicyPayload
 			wantContinuous bool
+			wantErr        string
 		}{
 			{
 				name:           "continuous omitted keeps the stored value",
-				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false)},
+				payload:        fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false), ForcePatch: new(true)},
 				wantContinuous: true,
 			},
 			{
 				name: "explicit false is honored once the flag is off",
 				payload: fleet.ModifyPolicyPayload{
 					NotifyBeforePatching:         new(false),
+					ForcePatch:                   new(true),
 					ContinuousAutomationsEnabled: new(false),
 				},
 				wantContinuous: false,
+			},
+			{
+				name:    "notify_before_patching false without another patch option returns an error",
+				payload: fleet.ModifyPolicyPayload{NotifyBeforePatching: new(false)},
+				wantErr: `If "automation_type" is "software", one of`,
+			},
+			{
+				name: "notify_before_patching false and continuous false without another patch option returns an error",
+				payload: fleet.ModifyPolicyPayload{
+					NotifyBeforePatching:         new(false),
+					ContinuousAutomationsEnabled: new(false),
+				},
+				wantErr: `If "automation_type" is "software", one of`,
 			},
 		}
 
@@ -1011,6 +1062,11 @@ func TestTeamPolicyNotifyBeforePatching(t *testing.T) {
 			}
 
 			_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, c.payload)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr, c.name)
+				assert.Nil(t, saved, c.name)
+				continue
+			}
 			require.NoError(t, err, c.name)
 			require.NotNil(t, saved, c.name)
 			assert.False(t, saved.NotifyBeforePatching, c.name)

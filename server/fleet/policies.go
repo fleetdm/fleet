@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -88,6 +89,8 @@ type PolicyPayload struct {
 	NotifyBeforePatching bool
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool
+	// ForcePatch installs the patch even while the app is open.
+	ForcePatch bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -145,6 +148,8 @@ type NewTeamPolicyPayload struct {
 	NotifyBeforePatching bool
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool
+	// ForcePatch installs the patch even while the app is open.
+	ForcePatch bool
 }
 
 var (
@@ -209,7 +214,10 @@ func (p PolicyPayload) Verify() error {
 	if p.PatchDeadline && p.Type != PolicyTypePatch {
 		return errPolicyPatchDeadlineRequiresPatch
 	}
-	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+	if p.ForcePatch && p.Type != PolicyTypePatch {
+		return errPolicyForcePatchRequiresPatch
+	}
+	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline, p.ForcePatch) {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
@@ -451,6 +459,8 @@ type ModifyPolicyPayload struct {
 	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline *bool `json:"patch_deadline" premium:"true"`
+	// ForcePatch installs the patch even while the app is open.
+	ForcePatch *bool `json:"force_patch" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -463,6 +473,9 @@ func (p ModifyPolicyPayload) Verify() error {
 	}
 	if p.PatchDeadline != nil && *p.PatchDeadline && p.Type != PolicyTypePatch {
 		return errPolicyPatchDeadlineRequiresPatch
+	}
+	if ptr.ValOrZero(p.ForcePatch) && p.Type != PolicyTypePatch {
+		return errPolicyForcePatchRequiresPatch
 	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {

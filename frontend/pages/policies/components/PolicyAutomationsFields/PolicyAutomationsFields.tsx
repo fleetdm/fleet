@@ -166,6 +166,7 @@ const PolicyAutomationsFields = forwardRef<
 
     const initialAutomation = policy.automation_type ?? null;
     const initialContinuous = policy.continuous_automations_enabled ?? false;
+    const initialForcePatch = policy.force_patch ?? false;
     const initialPatchWhenClosed = policy.patch_when_closed ?? false;
     const initialNotifyBeforePatching = policy.notify_before_patching ?? false;
     const initialPatchDeadline = policy.patch_deadline ?? false;
@@ -189,6 +190,10 @@ const PolicyAutomationsFields = forwardRef<
         ? false
         : initialContinuous
     );
+    const forcePatch =
+      patchOption !== undefined
+        ? patchOption === "force" && endUserExperience === "immediate"
+        : initialForcePatch;
     const patchWhenClosed = patchOption
       ? patchOption === "closed"
       : initialPatchWhenClosed;
@@ -444,7 +449,8 @@ const PolicyAutomationsFields = forwardRef<
         const isProfile = effectiveAutomation === "configuration_profile";
         const patchFlagsChanged =
           patchOption !== undefined &&
-          (patchWhenClosed !== initialPatchWhenClosed ||
+          (forcePatch !== initialForcePatch ||
+            patchWhenClosed !== initialPatchWhenClosed ||
             notifyBeforePatching !== initialNotifyBeforePatching ||
             patchDeadline !== initialPatchDeadline);
         const isDirty =
@@ -482,6 +488,10 @@ const PolicyAutomationsFields = forwardRef<
             ...(!isGlobalPolicy && {
               continuous_automations_enabled: effectiveContinuousEnabled,
             }),
+            ...(patchOption !== undefined &&
+              forcePatch !== initialForcePatch && {
+                force_patch: forcePatch,
+              }),
             ...(patchOption !== undefined &&
               patchWhenClosed !== initialPatchWhenClosed && {
                 patch_when_closed: patchWhenClosed,

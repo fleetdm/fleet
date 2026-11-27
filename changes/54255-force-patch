@@ -1,0 +1,2 @@
+- Added a `force_patch` option and deprecated `install_software` for patch policies.
+- Fixed a bug where removing a patch policy's automation did not clear out its patch option, which caused an error when turning the automation back on with a different option.
