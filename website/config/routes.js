@@ -480,6 +480,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /search': {
+    action: 'view-search',
+    locals: {
+      pageTitleForMeta: 'Search',
+      pageDescriptionForMeta: 'Search Fleet\'s documentation, handbook, guides, and articles.',
+    }
+  },
+
   'GET /integrations': {
     action: 'docs/view-integrations-directory',// Meta title set in view action
     locals: {

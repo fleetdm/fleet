@@ -530,6 +530,9 @@ module.exports.custom = {
   // usageStatisticsServiceAccountPrivateKey: '…',
   // usageStatisticsSpreadsheetId: '…',
 
+  // Website search (Vertex AI Search in the "fleetdm-website" GCP project)
+  // googleSearchGcpServiceAccountKey: undefined,// The parsed JSON service account key.
+
   // For receive-from-customer-fleet-instance webhook.
   // customerWorkspaceOneBaseUrl: '…',
   // customerWorkspaceOneOauthId: '…',

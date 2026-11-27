@@ -1175,6 +1175,7 @@
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/search.page.js"></script>
     <script src="/js/pages/security-and-control.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
@@ -1460,7 +1461,7 @@
       })();
     </script>
     <script>
-      // Sends search queries to a scoped Google search. (Searches from the handbook are scoped to /handbook.)
+      // Sends search queries to the website's search results page.
       document.addEventListener('submit', function(event) {
         var form = event.target.closest('form[purpose="google-search"]');
         if (!form) { return; }
@@ -1468,8 +1469,7 @@
         var input = form.querySelector('input');
         var searchQuery = (input ? input.value : '').trim();
         if (!searchQuery) { return; }
-        var searchScope = /^\/handbook(\/|$)/.test(window.location.pathname) ? 'site:fleetdm.com/handbook ' : 'site:fleetdm.com ';
-        window.open('https://www.google.com/search?q=' + encodeURIComponent(searchScope + searchQuery), '_blank', 'noopener');
+        window.location = '/search?q=' + encodeURIComponent(searchQuery);
       });
     </script>
     <% if (sails.config.environment === 'production') { %>
