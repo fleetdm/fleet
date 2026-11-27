@@ -653,10 +653,6 @@ func orbitAction(c *cli.Context) error {
 		return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 	}
 
-	if runtime.GOOS == "windows" && enrollSecretPath != "" {
-		restrictEnrollSecretFile(enrollSecretPath)
-	}
-
 	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored.
 	loadedMDMSecret := loadMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
 
@@ -1000,6 +996,10 @@ func orbitAction(c *cli.Context) error {
 	// the Linux process shows its name while the server is unreachable.
 	if runtime.GOOS == "linux" {
 		update.ApplyRememberedAgentNames(c.String("root-dir"))
+	}
+
+	if runtime.GOOS == "windows" && enrollSecretPath != "" {
+		restrictEnrollSecretFile(enrollSecretPath)
 	}
 
 	// Clear leftover files from updates

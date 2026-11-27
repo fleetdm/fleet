@@ -167,4 +167,5 @@ func TestWindowsInstallerUtilsSecretFileACL(t *testing.T) {
 	assert.Contains(t, fn, `"D:PAI(A;;FA;;;SY)(A;;FA;;;BA)"`, "same DACL as a bundled secret.txt")
 	assert.Equal(t, 1, strings.Count(fn, "Set-Content"))
 	assert.Contains(t, fn, "[System.IO.File]::Create($targetSecretFile, 4096, [System.IO.FileOptions]::None, $secretFileSecurity)")
+	assert.NotContains(t, fn, "catch", "a failure to set the DACL must stop the install, not be swallowed")
 }
