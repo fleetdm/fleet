@@ -2189,6 +2189,9 @@ func testListSoftwareTitlesVulnerableFilterFleetScope(t *testing.T, ds *Datastor
 		CVE:        cve,
 	}, fleet.NVDSource)
 	require.NoError(t, err)
+	require.NoError(t, ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{CVE: cve, CVSSScore: new(9.0), CISAKnownExploit: new(true)},
+	}))
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
@@ -2208,18 +2211,28 @@ func testListSoftwareTitlesVulnerableFilterFleetScope(t *testing.T, ds *Datastor
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			for _, opts := range []fleet.SoftwareTitleListOptions{
-				{TeamID: c.teamID, VulnerableOnly: true},
-				{TeamID: c.teamID, ListOptions: fleet.ListOptions{MatchQuery: cve}},
-			} {
-				titles, count, _, err := ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{User: globalUser})
+			checks := []struct {
+				name string
+				opts fleet.SoftwareTitleListOptions
+				want []string
+			}{
+				{"vulnerable", fleet.SoftwareTitleListOptions{VulnerableOnly: true}, c.want},
+				{"known exploit", fleet.SoftwareTitleListOptions{VulnerableOnly: true, KnownExploit: true}, c.want},
+				{"CVSS range", fleet.SoftwareTitleListOptions{VulnerableOnly: true, MinimumCVSS: 8, MaximumCVSS: 10}, c.want},
+				{"CVE search", fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{MatchQuery: cve}}, c.want},
+				// A search by name still finds the title where its vulnerable version isn't installed.
+				{"name search", fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{MatchQuery: "foo"}}, []string{"foo"}},
+			}
+			for _, check := range checks {
+				check.opts.TeamID = c.teamID
+				titles, count, _, err := ds.ListSoftwareTitles(ctx, check.opts, fleet.TeamFilter{User: globalUser})
 				require.NoError(t, err)
 				names := make([]string, 0, len(titles))
 				for _, title := range titles {
 					names = append(names, title.Name)
 				}
-				require.ElementsMatch(t, c.want, names, "vulnerable=%t query=%q", opts.VulnerableOnly, opts.ListOptions.MatchQuery)
-				require.Equal(t, len(c.want), count)
+				require.ElementsMatch(t, check.want, names, check.name)
+				require.Equal(t, len(check.want), count, check.name)
 			}
 		})
 	}
