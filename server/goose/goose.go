@@ -46,15 +46,15 @@ func Run(command string, db *sql.DB, dir string, args ...string) error {
 			return err
 		}
 	case "create":
-		if len(args) == 0 {
-			return errors.New("create must be of form: goose [OPTIONS] DRIVER DBSTRING create NAME [go|sql]")
+		if len(args) < 2 {
+			return errors.New(`create must be of form: goose [OPTIONS] create NAME "Sentence case title" [go|sql]`)
 		}
 
 		migrationType := "go"
-		if len(args) == 2 {
-			migrationType = args[1]
+		if len(args) == 3 {
+			migrationType = args[2]
 		}
-		if err := Create(db, dir, args[0], migrationType); err != nil {
+		if err := Create(db, dir, args[0], args[1], migrationType); err != nil {
 			return err
 		}
 	case "down":

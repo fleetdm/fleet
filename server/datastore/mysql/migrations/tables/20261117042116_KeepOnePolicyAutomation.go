@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261117042116, Down_20261117042116)
+	MigrationClient.AddMigration("Keep at most one automation per policy", Up_20261117042116, Down_20261117042116)
 }
 
 // Up_20261117042116 leaves each policy with at most one automation, keeping the first in this order: conditional

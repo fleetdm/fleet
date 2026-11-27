@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261111191405, Down_20261111191405)
+	MigrationClient.AddMigration("Allow labels in different fleets to share names", Up_20261111191405, Down_20261111191405)
 }
 
 func Up_20261111191405(tx *sql.Tx) error {

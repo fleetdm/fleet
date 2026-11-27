@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261118193608, Down_20261118193608)
+	MigrationClient.AddMigration("Add host, profile, and CA scope to challenges", Up_20261118193608, Down_20261118193608)
 }
 
 func Up_20261118193608(tx *sql.Tx) error {

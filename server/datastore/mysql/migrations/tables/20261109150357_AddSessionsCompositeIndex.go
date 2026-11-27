@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261109150357, Down_20261109150357)
+	MigrationClient.AddMigration("Index sessions by user and last access time", Up_20261109150357, Down_20261109150357)
 }
 
 func Up_20261109150357(tx *sql.Tx) error {

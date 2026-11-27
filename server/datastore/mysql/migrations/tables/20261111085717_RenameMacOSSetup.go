@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261111085717, Down_20261111085717)
+	MigrationClient.AddMigration("Rename macOS setup settings to setup experience", Up_20261111085717, Down_20261111085717)
 }
 
 // macOSSetupRenames are the stored setup experience settings renamed for Fleet 5. Parent is the dot path of the object

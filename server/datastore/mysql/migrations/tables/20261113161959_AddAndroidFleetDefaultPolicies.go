@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261113161959, Down_20261113161959)
+	MigrationClient.AddMigration("Add Android fleet default policies", Up_20261113161959, Down_20261113161959)
 }
 
 // Up_20261113161959 tracks the per-fleet Android default policies that enrollment tokens point at.

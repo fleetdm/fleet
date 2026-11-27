@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261105133221, Down_20261105133221)
+	MigrationClient.AddMigration("Rename Windows MDM settings", Up_20261105133221, Down_20261105133221)
 }
 
 // windowsMDMConfigKeyRenames are the Windows MDM settings renamed to start with the platform and include "mdm".

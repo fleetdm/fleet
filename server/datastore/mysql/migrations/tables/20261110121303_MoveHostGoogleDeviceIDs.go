@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261110121303, Down_20261110121303)
+	MigrationClient.AddMigration("Move host Google device IDs to Google conditional access devices", Up_20261110121303, Down_20261110121303)
 }
 
 func Up_20261110121303(tx *sql.Tx) error {

@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261117171906, Down_20261117171906)
+	MigrationClient.AddMigration("Drop unused tables", Up_20261117171906, Down_20261117171906)
 }
 
 func Up_20261117171906(tx *sql.Tx) error {

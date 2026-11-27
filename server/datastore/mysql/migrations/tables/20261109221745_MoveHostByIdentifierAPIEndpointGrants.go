@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261109221745, Down_20261109221745)
+	MigrationClient.AddMigration("Move get host by identifier API endpoint grants to the get host endpoint", Up_20261109221745, Down_20261109221745)
 }
 
 // Up_20261106154955 moves the API-only user grants of the removed GET /hosts/identifier/:identifier to GET /hosts/:id, which now takes

@@ -79,8 +79,8 @@ func main() {
 
 func updateMigrationCode(migrationsDir, migrationFilename, testFilename, oldTimestamp, newTimestamp string) error {
 	migrationReplacer := strings.NewReplacer(
-		fmt.Sprintf("MigrationClient.AddMigration(Up_%s, Down_%s)", oldTimestamp, oldTimestamp),
-		fmt.Sprintf("MigrationClient.AddMigration(Up_%s, Down_%s)", newTimestamp, newTimestamp),
+		fmt.Sprintf("Up_%s, Down_%s)", oldTimestamp, oldTimestamp),
+		fmt.Sprintf("Up_%s, Down_%s)", newTimestamp, newTimestamp),
 		fmt.Sprintf("func Up_%s(tx *sql.Tx)", oldTimestamp),
 		fmt.Sprintf("func Up_%s(tx *sql.Tx)", newTimestamp),
 		fmt.Sprintf("func Down_%s(tx *sql.Tx)", oldTimestamp),

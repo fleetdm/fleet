@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261109113017, Down_20261109113017)
+	MigrationClient.AddMigration("Remove built-in label targets from reports", Up_20261109113017, Down_20261109113017)
 }
 
 // Built-in labels are no longer valid report targets. Removing them intentionally changes which

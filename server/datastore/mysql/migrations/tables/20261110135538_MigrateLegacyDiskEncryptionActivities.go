@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261110135538, Down_20261110135538)
+	MigrationClient.AddMigration("Convert legacy macOS disk encryption activities to edited disk encryption settings", Up_20261110135538, Down_20261110135538)
 }
 
 // Up_20261110135538 rewrites the enabled_macos_disk_encryption and disabled_macos_disk_encryption activities as

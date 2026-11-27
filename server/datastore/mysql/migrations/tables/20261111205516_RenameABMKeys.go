@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261111205516, Down_20261111205516)
+	MigrationClient.AddMigration("Rename Apple Business Manager settings to Apple Business", Up_20261111205516, Down_20261111205516)
 }
 
 var abmConfigKeyRenames = []struct{ Old, New string }{

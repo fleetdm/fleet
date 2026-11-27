@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261119154018, Down_20261119154018)
+	MigrationClient.AddMigration("Add the RPM epoch to software checksums", Up_20261119154018, Down_20261119154018)
 }
 
 var rpmEpochChecksumBatchSize = 1000

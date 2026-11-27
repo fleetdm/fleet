@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261113155615, Down_20261113155615)
+	MigrationClient.AddMigration("Remove the deprecated org logo URL settings", Up_20261113155615, Down_20261113155615)
 }
 
 // orgLogoURLKeyRemovals are the deprecated org_info logo URL keys and the mode-aware keys that replace them.

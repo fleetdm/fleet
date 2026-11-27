@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261113214109, Down_20261113214109)
+	MigrationClient.AddMigration("Drop the mdm_apple_installers table", Up_20261113214109, Down_20261113214109)
 }
 
 func Up_20261113214109(tx *sql.Tx) error {

@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261118222516, Down_20261118222516)
+	MigrationClient.AddMigration("Move live report by host identifier API endpoint grants to the host ID endpoint", Up_20261118222516, Down_20261118222516)
 }
 
 // Up_20261118222516 moves the API-only user grants of the removed POST /hosts/identifier/:identifier/query to POST /hosts/:id/query,

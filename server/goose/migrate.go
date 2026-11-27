@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 )
 
 var (
@@ -68,23 +69,29 @@ func (ms Migrations) String() string {
 	return str
 }
 
-// AddMigration adds a new go migration to the goose struct.
-func (c *Client) AddMigration(up func(*sql.Tx) error, down func(*sql.Tx) error) {
+// AddMigration adds a new go migration to the goose struct. title is logged when the migration runs.
+func (c *Client) AddMigration(title string, up func(*sql.Tx) error, down func(*sql.Tx) error) {
 	_, filename, _, _ := runtime.Caller(1)
 	v, _ := NumericComponent(filename)
-	migration := &Migration{Version: v, Next: -1, Previous: -1, UpFn: up, DownFn: down, Source: filename}
+	if strings.TrimSpace(title) == "" {
+		panic(fmt.Sprintf("goose: migration %d has no title", v))
+	}
+	migration := &Migration{Version: v, Title: title, Next: -1, Previous: -1, UpFn: up, DownFn: down, Source: filename}
 
 	c.Migrations = append(c.Migrations, migration)
 }
 
 // AddMigration exists for legacy support of the package global use of Goose.
 // Calling the AddMigration method on a Goose struct is the preferred method.
-func AddMigration(up func(*sql.Tx) error, down func(*sql.Tx) error) {
+func AddMigration(title string, up func(*sql.Tx) error, down func(*sql.Tx) error) {
 	// We can't just use globalGoose.AddMigration here because we need to
 	// correctly record the caller.
 	_, filename, _, _ := runtime.Caller(1)
 	v, _ := NumericComponent(filename)
-	migration := &Migration{Version: v, Next: -1, Previous: -1, UpFn: up, DownFn: down, Source: filename}
+	if strings.TrimSpace(title) == "" {
+		panic(fmt.Sprintf("goose: migration %d has no title", v))
+	}
+	migration := &Migration{Version: v, Title: title, Next: -1, Previous: -1, UpFn: up, DownFn: down, Source: filename}
 
 	globalGoose.Migrations = append(globalGoose.Migrations, migration)
 }

@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261112214846, Down_20261112214846)
+	MigrationClient.AddMigration("Rename viewed recovery lock password activities to read", Up_20261112214846, Down_20261112214846)
 }
 
 // The activity_type index keeps the UPDATE selective, and batching would not help because the migration runs in a single transaction.

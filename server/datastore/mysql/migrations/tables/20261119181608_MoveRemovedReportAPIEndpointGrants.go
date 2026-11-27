@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261119181608, Down_20261119181608)
+	MigrationClient.AddMigration("Move grants of removed report API endpoints to their replacements", Up_20261119181608, Down_20261119181608)
 }
 
 // Up_20261119181608 moves the API-only user grants of removed report endpoints to the endpoints that replace them. Dropping a grant

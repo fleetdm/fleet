@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261117195808, Down_20261117195808)
+	MigrationClient.AddMigration("Allow only one in-house app per title in each fleet", Up_20261117195808, Down_20261117195808)
 }
 
 const hostInHouseInstallsBatchSize = 1000

@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261111220456, Down_20261111220456)
+	MigrationClient.AddMigration("Widen the host MDM actions unlock PIN column", Up_20261111220456, Down_20261111220456)
 }
 
 func Up_20261111220456(tx *sql.Tx) error {

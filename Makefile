@@ -522,9 +522,10 @@ update-go-cloner:
 	go run ./tools/cloner-check/main.go --update
 
 .help-short--migration:
-	@echo "Create a database migration file (supply name=TheNameOfYourMigration)"
+	@echo "Create a database migration file (supply name=TheNameOfYourMigration title=\"Sentence case title\")"
 migration:
-	go run ./server/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
+	@if [ -z "$(name)" ] || [ -z "$(title)" ]; then echo 'Usage: make migration name=CamelCaseName title="Sentence case title"'; exit 1; fi
+	go run ./server/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name) "$(title)"
 	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
 .help-short--clean:

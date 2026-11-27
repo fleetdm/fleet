@@ -15,8 +15,10 @@ Also, note that we don't use the `Down` part of the migrations anymore (older mi
 From the project root, run the following shell command:
 
 ``` bash
-make migration name=NameOfMigration
+make migration name=NameOfMigration title="Sentence case title"
 ```
+
+The title is logged when the migration runs (for example, during `fleet prepare db`). Write it in sentence case and describe what the migration does, for example `title="Add an index on hosts platform"`. Only the first word, acronyms, and proper nouns are capitalized. The title is passed to `AddMigration` in the generated file.
 
 Now edit the generated migration file in [server/datastore/mysql/migrations/tables/](https://github.com/fleetdm/fleet/tree/97b4d1f3fb30f7b25991412c0b40327f93cb118c/server/datastore/mysql/migrations/tables).
 
