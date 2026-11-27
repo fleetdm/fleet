@@ -1,0 +1,1 @@
+- Improved file permissions set by the Windows fleetd installer that `fleetctl package` builds.

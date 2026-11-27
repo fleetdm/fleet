@@ -585,6 +585,22 @@ function Update-OrbitSecret {
   {
     Write-Host "Updating secret"
     $targetSecretFile = $Env:Programfiles + "\\Orbit\\secret.txt"
+
+    # Same DACL a secret.txt bundled in the package gets (see wix/transform.go), set before writing. A new file is created
+    # with it. An existing one is opened exclusively, without truncating it, while its DACL is replaced, so the change
+    # covers every open of the file. If any step throws, the install fails and the file keeps its contents.
+    $secretFileSecurity = New-Object System.Security.AccessControl.FileSecurity
+    $secretFileSecurity.SetSecurityDescriptorSddlForm("D:PAI(A;;FA;;;SY)(A;;FA;;;BA)", [System.Security.AccessControl.AccessControlSections]::Access)
+    if (Test-Path -LiteralPath $targetSecretFile) {
+      $existingSecretFile = [System.IO.File]::Open($targetSecretFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::None)
+      try {
+        [System.IO.File]::SetAccessControl($targetSecretFile, $secretFileSecurity)
+      } finally {
+        $existingSecretFile.Dispose()
+      }
+    } else {
+      [System.IO.File]::Create($targetSecretFile, 4096, [System.IO.FileOptions]::None, $secretFileSecurity).Dispose()
+    }
     Set-Content -NoNewline -Path $targetSecretFile -Value $updateSecret
 
     Start-Sleep -Milliseconds 1000

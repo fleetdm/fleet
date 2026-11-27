@@ -502,6 +502,20 @@ func moveDeliveredEnrollSecretToFile(secret string, clearDelivered func() error,
 	return nil
 }
 
+// restrictEnrollSecretFile gives the enroll secret file the permissions writeRestrictedFile uses. A missing file is a no-op and a
+// failure is only logged, so it never blocks enrollment.
+func restrictEnrollSecretFile(path string) {
+	if _, err := os.Stat(path); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Warn().Err(err).Msg("failed to restrict the enroll secret file")
+		}
+		return
+	}
+	if err := platform.ChmodRestrictFile(path); err != nil {
+		log.Warn().Err(err).Msg("failed to restrict the enroll secret file")
+	}
+}
+
 // writeRestrictedFile restricts the file before writing to it, so the contents are never on disk with inherited permissions.
 func writeRestrictedFile(path, contents string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constant.DefaultFileMode)
@@ -850,8 +864,15 @@ func orbitAction(c *cli.Context) error {
 	var updater *update.Updater
 	var updateRunner *update.Runner
 	var osqueryVersion string
+	// Each branch below calls this: after the early update check where there is one, and before anything that can retry forever.
+	restrictWindowsEnrollSecretFile := func() {
+		if runtime.GOOS == "windows" && enrollSecretPath != "" {
+			restrictEnrollSecretFile(enrollSecretPath)
+		}
+	}
 	switch {
 	case externalOsquerydPath != "":
+		restrictWindowsEnrollSecretFile()
 		log.Info().Msgf("orbit version: %s", build.Version)
 		log.Info().Msgf("running with externally managed osqueryd: %s", externalOsquerydPath)
 		if _, err := os.Stat(externalOsquerydPath); err != nil {
@@ -930,6 +951,8 @@ func orbitAction(c *cli.Context) error {
 
 		addSubsystem(&g, "update runner", updateRunner)
 
+		restrictWindowsEnrollSecretFile()
+
 		// if getting any of the targets fails, keep on
 		// retrying, the `updater.Get` method has built-in backoff functionality.
 		//
@@ -957,6 +980,7 @@ func orbitAction(c *cli.Context) error {
 		}
 	default:
 		log.Info().Msg("running with auto updates disabled")
+		restrictWindowsEnrollSecretFile()
 		updater = update.NewDisabled(opt)
 		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 		if err != nil {

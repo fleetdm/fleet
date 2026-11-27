@@ -4,9 +4,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	fleetclient "github.com/fleetdm/fleet/v4/client"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -189,6 +191,26 @@ func TestReadEnrollSecretFromFile(t *testing.T) {
 		require.Equal(t, "newsecret", ks.secret)
 		require.NoFileExists(t, path)
 	})
+}
+
+func TestRestrictEnrollSecretFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file modes don't reflect ACLs on Windows")
+	}
+
+	path := filepath.Join(t.TempDir(), "secret.txt")
+	require.NoError(t, os.WriteFile(path, []byte("mysecret"), 0o644))
+	restrictEnrollSecretFile(path)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(constant.DefaultFileMode), info.Mode().Perm())
+	b, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "mysecret", string(b))
+
+	missing := filepath.Join(t.TempDir(), "missing.txt")
+	restrictEnrollSecretFile(missing)
+	require.NoFileExists(t, missing)
 }
 
 func TestTryReadEnrollSecretFromKeystore(t *testing.T) {
