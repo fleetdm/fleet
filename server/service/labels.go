@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -771,7 +772,10 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	} else {
 		scopeFilter.TeamID = new(uint(0)) // filter to fetch global labels only
 	}
-	beforeApply, err := svc.ds.LabelsByName(ctx, regularSpecNames, scopeFilter)
+	// The before/after snapshots are read from the primary: a lagging replica would hide labels or memberships
+	// written moments earlier, dropping activities or logging spurious ones.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+	beforeApply, err := svc.ds.LabelsByName(primaryCtx, regularSpecNames, scopeFilter)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "look up labels before apply")
 	}
@@ -793,7 +797,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		if !ok || existing.LabelMembershipType != fleet.LabelMembershipTypeManual || spec.Hosts == nil {
 			continue
 		}
-		ids, err := svc.ds.LabelMembershipHostIDs(ctx, existing.ID)
+		ids, err := svc.ds.LabelMembershipHostIDs(primaryCtx, existing.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get pre-apply label host IDs")
 		}
@@ -809,7 +813,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	}
 
 	// Emit created/edited activities for regular specs that were applied.
-	afterApply, err := svc.ds.LabelsByName(ctx, regularSpecNames, scopeFilter)
+	afterApply, err := svc.ds.LabelsByName(primaryCtx, regularSpecNames, scopeFilter)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "look up labels after apply for activity")
 	}
@@ -827,7 +831,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			fieldsMatch := labelSpecMatchesLabel(spec, existing)
 			hostsMatch := true
 			if before, tracked := beforeHostIDs[spec.Name]; tracked {
-				after, err := svc.ds.LabelMembershipHostIDs(ctx, label.ID)
+				after, err := svc.ds.LabelMembershipHostIDs(primaryCtx, label.ID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "get post-apply label host IDs")
 				}
