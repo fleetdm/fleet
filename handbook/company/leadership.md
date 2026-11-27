@@ -177,7 +177,7 @@ Every job description page ends with a call to action that directs candidates to
 
 ### Communicating with applicants 
 
-At Fleet, we use the contact form to communicate with future team members. The DRI for receiving applications is the Head of People, whose team uses a confirmation message to acknowledge applications, then updates the HRIS sheet. In the initial response, candidates are advised that the contact form is the best way to apply or follow up and are encouraged to apply again for future roles if they don’t hear back within about a week.
+At Fleet, we use the contact form to communicate with future team members. The DRI for receiving applications is the Head of People, whose team uses a confirmation message to acknowledge applications, then adds them to the Fleet hiring dashboard so [hiring managers can review them](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member). In the initial response, candidates are advised that the contact form is the best way to apply or follow up and are encouraged to apply again for future roles if they don’t hear back within about a week.
 
 
 > **Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet?**
@@ -300,14 +300,7 @@ A completed open position entry should look something like this:
 
 ## Hiring a new team member
 
-Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process and coordinating hiring for all open positions: scheduling interviews, moving candidates through stages, keeping hiring managers and interviewers on track, handing candidates off, and creating each candidate's 🛸 Why hire document. Interview steps vary by role, but every position has a candidate tracker, provided by the Head of People, that is the source of truth for where candidates are in the process. Before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
-
-To start the interview process, the Head of People will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the candidate's 🛸 Why hire document as they move through the process. 
-
-> **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
-
-
-### Review applicants
+Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process and coordinating hiring for all open positions: handling all candidate communication, scheduling interviews, keeping hiring managers and interviewers on track, handing candidates off, and creating each candidate's 🛸 Why hire document. Hiring managers decide which inbound applicants enter the interview process. Interview steps vary by role, but every position has a candidate tracker, provided by the Head of People, that is the source of truth for where candidates are in the process. Before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
 
 Hiring managers review inbound applicants for their open positions in the [Fleet hiring dashboard](https://claude.ai/artifact/98Q2GyL2d3jFhpJHgnuMqY). The Head of People handles all candidate communication, including scheduling.
 
@@ -322,9 +315,13 @@ To review applicants:
    - **Save for later**: the applicant is not a fit for this opening, but should be considered for future roles. Add a short reason.
 5. Review new applicants at least [once a week] so that no applicant waits more than [X business days] for a decision.
 
-> Applicants who are already in a candidate tracker, or who are located in a country where [Fleet is unable to hire](https://fleetdm.com/handbook/company/leadership#incompatible-locations), are excluded from "To review" automatically.
+> Applicants who are already in a candidate tracker, or who are located in a country where [Fleet is unable to hire](https://fleetdm.com/handbook/company/leadership#hiring), are excluded from "To review" automatically.
 
 Hiring managers need **Contributor** access to the Fleet hiring dashboard and **edit** access to their position's candidate tracker. Ask the Head of People for access.
+
+To start the interview process, the Head of People will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the candidate's 🛸 Why hire document as they move through the process. 
+
+> **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
 
 ## Create a 30-60-90 day plan
