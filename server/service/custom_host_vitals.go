@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"golang.org/x/text/unicode/norm"
 )
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -256,7 +254,7 @@ func (svc *Service) UpsertCustomHostVitals(ctx context.Context, customHostVitals
 		if err := fleet.ValidateCustomHostVitalName(vital.Name); err != nil {
 			return ctxerr.Wrap(ctx, err, "validate custom host vital name")
 		}
-		key := norm.NFC.String(strings.ToLower(vital.Name))
+		key := fleet.CustomHostVitalNameKey(vital.Name)
 		if prev, ok := seen[key]; ok {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("custom_host_vitals",
 				fmt.Sprintf("duplicate custom host vital names: %q and %q must differ by more than letter case", prev, vital.Name)))
@@ -268,7 +266,7 @@ func (svc *Service) UpsertCustomHostVitals(ctx context.Context, customHostVitals
 		return nil
 	}
 
-	created, deleted, err := svc.ds.UpsertCustomHostVitals(ctx, customHostVitals)
+	created, renamed, deleted, err := svc.ds.UpsertCustomHostVitals(ctx, customHostVitals)
 	if err != nil {
 		if usedErr, ok := errors.AsType[*fleet.CustomHostVitalUsedError](err); ok {
 			return ctxerr.Wrap(ctx, &fleet.ConflictError{
@@ -289,6 +287,18 @@ func (svc *Service) UpsertCustomHostVitals(ctx context.Context, customHostVitals
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for custom host vital creation")
+		}
+	}
+	for _, vital := range renamed {
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeEditedCustomHostVital{
+				CustomHostVitalID:   vital.ID,
+				CustomHostVitalName: vital.Name,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for custom host vital edit")
 		}
 	}
 	for _, vital := range deleted {
