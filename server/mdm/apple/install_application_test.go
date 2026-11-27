@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
 	"howett.net/plist"
@@ -283,6 +284,33 @@ func TestSubstituteFleetVarsInAppConfig(t *testing.T) {
 		_, perr := plist.Unmarshal(got, &parsed)
 		require.NoError(t, perr)
 		require.Equal(t, "a&b<c", parsed["K"])
+	})
+
+	t.Run("custom host vital expanded for the host after Fleet variables", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			require.Equal(t, uint(42), hostID)
+			require.Contains(t, document, "<string>ABC123</string>")
+			return strings.ReplaceAll(document, "$FLEET_HOST_VITAL_7", "tag-1"), nil
+		}
+		vitalHost := host
+		vitalHost.HostID = 42
+		cfg := []byte(`<dict><key>S</key><string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string><key>V</key><string>$FLEET_HOST_VITAL_7</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, vitalHost)
+		require.NoError(t, err)
+		require.Equal(t, `<dict><key>S</key><string>ABC123</string><key>V</key><string>tag-1</string></dict>`, string(got))
+	})
+
+	t.Run("custom host vital without a value for the host is unresolvable", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}, MissingNames: []string{"Asset tag"}}
+		}
+		cfg := []byte(`<dict><key>V</key><string>$FLEET_HOST_VITAL_7</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		require.ErrorIs(t, err, ErrUnresolvableAppConfigVar)
+		require.EqualError(t, err, "Couldn't populate the custom host vital Asset tag ($FLEET_HOST_VITAL_7) because there's no value set for this host.")
+		require.Nil(t, got)
 	})
 
 	t.Run("multiple variables substituted independently", func(t *testing.T) {

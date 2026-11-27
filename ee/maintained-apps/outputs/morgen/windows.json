@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.1.4",
+      "version": "4.5.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Morgen %' AND publisher = 'Morgen AG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Morgen %' AND publisher = 'Morgen AG' AND version_compare(version, '4.1.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Morgen %' AND publisher = 'Morgen AG' AND version_compare(version, '4.5.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'morgen.exe');"
       },
-      "installer_url": "https://download.todesktop.com/210203cqcj00tw1/Morgen%20Setup%204.1.4%20-%20Build%20261111uasppv5l0-x64.exe",
+      "installer_url": "https://download.todesktop.com/210203cqcj00tw1/Morgen%20Setup%204.5.0%20-%20Build%20261125vlh0s0saz-x64.exe",
       "install_script_ref": "386fec11",
       "uninstall_script_ref": "31bc85e4",
-      "sha256": "d50242fbcb3e633ff381036a15bc008206c349967d0fd42cdfb5bb4e011aded8",
+      "sha256": "432db4add085d35defa50ce63fda28bc05e8d017a391e035cd0c5f96b8dc6545",
       "default_categories": [
         "Productivity"
       ]

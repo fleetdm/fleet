@@ -1,0 +1,1 @@
+- Fixed the "Vulnerable" filter and CVE search on the software inventory page listing titles whose only vulnerable version is installed in a different fleet.

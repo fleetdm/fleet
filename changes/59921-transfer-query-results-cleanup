@@ -1,0 +1,1 @@
+- Fixed moving hosts between fleets reading and locking every stored report result of every fleet report, which slowed transfers and blocked other hosts' report result writes.

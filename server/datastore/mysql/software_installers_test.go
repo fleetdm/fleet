@@ -6870,6 +6870,56 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 			return ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/msi")
 		})
 	})
+
+	t.Run("replacing the package clears the ETag", func(t *testing.T) {
+		const url = "https://example.com/gp?version=64&platform=windows"
+		var row struct {
+			ID        uint   `db:"id"`
+			TitleID   uint   `db:"title_id"`
+			StorageID string `db:"storage_id"`
+			Filename  string `db:"filename"`
+			Version   string `db:"version"`
+			ETag      string `db:"http_etag"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `
+				SELECT id, title_id, storage_id, filename, version, http_etag FROM software_installers
+				WHERE team_id = ? AND url = ? AND http_etag IS NOT NULL AND is_active = 1`, team1.ID, url)
+		})
+		update := func(file *fleet.TempFileReader, storageID string) {
+			require.NoError(t, ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+				InstallerID:     row.ID,
+				TitleID:         row.TitleID,
+				TeamID:          &team1.ID,
+				UserID:          user.ID,
+				InstallerFile:   file,
+				StorageID:       storageID,
+				Filename:        row.Filename,
+				Version:         row.Version,
+				InstallScript:   new(string),
+				PreInstallQuery: new(string),
+				SelfService:     new(false),
+				UninstallScript: new(string),
+			}))
+		}
+
+		// Editing metadata keeps the ETag.
+		update(nil, row.StorageID)
+		existing, err := ds.GetInstallerByTeamAndURL(ctx, &team1.ID, url)
+		require.NoError(t, err)
+		require.NotNil(t, existing)
+		assert.Equal(t, row.StorageID, existing.StorageID)
+		require.NotNil(t, existing.HTTPETag)
+		assert.Equal(t, row.ETag, *existing.HTTPETag)
+
+		// A new file keeps the URL but drops the ETag.
+		update(&fleet.TempFileReader{}, "replaced_hash")
+		existing, err = ds.GetInstallerByTeamAndURL(ctx, &team1.ID, url)
+		require.NoError(t, err)
+		require.NotNil(t, existing)
+		assert.Equal(t, "replaced_hash", existing.StorageID)
+		assert.Nil(t, existing.HTTPETag)
+	})
 }
 
 func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {

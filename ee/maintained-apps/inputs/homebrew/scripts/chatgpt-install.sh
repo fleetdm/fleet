@@ -186,6 +186,10 @@ relaunch_application() {
 }
 
 
+is_app_owner() {
+  [[ -n "$1" && "$1" != "root" && "$1" != "loginwindow" && "$1" != "_mbsetupuser" ]] && id -u "$1" >/dev/null 2>&1
+}
+
 # extract contents
 ditto -x -k "$INSTALLER_PATH" "$TMPDIR" || exit 1
 # copy to the applications folder
@@ -197,6 +201,14 @@ if [[ "$CURRENT_BUNDLE_ID" == "com.openai.codex" ]]; then
 	quit_and_track_application 'com.openai.codex' || exit 1
 elif [[ "$CURRENT_BUNDLE_ID" == "com.openai.chat" ]]; then
 	quit_and_track_application 'com.openai.chat' || exit 1
+fi
+# Preserve the existing user owner when updating a shared Mac.
+target_user=$(stat -f "%Su" "$APPDIR/ChatGPT.app" 2>/dev/null)
+if ! is_app_owner "$target_user"; then
+	target_user=$(stat -f "%Su" /dev/console)
+fi
+if ! is_app_owner "$target_user"; then
+	target_user=$(defaults read /Library/Preferences/com.apple.loginwindow lastUserName 2>/dev/null)
 fi
 if [ -d "$APPDIR/ChatGPT.app" ]; then
 	sudo mv "$APPDIR/ChatGPT.app" "$TMPDIR/ChatGPT.app.bkp" || exit $?
@@ -210,6 +222,15 @@ if ! sudo cp -R "$TMPDIR/ChatGPT.app" "$APPDIR"; then
 	fi
 	exit 1
 fi
+# Sparkle must be able to preserve bundle ownership, not just write its files.
+if is_app_owner "$target_user"; then
+	if ! sudo chown -R "$target_user":staff "$APPDIR/ChatGPT.app"; then
+		echo "Failed to assign ownership of ChatGPT.app to '$target_user'; its updater may request administrator authentication."
+	fi
+else
+	echo "No existing owner or logged-in (or last logged-in) user found; ChatGPT.app stays owned by root and its updater may request administrator authentication."
+fi
+
 # If the older app was running, open the new one in its place. Register it with
 # the user's LaunchServices first, or opening it by bundle ID fails.
 if [[ "$APP_WAS_RUNNING_com_openai_chat" == "1" ]]; then

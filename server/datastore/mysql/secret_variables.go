@@ -143,7 +143,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 	}
 
 	stmt, args, err := sqlx.In(`
-		SELECT name, value, updated_at
+		SELECT id, name, value, updated_at
 		FROM secret_variables
 		WHERE name IN (?)`, names)
 	if err != nil {

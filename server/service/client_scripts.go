@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -92,7 +93,7 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 }
 
 func (c *Client) pollForResult(id string) (*fleet.HostScriptResult, error) {
-	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", id)
+	verb, path := "GET", "/api/latest/fleet/scripts/results/"+url.PathEscape(id)
 	var result *fleet.HostScriptResult
 	for {
 		res, err := c.AuthenticatedDo(verb, path, "", nil)

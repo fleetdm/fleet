@@ -7,7 +7,7 @@
 #
 # Components checked:
 #   - com.fleetdm.orbit   (LaunchDaemon, runs orbit as root)
-#   - orbit               (process: /opt/orbit/bin/orbit/orbit)
+#   - Fleet (orbit)       (process: /opt/orbit/bin/orbit/Fleet or /opt/orbit/bin/orbit/orbit)
 #   - osqueryd            (process: spawned and managed by orbit, runs from an
 #                          app bundle under /opt/orbit/bin/osqueryd/macos-app/)
 #   - fleet-desktop       (process: optional, only present if packaged with
@@ -18,7 +18,7 @@
 # Sources:
 #   - LaunchDaemon:        /Library/LaunchDaemons/com.fleetdm.orbit.plist
 #                          (Label com.fleetdm.orbit, ProgramArguments
-#                          /opt/orbit/bin/orbit/orbit)
+#                          /opt/orbit/bin/orbit/Fleet or /opt/orbit/bin/orbit/orbit)
 #   - Install root:        /opt/orbit (orbit/CHANGELOG.md — installer paths)
 #   - Orbit symlink:       /usr/local/bin/orbit
 #   - Pkg receipt:         <identifier>.base.pkg, com.fleetdm.orbit.base.pkg by default
@@ -33,7 +33,7 @@
 #                              /var/log/orbit/orbit.stderr.log (set in the LaunchDaemon plist)
 #                            - osquery filesystem logger: /opt/orbit/osquery_log
 #                            - fleet-desktop: $HOME/Library/Logs/Fleet/fleet-desktop.log (per user)
-#   - Profile dumps:       /opt/orbit/profiles (pkill -USR1 orbit)
+#   - Profile dumps:       /opt/orbit/profiles (pkill -USR1 Fleet, or pkill -USR1 orbit)
 #
 # Also collects a lookback window (default 72h, override with LOOKBACK_HOURS env
 # var) of system events — reboots, installer activity, launchd job failures,

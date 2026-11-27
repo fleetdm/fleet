@@ -73,3 +73,20 @@
     font-size: $xx-small;
   }
 }
+
+// A link cell's tooltip is portaled to the body, outside the cell.
+.tooltip-truncated-cell-portal {
+  @include tooltip5-arrow-styles;
+
+  .truncated-tooltip {
+    @include tooltip-text;
+
+    .safari-hack {
+      height: 0px;
+    }
+  }
+
+  &.tooltip-break-on-word .truncated-tooltip {
+    word-break: normal;
+  }
+}

@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import Select, {
   components,
   MenuListProps,
@@ -33,31 +33,42 @@ declare module "react-select-5/dist/declarations/src/Select" {
   > {
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onClickSearchInput?: React.MouseEventHandler<HTMLInputElement>;
-    onBlurSearchInput?: React.FocusEventHandler<HTMLInputElement>;
+    forwardNavKey?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   }
 }
 
 const baseClass = "activity-type-dropdown";
 
+const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape", "Tab"]);
+
 type ICustomMenuListProps = MenuListProps<CustomOptionType, false>;
 
 const CustomMenuList = (props: ICustomMenuListProps) => {
   const { selectProps } = props;
-  const {
-    searchQuery,
-    onChangeSearchQuery,
-    onClickSearchInput,
-    onBlurSearchInput,
-  } = selectProps;
+  const { searchQuery, onChangeSearchQuery, forwardNavKey } = selectProps;
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Not autoFocus: react-select's componentDidUpdate refocuses its own input
+  // when the menu opens, which runs after autoFocus but before passive effects.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
   ) => {
-    onClickSearchInput && onClickSearchInput(event);
     inputRef.current?.focus();
     event.stopPropagation();
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // Typing must not reach react-select; nav keys are forwarded explicitly
+    // so option highlighting, selection and closing still work.
+    event.stopPropagation();
+    if (NAV_KEYS.has(event.key)) {
+      if (event.key !== "Tab") event.preventDefault();
+      forwardNavKey?.(event);
+    }
   };
 
   return (
@@ -70,13 +81,14 @@ const CustomMenuList = (props: ICustomMenuListProps) => {
           name="label-search-input"
           type="text"
           placeholder="e.g. wiped host"
-          onKeyDown={(event) => {
-            // Stops the parent dropdown from picking up on input keypresses
-            event.stopPropagation();
-          }}
+          aria-label="Search activity types"
+          autoComplete="off"
+          onKeyDown={handleKeyDown}
           onChange={onChangeSearchQuery}
           onClick={handleInputClick}
-          onBlur={onBlurSearchInput}
+          // react-select's menu mousedown handler would otherwise steal focus
+          // back to its hidden input.
+          onMouseDown={(event) => event.stopPropagation()}
         />
         <Icon name="search" />
       </div>
@@ -138,13 +150,35 @@ const ActivityTypeDropdown = ({
   const [menuIsOpen, setMenuIsOpen] = React.useState(false);
 
   const selectRef = useRef<SelectInstance<CustomOptionType, false>>(null);
-  const isSearchInputFocusedRef = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Focus moves into the search input while the menu is open, so react-select's
+  // blur can't be used to detect clicks outside.
+  useEffect(() => {
+    if (!menuIsOpen) return undefined;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setMenuIsOpen(false);
+        selectRef.current?.blur();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuIsOpen]);
+
+  // Covers every close path (selection, click outside, Escape, Tab, toggle).
+  useEffect(() => {
+    if (!menuIsOpen) setSearchQuery("");
+  }, [menuIsOpen]);
 
   const handleChange = (option: SingleValue<CustomOptionType>) => {
     if (option === null) return;
 
-    setSearchQuery("");
     onSelect(option.value !== "all" ? option.value : "");
+    setMenuIsOpen(false);
     selectRef.current?.blur();
   };
 
@@ -159,7 +193,7 @@ const ActivityTypeDropdown = ({
     if (e.key === "Escape") {
       setMenuIsOpen(false);
       selectRef.current?.blur();
-    } else if (e.key === "Tab" && !e.shiftKey) {
+    } else if (e.key === "Tab") {
       // Allow tabbing out of the component
       setMenuIsOpen(false);
       selectRef.current?.blur();
@@ -168,19 +202,22 @@ const ActivityTypeDropdown = ({
     }
   };
 
-  const onBlur = () => {
-    if (!isSearchInputFocusedRef.current) {
-      isSearchInputFocusedRef.current = false;
-      setMenuIsOpen(false);
-    }
-  };
-
-  const onClickSearchInput = () => {
-    isSearchInputFocusedRef.current = true;
-  };
-
-  const onBlurSearchInput = () => {
-    isSearchInputFocusedRef.current = false;
+  // Dispatches the key on react-select's hidden input so its own keydown
+  // handling (and onKeyDown above) runs.
+  const forwardNavKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // SelectInstance doesn't publicly type inputRef.
+    const hiddenInput = ((selectRef.current as unknown) as {
+      inputRef?: HTMLInputElement | null;
+    } | null)?.inputRef;
+    hiddenInput?.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: event.key,
+        code: event.code,
+        shiftKey: event.shiftKey,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
   };
 
   const toggleMenu = () => {
@@ -256,7 +293,7 @@ const ActivityTypeDropdown = ({
       name="activity-type-dropdown"
       label=""
     >
-      <div onClick={toggleMenu}>
+      <div onClick={toggleMenu} ref={wrapperRef}>
         <Select<CustomOptionType, false>
           ref={selectRef}
           classNamePrefix="activity-type-select"
@@ -270,15 +307,15 @@ const ActivityTypeDropdown = ({
             ValueContainer: CustomValueContainer,
           }}
           isSearchable={false}
+          // Tab closes the menu; it shouldn't also pick the highlighted option.
+          tabSelectsValue={false}
           value={getValue()}
           onChange={handleChange}
           searchQuery={searchQuery}
           noOptionsMessage={() => "No items match this search criteria."}
           onKeyDown={onKeyDown}
-          onBlur={onBlur}
           onChangeSearchQuery={onChangeSearchQuery}
-          onClickSearchInput={onClickSearchInput}
-          onBlurSearchInput={onBlurSearchInput}
+          forwardNavKey={forwardNavKey}
         />
       </div>
     </FormField>

@@ -266,7 +266,7 @@ module.exports.custom = {
     'server/api_endpoints/api_endpoints.yml': ['rachaelshaw', 'noahtalerman'],// « API endpoint display names in the Fleet UI (API-only users)
 
     // Fleet's internal IT and security (+dogfooding)
-    'it-and-security': ['allenhouchins'],
+    'it-and-security': ['allenhouchins', 'lukeheath'],
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],

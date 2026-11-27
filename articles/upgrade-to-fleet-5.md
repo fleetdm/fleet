@@ -1655,7 +1655,9 @@ GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
    - Repairing fleetd from the installer brings "Fleet osquery" back until fleetd renames it again.
    - On upgraded Fleet servers, the Software page keeps listing it as "Fleet osquery". New Fleet 5 servers list "Fleet".
 
-GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
+On macOS, the process name changes in a later release. You can get ready now by adding the new path, `/opt/orbit/bin/orbit/macos/stable/Fleet`, to your Full Disk Access profile. If you're using a custom channel such as `edge`, you need to set the path as `/opt/orbit/bin/orbit/macos/<channel>/Fleet`. Fleet's [sample profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/allow-fleetd-full-disk-access.mobileconfig) lists both the old and new paths, so you can deploy it before the change. fleetd only switches to the new name once your profile allows the new path, so it keeps Full Disk Access.
+
+GitHub issues: [#56803](https://github.com/fleetdm/fleet/issues/56803), [#59166](https://github.com/fleetdm/fleet/issues/59166)
 
 ### Older fleetd can't find the organization logo
 
@@ -1668,6 +1670,18 @@ GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 Update fleetd to 1.56.2 or later before you upgrade to Fleet 5.
 
 GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
+
+### Kolide launcher support removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Hosts could connect to Fleet with [Kolide's launcher](https://github.com/kolide/launcher) agent over gRPC | Removed. Hosts running launcher can't enroll, get config, run reports, or send results. |
+
+#### What to do
+
+If any hosts connect to Fleet with launcher, replace it with [fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) before you upgrade.
+
+GitHub pull request: [#59895](https://github.com/fleetdm/fleet/pull/59895)
 
 
 ## Fleet UI

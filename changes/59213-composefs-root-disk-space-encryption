@@ -1,0 +1,1 @@
+- On composefs (bootc) hosts, such as Chainguard OS, disk space and disk encryption are now read from the root filesystem at `/sysroot` instead of the read-only overlay at `/`.

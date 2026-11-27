@@ -56,6 +56,8 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
             const hostID = cellProps.row.original.host_id;
             return (
               <LinkCell
+                className="w400"
+                tooltipTruncate
                 value={cellProps.cell.value}
                 path={PATHS.HOST_DETAILS(hostID)}
               />

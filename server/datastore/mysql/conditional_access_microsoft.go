@@ -8,12 +8,20 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetcrypto "github.com/fleetdm/fleet/v4/server/platform/crypto"
 	"github.com/jmoiron/sqlx"
 )
 
 func (ds *Datastore) ConditionalAccessMicrosoftCreateIntegration(
 	ctx context.Context, tenantID string, proxyServerSecret string,
 ) error {
+	if ds.serverPrivateKey == "" {
+		return ctxerr.New(ctx, "server private key is required for conditional access encryption")
+	}
+	encryptedSecret, err := fleetcrypto.Encrypt([]byte(proxyServerSecret), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypt proxy server secret")
+	}
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		// Currently only one global integration is supported, thus we need to delete the existing
 		// one before creating a new one.
@@ -24,7 +32,7 @@ func (ds *Datastore) ConditionalAccessMicrosoftCreateIntegration(
 		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO microsoft_compliance_partner_integrations (tenant_id, proxy_server_secret) VALUES (?, ?);`,
-			tenantID, proxyServerSecret,
+			tenantID, encryptedSecret,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting new microsoft_compliance_partner_integrations")
 		}
@@ -42,14 +50,53 @@ func (ds *Datastore) ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context
 	return nil
 }
 
-func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
-	return getConditionalAccessMicrosoft(ctx, ds.reader(ctx))
+// EncryptConditionalAccessSecrets encrypts any legacy cleartext proxy server
+// secrets. Call this once during server startup (after migrations) so the
+// read path can always assume encrypted data.
+func (ds *Datastore) EncryptConditionalAccessSecrets(ctx context.Context) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var row struct {
+			TenantID          string `db:"tenant_id"`
+			ProxyServerSecret []byte `db:"proxy_server_secret"`
+		}
+		err := sqlx.GetContext(ctx, tx, &row,
+			`SELECT tenant_id, proxy_server_secret FROM microsoft_compliance_partner_integrations LIMIT 1 FOR UPDATE;`,
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil // no integration configured
+			}
+			return ctxerr.Wrap(ctx, err, "reading conditional access secret for encryption backfill")
+		}
+		// If there's an integration configured, the server private key is required.
+		if ds.serverPrivateKey == "" {
+			return errors.New("FLEET_SERVER_PRIVATE_KEY is required when conditional access is configured")
+		}
+		if len(row.ProxyServerSecret) == 0 || row.ProxyServerSecret[0] == 0x01 {
+			return nil // already encrypted or empty
+		}
+		encrypted, err := fleetcrypto.Encrypt(row.ProxyServerSecret, ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "encrypting legacy proxy server secret")
+		}
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE microsoft_compliance_partner_integrations SET proxy_server_secret = ? WHERE tenant_id = ?`,
+			encrypted, row.TenantID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "backfilling encrypted proxy server secret")
+		}
+		return nil
+	})
 }
 
-func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
-	var integration fleet.ConditionalAccessMicrosoftIntegration
+func (ds *Datastore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+	var row struct {
+		TenantID          string `db:"tenant_id"`
+		ProxyServerSecret []byte `db:"proxy_server_secret"`
+		SetupDone         bool   `db:"setup_done"`
+	}
 	err := sqlx.GetContext(
-		ctx, q, &integration,
+		ctx, ds.reader(ctx), &row,
 		// Currently only one global integration is supported.
 		`SELECT tenant_id, proxy_server_secret, setup_done FROM microsoft_compliance_partner_integrations;`,
 	)
@@ -59,7 +106,15 @@ func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext) (
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting microsoft_compliance_partner_integrations")
 	}
-	return &integration, nil
+	secret, err := fleetcrypto.Decrypt(row.ProxyServerSecret, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting proxy server secret")
+	}
+	return &fleet.ConditionalAccessMicrosoftIntegration{
+		TenantID:          row.TenantID,
+		ProxyServerSecret: string(secret),
+		SetupDone:         row.SetupDone,
+	}, nil
 }
 
 func (ds *Datastore) ConditionalAccessMicrosoftDelete(ctx context.Context) error {

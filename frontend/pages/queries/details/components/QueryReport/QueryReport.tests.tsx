@@ -2,7 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import FileSaver from "file-saver";
 import React from "react";
 
-import { renderWithSetup } from "test/test-utils";
+import {
+  expectTruncationTooltip,
+  mockTruncatedTextLayout,
+  renderWithSetup,
+} from "test/test-utils";
 
 import QueryReport from "./QueryReport";
 
@@ -17,6 +21,10 @@ const tableProps = {
 };
 
 describe("QueryReport", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("Renders cell data normally when not longer than 300 chars", () => {
     const [isClipped, queryReport] = [
       false,
@@ -194,6 +202,29 @@ describe("QueryReport", () => {
         sortDirection: "desc",
       });
     });
+  });
+
+  it("Shows the full host name in a tooltip when it is truncated", async () => {
+    const longHostName = `DESKTOP-${"0123456789ABCDEF".repeat(8)}`;
+    mockTruncatedTextLayout();
+    const queryReport = {
+      report_id: 1,
+      results: [
+        {
+          host_id: 1,
+          host_name: longHostName,
+          last_fetched: "2021-01-01",
+          columns: { col1: "value1" },
+        },
+      ],
+      report_clipped: false,
+      count: 1,
+    };
+    const { user } = renderWithSetup(
+      <QueryReport queryId={1} {...tableProps} queryReport={queryReport} />
+    );
+
+    await expectTruncationTooltip(user, longHostName);
   });
 
   it("Exports every result with columns from the full export, not the page", async () => {

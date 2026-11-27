@@ -214,6 +214,7 @@ func TestHosts(t *testing.T) {
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
 		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
+		{"HostsAddToTeamQueryResultsCleanupLeavesOtherHosts", testHostsAddToTeamQueryResultsCleanupLeavesOtherHosts},
 		{"UpdateHostIssues", testUpdateHostIssues},
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 		{"GetHostEmails", testGetHostEmails},
@@ -471,6 +472,50 @@ func TestSaveHostPackStatsReadsPrimary(t *testing.T) {
 			`SELECT executions FROM scheduled_query_stats WHERE host_id = ? AND scheduled_query_id = ?`, host.ID, report.ID)
 	})
 	require.Equal(t, []uint64{3}, executions)
+}
+
+func TestGetOrInsertMDMSolutionDB(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	getOrInsert := func(serverURL string) uint {
+		var id uint
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			var err error
+			id, err = getOrInsertMDMSolutionDB(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
+			return err
+		})
+		require.NoError(t, err)
+		return id
+	}
+
+	t.Run("inserts when missing, then reuses", func(t *testing.T) {
+		id := getOrInsert("https://a.example.com")
+		require.NotZero(t, id)
+		require.Equal(t, id, getOrInsert("https://a.example.com"))
+		require.NotEqual(t, id, getOrInsert("https://b.example.com"))
+	})
+
+	t.Run("row committed after the transaction snapshot", func(t *testing.T) {
+		const serverURL = "https://stale.example.com"
+		tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+		require.NoError(t, err)
+		defer func() { _ = tx.Rollback() }()
+
+		// Fix the REPEATABLE READ snapshot before the row exists.
+		var count int
+		require.NoError(t, sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM mobile_device_management_solutions`))
+
+		res, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`,
+			fleet.WellKnownMDMFleet, serverURL)
+		require.NoError(t, err)
+		committedID, err := res.LastInsertId()
+		require.NoError(t, err)
+
+		id, err := getOrInsertMDMSolutionDB(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
+		require.NoError(t, err)
+		require.EqualValues(t, committedID, id)
+	})
 }
 
 func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
@@ -14547,6 +14592,87 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, query0Global.ID, hostStaticOnTeam1.PackStats[0].QueryStats[0].ScheduledQueryID)
 	require.Len(t, hostStaticOnTeam1.PackStats[1].QueryStats, 1)
 	require.Equal(t, query1Team1.ID, hostStaticOnTeam1.PackStats[1].QueryStats[0].ScheduledQueryID)
+}
+
+func testHostsAddToTeamQueryResultsCleanupLeavesOtherHosts(t *testing.T, ds *Datastore) {
+	for _, v := range []*int{&teamChangeQueryResultsHostBatchSize, &teamChangeQueryResultsPairsPerRead, &deleteQueryResultsBatchSize} {
+		orig := *v
+		t.Cleanup(func() { *v = orig })
+	}
+	// Small batches so the moved hosts and reports span several lookups and deletes.
+	teamChangeQueryResultsHostBatchSize = 2
+	teamChangeQueryResultsPairsPerRead = 3
+	deleteQueryResultsBatchSize = 2
+
+	ctx := t.Context()
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	newHost := func(i int) uint {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID: new(fmt.Sprintf("leave-other-hosts-%d", i)),
+			NodeKey:       new(fmt.Sprintf("leave-other-hosts-key-%d", i)),
+			TeamID:        &team1.ID,
+		})
+		require.NoError(t, err)
+		return h.ID
+	}
+	moved := make([]uint, 0, 5)
+	for i := range 5 {
+		moved = append(moved, newHost(i))
+	}
+	staying := newHost(5)
+
+	newQuery := func(name string, teamID *uint) uint {
+		q, err := ds.NewQuery(ctx, &fleet.Query{Name: name, Query: "SELECT 1", Saved: true, TeamID: teamID, Logging: fleet.LoggingSnapshot})
+		require.NoError(t, err)
+		return q.ID
+	}
+	globalQuery := newQuery("global", nil)
+	team1Queries := make([]uint, 0, 4)
+	for i := range 4 {
+		team1Queries = append(team1Queries, newQuery(fmt.Sprintf("team1-%d", i), &team1.ID))
+	}
+
+	write := func(ctx context.Context, queryID, hostID uint) error {
+		_, err := ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
+			{QueryID: queryID, HostID: hostID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "1"}`))},
+			{QueryID: queryID, HostID: hostID, LastFetched: time.Now(), Data: new(json.RawMessage(`{"v": "2"}`))},
+		}, fleet.DefaultMaxQueryReportRows, 0)
+		return err
+	}
+	for _, hostID := range append(slices.Clone(moved), staying) {
+		for _, queryID := range append(slices.Clone(team1Queries), globalQuery) {
+			require.NoError(t, write(ctx, queryID, hostID))
+		}
+	}
+	countRows := func(hostIDs []uint, queryIDs []uint) int {
+		stmt, args, err := sqlx.In(`SELECT COUNT(*) FROM query_results WHERE host_id IN (?) AND query_id IN (?)`, hostIDs, queryIDs)
+		require.NoError(t, err)
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &n, stmt, args...))
+		return n
+	}
+
+	// While a transfer is still open, a host that isn't moving keeps writing results for the same
+	// fleet reports.
+	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback() }()
+	require.NoError(t, cleanupQueryResultsOnTeamChange(ctx, tx, moved))
+	waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	for _, queryID := range team1Queries {
+		require.NoError(t, write(waitCtx, queryID, staying))
+	}
+	require.NoError(t, tx.Rollback())
+
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, moved)))
+	require.Zero(t, countRows(moved, team1Queries))
+	require.Equal(t, 2*len(moved), countRows(moved, []uint{globalQuery}))
+	require.Equal(t, 2*(len(team1Queries)+1), countRows([]uint{staying}, append(slices.Clone(team1Queries), globalQuery)))
 }
 
 func testUpdateHostIssues(t *testing.T, ds *Datastore) {

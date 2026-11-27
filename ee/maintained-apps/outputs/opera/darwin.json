@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "140.0",
+      "version": "141.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '140.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.operasoftware.Opera' AND version_compare(bundle_short_version, '141.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%/', a.bundle_identifier, '.code_sign_clone/%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = 'com.operasoftware.Opera' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/140.0.6074.36/mac/Opera_140.0.6074.36_Setup.dmg",
+      "installer_url": "https://get.geo.opera.com/pub/opera/desktop/141.0.6089.28/mac/Opera_141.0.6089.28_Setup.dmg",
       "install_script_ref": "6278c40f",
       "uninstall_script_ref": "e6c2a682",
-      "sha256": "179fb0e479a8fa042c30f62ed82e2c1d9848fad29b56d24a6fd23ae6cbcd8baa",
+      "sha256": "1fd09e144df238b679d0d018fc1021c3b01989464fa3bdfb5696cd9331033c88",
       "default_categories": [
         "Browsers"
       ]

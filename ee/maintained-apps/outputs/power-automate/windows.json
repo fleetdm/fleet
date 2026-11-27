@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.74.00191.26302",
+      "version": "2.74.00215.26322",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Power Automate for desktop' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Power Automate for desktop' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.74.00191.26302') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Power Automate for desktop' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.74.00215.26322') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'pad.console.host.exe');"
       },
-      "installer_url": "https://download.microsoft.com/download/a26b0f48-a6c0-40f7-ae02-a27ec7766ce2/Setup.Microsoft.PowerAutomate.exe",
+      "installer_url": "https://download.microsoft.com/download/75e1d0c4-ee7a-4a64-9d48-877ac54848a0/Setup.Microsoft.PowerAutomate.exe",
       "install_script_ref": "20b20659",
       "uninstall_script_ref": "06e8ee35",
-      "sha256": "1c19cae25102d8b9b4c0155044c3d307c8466631bd7ee4658f1a623731651f90",
+      "sha256": "dc1d1ea652ff667ed0bb5ad18763d122324eb2f7b054ddcebf9c612fed551779",
       "default_categories": [
         "Productivity"
       ]

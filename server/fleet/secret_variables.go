@@ -7,6 +7,7 @@ import (
 )
 
 type SecretVariable struct {
+	ID        uint      `json:"-" db:"id"`
 	Name      string    `json:"name" db:"name"`
 	Value     string    `json:"value" db:"value"`
 	UpdatedAt time.Time `json:"-" db:"updated_at"`

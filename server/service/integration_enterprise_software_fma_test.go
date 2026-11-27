@@ -3131,7 +3131,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// A modify payload carries only the delta, so the stored flag still conflicts.
 		res := s.Do("PATCH", policyPath(policyID), map[string]any{"patch_when_closed": true}, http.StatusBadRequest)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
+		require.Contains(t, errMsg, `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
 		res.Body.Close()
 
 		// An explicit continuous_automations_enabled false is rejected while the flag is on.
@@ -3163,7 +3163,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		res = s.Do("PATCH", policyPath(policyID), map[string]any{"notify_before_patching": true}, http.StatusBadRequest)
 		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, `Only one of "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
+		require.Contains(t, errMsg, `Only one of "force_patch", "patch_when_closed", "notify_before_patching", or "patch_deadline" can be set to true.`)
 		res.Body.Close()
 
 		res = s.Do("PATCH", policyPath(policyID), map[string]any{"continuous_automations_enabled": false}, http.StatusBadRequest)
