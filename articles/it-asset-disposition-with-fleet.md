@@ -6,27 +6,27 @@ Every computer leaves the company eventually. IT asset disposition (ITAD) is how
 
 ITAD covers what happens to a computer after its last day of work: pickup and shipping, wiping or destroying the drive, resale or recycling, and a certificate for each device that proves it was done.
 
-The standard most partners follow is [NIST SP 800-88 Rev. 2](https://csrc.nist.gov/pubs/sp/800/88/r2/final), published in September 2025. It defines three ways to sanitize a drive: clear, purge, and destroy. It also allows [cryptographic erase](https://csrc.nist.gov/files/pubs/sp/800/88/r2/final/docs/sp800-88r2-faq.pdf) as a purge method under certain conditions. Destroy the key to an encrypted drive, and the data becomes unreadable.
-
-Auditors care about this. SOC 2, HIPAA, and ISO 27001 reviews ask how you dispose of devices that held company data.
+Most partners follow [NIST SP 800-88 Rev. 2](https://csrc.nist.gov/pubs/sp/800/88/r2/final) (September 2025), which defines three ways to sanitize a drive: clear, purge, and destroy. It also accepts [cryptographic erase](https://csrc.nist.gov/files/pubs/sp/800/88/r2/final/docs/sp800-88r2-faq.pdf) as a purge method, under conditions: destroy the key to an encrypted drive, and the data is unreadable. SOC 2, HIPAA, and ISO 27001 auditors will ask how you did it.
 
 ## Who does it
 
 PC makers offer ITAD alongside new purchases and lease returns:
 
-- [Dell Asset Recovery Services](https://www.dell.com/en-us/lp/dt/ars) takes owned or leased equipment of any brand, including PC as a Service returns. Dell sanitizes data to its own data security policy and provides chain-of-custody reports.
-- [HP IT Asset Disposition](https://www.hp.com/us-en/services/workforce-solutions/workforce-computing/it-asset-disposition.html) sends a Certificate of Data Sanitization that cites NIST 800-88. HP takes other brands too, but only alongside a purchase of new HP devices.
+- [Dell Asset Recovery Services](https://www.dell.com/en-us/lp/dt/ars) takes any brand, owned or leased, including PC as a Service returns, with chain-of-custody reports.
+- [HP IT Asset Disposition](https://www.hp.com/us-en/services/workforce-solutions/workforce-computing/it-asset-disposition.html) provides a Certificate of Data Sanitization citing NIST 800-88. It takes other brands only with a new HP purchase.
 - [Lenovo Asset Recovery Services](https://lenovopress.lenovo.com/datasheet/ds0091-asset-recovery-services) provides a certificate of data destruction for each device.
 
-Apple runs [Apple Business Trade In](https://www.apple.com/shop/trade-in) for organizations, with a five-device minimum. Apple asks you to erase each device, remove its profiles, and turn off Find My first. The Mac-specific steps below cover that.
+Apple runs [Apple Business Trade In](https://www.apple.com/shop/trade-in) for five or more devices. You erase each device and turn off Find My first, which the steps below cover.
 
-Independent ITAD companies include [Iron Mountain](https://www.ironmountain.com/services/it-asset-lifecycle-management/secure-it-asset-disposition), [Sims Lifecycle Services](https://www.simslifecycle.com/), [SK tes](https://www.sktes.com/it-services/it-asset-disposition), [ERI](https://eridirect.com/services), and [Ingram Micro](https://na.ingrammicro.com/en-us/services/lifecycle). The market is fragmented. Global Market Insights [puts the leader at about 3%](https://www.gminsights.com/industry-analysis/IT-asset-disposition-market).
+Independent ITAD companies include [Iron Mountain](https://www.ironmountain.com/services/it-asset-lifecycle-management/secure-it-asset-disposition), [Sims Lifecycle Services](https://www.simslifecycle.com/), [SK tes](https://www.sktes.com/it-services/it-asset-disposition), [ERI](https://eridirect.com/services), and [Ingram Micro](https://na.ingrammicro.com/en-us/services/lifecycle). The market is fragmented: Global Market Insights [puts the leader at about 3%](https://www.gminsights.com/industry-analysis/IT-asset-disposition-market).
 
-Resellers like [CDW](https://www.cdw.com/content/cdw/en/services/renewals-and-warranty/it-asset-dispostition.html) and [SHI](https://www.shi.com/it-lifecycle-services/device-lifecycle-management/asset-recovery) also sell ITAD services, so you can often add it to an existing contract.
+Resellers like [CDW](https://www.cdw.com/content/cdw/en/services/renewals-and-warranty/it-asset-dispostition.html) and [SHI](https://www.shi.com/it-lifecycle-services/device-lifecycle-management/asset-recovery) also sell ITAD, so you may be able to add it to a contract you already have.
 
 ## Where Fleet fits
 
 Your ITAD partner takes over once the computer is in a box. Fleet handles most of what happens before that: knowing what you're retiring, confirming it's encrypted, locking it, wiping it, and removing it from your systems.
+
+Here's how one [medical technology company running Fleet](https://fleetdm.com/articles/leaving-e3-entirely#whos-already-doing-this) does it: when a laptop comes back, its disposition partner holds it for 60 days, wipes it, and then restocks, recycles, or resells it depending on its age.
 
 ## Before you begin
 
@@ -43,7 +43,7 @@ On the **Hosts** page, search or filter for the devices you're retiring. Select 
 
 ### 2. Confirm the disk is encrypted
 
-Go to **Controls > OS settings > Disk encryption** and check that the hosts you're retiring are counted under **Verified**. Select a status to see which hosts it includes. Fleet [enforces encryption](https://fleetdm.com/guides/enforce-disk-encryption) on macOS (FileVault) and Windows (BitLocker), and escrows keys for macOS, Windows, and Linux (Ubuntu, Kubuntu, Fedora, and Omarchy). Encryption is your safety net if a device goes missing in transit.
+Go to **Controls > OS settings > Disk encryption** and check that the hosts you're retiring are counted under **Verified**. Fleet [enforces encryption](https://fleetdm.com/guides/enforce-disk-encryption) on macOS (FileVault) and Windows (BitLocker), and escrows keys for macOS, Windows, and Linux (Ubuntu, Kubuntu, Fedora, and Omarchy). Encryption is your safety net if a device goes missing in transit.
 
 ### 3. Lock it if it's not back yet
 
@@ -94,7 +94,7 @@ Store each certificate of sanitization by serial number. Fleet's [audit log](htt
 
 ## Automate it with the API
 
-Steps 1, 3, 5, and 6 each have an API endpoint. Here's one computer, by serial number:
+Here's one computer, by serial number:
 
 ```sh
 FLEET=https://fleet.example.com
@@ -104,7 +104,7 @@ SERIAL=C02XXXXXXXXX
 # Find the host
 ID=$(curl -s -H "$AUTH" "$FLEET/api/v1/fleet/hosts/identifier/$SERIAL?exclude_software=true" | jq .host.id)
 
-# Unlock it first if it's locked, then wipe it
+# Wipe it (if it's locked, unlock it first in the UI)
 curl -s -X POST -H "$AUTH" "$FLEET/api/v1/fleet/hosts/$ID/wipe"
 
 # After the wipe finishes: release Apple devices from Apple Business, then delete the host
@@ -114,13 +114,27 @@ curl -s -X DELETE -H "$AUTH" "$FLEET/api/v1/fleet/hosts/$ID"
 
 To export the manifest, call [`GET /api/v1/fleet/hosts/report?format=csv`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv). From the command line, `fleetctl mdm lock --host` and `fleetctl mdm wipe --host` accept a serial number.
 
+## Troubleshoot
+
+**Fleet says "Host is locked."** Fleet can't wipe a locked host. Select **Actions > Unlock** first. On a Mac, type the PIN shown in Fleet on the device.
+
+**The wipe is still pending.** The host is wiped the next time it connects. Turn it on and connect it to the internet.
+
+**A Windows PC won't boot after the wipe.** Microsoft warns that `doWipeProtected` can do this. Your ITAD partner reimages or sanitizes the drive anyway, so you can still hand it over.
+
+**A deleted Mac came back as Pending.** It's still assigned to Fleet in Apple Business. Release it from Apple Business, then delete it again.
+
+**A deleted computer re-enrolled.** It still had a valid enroll secret. Wipe it before you delete it.
+
+**Activation Lock is still on.** Turn it off in Apple Business. You can't after the device is released, so do it before step 6.
+
 ## Checklist
 
 - [ ] Export serial numbers, models, and end users from Fleet
 - [ ] Confirm disk encryption and escrowed keys
 - [ ] Lock any device that hasn't come back
 - [ ] Turn off Activation Lock, deregister from Autopilot, and clear BIOS passwords
-- [ ] Unlock it if needed, then wipe it and wait for it to finish
+- [ ] Unlock the device if needed, then wipe it and wait for it to finish
 - [ ] Release Apple devices from Apple Business, then delete the host from Fleet
 - [ ] Match the ITAD partner's manifest against your export
 - [ ] File each certificate with the Fleet audit log entries, by serial number
