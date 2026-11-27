@@ -584,6 +584,99 @@ describe("getUiStatus", () => {
       expect(getUiStatus(sw, true)).toBe("failed_uninstall");
     });
   });
+
+  describe("fleetd's own copies under /opt/orbit", () => {
+    const fmaCopy = {
+      version: "3.1.1",
+      bundle_identifier: "au.csiro.dialog",
+      vulnerabilities: null,
+      installed_paths: ["/Library/Application Support/Dialog/Dialog.app"],
+    };
+    const fleetdCopy = {
+      version: "2.5.6",
+      bundle_identifier: "au.csiro.dialog",
+      vulnerabilities: null,
+      installed_paths: ["/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app"],
+    };
+    const swiftDialog = (
+      overrides: Parameters<typeof createMockHostSoftware>[0]
+    ) =>
+      createMockHostSoftware({
+        name: "Dialog.app",
+        bundle_identifier: "au.csiro.dialog",
+        package: createMockHostSoftwarePackage({
+          version: "3.1.1",
+          last_install: null,
+        }),
+        installed_versions: [fmaCopy, fleetdCopy],
+        ...overrides,
+      });
+
+    it("returns 'installed', not 'update_available', when only fleetd's copy is older", () => {
+      expect(getUiStatus(swiftDialog({ status: "installed" }), true)).toBe(
+        "installed"
+      );
+    });
+
+    it("returns 'installed' when the app was installed outside Fleet and only fleetd's copy is older", () => {
+      expect(getUiStatus(swiftDialog({ status: null }), true)).toBe(
+        "installed"
+      );
+    });
+
+    it("returns 'installing', not 'updating', when only fleetd's copy is older", () => {
+      expect(
+        getUiStatus(swiftDialog({ status: "pending_install" }), true)
+      ).toBe("installing");
+    });
+
+    it("returns 'failed_install_installed' when only fleetd's copy is older", () => {
+      expect(getUiStatus(swiftDialog({ status: "failed_install" }), true)).toBe(
+        "failed_install_installed"
+      );
+    });
+
+    it("returns 'uninstalled' when fleetd's copy is the only one", () => {
+      expect(
+        getUiStatus(
+          swiftDialog({ status: null, installed_versions: [fleetdCopy] }),
+          true
+        )
+      ).toBe("uninstalled");
+    });
+
+    it("still returns 'update_available' when a copy outside /opt/orbit is older", () => {
+      expect(
+        getUiStatus(
+          swiftDialog({
+            status: "installed",
+            installed_versions: [{ ...fmaCopy, version: "3.0.0" }, fleetdCopy],
+          }),
+          true
+        )
+      ).toBe("update_available");
+    });
+
+    it("counts a version found both inside and outside /opt/orbit", () => {
+      expect(
+        getUiStatus(
+          swiftDialog({
+            status: "installed",
+            installed_versions: [
+              {
+                ...fleetdCopy,
+                installed_paths: [
+                  ...fleetdCopy.installed_paths,
+                  "/Applications/Dialog.app",
+                ],
+              },
+            ],
+          }),
+          true
+        )
+      ).toBe("update_available");
+    });
+  });
 });
 
 describe("getSoftwareSubheader", () => {
