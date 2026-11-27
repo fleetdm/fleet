@@ -8,9 +8,10 @@ into a local database. Designed to run hourly via cron.
 - **Uptime** — fetches currently online hosts and ORs them into the current
   hour's `host_scd_data` row (`dataset='uptime'`).
 - **CVE** — fetches per-host vulnerabilities, inverts into per-CVE host
-  bitmaps, and reconciles into `host_scd_data` (`dataset='cve'`). Unchanged
-  CVEs keep their open row; changed bitmaps close the prior-day row and open
-  a new one for today; intra-day changes overwrite today's row via ODKU.
+  bitmaps, and records them through Fleet's CVE collector
+  (`chart.CVEDataset`): the change storage, plus `host_scd_data`
+  (`dataset='cve'`) until the history collected before the change storage is
+  converted, after which those rows are deleted.
 
 ## Usage
 
@@ -44,6 +45,7 @@ Render `fromService`):
 
 ## Notes
 
-- SCD encoding constants (`9999-12-31` open sentinel, batch size) mirror
-  `server/chart/internal/mysql/data.go`. Keep in sync when either side changes.
+- The uptime row format mirrors `server/chart/internal/mysql/data.go`. Keep in
+  sync when either side changes.
+- The DSN must set `parseTime=true` (the `FLEET_MYSQL_*` fallback does).
 - Errors in one collector (uptime/cve) are logged but do not block the other.

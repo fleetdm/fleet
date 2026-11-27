@@ -106,8 +106,10 @@ type mockDatastore struct {
 	recordSCDChangesFn      func(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error
 	recordSCDChangesInvoked bool
 	convertSCDHistoryFn     func(ctx context.Context, dataset string) (bool, error)
+	historyConvertedFn      func(ctx context.Context, dataset string) (bool, error)
+	retireSCDDataFn         func(ctx context.Context, dataset string) (bool, error)
 	replaySCDChangesFn      func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error)
-	coveredFromFn           func(ctx context.Context, dataset string) (time.Time, bool, error)
+	coverageFn              func(ctx context.Context, dataset string) (types.SCDChangeCoverage, error)
 	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
 	hostIDsInFleetsFn       func(ctx context.Context, fleetIDs []uint) ([]uint, error)
 	applyScrubMaskFn        func(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error
@@ -167,6 +169,20 @@ func (m *mockDatastore) ConvertSCDHistory(ctx context.Context, dataset string) (
 	return false, nil
 }
 
+func (m *mockDatastore) SCDHistoryConverted(ctx context.Context, dataset string) (bool, error) {
+	if m.historyConvertedFn != nil {
+		return m.historyConvertedFn(ctx, dataset)
+	}
+	return false, nil
+}
+
+func (m *mockDatastore) RetireSCDData(ctx context.Context, dataset string) (bool, error) {
+	if m.retireSCDDataFn != nil {
+		return m.retireSCDDataFn(ctx, dataset)
+	}
+	return false, nil
+}
+
 func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
 	if m.getSCDDataFunc != nil {
 		return m.getSCDDataFunc(ctx, dataset, startDate, endDate, bucketSize, strategy, filterMask, entityIDs)
@@ -181,11 +197,11 @@ func (m *mockDatastore) ReplaySCDChanges(ctx context.Context, dataset string, st
 	return nil, nil
 }
 
-func (m *mockDatastore) SCDChangesCoveredFrom(ctx context.Context, dataset string) (time.Time, bool, error) {
-	if m.coveredFromFn != nil {
-		return m.coveredFromFn(ctx, dataset)
+func (m *mockDatastore) SCDChangesCoverage(ctx context.Context, dataset string) (types.SCDChangeCoverage, error) {
+	if m.coverageFn != nil {
+		return m.coverageFn(ctx, dataset)
 	}
-	return time.Time{}, false, nil
+	return types.SCDChangeCoverage{}, nil
 }
 
 func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
@@ -908,12 +924,14 @@ func TestGetChartDataTimeout(t *testing.T) {
 				case "SCD data":
 					ds.getSCDDataFunc = blockUntilDone
 				case "coverage lookup":
-					ds.coveredFromFn = func(ctx context.Context, _ string) (time.Time, bool, error) {
+					ds.coverageFn = func(ctx context.Context, _ string) (types.SCDChangeCoverage, error) {
 						<-ctx.Done()
-						return time.Time{}, false, ctx.Err()
+						return types.SCDChangeCoverage{}, ctx.Err()
 					}
 				case "replay":
-					ds.coveredFromFn = func(context.Context, string) (time.Time, bool, error) { return time.Time{}, true, nil }
+					ds.coverageFn = func(context.Context, string) (types.SCDChangeCoverage, error) {
+						return types.SCDChangeCoverage{Started: true}, nil
+					}
 					ds.replaySCDChangesFn = func(ctx context.Context, _ string, _, _ time.Time, _ time.Duration, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
 						<-ctx.Done()
 						return nil, ctx.Err()
@@ -998,17 +1016,20 @@ func TestGetChartDataCVEReadPath(t *testing.T) {
 	entities := []string{"CVE-1", "CVE-2"}
 
 	cases := []struct {
-		name        string
-		coveredFrom time.Time
-		found       bool
-		lookupErr   error
-		wantReplay  bool
+		name       string
+		coverage   types.SCDChangeCoverage
+		wantReplay bool
 	}{
-		{name: "change storage not started", found: false},
-		{name: "covered before the first bucket ends", coveredFrom: firstBucketEnd.Add(-24 * time.Hour), found: true, wantReplay: true},
-		{name: "covered from the first bucket's end", coveredFrom: firstBucketEnd, found: true, wantReplay: true},
-		{name: "covered from after the first bucket's end", coveredFrom: firstBucketEnd.Add(time.Hour), found: true},
-		{name: "lookup fails", lookupErr: errors.New("boom")},
+		{name: "change storage not started"},
+		{name: "covered before the first bucket ends",
+			coverage: types.SCDChangeCoverage{Started: true, CoveredFrom: firstBucketEnd.Add(-24 * time.Hour)}, wantReplay: true},
+		{name: "covered from the first bucket's end",
+			coverage: types.SCDChangeCoverage{Started: true, CoveredFrom: firstBucketEnd}, wantReplay: true},
+		{name: "covered from after the first bucket's end",
+			coverage: types.SCDChangeCoverage{Started: true, CoveredFrom: firstBucketEnd.Add(time.Hour)}},
+		// The full copies are deleted once the history is converted, so they are never read again.
+		{name: "converted, covered from after the first bucket's end",
+			coverage: types.SCDChangeCoverage{Started: true, CoveredFrom: firstBucketEnd.Add(time.Hour), Converted: true}, wantReplay: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1016,9 +1037,9 @@ func TestGetChartDataCVEReadPath(t *testing.T) {
 			ds := &mockDatastore{}
 			ds.getHostIDsForFilterFunc = func(context.Context, *types.HostFilter) ([]uint, error) { return mask, nil }
 			ds.resolveCVEEntitiesFn = func(context.Context, types.CVEChartFilter) ([]string, error) { return entities, nil }
-			ds.coveredFromFn = func(_ context.Context, dataset string) (time.Time, bool, error) {
+			ds.coverageFn = func(_ context.Context, dataset string) (types.SCDChangeCoverage, error) {
 				require.Equal(t, api.MetricCVE, dataset)
-				return c.coveredFrom, c.found, c.lookupErr
+				return c.coverage, nil
 			}
 			points := []api.DataPoint{{Timestamp: start.Add(3 * time.Hour), Value: 1}}
 			ds.replaySCDChangesFn = func(_ context.Context, dataset string, gotStart, gotEnd time.Time, size time.Duration, gotMask *roaring.Bitmap, gotEntities []string) ([]api.DataPoint, error) {
@@ -1049,10 +1070,25 @@ func TestGetChartDataCVEReadPath(t *testing.T) {
 		})
 	}
 
+	t.Run("lookup error is returned without falling back", func(t *testing.T) {
+		lookupErr := errors.New("boom")
+		ds := &mockDatastore{}
+		ds.coverageFn = func(context.Context, string) (types.SCDChangeCoverage, error) {
+			return types.SCDChangeCoverage{}, lookupErr
+		}
+		ds.getSCDDataFunc = func(context.Context, string, time.Time, time.Time, time.Duration, api.SampleStrategy, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
+			return nil, errors.New("read the full copies after a lookup error")
+		}
+		_, err := newCVEService(ds).GetChartData(premiumCtx(t), api.MetricCVE, api.RequestOpts{Days: 7})
+		require.ErrorIs(t, err, lookupErr)
+	})
+
 	t.Run("replay error is returned without falling back", func(t *testing.T) {
 		replayErr := errors.New("boom")
 		ds := &mockDatastore{}
-		ds.coveredFromFn = func(context.Context, string) (time.Time, bool, error) { return time.Time{}, true, nil }
+		ds.coverageFn = func(context.Context, string) (types.SCDChangeCoverage, error) {
+			return types.SCDChangeCoverage{Started: true}, nil
+		}
 		ds.replaySCDChangesFn = func(context.Context, string, time.Time, time.Time, time.Duration, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
 			return nil, replayErr
 		}
@@ -1065,8 +1101,8 @@ func TestGetChartDataCVEReadPath(t *testing.T) {
 
 	t.Run("uptime does not use the change storage", func(t *testing.T) {
 		ds := &mockDatastore{}
-		ds.coveredFromFn = func(context.Context, string) (time.Time, bool, error) {
-			return time.Time{}, false, errors.New("coverage looked up for uptime")
+		ds.coverageFn = func(context.Context, string) (types.SCDChangeCoverage, error) {
+			return types.SCDChangeCoverage{}, errors.New("coverage looked up for uptime")
 		}
 		ds.replaySCDChangesFn = func(context.Context, string, time.Time, time.Time, time.Duration, *roaring.Bitmap, []string) ([]api.DataPoint, error) {
 			return nil, errors.New("replay used for uptime")
@@ -1165,6 +1201,11 @@ func TestCollectDatasetsCVE(t *testing.T) {
 		return affected, nil
 	}
 	var calls []string
+	ds.historyConvertedFn = func(_ context.Context, dataset string) (bool, error) {
+		calls = append(calls, "SCDHistoryConverted")
+		require.Equal(t, "cve", dataset)
+		return false, nil
+	}
 	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
 		calls = append(calls, "RecordBucketData")
 		assert.Equal(t, "cve", dataset)
@@ -1193,8 +1234,22 @@ func TestCollectDatasetsCVE(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
 	assert.Equal(t, wantTracked, gotCVEs, "CollectibleCVEs result must be forwarded as the cves filter")
-	require.Equal(t, []string{"RecordBucketData", "RecordSCDChanges", "ConvertSCDHistory"}, calls,
+	require.Equal(t, []string{"SCDHistoryConverted", "RecordBucketData", "RecordSCDChanges", "ConvertSCDHistory"}, calls,
 		"the change storage is written after the full-copy rows, and history is converted after both")
+
+	// Once the history is converted, the full copies are no longer written, and the stored ones are deleted.
+	calls = nil
+	ds.historyConvertedFn = func(context.Context, string) (bool, error) {
+		calls = append(calls, "SCDHistoryConverted")
+		return true, nil
+	}
+	ds.retireSCDDataFn = func(_ context.Context, dataset string) (bool, error) {
+		calls = append(calls, "RetireSCDData")
+		require.Equal(t, "cve", dataset)
+		return false, nil
+	}
+	require.NoError(t, svc.CollectDatasets(t.Context(), now, nil))
+	require.Equal(t, []string{"SCDHistoryConverted", "RecordSCDChanges", "RetireSCDData"}, calls)
 }
 
 // TestCollectDatasetsCVEEmptyTracked verifies that when CollectibleCVEs

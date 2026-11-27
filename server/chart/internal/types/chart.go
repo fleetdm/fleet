@@ -49,6 +49,18 @@ type CVEChartFilter struct {
 	ExcludeCVEs  []string
 }
 
+// SCDChangeCoverage is how much history a dataset's change storage holds.
+type SCDChangeCoverage struct {
+	// Started is false when the change storage has not started for the dataset.
+	Started bool
+	// CoveredFrom is the instant from which ReplaySCDChanges holds the history: it holds every bucket that
+	// ends at or after it.
+	CoveredFrom time.Time
+	// Converted reports whether the history collected before the change storage started is converted, after
+	// which the dataset's host_scd_data rows are deleted.
+	Converted bool
+}
+
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
 	// FindOnlineHostIDs returns host IDs that are "online right now" using a
@@ -111,6 +123,16 @@ type Datastore interface {
 	// changes cover the 32 days before the change storage started.
 	ConvertSCDHistory(ctx context.Context, dataset string) (more bool, err error)
 
+	// SCDHistoryConverted reports whether ConvertSCDHistory has converted all of
+	// the dataset's history collected before the change storage started. It is
+	// false while the change storage has not started for the dataset.
+	SCDHistoryConverted(ctx context.Context, dataset string) (bool, error)
+
+	// RetireSCDData deletes one batch of the dataset's host_scd_data rows once
+	// SCDHistoryConverted is true, and reports whether more remain. Before
+	// that it deletes nothing.
+	RetireSCDData(ctx context.Context, dataset string) (more bool, err error)
+
 	// GetSCDData returns per-bucket distinct-host counts for a dataset over the
 	// given range at the given bucket size. Aggregation within a bucket depends
 	// on the sample strategy:
@@ -145,10 +167,9 @@ type Datastore interface {
 		entityIDs []string,
 	) ([]api.DataPoint, error)
 
-	// SCDChangesCoveredFrom returns covered_from for the dataset: ReplaySCDChanges holds the history of
-	// every bucket that ends at or after it. found is false when the change storage has not started for the
-	// dataset.
-	SCDChangesCoveredFrom(ctx context.Context, dataset string) (coveredFrom time.Time, found bool, err error)
+	// SCDChangesCoverage returns how much history the dataset's change storage holds. Its zero value means
+	// the change storage has not started for the dataset.
+	SCDChangesCoverage(ctx context.Context, dataset string) (SCDChangeCoverage, error)
 
 	// GetHostIDsForFilter returns the host IDs that match the given host filter.
 	GetHostIDsForFilter(ctx context.Context, hostFilter *HostFilter) ([]uint, error)

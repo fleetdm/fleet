@@ -14,12 +14,15 @@ Quick reminders (full detail in the README):
   with host-sets stored as roaring bitmaps. The `cve` dataset is also written to
   the change storage (`internal/mysql/changes.go`), and its older history is
   converted into it (`internal/mysql/convert.go`); `cve` requests whose window it
-  covers are answered by its replay read (`internal/mysql/replay.go`). Work in op form (`*roaring.Bitmap`); only
+  covers are answered by its replay read (`internal/mysql/replay.go`). Once the
+  conversion completes, `cve` stops writing `host_scd_data` and its rows there are
+  deleted (`internal/mysql/retire.go`). Work in op form (`*roaring.Bitmap`); only
   cross the storage boundary via `BitmapToBlob` / `DecodeBitmap`.
 - Mind the **nil vs empty-slice** semantics on `HostFilter.TeamIDs` and
   `GetSCDData` `entityIDs` — they are load-bearing; don't normalize them away.
 - Snapshot collectors must call `RecordBucketData` even with an empty map (it closes
-  open rows). Accumulate collectors may skip empty input.
+  open rows), except `cve` once its history is converted. Accumulate collectors may
+  skip empty input.
 - Adding a dataset: implement `api.Dataset` in `datasets.go`, add any store method to
   **both** `api.DatasetStore` and `internal/types.Datastore`, register it in
   `cmd/fleet/serve.go`, and wire config gating + scrub in

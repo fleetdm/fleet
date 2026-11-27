@@ -7,6 +7,7 @@ import (
 	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
+	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -278,16 +279,19 @@ func (c *replayCounts) apply(rb *roaring.Bitmap, delta int32) {
 	})
 }
 
-// SCDChangesCoveredFrom returns host_scd_change_state.covered_from for the dataset, and false when the change
-// storage has not started for it.
-func (ds *Datastore) SCDChangesCoveredFrom(ctx context.Context, dataset string) (time.Time, bool, error) {
-	var coveredFrom []time.Time
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &coveredFrom,
-		`SELECT covered_from FROM host_scd_change_state WHERE dataset = ?`, dataset); err != nil {
-		return time.Time{}, false, ctxerr.Wrap(ctx, err, "read chart change coverage")
+// SCDChangesCoverage returns the dataset's host_scd_change_state: covered_from, and whether the conversion is
+// complete (as SCDHistoryConverted reports it). Its zero value means the change storage has not started.
+func (ds *Datastore) SCDChangesCoverage(ctx context.Context, dataset string) (types.SCDChangeCoverage, error) {
+	var rows []struct {
+		CoveredFrom time.Time `db:"covered_from"`
+		Converted   bool      `db:"converted"`
 	}
-	if len(coveredFrom) == 0 {
-		return time.Time{}, false, nil
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
+		`SELECT covered_from, `+scdConvertedExpr+` AS converted FROM host_scd_change_state WHERE dataset = ?`, dataset); err != nil {
+		return types.SCDChangeCoverage{}, ctxerr.Wrap(ctx, err, "read chart change coverage")
 	}
-	return coveredFrom[0].UTC(), true, nil
+	if len(rows) == 0 {
+		return types.SCDChangeCoverage{}, nil
+	}
+	return types.SCDChangeCoverage{Started: true, CoveredFrom: rows[0].CoveredFrom.UTC(), Converted: rows[0].Converted}, nil
 }

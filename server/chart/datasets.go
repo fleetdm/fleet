@@ -33,8 +33,12 @@ func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now
 }
 
 // cveConvertBudget bounds the time one collection spends converting the history collected before the change
-// storage started. var (not const) so tests can change it.
-var cveConvertBudget = 5 * time.Minute
+// storage started, and cveRetireBudget the time it spends deleting the host_scd_data rows once that is done.
+// vars (not consts) so tests can change them.
+var (
+	cveConvertBudget = 5 * time.Minute
+	cveRetireBudget  = 5 * time.Minute
+)
 
 // CVEDataset implements api.Dataset for host CVE tracking.
 type CVEDataset struct{}
@@ -59,14 +63,23 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 	if err != nil {
 		return err
 	}
-	bucketStart := now.UTC().Truncate(time.Hour)
-	// Always call RecordBucketData, even when bitmaps is empty: snapshot
-	// semantics use an empty input to close any open rows for entities no
-	// longer in the tracked set (recordSnapshot's "absent entities" branch).
-	// It goes first so a failure in the change storage cannot affect the rows
-	// the chart reads today.
-	if err := store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps); err != nil {
+	// Until the history collected before the change storage is converted, the
+	// requests the change storage does not cover read host_scd_data, so it is
+	// still written; afterwards nothing reads it.
+	converted, err := store.SCDHistoryConverted(ctx, c.Name())
+	if err != nil {
 		return err
+	}
+	bucketStart := now.UTC().Truncate(time.Hour)
+	if !converted {
+		// Call RecordBucketData even when bitmaps is empty: snapshot semantics
+		// use an empty input to close any open rows for entities no longer in
+		// the tracked set (recordSnapshot's "absent entities" branch). It goes
+		// first so a failure in the change storage cannot affect the rows those
+		// requests read.
+		if err := store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps); err != nil {
+			return err
+		}
 	}
 	// A busy change storage means a scrub is running; the next collection
 	// records this hour's changes.
@@ -78,6 +91,14 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 	}
 
 	started := time.Now()
+	if converted {
+		for {
+			more, err := store.RetireSCDData(ctx, c.Name())
+			if err != nil || !more || time.Since(started) >= cveRetireBudget {
+				return err
+			}
+		}
+	}
 	for {
 		more, err := store.ConvertSCDHistory(ctx, c.Name())
 		if errors.Is(err, api.ErrChangeStorageBusy) {
