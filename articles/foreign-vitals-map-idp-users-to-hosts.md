@@ -191,6 +191,14 @@ Fleet syncs your directory shortly after you save, and then on a schedule. You c
 
 Fleet maps each Google Workspace user to a host using the end user's IdP email collected during MDM enrollment. After a host is mapped, its IdP username, groups, and department are available on host details. To verify the mapping, see [Verify connection](#verify-connection) below.
 
+#### Groups with matching names
+
+Google Workspace only requires group emails to be unique, but Fleet requires unique group names. Fleet treats names that differ only by case or accents as the same name, for example `Infrastructure` and `infrastructure`.
+
+When two groups have matching names, the group Fleet synced first keeps its name. Fleet adds the other group's Google group ID to its name, for example `infrastructure (03x8tuzt1mvfb9z)`. The group keeps that name until the conflict goes away.
+
+To find a group's name in Fleet, open the host details page for a host whose end user is in the group, and check **Groups (IdP)**. Use that name in host vitals labels. A label that uses the shared name matches only the group that kept it. To avoid the added ID, rename one of the groups in Google Workspace.
+
 #### Troubleshooting
 
 If the sync fails, check the connection status in **Settings > Integrations > Identity provider (IdP)** and the Fleet server logs for the `google_workspace_sync` cron job.
