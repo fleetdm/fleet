@@ -11955,6 +11955,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "type": "dynamic",
       "automation_type": "calendar",
       "continuous_automations_enabled": false,
+      "force_patch": false,
       "patch_when_closed": false,
       "notify_before_patching": false,
       "patch_deadline": false,
@@ -11986,6 +11987,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "type": "dynamic",
       "automation_type": "webhook_or_ticket",
       "continuous_automations_enabled": false,
+      "force_patch": false,
       "patch_when_closed": false,
       "notify_before_patching": false,
       "patch_deadline": false,
@@ -12113,6 +12115,7 @@ Returns the policy specified by ID.
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
+| force_patch | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet patches the app the next time the policy fails, whether or not the app is open. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Requires `continuous_automations_enabled` to be `true`. |
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
 | patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's patch deadline settings. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Requires `continuous_automations_enabled` to be `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
@@ -12128,7 +12131,7 @@ Returns the policy specified by ID.
 
 If `automation_type` is `"webhook_or_ticket"`, Fleet uses the failing policies webhook, Jira, or Zendesk destination configured for the policy's fleet (or the global destination for "All fleets" policies). See [Update configuration](#update-configuration) and [Update fleet](#update-fleet).
 
-If `type` is `patch` and `automation_type` is `"software"`, Fleet patches the app when a host fails the policy. Only one of `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be `true`. If none of them is `true`, Fleet installs the update the next time the policy fails, whether or not the app is open. If `automation_type` isn't set, the patch policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
+If `type` is `patch` and `automation_type` is `"software"`, Fleet patches the app when a host fails the policy. Only one of `force_patch`, `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be `true`. If none of them is `true`, Fleet uses `force_patch`. If `automation_type` isn't set, the patch policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
 
 Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
@@ -12235,6 +12238,7 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
+| force_patch | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet patches the app the next time the policy fails, whether or not the app is open. |
 | patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. |
 | notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet shows the end user a notification listing the apps that will be updated, waits 1 hour, and then installs. A reminder is shown 5 minutes before the install. Nothing is installed until the end user has been notified and the hour has elapsed. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed. |
 | patch_deadline | boolean | body | _Available in Fleet Premium_. Only applies to existing patch policies (`type` is `patch`) with `automation_type` set to `"software"`. If `true`, Fleet patches the app right away when it isn't open. If the app is open, Fleet waits for the next deadline in the fleet's patch deadline settings. 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported for macOS apps, on hosts with Fleet Desktop installed. |
@@ -12250,11 +12254,11 @@ A policy can't be moved to a different fleet.
 
 `software_title_id`, `script_id`, and `profile_uuid` are only accepted with the matching `automation_type`. The exception is `software_title_id` on a patch policy, where it's the app the policy checks.
 
-If `type` is `patch` and `automation_type` is `"software"`, Fleet patches the app when a host fails the policy. Only one of `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be `true`. If none of them is `true`, Fleet installs the update the next time the policy fails, whether or not the app is open. If `automation_type` isn't set, the patch policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
+If `type` is `patch` and `automation_type` is `"software"`, Fleet patches the app when a host fails the policy. Only one of `force_patch`, `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be `true`. If none of them is `true`, Fleet uses `force_patch`. If `automation_type` isn't set, the patch policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
 
 Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
-Setting `patch_when_closed`, `notify_before_patching`, or `patch_deadline` to `false` after it was `true`, or removing the policy's software automation, removes the read-only pre-install condition Fleet added. `pre_install_query` becomes editable again on the software title.
+Setting `patch_when_closed`, `notify_before_patching`, or `patch_deadline` to `false` after it was `true`, switching to `force_patch`, or removing the policy's software automation, removes the read-only pre-install condition Fleet added. `pre_install_query` becomes editable again on the software title.
 
 #### Example
 
