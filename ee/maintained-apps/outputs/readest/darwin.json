@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.12.20",
+      "version": "0.12.26",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bilingify.readest';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bilingify.readest' AND version_compare(bundle_short_version, '0.12.20') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bilingify.readest' AND version_compare(bundle_short_version, '0.12.26') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.bilingify.readest' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/readest/readest/releases/download/v0.12.20/Readest_0.12.20_universal.dmg",
+      "installer_url": "https://github.com/readest/readest/releases/download/v0.12.26/Readest_0.12.26_universal.dmg",
       "install_script_ref": "f9c76ed1",
       "uninstall_script_ref": "e48ee34f",
-      "sha256": "9c70e84c963a16d6c90f2d5298d3c85ad293aa419c362f524d258c6249a63bda",
+      "sha256": "18057053f5f4c243ad4dc1417536a4dce840e1ac71119f7f36f468b564c36437",
       "default_categories": [
         "Productivity"
       ]
