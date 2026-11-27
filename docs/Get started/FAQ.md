@@ -74,6 +74,7 @@ Fleet supports the following operating system versions on hosts.
 | :--------- | :-------------------------------------- |
 | macOS      | 15+ (Sequoia)                            |
 | iOS/iPadOS | 17+                                     |
+| tvOS       | 17+                                     |
 | Windows    | Pro and Enterprise 10 21H2 (E) (LTS)+, Server 2012+    |
 | Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy, CachyOS, Zorin OS 16+ |
 | ChromeOS   | 112.0.5615.134+                         |
@@ -506,7 +507,7 @@ A host is considered online if it has connected to Fleet in the last 70 (10+60) 
 `distributed_interval=30, config_tls_refresh=20`
 A host is considered online if it has connected to Fleet in the last 80 (20+60) seconds.
 
-For mobile hosts (iOS, iPadOS, Android), online status reflects the device's MDM check-in cadence rather than the fleetd interval settings above.
+For mobile hosts (iOS, iPadOS, tvOS, Android), online status reflects the device's MDM check-in cadence rather than the fleetd interval settings above.
 
 #### Offline hosts
 

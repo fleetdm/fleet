@@ -1074,7 +1074,7 @@ This activity contains the following fields:
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
-- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android").
+- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "tvos", "android").
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "from_auto_update": Whether the app was installed by an automatic update.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.

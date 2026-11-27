@@ -13,6 +13,7 @@ Each software type below lists its `source`, and browser and IDE extensions also
 | Linux apps (`source`: `deb_packages`, `rpm_packages`) | ✅ | ✅ | ✅ rpm only | ❌ | ❌ | ❌ | ✅ deb and rpm | ✅ | Apps install as [packages](#packages) on Linux. |
 | Android app (`source`: `android_apps`) | ✅ | ✅ | ❌ | ✅ Application ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report work profile apps only. Fully-managed hosts report all apps. |
 | iOS app (`source`: `ios_apps`) and iPadOS app (`source`: `ipados_apps`) | ✅ | ✅ | ❌ | ✅ Bundle ID | ❌ | ❌ | ❌ | ❌ | BYOD hosts report only the apps Fleet installed. |
+| tvOS app (`source`: `tvos_apps`) | ✅ | ✅ | ❌ | ✅ Bundle ID | ❌ | ❌ | ❌ | ❌ | — |
 | ChromeOS: browser extensions (`source`: `chrome_extensions`, `extension_for`: `chrome`) | ✅ | ✅ | ❌ | ✅ Extension ID | ❌ | ❌ | ❌ | ✅ | Collected under [browser extensions](#browser-extensions). |
 | ChromeOS: progressive web apps (PWAs) and Isolated Web Apps (IWAs) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | No extension API returns installed web apps. |
 | ChromeOS: Android apps | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Android apps run in a container the browser can't see. Distinct from the Android apps row above, which covers Android hosts. |
@@ -34,7 +35,7 @@ Each software type below lists its `source`, and browser and IDE extensions also
 | Linux | ✅ | ✅ | ✅ | ✅ | ✅ Kernel vulnerabilities, on supported distributions. | Collected on recognized distributions only. See the table below. |
 | ChromeOS | ✅ | ✅ | ✅ | ✅ | ❌ | The kernel version repeats the OS version. |
 | Android | ✅ | ✅ | ❌ | ❌ | ✅ Matched against the Android security patch level. | — |
-| iOS and iPadOS | ✅ | ✅ | ❌ | ❌ | ❌ | — |
+| iOS, iPadOS, and tvOS | ✅ | ✅ | ❌ | ❌ | ❌ | — |
 
 ### Linux distributions
 
@@ -219,7 +220,7 @@ Fleet doesn't collect these for any software type:
 ## How Fleet collects software
 
 - macOS, Windows, Linux, and ChromeOS: [Fleet's agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd) runs software inventory reports ([macOS example](https://fleetdm.com/reports/get-installed-mac-os-software)). Fleet refreshes software inventory every hour like other host details ([configurable](#configuration)).
-- iOS and iPadOS: Fleet asks the device for its installed apps over MDM, using Apple's [InstalledApplicationList command](https://developer.apple.com/documentation/devicemanagement/installedapplicationlistcommand).
+- iOS, iPadOS, and tvOS: Fleet asks the device for its installed apps over MDM, using Apple's [InstalledApplicationList command](https://developer.apple.com/documentation/devicemanagement/installedapplicationlistcommand).
 - Android: Fleet reads app reports from the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
 
 ## Limitations

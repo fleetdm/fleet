@@ -20,6 +20,8 @@ Below is the end user experience for macOS. Check out the separate videos for [i
 
 You can require IdP authentication during automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts and manual enrollment for personal (BYOD) iOS, iPadOS, and Android hosts. IdP authentication is also supported on [Windows and Linux](https://fleetdm.com/guides/windows-linux-setup-experience). End users can use passkeys, such as YubiKeys, with macOS hosts during the authentication process.
 
+> Apple TVs (tvOS) always enroll without IdP authentication, including in fleets that require it. tvOS can't complete IdP authentication during Setup Assistant.
+
 1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
 2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it
@@ -42,7 +44,9 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 ## Rejected automatic enrollments
 
-When **Require IdP authentication** is turned on for a fleet, Fleet only accepts automatic enrollments (ADE) where the end user signs in with your IdP. Fleet rejects enrollments that present the fleet's static enrollment token instead.
+When **Require IdP authentication** is turned on for a fleet, Fleet only accepts automatic enrollments (ADE) where the end user signs in with your IdP. Fleet rejects enrollments that present the fleet's static enrollment token instead. Apple TVs (tvOS) are the exception: an Apple TV assigned to Fleet in Apple Business enrolls with the static enrollment token.
+
+> If an Apple TV was assigned to Fleet in Apple Business before you upgraded to Fleet 5.1, Fleet rejects its enrollment in a fleet that requires IdP authentication. Before you reset or re-enroll the Apple TV, transfer it to a fleet that doesn't require IdP authentication. You only need to do this once. Afterward, you can transfer it back or turn on **Require IdP authentication** for that fleet. If its enrollment is rejected first, the Apple TV stays stuck in Setup Assistant, and reassigning it in Apple Business doesn't fix it.
 
 The static enrollment token is the token in the automatic enrollment (ADE) profile URL that Fleet uses for fleets without Require IdP authentication. When IdP authentication is required, the end user instead gets a one-time enrollment URL after signing in with your IdP. Hosts that are already enrolled aren't affected.
 
@@ -271,7 +275,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 ## Install software
 
-You can install software during first time macOS, iOS, iPadOS, Android, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
+You can install software during first time macOS, iOS, iPadOS, tvOS, Android, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
 
 Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business (AB).
 
@@ -281,7 +285,7 @@ Add setup experience software:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
 
-2. Click **Add software**, then select or search for the software you want installed during the setup experience.
+2. Click **Add software**, then select or search for the software you want installed during the setup experience. On tvOS, only App Store apps can be selected.
 
 3. Press **Save** to save your selection.
 

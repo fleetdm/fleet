@@ -717,6 +717,7 @@ Content-Type: application/octet-stream
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
+    "tvos_fleet": null,
     "byod_fleet": null
   },
   "abm_token": {
@@ -732,6 +733,7 @@ Content-Type: application/octet-stream
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
+    "tvos_fleet": null,
     "byod_fleet": null,
     "macos_team": null,
     "ios_team": null,
@@ -789,6 +791,7 @@ None.
 | macos_fleet_id | integer | body | macOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
 | ios_fleet_id | integer | body | iOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
 | ipados_fleet_id | integer | body | iPadOS hosts are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
+| tvos_fleet_id | integer | body | tvOS hosts (Apple TVs) are automatically added to this fleet when they appear in Apple Business. If not specified, defaults to "Unassigned". |
 | byod_fleet_id | integer | body | iOS/iPadOS BYOD hosts enrolling via Account-driven User Enrollment are automatically added to this fleet. If not specified, defaults to "Unassigned". |
 
 #### Example
@@ -802,6 +805,7 @@ None.
   "macos_fleet_id": 1,
   "ios_fleet_id": 2,
   "ipados_fleet_id": 3,
+  "tvos_fleet_id": 5,
   "byod_fleet_id": 4
 }
 ```
@@ -825,6 +829,7 @@ None.
     "macos_fleet": 1,
     "ios_fleet": 2,
     "ipados_fleet": 3,
+    "tvos_fleet": 5,
     "byod_fleet": 3
   },
   "abm_token": {
@@ -883,6 +888,7 @@ Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
+    "tvos_fleet": null,
     "byod_fleet": null
   },
   "abm_token": {
@@ -958,6 +964,7 @@ Content-Type: application/octet-stream
     "macos_fleet": null,
     "ios_fleet": null,
     "ipados_fleet": null,
+    "tvos_fleet": null,
     "byod_fleet": null
   },
   "abm_token": {
@@ -2804,7 +2811,7 @@ for which the user has an observer role.
 | query             | string  | body | The query used to identify hosts to target. Searchable items include a `display_name`, `hostname`, `hardware_serial`, `uuid` or `primary_ip`. |
 | query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
 | excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                                                           |
-| exclude_mobile_hosts | boolean | body | If `true`, iOS, iPadOS, and Android hosts are omitted from the search results. Used when targeting live reports, which mobile hosts can't run. Default is `false`. |
+| exclude_mobile_hosts | boolean | body | If `true`, iOS, iPadOS, tvOS, and Android hosts are omitted from the search results. Used when targeting live reports, which mobile hosts can't run. Default is `false`. |
 
 #### Example
 
@@ -4805,11 +4812,11 @@ _Available in Fleet Premium._
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
-| app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. |
+| app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. Not available for tvOS: the request fails with a `422` status if `platform` is `tvos`. If `platform` isn't specified, the tvOS app isn't added when this is `true`. |
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
-| app_store_apps.auto_update_enabled | boolean | body | **Optional**. Whether automatic updates are enabled for this iOS/iPadOS VPP app. |
+| app_store_apps.auto_update_enabled | boolean | body | **Optional**. Whether automatic updates are enabled for this iOS/iPadOS/tvOS VPP app. |
 | app_store_apps.auto_update_window_start | string | body | **Optional**. The start time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
 | app_store_apps.auto_update_window_end | string | body | **Optional**. The end time (in HH:MM format, local time) of the window during which automatic updates can occur. Required if `auto_update_enabled` is `true`. |
 

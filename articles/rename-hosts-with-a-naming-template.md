@@ -2,9 +2,9 @@
 
 _Available in Fleet Premium_
 
-Set a naming convention once and Fleet renames every macOS, iOS, and iPadOS host in a fleet to match, both on the device and in Fleet. Instead of building an automation to send a custom MDM command to each host, you save a name template like `iPad $FLEET_VAR_HOST_HARDWARE_SERIAL` and Fleet resolves it per host, renames the device over MDM, and keeps its own record in sync.
+Set a naming convention once and Fleet renames every macOS, iOS, iPadOS, and tvOS host in a fleet to match, both on the device and in Fleet. Instead of building an automation to send a custom MDM command to each host, you save a name template like `iPad $FLEET_VAR_HOST_HARDWARE_SERIAL` and Fleet resolves it per host, renames the device over MDM, and keeps its own record in sync.
 
-This applies to Apple hosts (macOS, iOS, iPadOS) only. Windows and Android hosts are unaffected.
+This applies to Apple hosts (macOS, iOS, iPadOS, tvOS) only. Windows and Android hosts are unaffected.
 
 ## Prerequisites
 

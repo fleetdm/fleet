@@ -1,8 +1,8 @@
 # Apple MDM setup
 
-To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
+To turn on macOS, iOS, iPadOS, and tvOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
 
-To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business (AB).
+To use automatic enrollment (aka zero-touch) features on macOS, iOS, iPadOS, and tvOS, follow instructions to connect Fleet with Apple Business (AB).
 
 To turn on MDM features on other platforms, head to the [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup) or [Android MDM setup](https://fleetdm.com/guides/android-mdm-setup) guides. Migrating from another MDM solution? See the [macOS](https://fleetdm.com/guides/mdm-migration), [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-windows-mdm-migration), and [Android BYOD](https://fleetdm.com/guides/android-byod-mdm-migration) migration guides.
 
@@ -18,7 +18,7 @@ How to connect Fleet to APNs:
 
 1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
 
-2. Select **Turn on** for Apple (macOS, iOS, iPadOS) MDM.
+2. Select **Turn on** for Apple (macOS, iOS, iPadOS, tvOS) MDM.
 
 3. Select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
 
@@ -48,7 +48,7 @@ How to connect Fleet to APNs:
 
 > Available in Fleet Premium
 
-Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts. Apple TVs (tvOS) enroll through automatic enrollment only.
 
 ### Re-enrolling AB hosts
 
@@ -81,10 +81,10 @@ How to connect Fleet to AB:
 
 8. Download the service token and select **Done**.
 
-9. In the **Default Device Assignment** section, assign the newly created server as the default for your Macs, iPhones, and iPads. Then select **Save**.
+9. In the **Default Device Assignment** section, assign the newly created server as the default for your Macs, iPhones, iPads, and Apple TVs. Then select **Save**.
 10. In Fleet, upload the service token (.p7m file) downloaded in step 8.
 
-macOS, iOS, and iPadOS hosts listed in AB and assigned to a Fleet will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
+macOS, iOS, iPadOS, and tvOS hosts listed in AB and assigned to a Fleet will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
 
 When one of your uploaded AB tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
 
@@ -128,7 +128,7 @@ On manually enrolled hosts, Apple blocks Managed Apple Account sign-in if:
 
 ### Set a default fleet for hosts that automatically enroll
 
-Hosts that automatically enroll are assigned to a default fleet. To configure the default fleet for macOS, iOS, and iPadOS hosts:
+Hosts that automatically enroll are assigned to a default fleet. To configure the default fleet for macOS, iOS, iPadOS, and tvOS hosts:
 
 1. Create a fleet, if you have not already, following [this guide](https://fleetdm.com/guides/fleets).
 
@@ -138,13 +138,13 @@ Hosts that automatically enroll are assigned to a default fleet. To configure th
 
 4. Select the default fleet for each platform, and select **Save** to save your selections.
 
-> If no default fleet is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "Unassigned".
+> If no default fleet is set for a host platform (macOS, iOS, iPadOS, or tvOS), then newly enrolled hosts of that platform will be placed in "Unassigned".
 
  > A host can be transferred to a new (not default) fleet before it enrolls. In the Fleet UI, you can do this under **Settings** > **Fleets**.
 
 ### Default automatic enrollment profile
 
-When macOS, iOS, or iPadOS hosts automatically enroll through Apple Business, Fleet sends an automatic enrollment (ADE) profile to Apple that controls how the Setup Assistant behaves. If no custom profile is uploaded for a fleet, Fleet uses a built-in default profile.
+When macOS, iOS, iPadOS, or tvOS hosts automatically enroll through Apple Business, Fleet sends an automatic enrollment (ADE) profile to Apple that controls how the Setup Assistant behaves. If no custom profile is uploaded for a fleet, Fleet uses a built-in default profile.
 
 The default profile sets options such as whether enrollment is mandatory, which Setup Assistant panes are skipped, and whether the MDM profile is removable. See the [Setup Assistant pane options](https://fleetdm.com/learn-more-about/apple-setup-assistant).
 

@@ -1,6 +1,6 @@
 # Configuration profiles
 
-In Fleet you can use configuration profiles to enforce OS settings like security restrictions, screen lock, Wi-Fi, etc., on your macOS, iOS, iPadOS, Windows, and Android hosts.
+In Fleet you can use configuration profiles to enforce OS settings like security restrictions, screen lock, Wi-Fi, etc., on your macOS, iOS, iPadOS, tvOS, Windows, and Android hosts.
 
 ## Create configuration profile
 
@@ -97,7 +97,7 @@ Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/d
 
 ### Target hosts with labels
 
-A configuration profile only applies to hosts on the platform it's built for. A macOS, iOS, or iPadOS profile (`.mobileconfig` or `.json`) never installs on Windows or Android hosts, and a Windows profile (`.xml`) never installs on Apple hosts. You don't need a label to keep a profile on the right platform.
+A configuration profile only applies to hosts on the platform it's built for. A macOS, iOS, iPadOS, or tvOS profile (`.mobileconfig` or `.json`) never installs on Windows or Android hosts, and a Windows profile (`.xml`) never installs on Apple hosts. You don't need a label to keep a profile on the right platform.
 
 On Fleet Premium, you can use labels to scope a profile to a subset of those hosts. There are three targeting modes. Each profile can use one include mode (**Include all** or **Include any**), **Exclude any**, or one include mode combined with **Exclude any**:
 
@@ -137,7 +137,7 @@ If two Windows profiles configure the same setting (LocURI) and one is removed, 
 
 ### Device and user scope
 
-Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles.
+Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, tvOS, and Android platforms only support device-scoped configuration profiles.
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
@@ -279,7 +279,7 @@ macOS declarations (DDM) profiles are verified with a [DDM StatusReport](https:/
 
 All Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 
-iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings. Android hosts are "Verified" after Fleet verifies that the settings is applied in the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
+iOS, iPadOS, and tvOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings. Android hosts are "Verified" after Fleet verifies that the settings is applied in the next [status report](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices).
 
 ### Verifying
 
