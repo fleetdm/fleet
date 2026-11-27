@@ -2129,7 +2129,7 @@ func TestListUsersComputesStatus(t *testing.T) {
 }
 
 func TestCreateUserTeamRoleActivityHasTeamName(t *testing.T) {
-	admin := &fleet.User{ID: 1, Name: "Fleet Admin", Email: "admin@foo.com", GlobalRole: ptr.String(fleet.RoleAdmin)}
+	admin := &fleet.User{ID: 1, Name: "Fleet Admin", Email: "admin@foo.com", GlobalRole: new(fleet.RoleAdmin)}
 
 	ms := new(mock.Store)
 	ms.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -2155,10 +2155,10 @@ func TestCreateUserTeamRoleActivityHasTeamName(t *testing.T) {
 	}
 
 	_, _, err := svc.CreateUser(ctx, fleet.UserPayload{
-		Email:    ptr.String("new@example.com"),
-		Name:     ptr.String("New User"),
-		Password: ptr.String(test.GoodPassword),
-		Teams:    &[]fleet.UserTeam{{Team: fleet.Team{ID: 7}, Role: fleet.RoleObserver}},
+		Email:    new("new@example.com"),
+		Name:     new("New User"),
+		Password: new(test.GoodPassword),
+		Teams:    &[]fleet.UserTeam{{ID: 7, Role: fleet.RoleObserver}},
 	})
 	require.NoError(t, err)
 	require.NotNil(t, teamRole)
