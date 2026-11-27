@@ -107,6 +107,8 @@ Keep line width between 50 and 75 characters.
 
 Use these core colors across all product UI and communications.
 
+For colors in illustrations, see [Cloud City colors](https://fleetdm.com/handbook/company/brand#cloud-city-colors).
+
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <thead>
     <tr>
@@ -184,7 +186,9 @@ Use these core colors across all product UI and communications.
 
 Use imagery to support messaging and communicate value. Images range from hero illustrations to graphical representations of the product. Imagery should support content, not distract from it. Keep compositions simple, consistent, and purposeful.
 
-![Cloud City](https://fleetdm.com/images/brand-cloud-city-720x445@2x.png)
+[Image library](https://drive.google.com/drive/folders/1G3YpTnfG-CN5iiaJXxPbk9GhJRV0WnPk?usp=drive_link)
+
+![Cloud City](https://fleetdm.com/images/brand-cloud-city-island-720x445@2x.png)
 
 ### Cloud City
 
@@ -198,7 +202,120 @@ Cloud City scenes often include:
 - Waterfalls
 - Swans
 
-[Download  Cloud City artwork](https://drive.google.com/drive/folders/1G3YpTnfG-CN5iiaJXxPbk9GhJRV0WnPk?usp=drive_link)
+#### Cloud City colors
+
+Use these colors, sampled from Cloud City artwork, as a starting point when creating new illustrations.
+
+> The colors are only part of the look, along with hand-drawn linework, soft shading, and open, uncrowded scenes. Work from the reference illustrations in the [image library](https://drive.google.com/drive/folders/1G3YpTnfG-CN5iiaJXxPbk9GhJRV0WnPk?usp=drive_link).
+
+> Don't use these illustration colors in product UI or communications. Use the [core colors](https://fleetdm.com/handbook/company/brand#colors) instead.
+
+<div style="overflow-x:auto;">
+<table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
+  <thead>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; width:64px;"></th>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; color:#192147; font-weight:600;">Material</th>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; color:#192147; font-weight:600; width:120px;">Highlight</th>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; color:#192147; font-weight:600; width:120px;">Base</th>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; color:#192147; font-weight:600; width:120px;">Shadow</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-cliff-64x64@2x.png" alt="Cliff rock in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Cliff rock</strong><br>Sides and undersides of the islands.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#7D8181;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#7D8181</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#575B6C;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#575B6C</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#3C3F49;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#3C3F49</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-fields-64x64@2x.png" alt="Farm fields in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Farm fields</strong><br>Striped fields on the island tops. Flat fill with darker furrow lines.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#CBE07E;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#CBE07E</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#C6DC78;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#C6DC78</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#BCD87E;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#BCD87E</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-grass-64x64@2x.png" alt="Grass and hills in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Grass &amp; hills</strong><br>Open land and hillsides.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#A0CA6C;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#A0CA6C</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#9DC966;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#9DC966</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#89B363;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#89B363</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-trees-64x64@2x.png" alt="Trees and shrubs in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Trees &amp; shrubs</strong><br>Small clusters around domes and field edges.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#62824A;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#62824A</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#4F6845;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#4F6845</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#21341A;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#21341A</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-water-64x64@2x.png" alt="Water in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Water</strong><br>Lakes, rivers, and waterfalls.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#6FC3BB;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#6FC3BB</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#3BAB91;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#3BAB91</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#2B6F69;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#2B6F69</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-glass-64x64@2x.png" alt="Glass domes in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Glass domes</strong><br>Domes range from pale frosted to blue. These vary the most between illustrations.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#BFD4E0;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#BFD4E0</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#B5CCDA;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#B5CCDA</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#45768B;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#45768B</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-walls-64x64@2x.png" alt="Tower walls in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Tower walls</strong><br>Cream bases under the domes.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#F4F1DE;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#F4F1DE</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#EFEBD5;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#EFEBD5</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#EBE7D0;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#EBE7D0</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-sand-64x64@2x.png" alt="Sand in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Sand</strong><br>Shorelines around lakes.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#F7F0D7;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#F7F0D7</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#F3E7B6;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#F3E7B6</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#EFE2B5;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#EFE2B5</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-cloud-blue-64x64@2x.png" alt="Upper clouds in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Clouds, upper</strong><br>Clouds near the sky. White with blue shading.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#FFFFFF;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#FFFFFF</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#C8DAE5;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#C8DAE5</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#B0C3D7;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#B0C3D7</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-cloud-lavender-64x64@2x.png" alt="Lower clouds in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Clouds, lower</strong><br>Clouds lower in the scene. White with lavender-gray shading.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#FFFFFF;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#FFFFFF</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#D7D9E6;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#D7D9E6</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#ADB2C8;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#ADB2C8</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-outline-64x64@2x.png" alt="Cloud outline in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Cloud outline</strong><br>One line color around every cloud.</td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#93A4C2;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#93A4C2</div></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-sky-64x64@2x.png" alt="Sky in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Sky</strong><br>Gradient. Highlight is the horizon, shadow is the top of the sky.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#F7FDFD;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#F7FDFD</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#E6F7F8;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#E6F7F8</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#CFF0F2;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#CFF0F2</div></td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:8px;"><img src="https://fleetdm.com/images/brand-cloud-city-ink-64x64@2x.png" alt="Linework in a Cloud City illustration" style="width:64px; height:64px; padding:0; display:block;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;"><strong style="color:#192147;">Linework</strong><br>Outlines use a dark tint of each material: green-black on plants, blue-black on rock.</td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#263324;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#263324</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#1F222D;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#1F222D</div></td>
+      <td style="border:1px solid #C5C7D1; padding:0; vertical-align:bottom; height:96px; background:#111518;"><div style="background:#FFFFFF; padding:6px 12px; font-size:13px; border-top:1px solid #C5C7D1;">#111518</div></td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
 ### Graphics
 
