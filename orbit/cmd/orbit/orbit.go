@@ -861,8 +861,15 @@ func orbitAction(c *cli.Context) error {
 	var updater *update.Updater
 	var updateRunner *update.Runner
 	var osqueryVersion string
+	// Each branch below calls this: after the early update check where there is one, and before anything that can retry forever.
+	restrictWindowsEnrollSecretFile := func() {
+		if runtime.GOOS == "windows" && enrollSecretPath != "" {
+			restrictEnrollSecretFile(enrollSecretPath)
+		}
+	}
 	switch {
 	case externalOsquerydPath != "":
+		restrictWindowsEnrollSecretFile()
 		log.Info().Msgf("orbit version: %s", build.Version)
 		log.Info().Msgf("running with externally managed osqueryd: %s", externalOsquerydPath)
 		if _, err := os.Stat(externalOsquerydPath); err != nil {
@@ -941,10 +948,7 @@ func orbitAction(c *cli.Context) error {
 
 		addSubsystem(&g, "update runner", updateRunner)
 
-		// Before the component retry below, which doesn't give up while the update server is unreachable.
-		if runtime.GOOS == "windows" && enrollSecretPath != "" {
-			restrictEnrollSecretFile(enrollSecretPath)
-		}
+		restrictWindowsEnrollSecretFile()
 
 		// if getting any of the targets fails, keep on
 		// retrying, the `updater.Get` method has built-in backoff functionality.
@@ -973,9 +977,7 @@ func orbitAction(c *cli.Context) error {
 		}
 	default:
 		log.Info().Msg("running with auto updates disabled")
-		if runtime.GOOS == "windows" && enrollSecretPath != "" {
-			restrictEnrollSecretFile(enrollSecretPath)
-		}
+		restrictWindowsEnrollSecretFile()
 		updater = update.NewDisabled(opt)
 		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
 		if err != nil {
