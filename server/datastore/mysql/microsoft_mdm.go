@@ -1427,8 +1427,10 @@ ORDER BY
 	wmc.created_at ASC, wmc.id ASC
 `
 
+	// The list is what gets sent, so it comes from the primary: the device acknowledges commands in one request and
+	// often opens its next session within a second, before a replica would show those acknowledgements.
 	var commands []*fleet.MDMWindowsCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, enrollmentID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &commands, query, enrollmentID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by enrollment id")
 	}
 

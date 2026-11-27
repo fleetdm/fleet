@@ -2517,17 +2517,30 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
+		// processIncomingMDMCmds saved this message's Status and Results on the primary, acknowledging the commands
+		// they answer (and requeueing an Add answered with 418 as a Replace).
+		queueChanged := fleet.NewEnrichedSyncML(reqMsg).HasCommands()
+
 		// Outside the Autopilot ESP, reconcile the DMClient poll schedule: relax it for hosts whose fleetd can be woken on demand, so we can stop
 		// the aggressive default 1-minute poll. This enqueues the Replace (if needed) BEFORE draining the command queue below, so it ships in this same
 		// session.
 		if enrolledDevice.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationNone {
-			if err := svc.reconcileWindowsMDMPollSchedule(ctx, enrolledDevice); err != nil {
+			enqueued, err := svc.reconcileWindowsMDMPollSchedule(ctx, enrolledDevice)
+			if err != nil {
 				return nil, fmt.Errorf("poll schedule reconcile error: %w", err)
 			}
+			queueChanged = queueChanged || enqueued
+		}
+
+		// The pending-commands probe reads the replica, which would not show the commands just enqueued, so they
+		// would wait for a later session. Idle check-ins change nothing and stay on the replica.
+		pendingCtx := ctx
+		if queueChanged {
+			pendingCtx = ctxdb.RequirePrimary(ctx, true)
 		}
 
 		// Process the pending operations and get the MDM response protocol commands
-		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice)
+		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(pendingCtx, enrolledDevice)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
@@ -2615,26 +2628,26 @@ func buildPollScheduleCommand(relaxed bool) (*fleet.MDMWindowsCommand, error) {
 // It enqueues the poll Replace through the standard Windows MDM command queue. poll_schedule_relaxed records only the
 // INTENDED schedule, so a command is enqueued exactly once per intended change (and excluded from the
 // pending-command/wake signal, so tuning the poll does not itself request a wake).
-func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
+func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) (enqueued bool, err error) {
 	// A capable fleetd (one advertising CapabilityWindowsMDMSync, persisted to fleetd_sync_capable by the orbit-config endpoint) can be woken
 	// on demand, so relax its poll; otherwise keep the fast default. The flag is read straight off the already-loaded enrolled-device row, so
 	// this hot management path does no extra DB lookups.
 	desiredRelaxed := device.FleetdSyncCapable
 	if desiredRelaxed == device.PollScheduleRelaxed {
 		// Intended schedule already matches; any still-undelivered Replace is re-sent by the command queue.
-		return nil
+		return false, nil
 	}
 
 	cmd, err := buildPollScheduleCommand(desiredRelaxed)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build windows MDM poll schedule command")
+		return false, ctxerr.Wrap(ctx, err, "build windows MDM poll schedule command")
 	}
 	// Enqueue the Replace and record the intended schedule atomically.
 	if err := svc.ds.MDMWindowsEnqueuePollScheduleCommand(ctx, device.MDMDeviceID, device.ID, cmd, desiredRelaxed); err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
+		return false, ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
 	}
 	svc.logger.DebugContext(ctx, "reconciled Windows MDM poll schedule", "device_id", device.MDMDeviceID, "relaxed", desiredRelaxed)
-	return nil
+	return true, nil
 }
 
 // getESPCommands dispatches ESP coordination for a Windows Autopilot device.

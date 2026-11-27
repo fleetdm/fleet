@@ -1,0 +1,1 @@
+- Fixed Windows MDM re-sending commands a host had just acknowledged when Fleet uses a MySQL read replica that lags the primary, which could also make a successful command show as failed.
