@@ -59,7 +59,7 @@ At past jobs, I've had a work laptop and a personal one, and just wanted to chec
 
 That's a personal Mac borrowing the identity of an enrolled one. Whether it works depends on how your devices prove who they are.
 
-**Fleet with Okta.** At sign-in, Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes. Fleet marks the key non-exportable, but macOS enforces that in software. The key sits in the login keychain, not the Secure Enclave, and the keychain file is locked with the employee's own password. Open source forensic tools like [chainbreaker](https://github.com/n0fate/chainbreaker) read that file directly and can export private keys from it. (On Windows, the key stays in the TPM.) We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
+**Fleet with Okta.** At sign-in, Fleet matches the certificate to a host and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes. Fleet marks the key non-exportable, but that's a rule macOS enforces in software. The key sits in the login keychain, not the Secure Enclave, and the keychain file is locked with the employee's own password. Open source tools like [chainbreaker](https://github.com/n0fate/chainbreaker) read the file directly and decrypt every private key in it, exportable or not. macOS Tahoe 26.4 [raised the bar](https://eclecticlight.co/2026/10/02/how-to-copy-login-keychains-that-can-be-unlocked/): login keychains now also need a secret stored in a folder protected by System Integrity Protection (SIP), so the employee would have to turn SIP off first. (On Windows, the key stays in the TPM.) We've [filed this as a bug](https://github.com/fleetdm/fleet/issues/60032), because we'd rather you hear it from us.
 
 **Jamf, or any MDM, with Okta management attestation.** Jamf installs a certificate from Okta in the login keychain, and Okta [recommends making it non-exportable](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm). A copy makes the personal Mac look managed. Okta's own posture checks, like OS version, do run on the personal Mac, so it has to pass those itself.
 
@@ -68,6 +68,14 @@ That's a personal Mac borrowing the identity of an enrolled one. Whether it work
 Is this a big deal? For most companies, no. The employee still needs a real, enrolled, compliant work computer, and if you use Fleet, deleting that host kills its certificate. Most people who try it want convenience, not your data. But it means conditional access isn't always checking what it seems to check.
 
 ## How to close the gap on a Mac
+
+**Keep Macs current, and require SIP.** On macOS 26.4 or later, copying the key means turning off SIP, and Fleet can block any Mac that does. Add this policy to conditional access:
+
+```sql
+SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;
+```
+
+An employee could turn SIP back on after copying the key, so this raises the bar rather than closing the gap.
 
 **Use Entra with a Secure Enclave key.** If you're on Entra, deploy [Platform SSO with a Secure Enclave key](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet). It works with Jamf, Intune, or Fleet.
 
