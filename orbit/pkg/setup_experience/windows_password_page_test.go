@@ -91,3 +91,24 @@ func TestPasswordPage(t *testing.T) {
 	_, body = get(p.URL())
 	require.Contains(t, body, "Setting up your device")
 }
+
+func TestJoinPage(t *testing.T) {
+	page, err := newJoinPage()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = page.Close() })
+
+	client := fleethttp.NewClient()
+	resp, err := client.Get(page.URL())
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, string(body), "sign in with your work account")
+	require.NotContains(t, string(body), "<form")
+
+	resp, err = client.PostForm(page.URL(), url.Values{"password": {"x"}, "confirm": {"x"}})
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
+}
