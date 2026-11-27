@@ -6,7 +6,7 @@ Every computer leaves the company eventually. IT asset disposition (ITAD) is how
 
 ITAD covers what happens to a computer after its last day of work: pickup and shipping, wiping or destroying the drive, resale or recycling, and a certificate for each device that proves it was done.
 
-Most partners follow [NIST SP 800-88 Rev. 2](https://csrc.nist.gov/pubs/sp/800/88/r2/final) (September 2025), which defines three ways to sanitize a drive: clear, purge, and destroy. It also accepts [cryptographic erase](https://csrc.nist.gov/files/pubs/sp/800/88/r2/final/docs/sp800-88r2-faq.pdf) as a purge method, under conditions: destroy the key to an encrypted drive, and the data is unreadable. SOC 2, HIPAA, and ISO 27001 auditors will ask how you did it.
+Most partners follow [NIST SP 800-88 Rev. 2](https://csrc.nist.gov/pubs/sp/800/88/r2/final) (September 2025), which defines three ways to sanitize a drive: clear, purge, and destroy. It also accepts [cryptographic erase](https://csrc.nist.gov/files/pubs/sp/800/88/r2/final/docs/sp800-88r2-faq.pdf) as a purge method, under certain conditions: destroy the key to an encrypted drive, and the data is unreadable. SOC 2, HIPAA, and ISO 27001 auditors will ask how you did it.
 
 ## Who does it
 
@@ -26,7 +26,7 @@ Resellers like [CDW](https://www.cdw.com/content/cdw/en/services/renewals-and-wa
 
 Your ITAD partner takes over once the computer is in a box. Fleet handles most of what happens before that: knowing what you're retiring, confirming it's encrypted, locking it, wiping it, and removing it from your systems.
 
-Here's how one [medical technology company running Fleet](https://fleetdm.com/articles/leaving-e3-entirely#whos-already-doing-this) does it: when a laptop comes back, its disposition partner holds it for 60 days, wipes it, and then restocks, recycles, or resells it depending on its age.
+On the partner side, one [medical technology company running Fleet](https://fleetdm.com/articles/leaving-e3-entirely#whos-already-doing-this) has its disposition partner hold each returned laptop for 60 days, then sanitize it and restock, recycle, or resell it depending on its age.
 
 ## Before you begin
 
@@ -80,7 +80,7 @@ Wait until the wipe finishes, then:
 1. **Apple devices:** select **Actions > Release from Apple Business**. This can't be undone, and Apple Business [can't manage Activation Lock](https://support.apple.com/guide/business/axmec4d28461/web) after release, so finish step 4 first.
 2. Select **Actions > Delete** to remove the host from Fleet. Deleted hosts no longer count toward the hosts on your license.
 
-> **Warning:** If you delete an Apple device that's still assigned to Fleet in Apple Business, it comes back as a **Pending** host. A computer that still has a valid enroll secret re-enrolls the next time it checks in. Release or wipe first.
+> **Warning:** Release or wipe a device before you delete it, or it can come back. See [Troubleshoot](#troubleshoot).
 
 Fleet keeps archived disk encryption keys, so a global admin can still [look one up by serial number](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-disk-encryption-key) after the host is deleted.
 
@@ -91,6 +91,20 @@ Match the partner's pickup manifest against your Fleet export from step 1. Every
 ### 8. Close the loop
 
 Store each certificate of sanitization by serial number. Fleet's [audit log](https://fleetdm.com/docs/api/global-audit-logs) records when each device was locked (`locked_host`), wiped (`wiped_host`), released (`released_from_ab`), and deleted (`deleted_host`, with its serial number). Export those with the certificates, and you have the record most auditors ask for.
+
+## Troubleshoot
+
+**Fleet says "Host is locked."** Fleet can't wipe a locked host. Select **Actions > Unlock** first. On a Mac, type the PIN shown in Fleet on the device.
+
+**The wipe is still pending.** The host is wiped the next time it connects. Turn it on and connect it to the internet.
+
+**A Windows PC won't boot after the wipe.** Microsoft warns that `doWipeProtected` can do this. Most ITAD partners sanitize the drive anyway, so check with yours and hand it over.
+
+**A deleted Mac came back as Pending.** It's still assigned to Fleet in Apple Business. Release it from Apple Business, then delete it again.
+
+**A deleted computer re-enrolled.** It still had a valid enroll secret. Wipe it before you delete it.
+
+**Activation Lock is still on.** Turn it off in Apple Business. You can't after the device is released, so do it before step 6.
 
 ## Automate it with the API
 
@@ -113,20 +127,6 @@ curl -s -X DELETE -H "$AUTH" "$FLEET/api/v1/fleet/hosts/$ID"
 ```
 
 To export the manifest, call [`GET /api/v1/fleet/hosts/report?format=csv`](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv). From the command line, `fleetctl mdm lock --host` and `fleetctl mdm wipe --host` accept a serial number.
-
-## Troubleshoot
-
-**Fleet says "Host is locked."** Fleet can't wipe a locked host. Select **Actions > Unlock** first. On a Mac, type the PIN shown in Fleet on the device.
-
-**The wipe is still pending.** The host is wiped the next time it connects. Turn it on and connect it to the internet.
-
-**A Windows PC won't boot after the wipe.** Microsoft warns that `doWipeProtected` can do this. Your ITAD partner reimages or sanitizes the drive anyway, so you can still hand it over.
-
-**A deleted Mac came back as Pending.** It's still assigned to Fleet in Apple Business. Release it from Apple Business, then delete it again.
-
-**A deleted computer re-enrolled.** It still had a valid enroll secret. Wipe it before you delete it.
-
-**Activation Lock is still on.** Turn it off in Apple Business. You can't after the device is released, so do it before step 6.
 
 ## Checklist
 
