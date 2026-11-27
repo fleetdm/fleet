@@ -2331,8 +2331,19 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	}
 
+	existingInstall, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get existing install")
+	}
+
+	// fleetd sends the final result again if the request fails, so the result can already be stored.
+	resultAlreadyStored := false
+	if existingInstall != nil && existingInstall.Status != fleet.SoftwareInstallPending {
+		resultAlreadyStored = true
+	}
+
 	// Calculate attempt_number for retries by counting existing attempts
-	attemptNumber, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, result.InstallUUID)
+	attemptNumber, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, existingInstall)
 	if err != nil {
 		return err
 	}
@@ -2368,8 +2379,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// updating setup experience status during intermediate retries.
 	willRetryNonPolicyOnFailure := false
 	if attemptNumber != nil && *attemptNumber < fleet.MaxSoftwareInstallAttempts && result.Status() == fleet.SoftwareInstallFailed {
-		currentInstall, checkErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
-		if checkErr == nil && currentInstall != nil && currentInstall.PolicyID == nil {
+		if existingInstall != nil && existingInstall.PolicyID == nil {
 			willRetryNonPolicyOnFailure = true
 		}
 	}
@@ -2437,7 +2447,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 		// Count every policy automation and setup experience install that downloaded the installer,
 		// successful or not. Admin and self-service installs outside setup experience are not counted.
-		if downloadAttempted && (hsi.PolicyID != nil || fromSetupExperience) && hsi.SoftwareInstallerID != nil && svc.installAttemptCounter != nil {
+		if !resultAlreadyStored && downloadAttempted && (hsi.PolicyID != nil || fromSetupExperience) && hsi.SoftwareInstallerID != nil && svc.installAttemptCounter != nil {
 			var attempts int
 			attempts, err = svc.installAttemptCounter.RecordAttempt(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.PolicyAutomationInstallAttemptExpiry)
 			if err != nil {
@@ -2785,12 +2795,7 @@ func (svc *Service) getPolicyAutomationScriptAttemptNumber(ctx context.Context, 
 
 // getSoftwareInstallerAttemptNumber calculates the attempt number for a software install.
 // Returns nil for installs that don't have a software_installer_id.
-func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
-	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")
-	}
-
+func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, currentInstall *fleet.HostSoftwareInstallerResult) (*int, error) {
 	if currentInstall == nil || currentInstall.SoftwareInstallerID == nil {
 		return nil, nil
 	}

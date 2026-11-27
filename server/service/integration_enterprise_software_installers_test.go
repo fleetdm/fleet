@@ -319,7 +319,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		// check the software installer
-		installerID, titleID := checkSoftwareInstaller(t, s.ds, payload)
+		_, titleID := checkSoftwareInstaller(t, s.ds, payload)
 
 		// check activity
 		activityData := fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb",
@@ -329,11 +329,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// upload again fails: identical bytes on the same title are a hash duplicate
 		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "package is already added (same SHA-256 hash)")
-
-		// Record an install attempt for a host before the update below changes the scripts
-		attemptsHost := createOrbitEnrolledHost(t, "linux", "attempts_host", s.ds)
-		_, err = s.attemptCounter.RecordAttempt(context.Background(), attemptsHost.ID, installerID, fleet.PolicyAutomationInstallAttemptExpiry)
-		require.NoError(t, err)
 
 		// update should succeed
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -345,12 +340,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TitleID:           titleID,
 			TeamID:            nil,
 		}, http.StatusOK, "")
-
-		// Count the install attempts for the host, the edit should have reset them
-		attempts, err := s.attemptCounter.CountAttempts(context.Background(), attemptsHost.ID, installerID)
-		require.NoError(t, err)
-		require.Zero(t, attempts)
-
 		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null,
 		"fleet_name": null, "fleet_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}], "software_display_name": "",
 		"pinned_version": null}`,

@@ -3953,17 +3953,16 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticInstallAttemptsAreCounted(
 	require.NoError(t, err)
 
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install script for counted.deb",
-		Filename:      "counted.deb",
-		Title:         "counted",
+		InstallScript: "install script for vim.deb",
+		Filename:      "vim.deb",
 		TeamID:        &team.ID,
 		SelfService:   true,
 	}, http.StatusOK, "")
-	titleID := getSoftwareTitleID(t, s.ds, "counted", "deb_packages")
+	titleID := getSoftwareTitleID(t, s.ds, "vim", "deb_packages")
 
 	var installerID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "counted.deb")
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "vim.deb")
 	})
 	require.NotZero(t, installerID)
 
@@ -3992,7 +3991,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticInstallAttemptsAreCounted(
 	require.NoError(t, err)
 	orbitKey := setOrbitEnrollment(t, host, s.ds)
 	host.OrbitNodeKey = &orbitKey
-	deviceToken := "device-token-" + t.Name()
+	deviceToken := uuid.NewString()
 	createDeviceTokenForHost(t, s.ds, host.ID, deviceToken)
 
 	require.NoError(t, s.attemptCounter.ResetAttempts(ctx, host.ID, installerID))
@@ -4061,7 +4060,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticInstallAttemptsAreCounted(
 	require.Equal(t, 2, attempts)
 
 	// Install the software from self-service and report a success, the count should not change.
-	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", deviceToken, titleID), nil, http.StatusAccepted)
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", deviceToken, titleID), nil, http.StatusAccepted)
 	reportInstallResult(pendingInstallUUID(), 0, 0)
 	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
 	require.NoError(t, err)
@@ -4098,6 +4097,24 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticInstallAttemptsAreCounted(
 		require.NoError(t, err)
 		require.Equal(t, 2, attempts, "exit code %d", exitCode)
 	}
+
+	// Fail the policy and report a successful policy install, the install should count.
+	var distributedResp submitDistributedQueryResultsResponse
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write",
+		genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(true)}), http.StatusOK, &distributedResp)
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write",
+		genDistributedReqWithPolicyResults(host, map[uint]*bool{policy.ID: new(false)}), http.StatusOK, &distributedResp)
+	policyInstallUUID := pendingInstallUUID()
+	reportInstallResult(policyInstallUUID, 0, 0)
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 3, attempts)
+
+	// Send the same final result again, the count should not change.
+	reportInstallResult(policyInstallUUID, 0, 0)
+	attempts, err = s.attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 3, attempts)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailuresDoNotCount() {

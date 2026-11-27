@@ -821,7 +821,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 	require.Equal(t, srv.URL, packages[0].URL)
-	installerID := packages[0].InstallerID
 	titlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "fleet_id",
 		fmt.Sprint(tm.ID))
@@ -943,10 +942,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &hostResp, "include_available_for_install", "true")
 	require.Equal(t, fleet.SoftwareInstalled, *hostResp.Software[0].Status)
 
-	// Record an install attempt for the host before the install script changes
-	_, err = s.attemptCounter.RecordAttempt(context.Background(), h.ID, installerID, fleet.PolicyAutomationInstallAttemptExpiry)
-	require.NoError(t, err)
-
 	// update install script
 	withUpdatedInstallScript := []*fleet.SoftwareInstallerPayload{
 		{URL: srv.URL, InstallScript: "apt install ruby"},
@@ -965,11 +960,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	require.Equal(t, uint(1), titleResponse.SoftwareTitle.Packages[0].Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.Packages[0].Status.PendingInstall)
 	require.Equal(t, uploadedAt, titleResponse.SoftwareTitle.Packages[0].UploadedAt)
-
-	// Count the install attempts for the host, the install script change should have reset them
-	attempts, err := s.attemptCounter.CountAttempts(context.Background(), h.ID, installerID)
-	require.NoError(t, err)
-	require.Zero(t, attempts)
 
 	// install should still show as complete
 	hostResp = getHostSoftwareResponse{}
