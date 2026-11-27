@@ -100,6 +100,40 @@ func TestScriptValidate(t *testing.T) {
 	}
 }
 
+func TestValidateScriptPlatform(t *testing.T) {
+	tests := []struct {
+		name       string
+		scriptName string
+		platform   string
+		want       bool
+	}{
+		{"sh on darwin", "run.sh", "darwin", true},
+		{"sh on ubuntu", "run.sh", "ubuntu", true},
+		{"sh on windows", "run.sh", "windows", false},
+		{"upper-case sh on darwin", "RUN.SH", "darwin", true},
+		{"upper-case sh on windows", "RUN.SH", "windows", false},
+		{"py on darwin", "hello.py", "darwin", true},
+		{"py on linux", "hello.py", "linux", true},
+		{"py on windows", "hello.py", "windows", false},
+		{"upper-case py on darwin", "HELLO.PY", "darwin", true},
+		{"upper-case py on linux", "HELLO.PY", "linux", true},
+		{"upper-case py on windows", "HELLO.PY", "windows", false},
+		{"mixed-case py on darwin", "Hello.Py", "darwin", true},
+		{"ps1 on windows", "win.ps1", "windows", true},
+		{"ps1 on darwin", "win.ps1", "darwin", false},
+		{"upper-case ps1 on windows", "WIN.PS1", "windows", true},
+		{"upper-case ps1 on darwin", "WIN.PS1", "darwin", false},
+		{"unknown ext on darwin", "run.txt", "darwin", false},
+		{"no ext on windows", "run", "windows", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, ValidateScriptPlatform(tt.scriptName, tt.platform))
+		})
+	}
+}
+
 func TestValidateShebang(t *testing.T) {
 	tests := []struct {
 		name          string

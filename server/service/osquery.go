@@ -3569,8 +3569,9 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 
 		// skip incompatible scripts
 		hostPlatform := fleet.PlatformFromHost(hostPlatform)
-		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
-			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
+		lowerScriptName := strings.ToLower(scriptMetadata.Name)
+		if (hostPlatform == "windows" && strings.HasSuffix(lowerScriptName, ".sh")) ||
+			(hostPlatform != "windows" && strings.HasSuffix(lowerScriptName, ".ps1")) {
 			logger.InfoContext(ctx, "script type does not match host platform")
 			continue
 		}
