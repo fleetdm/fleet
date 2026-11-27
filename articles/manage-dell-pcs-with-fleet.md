@@ -14,7 +14,7 @@ In my defense, firmware is a big topic (see November 22).
 - Hosts enrolled with fleetd, with [scripts enabled](https://fleetdm.com/guides/scripts), in a fleet. (Automations don't work on policies for "All fleets".)
 - If your Dell PCs have a BIOS admin password, a custom variable named `BIOS_PASSWORD`. Add it in **Controls** > **Variables** first, because Fleet won't save a script that mentions a variable it hasn't heard of.
 
-> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every PC. That still keeps it out of your scripts and Git, which is what matters most. Fleet already runs in production on Dell hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
+> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every PC. That still keeps it out of your scripts and Git, which matters most. Fleet already runs in production on Dell hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
 
 ## Step 1: Label your Dell PCs
 
@@ -26,7 +26,7 @@ SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'Dell%';
 
 ## Step 2: Install Dell's tools
 
-Dell makes two tools you'll lean on. [Dell Command | Update](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/dell-command-update-cli-commands?guid=guid-92619086-5f7c-4a05-bce2-0d560c15e8ed&lang=en-us) fetches BIOS, firmware, and driver updates, and [Dell Command | Configure](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/) (`cctk`) changes BIOS settings.
+You'll lean on two Dell tools. [Dell Command | Update](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/dell-command-update-cli-commands?guid=guid-92619086-5f7c-4a05-bce2-0d560c15e8ed&lang=en-us) fetches BIOS, firmware, and driver updates, and [Dell Command | Configure](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/) (`cctk`) changes BIOS settings.
 
 Dell Command | Update is a Fleet-maintained app, so go to **Software**, click **Add software**, and add **Dell Command Update** for Windows, targeting the **Dell** label. For Dell Command | Configure, download it from Dell and add it under **Software** > **Add software** > **Custom package**, also targeting **Dell**.
 
@@ -36,7 +36,7 @@ Adding an app doesn't install it, so Dell Command | Update also needs a policy. 
 SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';
 ```
 
-Then, on the **Policies** page, click the policy's **Automation** column, choose **Install software** from the **Automation** dropdown, pick **Dell Command Update**, and click **Save**. From then on, any Dell that answers "no" gets it.
+Then, on the **Policies** page, click the policy's **Automation** column, choose **Install software** from the **Automation** dropdown, pick **Dell Command Update**, and click **Save**. Any Dell that answers "no" gets it.
 
 ## Step 3: Keep the BIOS, firmware, and drivers up to date
 
@@ -58,13 +58,13 @@ exit $code
 
 BitLocker can ask for its recovery key after a BIOS update, which is a rough way to start a Monday, so `-autoSuspendBitLocker=enable` has it sit out the next restart. Add `-updateSeverity=security,critical` if you only want the urgent stuff, and see Dell's [CLI reference](https://www.dell.com/support/manuals/en-us/command-update/dcu_rg/command-line-interface-error-codes?guid=guid-fbb96b06-4603-423a-baec-cbf5963d8948&lang=en-us) for the other exit codes.
 
-So, how do you know when a PC falls behind? Start by running this as a live report (a one-off question your hosts answer right away). It lists each PC's model and BIOS version, so you know which models you have:
+So, how do you know when a PC falls behind? First, run this as a live report (a one-off question your hosts answer right away). It lists each PC's model and BIOS version, so you know which models you have:
 
 ```sql
 SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;
 ```
 
-Then add a policy for each model. Every other model passes it automatically, and this model passes only if its BIOS is at least version X.Y.Z. Copy the model name from the live report and the minimum version from Dell's support page, exactly:
+Then add a policy for each model. Other models pass automatically, and this one passes only if its BIOS is at least version X.Y.Z. Copy the model name from the live report and the minimum version from Dell's support page, exactly:
 
 ```sql
 SELECT 1 FROM system_info s, platform_info p
@@ -173,7 +173,7 @@ For a wider check, run `fwupdmgr security --json` as a script. It returns fwupd'
 
 ## Treat a surprise BitLocker prompt as a signal
 
-None of this replaces disk encryption, so [keep enforcing it](https://fleetdm.com/guides/enforce-disk-encryption). The two back each other up. A BitLocker recovery prompt nobody expected can be the first sign that something in the boot chain changed. Before the help desk reads out a recovery key, have them look the host up in Fleet. Did Secure Boot turn off, did the BIOS verification fail, or was there a BIOS update? If nothing explains it, dig in before unlocking.
+None of this replaces disk encryption, so [keep enforcing it](https://fleetdm.com/guides/enforce-disk-encryption). The two even back each other up. A BitLocker recovery prompt nobody expected can be the first sign that something in the boot chain changed. Before the help desk reads out a recovery key, have them look the host up in Fleet. Did Secure Boot turn off, did the BIOS verification fail, or was there a BIOS update? If nothing explains it, dig in before unlocking.
 
 ## Manage it with GitOps
 
