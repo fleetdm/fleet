@@ -68,18 +68,17 @@ module.exports = {
       throw {invalidInput: {error: 'invalidInput', reason: `Instructions must be ${MAX_INSTRUCTIONS_LENGTH} characters or fewer.`}};
     }
 
-    let fleetServer = await sails.helpers.profileGenerator.authenticateFleetServer.with({ req: this.req, fleetLicenseKey })
+    let usageRecord = await sails.helpers.profileGenerator.authenticateFleetServer.with({ req: this.req, fleetLicenseKey })
     .intercept('couldNotAuthenticate', ()=>{
       return 'unauthorized';
     });
 
     // Fleet Free is counted per registration, and Fleet Premium per license.
-    let credential = fleetServer.registration ? { registrationId: fleetServer.registration.id } : { licenseUsageId: fleetServer.licenseUsage.id };
-    let usage = await sails.helpers.profileGenerator.countOneRequest.with(_.extend({ requestType: 'profile' }, credential))
+    let usage = await sails.helpers.profileGenerator.countOneRequest.with({ usageId: usageRecord.id, requestType: 'profile' })
     .intercept('limitReached', (err)=>{
       return {generationLimitReached: {error: 'generationLimitReached', resetsAt: err.raw.resetsAt, limit: err.raw.profileLimit}};
     });
-    let fleetServerName = fleetServer.registration ? `Fleet Free registration ${fleetServer.registration.id}` : `the Fleet Premium license of ${fleetServer.licenseUsage.organization}`;
+    let fleetServerName = usageRecord.credentialType === 'license' ? `the Fleet Premium license of ${usageRecord.organization}` : `Fleet Free registration ${usageRecord.id}`;
     sails.log.info(`Generating a configuration profile for ${fleetServerName} (${usage.profileGenerationsThisMonth} of ${usage.profileLimit} profiles this month).`);
 
     let generationResult;
@@ -94,7 +93,7 @@ module.exports = {
       // Only a request the AI service never answered is given back.  An answer that could not be used still
       // cost a generation, and a caller could write instructions that produce one on purpose.
       if(err.llmDidNotAnswer) {
-        await sails.helpers.profileGenerator.giveBackOneRequest.with(_.extend({ requestType: 'profile', usageMonth: usage.usageMonth }, credential));
+        await sails.helpers.profileGenerator.giveBackOneRequest.with({ usageId: usageRecord.id, requestType: 'profile', usageMonth: usage.usageMonth });
       }
       throw err;
     }

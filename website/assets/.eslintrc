@@ -68,8 +68,7 @@
     "MicrosoftComplianceTenant": false,
     "AndroidEnterprise": false,
     "RenderProofOfValue": false,
-    "ProfileGeneratorRegistration",
-    "ProfileGeneratorLicenseUsage": false,
+    "ProfileGeneratorUsage": false,
     "GoogleConditionalAccessServer": false
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

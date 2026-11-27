@@ -12,14 +12,10 @@ module.exports = {
 
   inputs: {
 
-    registrationId: {
+    usageId: {
       type: 'number',
-      description: 'The Fleet Free registration the request was counted against.  Exactly one of this and `licenseUsageId` is required.',
-    },
-
-    licenseUsageId: {
-      type: 'number',
-      description: 'The usage row of the Fleet Premium license the request was counted against.',
+      required: true,
+      description: 'The ProfileGeneratorUsage record the request was counted against.',
     },
 
     requestType: {
@@ -37,24 +33,18 @@ module.exports = {
   },
 
 
-  fn: async function ({registrationId, licenseUsageId, requestType, usageMonth}) {
-
-    if(!registrationId === !licenseUsageId) {
-      throw new Error('Could not give back a configuration profile generator request: exactly one of registrationId and licenseUsageId is required.');
-    }
-    let model = registrationId ? ProfileGeneratorRegistration : ProfileGeneratorLicenseUsage;
-    let id = registrationId || licenseUsageId;
+  fn: async function ({usageId, requestType, usageMonth}) {
 
     let counterName = requestType === 'profile' ? 'profileGenerationsThisMonth' : 'nameAndDescriptionRequestsThisMonth';
 
     const MAX_ATTEMPTS = 5;
     for(let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      let record = await model.findOne({ id });
+      let record = await ProfileGeneratorUsage.findOne({ id: usageId });
       if(!record || record.usageMonth !== usageMonth || record[counterName] <= 0) {
         return;
       }
-      let updatedRecord = await model.updateOne({
-        id,
+      let updatedRecord = await ProfileGeneratorUsage.updateOne({
+        id: usageId,
         usageMonth,
         [counterName]: record[counterName],
       }).set({ [counterName]: record[counterName] - 1 });
@@ -62,7 +52,7 @@ module.exports = {
         return;
       }
     }
-    sails.log.warn(`Could not give back a ${requestType} request to configuration profile generator ${model.identity} ${id} after ${MAX_ATTEMPTS} attempts, because other requests kept changing its counters.`);
+    sails.log.warn(`Could not give back a ${requestType} request to configuration profile generator usage record ${usageId} after ${MAX_ATTEMPTS} attempts, because other requests kept changing its counters.`);
 
   }
 

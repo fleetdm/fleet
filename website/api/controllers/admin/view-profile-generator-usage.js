@@ -30,10 +30,10 @@ module.exports = {
     }
 
     // Requests this month: Fleet servers on the free tier register with the profile generator, which counts
-    // their requests per UTC month.  (Fleet Premium requests are not limited and not counted here.)
+    // their requests per UTC month.  (Fleet Premium licenses are counted on rows of their own, left out here.)
     let currentMonth = new Date().toISOString().slice(0, 7);
-    let registrationsActiveThisMonth = await ProfileGeneratorRegistration.find({
-      where: {usageMonth: currentMonth},
+    let registrationsActiveThisMonth = await ProfileGeneratorUsage.find({
+      where: {credentialType: 'registration', usageMonth: currentMonth},
       select: ['profileGenerationsThisMonth', 'nameAndDescriptionRequestsThisMonth'],
     });
 

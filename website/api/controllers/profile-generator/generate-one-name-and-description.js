@@ -62,18 +62,17 @@ module.exports = {
       throw {invalidInput: {error: 'invalidInput', reason: `Instructions must be ${MAX_INSTRUCTIONS_LENGTH} characters or fewer.`}};
     }
 
-    let fleetServer = await sails.helpers.profileGenerator.authenticateFleetServer.with({ req: this.req, fleetLicenseKey })
+    let usageRecord = await sails.helpers.profileGenerator.authenticateFleetServer.with({ req: this.req, fleetLicenseKey })
     .intercept('couldNotAuthenticate', ()=>{
       return 'unauthorized';
     });
 
     // Fleet Free is counted per registration, and Fleet Premium per license.
-    let credential = fleetServer.registration ? { registrationId: fleetServer.registration.id } : { licenseUsageId: fleetServer.licenseUsage.id };
-    let usage = await sails.helpers.profileGenerator.countOneRequest.with(_.extend({ requestType: 'nameAndDescription' }, credential))
+    let usage = await sails.helpers.profileGenerator.countOneRequest.with({ usageId: usageRecord.id, requestType: 'nameAndDescription' })
     .intercept('limitReached', (err)=>{
       return {generationLimitReached: {error: 'generationLimitReached', resetsAt: err.raw.resetsAt, limit: err.raw.profileLimit}};
     });
-    let fleetServerName = fleetServer.registration ? `Fleet Free registration ${fleetServer.registration.id}` : `the Fleet Premium license of ${fleetServer.licenseUsage.organization}`;
+    let fleetServerName = usageRecord.credentialType === 'license' ? `the Fleet Premium license of ${usageRecord.organization}` : `Fleet Free registration ${usageRecord.id}`;
     sails.log.info(`Naming and describing a configuration profile for ${fleetServerName} (${usage.nameAndDescriptionRequestsThisMonth} names and descriptions, ${usage.profileGenerationsThisMonth} of ${usage.profileLimit} profiles this month).`);
 
     // Fleet's limits on a profile's name and description.
@@ -129,7 +128,7 @@ ${naturalLanguageInstructions}
     } catch(err) {
       // Only a request the AI service never answered is given back, the same as for a profile.
       if(err.llmDidNotAnswer) {
-        await sails.helpers.profileGenerator.giveBackOneRequest.with(_.extend({ requestType: 'nameAndDescription', usageMonth: usage.usageMonth }, credential));
+        await sails.helpers.profileGenerator.giveBackOneRequest.with({ usageId: usageRecord.id, requestType: 'nameAndDescription', usageMonth: usage.usageMonth });
       }
       throw err;
     } finally {
@@ -141,7 +140,7 @@ ${naturalLanguageInstructions}
         if(!err.llmDidNotAnswer) {
           return;
         }
-        await sails.helpers.profileGenerator.giveBackOneRequest.with(_.extend({ requestType: 'nameAndDescription', usageMonth: usage.usageMonth }, credential))
+        await sails.helpers.profileGenerator.giveBackOneRequest.with({ usageId: usageRecord.id, requestType: 'nameAndDescription', usageMonth: usage.usageMonth })
         .tolerate((giveBackErr)=>{
           sails.log.warn(`Could not give back a timed-out name and description request for ${fleetServerName}: ${giveBackErr.message}`);
         });

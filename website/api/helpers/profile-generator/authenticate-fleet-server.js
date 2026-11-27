@@ -7,7 +7,7 @@ module.exports = {
   description: 'Identify the Fleet server asking the configuration profile generator for a profile, from its Fleet Premium license key or its registration secret.',
 
 
-  extendedDescription: 'A Fleet Premium license is counted on a usage row of its own, created on its first request.',
+  extendedDescription: 'Either credential is counted on a usage row.  A registration\'s row is created when the Fleet server registers, and a license\'s on its first request.',
 
 
   inputs: {
@@ -29,8 +29,8 @@ module.exports = {
   exits: {
 
     success: {
-      outputFriendlyName: 'Fleet server',
-      outputDescription: 'What to limit: either the usage of a Fleet Premium license (`licenseUsage`), or a Fleet Free registration (`registration`).',
+      outputFriendlyName: 'Usage',
+      outputDescription: 'The ProfileGeneratorUsage record to count the request on: a Fleet Premium license\'s, or a Fleet Free registration\'s.',
       outputType: 'ref',
     },
 
@@ -59,21 +59,22 @@ module.exports = {
       }
       // "basic" is the deprecated name for Fleet Premium, and still appears on older licenses.
       if(license && _.contains(['premium', 'trial', 'basic'], license.tier)) {
-        let licenseKeyHash = crypto.createHash('sha256').update(fleetLicenseKey.split('.').slice(0, 2).join('.')).digest('hex');
-        let licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash });
+        let credentialHash = crypto.createHash('sha256').update(fleetLicenseKey.split('.').slice(0, 2).join('.')).digest('hex');
+        let licenseUsage = await ProfileGeneratorUsage.findOne({ credentialType: 'license', credentialHash });
         if(!licenseUsage) {
           // Fleet asks for a profile and for its name and description at the same time, so two first requests
           // for one license arrive together.  The one that loses the race reads the row the other created.
-          licenseUsage = await ProfileGeneratorLicenseUsage.create({
-            licenseKeyHash,
+          licenseUsage = await ProfileGeneratorUsage.create({
+            credentialType: 'license',
+            credentialHash,
             organization: _.isString(license.sub) ? license.sub : '',
           }).fetch()
           .tolerate('E_UNIQUE');
           if(!licenseUsage) {
-            licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash });
+            licenseUsage = await ProfileGeneratorUsage.findOne({ credentialType: 'license', credentialHash });
           }
         }
-        return { licenseUsage };
+        return licenseUsage;
       }
     }
 
@@ -86,13 +87,16 @@ module.exports = {
     if(!fleetServerSecret) {
       throw 'couldNotAuthenticate';
     }
-    let registration = await ProfileGeneratorRegistration.findOne({
-      fleetServerSecretHash: crypto.createHash('sha256').update(fleetServerSecret).digest('hex'),
+    // Only a registration's hash is a hash of a secret.  A license's is a hash of its header and payload, so
+    // without the type here, a license key with its signature cut off would work as a bearer token.
+    let registrationUsage = await ProfileGeneratorUsage.findOne({
+      credentialType: 'registration',
+      credentialHash: crypto.createHash('sha256').update(fleetServerSecret).digest('hex'),
     });
-    if(!registration) {
+    if(!registrationUsage) {
       throw 'couldNotAuthenticate';
     }
-    return { registration };
+    return registrationUsage;
 
   }
 

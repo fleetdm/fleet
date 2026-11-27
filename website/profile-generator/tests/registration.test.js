@@ -37,7 +37,7 @@ describe('registering a Fleet server for the profile generator', function() {
   };
   let hashOf = (secret)=>{ return crypto.createHash('sha256').update(secret).digest('hex'); };
   let registrationsFor = async (fleetServerUrl)=>{
-    let registrations = await ProfileGeneratorRegistration.find({ fleetServerUrl });
+    let registrations = await ProfileGeneratorUsage.find({ fleetServerUrl });
     createdRegistrationIds = _.union(createdRegistrationIds, _.pluck(registrations, 'id'));
     return registrations;
   };
@@ -47,7 +47,7 @@ describe('registering a Fleet server for the profile generator', function() {
   after(async function() {
     sails.router.route = originalRoute;
     if(createdRegistrationIds.length > 0) {
-      await ProfileGeneratorRegistration.destroy({ id: { in: createdRegistrationIds } });
+      await ProfileGeneratorUsage.destroy({ id: { in: createdRegistrationIds } });
     }
   });
 
@@ -68,7 +68,8 @@ describe('registering a Fleet server for the profile generator', function() {
     let registrations = await registrationsFor(fleetServerUrl);
     assert.strictEqual(registrations.length, 1);
     let registration = registrations[0];
-    assert.strictEqual(registration.fleetServerSecretHash, hashOf(secret));
+    assert.strictEqual(registration.credentialType, 'registration');
+    assert.strictEqual(registration.credentialHash, hashOf(secret));
     assert.strictEqual(registration.registeredFromIpAddress, CLIENT_IP);
     assert.strictEqual(registration.usageMonth, '');
     assert.strictEqual(registration.profileGenerationsThisMonth, 0);
@@ -81,7 +82,7 @@ describe('registering a Fleet server for the profile generator', function() {
     let fleetServerUrl = uniqueFleetServerUrl();
     let response = await register({ fleetServerUrl });
     await registrationsFor(fleetServerUrl);
-    let registration = await ProfileGeneratorRegistration.findOne({ fleetServerSecretHash: hashOf(response.body.fleetServerSecret) });
+    let registration = await ProfileGeneratorUsage.findOne({ credentialHash: hashOf(response.body.fleetServerSecret) });
     assert.strictEqual(registration.fleetServerUrl, fleetServerUrl);
   });
 
@@ -96,7 +97,7 @@ describe('registering a Fleet server for the profile generator', function() {
     let registrations = await registrationsFor(fleetServerUrl);
     assert.strictEqual(registrations.length, 2);
     assert.deepStrictEqual(
-      _.pluck(registrations, 'fleetServerSecretHash').sort(),
+      _.pluck(registrations, 'credentialHash').sort(),
       [hashOf(first.body.fleetServerSecret), hashOf(second.body.fleetServerSecret)].sort()
     );
   });
@@ -105,21 +106,21 @@ describe('registering a Fleet server for the profile generator', function() {
     for (let fleetServerUrl of [`http://fleet-${crypto.randomBytes(6).toString('hex')}.example.com`, 'http://localhost:8080']) {
       let response = await register({ fleetServerUrl });
       assert.strictEqual(response.status, 200, `expected a 200 for ${fleetServerUrl}`);
-      let registration = await ProfileGeneratorRegistration.findOne({ fleetServerSecretHash: hashOf(response.body.fleetServerSecret) });
+      let registration = await ProfileGeneratorUsage.findOne({ credentialHash: hashOf(response.body.fleetServerSecret) });
       createdRegistrationIds.push(registration.id);
       assert.strictEqual(registration.fleetServerUrl, fleetServerUrl);
     }
   });
 
   it('is a 400 and stores nothing for a URL that is not http:// or https:// with a host', async function() {
-    let countBefore = await ProfileGeneratorRegistration.count();
+    let countBefore = await ProfileGeneratorUsage.count();
     for (let fleetServerUrl of ['not a url', 'fleet.example.com', 'ftp://fleet.example.com', 'foo:bar', 'http://', 'https://', '']) {
       let response = await register({ fleetServerUrl });
       assert.strictEqual(response.status, 400, `expected a 400 for ${JSON.stringify(fleetServerUrl)}`);
     }
     let missing = await register({});
     assert.strictEqual(missing.status, 400);
-    assert.strictEqual(await ProfileGeneratorRegistration.count(), countBefore);
+    assert.strictEqual(await ProfileGeneratorUsage.count(), countBefore);
   });
 
 });

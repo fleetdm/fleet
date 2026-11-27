@@ -12,14 +12,10 @@ module.exports = {
 
   inputs: {
 
-    registrationId: {
+    usageId: {
       type: 'number',
-      description: 'The Fleet Free registration to count against.  Exactly one of this and `licenseUsageId` is required.',
-    },
-
-    licenseUsageId: {
-      type: 'number',
-      description: 'The usage row of the Fleet Premium license to count against.',
+      required: true,
+      description: 'The ProfileGeneratorUsage record of the registration or license to count against.',
     },
 
     requestType: {
@@ -57,25 +53,19 @@ module.exports = {
   },
 
 
-  fn: async function ({registrationId, licenseUsageId, requestType}) {
-
-    if(!registrationId === !licenseUsageId) {
-      throw new Error('Could not count a configuration profile generator request: exactly one of registrationId and licenseUsageId is required.');
-    }
-    let model = registrationId ? ProfileGeneratorRegistration : ProfileGeneratorLicenseUsage;
-    let id = registrationId || licenseUsageId;
-    let limits = registrationId ? sails.config.profileGeneratorLimits.fleetFree : sails.config.profileGeneratorLimits.fleetPremium;
-    let profileLimit = limits.profiles;
-    let nameAndDescriptionLimit = limits.namesAndDescriptions;
+  fn: async function ({usageId, requestType}) {
 
     // Each retry means another request changed the counters in between, so this only runs out under a flood
     // of concurrent requests with one credential.
     const MAX_ATTEMPTS = 5;
     for(let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      let record = await model.findOne({ id });
+      let record = await ProfileGeneratorUsage.findOne({ id: usageId });
       if(!record) {
-        throw new Error(`Could not count a configuration profile generator request: no ${model.identity} has the id ${id}.`);
+        throw new Error(`Could not count a configuration profile generator request: no usage record has the id ${usageId}.`);
       }
+      let limits = record.credentialType === 'license' ? sails.config.profileGeneratorLimits.fleetPremium : sails.config.profileGeneratorLimits.fleetFree;
+      let profileLimit = limits.profiles;
+      let nameAndDescriptionLimit = limits.namesAndDescriptions;
 
       // Read after the row, so a request that started before midnight UTC and reads a row a newer request
       // already moved into the new month counts in that month rather than moving it back.  YYYY-MM sorts by date.
@@ -99,8 +89,8 @@ module.exports = {
         profileGenerationsThisMonth: profileGenerations + (requestType === 'profile' ? 1 : 0),
         nameAndDescriptionRequestsThisMonth: nameAndDescriptionRequests + (requestType === 'nameAndDescription' ? 1 : 0),
       };
-      let updatedRecord = await model.updateOne({
-        id,
+      let updatedRecord = await ProfileGeneratorUsage.updateOne({
+        id: usageId,
         usageMonth: record.usageMonth,
         profileGenerationsThisMonth: record.profileGenerationsThisMonth,
         nameAndDescriptionRequestsThisMonth: record.nameAndDescriptionRequestsThisMonth,
@@ -109,7 +99,7 @@ module.exports = {
         return _.extend({ profileLimit }, usage);
       }
     }
-    throw new Error(`Could not count a configuration profile generator request for ${model.identity} ${id} after ${MAX_ATTEMPTS} attempts, because other requests kept changing its counters.`);
+    throw new Error(`Could not count a configuration profile generator request for usage record ${usageId} after ${MAX_ATTEMPTS} attempts, because other requests kept changing its counters.`);
 
   }
 

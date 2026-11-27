@@ -20,8 +20,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
   // What the stubbed generation or model call does: a result, or a function that throws or returns one.
   let stubbedOutcome;
   let stubCalls;
-  let createdRegistrationIds = [];
-  let createdLicenseUsageIds = [];
+  let createdUsageIds = [];
 
   // Mimics a Sails helper call closely enough for .intercept() and .tolerate() the way the actions use them.
   let stubbedHelper = ()=>{
@@ -77,12 +76,9 @@ describe('profile generator credentials and limits for Fleet servers', function(
     sails.helpers.generateConfigurationProfile = originalGenerationHelper;
     sails.helpers.ai.prompt = originalPromptHelper;
     sails.config.custom.licenseKeyGeneratorPublicKey = originalLicensePublicKey;
-    if(createdRegistrationIds.length > 0) {
-      await ProfileGeneratorRegistration.destroy({ id: { in: createdRegistrationIds } });
-    }
-    let licenseUsageIds = _.pluck(await ProfileGeneratorLicenseUsage.find({ organization: LICENSE_ORGANIZATION }), 'id').concat(createdLicenseUsageIds);
-    if(licenseUsageIds.length > 0) {
-      await ProfileGeneratorLicenseUsage.destroy({ id: { in: licenseUsageIds } });
+    let usageIds = _.pluck(await ProfileGeneratorUsage.find({ organization: LICENSE_ORGANIZATION }), 'id').concat(createdUsageIds);
+    if(usageIds.length > 0) {
+      await ProfileGeneratorUsage.destroy({ id: { in: usageIds } });
     }
   });
 
@@ -115,16 +111,17 @@ describe('profile generator credentials and limits for Fleet servers', function(
   // A registration made directly, since registering is covered by its own tests.
   let createRegistration = async (usage)=>{
     let fleetServerSecret = crypto.randomBytes(32).toString('hex');
-    let registration = await ProfileGeneratorRegistration.create(_.extend({
+    let registration = await ProfileGeneratorUsage.create(_.extend({
+      credentialType: 'registration',
       fleetServerUrl: `https://fleet-${crypto.randomBytes(6).toString('hex')}.example.com`,
-      fleetServerSecretHash: crypto.createHash('sha256').update(fleetServerSecret).digest('hex'),
+      credentialHash: crypto.createHash('sha256').update(fleetServerSecret).digest('hex'),
       registeredFromIpAddress: '203.0.113.7',
     }, usage)).fetch();
-    createdRegistrationIds.push(registration.id);
+    createdUsageIds.push(registration.id);
     return { id: registration.id, fleetServerSecret };
   };
   let usageOf = async (registration)=>{
-    let { usageMonth, profileGenerationsThisMonth, nameAndDescriptionRequestsThisMonth } = await ProfileGeneratorRegistration.findOne({ id: registration.id });
+    let { usageMonth, profileGenerationsThisMonth, nameAndDescriptionRequestsThisMonth } = await ProfileGeneratorUsage.findOne({ id: registration.id });
     return { usageMonth, profileGenerationsThisMonth, nameAndDescriptionRequestsThisMonth };
   };
   let usedThisMonth = (profileGenerationsThisMonth, nameAndDescriptionRequestsThisMonth)=>{
@@ -135,12 +132,12 @@ describe('profile generator credentials and limits for Fleet servers', function(
   };
   // A license's usage made directly, as its first request would make it.
   let createLicenseUsage = async (fleetLicenseKey, usage)=>{
-    let licenseUsage = await ProfileGeneratorLicenseUsage.create(_.extend({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey), organization: LICENSE_ORGANIZATION }, usage)).fetch();
-    createdLicenseUsageIds.push(licenseUsage.id);
+    let licenseUsage = await ProfileGeneratorUsage.create(_.extend({ credentialType: 'license', credentialHash: licenseKeyHashOf(fleetLicenseKey), organization: LICENSE_ORGANIZATION }, usage)).fetch();
+    createdUsageIds.push(licenseUsage.id);
     return licenseUsage;
   };
   let licenseUsageOf = async (fleetLicenseKey)=>{
-    let licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) });
+    let licenseUsage = await ProfileGeneratorUsage.findOne({ credentialHash: licenseKeyHashOf(fleetLicenseKey) });
     return licenseUsage && _.pick(licenseUsage, 'usageMonth', 'profileGenerationsThisMonth', 'nameAndDescriptionRequestsThisMonth');
   };
   // What the prompt helper throws when the AI service gives no answer.
@@ -168,7 +165,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
       let fleetLicenseKey = licenseKey({});
       stubbedOutcome = generatedResult;
       assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
-      let licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) });
+      let licenseUsage = await ProfileGeneratorUsage.findOne({ credentialHash: licenseKeyHashOf(fleetLicenseKey) });
       assert.strictEqual(licenseUsage.organization, LICENSE_ORGANIZATION);
     });
 
@@ -180,7 +177,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
       let { iat } = require('jsonwebtoken').decode(developmentLicenseKey);
       // A local website run with --dev_license may already have counted it, so it starts from zero here and its
       // usage is put back after.
-      let usageBefore = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash: licenseKeyHashOf(developmentLicenseKey) });
+      let usageBefore = await ProfileGeneratorUsage.findOne({ credentialHash: licenseKeyHashOf(developmentLicenseKey) });
       sails.config.custom.licenseKeyGeneratorPublicKey = fs.readFileSync(path.resolve(__dirname, '../../../ee/server/licensing/pubkey.pem'), 'utf8');
       Date.now = ()=>{ return (iat + 60) * 1000; };
       let response;
@@ -188,20 +185,20 @@ describe('profile generator credentials and limits for Fleet servers', function(
       let usageMonth;
       try {
         if(usageBefore) {
-          await ProfileGeneratorLicenseUsage.updateOne({ id: usageBefore.id }).set({ usageMonth: '', profileGenerationsThisMonth: 0, nameAndDescriptionRequestsThisMonth: 0 });
+          await ProfileGeneratorUsage.updateOne({ id: usageBefore.id }).set({ usageMonth: '', profileGenerationsThisMonth: 0, nameAndDescriptionRequestsThisMonth: 0 });
         }
         usageMonth = new Date().toISOString().slice(0, 7);
         stubbedOutcome = generatedResult;
         response = await requestProfile(undefined, { fleetLicenseKey: developmentLicenseKey });
-        await ProfileGeneratorLicenseUsage.updateOne({ licenseKeyHash: licenseKeyHashOf(developmentLicenseKey) }).set({ usageMonth, profileGenerationsThisMonth: 300 });
+        await ProfileGeneratorUsage.updateOne({ credentialHash: licenseKeyHashOf(developmentLicenseKey) }).set({ usageMonth, profileGenerationsThisMonth: 300 });
         limited = await requestProfile(undefined, { fleetLicenseKey: developmentLicenseKey });
       } finally {
         Date.now = originalNow;
         sails.config.custom.licenseKeyGeneratorPublicKey = licenseSigningKeys.publicKey.export({ type: 'spki', format: 'pem' });
         if(usageBefore) {
-          await ProfileGeneratorLicenseUsage.updateOne({ id: usageBefore.id }).set(_.pick(usageBefore, 'usageMonth', 'profileGenerationsThisMonth', 'nameAndDescriptionRequestsThisMonth'));
+          await ProfileGeneratorUsage.updateOne({ id: usageBefore.id }).set(_.pick(usageBefore, 'usageMonth', 'profileGenerationsThisMonth', 'nameAndDescriptionRequestsThisMonth'));
         } else {
-          await ProfileGeneratorLicenseUsage.destroy({ licenseKeyHash: licenseKeyHashOf(developmentLicenseKey) });
+          await ProfileGeneratorUsage.destroy({ credentialHash: licenseKeyHashOf(developmentLicenseKey) });
         }
       }
       assert.strictEqual(response.status, 200);
@@ -242,13 +239,27 @@ describe('profile generator credentials and limits for Fleet servers', function(
       let lowercase = await post(PROFILE_URL, { platform: 'windows', naturalLanguageInstructions: 'Block removable storage' }, undefined, { authorization: `bearer ${registration.fleetServerSecret}` });
       assert.strictEqual(lowercase.status, 200);
       stubCalls = [];
-      await ProfileGeneratorRegistration.updateOne({ id: registration.id }).set({ usageMonth: '', profileGenerationsThisMonth: 0 });
+      await ProfileGeneratorUsage.updateOne({ id: registration.id }).set({ usageMonth: '', profileGenerationsThisMonth: 0 });
 
       // A secret that is right but not sent as a bearer token.
       let response = await post(PROFILE_URL, { platform: 'windows', naturalLanguageInstructions: 'Block removable storage', fleetServerSecret: registration.fleetServerSecret });
       assert.strictEqual(response.status, 401);
       assert.strictEqual(stubCalls.length, 0);
       assert.deepStrictEqual(await usageOf(registration), { usageMonth: '', profileGenerationsThisMonth: 0, nameAndDescriptionRequestsThisMonth: 0 });
+    });
+
+    it('is a 401 for a license key sent as a registration secret, with or without its signature', async function() {
+      // A license's stored hash is of its header and payload, which is not a secret on its own.
+      let fleetLicenseKey = licenseKey({});
+      stubbedOutcome = generatedResult;
+      assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
+      stubCalls = [];
+      for (let fleetServerSecret of [fleetLicenseKey.split('.').slice(0, 2).join('.'), fleetLicenseKey]) {
+        assert.strictEqual((await requestProfile(fleetServerSecret)).status, 401);
+        assert.strictEqual((await requestNameAndDescription(fleetServerSecret)).status, 401);
+      }
+      assert.strictEqual(stubCalls.length, 0);
+      assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(1, 0));
     });
 
   });
@@ -369,7 +380,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
 
     it('gives nothing back to a month that has already ended', async function() {
       let registration = await createRegistration({ usageMonth: thisMonth(), profileGenerationsThisMonth: 3 });
-      await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: registration.id, requestType: 'profile', usageMonth: '2026-01' });
+      await sails.helpers.profileGenerator.giveBackOneRequest.with({ usageId: registration.id, requestType: 'profile', usageMonth: '2026-01' });
       assert.deepStrictEqual(await usageOf(registration), usedThisMonth(3, 0));
     });
 
@@ -488,7 +499,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
       assert.strictEqual((await requestProfile(secondFleetServer.fleetServerSecret, { fleetLicenseKey })).status, 200);
       assert.strictEqual((await requestProfile(undefined, { fleetLicenseKey })).status, 200);
       assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(3, 0));
-      assert.strictEqual(await ProfileGeneratorLicenseUsage.count({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) }), 1);
+      assert.strictEqual(await ProfileGeneratorUsage.count({ credentialHash: licenseKeyHashOf(fleetLicenseKey) }), 1);
     });
 
     it('shares one count between two signatures of the same license', async function() {
@@ -542,7 +553,7 @@ describe('profile generator credentials and limits for Fleet servers', function(
         sails.helpers.ai.prompt = originalPrompt;
       }
       assert.deepStrictEqual(_.pluck(responses, 'status'), [200, 200, 200]);
-      assert.strictEqual(await ProfileGeneratorLicenseUsage.count({ licenseKeyHash: licenseKeyHashOf(fleetLicenseKey) }), 1);
+      assert.strictEqual(await ProfileGeneratorUsage.count({ credentialHash: licenseKeyHashOf(fleetLicenseKey) }), 1);
       assert.deepStrictEqual(await licenseUsageOf(fleetLicenseKey), usedThisMonth(2, 1));
     });
 

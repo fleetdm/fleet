@@ -60,9 +60,10 @@ module.exports = {
     let fleetServerSecret = crypto.randomBytes(32).toString('hex');
 
     // Store only a hash of the secret, so that reading the database does not hand out credentials that spend AI tokens.
-    await ProfileGeneratorRegistration.create({
+    await ProfileGeneratorUsage.create({
+      credentialType: 'registration',
       fleetServerUrl,
-      fleetServerSecretHash: crypto.createHash('sha256').update(fleetServerSecret).digest('hex'),
+      credentialHash: crypto.createHash('sha256').update(fleetServerSecret).digest('hex'),
       // Behind Heroku's router, this is the client's address because production sets `trustProxy`.
       registeredFromIpAddress: this.req.ip,
     });

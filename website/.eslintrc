@@ -54,8 +54,7 @@
     "MicrosoftComplianceTenant": true,
     "AndroidEnterprise": true,
     "RenderProofOfValue": true,
-    "ProfileGeneratorRegistration": true,
-    "ProfileGeneratorLicenseUsage": true,
+    "ProfileGeneratorUsage": true,
     "GoogleConditionalAccessServer": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
