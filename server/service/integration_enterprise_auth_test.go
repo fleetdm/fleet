@@ -1144,6 +1144,60 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserDeleteReportGrants() {
 	s.Do("DELETE", byIDURL(r), nil, http.StatusOK)
 }
 
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserPerItemSoftwareURLs() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	createAPIOnlyMaintainer := func(name string, eps ...map[string]any) string {
+		s.token = s.getTestAdminToken()
+		var resp struct {
+			Token string `json:"token"`
+		}
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+			"name":          name,
+			"global_role":   fleet.RoleMaintainer,
+			"api_endpoints": eps,
+		}, http.StatusOK, &resp)
+		require.NotEmpty(t, resp.Token)
+		return resp.Token
+	}
+	patchPackage := func(path string, status int) *http.Response {
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{"fleet_id": {"0"}})
+		return s.DoRawWithHeaders("PATCH", path, body.Bytes(), status, headers)
+	}
+	requireRestrictionDenied := func(res *http.Response) {
+		body, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), auth.EndpointRestrictionDeniedMessage)
+	}
+
+	// The title doesn't exist, so a request that passes the restriction gets 404 from the service.
+	const (
+		oldPackage  = "/api/latest/fleet/software/titles/999999/package"
+		newPackage  = "/api/latest/fleet/software/titles/999999/packages/1"
+		newAppStore = "/api/latest/fleet/software/titles/999999/app_store_apps/1"
+	)
+
+	// A grant on the old entry keeps the old URL and doesn't cover the new one.
+	s.token = createAPIOnlyMaintainer("api-only-old-update-package",
+		map[string]any{"method": "PATCH", "path": "/api/v1/fleet/software/titles/:id/package"})
+	patchPackage(oldPackage, http.StatusNotFound)
+	requireRestrictionDenied(patchPackage(newPackage, http.StatusForbidden))
+
+	// Grants on the new entries cover all four new URLs.
+	s.token = createAPIOnlyMaintainer("api-only-per-item-software",
+		map[string]any{"method": "PATCH", "path": "/api/v1/fleet/software/titles/:software_title_id/packages/:package_id"},
+		map[string]any{"method": "DELETE", "path": "/api/v1/fleet/software/titles/:software_title_id/packages/:package_id"},
+		map[string]any{"method": "PATCH", "path": "/api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id"},
+		map[string]any{"method": "DELETE", "path": "/api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id"},
+	)
+	patchPackage(newPackage, http.StatusNotFound)
+	s.Do("DELETE", newPackage, nil, http.StatusNotFound, "fleet_id", "0")
+	s.Do("PATCH", newAppStore, map[string]any{"fleet_id": 0, "self_service": true}, http.StatusNotFound)
+	s.Do("DELETE", newAppStore, nil, http.StatusNotFound, "fleet_id", "0")
+	requireRestrictionDenied(patchPackage(oldPackage, http.StatusForbidden))
+}
+
 // TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint
 // catalog includes every route invoked by fleetctl gitops and
 // fleetctl generate-gitops. The test runs as an api-only admin user so any

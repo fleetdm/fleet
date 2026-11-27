@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -46,7 +48,9 @@ type uploadSoftwareInstallerRequest struct {
 
 type updateSoftwareInstallerRequest struct {
 	TitleID uint `url:"id"`
-	// InstallerID selects which package to edit; required when the title has multiple.
+	// PackageID is the package id from the per-item URL; nil on the deprecated route.
+	PackageID *uint
+	// InstallerID selects which package to edit on the deprecated route; required when the title has multiple.
 	InstallerID       *uint
 	File              *multipart.FileHeader
 	StagedUploadID    string
@@ -93,6 +97,11 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		return nil, endpointer.BadRequestErr("IntFromRequest", err)
 	}
 	decoded.TitleID = uint(titleID)
+	if packageID, err := uint32FromRequest(r, "package_id"); err == nil {
+		decoded.PackageID = new(uint(packageID))
+	} else if !errors.Is(err, endpointer.ErrBadRoute) {
+		return nil, endpointer.BadRequestErr("IntFromRequest", err)
+	}
 
 	maxInstallerSize := installersize.FromContext(ctx)
 	err = parseMultipartForm(r)
@@ -141,7 +150,8 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.TeamID = ptr.Uint(uint(fleetID))
 	}
 
-	if idVal, ok := r.MultipartForm.Value["installer_id"]; ok && len(idVal) > 0 && idVal[0] != "" {
+	// The per-item URL names the package, so the deprecated installer_id field is ignored there.
+	if idVal, ok := r.MultipartForm.Value["installer_id"]; decoded.PackageID == nil && ok && len(idVal) > 0 && idVal[0] != "" {
 		parsedInstallerID, err := strconv.ParseUint(idVal[0], 10, 32)
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid installer_id: %s", idVal[0])}
@@ -312,9 +322,16 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateSoftwareInstallerRequest)
 
+	installerID := req.PackageID
+	if installerID == nil {
+		installerID = req.InstallerID
+		logDeprecatedSoftwarePath(ctx, "PATCH /api/v1/fleet/software/titles/:id/package",
+			"PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id")
+	}
 	payload := &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:              req.TitleID,
-		InstallerID:          ptr.ValOrZero(req.InstallerID),
+		InstallerID:          ptr.ValOrZero(installerID),
+		InstallerIDInPath:    req.PackageID != nil,
 		TeamID:               req.TeamID,
 		InstallScript:        req.InstallScript,
 		PreInstallQuery:      req.PreInstallQuery,
@@ -614,6 +631,10 @@ type deleteSoftwareInstallerRequest struct {
 	// VersionID deletes one App Store app version, omitting it deletes every version of the title.
 	VersionID *uint `query:"version_id,optional"`
 	TitleID   uint  `url:"title_id"`
+	// PackageID and AppStoreAppVersionID come from the per-item URLs and override the query selectors; nil on the
+	// deprecated route.
+	PackageID            *uint `url:"package_id,optional" json:"-"`
+	AppStoreAppVersionID *uint `url:"version_id,optional" json:"-"`
 }
 
 type deleteSoftwareInstallerResponse struct {
@@ -625,11 +646,35 @@ func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoCon
 
 func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSoftwareInstallerRequest)
-	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, req.InstallerID, req.VersionID)
+	installerID, versionID := req.InstallerID, req.VersionID
+	switch {
+	case req.PackageID != nil:
+		installerID, versionID = req.PackageID, nil
+	case req.AppStoreAppVersionID != nil:
+		installerID, versionID = nil, req.AppStoreAppVersionID
+	case versionID != nil:
+		logDeprecatedSoftwarePath(ctx, "DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install",
+			"DELETE /api/v1/fleet/software/titles/:software_title_id/app_store_apps/:version_id")
+	default:
+		logDeprecatedSoftwarePath(ctx, "DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install",
+			"DELETE /api/v1/fleet/software/titles/:software_title_id/packages/:package_id")
+	}
+	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, installerID, versionID)
 	if err != nil {
 		return deleteSoftwareInstallerResponse{Err: err}, nil
 	}
 	return deleteSoftwareInstallerResponse{}, nil
+}
+
+// logDeprecatedSoftwarePath warns that a request used a title-level software URL replaced by a per-item URL.
+func logDeprecatedSoftwarePath(ctx context.Context, deprecatedPath, path string) {
+	if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		logging.WithLevel(ctx, slog.LevelWarn)
+		logging.WithExtras(ctx,
+			"deprecated_path", deprecatedPath,
+			"deprecation_warning", fmt.Sprintf("API `%s` is deprecated, use `%s` instead", deprecatedPath, path),
+		)
+	}
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {

@@ -438,7 +438,11 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.POST("/api/_version_/fleet/staged_upload", createStagedUploadEndpoint, createStagedUploadRequest{})
 	ue.PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/name", updateSoftwareNameEndpoint, updateSoftwareNameRequest{})
 	// Software package endpoints are already limited to max installer size in serve.go
+	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/packages/{package_id:[0-9]+}", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
+	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/packages/{package_id:[0-9]+}", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
+	// Deprecated: use PATCH .../packages/{package_id}.
 	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
+	// Deprecated: use DELETE .../packages/{package_id} or .../app_store_apps/{version_id}.
 	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
 	ue.GET("/api/_version_/fleet/software/install/{install_uuid}/results", getSoftwareInstallResultsEndpoint,
 		getSoftwareInstallResultsRequest{})
@@ -455,6 +459,9 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	// App store software
 	ue.GET("/api/_version_/fleet/software/app_store_apps", getAppStoreAppsEndpoint, getAppStoreAppsRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps", addAppStoreAppEndpoint, addAppStoreAppRequest{})
+	ue.PATCH("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/app_store_apps/{version_id:[0-9]+}", updateAppStoreAppEndpoint, updateAppStoreAppRequest{})
+	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/app_store_apps/{version_id:[0-9]+}", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
+	// Deprecated: use PATCH .../app_store_apps/{version_id}.
 	ue.PATCH("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/app_store_app", updateAppStoreAppEndpoint, updateAppStoreAppRequest{})
 
 	// Self-service categories

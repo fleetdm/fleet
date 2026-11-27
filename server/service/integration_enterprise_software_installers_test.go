@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -38,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -3086,6 +3088,112 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareMultiplePackagesPerTitle() 
 	require.ElementsMatch(t, catsA, noopParsed.SoftwareInstaller.Categories,
 		"noop PATCH echo must return the targeted installer's own categories, not the title-merged set")
 
+	// --- Per-item URLs: the package id is in the path ---
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
+	require.NoError(t, err)
+	pkgURL := func(tID, pkgID uint) string {
+		return fmt.Sprintf("/api/latest/fleet/software/titles/%d/packages/%d", tID, pkgID)
+	}
+	patchPkg := func(url string, fleetID uint, fields map[string][]string, status int) getSoftwareInstallerResponse {
+		t.Helper()
+		form := map[string][]string{"fleet_id": {fmt.Sprint(fleetID)}}
+		maps.Copy(form, fields)
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, form)
+		res := s.DoRawWithHeaders("PATCH", url, body.Bytes(), status, headers)
+		defer res.Body.Close()
+		var resp getSoftwareInstallerResponse
+		if status == http.StatusOK {
+			require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		}
+		return resp
+	}
+
+	// PATCH A by URL; a stray installer_id naming B is ignored. B starts unselected so a write to B shows.
+	patchPkg(pkgURL(titleID, installerB), team.ID, map[string][]string{"self_service": {"false"}}, http.StatusOK)
+	urlPatch := patchPkg(pkgURL(titleID, installerA), team.ID,
+		map[string][]string{"self_service": {"true"}, "installer_id": {fmt.Sprint(installerB)}}, http.StatusOK)
+	require.NotNil(t, urlPatch.SoftwareInstaller)
+	require.Equal(t, installerA, urlPatch.SoftwareInstaller.InstallerID)
+	require.True(t, urlPatch.SoftwareInstaller.SelfService)
+	title = getTitle()
+	require.Len(t, title.Packages, 2)
+	require.True(t, title.Packages[0].SelfService)
+	require.False(t, title.Packages[1].SelfService)
+	// A malformed installer_id is ignored on the new URL and rejected on the old one.
+	patchPkg(pkgURL(titleID, installerA), team.ID, map[string][]string{"installer_id": {"bad"}}, http.StatusOK)
+	patchPkg(fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), team.ID,
+		map[string][]string{"installer_id": {"bad"}}, http.StatusBadRequest)
+	// PATCH B by URL; A keeps its value.
+	patchPkg(pkgURL(titleID, installerB), team.ID, map[string][]string{"self_service": {"false"}}, http.StatusOK)
+	title = getTitle()
+	require.Len(t, title.Packages, 2)
+	require.True(t, title.Packages[0].SelfService)
+	require.False(t, title.Packages[1].SelfService)
+
+	// A second title on the same fleet, for wrong-title checks.
+	otherFile, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/bash\necho 'other'\n"), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer otherFile.Close()
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "other.sh", TeamID: &team.ID, InstallerFile: otherFile,
+	}, http.StatusOK, "")
+	var otherTitleID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &otherTitleID,
+			`SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "other.sh")
+	})
+	require.NotZero(t, otherTitleID)
+
+	// Wrong title, wrong fleet, unknown id, and a package id on the App Store URL all return 404.
+	for _, tc := range []struct {
+		name    string
+		url     string
+		fleetID uint
+	}{
+		{"wrong title", pkgURL(otherTitleID, installerA), team.ID},
+		{"wrong fleet", pkgURL(titleID, installerA), team2.ID},
+		{"unknown id", pkgURL(titleID, 999999), team.ID},
+		{"zero id on a single-package title", pkgURL(otherTitleID, 0), team.ID},
+		{"package id on app store url", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_apps/%d", titleID, installerA), team.ID},
+	} {
+		if strings.Contains(tc.url, "/app_store_apps/") {
+			s.Do("PATCH", tc.url, map[string]any{"fleet_id": tc.fleetID, "self_service": true}, http.StatusNotFound)
+		} else {
+			patchPkg(tc.url, tc.fleetID, map[string][]string{"self_service": {"true"}}, http.StatusNotFound)
+		}
+		s.Do("DELETE", tc.url, nil, http.StatusNotFound, "fleet_id", fmt.Sprint(tc.fleetID))
+	}
+
+	// A user without access to the fleet gets 403 before any id lookup.
+	team2Maintainer := &fleet.User{
+		Name:  t.Name() + "_team2_maintainer",
+		Email: t.Name() + "_team2_maintainer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleMaintainer}},
+	}
+	require.NoError(t, team2Maintainer.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, team2Maintainer)
+	require.NoError(t, err)
+	defer func() { s.token = s.getTestAdminToken() }()
+	s.token = s.getTestToken(team2Maintainer.Email, test.GoodPassword)
+	for _, id := range []uint{installerA, 999999, 0} {
+		patchPkg(pkgURL(titleID, id), team.ID, map[string][]string{"self_service": {"true"}}, http.StatusForbidden)
+		s.Do("DELETE", pkgURL(titleID, id), nil, http.StatusForbidden, "fleet_id", fmt.Sprint(team.ID))
+	}
+	s.token = s.getTestAdminToken()
+
+	// DELETE a third package by URL; a stray installer_id naming A is ignored.
+	contentD := "#!/bin/bash\necho 'D'\n"
+	upload(contentD, false, http.StatusOK, "")
+	title = getTitle()
+	require.Len(t, title.Packages, 3)
+	installerD := title.Packages[2].InstallerID
+	s.Do("DELETE", pkgURL(titleID, installerD), nil, http.StatusNoContent,
+		"fleet_id", fmt.Sprint(team.ID), "installer_id", fmt.Sprint(installerA))
+	title = getTitle()
+	require.Len(t, title.Packages, 2)
+	require.Equal(t, installerA, title.Packages[0].InstallerID)
+	require.Equal(t, installerB, title.Packages[1].InstallerID)
+
 	// A title-level display name is shared across sibling packages; deleting one must not wipe it.
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
@@ -4380,6 +4488,54 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "fleet_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
 
+	t.Run("per-item URLs use the in-house app id", func(t *testing.T) {
+		var teamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &teamResp)
+		teamID := teamResp.Team.ID
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:      &teamID,
+			Filename:    "ipa_test2.ipa",
+			Version:     "1.0.0",
+			StorageID:   uuid.New().String(),
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID, installerID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE platform = 'ios' AND team_id = ?`, teamID))
+			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM in_house_apps WHERE platform = 'ios' AND team_id = ?`, teamID))
+			return nil
+		})
+		pkgURL := func(id uint) string {
+			return fmt.Sprintf("/api/latest/fleet/software/titles/%d/packages/%d", titleID, id)
+		}
+		patch := func(id uint, status int) {
+			body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+				"fleet_id":     {fmt.Sprint(teamID)},
+				"self_service": {"false"},
+			})
+			s.DoRawWithHeaders("PATCH", pkgURL(id), body.Bytes(), status, headers)
+		}
+
+		// a wrong id doesn't edit the in-house app
+		patch(installerID+999999, http.StatusNotFound)
+		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
+		require.NoError(t, err)
+		require.True(t, meta.SelfService)
+
+		patch(installerID, http.StatusOK)
+		meta, err = s.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
+		require.NoError(t, err)
+		require.False(t, meta.SelfService)
+
+		s.Do("DELETE", pkgURL(installerID+999999), nil, http.StatusNotFound, "fleet_id", fmt.Sprint(teamID))
+		s.Do("DELETE", pkgURL(installerID), nil, http.StatusNoContent, "fleet_id", fmt.Sprint(teamID))
+		_, err = s.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
 	t.Run("managed app configuration", func(t *testing.T) {
 		var teamResp teamResponse
 		s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{Name: t.Name()}, http.StatusOK, &teamResp)
@@ -4549,6 +4705,75 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadPayloadTooLa
 		errMsg := extractServerErrorText(resp.Body)
 		require.Contains(t, errMsg, "The maximum file size is")
 	})
+}
+
+// TestSoftwarePackageUpdateByURLUploadSize sends replacement files through the per-item package URL: one larger than
+// the default API body limit but within the installer max succeeds, one over the max fails.
+func (s *integrationEnterpriseTestSuite) TestSoftwarePackageUpdateByURLUploadSize() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Same body cap and installer size context that serve.go's upload middleware applies to the per-item URL.
+	maxSize := 2 * platform_http.MaxRequestBodySize
+	wrappedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch && strings.Contains(r.URL.Path, "/packages/") {
+			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+			r = r.WithContext(installersize.NewContext(r.Context(), maxSize))
+		}
+		s.server.Config.Handler.ServeHTTP(w, r)
+	}))
+	defer wrappedServer.Close()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	small, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/bash\necho small\n"), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer small.Close()
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "large-update.sh", TeamID: &team.ID, InstallerFile: small,
+	}, http.StatusOK, "")
+	var titleID, packageID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID,
+			`SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "large-update.sh")
+	})
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &packageID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, "large-update.sh")
+	})
+
+	patchFile := func(content string) *http.Response {
+		body, headers := generateMultipartRequest(t, "software", "large-update.sh", []byte(content), s.token,
+			map[string][]string{"fleet_id": {fmt.Sprint(team.ID)}})
+		req, err := http.NewRequest("PATCH",
+			fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/packages/%d", wrappedServer.URL, titleID, packageID), body)
+		require.NoError(t, err)
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		res, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		return res
+	}
+
+	// 3-byte runes keep the script under its rune limit while the file passes the 1 MiB body limit.
+	large := "#!/bin/bash\n# " + strings.Repeat("€", 400_000) + "\n"
+	require.Greater(t, int64(len(large)), platform_http.MaxRequestBodySize)
+	require.Less(t, int64(len(large)), maxSize)
+	res := patchFile(large)
+	defer res.Body.Close()
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	var updated getSoftwareInstallerResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&updated))
+	require.NotNil(t, updated.SoftwareInstaller)
+	require.Equal(t, packageID, updated.SoftwareInstaller.InstallerID)
+	sum := sha256.Sum256([]byte(large))
+	require.Equal(t, hex.EncodeToString(sum[:]), updated.SoftwareInstaller.StorageID)
+
+	res = patchFile(strings.Repeat("x", int(maxSize)+1))
+	defer res.Body.Close()
+	require.Equal(t, http.StatusBadRequest, res.StatusCode)
+	require.Contains(t, extractServerErrorText(res.Body), "The maximum file size is")
 }
 
 // TestSoftwareMultiplePackagesInstallPrecedence verifies install-time first-added precedence when a

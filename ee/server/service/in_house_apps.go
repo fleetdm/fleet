@@ -21,6 +21,9 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
 	}
+	if (payload.InstallerID != 0 || payload.InstallerIDInPath) && payload.InstallerID != existingInstaller.InstallerID {
+		return nil, ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", payload.InstallerID)
+	}
 
 	if payload.IsNoopPayload(software) {
 		return existingInstaller, nil // no payload, noop

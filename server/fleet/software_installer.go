@@ -790,6 +790,8 @@ type UpdateSoftwareInstallerPayload struct {
 	TitleID     uint
 	TeamID      *uint
 	InstallerID uint
+	// InstallerIDInPath marks InstallerID as named by the per-item URL, so 0 is an id rather than "no selection".
+	InstallerIDInPath bool
 	// used for authorization and persisted as author
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
