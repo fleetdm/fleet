@@ -309,22 +309,22 @@ To start the interview process, the Head of People will create a copy of the [�
 
 ### Review applicants
 
-Hiring managers review inbound applicants for their open positions in the [People pipeline dashboard](https://claude.ai/artifact/98Q2GyL2d3jFhpJHgnuMqY). The Head of People handles all candidate communication, including scheduling and rejections.
+Hiring managers review inbound applicants for their open positions in the [Fleet hiring dashboard](https://claude.ai/artifact/98Q2GyL2d3jFhpJHgnuMqY). The Head of People handles all candidate communication, including scheduling.
 
 To review applicants:
 
-1. Open the People pipeline dashboard, choose "📥 Applications" in the View menu, and select your position in the "Role" filter.
+1. Open the Fleet hiring dashboard, choose "📥 Applications" in the View menu, and select your position in the "Role" filter.
 2. Make sure "Reviewing as" shows your name, so decisions are attributed to you.
 3. On the "To review" tab, read each applicant's LinkedIn profile, location and application notes.
 4. For each applicant, choose one:
    - **Add to pipeline**: the applicant is added to the position's candidate tracker and enters the interview process at the first stage. For Software Engineer applicants, the CTO selects the hiring manager (or "not sure yet") before adding.
-   - **Pass**: the applicant is not a fit. Do not contact the applicant. The Head of People sends rejections.
+   - **Pass**: the applicant is not a fit. Do not contact the applicant.
    - **Save for later**: the applicant is not a fit for this opening, but should be considered for future roles. Add a short reason.
 5. Review new applicants at least [once a week] so that no applicant waits more than [X business days] for a decision.
 
 > Applicants who are already in a candidate tracker, or who are located in a country where [Fleet is unable to hire](https://fleetdm.com/handbook/company/leadership#incompatible-locations), are excluded from "To review" automatically.
 
-Hiring managers need **Contributor** access to the People pipeline dashboard and **edit** access to their position's candidate tracker. Ask the Head of People for access.
+Hiring managers need **Contributor** access to the Fleet hiring dashboard and **edit** access to their position's candidate tracker. Ask the Head of People for access.
 
 
 ## Create a 30-60-90 day plan
