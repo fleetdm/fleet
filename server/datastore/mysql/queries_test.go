@@ -35,7 +35,6 @@ func TestQueries(t *testing.T) {
 		{"Save", testQueriesSave},
 		{"List", testQueriesList},
 		{"DuplicateNew", testQueriesDuplicateNew},
-		{"ObserverCanRunQuery", testObserverCanRunQuery},
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
 		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
@@ -808,40 +807,6 @@ func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.Contains(t, err.Error(), "already exists")
-}
-
-func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
-	_, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "canRunTrue",
-		Query:          "select 1;",
-		ObserverCanRun: true,
-		Logging:        fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	_, err = ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "canRunFalse",
-		Query:          "select 1;",
-		ObserverCanRun: false,
-		Logging:        fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	_, err = ds.NewQuery(context.Background(), &fleet.Query{
-		Name:    "canRunOmitted",
-		Query:   "select 1;",
-		Logging: fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	queries, _, _, _, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
-	require.NoError(t, err)
-
-	for _, q := range queries {
-		canRun, err := ds.ObserverCanRunQuery(context.Background(), q.ID)
-		require.NoError(t, err)
-		require.Equal(t, q.ObserverCanRun, canRun)
-	}
 }
 
 func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
@@ -2041,9 +2006,6 @@ func testQueriesClearResultsThenCleanup(t *testing.T, ds *Datastore) {
 		hostRows, err := ds.QueryResultRowsForHost(ctx, q.ID, hosts[0].ID)
 		require.NoError(t, err)
 		require.Len(t, hostRows, min(want, rowsPerHost))
-		hostCount, err := ds.ResultCountForQueryAndHost(ctx, q.ID, hosts[0].ID)
-		require.NoError(t, err)
-		require.Equal(t, min(want, rowsPerHost), hostCount)
 		byQuery, err := ds.QueryResultRowsForHostByQuery(ctx, hosts[0].ID, []uint{q.ID})
 		require.NoError(t, err)
 		require.Len(t, byQuery[q.ID], min(want, rowsPerHost))

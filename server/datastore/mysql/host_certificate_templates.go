@@ -14,33 +14,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// ListAndroidHostUUIDsWithDeliverableCertificateTemplates returns a batch of host UUIDs that have certificate templates to deliver
-func (ds *Datastore) ListAndroidHostUUIDsWithDeliverableCertificateTemplates(ctx context.Context, offset int, limit int) ([]string, error) {
-	stmt := fmt.Sprintf(`
-		SELECT DISTINCT
-			hosts.uuid
-		FROM certificate_templates
-		INNER JOIN hosts ON (hosts.team_id = certificate_templates.team_id OR (hosts.team_id IS NULL AND certificate_templates.team_id = 0))
-		INNER JOIN host_mdm ON host_mdm.host_id = hosts.id
-		LEFT JOIN host_certificate_templates
-			ON host_certificate_templates.host_uuid = hosts.uuid
-			AND host_certificate_templates.certificate_template_id = certificate_templates.id
-		WHERE
-			hosts.platform = '%s' AND
-			host_mdm.enrolled = 1 AND
-			host_certificate_templates.id IS NULL
-		ORDER BY hosts.uuid
-		LIMIT ? OFFSET ?
-	`, fleet.AndroidPlatform)
-
-	var hostUUIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, limit, offset); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list android host uuids with certificate templates")
-	}
-
-	return hostUUIDs, nil
-}
-
 // ListCertificateTemplatesForHosts returns ALL certificate templates for the given host UUIDs.
 // This includes:
 // 1. Templates matching the host's current team (for install operations)

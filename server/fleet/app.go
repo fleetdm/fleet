@@ -1035,12 +1035,6 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 }
 
-func NewMacOSSetupWithDefaults() *MacOSSetup {
-	mos := &MacOSSetup{}
-	mos.SetDefaultsIfNeeded()
-	return mos
-}
-
 // MacOSSetupSoftware represents a VPP app or a software package to install
 // during the setup experience of a macOS device.
 type MacOSSetupSoftware struct {

@@ -140,7 +140,6 @@ remove them once nothing references them. Use dibble for new work.
 
 | Old path                                                 | dibble equivalent                            |
 | -------------------------------------------------------- | -------------------------------------------- |
-| `tools/team-builder/`                                    | `dibble teams --count N`                     |
 | `tools/loadtest/fleetd_labels/`                          | `dibble labels --count N`                    |
 | `tools/loadtest/scripts_and_profiles/`                   | `dibble scripts` + `dibble profiles`         |
 | `tools/loadtest/unified_queue/`                          | `dibble software` (enqueue path is a TODO)   |

@@ -83,7 +83,6 @@ linters:
       exclude-functions:
         # Logging
         - "(github.com/go-kit/log.Logger).Log"
-        - "(*github.com/fleetdm/fleet/v4/server/platform/logging.Logger).Log"
         # fmt package
         - fmt.Fprint
         - fmt.Fprintf
@@ -132,7 +131,6 @@ linters:
         - "(github.com/gomodule/redigo/redis.Conn).Close"
         - "(*github.com/gomodule/redigo/redis.Pool).Close"
         - "(*github.com/redis/go-redis/v9.ClusterClient).Close"
-        - "(*github.com/fleetdm/fleet/v4/server/datastore/redis.Pool).Close"
         - "(*github.com/mna/redisc.Cluster).Close"
         # WebSockets
         - "(*github.com/gorilla/websocket.Conn).Close"
@@ -141,9 +139,7 @@ linters:
         - "(*github.com/fleetdm/fleet/v4/server/datastore/mysql.Datastore).Close"
         - "(*github.com/DATA-DOG/go-sqlmock.Sqlmock).ExpectClose"
         # Additional project-specific types
-        - "(*github.com/fleetdm/fleet/v4/pkg/file.TemporaryFile).Close"
         - "(*github.com/fleetdm/fleet/v4/server/fleet.TempFileReader).Close"
-        - "(*github.com/fleetdm/fleet/v4/server/service.Session).Close"
         - "(github.com/fleetdm/fleet/v4/server/fleet.RedisPool).Close"
         - "(*github.com/go-redis/redis/v8.ClusterClient).Close"
         - "(*go.etcd.io/bbolt.DB).Close"
@@ -157,8 +153,6 @@ linters:
         # Additional writers and iterators
         - "(*go/printer.Config).Fprint"
         - "go/printer.Fprint"
-        - "(*github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice.OfficeReleasesIterator).Close"
-        - "(*github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd.CPEIterator).Close"
         - "(github.com/fleetdm/fleet/v4/server/fleet.SoftwareIterator).Close"
         - "(*github.com/gosuri/uilive.Writer).Flush"
         # Security hardware interface
@@ -316,9 +310,6 @@ linters:
       - path: server/mail/mail.go
         linters:
           - gosec
-      - path: server/datastore/mysql/migrations/tables/20201011162341_CleanupSoftDeletedColumns.go
-        linters:
-          - gosec
       - path: server/service/redis_policy_set/redis_policy_set_test.go
         linters:
           - gosec
@@ -346,16 +337,10 @@ linters:
       - path: server/service/service_users.go
         linters:
           - gosec
-      - path: server/datastore/mysql/migrations/tables/20201011162341_CleanupSoftDeletedColumns.go
-        linters:
-          - gosec
       - path: server/datastore/mysql/aggregated_stats_test.go
         linters:
           - gosec
       - path: server/fleet/app.go
-        linters:
-          - gosec
-      - path: server/service/async/async_policy.go
         linters:
           - gosec
       - path: server/logging/kinesis.go
@@ -368,12 +353,6 @@ linters:
         linters:
           - gosec
       - path: server/datastore/redis/ratelimit_store.go
-        linters:
-          - gosec
-      - path: server/datastore/mysql/testing_utils.go
-        linters:
-          - gosec
-      - path: server/datastore/mysql/packs_test.go
         linters:
           - gosec
       - path: server/service/appconfig.go

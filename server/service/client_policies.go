@@ -7,18 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (c *Client) CreateGlobalPolicy(name, query, description, resolution, platform string) error {
-	req := fleet.CreatePolicyRequest{
-		Name:        name,
-		Query:       query,
-		Description: description,
-		Resolution:  resolution,
-		Platform:    platform,
-	}
-	var responseBody fleet.CreatePolicyResponse
-	return c.authenticatedRequest(req, "POST", "/api/latest/fleet/policies", &responseBody)
-}
-
 // ApplyPolicies sends the list of Policies to be applied to the
 // Fleet instance.
 func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {

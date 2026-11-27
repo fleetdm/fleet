@@ -334,21 +334,6 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 	return results, total, metadata, nil
 }
 
-// ResultCountForQueryAndHost counts the query report rows for a given query and host
-// excluding rows with null data
-func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
-	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
-		SELECT COUNT(*) FROM query_results qr
-		JOIN queries q ON q.id = qr.query_id AND qr.id >= q.results_valid_from_id
-		WHERE qr.query_id = ? AND qr.host_id = ? AND qr.has_data = 1`, queryID, hostID)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "counting query results for query and host")
-	}
-
-	return count, nil
-}
-
 // ResultCountsForQueries counts the stored rows with data for each query.
 func (ds *Datastore) ResultCountsForQueries(ctx context.Context, queryIDs []uint) (map[uint]int, error) {
 	counts := make(map[uint]int, len(queryIDs))

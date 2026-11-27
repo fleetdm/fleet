@@ -979,21 +979,6 @@ func (ds *Datastore) LabelScopedScheduledQueryScopes(ctx context.Context) (fleet
 	return scopes, nil
 }
 
-func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
-	sql := `
-		SELECT observer_can_run
-		FROM queries
-		WHERE id = ?
-	`
-	var observerCanRun bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &observerCanRun, sql, queryID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "selecting observer_can_run")
-	}
-
-	return observerCanRun, nil
-}
-
 func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	sqlStmt := `
 		SELECT
