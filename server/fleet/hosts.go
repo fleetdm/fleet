@@ -325,6 +325,9 @@ type HostListOptions struct {
 	// DEPAssignProfileResponseFilter filters hosts by their exact DEP profile
 	// assignment response value (SUCCESS, FAILED, THROTTLED, NOT_ACCESSIBLE).
 	DEPAssignProfileResponseFilter *DEPAssignProfileResponseStatus
+
+	// SelectFields, when set, loads only these Host db fields (see HostCSVColumnFields).
+	SelectFields []string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?

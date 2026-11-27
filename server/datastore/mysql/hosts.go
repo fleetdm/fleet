@@ -728,17 +728,47 @@ func omitUnknownLinuxDiskEncryption(host *fleet.Host) {
 // hostOSSelect and hostOSJoin load the host's operating_systems row into Host.OSName and Host.OSVersionOnly, the
 // values the os_name and os_version host filters match. Only loaders whose host reaches the API need them.
 const (
-	hostOSSelect = `
-  COALESCE(os.name, '') AS os_name,
-  COALESCE(os.version, '') AS os_version_only`
-	hostOSJoin = `
+	hostOSNameSelect    = "\n  COALESCE(os.name, '') AS os_name"
+	hostOSVersionSelect = "\n  COALESCE(os.version, '') AS os_version_only"
+	hostOSSelect        = hostOSNameSelect + "," + hostOSVersionSelect
+	hostOSJoin          = `
   LEFT JOIN host_operating_system hos ON hos.host_id = h.id
   LEFT JOIN operating_systems os ON os.id = hos.os_id`
 )
 
+// hostAPIOSFields are the fields setHostAPIOS reads, so a list loads all of them or none.
+var hostAPIOSFields = []string{"os_name", "os_version_only", "os_version"}
+
 // setHostAPIOS turns the OS inventory row loaded by hostOSSelect into the os_name and os_version the API returns.
 func setHostAPIOS(h *fleet.Host) {
 	h.OSName, h.OSVersionOnly = fleet.HostAPIOS(h.OSName, h.OSVersionOnly, h.OSVersion)
+}
+
+type hostFields map[string]struct{}
+
+func (f hostFields) want(field string) bool {
+	if f == nil {
+		return true
+	}
+	_, ok := f[field]
+	return ok
+}
+
+func newHostFields(selectFields []string) hostFields {
+	if len(selectFields) == 0 {
+		return nil
+	}
+	// The service loads more host data by id, and omitUnknownLinuxDiskEncryption reads platform.
+	fields := hostFields{"id": {}, "platform": {}}
+	for _, f := range selectFields {
+		fields[f] = struct{}{}
+	}
+	if slices.ContainsFunc(hostAPIOSFields, fields.want) {
+		for _, f := range hostAPIOSFields {
+			fields[f] = struct{}{}
+		}
+	}
+	return fields
 }
 
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -1037,66 +1067,10 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 }
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	sql := `SELECT
-    h.id,
-    h.osquery_host_id,
-    h.created_at,
-    h.updated_at,
-    h.detail_updated_at,
-    h.node_key,
-    h.hostname,
-    h.uuid,
-    h.platform,
-    h.osquery_version,
-    h.os_version,
-    h.build,
-    h.platform_like,
-    h.code_name,
-    h.uptime,
-    h.memory,
-    h.cpu_type,
-    h.cpu_subtype,
-    h.cpu_brand,
-    h.cpu_physical_cores,
-    h.cpu_logical_cores,
-    h.hardware_vendor,
-    h.hardware_model,
-    h.hardware_version,
-    h.hardware_serial,
-    h.computer_name,
-    h.primary_ip_id,
-    h.distributed_interval,
-    h.logger_tls_period,
-    h.config_tls_refresh,
-    h.primary_ip,
-    h.primary_mac,
-    h.label_updated_at,
-    h.last_enrolled_at,
-    h.refetch_requested,
-    h.refetch_critical_queries_until,
-    h.team_id,
-    h.policy_updated_at,
-    h.public_ip,
-    h.orbit_node_key,
-    COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-    COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-    COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-    hd.gigs_all_disk_space,
-    hd.encrypted as disk_encryption_enabled,
-    COALESCE(hst.seen_time, h.created_at) AS seen_time,
-    nstm.seen_time AS last_mdm_checked_in_at,
-    t.name AS team_name,
-    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-    h.last_restarted_at,
-    h.timezone,
-    hoi.version AS orbit_version,
-    hoi.desktop_version AS fleet_desktop_version,
-    had.group_tag AS group_tag,` + hostOSSelect + `
-	`
+	fields := newHostFields(opt.SelectFields)
+	sql := hostListSelectSQL(fields, !opt.DisableIssues)
 
-	sql += hostMDMSelect
-
-	if opt.DeviceMapping {
+	if opt.DeviceMapping && fields.want("device_mapping") {
 		// Use a correlated subquery in the SELECT list (rather than a derived-table
 		// LEFT JOIN with GROUP BY) so the aggregation over host_emails is evaluated only
 		// for the rows actually returned by the outer query, each as an indexed lookup on
@@ -1113,13 +1087,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`, deviceMappingTranslateSourceColumn("he"))
 	}
 
-	if !opt.DisableIssues {
-		sql += `,
-		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
-		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
-		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
-		`
-	}
+	sql += "\n"
 
 	var params []interface{}
 
@@ -8142,4 +8110,98 @@ func (ds *Datastore) CleanupHostIssues(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "cleanup host issues")
 	}
 	return nil
+}
+
+type hostFieldExpr struct {
+	field string
+	expr  string
+}
+
+func hostListSelectSQL(fields hostFields, withIssues bool) string {
+	return selectHostListSQL(hostListSelect, fields, withIssues)
+}
+
+func selectHostListSQL(exprs []hostFieldExpr, fields hostFields, withIssues bool) string {
+	sql := "SELECT" + strings.TrimPrefix(selectHostFields(exprs, fields), ",")
+	if withIssues {
+		sql += selectHostFields(hostIssuesSelect, fields)
+	}
+	return sql
+}
+
+func selectHostFields(exprs []hostFieldExpr, fields hostFields) string {
+	var sb strings.Builder
+	for _, e := range exprs {
+		if fields.want(e.field) {
+			sb.WriteString(",\n    ")
+			sb.WriteString(e.expr)
+		}
+	}
+	return sb.String()
+}
+
+var hostListSelect = []hostFieldExpr{
+	{"id", "h.id"},
+	{"osquery_host_id", "h.osquery_host_id"},
+	{"created_at", "h.created_at"},
+	{"updated_at", "h.updated_at"},
+	{"detail_updated_at", "h.detail_updated_at"},
+	{"node_key", "h.node_key"},
+	{"hostname", "h.hostname"},
+	{"uuid", "h.uuid"},
+	{"platform", "h.platform"},
+	{"osquery_version", "h.osquery_version"},
+	{"os_version", "h.os_version"},
+	{"build", "h.build"},
+	{"platform_like", "h.platform_like"},
+	{"code_name", "h.code_name"},
+	{"uptime", "h.uptime"},
+	{"memory", "h.memory"},
+	{"cpu_type", "h.cpu_type"},
+	{"cpu_subtype", "h.cpu_subtype"},
+	{"cpu_brand", "h.cpu_brand"},
+	{"cpu_physical_cores", "h.cpu_physical_cores"},
+	{"cpu_logical_cores", "h.cpu_logical_cores"},
+	{"hardware_vendor", "h.hardware_vendor"},
+	{"hardware_model", "h.hardware_model"},
+	{"hardware_version", "h.hardware_version"},
+	{"hardware_serial", "h.hardware_serial"},
+	{"computer_name", "h.computer_name"},
+	{"primary_ip_id", "h.primary_ip_id"},
+	{"distributed_interval", "h.distributed_interval"},
+	{"logger_tls_period", "h.logger_tls_period"},
+	{"config_tls_refresh", "h.config_tls_refresh"},
+	{"primary_ip", "h.primary_ip"},
+	{"primary_mac", "h.primary_mac"},
+	{"label_updated_at", "h.label_updated_at"},
+	{"last_enrolled_at", "h.last_enrolled_at"},
+	{"refetch_requested", "h.refetch_requested"},
+	{"refetch_critical_queries_until", "h.refetch_critical_queries_until"},
+	{"team_id", "h.team_id"},
+	{"policy_updated_at", "h.policy_updated_at"},
+	{"public_ip", "h.public_ip"},
+	{"orbit_node_key", "h.orbit_node_key"},
+	{"gigs_disk_space_available", "COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available"},
+	{"percent_disk_space_available", "COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available"},
+	{"gigs_total_disk_space", "COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space"},
+	{"gigs_all_disk_space", "hd.gigs_all_disk_space"},
+	{"disk_encryption_enabled", "hd.encrypted as disk_encryption_enabled"},
+	{"seen_time", "COALESCE(hst.seen_time, h.created_at) AS seen_time"},
+	{"last_mdm_checked_in_at", "nstm.seen_time AS last_mdm_checked_in_at"},
+	{"team_name", "t.name AS team_name"},
+	{"software_updated_at", "COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at"},
+	{"last_restarted_at", "h.last_restarted_at"},
+	{"timezone", "h.timezone"},
+	{"orbit_version", "hoi.version AS orbit_version"},
+	{"fleet_desktop_version", "hoi.desktop_version AS fleet_desktop_version"},
+	{"group_tag", "had.group_tag AS group_tag"},
+	{"os_name", hostOSNameSelect},
+	{"os_version_only", hostOSVersionSelect},
+	{"mdm_host_data", strings.TrimPrefix(hostMDMSelect, ",")},
+}
+
+var hostIssuesSelect = []hostFieldExpr{
+	{"failing_policies_count", "COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count"},
+	{"critical_vulnerabilities_count", "COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count"},
+	{"total_issues_count", "COALESCE(host_issues.total_issues_count, 0) AS total_issues_count"},
 }
