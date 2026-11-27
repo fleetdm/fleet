@@ -14,7 +14,7 @@ In my defense, firmware is a big topic (see November 22).
 - Hosts enrolled with fleetd, with [scripts enabled](https://fleetdm.com/guides/scripts), in a fleet. (Automations don't work on policies for "All fleets".)
 - If your Dell PCs have a BIOS admin password, a custom variable named `BIOS_PASSWORD`. Add it in **Controls** > **Variables** before you upload any scripts, because Fleet won't save a script that mentions a variable it hasn't heard of.
 
-> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every PC. That still keeps it out of your scripts and Git, which matters most. Fleet already runs in production on Dell hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
+> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every PC. It still keeps the password out of your scripts and Git. Fleet already runs in production on Dell hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
 
 ## Step 1: Label your Dell PCs
 
@@ -30,7 +30,7 @@ Two Dell tools do most of the work. [Dell Command | Update](https://www.dell.com
 
 Dell Command | Update is a Fleet-maintained app, which means Fleet packages it for you. Go to **Software**, click **Add software**, and add **Dell Command Update** for Windows, targeting the **Dell** label. Dell Command | Configure isn't Fleet-maintained, so download it from Dell and add it under **Software** > **Add software** > **Custom package**, also targeting **Dell**.
 
-Adding an app to Fleet doesn't install it anywhere, so each tool also needs a policy. A policy is a yes-or-no question Fleet asks every host about once an hour, and this one asks whether Dell Command | Update is installed. Go to **Policies**, click **Add policy**, and use the query below. When you save it, and every policy after it, set **Target** to **Custom** and check **Dell**, so only Dells get asked.
+Adding an app to Fleet doesn't install it anywhere, so each tool also needs a policy. A policy is a yes-or-no question Fleet asks every host about once an hour, and this one asks whether Dell Command | Update is installed. Go to **Policies**, click **Add policy**, and use the query below. When you save it, and every policy after it, set **Target** to **Custom** and check **Dell** so only Dells get asked.
 
 ```sql
 SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';
@@ -38,7 +38,7 @@ SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'D
 
 Then, on the **Policies** page, click the policy's **Automation** column, choose **Install software** from the **Automation** dropdown, pick **Dell Command Update**, and click **Save**. Any Dell that answers "no" gets it.
 
-Dell Command | Configure needs the same kind of policy. Rather than guess at the name Windows lists it under, copy the name Fleet shows for it on the **Software** page, or check a live report (a one-off question your hosts answer right away) of `SELECT name, publisher FROM programs WHERE publisher = 'Dell Inc.';`.
+Dell Command | Configure needs the same kind of policy and the same **Install software** automation, this time picking Dell Command | Configure. Rather than guess at the name Windows lists it under, copy the name Fleet shows for it on the **Software** page, or check a live report (a one-off question your hosts answer right away) of `SELECT name, publisher FROM programs WHERE publisher = 'Dell Inc.';`.
 
 ## Step 3: Keep the BIOS, firmware, and drivers up to date
 
@@ -66,7 +66,7 @@ To see which PCs have fallen behind, start with a live report that lists each PC
 SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;
 ```
 
-Then add one policy per model. A PC of that model passes only if its BIOS is at least version X.Y.Z, and every other model passes automatically, so each policy only nags the model it's about. Copy the model name from the live report and the minimum version from Dell's support page, exactly as written:
+Then add one policy per model. Each policy is about one model. A PC of that model passes if its BIOS is X.Y.Z or newer, and every other PC passes automatically. Copy the model name from the live report and the minimum version from Dell's support page, exactly as written:
 
 ```sql
 SELECT 1 FROM system_info s, platform_info p
@@ -120,7 +120,7 @@ Set these policies' automation to **Run script** with `dell-bios-security-settin
 
 ## Step 5: Check Dell Trusted Device BIOS verification
 
-[Dell Trusted Device](https://www.dell.com/support/kbdoc/en-us/000130811/how-to-run-bios-verification-using-dell-trusted-device) compares the BIOS on the PC with a known-good copy on Dell's servers. It reports through WMI, Windows' catalog of system details. Fleet policies can't read that part of WMI yet ([#59971](https://github.com/fleetdm/fleet/issues/59971)), so you'll check with a script instead. If you'd rather have it as a policy, [tell us](https://fleetdm.com/support).
+[Dell Trusted Device](https://www.dell.com/support/kbdoc/en-us/000130811/how-to-run-bios-verification-using-dell-trusted-device) compares the BIOS on the PC with a known-good copy on Dell's servers. It reports through WMI, Windows' catalog of system details. Fleet policies can't read that part of WMI yet ([#59971](https://github.com/fleetdm/fleet/issues/59971), and [tell us](https://fleetdm.com/support) if you need it), so you'll check with a script instead.
 
 For Dell Trusted Device 2.1 through 6.0, upload `dell-trusted-device-bios-verification.ps1`:
 
@@ -139,7 +139,9 @@ To check every Dell at once, filter **Hosts** by the **Dell** label, select them
 
 ## Step 6: Do the same on Linux
 
-Dell Command | Update and Dell Trusted Device are Windows-only, but Dell still looks after Linux. It [publishes BIOS updates](https://www.dell.com/support/kbdoc/en-us/000122025/how-to-update-firmware-under-linux) to the [Linux Vendor Firmware Service](https://fwupd.org/), a public library of firmware, and [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs them. Dell Command | Configure also has a [Linux version](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ig/installing-dell-command-configure-on-linux-systems?guid=guid-9d3f8b53-abb4-4d54-9049-b1e0bfbfc100&lang=en-us) for RHEL 8 and 9 and Ubuntu 20.04, 22.04, and 24.04. Add it as a custom package with its own "installed" policy, as on Windows, taking the package name from the **Software** page.
+Dell Command | Update and Dell Trusted Device are Windows-only, but Dell still looks after Linux. It [publishes BIOS updates](https://www.dell.com/support/kbdoc/en-us/000122025/how-to-update-firmware-under-linux) to the [Linux Vendor Firmware Service](https://fwupd.org/), a public library of firmware, and [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs them.
+
+Dell Command | Configure also has a [Linux version](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ig/installing-dell-command-configure-on-linux-systems?guid=guid-9d3f8b53-abb4-4d54-9049-b1e0bfbfc100&lang=en-us) for RHEL 8 and 9 and Ubuntu 20.04, 22.04, and 24.04. Add it as a custom package with its own "installed" policy, as on Windows, taking the package name from the **Software** page.
 
 A policy runs one script, and PowerShell won't run on Linux, so Linux gets its own copies of the policies. For updates, make a Linux copy of the BIOS version policy from step 3 and attach `linux-update-firmware.sh`:
 
@@ -179,6 +181,8 @@ For a wider check, run `fwupdmgr security --json` as a script. It returns fwupd'
 
 None of this replaces disk encryption, so [keep enforcing it](https://fleetdm.com/guides/enforce-disk-encryption). The two even back each other up. A BitLocker recovery prompt nobody expected can be the first sign that something in the boot chain changed. Before the help desk reads out a recovery key, have them look the host up in Fleet for a Secure Boot change, a failed BIOS verification, or a recent BIOS update. If nothing explains it, dig in before unlocking.
 
+The BIOS will still be the first thing to run when someone presses the power button, ahead of Windows, Linux, and every security tool you bought. But now Fleet checks on it every hour.
+
 ## Manage it with GitOps
 
 If you manage Fleet as code, the label goes in the `labels` list in `default.yml`:
@@ -190,7 +194,7 @@ labels:
     label_membership_type: dynamic
 ```
 
-Keep the labels you already have in that list, since GitOps removes labels that aren't listed. Everything else goes in a fleet file (the YAML file for one fleet), which must also list each script a policy runs under `controls.scripts`. Here's a start on `fleets/workstations.yml`. The remaining Windows and Linux policies follow the same shape.
+Keep the labels you already have in that list, since GitOps removes labels that aren't listed. Everything else goes in a fleet file, the YAML file for one fleet. Any script a policy runs must also be listed under `controls.scripts`. Here's a start on `fleets/workstations.yml`. The remaining Windows and Linux policies follow the same shape.
 
 ```yaml
 name: Workstations
@@ -241,8 +245,6 @@ policies:
 ```
 
 Store the BIOS password as a GitHub or GitLab secret named `FLEET_SECRET_BIOS_PASSWORD` and pass it to your GitOps workflow, as described in [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
-
-The BIOS will still be the first thing to run when someone presses the power button, ahead of Windows, Linux, and every security tool you bought. The difference is that now Fleet checks on it every hour.
 
 ## Further reading
 
