@@ -8337,6 +8337,19 @@ func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID s
 			return ctxerr.Wrap(ctx, err, "reset label_updated_at for mdm reset", "host_uuid", hostUUID)
 		}
 
+		// Hide results from before the wipe from the host's current install and script statuses; the rows
+		// stay so past activities can still show their details.
+		for _, table := range []string{
+			"host_software_installs",
+			"host_vpp_software_installs",
+			"host_in_house_software_installs",
+			"host_script_results",
+		} {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("UPDATE %s SET removed = 1 WHERE host_id = ? AND removed = 0", table), host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("hide %s for mdm reset", table), "host_uuid", hostUUID)
+			}
+		}
+
 		// Clear the PSSO registration (keys cascade) so an ADE re-enrollment
 		// starts from fresh device keys.
 		if _, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_psso_devices WHERE host_uuid = ?", hostUUID); err != nil {

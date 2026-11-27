@@ -1619,6 +1619,7 @@ CREATE TABLE `host_script_results` (
   `setup_experience_script_id` int unsigned DEFAULT NULL,
   `is_internal` tinyint(1) DEFAULT '0',
   `canceled` tinyint(1) NOT NULL DEFAULT '0',
+  `removed` tinyint(1) NOT NULL DEFAULT '0',
   `attempt_number` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),

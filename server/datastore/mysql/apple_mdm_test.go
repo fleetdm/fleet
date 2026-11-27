@@ -6160,6 +6160,63 @@ func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
 			activityCounts{pastActivity: 0, activeQueue: 0, inactiveQueue: 2, ackedCommand: 1},
 			countActivityRows(t, hostB))
 	})
+
+	t.Run("hides install and script results but keeps the rows", func(t *testing.T) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('reset-adam', 'ios', 'App', '1.0')`)
+		require.NoError(t, err)
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO in_house_apps (storage_id, platform) VALUES ('reset-storage', 'ios')`)
+		require.NoError(t, err)
+		inHouseAppID, err := res.LastInsertId()
+		require.NoError(t, err)
+		script, err := ds.NewScript(ctx, &fleet.Script{Name: "reset.sh", ScriptContents: "echo reset"})
+		require.NoError(t, err)
+
+		seedResults := func(t *testing.T, h *fleet.Host) {
+			for _, stmt := range []struct {
+				sql  string
+				args []any
+			}{
+				{`INSERT INTO host_software_installs (execution_id, host_id, install_script_exit_code) VALUES (?, ?, 0)`, []any{uuid.NewString(), h.ID}},
+				{`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid) VALUES (?, 'reset-adam', 'ios', ?)`, []any{h.ID, uuid.NewString()}},
+				{`INSERT INTO host_in_house_software_installs (host_id, in_house_app_id, command_uuid, platform) VALUES (?, ?, ?, 'ios')`, []any{h.ID, inHouseAppID, uuid.NewString()}},
+				{`INSERT INTO host_script_results (host_id, execution_id, output, exit_code, script_id) VALUES (?, ?, 'ok', 0, ?)`, []any{h.ID, uuid.NewString(), script.ID}},
+			} {
+				_, err := ds.writer(ctx).ExecContext(ctx, stmt.sql, stmt.args...)
+				require.NoError(t, err)
+			}
+		}
+		removedFlags := func(t *testing.T, h *fleet.Host) []bool {
+			var flags []bool
+			for _, table := range []string{"host_software_installs", "host_vpp_software_installs", "host_in_house_software_installs", "host_script_results"} {
+				var removed bool
+				require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &removed,
+					fmt.Sprintf(`SELECT removed FROM %s WHERE host_id = ?`, table), h.ID))
+				flags = append(flags, removed)
+			}
+			return flags
+		}
+		lastScriptExecution := func(t *testing.T, h *fleet.Host) *fleet.HostScriptExecution {
+			details, _, err := ds.GetHostScriptDetails(ctx, h.ID, nil, fleet.ListOptions{}, h.Platform)
+			require.NoError(t, err)
+			require.Len(t, details, 1)
+			return details[0].LastExecution
+		}
+
+		hostA := newHost("results-A", "darwin")
+		hostB := newHost("results-B", "darwin")
+		seedResults(t, hostA)
+		seedResults(t, hostB)
+		require.NotNil(t, lastScriptExecution(t, hostA))
+
+		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
+
+		assert.Equal(t, []bool{true, true, true, true}, removedFlags(t, hostA))
+		assert.Nil(t, lastScriptExecution(t, hostA))
+		assert.Equal(t, []bool{false, false, false, false}, removedFlags(t, hostB))
+		assert.NotNil(t, lastScriptExecution(t, hostB))
+	})
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
