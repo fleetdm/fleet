@@ -131,9 +131,9 @@ jobs:
 
           # Add secret
           echo "$CERT_PEM" | base64 -d > cert.pem
-          # Start tunnels (Fleet and TUF)
-          cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
-          # The TUF tunnel (and its DNS record) was created by run-tuf-and-gen-pkgs; run a new connector for it.
+          # Both tunnels (and their DNS records) were created by run-tuf-and-gen-pkgs; run connectors for them.
+          FLEET_TUNNEL_TOKEN=$(cloudflared tunnel --origincert cert.pem token ${{ needs.gen.outputs.subdomain }})
+          cloudflared tunnel --url http://localhost:1337 --logfile cloudflared.log run --token "$FLEET_TUNNEL_TOKEN" &
           TUF_TUNNEL_TOKEN=$(cloudflared tunnel --origincert cert.pem token ${{ needs.gen.outputs.tuf_subdomain }})
           cloudflared tunnel --url http://localhost:8081 --logfile cloudflared-tuf.log run --token "$TUF_TUNNEL_TOKEN" &
           for name in ${{ needs.gen.outputs.subdomain }} ${{ needs.gen.outputs.tuf_subdomain }}; do
@@ -370,9 +370,12 @@ jobs:
           ./tools/tuf/test/main.sh
 
       # fleetctl package downloads targets from --update-url, which is also the URL baked into
-      # the packages, so the TUF tunnel must already be serving this repository. The tunnel is
-      # kept (not deleted) so run-server can reconnect to it and keep serving after this job ends.
-      - name: Start TUF tunnel
+      # the packages, so the TUF tunnel must already be serving this repository. Tunnels are
+      # kept (not deleted) so run-server can reconnect to them after this job ends.
+      #
+      # The Fleet tunnel is also created here (but not run) so its DNS record exists before the
+      # agent jobs start; otherwise macOS caches the NXDOMAIN answer for a long time.
+      - name: Start tunnels
         env:
           CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
         run: |
@@ -385,6 +388,8 @@ jobs:
             echo "Awaiting TUF tunnel ready..."
             sleep 5
           done
+          cloudflared tunnel --origincert cert.pem create ${{ needs.gen.outputs.subdomain }}
+          cloudflared tunnel --origincert cert.pem route dns ${{ needs.gen.outputs.subdomain }} ${{ needs.gen.outputs.domain }}
           # Cloudflare's resolver sees the new DNS record immediately.
           for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
             sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
@@ -418,9 +423,10 @@ jobs:
         if: always()
         run: |
           pkill cloudflared || true
-          # run-server deletes the tunnel; if this job fails, run-server never runs, so delete it here.
+          # run-server deletes the tunnels; if this job fails, run-server never runs, so delete them here.
           if [ "${{ job.status }}" != "success" ] && [ -f cert.pem ]; then
             cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.tuf_subdomain }} || true
+            cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }} || true
           fi
 
       - name: Build orbit N+1
@@ -516,12 +522,12 @@ jobs:
       - name: Wait enroll
         run: |
           # Wait until the fleet server goes down, which signals that run-server has
-          # finished verifying enrollment and torn down the tunnel. Require several
+          # finished verifying enrollment and auto-update, and torn down the tunnel. Require several
           # consecutive failures so a transient blip (e.g. a 5xx while the server is
           # still up) doesn't let us proceed early, and cap the total wait so a stuck
-          # tunnel fails fast instead of riding the 60m job timeout.
+          # tunnel fails fast instead of riding the job timeout.
           down=0
-          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          required_down=18  # ~3m of consecutive failures confirms the server is gone (not a tunnel blip)
           attempts=0
           max_attempts=540  # ~90 minutes at 10s intervals (run-server also waits for the N+1 auto-update)
           while [ "$down" -lt "$required_down" ]; do
@@ -613,12 +619,12 @@ jobs:
       - name: Wait enroll
         run: |
           # Wait until the fleet server goes down, which signals that run-server has
-          # finished verifying enrollment and torn down the tunnel. Require several
+          # finished verifying enrollment and auto-update, and torn down the tunnel. Require several
           # consecutive failures so a transient blip (e.g. a 5xx while the server is
           # still up) doesn't let us proceed early, and cap the total wait so a stuck
-          # tunnel fails fast instead of riding the 60m job timeout.
+          # tunnel fails fast instead of riding the job timeout.
           down=0
-          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          required_down=18  # ~3m of consecutive failures confirms the server is gone (not a tunnel blip)
           attempts=0
           max_attempts=540  # ~90 minutes at 10s intervals (run-server also waits for the N+1 auto-update)
           while [ "$down" -lt "$required_down" ]; do
@@ -700,12 +706,12 @@ jobs:
       - name: Wait enroll
         run: |
           # Wait until the fleet server goes down, which signals that run-server has
-          # finished verifying enrollment and torn down the tunnel. Require several
+          # finished verifying enrollment and auto-update, and torn down the tunnel. Require several
           # consecutive failures so a transient blip (e.g. a 5xx while the server is
           # still up) doesn't let us proceed early, and cap the total wait so a stuck
-          # tunnel fails fast instead of riding the 60m job timeout.
+          # tunnel fails fast instead of riding the job timeout.
           down=0
-          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          required_down=18  # ~3m of consecutive failures confirms the server is gone (not a tunnel blip)
           attempts=0
           max_attempts=540  # ~90 minutes at 10s intervals (run-server also waits for the N+1 auto-update)
           while [ "$down" -lt "$required_down" ]; do
