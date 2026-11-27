@@ -2,30 +2,30 @@
 
 Firmware is the part of the PC everything else trusts without checking, so I think about it more than is probably healthy. I'm always a little delighted when someone else does too. Lately that's been teams moving off Intune, asking what happens to the HP Connect policies and HP Sure Start checks they set up there.
 
-The short answer is that none of it lives in Intune. HP Connect runs HP's scripts as Intune remediations, and Sure Start's signals come from the device itself. Fleet can run the same scripts and read the same signals, on Linux as well as Windows. HP builds these tools because they keep devices secure, and this guide shows how to use each one from Fleet: BIOS and driver updates, BIOS settings, and Sure Start.
+The good news is that none of it lives in Intune. HP Connect runs HP's scripts as Intune remediations, and Sure Start's signals come from the PC itself. Fleet can run the same scripts and read the same signals, on Linux as well as Windows. HP builds these tools because they keep devices secure, and this guide shows how to drive each one from Fleet.
 
 ## Prerequisites
 
 - Fleet Premium, for policy automations.
 - Hosts enrolled with fleetd, with [scripts enabled](https://fleetdm.com/guides/scripts).
-- For Sure Start events, HP Notifications installed on your HP PCs. Without it, Sure Start events stay in the firmware and never reach the Windows event log.
+- For Sure Start events, HP Notifications installed on your HP PCs. Without it, they never reach the Windows event log.
 - If your HP PCs have a BIOS admin password, a custom variable named `BIOS_PASSWORD`. Add it in **Controls** > **Variables** before you upload the scripts below, because Fleet won't save a script that uses a variable that doesn't exist yet.
 
-> **Note:** Fleet doesn't yet store a unique BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every device. That keeps it out of your scripts and out of Git, which is the part that matters most. Fleet is already used in production on HP hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
+> **Note:** Fleet doesn't yet store a unique BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so for now one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every device. That still keeps it out of your scripts and out of Git. Fleet is already used in production on HP hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
 
 ## Step 1: Label your HP PCs
 
-Navigate to **Hosts**, click **Filter by platform or label**, then **Add label**. Name it **HP** and use this query:
+A label is a group of hosts that Fleet keeps up to date on its own. Navigate to **Hosts**, click **Filter by platform or label**, then **Add label**. Name it **HP** and use this query:
 
 ```sql
 SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'HP%' OR hardware_vendor LIKE 'Hewlett%';
 ```
 
-Every policy below targets this label.
+HP has gone by both names, so the query checks for both.
 
 ## Step 2: Keep the BIOS, firmware, and drivers up to date
 
-HP's update tool is [HP Image Assistant](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/HPIAUserGuide2.pdf) (HPIA). HP doesn't document a silent installer for it, but HP's [Client Management Script Library](https://developers.hp.com/hp-client-management/doc/client-management-script-library) (CMSL) can install it, so this script installs CMSL and HPIA the first time it runs. Navigate to **Controls** > **Scripts** and upload `hp-update-bios-firmware-drivers.ps1`:
+The BIOS is the small program that starts the PC before Windows does, and like everything else, it needs patches. HP's update tool is [HP Image Assistant](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/HPIAUserGuide2.pdf) (HPIA). HPIA has no documented silent installer, but HP's [Client Management Script Library](https://developers.hp.com/hp-client-management/doc/client-management-script-library) (CMSL) can install it, so this script sets up both on first run. Navigate to **Controls** > **Scripts** and upload `hp-update-bios-firmware-drivers.ps1`:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -49,15 +49,15 @@ if ($p.ExitCode -in 0, 256, 3010) { exit 0 }
 exit $p.ExitCode
 ```
 
-If your PCs have a BIOS password, HPIA reads it from a file passed with `/BIOSPwdFile`, which you create with HP's `HpqPswd.exe`. The HPIA user guide covers that and every other switch.
+If your PCs have a BIOS password, pass HPIA a password file with `/BIOSPwdFile`. HP's `HpqPswd.exe` makes the file, and the HPIA user guide covers every other switch.
 
-Next, add a policy that fails when a model's BIOS falls behind. Run this live report first to see what your hosts report:
+Next, add a policy (a yes-or-no question Fleet asks each host on a schedule, where "no" means the host fails) that fails when a model's BIOS falls behind. First, run this live report to see what your hosts say:
 
 ```sql
 SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;
 ```
 
-Then navigate to **Policies**, select your fleet, and add one policy per model, copying the model name and the minimum version from HP's support page exactly as they appear:
+Then navigate to **Policies**, select your fleet, and add one policy per model. Use the model name from the live report, and HP's minimum version written in the same format your hosts report:
 
 ```sql
 SELECT 1 FROM system_info s, platform_info p
@@ -65,11 +65,11 @@ WHERE s.hardware_model != 'YOUR-MODEL'
    OR version_compare(p.version, 'X.Y.Z') >= 0;
 ```
 
-Fleet doesn't track HP's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when HP ships a new one. Fleet is already used in production on HP hardware in regulated industries, and this hasn't been a blocker there. If you'd like a hand, [reach out](https://fleetdm.com/support).
+Fleet doesn't track HP's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when HP ships a new one. Companies already running Fleet on HP hardware in regulated industries haven't found this a blocker, but if you'd like a hand, [reach out](https://fleetdm.com/support).
 
-Finally, click **Manage automations** on the **Policies** page, select **Run script**, check the BIOS policies, pick the script, and click **Save**. Fleet runs the script when a host first fails the policy and retries it up to three times. Updates that need a restart finish when the user next restarts.
+Finally, add a policy automation, which tells Fleet what to do when a host fails. Click **Manage automations** on the **Policies** page, select **Run script**, check the BIOS policies, pick the script, and click **Save**. Fleet runs the script when a host first fails the policy, and tries up to three times. Updates that need a restart finish when the user next restarts.
 
-> **Note:** Fleet stops a script after 300 seconds by default, and driver downloads can take longer. Raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in your agent options, for example to `1800`.
+> **Note:** Fleet stops a script after 300 seconds by default, and driver downloads can take longer, so raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in your agent options, for example to `1800`.
 
 ## Step 3: Lock down BIOS settings
 
@@ -98,9 +98,9 @@ foreach ($name in $settings.Keys) {
 }
 ```
 
-Before the script reaches the device, Fleet swaps `$FLEET_SECRET_BIOS_PASSWORD` for the variable's value. If your PCs don't have a BIOS password, drop `$pw` and the `-Password` argument.
+Fleet fills in `$FLEET_SECRET_BIOS_PASSWORD` before the script reaches the device. If your PCs don't have a BIOS password, drop `$pw` and the `-Password` argument.
 
-The setting names come from HP's [BIOS administration guide](https://kaas.hpcloud.hp.com/pdf-public/pdf_12904670_en-US-1.pdf), and they're case sensitive. `Virtualization Technology (VTx)` is for Intel models, and `Sure Start BIOS Settings Protection` needs a BIOS admin password set.
+Secure Boot only lets trusted software start the PC. The TPM is a chip that holds keys, including BitLocker's. Turning off network (PXE) and USB boot stops anyone from starting the PC from something they brought along. The names come from HP's [BIOS administration guide](https://kaas.hpcloud.hp.com/pdf-public/pdf_12904670_en-US-1.pdf), and they're case sensitive, parentheses and all. `Virtualization Technology (VTx)` is for Intel models, and `Sure Start BIOS Settings Protection` needs a BIOS admin password set.
 
 To check each setting, add a policy. On HP PCs, [`wmi_bios_info`](https://fleetdm.com/tables/wmi_bios_info) reads BIOS settings by HP's names:
 
@@ -108,7 +108,7 @@ To check each setting, add a policy. On HP PCs, [`wmi_bios_info`](https://fleetd
 SELECT 1 FROM wmi_bios_info WHERE name = 'Network (PXE) Boot' AND value = 'Disable';
 ```
 
-Run `SELECT name, value FROM wmi_bios_info;` as a live report on one PC of each model to see the exact names and values. Secure Boot and the TPM have their own tables:
+Run `SELECT name, value FROM wmi_bios_info;` as a live report on one PC per model to see the exact names and values. Secure Boot and the TPM have their own tables:
 
 ```sql
 SELECT 1 FROM secureboot WHERE secure_boot = 1;
@@ -118,13 +118,13 @@ SELECT 1 FROM secureboot WHERE secure_boot = 1;
 SELECT 1 FROM tpm_info WHERE enabled = 1 AND activated = 1;
 ```
 
-Turn on **Run script** for these policies with the settings script, the same way as in step 2. If someone changes a setting, the policy fails at the next check-in and Fleet puts it back. The BIOS password is what stops them from changing it in the first place, so use both.
+Attach the settings script to these policies the same way as in step 2. If someone changes a setting, the policy fails the next time it runs and Fleet puts it back. The BIOS password is what stops them from changing it in the first place, so use both.
 
 ## Step 4: Watch for HP Sure Start events
 
-[HP Sure Start](https://h10032.www1.hp.com/ctg/Manual/c06216928.pdf) checks the BIOS against a protected copy and restores it when they don't match. HP Notifications copies those events into Windows, under **Applications and Services Logs** > **HP Sure Start**, so management tools can read them.
+So, how would you know if someone tampered with the BIOS? [HP Sure Start](https://h10032.www1.hp.com/ctg/Manual/c06216928.pdf) keeps a protected copy of the BIOS, checks the real one against it, and restores it when they don't match. It logs what it finds, and HP Notifications copies those events into Windows, under **Applications and Services Logs** > **HP Sure Start**.
 
-Navigate to **Reports**, click **Add report**, and use this to list every recovery and tamper event Sure Start has logged:
+Navigate to **Reports**, click **Add report**, and use this to list Sure Start's recovery and tamper events:
 
 ```sql
 SELECT datetime, eventid, data
@@ -133,18 +133,9 @@ WHERE channel = 'HP Sure Start'
   AND eventid IN (30, 31, 32, 34, 36, 38);
 ```
 
-Keep the `channel` constraint. The [`windows_eventlog`](https://fleetdm.com/tables/windows_eventlog) table returns nothing without it. The event IDs come from HP's [Sure Start event table](https://h10032.www1.hp.com/ctg/Manual/c05163901.pdf), which HP published in 2016, so check them against your models:
+Keep the `channel` line, because [`windows_eventlog`](https://fleetdm.com/tables/windows_eventlog) returns nothing without it. Events 30 and 31 mean the main or backup BIOS was corrupted or missing, 32 means the flash layout differs from the factory's, 34 and 36 mean Sure Start recovered the main BIOS or repaired the layout, and 38 means the BIOS the PC woke up with isn't the one it booted with. These IDs come from HP's [Sure Start event table](https://h10032.www1.hp.com/ctg/Manual/c05163901.pdf), published in 2016 (a long time ago, in firmware years), so check them against your models. The `datetime` column is when HP Notifications copied the event, and `data` has when it happened.
 
-- 30: the primary BIOS was corrupted or missing.
-- 31: the backup BIOS was corrupted or missing.
-- 32: the flash layout differs from the factory layout.
-- 34: Sure Start recovered the primary BIOS.
-- 36: Sure Start repaired the flash layout.
-- 38: the BIOS on resume differs from the one that booted.
-
-The timestamp is when HP Notifications copied the event, not when it happened. The real time is in the `data` column.
-
-Then add a policy, targeted at the **HP** label, that fails when any of the corruption events shows up:
+Then add a policy, targeted at the **HP** label, that fails on any corruption event:
 
 ```sql
 SELECT 1 WHERE NOT EXISTS (
@@ -153,16 +144,16 @@ SELECT 1 WHERE NOT EXISTS (
 );
 ```
 
-A host that fails this policy keeps failing after you've looked into it, because the events stay in the log, and HP Notifications copies them back from the firmware if someone clears it. Treat a failure as a reason for a person to look at that PC, and use the report to see what happened.
+Once a host fails this policy, it keeps failing, because the events stay in the log, and HP Notifications copies them back from the firmware if someone clears it. Treat a failure as a reason for a person to look at that PC, and use the report to see what happened.
 
 ## Step 5: Do the same on Linux
 
 CMSL, HPIA, and Sure Start's event reporting are Windows-only. On Linux:
 
-- **Updates:** HP [recommends fwupd](https://ftp.ext.hp.com/pub/caps-softpaq/cmit/linuxtools/HP_LinuxTools.html) for firmware updates over its own Linux flash tool. [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs updates from the [Linux Vendor Firmware Service](https://fwupd.org/).
-- **Settings:** HP's [Linux tools](https://ftp.ext.hp.com/pub/caps-softpaq/cmit/linuxtools/HP_LinuxTools.html) are experimental and need Secure Boot turned off unless you sign their kernel module. The kernel's own [`hp-bioscfg`](https://kernel.org/doc/Documentation/ABI/testing/sysfs-class-firmware-attributes) driver is a better fit. It gives each BIOS setting a folder under `/sys/class/firmware-attributes/hp-bioscfg/attributes/`, named exactly as HP names it.
+- **Updates:** HP [recommends fwupd](https://ftp.ext.hp.com/pub/caps-softpaq/cmit/linuxtools/HP_LinuxTools.html) over its own Linux flash tool. [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs firmware from the [Linux Vendor Firmware Service](https://fwupd.org/).
+- **Settings:** HP's own Linux tools are experimental and need Secure Boot off unless you sign their kernel module. The kernel's [`hp-bioscfg`](https://kernel.org/doc/Documentation/ABI/testing/sysfs-class-firmware-attributes) driver is easier. It gives each BIOS setting a folder, named the way HP names it, under `/sys/class/firmware-attributes/hp-bioscfg/attributes/`.
 
-Upload `linux-update-firmware.sh`, add a Linux copy of the BIOS version policy from step 2, and attach the script to it:
+Each policy automation runs one script, and PowerShell doesn't run on Linux, so Linux gets its own policy. Upload `linux-update-firmware.sh`, add a Linux copy of the BIOS version policy from step 2, and attach the script to it:
 
 ```bash
 #!/bin/bash
@@ -175,7 +166,7 @@ if [ "$rc" -eq 2 ]; then exit 0; fi
 exit "$rc"
 ```
 
-To check a setting, read the driver with `file_lines`. The `secureboot` policy from step 3 works on Linux too.
+To check a setting, read the driver with `file_lines`. The `secureboot` policy from step 3 works here too.
 
 ```sql
 SELECT 1 FROM file_lines
@@ -183,13 +174,11 @@ WHERE path = '/sys/class/firmware-attributes/hp-bioscfg/attributes/Network (PXE)
   AND line = 'Disable';
 ```
 
-To change a setting, write the new value to its `current_value` file. When a BIOS admin password is set, the kernel requires it first, so write it to `/sys/class/firmware-attributes/hp-bioscfg/authentication/` as the [kernel docs](https://kernel.org/doc/Documentation/ABI/testing/sysfs-class-firmware-attributes) describe. Try it on one PC before you roll it out. Fleet is already used in production on HP hardware in regulated industries, and this hasn't been a blocker there. If it matters for your Linux fleet, [let us know](https://fleetdm.com/support).
-
-For a wider check of firmware protections, run `fwupdmgr security --json` as a script. It scores the PC from HSI:0 (insecure) to HSI:4 (secure) using fwupd's [Host Security ID](https://fwupd.github.io/libfwupdplugin/hsi.html).
+To change a setting, write the new value to its `current_value` file. When a BIOS admin password is set, the kernel requires it first, so write it to `/sys/class/firmware-attributes/hp-bioscfg/authentication/` as the [kernel docs](https://kernel.org/doc/Documentation/ABI/testing/sysfs-class-firmware-attributes) describe. Try it on one PC before you roll it out. If you get stuck on Linux, [let us know](https://fleetdm.com/support).
 
 ## Treat a surprise BitLocker prompt as a signal
 
-None of this replaces disk encryption, so [keep enforcing it](https://fleetdm.com/guides/enforce-disk-encryption). The two also back each other up: a BitLocker recovery prompt nobody expected can be the first sign that something in the boot chain changed. Before the help desk reads out a recovery key, have them look the host up in Fleet. Did Secure Boot turn off, is there a new Sure Start event, or was there a BIOS update? If nothing explains it, investigate before unlocking.
+None of this replaces [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), and the two back each other up. A BitLocker recovery prompt nobody expected can be the first sign that something in the boot chain changed. Before the help desk reads out a recovery key, have them look the host up in Fleet for a Secure Boot change, a new Sure Start event, or a BIOS update. If nothing explains it, investigate before unlocking.
 
 ## Manage it with GitOps
 
@@ -234,9 +223,6 @@ policies:
     query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM windows_eventlog WHERE channel = 'HP Sure Start' AND eventid IN (30, 31, 38));
     labels_include_any:
       - HP
-  - name: Secure Boot is on
-    platform: windows,linux
-    query: SELECT 1 FROM secureboot WHERE secure_boot = 1;
 reports:
   - name: HP Sure Start events
     platform: windows
@@ -244,17 +230,14 @@ reports:
     interval: 86400
     labels_include_any:
       - HP
+# ...plus the agent_options and other keys your fleet file already has
 ```
 
 Store the BIOS password as a GitHub or GitLab secret named `FLEET_SECRET_BIOS_PASSWORD`, as described in [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
 ## Further reading
 
-If you're coming from Intune, this is the HP integration this guide replaces:
-
-- [HP Connect for Microsoft Intune user guide](https://connect.admin.hp.com/static/HPConnectUserGuide.pdf)
-
-For the tools themselves, see the [HP Image Assistant user guide](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/HPIAUserGuide2.pdf), the [CMSL reference](https://developers.hp.com/hp-client-management/doc/client-management-script-library), and HP's [Sure Start white paper](https://h10032.www1.hp.com/ctg/Manual/c06216928.pdf).
+If you're coming from Intune, this guide replaces [HP Connect for Microsoft Intune](https://connect.admin.hp.com/static/HPConnectUserGuide.pdf).
 
 None of this needs Windows Autopilot or Entra. For new PCs, see [Windows zero touch without Entra or Autopilot](https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot), and if you're wondering what it costs to drop Microsoft 365 E3 altogether, we [priced it out](https://fleetdm.com/articles/leaving-e3-entirely). Managing Dell or Lenovo too? See [Manage Dell PCs with Fleet](https://fleetdm.com/guides/manage-dell-pcs-with-fleet) and [Manage Lenovo PCs with Fleet](https://fleetdm.com/guides/manage-lenovo-pcs-with-fleet).
 
