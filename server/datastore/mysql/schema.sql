@@ -1571,6 +1571,39 @@ CREATE TABLE `host_recovery_key_passwords` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_scd_change_state` (
+  `dataset` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `changes_from` datetime NOT NULL,
+  `covered_from` datetime NOT NULL,
+  `convert_cursor` datetime DEFAULT NULL,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`dataset`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_scd_changes` (
+  `dataset` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `changed_at` datetime NOT NULL,
+  `seq` int unsigned NOT NULL,
+  `changes` mediumblob NOT NULL,
+  `encoding_type` tinyint NOT NULL,
+  PRIMARY KEY (`dataset`,`changed_at`,`seq`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_scd_current` (
+  `dataset` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_key` int unsigned NOT NULL,
+  `host_bitmap` mediumblob NOT NULL,
+  `encoding_type` tinyint NOT NULL,
+  PRIMARY KEY (`dataset`,`entity_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_scd_data` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `dataset` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1585,6 +1618,16 @@ CREATE TABLE `host_scd_data` (
   UNIQUE KEY `uniq_entity_bucket` (`dataset`,`entity_id`,`valid_from`),
   KEY `idx_dataset_range` (`dataset`,`valid_from`,`valid_to`),
   KEY `idx_valid_to_dataset` (`valid_to`,`dataset`,`entity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_scd_entities` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `dataset` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entity_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_dataset_entity` (`dataset`,`entity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

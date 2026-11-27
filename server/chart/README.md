@@ -91,7 +91,7 @@ implement it in `server/acl/chartacl`. Then wire it through `bootstrap.New`.
 
 ## Data model: SCD type-2 + bitmaps
 
-Everything lives in one table, `host_scd_data`:
+Charts read everything from one table, `host_scd_data`:
 
 ```sql
 CREATE TABLE host_scd_data (
@@ -118,6 +118,32 @@ in place, so history is preserved.
 `entity_id` is the sub-dimension. Single-dimension datasets (uptime) use the empty
 string. Multi-dimension datasets (cve) write one row per entity (per CVE) and the
 read path ORs across entities to get a distinct-host union.
+
+### Change storage (`cve` only)
+
+The `cve` dataset is also recorded in a second form that stores what changed
+instead of a full host set per change. Nothing reads it yet; it is written next
+to `host_scd_data` while the read path is moved over.
+
+- `host_scd_entities` gives each `(dataset, entity_id)` a small integer key.
+- `host_scd_current` holds each entity's host set now, keyed by `(dataset,
+  entity_key)`. An entity with no hosts has no row.
+- `host_scd_changes` holds what changed, packed by hour: primary key `(dataset,
+  changed_at, seq)`, and `changes` lists, for each entity that changed, its key
+  and the hosts added and removed (`changesEncodingV1` in
+  `internal/mysql/changes.go`). A row is capped at `scdChangeRowBytes` (1 MB), so
+  an hour with many changes takes several rows. A change at hour `t` counts for
+  bucket ends after `t`, like a `host_scd_data` row with `valid_from = t`.
+- `host_scd_change_state` has one row per dataset: `changes_from` is the hour of
+  the first collection that wrote changes, and `covered_from` is the instant from
+  which the changes are complete (it starts equal to `changes_from`). Cleanup does
+  not move `covered_from`, so changes older than the retention cutoff are gone
+  even when `covered_from` is earlier; reads must stay within retention.
+
+The state at an instant is the current sets with every change after it undone.
+The layout is packed by hour because a chart request reads every change in its
+window, newest first; one row per entity per hour made the keys outweigh the
+payload and the read cost several times more pages.
 
 ### Bitmap encoding (`blob.go`)
 
@@ -198,10 +224,19 @@ The read-side aggregation for both strategies lives in `GetSCDData`
    strategy.
 5. `RecordBucketData` dispatches to `recordAccumulate` or `recordSnapshot`, which
    serialize via `BitmapToBlob` and upsert.
+6. `CVEDataset.Collect` then calls `RecordSCDChanges` with the same bitmaps. It
+   reads the current sets from the primary, and for each entity writes the hosts
+   added and removed since the last call. Each transaction writes one
+   `host_scd_changes` row together with the current sets of the entities it
+   covers. A second call in the same hour appends rows with the changes since the
+   first. The first call for a dataset starts from the `host_scd_data` rows live
+   just before the hour, so its changes are true differences from the stored
+   history; on a new install every set is written as added.
 
 Retention: a separate cleanup cron calls `CleanupData(days)` →
 `CleanupSCDData`, which deletes *closed* rows older than the cutoff in batches.
-Open rows (sentinel `valid_to`) are never deleted.
+Open rows (sentinel `valid_to`) are never deleted. It also deletes
+`host_scd_changes` rows older than the cutoff; current sets are kept.
 
 ## The read path (`GetChartData`)
 
@@ -265,11 +300,12 @@ which enqueues a worker job *after* the config commit:
 
 - **Global disable** → `chart_scrub_dataset_global` job →
   `Service.ScrubDatasetGlobal` → `DeleteAllForDataset` (batched delete of all rows
-  for the dataset).
+  for the dataset, then its change storage, state row last).
 - **Per-fleet disable** → `chart_scrub_dataset_fleet` job →
   `Service.ScrubDatasetFleet` → resolve the fleets' host IDs into a mask, then
-  `ApplyScrubMaskToDataset` walks every row and `BlobANDNOT`s the mask out. Both are
-  idempotent.
+  `ApplyScrubMaskToDataset` walks every row and `BlobANDNOT`s the mask out, then
+  does the same to the dataset's current sets and changes, deleting what is left
+  empty. Both are idempotent.
 
 The worker jobs live in `server/worker/chart_scrub.go`. Note the dataset-name
 strings (`"uptime"`, `"cve"`) are mirrored in three places — the `Dataset.Name()`
@@ -379,6 +415,7 @@ mocks elsewhere can crash if an interface method is missing.
 | `internal/service/host_cache.go` | Per-filter mask cache (TTL + singleflight) |
 | `internal/service/handler.go` | Route registration + endpoint decode |
 | `internal/mysql/data.go` | SCD read/write: `RecordBucketData`, `GetSCDData`, cleanup, scrub |
+| `internal/mysql/changes.go` | Change storage: `RecordSCDChanges`, its encoding, cleanup and scrub |
 | `internal/mysql/charts.go` | Host-filter SQL, online-host query, CVE collection + tracked-CVE filter |
 | `bootstrap/bootstrap.go` | `New(...)` — wires the context together |
 | `arch_test.go` | Enforces the dependency rules above |
@@ -391,6 +428,7 @@ Related code outside this tree:
 - `server/worker/chart_scrub.go` — scrub worker jobs.
 - `server/fleet/historical_data.go` — config-flip → scrub/activity orchestration.
 - `server/datastore/mysql/migrations/tables/20260423161823_AddHostSCDData.go` — the table migration.
+- `server/datastore/mysql/migrations/tables/20261124201140_AddHostSCDChanges.go` — the change storage tables.
 - `tools/charts-backfill/`, `tools/charts-collect/` — dev tools (see below).
 
 ## Dev tools: populating chart data

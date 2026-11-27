@@ -58,5 +58,10 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 	// Always call RecordBucketData, even when bitmaps is empty: snapshot
 	// semantics use an empty input to close any open rows for entities no
 	// longer in the tracked set (recordSnapshot's "absent entities" branch).
-	return store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps)
+	// It goes first so a failure in the change storage cannot affect the rows
+	// the chart reads today.
+	if err := store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps); err != nil {
+		return err
+	}
+	return store.RecordSCDChanges(ctx, c.Name(), bucketStart, bitmaps)
 }

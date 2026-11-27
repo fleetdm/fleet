@@ -103,6 +103,8 @@ type mockDatastore struct {
 	resolveCVEEntitiesFn    func(ctx context.Context, filter types.CVEChartFilter) ([]string, error)
 	recordBucketDataFn      func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error
 	recordBucketDataInvoked bool
+	recordSCDChangesFn      func(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error
+	recordSCDChangesInvoked bool
 	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
 	hostIDsInFleetsFn       func(ctx context.Context, fleetIDs []uint) ([]uint, error)
 	applyScrubMaskFn        func(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error
@@ -143,6 +145,14 @@ func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bu
 	m.recordBucketDataInvoked = true
 	if m.recordBucketDataFn != nil {
 		return m.recordBucketDataFn(ctx, dataset, bucketStart, bucketSize, strategy, entityBitmaps)
+	}
+	return nil
+}
+
+func (m *mockDatastore) RecordSCDChanges(ctx context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error {
+	m.recordSCDChangesInvoked = true
+	if m.recordSCDChangesFn != nil {
+		return m.recordSCDChangesFn(ctx, dataset, hour, entityBitmaps)
 	}
 	return nil
 }
@@ -1001,6 +1011,7 @@ func TestCollectDatasetsUptime(t *testing.T) {
 	err := svc.CollectDatasets(t.Context(), now, nil)
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
+	require.False(t, ds.recordSCDChangesInvoked, "uptime has no change storage")
 }
 
 func TestCollectDatasetsCVE(t *testing.T) {
@@ -1016,14 +1027,17 @@ func TestCollectDatasetsCVE(t *testing.T) {
 		return wantTracked, nil
 	}
 	var gotCVEs []string
+	affected := map[string]*roaring.Bitmap{
+		"CVE-2024-0001": roaring.BitmapOf(1, 2, 3),
+		"CVE-2024-0002": roaring.BitmapOf(2, 4),
+	}
 	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint, cves []string) (map[string]*roaring.Bitmap, error) {
 		gotCVEs = cves
-		return map[string]*roaring.Bitmap{
-			"CVE-2024-0001": roaring.BitmapOf(1, 2, 3),
-			"CVE-2024-0002": roaring.BitmapOf(2, 4),
-		}, nil
+		return affected, nil
 	}
+	var calls []string
 	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
+		calls = append(calls, "RecordBucketData")
 		assert.Equal(t, "cve", dataset)
 		assert.Equal(t, wantBucketStart, bucketStart)
 		assert.Equal(t, time.Hour, bucketSize)
@@ -1033,11 +1047,19 @@ func TestCollectDatasetsCVE(t *testing.T) {
 		assert.NotEmpty(t, entityBitmaps["CVE-2024-0002"])
 		return nil
 	}
+	ds.recordSCDChangesFn = func(_ context.Context, dataset string, hour time.Time, entityBitmaps map[string]*roaring.Bitmap) error {
+		calls = append(calls, "RecordSCDChanges")
+		require.Equal(t, "cve", dataset)
+		require.Equal(t, wantBucketStart, hour)
+		require.Equal(t, affected, entityBitmaps)
+		return nil
+	}
 
 	err := svc.CollectDatasets(t.Context(), now, nil)
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
 	assert.Equal(t, wantTracked, gotCVEs, "CollectibleCVEs result must be forwarded as the cves filter")
+	require.Equal(t, []string{"RecordBucketData", "RecordSCDChanges"}, calls, "the change storage is written after the full-copy rows")
 }
 
 // TestCollectDatasetsCVEEmptyTracked verifies that when CollectibleCVEs
@@ -1067,6 +1089,28 @@ func TestCollectDatasetsCVEEmptyTracked(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked, "RecordBucketData must run on empty tracked set to close stale rows")
 	assert.Empty(t, gotBitmaps)
+	require.True(t, ds.recordSCDChangesInvoked, "RecordSCDChanges must run on empty tracked set to record the removals")
+}
+
+// TestCollectDatasetsCVESkipsChangesOnError verifies that the change storage is
+// not written when the full-copy write fails.
+func TestCollectDatasetsCVESkipsChangesOnError(t *testing.T) {
+	ds := &mockDatastore{}
+	ds.collectibleCVEsFn = func(_ context.Context) ([]string, error) {
+		return []string{"CVE-2024-0001"}, nil
+	}
+	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint, _ []string) (map[string]*roaring.Bitmap, error) {
+		return map[string]*roaring.Bitmap{"CVE-2024-0001": roaring.BitmapOf(1)}, nil
+	}
+	ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string]*roaring.Bitmap) error {
+		return errors.New("boom")
+	}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil, nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+
+	require.NoError(t, svc.CollectDatasets(t.Context(), time.Now(), nil))
+	require.True(t, ds.recordBucketDataInvoked)
+	require.False(t, ds.recordSCDChangesInvoked)
 }
 
 // TestCollectDatasetsForwardsScope verifies the scope resolver wiring:

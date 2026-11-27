@@ -10,8 +10,9 @@ Quick reminders (full detail in the README):
   `server/fleet` or `server/contexts/viewer` — `arch_test.go` enforces this. Bridge
   to legacy Fleet via a narrow `api` interface implemented in `server/acl/chartacl`.
 - External code only touches `bootstrap.New` and the `api` package.
-- Data lives in one table, `host_scd_data` (slowly-changing-dimension type-2), with
-  host-sets stored as roaring bitmaps. Work in op form (`*roaring.Bitmap`); only
+- Charts read from one table, `host_scd_data` (slowly-changing-dimension type-2),
+  with host-sets stored as roaring bitmaps. The `cve` dataset is also written to
+  the change storage (`internal/mysql/changes.go`), which nothing reads yet. Work in op form (`*roaring.Bitmap`); only
   cross the storage boundary via `BitmapToBlob` / `DecodeBitmap`.
 - Mind the **nil vs empty-slice** semantics on `HostFilter.TeamIDs` and
   `GetSCDData` `entityIDs` — they are load-bearing; don't normalize them away.

@@ -209,6 +209,7 @@ func TestCleanupSCDData(t *testing.T) {
 		{"MultipleBatches", testCleanupMultipleBatches},
 		{"HonorsCtxCancellation", testCleanupHonorsCtxCancellation},
 		{"RecordSnapshotClosesAcrossBatches", testRecordSnapshotClosesAcrossBatches},
+		{"RemovesOldChanges", testCleanupRemovesOldChanges},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -308,6 +309,7 @@ func TestApplyScrubMaskToDataset(t *testing.T) {
 		{"ChunkedAcrossWriteBatches", testScrubChunkedAcrossWriteBatches},
 		{"HonorsCtxCancellation", testScrubHonorsCtxCancellation},
 		{"OtherDatasetUnaffected", testScrubOtherDatasetUnaffected},
+		{"ChangeStorage", testScrubChangeStorage},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -433,4 +435,97 @@ func testScrubOtherDatasetUnaffected(t *testing.T, tdb *testutils.TestDB, ds *Da
 
 	assert.Equal(t, []uint{1, 3}, tdb.SCDHostIDs(t, uptimeID))
 	assert.Equal(t, cveBefore, tdb.SCDBlob(t, cveID), "cve dataset must not be touched by an uptime scrub")
+}
+
+func TestDeleteAllForDataset(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+
+	h := time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)
+	for i := range 3 {
+		collectTick(t, ds, "cve", h.Add(time.Duration(i)*time.Hour), hostSets{"CVE-A": {1, uint(2 + i)}, "CVE-B": {3}})
+		collectTick(t, ds, "other", h.Add(time.Duration(i)*time.Hour), hostSets{"X": {uint(1 + i)}})
+	}
+	otherBefore := countDatasetRows(t, tdb, "other")
+
+	defer func(n int) { scdChangeDeleteBatch = n }(scdChangeDeleteBatch)
+	scdChangeDeleteBatch = 1
+	require.NoError(t, ds.DeleteAllForDataset(t.Context(), "cve", 1))
+
+	require.Equal(t, map[string]int{"host_scd_data": 0, "host_scd_entities": 0, "host_scd_current": 0, "host_scd_changes": 0, "host_scd_change_state": 0},
+		countDatasetRows(t, tdb, "cve"))
+	require.Equal(t, otherBefore, countDatasetRows(t, tdb, "other"))
+
+	// Collection after a global scrub starts again from nothing.
+	collectTick(t, ds, "cve", h.Add(5*time.Hour), hostSets{"CVE-A": {9}})
+	require.Equal(t, []changeRec{{at: h.Add(5 * time.Hour), entity: "CVE-A", added: []uint{9}, removed: []uint{}}}, loadChanges(t, tdb, "cve"))
+	changesFrom, _, _ := loadChangeState(t, tdb, "cve")
+	require.Equal(t, h.Add(5*time.Hour), changesFrom)
+}
+
+func testScrubChangeStorage(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	defer func(n int) { scdChangeBatchEntities = n }(scdChangeBatchEntities)
+	scdChangeBatchEntities = 1 // one entity per row, so scrubbing can empty a whole row
+
+	// Only the change storage is written: scrubbing host_scd_data cannot store a row it empties.
+	collectTick := func(t *testing.T, ds *Datastore, dataset string, hour time.Time, sets hostSets) {
+		require.NoError(t, ds.RecordSCDChanges(t.Context(), dataset, hour, bitmapsOf(sets)))
+	}
+	h := time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)
+	collectTick(t, ds, "cve", h, hostSets{"CVE-A": {1, 2, 3}, "CVE-B": {3}, "CVE-C": {3, 5}, "CVE-D": {3, 6}})
+	collectTick(t, ds, "cve", h.Add(time.Hour), hostSets{"CVE-A": {1, 2}, "CVE-B": {3, 4}, "CVE-C": {3, 5}, "CVE-D": {6}})
+	collectTick(t, ds, "cve", h.Add(2*time.Hour), hostSets{"CVE-A": {1, 2}, "CVE-B": {3, 4}, "CVE-C": {3}, "CVE-D": {6}})
+	var rowsBefore int
+	require.NoError(t, tdb.DB.GetContext(t.Context(), &rowsBefore, `SELECT COUNT(*) FROM host_scd_changes WHERE dataset = 'cve'`))
+	collectTick(t, ds, "other", h, hostSets{"X": {3}})
+	otherChanges := loadChanges(t, tdb, "other")
+
+	defer func(n int) { scdChangeScrubPage = n }(scdChangeScrubPage)
+	scdChangeScrubPage = 1
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "cve", chart.NewBitmap([]uint{3}), 0))
+
+	require.Equal(t, hostSets{"CVE-A": {1, 2}, "CVE-B": {4}, "CVE-D": {6}}, loadCurrent(t, tdb, "cve"))
+	require.ElementsMatch(t, []changeRec{
+		{at: h, entity: "CVE-A", added: []uint{1, 2}, removed: []uint{}},
+		{at: h, entity: "CVE-C", added: []uint{5}, removed: []uint{}},
+		{at: h, entity: "CVE-D", added: []uint{6}, removed: []uint{}},
+		{at: h.Add(time.Hour), entity: "CVE-B", added: []uint{4}, removed: []uint{}},
+		{at: h.Add(2 * time.Hour), entity: "CVE-C", added: []uint{}, removed: []uint{5}},
+	}, loadChanges(t, tdb, "cve"))
+	var rowsAfter int
+	require.NoError(t, tdb.DB.GetContext(t.Context(), &rowsAfter, `SELECT COUNT(*) FROM host_scd_changes WHERE dataset = 'cve'`))
+	require.Equal(t, rowsBefore-3, rowsAfter, "rows left empty are deleted: B at h, A and D at h+1")
+	require.Equal(t, otherChanges, loadChanges(t, tdb, "other"))
+	require.Equal(t, hostSets{"X": {3}}, loadCurrent(t, tdb, "other"))
+
+	// Scrubbing again changes nothing.
+	before := loadChanges(t, tdb, "cve")
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "cve", chart.NewBitmap([]uint{3}), 0))
+	require.Equal(t, before, loadChanges(t, tdb, "cve"))
+}
+
+func testCleanupRemovesOldChanges(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Hour)
+	old := now.AddDate(0, 0, -40)
+	recent := now.AddDate(0, 0, -10)
+	require.NoError(t, ds.RecordSCDChanges(t.Context(), "cve", old, bitmapsOf(hostSets{"CVE-A": {1}})))
+	require.NoError(t, ds.RecordSCDChanges(t.Context(), "cve", old.Add(time.Hour), bitmapsOf(hostSets{"CVE-A": {1, 2}})))
+	require.NoError(t, ds.RecordSCDChanges(t.Context(), "cve", recent, bitmapsOf(hostSets{"CVE-A": {2}, "CVE-B": {4}})))
+	require.NoError(t, ds.RecordSCDChanges(t.Context(), "other", old, bitmapsOf(hostSets{"X": {1}})))
+	require.NoError(t, ds.RecordSCDChanges(t.Context(), "other", recent, bitmapsOf(hostSets{"X": {2}})))
+
+	defer func(n int) { scdChangeDeleteBatch = n }(scdChangeDeleteBatch)
+	scdChangeDeleteBatch = 1
+	require.NoError(t, ds.CleanupSCDData(t.Context(), 30))
+
+	require.ElementsMatch(t, []changeRec{
+		{at: recent, entity: "CVE-A", added: []uint{}, removed: []uint{1}},
+		{at: recent, entity: "CVE-B", added: []uint{4}, removed: []uint{}},
+	}, loadChanges(t, tdb, "cve"))
+	require.Equal(t, hostSets{"CVE-A": {2}, "CVE-B": {4}}, loadCurrent(t, tdb, "cve"))
+	require.Equal(t, []changeRec{{at: recent, entity: "X", added: []uint{2}, removed: []uint{1}}}, loadChanges(t, tdb, "other"))
+	changesFrom, coveredFrom, found := loadChangeState(t, tdb, "cve")
+	require.True(t, found)
+	require.Equal(t, old, changesFrom)
+	require.Equal(t, old, coveredFrom)
 }
