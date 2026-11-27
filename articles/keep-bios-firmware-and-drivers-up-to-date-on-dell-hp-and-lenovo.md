@@ -4,7 +4,7 @@ Firmware runs before Windows or Linux and before your EDR, so if there's a hole 
 
 I took the question of what happens to BIOS updates after Intune on a long walk with Claude, and the answer was simpler than I expected. Intune's OEM integrations, like HP Connect and Dell Command | Update, come down to running the vendor's update tooling, on a schedule or when a device falls behind. Nothing about that needs Intune. Fleet does the same thing with software, scripts, and policies, on Linux as well as Windows.
 
-![Six months of walking and running distance, trending up to a 6.7-mile daily average in November](../website/assets/images/articles/walking-and-running-distance-6-months-585x926@2x.png)
+![Walking and running distance for November, peaking at 16.7 miles on November 22](../website/assets/images/articles/walking-and-running-distance-november-585x711@2x.jpg)
 
 ## Prerequisites
 
