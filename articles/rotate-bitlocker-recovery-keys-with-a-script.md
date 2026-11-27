@@ -1,12 +1,10 @@
 # Rotate Windows BitLocker recovery keys with a script
 
-After you share a host's BitLocker recovery key, for example to help a locked-out end user, you should replace it so the shared key stops working. Fleet can [rotate FileVault recovery keys](https://fleetdm.com/guides/enforce-disk-encryption#rotate-disk-encryption-key) on macOS, but it can't rotate BitLocker recovery keys on Windows yet. If you rotate a key with `manage-bde` or `Add-BitLockerKeyProtector`, Fleet keeps showing the old key, which no longer unlocks the disk.
-
 After you share a host's BitLocker recovery key, for example, to help a locked-out end user, you should rotate it so that the shared key stops working. Fleet can [rotate FileVault recovery keys](https://fleetdm.com/guides/enforce-disk-encryption#rotate-disk-encryption-key) on macOS, but it can't rotate BitLocker recovery keys on Windows yet. If you rotate a key using `manage-bde` or `Add-BitLockerKeyProtector`, the key is not escrowed to Fleet, so the key stored in Fleet is outdated and will not unlock the disk.
 
 Until Fleet supports Windows key rotation, you can use the [`rotate-bitlockerkey.ps1`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/rotate-bitlockerkey.ps1) script as a workaround. This guide shows you how to run it from Fleet. The script creates a new recovery key on the host, escrows it to Fleet, and then removes the old key. When it's done, **Show disk encryption key** in Fleet shows the new key. The script only rotates the OS volume.
 
-> **Warning:** This script is a workaround, not a supported Fleet feature. It sends the key to Fleet through the same internal endpoint that fleetd uses, and that endpoint can change between Fleet releases. Test the script on one host after every Fleet upgrade. We are planning to officially support this: ([fleetdm/fleet#59145](https://github.com/fleetdm/fleet/issues/59145))
+> **Warning:** This script is a workaround, not a supported Fleet feature. It sends the key to Fleet through the same internal endpoint that fleetd uses, and that endpoint can change between Fleet releases. Test the script on one host after every Fleet upgrade. Official support is tracked in [fleetdm/fleet#59145](https://github.com/fleetdm/fleet/issues/59145).
 
 ## Prerequisites
 
@@ -50,7 +48,7 @@ The script runs the next time the host checks in with Fleet.
 
 ## Verify the rotation
 
-1. On the **Host details** page, open the script run in the host's activity feed and view its output by clicking on the log.
+1. On the **Host details** page, open the script run in the host's activity feed and select the log to view its output.
 2. Confirm the output ends with a `SUCCESS` line and `Finished with exit code 0`.
 3. Copy the masked key from the line that starts with `Key Fleet should now show (masked)`. It looks like `123456-******-******-******-******-******-******-654321`.
 4. Select **Actions > Show disk encryption key**.
