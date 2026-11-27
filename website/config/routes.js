@@ -837,6 +837,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/replace-workspace-one': {
+    action: 'landing-pages/view-replace-workspace-one',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Move off Workspace ONE without wiping a single device',
+      pageDescriptionForMeta: 'Move off Workspace ONE without wiping devices. Manage macOS, Windows, Linux, iOS, and Android in one place, with vulnerability detection and compliance built in.'
+    }
+  },
+
   'GET /lp/autonomous-endpoint-management': {
     action: 'landing-pages/view-autonomous-endpoint-management',
     locals: {
