@@ -2165,6 +2165,22 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
 		},
 		{
+			software: fleet.Software{
+				Name:    "Firefox",
+				Source:  "apps",
+				Version: "137.0.2",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:137.0.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox ESR",
+				Source:  "apps",
+				Version: "128.14.0",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
+		},
+		{
 			// confirmed that as of Oct. 6 '25 there is no CPE and therefore no CVEs for this software in
 			// the NVD db, so safe to skip checking for one
 			software: fleet.Software{

@@ -1715,7 +1715,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		},
 	},
 	// macos_firefox differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
-	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
+	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR'.
 	//
 	// NOTE(lucas): This could be re-written to use SoftwareProcessResults so that this query doesn't need to match
 	// the columns of the main softwareMacOS query.
@@ -1735,8 +1735,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 			)
 			SELECT
 				CASE
-					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
-					ELSE 'Firefox.app'
+					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR'
+					ELSE 'Firefox'
 				END AS name,
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
 				apps.bundle_identifier AS bundle_identifier,

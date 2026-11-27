@@ -1187,8 +1187,8 @@ WITH app_paths AS (
 			)
 			SELECT
 				CASE
-					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
-					ELSE 'Firefox.app'
+					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR'
+					ELSE 'Firefox'
 				END AS name,
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
 				apps.bundle_identifier AS bundle_identifier,
