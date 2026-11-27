@@ -80,7 +80,7 @@ Wait until the wipe finishes, then:
 1. **Apple devices:** select **Actions > Release from Apple Business**. This can't be undone, and Apple Business [can't manage Activation Lock](https://support.apple.com/guide/business/axmec4d28461/web) after release, so finish step 4 first.
 2. Select **Actions > Delete** to remove the host from Fleet. Deleted hosts no longer count toward the hosts on your license.
 
-> **Warning:** Release or wipe a device before you delete it, or it can come back. See [Troubleshoot](#troubleshoot).
+> **Warning:** Release Apple devices and wipe every device before you delete it, or it can come back. See [Troubleshoot](#troubleshoot).
 
 Fleet keeps archived disk encryption keys, so a global admin can still [look one up by serial number](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-disk-encryption-key) after the host is deleted.
 
