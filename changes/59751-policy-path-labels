@@ -1,0 +1,1 @@
+Fixed an issue where `fleetctl gitops` silently ignored `labels_include_any` and `labels_exclude_any` on policy file references. Both dry runs and applies now report where to set these filters.

@@ -3398,6 +3398,28 @@ func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
 	})
 }
 
+func TestParsePoliciesPathLabelFilters(t *testing.T) {
+	dir := t.TempDir()
+	const policy = "- name: FilePolicy\n  query: SELECT 1\n  labels_include_any: [Production]\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "policy.yml"), []byte(policy), 0o644))
+	for _, key := range []string{"labels_include_any", "labels_exclude_any"} {
+		for _, entry := range []string{"path: policy.yml", "paths: '*.yml'"} {
+			t.Run(key+"/"+entry, func(t *testing.T) {
+				top := yamlToRawJSON(t, "policies:\n  - "+entry+"\n    "+key+": [Production]\n")
+				err := parsePolicies(top, &GitOps{}, dir, nopLogf, "fleet.yml", nil)
+				require.ErrorContains(t, err.ErrorOrNil(), key)
+				require.ErrorContains(t, err.ErrorOrNil(), "policy file")
+			})
+		}
+	}
+	result := &GitOps{}
+	top := yamlToRawJSON(t, "policies:\n  - path: policy.yml\n")
+	err := parsePolicies(top, result, dir, nopLogf, "fleet.yml", nil)
+	require.NoError(t, err.ErrorOrNil())
+	require.Len(t, result.Policies, 1)
+	require.Equal(t, []string{"Production"}, result.Policies[0].LabelsIncludeAny)
+}
+
 func TestParsePoliciesGlob(t *testing.T) {
 	t.Parallel()
 

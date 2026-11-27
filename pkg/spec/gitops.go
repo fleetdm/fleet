@@ -2126,6 +2126,15 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
 
+	for i, policy := range policies {
+		if policy.Path == nil && policy.Paths == nil {
+			continue
+		}
+		if policy.LabelsIncludeAny != nil || policy.LabelsExcludeAny != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("%s: policies[%d]: set labels_include_any and labels_exclude_any in the policy file, not on the file reference", filePath, i))
+		}
+	}
+
 	// make an index of all FMAs by slug
 	fmasBySlug := make(map[string]*fleet.MaintainedAppSpec, len(result.Software.FleetMaintainedApps))
 	for _, s := range result.Software.FleetMaintainedApps {
