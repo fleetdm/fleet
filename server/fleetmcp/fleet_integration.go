@@ -884,6 +884,110 @@ type listReportsResponse struct {
 	Reports []Query `json:"reports"`
 }
 
+type OSVersion struct {
+	OSName               string `json:"os_name"`
+	OSVersion            string `json:"os_version"`
+	Platform             string `json:"platform"`
+	HostsCount           int    `json:"hosts_count"`
+	VulnerabilitiesCount int    `json:"vulnerabilities_count"`
+}
+
+type OSVersionsResult struct {
+	// Total is Fleet's count of matching OS versions, which exceeds
+	// len(OSVersions) when Truncated.
+	Total           int
+	CountsUpdatedAt string
+	OSVersions      []OSVersion
+	Truncated       bool
+}
+
+// Max OS version rows fetched. var (not const) so tests can lower it.
+var fetchOSVersionsHardCap = 2000
+
+// osVersionsPlatform keeps a Linux distribution's platform (e.g. "ubuntu"),
+// which the OS versions endpoint filters on, instead of folding it into "linux".
+func osVersionsPlatform(p string) string {
+	p = strings.ToLower(strings.TrimSpace(p))
+	if p != "linux" && isLinuxPlatform(p) {
+		return p
+	}
+	return normalizePlatform(p)
+}
+
+// ListOSVersions returns Fleet's aggregated OS version counts (the data behind
+// the OS updates page), sorted by host count descending.
+func (fc *FleetClient) ListOSVersions(ctx context.Context, teamName, platform string) (*OSVersionsResult, error) {
+	var teamIDStr string
+	if teamName != "" {
+		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve fleet: %w", err)
+		}
+		teamIDStr = strconv.FormatUint(uint64(teamIDs[0]), 10)
+	}
+
+	// Fetch everything in one page: the endpoint's hosts_count sort has no
+	// tiebreaker, so rows with equal counts can shift between page requests.
+	params := url.Values{}
+	params.Set("per_page", strconv.Itoa(fetchOSVersionsHardCap))
+	params.Set("page", "0")
+	params.Set("order_key", "hosts_count")
+	params.Set("order_direction", "desc")
+	// Vulnerability lists can be large; vulnerabilities_count is still returned.
+	params.Set("max_vulnerabilities", "0")
+	if teamIDStr != "" {
+		params.Set("fleet_id", teamIDStr)
+	}
+	if strings.TrimSpace(platform) != "" {
+		params.Set("platform", osVersionsPlatform(platform))
+	}
+
+	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/os_versions?"+params.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch OS versions: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+		return nil, fmt.Errorf("failed to fetch OS versions: %s", fleetErrMsg(resp.StatusCode, body))
+	}
+
+	var result struct {
+		Count           int         `json:"count"`
+		CountsUpdatedAt *string     `json:"counts_updated_at"`
+		OSVersions      []OSVersion `json:"os_versions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode OS versions response: %w", err)
+	}
+
+	res := &OSVersionsResult{
+		Total:      result.Count,
+		OSVersions: result.OSVersions,
+		Truncated:  result.Count > len(result.OSVersions),
+	}
+	if res.Truncated {
+		fc.logger.WarnContext(ctx, "OS versions fetch hit hard cap, result truncated; tighten filters or raise fetchOSVersionsHardCap", "cap", fetchOSVersionsHardCap, "total", result.Count)
+	}
+	if res.OSVersions == nil {
+		res.OSVersions = make([]OSVersion, 0)
+	}
+	if result.CountsUpdatedAt != nil {
+		res.CountsUpdatedAt = *result.CountsUpdatedAt
+	}
+	sort.SliceStable(res.OSVersions, func(i, j int) bool {
+		a, b := res.OSVersions[i], res.OSVersions[j]
+		if a.HostsCount != b.HostsCount {
+			return a.HostsCount > b.HostsCount
+		}
+		if a.OSName != b.OSName {
+			return a.OSName < b.OSName
+		}
+		return a.OSVersion < b.OSVersion
+	})
+	return res, nil
+}
+
 // GetQueries retrieves global and all team-specific queries from Fleet.
 func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 	resp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/reports", nil)

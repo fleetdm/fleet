@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func newTestClient(serverURL string) *FleetClient {
@@ -1456,5 +1457,113 @@ func TestGetHostByIdentifierRejectsHostIDOnlyMatch(t *testing.T) {
 		if (err == nil) != wantFound || (policiesErr == nil) != wantFound {
 			t.Errorf("identifier %q: errors %v, %v, want found=%v", identifier, err, policiesErr, wantFound)
 		}
+	}
+}
+
+func osVersionsTestServer(t *testing.T, total int, wantPlatform string, calls *atomic.Int32) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/fleet/fleets":
+			_ = json.NewEncoder(w).Encode(map[string]any{"fleets": []Team{{ID: 275, Name: "💻 Workstations"}}})
+		case "/api/v1/fleet/os_versions":
+			calls.Add(1)
+			q := r.URL.Query()
+			if q.Get("fleet_id") != "275" || q.Get("platform") != wantPlatform || q.Get("max_vulnerabilities") != "0" || q.Get("page") != "0" {
+				t.Errorf("unexpected query %q", r.URL.RawQuery)
+			}
+			perPage, _ := strconv.Atoi(q.Get("per_page"))
+			// Equal host counts, returned in reverse version order, to exercise the client-side tiebreaker.
+			versions := make([]OSVersion, min(total, perPage))
+			for i := range versions {
+				versions[i] = OSVersion{OSName: "macOS", OSVersion: fmt.Sprintf("27.0.%03d", len(versions)-i), Platform: "darwin", HostsCount: 2}
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"count": total, "counts_updated_at": "2026-10-06T14:00:00Z", "os_versions": versions})
+		default:
+			t.Errorf("unexpected path %q", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func TestListOSVersions_SinglePageAtCap(t *testing.T) {
+	orig := fetchOSVersionsHardCap
+	fetchOSVersionsHardCap = 5
+	defer func() { fetchOSVersionsHardCap = orig }()
+
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 5, "darwin", &calls)
+	defer srv.Close()
+
+	res, err := newTestClient(srv.URL).ListOSVersions(t.Context(), "💻 workstations", "macos")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := len(res.OSVersions), 5; got != want {
+		t.Fatalf("len(OSVersions) = %d, want %d", got, want)
+	}
+	if res.Truncated {
+		t.Errorf("a complete result exactly at the cap must not be marked truncated")
+	}
+	if first := res.OSVersions[0]; first.OSName != "macOS" || first.OSVersion != "27.0.001" {
+		t.Errorf("expected ties ordered by name then version, got first %q %q", first.OSName, first.OSVersion)
+	}
+	if res.CountsUpdatedAt != "2026-10-06T14:00:00Z" {
+		t.Errorf("CountsUpdatedAt = %q", res.CountsUpdatedAt)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Errorf("expected 1 request, got %d", got)
+	}
+}
+
+func TestListOSVersions_TruncatedAboveCap(t *testing.T) {
+	orig := fetchOSVersionsHardCap
+	fetchOSVersionsHardCap = 5
+	defer func() { fetchOSVersionsHardCap = orig }()
+
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 6, "ubuntu", &calls)
+	defer srv.Close()
+
+	// A Linux distribution's platform is passed through, not folded into "linux".
+	res, err := newTestClient(srv.URL).ListOSVersions(t.Context(), "💻 Workstations", "Ubuntu")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(res.OSVersions) != 5 || !res.Truncated {
+		t.Errorf("got %d rows truncated=%v, want 5 rows truncated=true", len(res.OSVersions), res.Truncated)
+	}
+}
+
+func TestGetOSVersionsTool_PerPageTrimsRowsNotTotals(t *testing.T) {
+	var calls atomic.Int32
+	srv := osVersionsTestServer(t, 5, "darwin", &calls)
+	defer srv.Close()
+
+	c := newInProcessMCPClient(t, NewEmbeddedMCPServer(newTestClient(srv.URL)))
+	listToolNames(t, c) // initializes the client
+	res := callTool(t, t.Context(), c, "get_os_versions", map[string]any{"fleet": "💻 Workstations", "platform": "macos", "per_page": "2"})
+	if res.IsError {
+		t.Fatalf("unexpected tool error: %v", res.Content)
+	}
+	var out struct {
+		Total              int         `json:"total"`
+		Returned           int         `json:"returned"`
+		Truncated          bool        `json:"truncated"`
+		HostsWithOSVersion *int        `json:"hosts_with_os_version"`
+		OSVersions         []OSVersion `json:"os_versions"`
+	}
+	text, ok := res.Content[0].(mcp.TextContent)
+	if !ok {
+		t.Fatalf("unexpected content type %T", res.Content[0])
+	}
+	if err := json.Unmarshal([]byte(text.Text), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out.Total != 5 || out.Returned != 2 || len(out.OSVersions) != 2 || out.Truncated {
+		t.Errorf("got total=%d returned=%d rows=%d truncated=%v, want 5, 2, 2, false", out.Total, out.Returned, len(out.OSVersions), out.Truncated)
+	}
+	// The sum covers all 5 versions (2 hosts each), not just the 2 returned.
+	if out.HostsWithOSVersion == nil || *out.HostsWithOSVersion != 10 {
+		t.Errorf("hosts_with_os_version = %v, want 10", out.HostsWithOSVersion)
 	}
 }

@@ -46,6 +46,7 @@ func TestToolRoutesMatchTools(t *testing.T) {
 		"get_host_policies":        {{"host_id": "42"}, {"identifier": "uuid-42"}},
 		"get_host_users":           {{"host_id": "42"}, {"host_identifier": "uuid-42"}},
 		"get_labels":               {nil},
+		"get_os_versions":          {nil, {"fleet": "Workstations", "platform": "macos"}},
 		"get_osquery_schema":       {{"tables": "os_version"}},
 		"get_policies":             {nil},
 		"get_policy_compliance":    {{"policy_id": "3"}, {"policy_id": "3", "fleet": "Workstations"}},
@@ -90,7 +91,7 @@ func TestEmbeddedToolsFollowRouteFilter(t *testing.T) {
 		return mcp.NewToolResultText("ran"), nil
 	})
 	c := newInProcessMCPClient(t, s)
-	assert.Len(t, listToolNames(t, c), 20, "without a filter every tool is listed")
+	assert.Len(t, listToolNames(t, c), 21, "without a filter every tool is listed")
 
 	granted := []Route{{"GET", "/api/v1/fleet/fleets"}, {"GET", "/api/v1/fleet/hosts/count"}}
 	ctx := ContextWithRouteFilter(t.Context(), func(r Route) bool { return slices.Contains(granted, r) })
@@ -313,6 +314,8 @@ func fakeFleetResponse(route Route, params map[string]string, query url.Values) 
 		return map[string]any{"software": []any{map[string]any{"id": 9, "name": "Chrome", "source": "apps"}}}, true
 	case "/api/v1/fleet/labels":
 		return map[string]any{"labels": []any{map[string]any{"id": 7, "name": "Engineering"}}}, true
+	case "/api/v1/fleet/os_versions":
+		return map[string]any{"count": 1, "os_versions": []any{map[string]any{"os_name": "macOS", "os_version": "15.0", "platform": "darwin", "hosts_count": 2}}}, true
 	case "/api/v1/fleet/reports":
 		return map[string]any{"reports": []any{map[string]any{"id": 5, "name": "Uptime", "query": "SELECT * FROM uptime;"}}}, true
 	case "/api/v1/fleet/software/titles":

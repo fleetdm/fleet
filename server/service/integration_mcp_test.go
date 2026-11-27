@@ -204,6 +204,7 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		{"get_host_policies", map[string]any{"host_id": hostID}},
 		{"get_host_policies", map[string]any{"identifier": globalHost.UUID}},
 		{"get_host_users", map[string]any{"host_id": hostID}},
+		{"get_os_versions", nil},
 		{"get_total_system_count", nil},
 		{"get_aggregate_platforms", nil},
 		{"get_fleets", nil},

@@ -157,7 +157,7 @@ func TestEmbeddedMCPServerHasNoSchemaRefresh(t *testing.T) {
 	assert.Contains(t, names, "run_live_query")
 	assert.Contains(t, names, "get_osquery_schema")
 	assert.NotContains(t, names, "refresh_osquery_schema")
-	assert.Len(t, names, 19)
+	assert.Len(t, names, 20)
 }
 
 func TestEmbeddedHTTPHandlerCallsFleetAsCaller(t *testing.T) {

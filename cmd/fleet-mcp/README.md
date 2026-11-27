@@ -69,6 +69,7 @@ These read from Fleet's stored host inventory (refreshed on each host check-in),
 |------|-------------|
 | `get_software` | List software/packages from Fleet's stored inventory. Two modes, auto-selected: **per-host** (pass `host_id` or `host_identifier`) returns every package on that host with version / source / installed paths / matching CVEs via `/hosts/:id/software`; **cross-host** (no host arg) returns software TITLES seen across hosts via `/software/titles` — the full inventory by default, optionally scoped by `fleet` / `vulnerable` (and `platform`, which requires `fleet`: Fleet's titles endpoint only filters by platform together with a team). The `source` arg (e.g. `npm_packages`, `python_packages`, `apps`, `deb_packages`, `chrome_extensions`) filters by osquery source table name, case-insensitively; `extension_for` (requires `source`) narrows an extension source to one browser or IDE (e.g. `source=chrome_extensions` with `extension_for=brave`). In cross-host mode Fleet applies both server-side and rejects unknown values; per-host mode filters client-side. Use `query` for a substring match on software name or a CVE id. Prefer this over `run_live_query` for inventory lookups — cached, always-available, no host CPU. |
 | `get_host_users` | List OS-local user accounts on a single host as inventoried by osquery (uid, username, type, groupname, shell). Accepts `host_id` (preferred) or `host_identifier` (same disambiguation as `get_host`). Optional `query` substring filters the returned users client-side across username / uid / groupname / shell. |
+| `get_os_versions` | List OS versions in use with per-version host counts (the data behind the OS updates page), via `/os_versions`. Optional `fleet`, `platform`, and `per_page` (default 50, max 200); `hosts_with_os_version` still sums every version. Covers offline hosts and returns instantly. Prefer this over `run_live_query` for OS version questions. Counts are aggregated periodically; `counts_updated_at` says when. |
 
 ### Filter dimensions at a glance
 
@@ -320,6 +321,7 @@ Read-only tools:
 - [List host's software](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-software)
 - [List software titles](https://fleetdm.com/docs/rest-api/rest-api#list-software)
 - [Get software title](https://fleetdm.com/docs/rest-api/rest-api#get-software)
+- [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems)
 - [List policies](https://fleetdm.com/docs/rest-api/rest-api#list-policies)
 - [Get policy](https://fleetdm.com/docs/rest-api/rest-api#get-policy)
 - [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports)

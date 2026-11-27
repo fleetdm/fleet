@@ -14,6 +14,66 @@ import (
 func registerInventoryTools(s *server.MCPServer, fleetClient *FleetClient) {
 	registerGetSoftware(s, fleetClient)
 	registerGetHostUsers(s, fleetClient)
+	registerGetOSVersions(s, fleetClient)
+}
+
+func registerGetOSVersions(s *server.MCPServer, fleetClient *FleetClient) {
+	tool := mcp.NewTool("get_os_versions",
+		mcp.WithDescription("List operating system versions in use and how many hosts run each one — the same data as Fleet's OS updates page. Comes from Fleet's stored inventory, so it covers offline hosts too and returns instantly. Use this for 'what macOS versions are we on?', 'how many hosts are on Windows 11 24H2?', or OS adoption breakdowns. Prefer this over run_live_query for any OS version question.\n\nHost counts are aggregated periodically (see counts_updated_at), so very recent upgrades may not be reflected yet. Results are sorted by hosts_count descending, so the most common versions come first; `total` is the number of distinct OS versions and `returned` how many are listed. Narrow with `platform` or raise `per_page` to see the rest.\n\nhosts_with_os_version sums the per-version counts across every version, not just the returned ones. It only includes hosts that have reported an OS version. Use get_total_system_count for a fleet's total host count."),
+		mcp.WithString("fleet", mcp.Description("Fleet name (e.g. 'Workstations'). Use get_fleets to discover names. Omit for all hosts.")),
+		mcp.WithString("platform", mcp.Description("One of: macos, windows, linux, chrome, ios, ipados, android, or a Linux distribution's platform (e.g. 'ubuntu'). 'linux' covers every distribution. Omit for all platforms.")),
+		mcp.WithString("per_page", mcp.Description("Max number of OS versions to return (default 50, max 200)")),
+		mcp.WithReadOnlyHintAnnotation(true),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(true),
+	)
+	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_os_versions")
+
+		fleet := getOptionalString(request, "fleet")
+		platform := getOptionalString(request, "platform")
+		perPage := parsePerPageArg(request, defaultEndpointsPerPage)
+
+		res, err := fleetClient.ListOSVersions(ctx, fleet, platform)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get OS versions: %v", err)), nil
+		}
+
+		// A truncated fetch would understate the sum, so omit it rather than mislead.
+		var hostsWithOSVersion *int
+		if !res.Truncated {
+			sum := 0
+			for _, v := range res.OSVersions {
+				sum += v.HostsCount
+			}
+			hostsWithOSVersion = &sum
+		}
+
+		versions := res.OSVersions
+		if len(versions) > perPage {
+			versions = versions[:perPage]
+		}
+
+		return jsonResult(struct {
+			Fleet              string      `json:"fleet,omitempty"`
+			Platform           string      `json:"platform,omitempty"`
+			Total              int         `json:"total"`
+			Returned           int         `json:"returned"`
+			Truncated          bool        `json:"truncated,omitempty"`
+			HostsWithOSVersion *int        `json:"hosts_with_os_version,omitempty"`
+			CountsUpdatedAt    string      `json:"counts_updated_at,omitempty"`
+			OSVersions         []OSVersion `json:"os_versions"`
+		}{
+			Fleet:              fleet,
+			Platform:           platform,
+			Total:              res.Total,
+			Returned:           len(versions),
+			Truncated:          res.Truncated,
+			HostsWithOSVersion: hostsWithOSVersion,
+			CountsUpdatedAt:    res.CountsUpdatedAt,
+			OSVersions:         versions,
+		})
+	})
 }
 
 func validateGetSoftwareArgs(perHost bool, fleet, platform, vulnerable, aiTool, source, extensionFor string) error {
