@@ -123,7 +123,7 @@ SELECT 1 FROM tpm_info WHERE enabled = 1 AND activated = 1;
 
 Give these policies the settings script as a **Run script** automation, like in step 2. If someone changes a setting, the policy fails on its next run and Fleet changes it back. The supervisor password stops most changes before they happen, and the policy tidies up after anyone who gets past it.
 
-Last, keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), BitLocker notices when the startup chain changes, so a surprise recovery prompt can be your first clue. Before the help desk reads out a recovery key, have them check Fleet for a recent BIOS update or setting change, Secure Boot included. If nothing explains it, investigate before unlocking.
+Last, keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption). BitLocker notices when the startup chain changes, so a surprise recovery prompt can be your first clue. Before the help desk reads out a recovery key, have them check Fleet for a recent BIOS update or setting change, Secure Boot included. If nothing explains it, investigate before unlocking.
 
 ## Step 4: Do the same on Linux
 
