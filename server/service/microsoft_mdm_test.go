@@ -3793,6 +3793,7 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		// (not in one-time mode).
 		policySent       bool
 		oneTime          bool
+		sentErr          bool
 		deleteFails      bool
 		wantPolicyDelete bool
 	}{
@@ -3813,6 +3814,7 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		{name: "secret sent through the registry: nothing deleted once presence is recorded", recorded: true, policySent: true, wantPresent: true},
 		{name: "secret sent through the registry with one-time secrets: the profile owns the policy", seenOffset: time.Minute, policySent: true, oneTime: true, wantPresent: true},
 		{name: "secret sent through the registry: presence not recorded when queuing the delete fails", seenOffset: time.Minute, policySent: true, deleteFails: true, wantPresent: true, wantPolicyDelete: true},
+		{name: "presence not recorded when the check for a secret sent through the registry fails", seenOffset: time.Minute, sentErr: true, wantPresent: true},
 	}
 
 	for _, tc := range cases {
@@ -3851,6 +3853,9 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 				assert.EqualValues(t, 17, enrollmentID)
 				assert.Equal(t, syncml.FleetdWindowsInstallerGUID, installLocURI)
 				assert.Equal(t, windowsEnrollSecretPolicyURI, policyLocURI)
+				if tc.sentErr {
+					return false, errors.New("query failed")
+				}
 				return tc.policySent, nil
 			}
 			ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
@@ -3880,7 +3885,7 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantPresent, present)
 			assert.Equal(t, !tc.recorded && !tc.nonUPN && !tc.unlinked, ds.WindowsHostLiteByUUIDFuncInvoked)
-			assert.Equal(t, tc.wantPresent && !tc.recorded && !tc.nonUPN && !tc.deleteFails, ds.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked)
+			assert.Equal(t, tc.wantPresent && !tc.recorded && !tc.nonUPN && !tc.deleteFails && !tc.sentErr, ds.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked)
 			assert.Equal(t, tc.wantPolicyDelete, ds.MDMWindowsInsertCommandForHostsFuncInvoked)
 		})
 	}

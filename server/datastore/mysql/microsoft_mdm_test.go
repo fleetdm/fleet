@@ -7158,49 +7158,57 @@ func testMDMWindowsEnrollSecretPolicySentSinceDelete(t *testing.T, ds *Datastore
 		}))
 		return cmdUUID
 	}
+	// answer records the device's result for a command and drops its queue row, as happens to acked commands eventually.
+	answer := func(d *fleet.MDMWindowsEnrolledDevice, cmdUUID string) {
+		t.Helper()
+		compressed, err := compressWindowsMDMResponse([]byte("resp"))
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, d.ID, compressed)
+			if err != nil {
+				return err
+			}
+			responseID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
+				VALUES (?, ?, '', ?, '200')`, d.ID, cmdUUID, responseID); err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?`, d.ID, cmdUUID)
+			return err
+		})
+	}
 	sent := func(d *fleet.MDMWindowsEnrolledDevice) bool {
 		t.Helper()
 		got, err := ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctx, d.ID, installURI, policyURI)
 		require.NoError(t, err)
 		return got
 	}
-	routedInstall := `<Add>ADMX</Add><Replace><Item><Target><LocURI>` + policyURI + `</LocURI></Target></Item></Replace><Exec>MSI</Exec>`
+	routedInstall := func(policy string) string {
+		return `<Add>ADMX</Add><Replace><Item><Target><LocURI>` + policy + `</LocURI></Target></Item></Replace><Exec>MSI</Exec>`
+	}
 
 	require.False(t, sent(device), "nothing sent")
-	queue(device, installURI, `<Add>MSI</Add><Exec>MSI</Exec>`)
+	answer(device, queue(device, installURI, `<Add>MSI</Add><Exec>MSI</Exec>`))
 	require.False(t, sent(device), "an install without the policy")
-	queue(other, installURI, routedInstall)
+	answer(device, queue(device, installURI, routedInstall("./Device/Vendor/MSFT/Policy/Config/Other~Policy~category/Value")))
+	require.False(t, sent(device), "an install with another policy")
+	answer(other, queue(other, installURI, routedInstall(policyURI)))
 	require.False(t, sent(device), "another enrollment's install")
 	require.True(t, sent(other))
 
-	installUUID := queue(device, installURI, routedInstall)
-	require.True(t, sent(device))
-	// Acked commands drop out of the queue eventually, and the result still counts.
-	compressed, err := compressWindowsMDMResponse([]byte("resp"))
-	require.NoError(t, err)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, device.ID, compressed)
-		if err != nil {
-			return err
-		}
-		responseID, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
-		if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
-			VALUES (?, ?, '', ?, '200')`, device.ID, installUUID, responseID); err != nil {
-			return err
-		}
-		_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?`, device.ID, installUUID)
-		return err
-	})
+	installUUID := queue(device, installURI, routedInstall(policyURI))
+	require.False(t, sent(device), "an install the device hasn't answered yet")
+	answer(device, installUUID)
 	require.True(t, sent(device))
 
 	queue(device, policyURI, `<Delete><Item><Target><LocURI>`+policyURI+`</LocURI></Target></Item></Delete>`)
-	require.False(t, sent(device), "the policy was deleted since")
+	require.False(t, sent(device), "the policy delete is queued")
 	require.True(t, sent(other), "a delete for one enrollment doesn't count for another")
 
-	queue(device, installURI, routedInstall)
+	answer(device, queue(device, installURI, routedInstall(policyURI)))
 	require.True(t, sent(device), "sent again after the delete")
 }
 

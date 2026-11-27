@@ -479,22 +479,22 @@ func (ds *Datastore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, e
 	return nil
 }
 
-// MDMWindowsEnrollSecretPolicySentSinceDelete implements fleet.Datastore. Commands are ordered by id: created_at has only second
-// precision.
+// MDMWindowsEnrollSecretPolicySentSinceDelete implements fleet.Datastore. Only installs the device answered count, so a Delete can't
+// overtake one still queued. Commands are ordered by id: created_at has only second precision.
 func (ds *Datastore) MDMWindowsEnrollSecretPolicySentSinceDelete(ctx context.Context, enrollmentID uint, installLocURI, policyLocURI string) (bool, error) {
-	const enrollmentCommands = `
-		SELECT command_uuid FROM windows_mdm_command_queue WHERE enrollment_id = ?
-		UNION
-		SELECT command_uuid FROM windows_mdm_command_results WHERE enrollment_id = ?`
 	var sent bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &sent, `
 		SELECT EXISTS (
-			SELECT 1 FROM windows_mdm_commands c JOIN (`+enrollmentCommands+`) ec ON ec.command_uuid = c.command_uuid
-			WHERE c.target_loc_uri = ? AND LOCATE(?, c.raw_command) > 0
-				AND NOT EXISTS (
-					SELECT 1 FROM windows_mdm_commands d JOIN (`+enrollmentCommands+`) ed ON ed.command_uuid = d.command_uuid
-					WHERE d.target_loc_uri = ? AND d.id > c.id))`,
-		enrollmentID, enrollmentID, installLocURI, policyLocURI, enrollmentID, enrollmentID, policyLocURI); err != nil {
+			SELECT 1 FROM windows_mdm_command_results r JOIN windows_mdm_commands c ON c.command_uuid = r.command_uuid
+			WHERE r.enrollment_id = ? AND c.target_loc_uri = ? AND LOCATE(?, c.raw_command) > 0
+				AND c.id > (
+					SELECT COALESCE(MAX(d.id), 0) FROM windows_mdm_commands d JOIN (
+						SELECT command_uuid FROM windows_mdm_command_queue WHERE enrollment_id = ?
+						UNION
+						SELECT command_uuid FROM windows_mdm_command_results WHERE enrollment_id = ?
+					) ed ON ed.command_uuid = d.command_uuid
+					WHERE d.target_loc_uri = ?))`,
+		enrollmentID, installLocURI, policyLocURI, enrollmentID, enrollmentID, policyLocURI); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "check windows mdm enroll secret policy sent")
 	}
 	return sent, nil

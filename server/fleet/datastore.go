@@ -4095,8 +4095,8 @@ type Datastore interface {
 	WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
 	// MDMWindowsEnrollSecretPolicySentSinceDelete reports whether a command targeting installLocURI that carries policyLocURI (a
-	// fleetd install that sent the enroll secret through the registry) went to the Windows MDM enrollment after its last command
-	// targeting policyLocURI.
+	// fleetd install that sent the enroll secret through the registry) was answered by the Windows MDM enrollment's device, and is
+	// newer than the enrollment's last command targeting policyLocURI.
 	MDMWindowsEnrollSecretPolicySentSinceDelete(ctx context.Context, enrollmentID uint, installLocURI, policyLocURI string) (bool, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
