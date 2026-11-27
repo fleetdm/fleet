@@ -315,7 +315,7 @@ To review applicants:
    - **Save for later**: the applicant will not enter the interview process at this time, but we should keep them in mind for future positions. Add a short reason.
 5. Each hiring manager reviews applications at least once per week.
 
-> Applicants who are already in a candidate tracker, or who are located in a country where [Fleet is unable to hire](https://fleetdm.com/handbook/company/leadership#hiring), are excluded from "To review" automatically.
+> Applicants who are located in a country where [Fleet is unable to hire](https://fleetdm.com/handbook/company/leadership#hiring) are excluded from "To review" automatically.
 
 Hiring managers need **Contributor** access to the Fleet hiring dashboard and **edit** access to their position's candidate tracker. Ask the Head of People for access.
 
