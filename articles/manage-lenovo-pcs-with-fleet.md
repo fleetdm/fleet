@@ -214,6 +214,7 @@ policies:
       - Lenovo
     run_script:
       path: ../lib/linux/scripts/lenovo-bios-security-settings.sh
+# ...plus the agent_options and other keys your fleet file already has
 ```
 
 Store the BIOS password as a GitHub or GitLab secret named `FLEET_SECRET_BIOS_PASSWORD` and add it to your workflow's `env`, as described in [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).

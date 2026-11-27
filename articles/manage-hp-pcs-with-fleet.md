@@ -67,7 +67,7 @@ WHERE s.hardware_model != 'YOUR-MODEL'
 
 Fleet doesn't track HP's latest BIOS for each model, so this policy is only as current as the version you type in. Bump it when HP ships a new one. Companies already running Fleet on HP hardware in regulated industries haven't found this a blocker, but if you'd like a hand, [reach out](https://fleetdm.com/support).
 
-Finally, add a policy automation, which tells Fleet what to do when a host fails. Click **Manage automations** on the **Policies** page, select **Run script**, check the BIOS policies, pick the script, and click **Save**. Fleet runs the script when a host first fails the policy, and tries up to three times. Updates that need a restart finish when the user next restarts.
+Finally, add a policy automation, which tells Fleet what to do when a host fails. On the **Policies** page, click each BIOS policy's **Automation** column, choose **Run script**, pick the script, and click **Save**. Fleet runs the script when a host first fails the policy, and tries up to three times. Updates that need a restart finish when the user next restarts.
 
 > **Note:** Fleet stops a script after 300 seconds by default, and driver downloads can take longer, so raise [`script_execution_timeout`](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout) in your agent options, for example to `1800`.
 
