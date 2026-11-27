@@ -47,7 +47,7 @@ const PolicyFailingCount = ({
           blocking login
         </strong>
         <br />
-        To restore access, click on the policies makes &quot;Action
+        To restore access, click on the policies marked &quot;Action
         required&quot; and follow the resolution steps.
         {deviceUser && ' Once resolved, click "Refetch" to check status.'}
       </span>
