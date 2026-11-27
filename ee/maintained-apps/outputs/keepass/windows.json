@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.62.0",
+      "version": "2.62",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'KeePass Password Safe %' AND publisher = 'Dominik Reichl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'KeePass Password Safe %' AND publisher = 'Dominik Reichl' AND version_compare(version, '2.62.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'KeePass Password Safe %' AND publisher = 'Dominik Reichl' AND version_compare(version, '2.62') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'keepass.exe');"
       },
       "installer_url": "https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.62/KeePass-2.62-Setup.exe/download",
