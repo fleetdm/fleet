@@ -57,6 +57,9 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAMergeMultipleDestinations", testWindowsFMAMergeMultipleDestinations},
 		{"WindowsFMAIngestIgnoresOtherSources", testWindowsFMAIngestIgnoresOtherSources},
 		{"WindowsFMAReconcileIndependentOfCatalogSync", testWindowsFMAReconcileIndependentOfCatalogSync},
+		{"WindowsFMACuratedRuleOnIngest", testWindowsFMACuratedRuleOnIngest},
+		{"WindowsFMACuratedRuleReconcile", testWindowsFMACuratedRuleReconcile},
+		{"WindowsFMACuratedRuleMergeLateSoftware", testWindowsFMACuratedRuleMergeLateSoftware},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ReconcileSoftwareNamesBatched", testReconcileSoftwareNamesBatched},
@@ -2184,7 +2187,9 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	titleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	const oldRule = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '1.0.0') < 0);"
+	const newRule = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola%' AND publisher = 'Granola' AND version_compare(version, '1.0.0') < 0);"
+	titleID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "Granola", "Granola", "granola/windows", oldRule)
 
 	// Same app on a second team, reusing the same title.
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team A"})
@@ -2203,6 +2208,7 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 		UserID:               user.ID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 		FleetMaintainedAppID: &app.ID,
+		PatchQuery:           newRule,
 	})
 	require.NoError(t, err)
 	require.Equal(t, titleID, teamTitleID, "both teams' installers should share one title")
@@ -2212,6 +2218,32 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 	require.Len(t, names, 1, "per-team installer rows must collapse to one entry")
 	require.NotNil(t, names[0].TitleID)
 	require.Equal(t, titleID, *names[0].TitleID)
+	// The rows' rules can differ when the catalog rule changed; the newest one wins.
+	require.Equal(t, newRule, names[0].PatchQuery)
+
+	// A catalog refresh rewrites a row's rule in place, leaving its upload time alone.
+	// The refreshed rule wins even though the row was uploaded first.
+	const refreshedRule = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola Inc' AND version_compare(version, '1.0.0') < 0);"
+	var noTeamInstallerID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &noTeamInstallerID, `SELECT id FROM software_installers WHERE global_or_team_id = 0`)
+	})
+	require.NoError(t, ds.UpdateInstallerScriptsAndQueries(ctx, noTeamInstallerID, "1.0.0", "echo install", "echo uninstall", refreshedRule, ""))
+	names, err = ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	require.Equal(t, refreshedRule, names[0].PatchQuery)
+
+	// A row without a rule, such as one added before patch queries existed and pinned
+	// since, never hides another row's rule, however recently it was written.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET patch_query = '' WHERE global_or_team_id = ?`, team.ID)
+		return err
+	})
+	names, err = ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+	require.Equal(t, refreshedRule, names[0].PatchQuery)
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
@@ -2404,7 +2436,7 @@ func testWindowsFMAMergeWithoutPrefixes(t *testing.T, ds *Datastore) {
 
 			// The scan builds the WHERE clause from the prefixes, so it must find no work
 			// rather than emit an empty predicate.
-			stale, err := ds.staleWindowsTitlesByDestination(ctx, apps, windowsFMAPrefixes(apps))
+			stale, err := ds.staleWindowsTitlesByDestination(ctx, apps)
 			require.NoError(t, err)
 			require.Empty(t, stale)
 
@@ -2626,6 +2658,14 @@ func titleIDForTitleNamed(t *testing.T, ds *Datastore, name string) uint {
 // canonical title, mirroring an admin adding a Fleet-maintained app to no team.
 func addWindowsFMAWithInstaller(t *testing.T, ds *Datastore, userID uint, name, uniqueIdentifier, slug string) uint {
 	t.Helper()
+	return addWindowsFMAWithPatchQuery(t, ds, userID, name, uniqueIdentifier, slug, "")
+}
+
+// addWindowsFMAWithPatchQuery is addWindowsFMAWithInstaller with the installer
+// carrying the manifest's patch query, which is where the app's curated programs rule
+// is read from.
+func addWindowsFMAWithPatchQuery(t *testing.T, ds *Datastore, userID uint, name, uniqueIdentifier, slug, patchQuery string) uint {
+	t.Helper()
 	ctx := t.Context()
 
 	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -2647,6 +2687,7 @@ func addWindowsFMAWithInstaller(t *testing.T, ds *Datastore, userID uint, name, 
 		UserID:               userID,
 		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 		FleetMaintainedAppID: &app.ID,
+		PatchQuery:           patchQuery,
 	})
 	require.NoError(t, err)
 
@@ -2912,4 +2953,170 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &total, `SELECT COUNT(*) FROM software_title_team_pins`)
 	})
 	require.Equal(t, 1, total, "the skipped pin is cascaded away with its title")
+}
+
+// testWindowsFMACuratedRuleOnIngest: a program the name-prefix rule misses, but the
+// app's curated rule accepts, is filed under the installer's title on ingest.
+func testWindowsFMACuratedRuleOnIngest(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	pythonID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "Python 3.13", "Python 3.13.13 (64-bit)", "python-3.13/windows", python313PatchQuery)
+	qgisID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "QGIS", "QGIS", "qgis/windows", qgisPatchQuery)
+	qgisLTRID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "QGIS LTR", "QGIS LTR", "qgis@ltr/windows", qgisLTRPatchQuery)
+
+	var titlesBefore int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titlesBefore, `SELECT COUNT(*) FROM software_titles`)
+	})
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Python 3.13.16 (64-bit)", Version: "3.13.16150.0", Vendor: "Python Software Foundation", Source: "programs"},
+		{Name: "QGIS 3.44.15 'Solothurn'", Version: "3.44.15", Vendor: "QGIS.org", Source: "programs"},
+		{Name: "QGIS 4.2.3 'Wien'", Version: "4.2.3", Vendor: "QGIS.org", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, pythonID, titleIDForSoftware(t, ds, "Python 3.13.16 (64-bit)"))
+	require.Equal(t, qgisLTRID, titleIDForSoftware(t, ds, "QGIS 3.44.15 'Solothurn'"))
+	require.Equal(t, qgisID, titleIDForSoftware(t, ds, "QGIS 4.2.3 'Wien'"))
+
+	var titlesAfter int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titlesAfter, `SELECT COUNT(*) FROM software_titles`)
+	})
+	require.Equal(t, titlesBefore, titlesAfter, "no versioned title is created")
+}
+
+// testWindowsFMACuratedRuleReconcile: titles created before the app was added are
+// merged onto the installer's title when the app's curated rule accepts every one of
+// their software rows. Rows that disagree leave the name-prefix rule to decide.
+func testWindowsFMACuratedRuleReconcile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Python 3.13.16 (64-bit)", Version: "3.13.16150.0", Vendor: "Python Software Foundation", Source: "programs"},
+		{Name: "RealVNC Viewer 8.6.2", Version: "8.6.2", Vendor: "RealVNC", Source: "programs"},
+		{Name: "QGIS 3.44.15 'Solothurn'", Version: "3.44.15", Vendor: "QGIS.org", Source: "programs"},
+		// Another vendor's program under a name the rule accepts.
+		{Name: "RealVNC Viewer 9.0", Version: "9.0", Vendor: "Not RealVNC", Source: "programs"},
+		{Name: "RealVNC Viewer 8.5.0", Version: "8.5.0", Vendor: "RealVNC", Source: "programs"},
+		{Name: "Mozilla Firefox 141.0 ESR (x64 en-US)", Version: "141.0", Vendor: "Mozilla", Source: "programs"},
+	})
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		// Agrees with host1's row.
+		{Name: "Python 3.13.16 (64-bit)", Version: "3.13.16150.1", Vendor: "Python Software Foundation", Source: "programs"},
+		// Disagree with host1's rows on the vendor.
+		{Name: "RealVNC Viewer 8.5.0", Version: "8.5.0", Vendor: "Someone Else", Source: "programs"},
+		{Name: "Mozilla Firefox 141.0 ESR (x64 en-US)", Version: "141.0", Vendor: "Someone Else", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	// Titles with no software left: only the name can decide.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, 'programs'), (?, 'programs')`,
+			"Python 3.13.15 (64-bit)", "QGIS 3.40.0 'Bratislava'")
+		return err
+	})
+
+	distinctTitleIDs := func(name string) []uint {
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT DISTINCT title_id FROM software WHERE name = ?`, name)
+		})
+		return ids
+	}
+	titlesNamed := func(name string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM software_titles WHERE name = ? AND source = 'programs'`, name)
+		})
+		return n
+	}
+	for _, name := range []string{"Python 3.13.16 (64-bit)", "RealVNC Viewer 8.5.0", "Mozilla Firefox 141.0 ESR (x64 en-US)"} {
+		require.Len(t, distinctTitleIDs(name), 1, "precondition: %q rows share one title", name)
+	}
+
+	pythonID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "Python 3.13", "Python 3.13.13 (64-bit)", "python-3.13/windows", python313PatchQuery)
+	vncID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "RealVNC Connect Viewer", "RealVNC Connect Viewer", "vnc-viewer/windows", realVNCPatchQuery)
+	addWindowsFMAWithPatchQuery(t, ds, user.ID, "QGIS", "QGIS", "qgis/windows", qgisPatchQuery)
+	qgisLTRID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "QGIS LTR", "QGIS LTR", "qgis@ltr/windows", qgisLTRPatchQuery)
+	firefoxID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "Mozilla Firefox", "Mozilla Firefox (x64 en-US)", "firefox/windows", firefoxPatchQuery)
+	addWindowsFMAWithPatchQuery(t, ds, user.ID, "Mozilla Firefox ESR", "Mozilla Firefox 140.7.1 ESR (x64 en-US)", "firefox@esr/windows", firefoxESRPatchQuery)
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+
+	require.Equal(t, []uint{pythonID}, distinctTitleIDs("Python 3.13.16 (64-bit)"))
+	require.Equal(t, vncID, titleIDForSoftware(t, ds, "RealVNC Viewer 8.6.2"))
+	// Without the version clause this would land on QGIS, whose prefix matches.
+	require.Equal(t, qgisLTRID, titleIDForSoftware(t, ds, "QGIS 3.44.15 'Solothurn'"))
+	// The rows disagree, so the Firefox prefix decides, as it did before rules existed.
+	require.Equal(t, []uint{firefoxID}, distinctTitleIDs("Mozilla Firefox 141.0 ESR (x64 en-US)"))
+	for _, name := range []string{
+		"Python 3.13.16 (64-bit)", "RealVNC Viewer 8.6.2", "QGIS 3.44.15 'Solothurn'", "Mozilla Firefox 141.0 ESR (x64 en-US)",
+		// No software to test a rule against, but the QGIS prefix matches.
+		"QGIS 3.40.0 'Bratislava'",
+	} {
+		require.Zero(t, titlesNamed(name), "versioned title %q is merged away", name)
+	}
+
+	// No prefix matches these, so they stay.
+	require.Equal(t, "RealVNC Viewer 9.0", titleNameForSoftware(t, ds, "RealVNC Viewer 9.0"))
+	require.Equal(t, "RealVNC Viewer 8.5.0", titleNameForSoftware(t, ds, "RealVNC Viewer 8.5.0"))
+	require.Equal(t, 1, titlesNamed("Python 3.13.15 (64-bit)"), "a title with no software can't be tested against a rule")
+}
+
+// testWindowsFMACuratedRuleMergeLateSoftware: a curated rule decides from the software
+// rows the reconcile pass read, so a row ingestion attaches to the title after that
+// read isn't moved with them, and the title stays for the next pass to judge.
+func testWindowsFMACuratedRuleMergeLateSoftware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "RealVNC Viewer 8.6.2", Version: "8.6.2", Vendor: "RealVNC", Source: "programs"},
+	})
+	require.NoError(t, err)
+	staleTitleID := titleIDForSoftware(t, ds, "RealVNC Viewer 8.6.2")
+
+	vncID := addWindowsFMAWithPatchQuery(t, ds, user.ID, "RealVNC Connect Viewer", "RealVNC Connect Viewer", "vnc-viewer/windows", realVNCPatchQuery)
+	apps, err := ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	stale, err := ds.staleWindowsTitlesByDestination(ctx, apps)
+	require.NoError(t, err)
+	require.Len(t, stale, 1)
+
+	// Another publisher's program lands on the title between the read and the merge.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO software (name, version, source, vendor, title_id, checksum)
+			VALUES ('RealVNC Viewer 8.6.2', '8.6.2', 'programs', 'Someone Else', ?, UNHEX(MD5('late')))`, staleTitleID)
+		return err
+	})
+	for destinationID, merge := range stale {
+		require.NoError(t, ds.mergeWindowsFMATitle(ctx, destinationID, merge))
+	}
+
+	titleIDByVendor := func(vendor string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT title_id FROM software WHERE name = 'RealVNC Viewer 8.6.2' AND vendor = ?`, vendor)
+		})
+		return id
+	}
+	require.Equal(t, vncID, titleIDByVendor("RealVNC"))
+	require.Equal(t, staleTitleID, titleIDByVendor("Someone Else"))
+	require.Equal(t, staleTitleID, titleIDForTitleNamed(t, ds, "RealVNC Viewer 8.6.2"), "the title keeps its unchecked row")
+
+	// The next pass leaves it: the rule rejects that row and no prefix matches.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, staleTitleID, titleIDByVendor("Someone Else"))
 }

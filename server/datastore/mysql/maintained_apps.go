@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -269,14 +270,13 @@ func (ds *Datastore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 	// this per app instead would open a transaction for each one just to discover there
 	// is nothing to merge, which is the steady state: ingestion already files new
 	// software under the right title, so this pass usually finds nothing.
-	allPrefixes := windowsFMAPrefixes(fmaMatches)
-	staleByDestination, err := ds.staleWindowsTitlesByDestination(ctx, fmaMatches, allPrefixes)
+	staleByDestination, err := ds.staleWindowsTitlesByDestination(ctx, fmaMatches)
 	if err != nil {
 		return err
 	}
 
-	for destinationID, staleIDs := range staleByDestination {
-		if err := ds.mergeWindowsFMATitle(ctx, destinationID, staleIDs); err != nil {
+	for destinationID, merge := range staleByDestination {
+		if err := ds.mergeWindowsFMATitle(ctx, destinationID, merge); err != nil {
 			return ctxerr.Wrapf(ctx, err, "merge onto windows software title %d", destinationID)
 		}
 	}
@@ -284,29 +284,69 @@ func (ds *Datastore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 	return nil
 }
 
+// windowsFMAStaleSoftwareBatchSize bounds the title IDs per software lookup in the
+// Windows reconcile pass.
+const windowsFMAStaleSoftwareBatchSize = 1000
+
+// windowsFMAMerge is the reconcile work for one destination software title.
+type windowsFMAMerge struct {
+	// byName are titles the name decided: every software row on them moves.
+	byName []uint
+	// byRule are titles a curated rule decided from the software rows the pass read.
+	// Only those rows (softwareIDs) move, so a row attached since, which the rule
+	// never saw, stays behind with its title.
+	byRule      []uint
+	softwareIDs []uint
+
+	// Names for the merge log, so a wrong merge can be traced to the tier that made it.
+	destinationName  string
+	byNameTitleNames []string
+	byRuleTitleNames []string
+}
+
+func (m *windowsFMAMerge) titleIDs() []uint {
+	return append(slices.Clone(m.byName), m.byRule...)
+}
+
 // staleWindowsTitlesByDestination returns, per destination software title, the
-// inventory-only titles whose reported names belong to it. One scan covers every app:
-// the SQL narrows to names that could plausibly match any of them, and
-// matchWindowsFMATitle then makes the per-name decision so prefix precedence and the
-// cross-app ambiguity rule agree with the ingestion path exactly.
+// inventory-only titles whose software belongs to it. One scan covers every app: the
+// SQL narrows to names that could plausibly match any of them, and the matcher then
+// makes the per-title decision, so precedence and the cross-app ambiguity rule agree
+// with the ingestion path exactly.
 func (ds *Datastore) staleWindowsTitlesByDestination(
 	ctx context.Context,
 	fmaMatches []fleet.MaintainedApp,
-	allPrefixes []windowsFMAPrefix,
-) (map[uint][]uint, error) {
+) (map[uint]*windowsFMAMerge, error) {
+	matcher := newWindowsFMAMatcher(fmaMatches)
+
+	// Escape LIKE wildcards so a name containing % or _ can't widen the match. The
+	// ESCAPE clause is stated explicitly rather than relying on the default.
+	escapeLike := func(s string) string {
+		for _, c := range []string{`\`, `%`, `_`} {
+			s = strings.ReplaceAll(s, c, `\`+c)
+		}
+		return s
+	}
+
 	var nameConds []string
 	var args []any
 	for i := range fmaMatches {
 		for _, prefix := range fmaMatches[i].WinMatchPrefixes() {
-			// Escape LIKE wildcards so a name containing % or _ can't widen the match. The
-			// ESCAPE clause is stated explicitly rather than relying on the default.
-			escaped := prefix
-			for _, c := range []string{`\`, `%`, `_`} {
-				escaped = strings.ReplaceAll(escaped, c, `\`+c)
-			}
 			nameConds = append(nameConds, `st.name = ? OR st.name LIKE ? ESCAPE '\\'`)
-			args = append(args, prefix, escaped+" %")
+			args = append(args, prefix, escapeLike(prefix)+" %")
 		}
+	}
+	// A curated rule can accept names no prefix matches. Narrow by what its name
+	// patterns can match; the matcher decides. Patterns that start with a wildcard
+	// can't narrow anything and are left to ingestion.
+	exactNames, namePrefixes := matcher.ruleNamePatterns()
+	for _, name := range exactNames {
+		nameConds = append(nameConds, `st.name = ?`)
+		args = append(args, name)
+	}
+	for _, prefix := range namePrefixes {
+		nameConds = append(nameConds, `st.name LIKE ? ESCAPE '\\'`)
+		args = append(args, escapeLike(prefix)+"%")
 	}
 	if len(nameConds) == 0 {
 		// No app contributes a usable name, so nothing can match.
@@ -331,21 +371,81 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 		ID   uint   `db:"id"`
 		Name string `db:"name"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &candidates, staleStmt, args...); err != nil {
+	reader := ds.reader(ctxdb.RequirePrimary(ctx, true))
+	if err := sqlx.SelectContext(ctx, reader, &candidates, staleStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select stale windows titles")
 	}
 
-	staleByDestination := make(map[uint][]uint)
+	staleByDestination := make(map[uint]*windowsFMAMerge)
 	var unmatched []string
-	for _, c := range candidates {
-		match, ok := matchWindowsFMATitle(c.Name, allPrefixes)
-		if !ok || match.titleID == c.ID {
-			if !ok {
-				unmatched = append(unmatched, c.Name)
-			}
-			continue
+	// rows is nil when the name decided, and the software rows the rule was checked
+	// against when a rule did.
+	decide := func(titleID uint, name string, match windowsFMATitle, ok bool, rows []windowsSoftwareRow) {
+		if !ok {
+			unmatched = append(unmatched, name)
+			return
 		}
-		staleByDestination[match.titleID] = append(staleByDestination[match.titleID], c.ID)
+		if match.titleID == titleID {
+			return
+		}
+		merge := staleByDestination[match.titleID]
+		if merge == nil {
+			merge = &windowsFMAMerge{destinationName: match.titleName}
+			staleByDestination[match.titleID] = merge
+		}
+		if rows == nil {
+			merge.byName = append(merge.byName, titleID)
+			merge.byNameTitleNames = append(merge.byNameTitleNames, name)
+			return
+		}
+		merge.byRule = append(merge.byRule, titleID)
+		merge.byRuleTitleNames = append(merge.byRuleTitleNames, name)
+		for _, r := range rows {
+			merge.softwareIDs = append(merge.softwareIDs, r.id)
+		}
+	}
+
+	// Decide by name where a curated rule can't change the result, which is most
+	// titles, and test the rest against their software.
+	type undecidedTitle struct {
+		id       uint
+		name     string
+		prefix   windowsFMATitle
+		prefixOK bool
+	}
+	var undecided []undecidedTitle
+	for _, c := range candidates {
+		normalized := normalizeForMatch(c.Name)
+		match, prefixLen, ok := matcher.matchPrefix(normalized)
+		switch {
+		case matcher.ruleMayDecide(normalized, prefixLen):
+			undecided = append(undecided, undecidedTitle{id: c.ID, name: c.Name, prefix: match, prefixOK: ok})
+		case prefixLen > 0:
+			decide(c.ID, c.Name, match, ok, nil)
+		}
+		// Otherwise only a rule's name pattern pulled the title in, and no rule takes it.
+	}
+
+	if len(undecided) > 0 {
+		ids := make([]uint, 0, len(undecided))
+		for _, u := range undecided {
+			ids = append(ids, u.id)
+		}
+		softwareByTitle, err := windowsSoftwareByTitle(ctx, reader, ids)
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range undecided {
+			// A rule decides only when every row agrees. Otherwise the prefix decides, as
+			// it would without rules; that includes a title with no software left. When
+			// the prefix agrees with the rule, every row belongs by name anyway.
+			rows := softwareByTitle[u.id]
+			if m, agreed := matchEveryWindowsSoftwareRow(matcher, u.name, rows); agreed && (!u.prefixOK || m.titleID != u.prefix.titleID) {
+				decide(u.id, u.name, m, true, rows)
+				continue
+			}
+			decide(u.id, u.name, u.prefix, u.prefixOK, nil)
+		}
 	}
 
 	if len(unmatched) > 0 && ds.logger != nil {
@@ -357,12 +457,62 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	return staleByDestination, nil
 }
 
-// mergeWindowsFMATitle moves every reference to staleIDs onto destinationID and deletes
-// the emptied titles, in one transaction so a title is never deleted before its
-// references have moved. One transaction per destination keeps the locks short; the
+type windowsSoftwareRow struct {
+	id      uint
+	vendor  string
+	version string
+}
+
+// windowsSoftwareByTitle loads the software rows of each title, with the publisher
+// and version a curated rule tests and the title doesn't carry.
+func windowsSoftwareByTitle(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint) (map[uint][]windowsSoftwareRow, error) {
+	softwareByTitle := make(map[uint][]windowsSoftwareRow, len(titleIDs))
+	err := common_mysql.BatchProcessSimple(titleIDs, windowsFMAStaleSoftwareBatchSize, func(batch []uint) error {
+		stmt, args, err := sqlx.In(`SELECT id, title_id, vendor, version FROM software WHERE title_id IN (?)`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build stale windows software statement")
+		}
+		var rows []struct {
+			ID      uint   `db:"id"`
+			TitleID uint   `db:"title_id"`
+			Vendor  string `db:"vendor"`
+			Version string `db:"version"`
+		}
+		if err := sqlx.SelectContext(ctx, q, &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select stale windows software")
+		}
+		for _, r := range rows {
+			softwareByTitle[r.TitleID] = append(softwareByTitle[r.TitleID], windowsSoftwareRow{id: r.ID, vendor: r.Vendor, version: r.Version})
+		}
+		return nil
+	})
+	return softwareByTitle, err
+}
+
+// matchEveryWindowsSoftwareRow returns the title every row of a software title
+// matches, or false when there are no rows or they don't all match the same one.
+func matchEveryWindowsSoftwareRow(matcher *windowsFMAMatcher, name string, rows []windowsSoftwareRow) (windowsFMATitle, bool) {
+	var match windowsFMATitle
+	for i, r := range rows {
+		m, ok := matcher.match(name, r.vendor, r.version)
+		if !ok || (i > 0 && m.titleID != match.titleID) {
+			return windowsFMATitle{}, false
+		}
+		match = m
+	}
+	return match, len(rows) > 0
+}
+
+// mergeWindowsFMATitle moves every reference to the merge's titles onto destinationID
+// and deletes the emptied titles, in one transaction so a title is never deleted before
+// its references have moved. One transaction per destination keeps the locks short; the
 // destinations are independent of each other.
-func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uint, staleIDs []uint) error {
-	if destinationID == 0 || len(staleIDs) == 0 {
+func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uint, merge *windowsFMAMerge) error {
+	if destinationID == 0 || merge == nil {
+		return nil
+	}
+	staleIDs := merge.titleIDs()
+	if len(staleIDs) == 0 {
 		return nil
 	}
 
@@ -378,11 +528,31 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		//
 		// software_installers, vpp_apps and in_house_apps are absent by construction: the
 		// scan above excludes any title they reference.
+		if len(merge.byName) > 0 {
+			stmt, moveArgs, err := sqlx.In(`UPDATE software SET title_id = ? WHERE title_id IN (?)`, destinationID, merge.byName)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build re-point statement for software")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, moveArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "re-point software to canonical windows title")
+			}
+		}
+		if len(merge.softwareIDs) > 0 {
+			// The title_id guard skips a row something else re-pointed since the read.
+			stmt, moveArgs, err := sqlx.In(`UPDATE software SET title_id = ? WHERE id IN (?) AND title_id IN (?)`,
+				destinationID, merge.softwareIDs, merge.byRule)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build re-point statement for rule-matched software")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, moveArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "re-point rule-matched software to canonical windows title")
+			}
+		}
+
 		repoint := []struct {
 			label string
 			stmt  string
 		}{
-			{"software", `UPDATE software SET title_id = ? WHERE title_id IN (?)`},
 			{"host software installs", `UPDATE host_software_installs SET software_title_id = ? WHERE software_title_id IN (?)`},
 			{"upcoming install activities", `UPDATE software_install_upcoming_activities SET software_title_id = ? WHERE software_title_id IN (?)`},
 			{"patch policies", `UPDATE IGNORE policies SET patch_software_title_id = ? WHERE patch_software_title_id IN (?)`},
@@ -415,18 +585,31 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		// choosing it and deleting it. Those links are ON DELETE SET NULL, so deleting
 		// such a title would leave the new owner pointing at nothing. Repeating the
 		// checks here keeps that invariant on the statement that would do the damage.
-		titlesStmt, titlesArgs, err := sqlx.In(`
+		const deleteTitles = `
 			DELETE FROM software_titles
 			WHERE id IN (?)
 				AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = software_titles.id)
 				AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = software_titles.id)
-				AND NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = software_titles.id)`,
-			staleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build delete stale titles statement")
-		}
-		if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete stale windows titles")
+				AND NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = software_titles.id)`
+		// A rule-matched title that still has software kept a row the rule never checked,
+		// so it stays for the next pass to judge. Name-matched titles moved every row.
+		for _, del := range []struct {
+			ids   []uint
+			guard string
+		}{
+			{merge.byName, ""},
+			{merge.byRule, ` AND NOT EXISTS (SELECT 1 FROM software s WHERE s.title_id = software_titles.id)`},
+		} {
+			if len(del.ids) == 0 {
+				continue
+			}
+			titlesStmt, titlesArgs, err := sqlx.In(deleteTitles+del.guard, del.ids)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build delete stale titles statement")
+			}
+			if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete stale windows titles")
+			}
 		}
 
 		return nil
@@ -437,8 +620,11 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 	if ds.logger != nil {
 		ds.logger.InfoContext(ctx, "merged Windows software titles into the title owned by a Fleet-maintained app installer",
 			"destination_title_id", destinationID,
+			"destination_title_name", merge.destinationName,
 			"merged_title_ids", staleIDs,
 			"merged_count", len(staleIDs),
+			"merged_by_name", merge.byNameTitleNames,
+			"merged_by_curated_rule", merge.byRuleTitleNames,
 		)
 	}
 
@@ -703,7 +889,8 @@ func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]st
 }
 
 // GetWindowsFMAMatches returns the Windows FMAs that name matching should consider,
-// populated with only the fields MaintainedApp.WinMatchPrefixes needs.
+// populated with only the fields MaintainedApp.WinMatchPrefixes needs, plus the patch
+// query that carries the app's curated programs rule.
 func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.MaintainedApp, error) {
 	// Restricted to FMAs that are actually added somewhere, via their installer link.
 	// Prefix matching on a program name is only as precise as the name allows: the FMA
@@ -717,9 +904,22 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 	//
 	// platform is selected even though it is also filtered on, because WinMatchPrefixes
 	// checks it and would otherwise return nothing for every row.
+	//
+	// The installer rows (per team, per cached version) carry the same rule unless the
+	// catalog changed it, so the most recently written active row's is the current one.
+	// Not uploaded_at: a catalog refresh rewrites patch_query in place without moving it.
+	// Rows without one (added before patch queries existed, and pinned since) are skipped
+	// so they can't hide another row's rule.
 	query := `
 		SELECT fma.name, fma.unique_identifier, fma.platform,
-			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name
+			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name,
+			COALESCE((
+				SELECT latest.patch_query
+				FROM software_installers latest
+				WHERE latest.fleet_maintained_app_id = fma.id AND latest.is_active = 1 AND latest.patch_query <> ''
+				ORDER BY latest.updated_at DESC, latest.id DESC
+				LIMIT 1
+			), '') AS patch_query
 		FROM fleet_maintained_apps fma
 		JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL

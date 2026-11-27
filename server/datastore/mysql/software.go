@@ -85,59 +85,6 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 	return result
 }
 
-// windowsFMAMatchesCacheTTL bounds how long ingestion may keep matching against a stale
-// set of Windows Fleet-maintained apps. Short, because it delays a newly added app from
-// collapsing titles; a var so tests can shorten it further.
-var windowsFMAMatchesCacheTTL = 30 * time.Second
-
-// getWindowsFMAMatchesCached returns the Windows FMAs to match reported program names
-// against, from a short-lived in-process cache. The returned slice is shared and must
-// not be mutated. See the field comments on Datastore for why this is TTL-only.
-func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.MaintainedApp, error) {
-	ds.windowsFMAMatchesMu.RLock()
-	names, expiry := ds.windowsFMAMatches, ds.windowsFMAMatchesExpiry
-	ds.windowsFMAMatchesMu.RUnlock()
-	if time.Now().Before(expiry) {
-		return names, nil
-	}
-
-	result, err, _ := ds.windowsFMAMatchesSF.Do("windowsFMANames", func() (any, error) {
-		fresh, err := ds.GetWindowsFMAMatches(ctx)
-		if err != nil {
-			return nil, err
-		}
-		ds.windowsFMAMatchesMu.Lock()
-		ds.windowsFMAMatches = fresh
-		ds.windowsFMAMatchesExpiry = time.Now().Add(windowsFMAMatchesCacheTTL)
-		ds.windowsFMAMatchesMu.Unlock()
-		return fresh, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	fresh, _ := result.([]fleet.MaintainedApp)
-	return fresh, nil
-}
-
-// clearWindowsFMAMatchesCache drops the cached Windows FMA set, forcing the next
-// ingestion to read through. Used by tests, which share a Datastore across cases.
-func (ds *Datastore) clearWindowsFMAMatchesCache() {
-	ds.windowsFMAMatchesMu.Lock()
-	defer ds.windowsFMAMatchesMu.Unlock()
-	ds.windowsFMAMatches = nil
-	ds.windowsFMAMatchesExpiry = time.Time{}
-}
-
-// expireWindowsFMAMatchesCache backdates the cache expiry, leaving the cached set in
-// place. Lets tests exercise the TTL path without sleeping: unlike
-// clearWindowsFMAMatchesCache, the next read misses because the entry is stale rather
-// than absent, which is what expiry actually looks like.
-func (ds *Datastore) expireWindowsFMAMatchesCache() {
-	ds.windowsFMAMatchesMu.Lock()
-	defer ds.windowsFMAMatchesMu.Unlock()
-	ds.windowsFMAMatchesExpiry = time.Now().Add(-time.Second)
-}
-
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software, opts ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 	// OTEL instrumentation. It has no-op behavior when OTEL is not enabled.
 	ctx, span := tracer.Start(ctx, "mysql.UpdateHostSoftware",
@@ -1185,6 +1132,15 @@ func normalizeForCollation(s string) string {
 	return result.String()
 }
 
+// normalizeForMatch lowercases and strips the Unicode format and control characters
+// that MySQL's utf8mb4_unicode_ci collation ignores. Names go through it so a Go-side
+// comparison agrees with the collation the software_titles unique index uses; the
+// curated-rule publisher and version values do too, so every field of a rule compares
+// the same way.
+func normalizeForMatch(s string) string {
+	return strings.ToLower(normalizeForCollation(s))
+}
+
 // UniqueSoftwareTitleStr creates a unique string representation of the software title.
 // Returns lowercase and normalized to ensure matching that is consistent with MySQL's
 // utf8mb4_unicode_ci collation, which is case-insensitive and ignores certain Unicode
@@ -1192,7 +1148,7 @@ func normalizeForCollation(s string) string {
 func UniqueSoftwareTitleStr(values ...string) string {
 	normalized := make([]string, len(values))
 	for i, v := range values {
-		normalized[i] = strings.ToLower(normalizeForCollation(v))
+		normalized[i] = normalizeForMatch(v)
 	}
 	return strings.Join(normalized, fleet.SoftwareFieldSeparator)
 }
@@ -1256,84 +1212,6 @@ func longestCommonPrefix(strs []string) string {
 		}
 		i++
 	}
-}
-
-// windowsFMAPrefix is one candidate program-name prefix, normalized for comparison,
-// paired with the software title it resolves to.
-//
-// The prefix and the destination are deliberately separate. Matching considers every
-// name an app may report under, but the destination is always the title the app's
-// installer owns: a Windows FMA's title is never renamed when the catalog name
-// changes, so resolving the destination from the catalog name could land software on a
-// title no installer owns, leaving the uninstall action hidden and the reconcile pass
-// unable to repair it.
-type windowsFMAPrefix struct {
-	prefix    string
-	titleName string
-	titleID   uint
-}
-
-// windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
-// once per ingestion batch so the per-software-row match stays allocation-free.
-func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
-	prefixes := make([]windowsFMAPrefix, 0, len(fmas)*3)
-	for _, f := range fmas {
-		if f.TitleID == nil {
-			continue
-		}
-		for _, p := range f.WinMatchPrefixes() {
-			prefixes = append(prefixes, windowsFMAPrefix{
-				prefix:    normalizeSoftwareNameForMatch(p),
-				titleName: f.TitleName,
-				titleID:   *f.TitleID,
-			})
-		}
-	}
-	return prefixes
-}
-
-// normalizeSoftwareNameForMatch lowercases and strips the Unicode format and control
-// characters that MySQL's utf8mb4_unicode_ci collation ignores, so a Go-side name
-// comparison agrees with the collation the software_titles unique index uses.
-func normalizeSoftwareNameForMatch(s string) string {
-	return strings.ToLower(normalizeForCollation(s))
-}
-
-// matchWindowsFMATitle returns the software title a reported Windows program name
-// belongs to, or false when it matches no Fleet-maintained app.
-//
-// A candidate matches when the reported name equals it or begins with
-// "<candidate> " — the trailing space is what keeps "Zoombie 5.0" away from the
-// "Zoom" FMA. The longest matching candidate wins so a more specific app is
-// preferred, and a tie between candidates resolving to different titles is treated as
-// no match: there is no principled winner, and merging into the wrong app is worse
-// than leaving the title alone. This mirrors the rule the darwin reconcile passes
-// apply to a bundle identifier shared by more than one FMA.
-func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAPrefix, bool) {
-	normalized := normalizeSoftwareNameForMatch(name)
-
-	var best windowsFMAPrefix
-	var bestLen int
-	ambiguous := false
-	for _, p := range prefixes {
-		if len(p.prefix) < bestLen {
-			continue
-		}
-		if normalized != p.prefix && !strings.HasPrefix(normalized, p.prefix+" ") {
-			continue
-		}
-		switch {
-		case len(p.prefix) > bestLen:
-			best, bestLen, ambiguous = p, len(p.prefix), false
-		case p.titleID != best.titleID:
-			ambiguous = true
-		}
-	}
-
-	if ambiguous || bestLen == 0 {
-		return windowsFMAPrefix{}, false
-	}
-	return best, true
 }
 
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
@@ -1422,18 +1300,26 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		fmaNames = nil
 	}
 
-	// Windows has no bundle identifier, so a name-prefix match is the join key that
-	// collapses versioned program names onto the canonical FMA title. Read through a
+	// Windows has no bundle identifier, so versioned program names are collapsed onto
+	// the canonical FMA title by name prefix, or by the app's curated programs rule
+	// (name, publisher and version) where that is more specific. Read through a
 	// short-lived cache: this runs on every host software update that reports something
-	// new, which a fleet-wide rollout makes simultaneous across hosts.
-	winFMANames, winFMAErr := ds.getWindowsFMAMatchesCached(ctx)
-	if winFMAErr != nil {
-		if ds.logger != nil {
-			ds.logger.WarnContext(ctx, "failed to get Windows FMA matches", "err", winFMAErr)
+	// new, which a fleet-wide rollout makes simultaneous across hosts. Fetched on first
+	// use: only a new Windows program without an upgrade code needs it.
+	var winFMAMatcher *windowsFMAMatcher
+	windowsMatcher := func() *windowsFMAMatcher {
+		if winFMAMatcher == nil {
+			m, err := ds.getWindowsFMAMatcherCached(ctx)
+			if err != nil {
+				if ds.logger != nil {
+					ds.logger.WarnContext(ctx, "failed to get Windows FMA matches", "err", err)
+				}
+				m = &windowsFMAMatcher{}
+			}
+			winFMAMatcher = m
 		}
-		winFMANames = nil
+		return winFMAMatcher
 	}
-	winFMAPrefixes := windowsFMAPrefixes(winFMANames)
 
 	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
@@ -1467,13 +1353,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				} else if sw.Source == "programs" && (sw.UpgradeCode == nil || *sw.UpgradeCode == "") {
 					// Use the canonical FMA name so versioned program names collapse
 					// onto the single title the FMA installer owns.
-					//
-					// Only when there is no upgrade code. software_titles.unique_identifier
-					// resolves to upgrade_code ahead of name, so renaming a program that
-					// reports one would create a second title under the canonical name with
-					// a different unique_identifier: a duplicate in the UI, and still not the
-					// title the installer owns. Those programs already match by upgrade code.
-					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok {
+					if match, ok := windowsMatcher().match(sw.Name, sw.Vendor, sw.Version); ok {
 						newTitleName = match.titleName
 					}
 				}
@@ -1516,7 +1396,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					}
 					key := titleKey{
 						// adjust for matching MySQL collation
-						name:         strings.ToLower(normalizeForCollation(title.Name)),
+						name:         normalizeForMatch(title.Name),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
@@ -1866,7 +1746,8 @@ func correctStoredEpochsDB(ctx context.Context, tx sqlx.ExtContext, deleted, ins
 	if len(toSet) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(toSet)/2), ",")
 		stmt := fmt.Sprintf(
-			`INSERT INTO software_metadata (software_id, epoch) VALUES %s ON DUPLICATE KEY UPDATE epoch = VALUES(epoch)`, values)
+			`INSERT INTO software_metadata (software_id, epoch) VALUES %s ON DUPLICATE KEY UPDATE epoch = VALUES(epoch)`, values,
+		)
 		if _, err := tx.ExecContext(ctx, stmt, toSet...); err != nil {
 			return ctxerr.Wrap(ctx, err, "correct stored epochs")
 		}
