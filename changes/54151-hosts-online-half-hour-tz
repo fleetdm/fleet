@@ -1,0 +1,1 @@
+- Fixed the Hosts online chart counting a host as online in two cells for viewers in time zones with a 30- or 45-minute offset (for example India, Iran, Nepal, and Newfoundland).
