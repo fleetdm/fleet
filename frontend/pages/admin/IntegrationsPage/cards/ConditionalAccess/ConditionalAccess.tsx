@@ -337,6 +337,16 @@ const ConditionalAccess = () => {
               tenant. Please try again. {troubleshootLink}
             </>
           );
+        } else if (
+          // Covers the empty, unparseable, and not-provisioned responses.
+          setup_error.includes("PartnerTenants API")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Entra didn&apos;t set up Fleet as a
+              compliance partner. Please try again. {troubleshootLink}
+            </>
+          );
         } else {
           // For other kind of errors we just show a generic error.
           // We won't render the error as is because the error comes from the MS proxy and they may be too big or unformatted
