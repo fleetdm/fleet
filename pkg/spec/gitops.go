@@ -2321,6 +2321,47 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
 			}
+			var patchOptions []string
+			if item.ForcePatch {
+				patchOptions = append(patchOptions, "force_patch")
+			}
+			if item.PatchWhenClosed {
+				patchOptions = append(patchOptions, "patch_when_closed")
+			}
+			if item.NotifyBeforePatching {
+				patchOptions = append(patchOptions, "notify_before_patching")
+			}
+			if item.PatchDeadline {
+				patchOptions = append(patchOptions, "patch_deadline")
+			}
+			switch {
+			case item.InstallSoftware.Bool || item.InstallSoftware.Other != nil:
+				if item.ForcePatch {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: If "force_patch" is true, "install_software" can't be set.`,
+						item.Name,
+					))
+				}
+				// Without another option, install_software true or an object means force_patch.
+				if len(patchOptions) == 0 {
+					item.ForcePatch = true
+					patchOptions = []string{"force_patch"}
+				}
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logFn("[!] The \"policies.install_software\" key is deprecated. Use \"policies.%s\" instead.\n", patchOptions[0])
+				}
+			case item.InstallSoftware.Set && !item.InstallSoftware.IsOther:
+				// Reject install_software false together with an option, since false turns patching off.
+				if len(patchOptions) == 1 {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: If %q is true, "install_software" can't be set to false.`,
+						item.Name, patchOptions[0],
+					))
+				}
+				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+					logFn("[!] The \"policies.install_software\" key is deprecated.\n")
+				}
+			}
 			if item.PatchWhenClosed || item.NotifyBeforePatching || item.PatchDeadline {
 				// Key off the slug suffix because a patch policy's platform field is ignored, the datastore takes the platform from the installer.
 				if slugIsKnownFMA && !strings.HasSuffix(item.FleetMaintainedAppSlug, "/darwin") {

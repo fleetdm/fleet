@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 )
@@ -160,12 +161,24 @@ func assessGatekeeperOnce(ctx context.Context, appLogger *slog.Logger, query str
 }
 
 func forceLaunchServicesRefresh(appPath string) error {
-	cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
+	args := []string{"-f", appPath}
+	// A folder install (KiCad's /Applications/KiCad, which holds KiCad.app and
+	// its siblings) isn't a bundle, and lsregister -f on one fails with
+	// kLSNotAnApplicationErr. -R registers the bundles underneath it instead.
+	if !isAppBundle(appPath) {
+		args = append(args, "-R")
+	}
+	cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", args...)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("forcing LaunchServices refresh: %w", err)
 	}
 	time.Sleep(2 * time.Second)
 	return nil
+}
+
+func isAppBundle(path string) bool {
+	_, err := os.Stat(filepath.Join(path, "Contents", "Info.plist"))
+	return err == nil
 }
 
 // normalizeVersion removes common suffixes from version strings
@@ -427,7 +440,11 @@ func executeScript(cfg *Config, scriptContents string) (string, error) {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// Match Fleet's own limit for software install/uninstall scripts. Five
+	// minutes isn't enough for a large bundle: KNIME's 799 MB DMG expands to an
+	// Eclipse tree the script copies twice (staging dir, then /Applications),
+	// which a runner doesn't finish in time.
+	ctx, cancel := context.WithTimeout(context.Background(), pkgscripts.MaxHostSoftwareInstallExecutionTime)
 	defer cancel()
 
 	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, cfg.env)

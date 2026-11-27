@@ -1,4 +1,5 @@
 # Fleet uninstalls app by finding all related product codes for the specified upgrade code
+$ErrorActionPreference = 'Stop'
 $inst = New-Object -ComObject "WindowsInstaller.Installer"
 $timeoutSeconds = 300  # 5 minute timeout per product
 

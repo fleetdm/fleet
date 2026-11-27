@@ -33,6 +33,7 @@ import (
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // newAPIHandler builds the real API router the way cmd/fleet does.
@@ -230,7 +231,7 @@ func TestRouterSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			recorder.Reset()
 			require.Equal(t, http.StatusOK, serve(router, c.method, c.path).Code)
 
-			ended := recorder.Ended()
+			ended := serverSpans(recorder)
 			require.Len(t, ended, 1, "one span per request")
 			require.Equal(t, c.wantSpan, ended[0].Name())
 			// Both spellings of the route have to agree, or a reader correlating a trace to the route keyed server metrics
@@ -249,8 +250,20 @@ func TestRouterSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 		recorder.Reset()
 		require.Equal(t, http.StatusNotFound, serve(router, "GET", "/api/latest/fleet/nope").Code)
 		require.Equal(t, http.StatusNotFound, serve(router, "GET", "/api/latest/fleet/certificates/abc").Code)
-		require.Empty(t, recorder.Ended())
+		require.Empty(t, serverSpans(recorder))
 	})
+}
+
+// serverSpans returns the ended request spans. The tracer provider is global, so background work leaked by other tests in
+// the package can end spans of other kinds while this test records.
+func serverSpans(recorder *tracetest.SpanRecorder) []sdktrace.ReadOnlySpan {
+	var spans []sdktrace.ReadOnlySpan
+	for _, span := range recorder.Ended() {
+		if span.SpanKind() == trace.SpanKindServer {
+			spans = append(spans, span)
+		}
+	}
+	return spans
 }
 
 // spanRoutes returns every http.route attribute on the span. More than one means the instrumentation disagrees with itself.

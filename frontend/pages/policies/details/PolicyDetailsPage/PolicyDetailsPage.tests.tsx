@@ -1,11 +1,11 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
 import createMockUser from "__mocks__/userMock";
 import { ILabelPolicy } from "interfaces/label";
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, PolicyAutomationType } from "interfaces/policy";
 import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
@@ -40,10 +40,35 @@ jest.mock("components/modals/ShowQueryModal", () => ({
 }));
 
 // Activities table fetches on mount; stub it out so the render test stays
-// focused on the policy's own fields.
+// focused on the policy's own fields. Like the real table, it reads the host
+// search once on mount; it shows it and lets a test change it.
 jest.mock("../components/PolicyAutomationsActivitiesTable", () => ({
   __esModule: true,
-  default: () => null,
+  default: function MockActivitiesTable({
+    initialSearchQuery,
+    onSearchQueryChange,
+  }: {
+    initialSearchQuery?: string;
+    onSearchQueryChange?: (query: string) => void;
+  }) {
+    const [search] = jest
+      .requireActual("react")
+      .useState(initialSearchQuery ?? "");
+    return (
+      <div>
+        <div data-testid="activities-table">{search}</div>
+        <button
+          type="button"
+          onClick={() => onSearchQueryChange?.("Other host")}
+        >
+          Search other host
+        </button>
+        <button type="button" onClick={() => onSearchQueryChange?.("")}>
+          Clear search
+        </button>
+      </div>
+    );
+  },
 }));
 
 const labels = (...names: string[]): ILabelPolicy[] =>
@@ -125,23 +150,23 @@ describe("getLabelModalData", () => {
   });
 
   describe("exclude labels", () => {
-    it("resolves labels_exclude_any with the 'exclude any' scope", () => {
+    it("resolves labels_exclude_any with the 'don’t have any' scope", () => {
       const result = getLabelModalData(
         createMockPolicy({ labels_exclude_any: labels("A") })
       );
 
       expect(result.excludeLabels).toEqual(labels("A"));
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
       expect(result.includeLabels).toBeUndefined();
     });
 
-    it("resolves labels_exclude_all with the 'exclude all' scope", () => {
+    it("resolves labels_exclude_all with the 'don’t have all' scope", () => {
       const result = getLabelModalData(
         createMockPolicy({ labels_exclude_all: labels("A") })
       );
 
       expect(result.excludeLabels).toEqual(labels("A"));
-      expect(result.excludeScopeLabel).toBe("exclude all");
+      expect(result.excludeScopeLabel).toBe("don’t have all");
     });
 
     it("prefers labels_exclude_any over labels_exclude_all", () => {
@@ -153,7 +178,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.excludeLabels).toEqual(labels("Any"));
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
     });
   });
 
@@ -167,7 +192,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have any");
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
     });
 
     it("resolves include_any + exclude_all", () => {
@@ -179,7 +204,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have any");
-      expect(result.excludeScopeLabel).toBe("exclude all");
+      expect(result.excludeScopeLabel).toBe("don’t have all");
     });
 
     it("resolves include_all + exclude_any", () => {
@@ -191,7 +216,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have all");
-      expect(result.excludeScopeLabel).toBe("exclude any");
+      expect(result.excludeScopeLabel).toBe("don’t have any");
     });
 
     it("resolves include_all + exclude_all", () => {
@@ -203,7 +228,7 @@ describe("getLabelModalData", () => {
       );
 
       expect(result.includeScopeLabel).toBe("have all");
-      expect(result.excludeScopeLabel).toBe("exclude all");
+      expect(result.excludeScopeLabel).toBe("don’t have all");
     });
   });
 });
@@ -303,5 +328,189 @@ describe("PolicyDetailsPage - renders fresh policy data (regression #43310)", ()
     expect(screen.getByTestId("show-query-modal")).not.toHaveTextContent(
       "SELECT 'stale';"
     );
+  });
+});
+
+describe("PolicyDetailsPage - host search", () => {
+  type TestLocation = {
+    query: Record<string, string>;
+    state?: { hostSearch?: string };
+  };
+
+  const renderPage = ({
+    automationType,
+    query = { fleet_id: "2" },
+    state,
+    isFreeTier = false,
+  }: {
+    automationType: PolicyAutomationType | null;
+    query?: Record<string, string>;
+    state?: { hostSearch?: string };
+    isFreeTier?: boolean;
+  }) => {
+    mockServer.use(
+      http.get(baseUrl(`/policies/${POLICY_ID}`), () =>
+        HttpResponse.json({
+          policy: createMockPolicy({
+            id: POLICY_ID,
+            fleet_id: null,
+            automation_type: automationType,
+          }),
+        })
+      )
+    );
+    const router = createMockRouter({ replace: jest.fn() });
+    const props = {
+      ...createProps(),
+      router,
+      location: {
+        pathname: `/policies/${POLICY_ID}`,
+        search: "",
+        query,
+        state,
+      },
+    };
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          ...baseAppContext,
+          isFreeTier,
+          isPremiumTier: !isFreeTier,
+          availableTeams: isFreeTier ? [] : [{ id: 2, name: "Workstations" }],
+          setCurrentTeam: jest.fn(),
+        },
+      },
+    });
+    const page = (location: TestLocation) => (
+      <PolicyDetailsPage
+        {...(({
+          ...props,
+          location: {
+            ...props.location,
+            query: location.query,
+            state: location.state,
+          },
+        } as unknown) as React.ComponentProps<typeof PolicyDetailsPage>)}
+      />
+    );
+    const { user, rerender } = render(page({ query, state }));
+    // Stands in for the router delivering a new location after a replace.
+    const setLocation = (location: TestLocation) => rerender(page(location));
+    return { user, router, setLocation };
+  };
+
+  it.each<PolicyAutomationType>([
+    "script",
+    "webhook_or_ticket",
+    "calendar",
+    "conditional_access",
+  ])(
+    "filters a %s policy's runs to the host it was opened from and puts the host in the URL",
+    async (automationType) => {
+      const { router } = renderPage({
+        automationType,
+        state: { hostSearch: "Workstation 1" },
+      });
+
+      expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+        "Workstation 1"
+      );
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: `/policies/${POLICY_ID}`,
+        query: { fleet_id: "2", query: "Workstation 1" },
+      });
+    }
+  );
+
+  it("doesn't filter a policy without an automation and drops the host", async () => {
+    const { router } = renderPage({
+      automationType: null,
+      query: { fleet_id: "2" },
+      state: { hostSearch: "Workstation 1" },
+    });
+
+    expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+      /^$/
+    );
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2" },
+    });
+  });
+
+  it("applies a search from the URL to any policy", async () => {
+    const { router } = renderPage({
+      automationType: null,
+      query: { fleet_id: "2", query: "Workstation 1" },
+    });
+
+    expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+      "Workstation 1"
+    );
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps the host filter when Free tier drops the fleet from the URL", async () => {
+    const { router, setLocation } = renderPage({
+      automationType: "webhook_or_ticket",
+      isFreeTier: true,
+      query: { fleet_id: "0" },
+      state: { hostSearch: "Workstation 1" },
+    });
+    // Free tier has no fleets, so the page redirects without fleet_id, and the
+    // string redirect carries no location state.
+    await waitFor(() => expect(router.replace).toHaveBeenCalled());
+    setLocation({ query: {} });
+
+    expect(await screen.findByTestId("activities-table")).toHaveTextContent(
+      "Workstation 1"
+    );
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { query: "Workstation 1" },
+    });
+  });
+
+  it("doesn't bring the host back after the search is cleared", async () => {
+    const { user, router, setLocation } = renderPage({
+      automationType: "script",
+      state: { hostSearch: "Workstation 1" },
+    });
+    await screen.findByTestId("activities-table");
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenLastCalledWith({
+        pathname: `/policies/${POLICY_ID}`,
+        query: { fleet_id: "2", query: "Workstation 1" },
+      })
+    );
+    setLocation({ query: { fleet_id: "2", query: "Workstation 1" } });
+
+    await user.click(screen.getByText("Clear search"));
+    setLocation({ query: { fleet_id: "2" } });
+
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2" },
+    });
+  });
+
+  it("keeps the URL in sync with the search", async () => {
+    const { user, router } = renderPage({
+      automationType: "script",
+      query: { fleet_id: "2", query: "Workstation 1" },
+    });
+
+    await user.click(await screen.findByText("Search other host"));
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2", query: "Other host" },
+    });
+
+    await user.click(screen.getByText("Clear search"));
+    expect(router.replace).toHaveBeenLastCalledWith({
+      pathname: `/policies/${POLICY_ID}`,
+      query: { fleet_id: "2" },
+    });
   });
 });

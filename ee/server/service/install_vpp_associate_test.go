@@ -421,12 +421,12 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 
 		ds := setupDS(t, false)
 		ds.GetVPPTokenFunc = func(_ context.Context, _ uint) (*fleet.VPPTokenDB, error) {
-			return &fleet.VPPTokenDB{ID: 99, Token: bearerToken, RenewDate: time.Now().Add(-time.Hour)}, nil
+			return &fleet.VPPTokenDB{ID: 99, Token: bearerToken, Location: "Acme US", RenewDate: time.Now().Add(-time.Hour)}, nil
 		}
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
 
 		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, fleet.HostSoftwareInstallOptions{})
-		require.ErrorContains(t, err, "Couldn't install. VPP token expired.")
+		require.ErrorContains(t, err, `Couldn't install. VPP token "Acme US" is expired. Please renew it and try again.`)
 		require.False(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
 
 		noToken := *vppApp

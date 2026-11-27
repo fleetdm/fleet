@@ -26,6 +26,9 @@ const (
 	WindowsSCEPSubjectNameSuffix = "/Install/SubjectName"
 
 	WindowsMDMAuthNoncePrefix = "mwenonce:"
+	// WindowsMDMUnlinkedEnrollmentRefetchPrefix marks, per enrollment row ID, that an unlinked enrollment already requested its one host
+	// refetch.
+	WindowsMDMUnlinkedEnrollmentRefetchPrefix = "mwerefetch:"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1011,6 +1014,8 @@ type MDMWindowsSaveResponseResult struct {
 
 type MDMWindowsWipeResult struct {
 	HostUUID string
+	// Reset is set when the command was a Reset (doWipePersistProvisionedData) rather than a Wipe.
+	Reset bool
 }
 
 ///////////////////////////////////////////////////////////////

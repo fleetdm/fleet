@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` reporting a 502 error at large host counts when it changed the query, platforms, labels, or automation of policies, even though the changes were applied. Fleet now removes the policies' out-of-date results in the background, right after the change, instead of before it responds.

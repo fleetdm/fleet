@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -64,11 +65,23 @@ func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables [
 	// Emit an activity per created/updated variable so secret changes are
 	// auditable.
 	user := authz.UserFromContext(ctx)
+	var createdIDs map[string]uint
+	if len(created) > 0 {
+		createdVariables, err := svc.ds.GetSecretVariables(ctxdb.RequirePrimary(ctx, true), created)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get created secret variables")
+		}
+		createdIDs = make(map[string]uint, len(createdVariables))
+		for _, secretVariable := range createdVariables {
+			createdIDs[secretVariable.Name] = secretVariable.ID
+		}
+	}
 	for _, name := range created {
 		if err := svc.NewActivity(
 			ctx,
 			user,
 			fleet.ActivityCreatedCustomVariable{
+				CustomVariableID:   createdIDs[name],
 				CustomVariableName: name,
 			},
 		); err != nil {

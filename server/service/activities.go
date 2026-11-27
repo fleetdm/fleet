@@ -79,7 +79,7 @@ func (svc *Service) NewActivities(ctx context.Context, user *fleet.User, activit
 ////////////////////////////////////////////////////////////////////////////////
 
 type listHostUpcomingActivitiesRequest struct {
-	HostID      uint              `url:"id"`
+	Identifier  string            `url:"id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
@@ -94,7 +94,11 @@ func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
 
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)
-	acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
+	var meta *fleet.PaginationMetadata
+	acts, _, err := hostByIDOrIdentifier(ctx, svc, req.Identifier, func(hostID uint) (acts []*fleet.UpcomingActivity, err error) {
+		acts, meta, err = svc.ListHostUpcomingActivities(ctx, hostID, req.ListOptions)
+		return acts, err
+	})
 	if err != nil {
 		return listHostUpcomingActivitiesResponse{Err: err}, nil
 	}

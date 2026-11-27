@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -167,7 +166,8 @@ var (
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
 	errPolicyPatchDeadlineRequiresPatch              = errors.New("\"patch_deadline\" is only supported for patch policies")
-	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
+	errPolicyForcePatchRequiresPatch                 = errors.New("\"force_patch\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
 	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
 	ErrPolicyPatchDeadlineRequiresMacOS              = errors.New("\"patch_deadline\" is available for macOS Fleet-maintained apps. It's coming soon to Windows.")
 )
@@ -392,10 +392,10 @@ type ModifyPolicyPayload struct {
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
 	Critical *bool `json:"critical" premium:"true"`
-	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Set from automation_type.
 	//
 	// Only applies to team policies.
-	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
+	CalendarEventsEnabled *bool `json:"-"`
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	// Value 0 will unset the current installer from the policy.
 	//
@@ -426,12 +426,14 @@ type ModifyPolicyPayload struct {
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
 	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
 	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
-	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access. Set from
+	// automation_type.
 	//
 	// Only applies to team policies.
-	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
-	// AutomationType replaces the policy's automation, or removes it when null. When it's not set, the automation fields
-	// above are applied as is.
+	ConditionalAccessEnabled *bool    `json:"-"`
+	_                        struct{} `json:"-" removedkey:"calendar_events_enabled,conditional_access_enabled"`
+	// AutomationType replaces the policy's automation, or removes it when null. When it's not set, only the item of the
+	// policy's current automation can change.
 	AutomationType optjson.Any[PolicyAutomation] `json:"automation_type,omitzero"`
 	// Hidden hides the policy from end users in Fleet Desktop.
 	Hidden *bool `json:"hidden" premium:"true"`
@@ -573,6 +575,7 @@ type PolicyData struct {
 	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool `json:"patch_deadline" db:"patch_deadline"`
+	ForcePatch    bool `json:"force_patch" db:"-"`
 
 	UpdateCreateTimestamps
 }
@@ -670,11 +673,34 @@ type Policy struct {
 
 func (p Policy) MarshalJSON() ([]byte, error) {
 	type policy Policy
+	return json.Marshal(policy(p.withAutomationType()))
+}
+
+func (p Policy) withAutomationType() Policy {
 	p.AutomationType = nil
 	if automations := p.Automations(); len(automations) > 0 {
 		p.AutomationType = &automations[0]
 	}
-	return json.Marshal(policy(p))
+	return p
+}
+
+// policyMethodless is Policy without MarshalJSON, for encodings that set automation_type themselves.
+type policyMethodless Policy
+
+// apiPolicy is a policy as the policy endpoints return it: automation_type replaced the calendar and conditional
+// access booleans there. Host policy lists and the failing policies webhook still include them.
+type apiPolicy struct {
+	*policyMethodless
+	CalendarEventsEnabled    *struct{} `json:"calendar_events_enabled,omitempty"`
+	ConditionalAccessEnabled *struct{} `json:"conditional_access_enabled,omitempty"`
+}
+
+func newAPIPolicy(p *Policy) *apiPolicy {
+	if p == nil {
+		return nil
+	}
+	q := policyMethodless(p.withAutomationType())
+	return &apiPolicy{policyMethodless: &q}
 }
 
 type PolicyCalendarData struct {
@@ -867,6 +893,7 @@ type PolicySpec struct {
 	NotifyBeforePatching bool `json:"notify_before_patching"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool `json:"patch_deadline"`
+	ForcePatch    bool `json:"force_patch"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -946,7 +973,10 @@ func (p PolicySpec) Verify() error {
 	if p.PatchDeadline && p.Type != PolicyTypePatch {
 		return errPolicyPatchDeadlineRequiresPatch
 	}
-	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+	if p.ForcePatch && p.Type != PolicyTypePatch {
+		return errPolicyForcePatchRequiresPatch
+	}
+	if PatchOptionsConflict(p.ForcePatch, p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	return p.VerifyLabelScopes()
@@ -1024,22 +1054,6 @@ const (
 	PolicyAutomationTypeOther             PolicyAutomationType = "other"
 	PolicyAutomationTypeNone              PolicyAutomationType = ""
 )
-
-// CheckWebhookOrTicketPolicyIDs checks that the settings policy_ids list doesn't turn the webhook or ticket automation
-// on for a policy of the scope that has another automation.
-//
-// TODO(#58577): remove with policy_ids.
-func CheckWebhookOrTicketPolicyIDs(ctx context.Context, ds Datastore, teamID *uint, policyIDs []uint) error {
-	policies, err := ds.PoliciesWithOtherAutomations(ctx, teamID, policyIDs)
-	if err != nil {
-		return err
-	}
-	if len(policies) > 0 {
-		return NewInvalidArgumentError("webhook_settings.failing_policies_webhook.policy_ids", fmt.Sprintf(
-			"policy %q already has an automation. Each policy can only have one automation.", policies[0].Name))
-	}
-	return nil
-}
 
 // PolicyListFilter narrows a list or count of policies. Empty fields don't filter.
 type PolicyListFilter struct {

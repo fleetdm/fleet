@@ -4,5 +4,6 @@
   "token": "adobe-acrobat-pro",
   "installer_format": "dmg",
   "slug": "adobe-acrobat-pro/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/adobe-acrobat-pro-uninstall.sh"
 }

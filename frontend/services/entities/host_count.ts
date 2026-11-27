@@ -1,6 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
-import { HostStatus } from "interfaces/host";
+import { HostStatusFilter } from "interfaces/host";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -35,7 +35,7 @@ export interface IHostCountLoadOptions {
   perPage?: number;
   selectedLabels?: string[];
   globalFilter?: string;
-  status?: HostStatus;
+  status?: Exclude<HostStatusFilter, "pending">;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;

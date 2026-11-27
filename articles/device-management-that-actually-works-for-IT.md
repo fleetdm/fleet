@@ -8,10 +8,15 @@ This session will cover how to deliver configurations and updates that accelerat
 
 The sessions will also cover how a GitOps approach to using device management solutions eliminates manual "click-ops" and prevents configuration drift. Store changes live in a version-controlled workflow - peer-reviewed, transparent, and easy to roll back. Understand how your engineering talent can spend less time on repetitive tasks and more time on work that matters, at scale.
 
+
+<div purpose="embedded-content">
+   <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/er6hg_3YP08?si=7iN3xSzHwBDCdQq4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
+
 <meta name="articleTitle" value="Device management that actually works for IT"> 
 <meta name="authorFullName" value="n/a">
 <meta name="authorGitHubUsername" value="fleet-release">
 <meta name="category" value="webinar">
 <meta name="publishedOn" value="2026-04-21">
 <meta name="description" value="Explore how to help your IT teams get out of the way by giving employees their time back, reducing spend, and proving compliance in real time.">
-<meta name="webinarEmbeddedVideoUrl" value="https://player.mediadelivery.net/play/637410/0ecc433a-fa3c-4ff9-a178-621d6da0847e"> 

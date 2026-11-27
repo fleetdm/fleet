@@ -57,6 +57,17 @@
         </div>
       </div>
 
+      <div purpose="workshop-banner">
+        <div purpose="banner-image">
+          <img alt="" src="/images/workshop-banner-windows-366x225@2x.png">
+        </div>
+        <div purpose="banner-text">
+          <h3>Get your team AI certified</h3>
+          <p>Practice new AI-native techniques for managing Windows laptops and desktops, developed by the IT teams at leading tech companies.</p>
+          <a purpose="cta-button" href="/workshops">Free workshop</a>
+        </div>
+      </div>
+
       <div purpose="page-section">
         <div purpose="section-heading">
           <h2>With or without Autopilot and Entra</h2>
@@ -147,22 +158,6 @@
             </div>
           </div>
         </div>
-
-        <div purpose="feature-with-image" class="reverse">
-          <div purpose="photo-collage">
-            <img purpose="photo-celebration" alt="A Fleet workshop attendee" src="/images/fast-track-certification-celebration-600x450@2x.jpg">
-            <img purpose="photo-classroom" alt="Fleet workshop attendees" src="/images/fast-track-certification-classroom-600x450@2x.jpg">
-            <img purpose="photo-training" alt="Fleet workshop attendees" src="/images/fast-track-certification-training-400x533@2x.jpg">
-          </div>
-          <div purpose="feature-text">
-            <h3>Get certified</h3>
-            <div purpose="checklist">
-              <p>Earn certification you can add to your LinkedIn profile to demonstrate your proficiency with AI-native endpoint management.</p>
-              <p>Practice new AI-native techniques developed by the IT teams at leading tech companies.</p>
-            </div>
-            <animated-arrow-button href="/workshops">Free workshops</animated-arrow-button>
-          </div>
-        </div>
       </div>
 
       <div purpose="migration-banner">
@@ -188,6 +183,8 @@
       </div>
 
       <div purpose="faq-section">
+        <%/* Anchor for /windows#faq.  It's an anchor instead of id="faq" because an element with that id would also boot the /faq page script.  position:absolute keeps it out of this flex column, so it doesn't add a gap above the heading, while leaving it right where the heading starts (so the jump still lands on "FAQ"). */%>
+        <a name="faq" style="position: absolute;"></a>
         <h2>FAQ</h2>
         <div purpose="accordion">
           <div purpose="accordion-item">

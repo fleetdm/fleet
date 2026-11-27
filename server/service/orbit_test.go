@@ -1429,8 +1429,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("a retry of an Update now install installs with the app open", func(t *testing.T) {
-		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "update-now-retry-host", "10.0.0.9", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, "notify_before_patching"), false)
 
 		hctx := hostctx.NewContext(ctx, host)
@@ -1462,8 +1461,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	})
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
-		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
-		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now(), test.WithTeamID(team.ID))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, ""), false)
 
 		result := &fleet.HostSoftwareInstallResultPayload{
@@ -2728,6 +2726,9 @@ func newEnrollOrbitEUATestService(
 	ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
 		return false, nil
 	}
+	ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		return false, nil
+	}
 	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 		// Echo the requested platform so post-enrollment platform-scoped logic runs as it would in production.
 		var cfg fleet.DatastoreEnrollOrbitConfig
@@ -2798,6 +2799,16 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 	require.ErrorAs(t, svc.EscrowLUKSData(hostCtx, "", "", nil, "", "", "bogus"), &bre)
 	require.False(t, ds.SetEscrowInFlightFuncInvoked)
 	require.False(t, ds.ReportEscrowErrorFuncInvoked)
+
+	for _, platform := range []string{"darwin", "windows"} {
+		reset()
+		unsupportedCtx := test.HostContext(ctx, &fleet.Host{ID: 1, Platform: platform})
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), &bre, platform)
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "", "", nil, "some client error", "", ""), &bre, platform)
+		require.ErrorAs(t, svc.EscrowLUKSData(unsupportedCtx, "passphrase", "salt", new(uint(1)), "", "", ""), &bre, platform)
+		require.False(t, ds.SetEscrowInFlightFuncInvoked)
+		require.False(t, ds.ReportEscrowErrorFuncInvoked)
+	}
 
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }
@@ -2873,6 +2884,9 @@ func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
 	ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}
+	ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		return false, nil
+	}
 	newHost := true
 	ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 		enrollConfig := &fleet.DatastoreEnrollOrbitConfig{}
@@ -2903,6 +2917,22 @@ func TestEnrollOrbitIncrementsReportsHostCount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, nodeKey)
 	require.Equal(t, []int{1}, hostCountIncrs)
+}
+
+// The datastore decides from the matched host's stored platform whether a host is back from a Windows reset, so the end user
+// clear runs whatever platform fleetd reports.
+func TestEnrollOrbitChecksResetWhateverPlatformReported(t *testing.T) {
+	f := newOneTimeEnrollFixture(t, false)
+	var checked []string
+	f.ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+		checked = append(checked, orbitEnrollConfig(opts).HostInfo.HardwareUUID)
+		return false, nil
+	}
+	info := f.orbitInfo()
+	require.Equal(t, "darwin", info.Platform)
+	_, err := f.svc.EnrollOrbit(f.ctx, info, "shared-secret", "")
+	require.NoError(t, err)
+	require.Equal(t, []string{info.HardwareUUID}, checked)
 }
 
 func TestRecordOrbitConfigFallbackChanges(t *testing.T) {

@@ -32,6 +32,8 @@ For Fleet customers moving from Intune with more than 500 devices who have negot
 
 ## Turn on Windows MDM
 
+> Fleet Cloud customers don't need to complete the steps below. Fleet manages the certificate and key for you. Just turn on Windows MDM in **Integrations** > **MDM**.
+
 ### Step 1: Generate your certificate and key
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between the Fleet server and a Windows host.
@@ -99,6 +101,8 @@ Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-
 
 
 **Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
+
+**Disconnect button is missing:** If end users can't disconnect from the previous MDM in **Settings > Accounts > Access work or school**, the previous MDM probably blocks manual unenrollment with the [`AllowManualMDMUnenrollment`](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#allowmanualmdmunenrollment) setting. Remove that setting in the previous MDM before you migrate. In Intune, it's **Manual unenrollment** under **General** in a device restrictions configuration profile.
 
 ## Automatic enrollment
 

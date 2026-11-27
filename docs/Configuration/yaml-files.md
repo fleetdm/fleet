@@ -35,9 +35,9 @@ Labels can be specified in your `default.yml` and `fleets/fleet-name.yml` files 
 
 Labels support `path:` (single file) and `paths:` (glob pattern) references. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
-- `name` specifies the label's name. Must be unique across all global and fleet labels.
+- `name` specifies the label's name. Must be unique across all global and fleet labels, and 255 characters or fewer.
     + Changing a label's `name` in GitOps will delete and re-create the label, temporarily clearing its membership. To avoid this, update the label name in the UI before making the change in YAML. 
-- `description` specifies the label's description.
+- `description` specifies the label's description. Must be 255 characters or fewer.
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `linux`, `ubuntu`, and `centos`. The `linux` option targets hosts on any Linux distribution. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines how hosts are added to the label. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
@@ -435,11 +435,11 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Not needed to enroll hosts with Fleet's agent (fleetd). Can only be configured for "All fleets" (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
 - `windows_entra_client_ids` is a list of Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Can only be configured for "All fleets" (`default.yml`). Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
-- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to sign in using **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Either method results in an MDM status of "On (manual)". To get a status of "On (company-owned)", use [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). Can only be configured for "All fleets" (`default.yml`).
-- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
-- `apple_require_hardware_attestation` specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also `true`. In that case, they can't enroll. Can only be configured for "All fleets" (default.yml).
+- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to sign in using **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Either method results in an MDM status of "On (manual)". To get a status of "On (company-owned)", use [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). Can only be configured for "All fleets" (`default.yml`). _Available in Fleet Premium._
+- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`). _Available in Fleet Premium._
+- `apple_require_hardware_attestation` specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also `true`. In that case, they can't enroll. Can only be configured for "All fleets" (default.yml). _Available in Fleet Premium._
 - `only_allow_apple_business_enrollment` specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE) (default: `false`). When `true`, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also `true`, new enrollment is ACME-only: hosts without supported hardware can't enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. Can only be configured for "All fleets" (`default.yml`). _Available in Fleet Premium._
-- `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
+- `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`). _Available in Fleet Premium._
 - `enable_profile_validation` specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited (default: `true`). Settings and payload types Fleet doesn't recognize are always allowed. Set to `false` to skip this check. Can only be configured for "All fleets" (`default.yml`).
 - `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. If a host is renamed on the device, or the device rejects the rename, Fleet tries again automatically, up to 3 times, before marking the host as failed. Fleet detects a rename the next time the host reports its name (about every hour). On macOS, this requires fleetd to be installed and running. _Available in Fleet Premium._
 
@@ -461,15 +461,15 @@ controls:
     - 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
   windows_entra_client_ids:
     - 8c8e3fd4-9b2c-4d3e-8f10-2233445566aa
-  enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
-  windows_migration_enabled: true # Available in Fleet Premium
-  apple_require_hardware_attestation: false # Available in Fleet Premium
-  only_allow_apple_business_enrollment: false # Available in Fleet Premium
+  enable_turn_on_windows_mdm_manually: false
+  windows_migration_enabled: true
+  apple_require_hardware_attestation: false
+  only_allow_apple_business_enrollment: false
   enable_profile_validation: true
-  enable_recovery_lock_password: true # Available in Fleet Premium
-  name_template: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL" # Available in Fleet Premium
+  enable_recovery_lock_password: true
+  name_template: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"
   android_enabled_and_configured: true
-  macos_updates: # Available in Fleet Premium
+  macos_updates:
     # Custom version
     minimum_version: "15.4.1"
     deadline: "2025-07-01"
@@ -477,26 +477,26 @@ controls:
     minimum_version: "latest"
     deadline_days: 14
     update_new_hosts: true
-  ios_updates: # Available in Fleet Premium
+  ios_updates:
     # Custom version
     minimum_version: "18.1"
     deadline: "2024-12-31"
     # OR — Latest version (based on host hardware)
     minimum_version: "latest"
     deadline_days: 14
-  ipados_updates: # Available in Fleet Premium
+  ipados_updates:
     # Custom version
     minimum_version: "18.1"
     deadline: "2024-12-31"
     # OR — Latest version (based on host hardware)
     minimum_version: "latest"
     deadline_days: 14
-  windows_updates: # Available in Fleet Premium
+  windows_updates:
     deadline_days: 5
     grace_period_days: 2
   apple_settings:
-    enable_disk_encryption: true # Available in Fleet Premium
-    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
+    enable_disk_encryption: true
+    enable_escrow_disk_encryption_key: true
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
         self_service: true
@@ -523,10 +523,10 @@ controls:
       - path:  ../lib/windows/profiles/win-firewall.xml
           name: Windows Firewall
           description: Configures firewall rules
-    enable_disk_encryption: true # Available in Fleet Premium
-    require_bitlocker_pin: true # Available in Fleet Premium
+    enable_disk_encryption: true
+    require_bitlocker_pin: true
   linux_settings:
-    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
+    enable_escrow_disk_encryption_key: true
     enable_managed_local_account: true   
   android_settings:
     configuration_profiles:
@@ -536,7 +536,7 @@ controls:
         certificate_authority_name: EST_WIFI
         subject_name: CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
         subject_alternative_name: "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
-  setup_experience: # Available in Fleet Premium
+  setup_experience:
     macos_bootstrap_package: https://example.org/bootstrap_package.pkg
     macos_enable_bootstrap_package_during_manual_enrollment: false
     macos_enable_bootstrap_package_during_migration: false
@@ -545,17 +545,19 @@ controls:
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
     enable_managed_local_account: true
-  macos_migration: # Available in Fleet Premium
+  macos_migration:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
-  apple_account_provisioning: # Available in Fleet Premium
+  apple_account_provisioning:
     oauth_idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
     oauth_idp_client_id: Ooa12345abcdeFGHI678
     oauth_idp_client_secret: a1b2c3d4e5
 ```
 
 ### macos_updates
+
+_Available in Fleet Premium._
 
 - `minimum_version` specifies the minimum required macOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest macOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
 - `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest". (default: `""`).
@@ -564,11 +566,15 @@ controls:
 
 ### ios_updates
 
+_Available in Fleet Premium._
+
 - `minimum_version` specifies the minimum required iOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest iOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
 - `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
 - `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 
 ### ipados_updates
+
+_Available in Fleet Premium._
 
 - `minimum_version` specifies the minimum required iPadOS version. Accepts a specific version number (e.g., `"15.4.1"`) `"latest"` (latest iPadOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
 - `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
@@ -576,11 +582,16 @@ controls:
 
 ### windows_updates
 
+_Available in Fleet Premium._
+
 - `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
 - `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
 ### apple_settings and windows_settings
 
+- `enable_disk_encryption` specifies whether to enforce disk encryption on hosts (default: `false`). _Available in Fleet Premium._
+- `enable_escrow_disk_encryption_key` specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to `true` when a third-party tool handles enforcement. Only supported on macOS (`apple_settings`). _Available in Fleet Premium._
+- `require_bitlocker_pin` specifies whether end users on Windows hosts must set a BitLocker PIN, which is required to unlock the host during startup. `enable_disk_encryption` must be `true`. Only supported on Windows (`windows_settings`). _Available in Fleet Premium._
 - `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `setup_experience.enable_managed_local_account` to be `true`. Only supported on macOS (`apple_settings`). Default: `"admin"`. To force a standard user account on Windows, use the [Autopilot profile](https://fleetdm.com/guides/windows-mdm-setup#force-a-standard-user-account).
 - `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`). Currently Windows only. macOS is [coming soon](https://github.com/fleetdm/fleet/issues/50084).
 - `configuration_profiles` is a list of configuration profiles. Accepts .mobileconfig/.json (macOS/iOS/iPadOS) or .xml (Windows).
@@ -588,7 +599,7 @@ controls:
 - `description` specifies an optional description for the profile.
 
 ### linux_settings
-- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
+- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet. _Available in Fleet Premium._
 
 > `activation` is a path to a JSON file containing custom activation criteria for declaration (DDM) profiles. Only supported for Apple declaration profiles (.json with DDM format). If not specified, no custom activation is applied.
 
@@ -628,6 +639,8 @@ You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables)
 
 ### apple_account_provisioning
 
+_Available in Fleet Premium._
+
 The `apple_account_provisioning` section can only be configured for "All fleets" (`default.yml`) and only supports macOS hosts today
 
   - `oauth_idp_token_url` is the token URL for your Oauth ROPG(Resource Owner Password Grant) IdP. For Okta it is normally of the form https://your-okta-domain.okta.com/oauth2/v1/token
@@ -635,6 +648,8 @@ The `apple_account_provisioning` section can only be configured for "All fleets"
   - `oauth_idp_client_secret` is the client secret of your Oauth ROPG application within your IdP
 
 ### setup_experience
+
+_Available in Fleet Premium._
 
 The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
@@ -673,6 +688,8 @@ setup_experience:
 
 ### macos_migration
 
+_Available in Fleet Premium._
+
 The `macos_migration` section lets you control the [end user migration workflow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) for macOS hosts that enrolled to your old MDM solution.
 
 - `enable` specifies whether or not to enable end user migration workflow (default: `false`)
@@ -695,7 +712,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 The `software` section allows you to configure packages, store apps (Apple App Store and Google Play Store), and Fleet-maintained apps that you want to install on your hosts.
 
 - `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .py, or .ps1).
-- `app_store_apps` is a list of Apple App Store or Android Play Store apps.
+- `app_store_apps` is a list of Apple App Store or Google Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 - `patch_deadline_settings` sets when Fleet patches apps that have `patch_deadline` enabled. See [patch_deadline_settings](#patch-deadline-settings).
 
@@ -938,7 +955,7 @@ software:
 
 App Store apps support `path:` (single file) and `paths:` (glob pattern) references, so you can define an app once in a separate file and reference it from multiple fleets. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
-- `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
+- `app_store_id` is the ID of the Apple App Store or Google Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 
@@ -950,7 +967,7 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
   - Each version defines its own `self_service`, `categories`, labels (`labels_include_any`, `labels_include_all`, `labels_exclude_any`), `auto_update_enabled`, `auto_update_window_start`, `auto_update_window_end`, and `configuration`. See [self_service, labels, categories, setup_experience, and display_name](#self-service-labels-categories-setup-experience-and-display-name) for the shared fields.
   - Up to 10 versions are supported per app.
   - If a host is in scope for more than one version, Fleet installs the one that was added first. Best practice is to scope every version if you add more than one, to prevent conflicts. A version with no labels is in scope on all hosts in the fleet, so if it's added first it's always the one applied.
-- `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
+- `configuration.path` is a relative path to the version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   - You can add an empty configuration if you want the same app installed on different hosts with and without a configuration. In that case the file referenced by `path` should only have `<dict></dict>` for iOS and iPadOS, or `{managedConfiguration: {}}` for Android.
   + Android: all fields from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`.
   - Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
@@ -983,7 +1000,7 @@ software:
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
 
-With the default server configuration, GitOps supports over 200 Android Play Store apps per fleet. If `FLEET_LIVE_QUERY_REST_PERIOD` is set to `30s` or less, GitOps can time out with fewer apps.
+With the default server configuration, GitOps supports over 200 Google Play Store apps per fleet. If `FLEET_LIVE_QUERY_REST_PERIOD` is set to `30s` or less, GitOps can time out with fewer apps.
 
 #### Example
 
@@ -1297,7 +1314,7 @@ The `sso_settings` section lets you define [single sign-on (SSO)](https://fleetd
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
-- `enable_jit_provisioning` specifies whether or not to enable [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
+- `enable_jit_provisioning` specifies whether or not to enable [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`). _Available in Fleet Premium._
 - `enable_sso_idp_login` specifies whether or not to allow single sign-on login initiated by identity provider (default: `false`).
 - `sso_server_url` is used if the URL your Fleet users (admins, maintainers, observers) use to login to Fleet via SSO is different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance.
 
@@ -1313,7 +1330,7 @@ org_settings:
     idp_image_url: https://www.okta.com/favicon.ico
     entity_id: https://example.okta.com
     metadata: $SSO_METADATA
-    enable_jit_provisioning: true # Available in Fleet Premium
+    enable_jit_provisioning: true
     enable_sso_idp_login: true
     sso_server_url: https://admin.example.com # Optional, SSO will only work from this URL
 ```
@@ -1341,6 +1358,10 @@ org_settings:
       - api_key_json: $GOOGLE_WORKSPACE_API_KEY_JSON
         domain: fleetdm.com
         impersonated_user_email: admin@example.com
+    google_conditional_access:
+      customer_id: C01234abc
+      admin_email: fleet-admin@example.com
+      api_key_json: $GOOGLE_CONDITIONAL_ACCESS_API_KEY_JSON
     jira:
       - url: https://example.atlassian.net
         username: user1
@@ -1360,7 +1381,9 @@ org_settings:
 
 `/fleets/fleet-name.yml`
 
-At the fleet level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Microsoft Entra connected.)
+At the fleet level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Okta or Microsoft Entra connected.)
+
+`conditional_access_enabled` only applies to the [Okta](https://fleetdm.com/guides/okta-conditional-access-integration) and [Microsoft Entra](https://fleetdm.com/guides/entra-conditional-access-integration) integrations. Google conditional access (`google_conditional_access`) doesn't use it.
 
 ```yaml
 integrations:
@@ -1388,6 +1411,22 @@ Connecting Google Workspace populates identity provider (IdP) host vitals direct
 - `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key. The service account must have domain-wide delegation enabled (default: `""`).
 - `domain` is your Google Workspace primary domain (default: `""`).
 - `impersonated_user_email` is a Google Workspace admin the service account impersonates via domain-wide delegation (default: `""`).
+
+Can be configured for "All fleets" (`org_settings`).
+
+#### google_conditional_access
+
+_Available in Fleet Premium._
+
+Turning on Google conditional access marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+
+- `customer_id` is your Google customer ID (for example, `C01234abc`). Find it in the Google Admin console under **Account > Account settings** (default: `""`).
+- `admin_email` is the email of the Google Workspace admin Fleet uses to mark hosts as managed (default: `""`).
+- `api_key_json` is the contents of the JSON file downloaded when you create your service account key. The service account must have domain-wide delegation for the `https://www.googleapis.com/auth/cloud-identity.devices` scope. If you leave it out, Fleet keeps the key that's already uploaded (default: `""`).
+
+Fleet checks the key with Google when it changes, including in a dry run (`fleetctl gitops --dry-run`).
+
+To turn off Google conditional access, remove `google_conditional_access`. This deletes the key, so you need to set `api_key_json` to turn it back on. It doesn't unmark hosts in Google. Learn how to [disable Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration#disable).
 
 Can be configured for "All fleets" (`org_settings`).
 
@@ -1455,7 +1494,7 @@ org_settings:
         url: https://example.com/.well-known/est/abc123
         username: $SECTIGO_USERNAME_PASSWORD
         password: $SECTIGO_WIFI_PASSWORD
-    hydrant: # Available in Fleet Premium
+    hydrant:
     - name: EST_WIFI
       url: https://example.com/est
       username: $EST_PROXY_USERNAME
@@ -1525,6 +1564,8 @@ Can only be configured for "All fleets" (`org_settings`).
 - `password` is the password used to authenticate with the EST endpoint.
 
 #### hydrant
+
+_Available in Fleet Premium._
 
 - `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
@@ -1700,6 +1741,8 @@ org_settings:
 
 #### apple_business
 
+_Available in Fleet Premium._
+
 After [adding an Apple Business (AB) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business` section lets you determine which fleet Apple hosts are assigned to in Fleet when they appear in Apple Business.
 
 - `organization_name` is the organization name associated with the Apple Business account.
@@ -1716,7 +1759,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   mdm:
-    apple_business: # Available in Fleet Premium
+    apple_business:
     - organization_name: Fleet Device Management Inc.
       macos_fleet: 💻 Workstations
       ios_fleet: 📱🏢 Company-owned iPhones
@@ -1727,6 +1770,8 @@ org_settings:
 
 #### windows_automatic_enrollment
 
+_Available in Fleet Premium._
+
 The `windows_automatic_enrollment` section lets you control the default fleet that new MDM enrolled Windows hosts get placed in.
 
 - `default_fleet` specifies the name of the fleet that new MDM enrolled Windows hosts will automatically be added to (default: `""`).
@@ -1736,11 +1781,13 @@ The `windows_automatic_enrollment` section lets you control the default fleet th
 ```yaml
 org_settings:
   mdm:
-    windows_automatic_enrollment: # Available in Fleet Premium
+    windows_automatic_enrollment:
       default_fleet: Windows Workstations
 ```
 
 #### volume_purchasing_program
+
+_Available in Fleet Premium._
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 - `location` is the name of the organization unit in the Apple Business account. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
@@ -1757,7 +1804,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   mdm:
-    volume_purchasing_program: # Available in Fleet Premium
+    volume_purchasing_program:
     - location: Fleet Device Management Inc.
       fleets:
       - 💻 Workstations

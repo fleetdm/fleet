@@ -261,8 +261,8 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32, epochPer
 }
 
 // rpmEpoch returns "1" or "2" for percent of package names, and "" (no epoch) for the rest. It's
-// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's shared
-// software metadata, so disagreeing agents would rewrite it constantly.
+// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's part
+// of the software's identity, so disagreeing agents would each get their own software row.
 func rpmEpoch(name string, percent int) string {
 	if stablePercentile("epoch", name) >= percent {
 		return ""
@@ -4595,28 +4595,7 @@ func scheduledQueryResults(packName, queryName string, numResults int) []byte {
 }`)
 }
 
-func (a *agent) connCheck() error {
-	request, err := http.NewRequest("GET", a.serverAddress+"/version", nil)
-	if err != nil {
-		panic(err)
-	}
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return errors.New(http.StatusText(response.StatusCode))
-	}
-	return nil
-}
-
 func (a *agent) submitLogs(results []resultLog) error {
-	// Connection check to prevent unnecessary JSON marshaling when the server is down.
-	if err := a.connCheck(); err != nil {
-		return fmt.Errorf("/version check failed: %w", err)
-	}
-
 	var resultLogs []byte
 	for i, result := range results {
 		if i > 0 {

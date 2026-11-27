@@ -97,7 +97,7 @@ type csrCallbackSigner interface {
 // challengeMiddleware checks that ChallengePassword is a one-time challenge Fleet created for the host in the CSR's
 // device URI, or a global enroll secret, which profiles written before one-time challenges carry, and signs the CSR
 // with that device URI as the certificate's only SAN, rather than every SAN the requester asked for. The global enroll
-// secret isn't accepted for hosts whose platform gets one-time enroll secrets.
+// secret is only accepted for a host enrolled in Fleet MDM whose platform doesn't get one-time enroll secrets.
 // Unlike host identity SCEP, this does NOT support renewal (no renewal extension check).
 func challengeMiddleware(ds fleet.Datastore, logger *slog.Logger, mdmConfig config.MDMConfig, next csrCallbackSigner) scepserver.CSRSignerContextFunc {
 	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
@@ -109,7 +109,7 @@ func challengeMiddleware(ds fleet.Datastore, logger *slog.Logger, mdmConfig conf
 			return nil, errors.New("no device UUID found in CSR SAN URI")
 		}
 		// Looked up before any challenge is used, so a request for a host that doesn't exist doesn't use one up.
-		host, err := ds.HostByUUID(ctx, hostUUID)
+		_, err := ds.HostByUUID(ctx, hostUUID)
 		switch {
 		case fleet.IsNotFound(err):
 			return nil, errors.New("unknown host")
@@ -123,22 +123,27 @@ func challengeMiddleware(ds fleet.Datastore, logger *slog.Logger, mdmConfig conf
 			})
 		}
 
-		if mdmConfig.GlobalEnrollSecretAllowed(host.Platform) {
-			secret, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
-			switch {
-			case err == nil:
-				// Only global enroll secrets (team_id IS NULL) are valid for
-				// conditional-access SCEP. Reject team-scoped secrets.
-				if secret.TeamID != nil {
-					return nil, errors.New("invalid challenge")
-				}
-				// Anyone holding the secret can get a certificate for any host, so admins need to find who still uses it.
-				logger.WarnContext(ctx, "conditional access certificate requested with a global enroll secret, redeploy the Okta profile to use one-time challenges",
-					"host_uuid", hostUUID)
-				return sign()
-			case !fleet.IsNotFound(err):
-				return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+		secret, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
+		switch {
+		case err == nil:
+			// Only global enroll secrets (team_id IS NULL) are valid for
+			// conditional-access SCEP. Reject team-scoped secrets.
+			if secret.TeamID != nil {
+				return nil, errors.New("invalid challenge")
 			}
+			allowed, err := globalEnrollSecretAllowed(ctx, ds, mdmConfig, hostUUID)
+			if err != nil {
+				return nil, err
+			}
+			if !allowed {
+				return nil, errors.New("invalid challenge")
+			}
+			// Anyone holding the secret can get a certificate for any host, so admins need to find who still uses it.
+			logger.WarnContext(ctx, "conditional access certificate requested with a global enroll secret, redeploy the Okta profile to use one-time challenges",
+				"host_uuid", hostUUID)
+			return sign()
+		case !fleet.IsNotFound(err):
+			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
 		}
 
 		err = ds.ConsumeConditionalAccessSCEPChallenge(ctx, m.ChallengePassword, hostUUID)
@@ -150,6 +155,24 @@ func challengeMiddleware(ds fleet.Datastore, logger *slog.Logger, mdmConfig conf
 		}
 		return sign()
 	}
+}
+
+// globalEnrollSecretAllowed reports whether the global enroll secret is accepted for the host. The Okta profile only
+// reaches a host through Fleet MDM, so Fleet's own enrollment records decide, not the platform the host reports.
+func globalEnrollSecretAllowed(ctx context.Context, ds fleet.Datastore, mdmConfig config.MDMConfig, hostUUID string) (bool, error) {
+	enrollment, err := ds.GetNanoMDMEnrollment(ctx, hostUUID)
+	if err != nil {
+		return false, fmt.Errorf("looking up Apple MDM enrollment: %w", err)
+	}
+	apple := enrollment != nil && enrollment.Enabled
+	_, err = ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, hostUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, fmt.Errorf("looking up Windows MDM enrollment: %w", err)
+	}
+	windows := err == nil
+	return (apple || windows) &&
+		!(apple && mdmConfig.AppleOneTimeEnrollSecrets) &&
+		!(windows && mdmConfig.WindowsOneTimeEnrollSecrets), nil
 }
 
 var _ scepserver.Service = (*service)(nil)
@@ -214,7 +237,11 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 
 	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.logger)))
 	if err != nil {
-		return nil, err
+		// The body is not a valid SCEP pkiMessage, which is a client error.
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
 	}
 
 	cert, err := caKeyPair(ctx, svc.ds)

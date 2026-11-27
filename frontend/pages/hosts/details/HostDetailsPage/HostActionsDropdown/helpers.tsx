@@ -17,6 +17,7 @@ import {
   isMobilePlatform,
   isAndroid,
   isIPadOrIPhone,
+  isWindows,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
@@ -73,8 +74,18 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "View unlock PIN",
+    value: "viewUnlockPin",
+    disabled: false,
+  },
+  {
     label: "Wipe",
     value: "wipe",
+    disabled: false,
+  },
+  {
+    label: "Reset",
+    value: "reset",
     disabled: false,
   },
   {
@@ -136,6 +147,7 @@ interface IHostActionConfigOptions {
   wipeAllowed?: boolean;
   lockAllowed?: boolean;
   clearPasscodeAllowed?: boolean;
+  unlockPinAvailable?: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -282,6 +294,10 @@ const canWipeHost = ({
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
+
+// Reset (erase but keep provisioning packages) is Windows-only for now; otherwise it follows the Wipe rules.
+const canResetHost = (config: IHostActionConfigOptions) =>
+  isWindows(config.hostPlatform) && canWipeHost(config);
 
 const canUnlock = ({
   isPremiumTier,
@@ -466,6 +482,18 @@ const canReleaseFromAB = (config: IHostActionConfigOptions) => {
   return true;
 };
 
+const canViewUnlockPin = (config: IHostActionConfigOptions) =>
+  config.isPremiumTier &&
+  isAndroid(config.hostPlatform) &&
+  !!config.unlockPinAvailable &&
+  // Same rule as Clear passcode: hide while a Lock, Unenroll, Wipe or Clear
+  // passcode is pending, since the stored PIN may not be the one the device accepts yet.
+  config.hostMdmDeviceStatus === "unlocked" &&
+  (config.isGlobalAdmin ||
+    config.isGlobalMaintainer ||
+    config.isTeamAdmin ||
+    config.isTeamMaintainer);
+
 const canClearPasscode = (config: IHostActionConfigOptions) => {
   if (!config.isPremiumTier) {
     return false;
@@ -582,6 +610,10 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "clearPasscode");
   }
 
+  if (!canViewUnlockPin(config)) {
+    options = options.filter((option) => option.value !== "viewUnlockPin");
+  }
+
   if (!canTurnOffMdm(config)) {
     options = options.filter((option) => option.value !== "mdmOff");
   }
@@ -603,6 +635,10 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "wipe");
   }
 
+  if (!canResetHost(config)) {
+    options = options.filter((option) => option.value !== "reset");
+  }
+
   if (!canUnlock(config)) {
     options = options.filter((option) => option.value !== "unlock");
   }
@@ -620,8 +656,17 @@ const PENDING_GATED_OPTIONS: (string | number)[] = [
   "mdmOff",
   "lock",
   "wipe",
+  "reset",
   "clearPasscode",
 ];
+
+// A wipe replaces a pending reset, or goes out if an acknowledged reset is interrupted.
+const canWipeOverReset = (
+  hostPlatform: IHostActionConfigOptions["hostPlatform"],
+  hostMdmDeviceStatus: HostMdmDeviceStatusUIState
+) =>
+  hostPlatform === "windows" &&
+  (hostMdmDeviceStatus === "resetting" || hostMdmDeviceStatus === "reset");
 
 const DEVICE_STATUS_TOOLTIP_TEXT: Record<HostMdmDeviceStatusUIState, string> = {
   unlocked: "unlocked",
@@ -634,6 +679,10 @@ const DEVICE_STATUS_TOOLTIP_TEXT: Record<HostMdmDeviceStatusUIState, string> = {
   // Lost Mode with a location request pending; the host itself is locked.
   locating: "locked",
   unenrolling: "unenrolling",
+  resetting: "resetting",
+  reset: "reset",
+  // A wipe waits behind the reset; the host shows as reset.
+  reset_wipe_pending: "reset",
 };
 
 const getDeviceStatusTooltip = (
@@ -784,7 +833,9 @@ const modifyOptions = (
   if (
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
-    hostMdmDeviceStatus === "wiped"
+    hostMdmDeviceStatus === "wiped" ||
+    hostMdmDeviceStatus === "reset" ||
+    hostMdmDeviceStatus === "reset_wipe_pending"
   ) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "query")
@@ -926,6 +977,11 @@ const modifyOptions = (
   if (hostMdmDeviceStatus && hostMdmDeviceStatus !== "unlocked") {
     options
       .filter((option) => PENDING_GATED_OPTIONS.includes(option.value))
+      .filter(
+        (option) =>
+          option.value !== "wipe" ||
+          !canWipeOverReset(hostPlatform, hostMdmDeviceStatus)
+      )
       .forEach((option) => {
         option.disabled = true;
         option.tooltipContent = getDeviceStatusTooltip(

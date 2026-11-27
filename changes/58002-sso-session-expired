@@ -1,0 +1,1 @@
+- Fixed SSO sign-in failing in Chrome when the user took more than about 2 minutes at the identity provider. When an SSO sign-in does time out, the login page now asks the user to try again instead of showing a generic error.

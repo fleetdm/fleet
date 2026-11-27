@@ -169,7 +169,7 @@ func (svc *Service) getVPPTokenByID(ctx context.Context, id *uint) (*fleet.VPPTo
 	}
 
 	if time.Now().After(token.RenewDate) {
-		return nil, fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return nil, fleet.NewUserMessageError(fmt.Errorf("Couldn't install. VPP token %q is expired. Please renew it and try again.", token.Location), http.StatusUnprocessableEntity)
 	}
 
 	return token, nil
@@ -336,7 +336,7 @@ func vppLocationNotFoundError(location string) error {
 }
 
 func vppTokenExpiredError(tok *fleet.VPPTokenDB) error {
-	return fleet.NewInvalidArgumentError("app_store_apps", fmt.Sprintf("Couldn't apply. %q VPP token is expired. Please renew it.", tok.Location))
+	return fleet.NewInvalidArgumentError("app_store_apps", fmt.Sprintf("Couldn't apply. VPP token %q is expired. Please renew it and try again.", tok.Location))
 }
 
 // vppMissingAsset is an app that its token's assets don't include.
@@ -356,6 +356,21 @@ func vppAssetsMissingError(missing []vppMissingAsset) error {
 	lines := make([]string, 0, len(missing))
 	for _, m := range missing {
 		lines = append(lines, fmt.Sprintf(`Couldn't apply. App %q isn't available in the %q VPP token. Please purchase a license in Apple Business and try again.`, m.adamID, m.location))
+	}
+	return fleet.NewInvalidArgumentError("app_store_apps", strings.Join(lines, "\n"))
+}
+
+// vppAssetsMissingInAnyTokenError is the dry-run new-team equivalent of
+// vppAssetsMissingError: before the fleet exists its token can't be known, so
+// each missing app is blamed on the token set, not a specific location.
+func vppAssetsMissingInAnyTokenError(adamIDs []string) error {
+	if len(adamIDs) == 0 {
+		return nil
+	}
+	sort.Strings(adamIDs)
+	lines := make([]string, 0, len(adamIDs))
+	for _, adamID := range adamIDs {
+		lines = append(lines, fmt.Sprintf(`Couldn't apply. App %q isn't available in any VPP token. Please purchase a license in Apple Business and try again.`, adamID))
 	}
 	return fleet.NewInvalidArgumentError("app_store_apps", strings.Join(lines, "\n"))
 }
@@ -673,7 +688,7 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 		}
 	}
 	if unexpired == 0 {
-		return fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return fleet.NewInvalidArgumentError("app_store_apps", "Couldn't apply. All VPP tokens are expired. Please renew one and try again.")
 	}
 	if readable == 0 {
 		return ctxerr.Wrap(ctx, fetchErr, "unable to retrieve assets")
@@ -685,12 +700,7 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 			missing = append(missing, adamID)
 		}
 	}
-	if len(missing) != 0 {
-		sort.Strings(missing)
-		reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missing, ", "))
-		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
-	}
-	return nil
+	return vppAssetsMissingInAnyTokenError(missing)
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, []string, error) {
@@ -986,11 +996,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
 						return nil, nil, err
 					}
-					if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
-						if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
-							return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
-						}
-						return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+					if err := svc.validateAppConfigCustomHostVitals(ctx, payload.Configuration); err != nil {
+						return nil, nil, err
 					}
 				}
 				appStoreApp.Configuration = payload.Configuration
@@ -1002,6 +1009,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 						return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 					}
 					if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
+						return nil, nil, err
+					}
+					if err := svc.validateAppConfigCustomHostVitals(ctx, []byte(plist)); err != nil {
 						return nil, nil, err
 					}
 					appStoreApp.Configuration = []byte(plist)
@@ -1436,11 +1446,8 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 
 		if appID.Configuration != nil {
-			if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(appID.Configuration)}); err != nil {
-				if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
-					return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
-				}
-				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+			if err := svc.validateAppConfigCustomHostVitals(ctx, appID.Configuration); err != nil {
+				return nil, err
 			}
 		}
 
@@ -1592,6 +1599,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 				return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 			}
 			if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
+				return nil, err
+			}
+			if err := svc.validateAppConfigCustomHostVitals(ctx, []byte(plist)); err != nil {
 				return nil, err
 			}
 			app.Configuration = []byte(plist)
@@ -1896,6 +1906,9 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 			return nil, nil, err
 		}
+		if err := svc.validateAppConfigCustomHostVitals(ctx, []byte(plist)); err != nil {
+			return nil, nil, err
+		}
 		datastoreConfig = []byte(plist)
 	}
 
@@ -1977,11 +1990,8 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			return nil, nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
 		}
 
-		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
-			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
-				return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
-			}
-			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+		if err := svc.validateAppConfigCustomHostVitals(ctx, payload.Configuration); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -2043,7 +2053,24 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	// Build the activity's labels and configuration from the pre-update read and the request, not from
+	// the re-read above (which can hit a lagging replica): a partial edit keeps the stored values.
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
+	if validatedLabels != nil {
+		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(validatedLabels)
+	}
+	actConfiguration := payload.Configuration
+	if actConfiguration == nil && len(meta.Configuration) > 0 {
+		actConfiguration = meta.Configuration
+		switch meta.Platform {
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			wrapped, err := json.Marshal(string(meta.Configuration))
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for activity")
+			}
+			actConfiguration = wrapped
+		}
+	}
 
 	act := fleet.ActivityEditedAppStoreApp{
 		VPPToken:            actVPPToken,
@@ -2059,7 +2086,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: updatedAppMeta.DisplayName,
-		Configuration:       payload.Configuration,
+		Configuration:       actConfiguration,
 	}
 
 	act.VersionName = updatedAppMeta.VersionName
@@ -2633,6 +2660,16 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 				}
 			}
 		}
+	}
+	return nil
+}
+
+func (svc *Service) validateAppConfigCustomHostVitals(ctx context.Context, config []byte) error {
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(config)}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
 	}
 	return nil
 }

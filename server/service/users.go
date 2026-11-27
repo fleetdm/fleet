@@ -1390,7 +1390,6 @@ func (svc *Service) saveUser(ctx context.Context, user *fleet.User) error {
 
 type performRequiredPasswordResetRequest struct {
 	Password string `json:"new_password"`
-	ID       uint   `json:"id"`
 }
 
 type performRequiredPasswordResetResponse struct {

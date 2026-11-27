@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.7.0",
+      "version": "5.7.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.' AND version_compare(version, '5.7.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Dell Command %Update' AND publisher = 'Dell Inc.' AND version_compare(version, '5.7.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('dellcommandupdate.exe','dcu-cli.exe'));"
       },
-      "installer_url": "https://dl.dell.com/FOLDER14424243M/1/Dell-Command-Update-Application_RXT5N_WIN64_5.7.0_A00.EXE",
+      "installer_url": "https://downloads.dell.com/FOLDER15013494M/2/Dell-Command-Update-for-Win32_WYJ59_WIN64_5.7.2_A00.EXE",
       "install_script_ref": "9f0e4526",
       "uninstall_script_ref": "7a313b8a",
-      "sha256": "b6d0d06edf25a7d9092208b2686502e031deda5ccb2d283ba8a434b27891f3cf",
+      "sha256": "5c20e1a352fdbc0a9759504db37c7b8c694f4024f5f5313c5130c0959be8d484",
       "default_categories": [
         "Productivity"
       ]

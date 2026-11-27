@@ -1,0 +1,1 @@
+- **Breaking change:** Removed support for Kolide's launcher agent. Fleet no longer runs a gRPC server, so hosts running launcher can no longer enroll or check in. Replace launcher with fleetd.

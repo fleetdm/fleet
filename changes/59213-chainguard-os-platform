@@ -1,0 +1,1 @@
+- Added Chainguard OS (`chainguard`) to the recognized Linux platforms, so its hosts report host vitals, run Linux detail queries and support scripts.

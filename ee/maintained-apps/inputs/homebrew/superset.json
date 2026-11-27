@@ -1,8 +1,12 @@
 {
   "name": "Superset",
   "unique_identifier": "com.superset.desktop",
-  "token": "superset",
+  "token": "paradev",
   "installer_format": "dmg",
   "slug": "superset/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/superset-install.sh",
+  "post_uninstall_scripts": [
+    "sudo rm -rf '/Applications/Superset.app'"
+  ],
   "default_categories": ["Developer tools"]
 }

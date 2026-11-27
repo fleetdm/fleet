@@ -83,6 +83,9 @@ LIMIT ?
 
 	query = fmt.Sprintf(query, nameClause)
 	args = append(args, maxNumJobs)
+	// The queue is mutated on the primary (UpdateJob), so it must be read from
+	// there too, otherwise replica lag returns jobs that were already processed.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	var jobs []*fleet.Job
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &jobs, query, args...)
 	if err != nil {

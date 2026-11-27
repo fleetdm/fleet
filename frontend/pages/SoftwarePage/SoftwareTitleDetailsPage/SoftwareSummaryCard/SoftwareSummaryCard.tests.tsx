@@ -45,6 +45,8 @@ describe("Software Summary Card", () => {
         router={router}
         refetchSoftwareTitle={jest.fn()}
         onClickVersions={jest.fn()}
+        iconUploadedAt=""
+        setIconUploadedAt={jest.fn()}
       />
     );
     // Get the text with aria label "software display name"
@@ -86,6 +88,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -134,6 +138,23 @@ describe("Software Summary Card", () => {
         })
       );
       expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+    });
+
+    it("shows 'Web app (Android)' type and no Versions for Android web apps", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          source: "android_apps",
+          packages: null,
+          app_store_apps: [
+            createMockAppStoreAppVersionAndroid({
+              app_store_id: "com.google.enterprise.webapp.abc123",
+            }),
+          ],
+        })
+      );
+      expect(screen.getByText("Web app (Android)")).toBeInTheDocument();
+      expect(screen.queryByText("Versions")).not.toBeInTheDocument();
     });
 
     it("shows no GitOps IDs for custom packages", () => {
@@ -198,6 +219,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
@@ -225,6 +248,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -249,6 +274,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -277,6 +304,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -301,6 +330,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -324,6 +355,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
@@ -356,6 +389,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -381,6 +416,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -423,6 +460,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -442,6 +481,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
@@ -486,6 +527,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -526,6 +569,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -562,6 +607,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -598,6 +645,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -639,6 +688,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -660,6 +711,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -679,6 +732,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -696,6 +751,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -721,6 +778,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -751,6 +810,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
           canActivateMultiplePackages
         />
       );
@@ -777,6 +838,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -802,6 +865,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -829,6 +894,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -860,6 +927,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -878,6 +947,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -903,6 +974,8 @@ describe("Software Summary Card", () => {
           router={pushedRouter}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -937,6 +1010,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -951,6 +1026,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
       expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
@@ -964,6 +1041,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
       expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
@@ -988,6 +1067,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1013,6 +1094,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1033,6 +1116,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1073,6 +1158,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1103,6 +1190,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 
@@ -1124,6 +1213,8 @@ describe("Software Summary Card", () => {
           router={router}
           refetchSoftwareTitle={jest.fn()}
           onClickVersions={jest.fn()}
+          iconUploadedAt=""
+          setIconUploadedAt={jest.fn()}
         />
       );
 

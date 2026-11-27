@@ -1,0 +1,1 @@
+- Added support for custom host vitals (`$FLEET_HOST_VITAL_*`) in iOS and iPadOS App Store and in-house app configurations.

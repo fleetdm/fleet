@@ -22,40 +22,6 @@ import (
 // Add
 /////////////////////////////////////////////////////////////////////////////////
 
-func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.TeamPolicyRequest)
-	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
-		Name:                         req.Name,
-		Query:                        req.Query,
-		Description:                  req.Description,
-		Resolution:                   req.Resolution,
-		Platform:                     req.Platform,
-		Critical:                     req.Critical,
-		CalendarEventsEnabled:        req.CalendarEventsEnabled,
-		SoftwareTitleID:              req.SoftwareTitleID,
-		SoftwareInstallerID:          req.SoftwareInstallerID,
-		ScriptID:                     req.ScriptID,
-		LabelsIncludeAny:             req.LabelsIncludeAny,
-		LabelsIncludeAll:             req.LabelsIncludeAll,
-		LabelsExcludeAny:             req.LabelsExcludeAny,
-		LabelsExcludeAll:             req.LabelsExcludeAll,
-		ConditionalAccessEnabled:     req.ConditionalAccessEnabled,
-		Hidden:                       req.Hidden,
-		ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
-		Type:                         req.Type,
-		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
-		PatchWhenClosed:              req.PatchWhenClosed,
-		NotifyBeforePatching:         req.NotifyBeforePatching,
-		PatchDeadline:                req.PatchDeadline,
-		ProfileUUID:                  req.ProfileUUID,
-		AutomationType:               req.AutomationType,
-	})
-	if err != nil {
-		return fleet.TeamPolicyResponse{Err: err}, nil
-	}
-	return fleet.TeamPolicyResponse{Policy: resp}, nil
-}
-
 func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewTeamPolicyPayload) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
@@ -200,6 +166,11 @@ func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy
 	}
 	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
 		return ctxerr.Wrap(ctx, err, "populate patch_software")
+	}
+	// Set force_patch from the installer and other options, since install_software is deprecated.
+	if policy.Type == fleet.PolicyTypePatch && policy.InstallSoftware != nil &&
+		!policy.PatchWhenClosed && !policy.NotifyBeforePatching && !policy.PatchDeadline {
+		policy.ForcePatch = true
 	}
 	return nil
 }
@@ -425,23 +396,6 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 // List
 /////////////////////////////////////////////////////////////////////////////////
 
-func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.ListTeamPoliciesRequest)
-
-	inheritedListOptions := fleet.ListOptions{
-		Page:           req.InheritedPage,
-		PerPage:        req.InheritedPerPage,
-		OrderDirection: req.InheritedOrderDirection,
-		OrderKey:       req.InheritedOrderKey,
-	}
-
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType, req.Platform)
-	if err != nil {
-		return fleet.ListTeamPoliciesResponse{Err: err}, nil
-	}
-	return fleet.ListTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
-}
-
 func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
@@ -498,15 +452,6 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 // Count
 /////////////////////////////////////////////////////////////////////////////////
 
-func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.CountTeamPoliciesRequest)
-	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType, req.Platform)
-	if err != nil {
-		return fleet.CountTeamPoliciesResponse{Err: err}, nil
-	}
-	return fleet.CountTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
-}
-
 func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType fleet.PolicyAutomationType, platform string) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
@@ -555,15 +500,6 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 // Get by id
 /////////////////////////////////////////////////////////////////////////////////
 
-func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.GetTeamPolicyByIDRequest)
-	teamPolicy, err := svc.GetTeamPolicyByID(ctx, req.TeamID, req.PolicyID)
-	if err != nil {
-		return fleet.GetTeamPolicyByIDResponse{Err: err}, nil
-	}
-	return fleet.GetTeamPolicyByIDResponse{Policy: teamPolicy}, nil
-}
-
 func (svc Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
@@ -591,15 +527,6 @@ func (svc Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID 
 /////////////////////////////////////////////////////////////////////////////////
 // Delete
 /////////////////////////////////////////////////////////////////////////////////
-
-func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.DeleteTeamPoliciesRequest)
-	resp, err := svc.DeleteTeamPolicies(ctx, req.TeamID, req.IDs)
-	if err != nil {
-		return fleet.DeleteTeamPoliciesResponse{Err: err}, nil
-	}
-	return fleet.DeleteTeamPoliciesResponse{Deleted: resp}, nil
-}
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
@@ -695,15 +622,6 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 /////////////////////////////////////////////////////////////////////////////////
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
-
-func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.ModifyTeamPolicyRequest)
-	resp, err := svc.ModifyTeamPolicy(ctx, req.TeamID, req.PolicyID, req.ModifyPolicyPayload)
-	if err != nil {
-		return fleet.ModifyTeamPolicyResponse{Err: err}, nil
-	}
-	return fleet.ModifyTeamPolicyResponse{Policy: resp}, nil
-}
 
 func (svc *Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
 	return svc.modifyPolicy(ctx, &teamID, id, p)
@@ -874,10 +792,6 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	policy.PatchWhenClosed = patchWhenClosed
 	policy.NotifyBeforePatching = notifyBeforePatching
 	policy.PatchDeadline = patchDeadline
-	if removeStats {
-		policy.FailingHostCount = 0
-		policy.PassingHostCount = 0
-	}
 	// A chosen package without a title has nothing to resolve against (the software block below
 	// only runs when the title is set), so reject it rather than silently ignore the choice.
 	if !p.SoftwareTitleID.Set && p.SoftwareInstallerID.Set && p.SoftwareInstallerID.Value != 0 {
@@ -941,10 +855,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	// provided fields switch scope and clear the others. Sending none of them (all nil) leaves
 	// labels untouched.
 	if p.LabelsIncludeAny != nil || p.LabelsIncludeAll != nil || p.LabelsExcludeAny != nil || p.LabelsExcludeAll != nil {
+		labelsBefore := policyLabelScopes(policy)
 		policy.LabelsIncludeAny = fleet.LabelNamesToIdents(p.LabelsIncludeAny)
 		policy.LabelsIncludeAll = fleet.LabelNamesToIdents(p.LabelsIncludeAll)
 		policy.LabelsExcludeAny = fleet.LabelNamesToIdents(p.LabelsExcludeAny)
 		policy.LabelsExcludeAll = fleet.LabelNamesToIdents(p.LabelsExcludeAll)
+		// A label change leaves stale counts too, like a platform change.
+		if !maps.Equal(labelsBefore, policyLabelScopes(policy)) {
+			removeStats = true
+		}
 	}
 
 	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {
@@ -976,10 +895,16 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
+	if removeStats {
+		policy.FailingHostCount = 0
+		policy.PassingHostCount = 0
+		policy.HostCountUpdatedAt = nil
+	}
 	err = svc.ds.SavePolicy(ctx, policy, removeAllMemberships, removeStats)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
+	svc.TriggerPolicyMembershipCleanup(ctx)
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
@@ -1130,4 +1055,25 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	// At this point we assume *softwareTitle.Packages[0].TeamID == *teamID,
 	// because SoftwareTitleByID above receives the teamID.
 	return new(softwareTitle.Packages[0].InstallerID), nil, nil
+}
+
+type policyLabelScope struct {
+	scope string
+	name  string
+}
+
+// policyLabelScopes returns the policy's labels with their scope, to compare label scopes regardless of order.
+func policyLabelScopes(p *fleet.Policy) map[policyLabelScope]struct{} {
+	scopes := make(map[policyLabelScope]struct{})
+	for scope, labels := range map[string][]fleet.LabelIdent{
+		"include_any": p.LabelsIncludeAny,
+		"include_all": p.LabelsIncludeAll,
+		"exclude_any": p.LabelsExcludeAny,
+		"exclude_all": p.LabelsExcludeAll,
+	} {
+		for _, label := range labels {
+			scopes[policyLabelScope{scope: scope, name: label.LabelName}] = struct{}{}
+		}
+	}
+	return scopes
 }

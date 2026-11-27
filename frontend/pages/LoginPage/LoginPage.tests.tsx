@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 
 import { createMockConfig } from "__mocks__/configMock";
 import createMockUser from "__mocks__/userMock";
+import { notify } from "components/ToastNotification";
 import paths from "router/paths";
 import mockServer from "test/mock-server";
 import {
@@ -16,6 +17,10 @@ import {
 import authToken from "utilities/auth_token";
 
 import LoginPage from "./LoginPage";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: { success: jest.fn(), error: jest.fn() },
+}));
 
 const ssoEnabledHandler = http.get("/api/v1/fleet/sso", () =>
   HttpResponse.json({ settings: { sso_enabled: true } })
@@ -57,6 +62,25 @@ describe("LoginPage", () => {
     expect(
       await screen.findByText("Your session expired. Log in to continue.")
     ).toBeInTheDocument();
+  });
+
+  it("asks the user to retry when the SSO sign-in timed out", async () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <LoginPage
+        router={createMockRouter()}
+        location={createMockLocation({
+          pathname: "/login",
+          search: "?status=session_expired",
+        })}
+      />
+    );
+
+    await waitFor(() =>
+      expect(notify.error).toHaveBeenCalledWith(
+        "Your session may have timed out. Please try again. Contact your Fleet administrator if the error persists."
+      )
+    );
   });
 
   it("does not show the session-expired notice on a regular visit", async () => {

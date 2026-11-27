@@ -77,6 +77,7 @@ export interface IDepAssignmentHostResponse {
     assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
     response_updated_at: string;
+    throttled_retry_after: string | null;
     added_at: string;
     deleted_at: string | null;
     ab_token_id: number;
@@ -89,6 +90,8 @@ export type IUnlockHostResponse =
   | {
       host_id: number;
       unlock_pin: string;
+      locked_at?: string;
+      device_status?: string;
     }
   | Record<string, never>;
 
@@ -759,6 +762,11 @@ export default {
   wipeHost: (id: number) => {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  resetHost: (id: number) => {
+    const { HOST_RESET } = endpoints;
+    return sendRequest("POST", HOST_RESET(id));
   },
 
   clearPasscode: (id: number) => {

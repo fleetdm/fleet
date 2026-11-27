@@ -1508,7 +1508,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		}, nil
 	}
 
-	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+	ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 		return "secret", nil
 	}
 
@@ -1575,7 +1575,7 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		}, nil
 	}
 
-	ds.NewChallengeFunc = func(ctx context.Context) (string, error) {
+	ds.NewChallengeFunc = func(ctx context.Context, scope fleet.ChallengeScope) (string, error) {
 		return "secret", nil
 	}
 
@@ -3990,7 +3990,15 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		{name: "different host", enrollingHost: enrollingHost, existing: linked, lockWipe: noLockWipe, wantErr: refused},
 		{name: "different host, existing host's wipe pending", enrollingHost: enrollingHost, existing: linked, lockWipe: pendingWipe, wantErr: refused},
 		{name: "Entra: same host re-enrolling", enrollingEntraDeviceID: existingEntraDeviceID, existing: linkedEntra},
-		{name: "Entra: existing enrollment unbound", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked},
+		{
+			name: "Entra: existing host unbound, its wipe pending", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked,
+			lockWipe: pendingWipe, wantErr: refused,
+		},
+		{name: "Entra: existing host unbound, was wiped", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked, lockWipe: wiped},
+		{
+			name: "Entra: existing enrollment unbound and not linked to a host", enrollingEntraDeviceID: enrollingEntraDeviceID,
+			existing: &fleet.MDMWindowsEnrolledDevice{},
+		},
 		{name: "Entra: different host", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linkedEntra, lockWipe: noLockWipe, wantErr: refused},
 		{name: "Entra: different host, existing host was wiped", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linkedEntra, lockWipe: wiped},
 		{
@@ -3998,7 +4006,7 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			wantErr: refused,
 		},
 		{name: "Entra: no deviceid, enrollment bound", existing: linkedEntra, lockWipe: noLockWipe, wantErr: refused},
-		{name: "Entra: no deviceid, enrollment unbound", existing: linked},
+		{name: "Entra: no deviceid, existing host unbound", existing: linked, lockWipe: noLockWipe, wantErr: refused},
 		{
 			name: "Entra: same Autopilot host", enrollingEntraDeviceID: existingEntraDeviceID, existing: linked,
 			autopilotEntraDeviceID: existingEntraDeviceID,
@@ -4011,10 +4019,12 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			name: "Entra: different host than the Autopilot host", enrollingEntraDeviceID: enrollingEntraDeviceID, existing: linked,
 			autopilotEntraDeviceID: existingEntraDeviceID, lockWipe: noLockWipe, wantErr: refused,
 		},
-		// A tenant whose tokens never carry deviceid must keep re-enrolling its Autopilot devices.
-		{name: "Entra: no deviceid, Autopilot host", existing: linked, autopilotEntraDeviceID: existingEntraDeviceID},
+		{
+			name: "Entra: no deviceid, Autopilot host", existing: linked, autopilotEntraDeviceID: existingEntraDeviceID,
+			lockWipe: noLockWipe, wantErr: refused,
+		},
 		{name: "same enrollment holds both IDs", enrollingHost: existingHost, existing: linked, byDeviceID: linked},
-		{name: "device ID held by the same host", enrollingHost: existingHost, byDeviceID: linkedOtherHardwareID},
+		{name: "device ID held by the same host, its Entra device ID not carried over", enrollingHost: existingHost, byDeviceID: linkedEntraOtherHardwareID},
 		{
 			name: "device ID held by another host", enrollingHost: enrollingHost, byDeviceID: linkedOtherHardwareID, lockWipe: noLockWipe,
 			wantErr: refusedDeviceID,
@@ -4023,6 +4033,10 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 		{
 			name: "Entra: device ID held by another host", enrollingEntraDeviceID: enrollingEntraDeviceID,
 			byDeviceID: linkedEntraOtherHardwareID, lockWipe: noLockWipe, wantErr: refusedDeviceID,
+		},
+		{
+			name: "Entra: device ID held by an unbound host", enrollingEntraDeviceID: enrollingEntraDeviceID,
+			byDeviceID: linkedOtherHardwareID, lockWipe: noLockWipe, wantErr: refusedDeviceID,
 		},
 		{name: "lookup fails", enrollingHost: enrollingHost, dsErr: errors.New("db is down"), wantErr: "db is down"},
 	} {
@@ -4083,6 +4097,14 @@ func TestCheckWindowsMDMEnrollmentCanReplaceExisting(t *testing.T) {
 			idKey, id, matched := "mdm_hardware_id", hwID, tc.existing
 			if tc.wantErr == refusedDeviceID {
 				idKey, id, matched = "mdm_device_id", deviceID, tc.byDeviceID
+			}
+			if tc.enrollingHost == "" && matched.EntraDeviceID == "" && tc.autopilotEntraDeviceID == "" {
+				require.Equal(t, map[string]string{
+					idKey:                       id,
+					"enrolling_entra_device_id": tc.enrollingEntraDeviceID,
+					"existing_host_uuid":        matched.HostUUID,
+				}, attrs)
+				return
 			}
 			if tc.enrollingHost == "" && tc.enrollingEntraDeviceID == "" {
 				require.Equal(t, map[string]string{
@@ -4357,6 +4379,54 @@ func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, cmds, c.wantSent)
 			// A held-back probe is still pending, so the session must not clear has_pending_commands.
+			require.False(t, onlyPollCmdsPending)
+		})
+	}
+}
+
+// A failed check for a RemoteWipe in progress holds the RemoteWipe and sends the other commands.
+func TestGetPendingMDMCmdsHoldsRemoteWipeWhenTheCheckFails(t *testing.T) {
+	const wipeLocURI = "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected"
+	var checkErr error
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{
+			{
+				CommandUUID:  "wipe",
+				RawCommand:   []byte(`<Exec><CmdID>wipe</CmdID><Item><Target><LocURI>` + wipeLocURI + `</LocURI></Target></Item></Exec>`),
+				TargetLocURI: wipeLocURI,
+			},
+			{
+				CommandUUID:  "profile",
+				RawCommand:   []byte(`<Replace><CmdID>profile</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Replace>`),
+				TargetLocURI: "./Device/A",
+			},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+	ds.MDMWindowsRemoteWipeInProgressFunc = func(ctx context.Context, enrollmentID, hostID uint) (bool, error) {
+		return false, checkErr
+	}
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	for _, c := range []struct {
+		name     string
+		checkErr error
+		wantSent []string
+	}{
+		{name: "check succeeds", wantSent: []string{"wipe", "profile"}},
+		{name: "check fails", checkErr: errors.New("database unavailable"), wantSent: []string{"profile"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			checkErr = c.checkErr
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(),
+				&fleet.MDMWindowsEnrolledDevice{ID: 1})
+			require.NoError(t, err)
+			sent := make([]string, 0, len(cmds))
+			for _, cmd := range cmds {
+				sent = append(sent, cmd.CmdID.Value)
+			}
+			require.Equal(t, c.wantSent, sent)
 			require.False(t, onlyPollCmdsPending)
 		})
 	}

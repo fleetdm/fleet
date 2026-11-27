@@ -1,0 +1,11 @@
+{
+  "name": "Hoppscotch",
+  "slug": "hoppscotch/windows",
+  "package_identifier": "hoppscotch.Hoppscotch",
+  "unique_identifier": "Hoppscotch",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "open_process_names": ["hoppscotch-desktop.exe"],
+  "default_categories": ["Developer tools"]
+}

@@ -23,7 +23,7 @@ func TestSCEPRateLimit(t *testing.T) {
 	})
 
 	defer mysqltest.TruncateTables(t, s.BaseSuite.DS, []string{
-		"conditional_access_scep_serials", "conditional_access_scep_certificates",
+		"conditional_access_scep_serials", "conditional_access_scep_certificates", "nano_enrollments", "nano_devices",
 	}...)
 
 	t.Run("RateLimitSameHost", func(t *testing.T) {
@@ -43,6 +43,7 @@ func TestSCEPRateLimit(t *testing.T) {
 			DetailUpdatedAt: time.Now(),
 		})
 		require.NoError(t, err)
+		enrollInAppleMDM(t, s, host.UUID)
 
 		// First certificate request - should succeed
 		cert1 := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
@@ -66,6 +67,7 @@ func TestSCEPRateLimit(t *testing.T) {
 			DetailUpdatedAt: time.Now(),
 		})
 		require.NoError(t, err)
+		enrollInAppleMDM(t, s, differentHost.UUID)
 
 		certDifferent := requestSCEPCertificate(t, s, differentHost.UUID, testEnrollmentSecret)
 		require.NotNil(t, certDifferent, "Different host should be able to get certificate")

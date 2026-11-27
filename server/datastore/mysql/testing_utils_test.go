@@ -902,6 +902,10 @@ func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet
 	return t.ds.HostLite(ctx, id)
 }
 
+func (t *testingLookupService) HostIDByIDOrIdentifier(ctx context.Context, identifier string) (uint, error) {
+	return t.ds.HostIDByIdentifier(ctx, identifier, fleet.HostIDByIdentifierOptions{MatchID: true})
+}
+
 func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
 	appConfig, err := t.ds.AppConfig(ctx)
 	if err != nil {
@@ -971,4 +975,46 @@ func excludeAnyLabelScope(label *fleet.Label) fleet.LabelIdentsWithScope {
 		LabelScope: fleet.LabelScopeExcludeAny,
 		ByName:     map[string]fleet.LabelIdent{label.Name: {LabelName: label.Name, LabelID: label.ID}},
 	}
+}
+
+func TestTruncateTables(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+	db := ds.writer(ctx)
+
+	// insert a row into host_seen_times, which has no ID counter
+	_, err := db.ExecContext(ctx, `INSERT INTO host_seen_times (host_id, seen_time) VALUES (1, NOW())`)
+	require.NoError(t, err)
+
+	// insert and delete a team, the teams table is empty but its ID counter moved
+	_, err = db.ExecContext(ctx, `INSERT INTO teams (name) VALUES ('deleted team')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `DELETE FROM teams`)
+	require.NoError(t, err)
+
+	var appConfigCountBefore int
+	err = sqlx.GetContext(ctx, db, &appConfigCountBefore, `SELECT COUNT(*) FROM app_config_json`)
+	require.NoError(t, err)
+	require.Equal(t, 1, appConfigCountBefore)
+
+	TruncateTables(t, ds)
+
+	// truncate all tables, the host_seen_times row should be deleted
+	var hostSeenTimesCount int
+	err = sqlx.GetContext(ctx, db, &hostSeenTimesCount, `SELECT COUNT(*) FROM host_seen_times`)
+	require.NoError(t, err)
+	require.Zero(t, hostSeenTimesCount)
+
+	// insert a team after the truncate, its ID should start at 1 again
+	result, err := db.ExecContext(ctx, `INSERT INTO teams (name) VALUES ('new team')`)
+	require.NoError(t, err)
+	teamID, err := result.LastInsertId()
+	require.NoError(t, err)
+	require.EqualValues(t, 1, teamID)
+
+	// check app_config_json after the truncate, its seeded row should still exist
+	var appConfigCountAfter int
+	err = sqlx.GetContext(ctx, db, &appConfigCountAfter, `SELECT COUNT(*) FROM app_config_json`)
+	require.NoError(t, err)
+	require.Equal(t, 1, appConfigCountAfter)
 }

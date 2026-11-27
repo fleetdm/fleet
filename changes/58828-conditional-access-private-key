@@ -1,0 +1,1 @@
+Required `FLEET_SERVER_PRIVATE_KEY` for Entra conditional access integration. Existing integrations are automatically migrated on server startup.

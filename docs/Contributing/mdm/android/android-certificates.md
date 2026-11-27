@@ -77,24 +77,31 @@ Certificate installs have two layers of retry:
 
 ### Client-side retry (Android agent)
 
-When SCEP enrollment fails on the device, the Android agent retries up to 3 times locally before
-reporting the failure to the Fleet server via `PUT /api/fleetd/certificates/:id/status`.
+When SCEP enrollment fails on the device with an error that may be transient, such as not reaching
+the certificate authority, the Android agent makes up to 3 attempts locally before reporting the
+failure to the Fleet server via `PUT /api/fleetd/certificates/:id/status`. Other errors are reported
+right away.
 
 ### Server-side retry (Fleet server)
 
 When the agent reports a certificate install failure, the Fleet server automatically retries up to
-3 times by resetting the certificate status to `pending` so it gets re-delivered on the next cron
-cycle. Each failure is logged as an `installed_certificate` activity with `status: "failed_install"`
-so IT admins have visibility into retry attempts.
+7 times by resetting the certificate status to `pending` and incrementing `retry_count`. Retries use
+exponential backoff: a retry waits `2^(retry_count-1) * 30` seconds after the failure is reported,
+doubling from 30 seconds for the first retry to 32 minutes for the seventh. The cron job checks the
+wait per host, so once any pending certificate on a host is due, it delivers all of that host's
+pending certificates, including retries that are still waiting. Each failure is logged as an
+`installed_certificate` activity with `status: "failed_install"` so IT admins have visibility into
+retry attempts.
 
-After all server-side retries are exhausted (`retry_count = MaxCertificateInstallRetries = 3`), the
+After all server-side retries are exhausted (`retry_count = MaxCertificateInstallRetries = 7`), the
 certificate is marked as terminally `failed`.
 
 ### Manual resend
 
 When an IT admin clicks "Resend" in the Fleet UI, the certificate is reset to `pending` with
-`retry_count` set to `MaxCertificateInstallRetries`. This means the resend gets exactly one delivery
-attempt with no automatic server-side retry on failure, matching Apple resend behavior.
+`retry_count` set to `MaxCertificateInstallRetries + 1`. A count past the maximum skips the backoff
+wait, so the next cron run delivers the certificate, and the next failure is terminal. This means
+the resend gets exactly one delivery attempt with no automatic server-side retry on failure.
 
 ### Certificate renewal
 

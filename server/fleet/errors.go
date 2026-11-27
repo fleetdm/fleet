@@ -614,9 +614,9 @@ func IsOrbitIDPAuthRequired(err error) bool {
 // Messages that may be surfaced by the server or the fleetctl client.
 const (
 	// Hosts, general
-	HostNotFoundErrMsg           = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
+	HostNotFoundErrMsg           = "Host doesn't exist. Make sure you provide a valid host ID, hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 	NoHostsTargetedErrMsg        = "No hosts targeted. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
-	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
+	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid host ID, hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
 	RunScriptInvalidTypeErrMsg      = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."

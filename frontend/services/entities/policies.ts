@@ -118,7 +118,7 @@ export default {
       patch_deadline,
     } = data;
 
-    return sendRequest("POST", endpoints.GLOBAL_POLICIES, {
+    return sendRequest("POST", endpoints.POLICIES, {
       fleet_id: fleet_id ?? undefined,
       name,
       description,
@@ -172,7 +172,7 @@ export default {
       automation_type,
     } = data;
 
-    return sendRequest("PATCH", `${endpoints.GLOBAL_POLICIES}/${id}`, {
+    return sendRequest("PATCH", `${endpoints.POLICIES}/${id}`, {
       name,
       description,
       query,
@@ -198,7 +198,7 @@ export default {
 
   /** Deletes policies from any scope in one request. */
   destroy: (ids: number[]) =>
-    sendRequest("POST", `${endpoints.GLOBAL_POLICIES}/delete`, { ids }),
+    sendRequest("POST", `${endpoints.POLICIES}/delete`, { ids }),
 
   loadAll: ({
     page,
@@ -213,21 +213,21 @@ export default {
     const filter = filterQueryString(filters);
     const queryString = [paging, filter].filter(Boolean).join("&");
 
-    return sendRequest("GET", `${endpoints.GLOBAL_POLICIES}?${queryString}`);
+    return sendRequest("GET", `${endpoints.POLICIES}?${queryString}`);
   },
 
   getCount: (
     filters: IPoliciesFilterParams
   ): Promise<IPoliciesCountResponse> => {
     const queryString = filterQueryString(filters);
-    const path = `${endpoints.GLOBAL_POLICIES}/count`;
+    const path = `${endpoints.POLICIES}/count`;
 
     return sendRequest("GET", queryString ? `${path}?${queryString}` : path);
   },
 
   load: (id: number): Promise<IStoredPolicyResponse> => {
-    const { GLOBAL_POLICIES } = endpoints;
-    const path = `${GLOBAL_POLICIES}/${id}`;
+    const { POLICIES } = endpoints;
+    const path = `${POLICIES}/${id}`;
 
     return sendRequest("GET", path);
   },

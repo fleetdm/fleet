@@ -33,10 +33,18 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/version"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
 const batchSize = 100
+
+var (
+	clientVersion = version.Version().Version
+	// clientUserAgent tells Fleet that the client is fleetctl 5 or later. Fleet refuses the version check of fleetctl 4, which sends
+	// Go's default User-Agent.
+	clientUserAgent = "fleetctl/" + clientVersion
+)
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -120,21 +128,29 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 }
 
 func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, rawQuery string, bodyBytes []byte, headers map[string]string) (*http.Response, error) {
+	requestURL, err := c.RequestURL(path, rawQuery)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building request URL")
+	}
 	request, err := http.NewRequestWithContext(
 		ctx,
 		verb,
-		c.URL(path, rawQuery).String(),
+		requestURL,
 		bytes.NewBuffer(bodyBytes),
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating request object")
 	}
 
+	// Set before the custom headers, so that a User-Agent among them wins.
+	request.Header.Set("User-Agent", clientUserAgent)
 	// set the custom headers first, they should not override the actual headers
 	// we set explicitly.
 	for k, v := range c.customHeaders {
 		request.Header.Set(k, v)
 	}
+	// Set after the custom headers, so that they can't override it.
+	request.Header.Set(fleet.HeaderClientVersion, clientVersion)
 	for k, v := range headers {
 		request.Header.Set(k, v)
 	}
@@ -4078,7 +4094,8 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			// validation or silently pin the wrong package. Reset before resolve.
 			config.Policies[i].SoftwarePackageID = nil
 
-			if config.Policies[i].Type == fleet.PolicyTypePatch && !config.Policies[i].InstallSoftware.IsOther && config.Policies[i].InstallSoftware.Bool {
+			if config.Policies[i].Type == fleet.PolicyTypePatch && (config.Policies[i].ForcePatch || config.Policies[i].PatchWhenClosed ||
+				config.Policies[i].NotifyBeforePatching || config.Policies[i].PatchDeadline) {
 				softwareTitleID, ok := softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
 				if !ok {
 					// Should not happen because FMAs are uploaded first.

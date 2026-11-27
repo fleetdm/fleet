@@ -11,15 +11,9 @@ module.exports = {
 
     sails.log('Running custom shell script... (`sails run migrate-lead-source-to-contact-source`)');
 
-    require('assert')(sails.config.custom.salesforceIntegrationUsername);
-    require('assert')(sails.config.custom.salesforceIntegrationPasskey);
 
     // Log in to Salesforce.
-    let jsforce = require('jsforce');
-    let salesforceConnection = new jsforce.Connection({
-      loginUrl : 'https://fleetdm.my.salesforce.com'
-    });
-    await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+    let salesforceConnection = await sails.helpers.salesforce.getConnection();
 
     let POSSIBLE_CONTACT_SOURCES = ['Dripify', 'Website - Contact forms', 'Website - Sign up', 'Website - Swag request', 'Manual research', 'Initial qualification meeting'];
     let contacts = (

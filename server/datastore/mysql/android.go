@@ -884,22 +884,9 @@ func androidPersonalEnrollmentType(companyOwned bool) fleet.PersonalEnrollmentTy
 }
 
 func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, personalType fleet.PersonalEnrollmentType, enrolled bool, hostID uint) error {
-	result, err := tx.ExecContext(ctx, `
-		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
-		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
-		fleet.WellKnownMDMFleet, serverURL)
+	mdmID, err := getOrInsertMDMSolutionDB(ctx, tx, serverURL, fleet.WellKnownMDMFleet)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert mdm solution")
-	}
-
-	var mdmID int64
-	if insertOnDuplicateDidInsertOrUpdate(result) {
-		mdmID, _ = result.LastInsertId()
-	} else {
-		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
-		if err := sqlx.GetContext(ctx, tx, &mdmID, stmt, fleet.WellKnownMDMFleet, serverURL); err != nil {
-			return ctxerr.Wrap(ctx, err, "query mdm solution id")
-		}
+		return ctxerr.Wrap(ctx, err, "get or insert mdm solution")
 	}
 
 	args := []any{}
@@ -1448,22 +1435,22 @@ func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value str
 	return &cmd, nil
 }
 
-// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and upserts
-// host_mdm_actions.lock_ref in a single transaction. Mirrors WipeHostViaWindowsMDM.
-func (ds *Datastore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
-	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "lock_ref")
+// LockHostViaAndroidMDM inserts the lock's RESET_PASSWORD row into mdm_android_commands and upserts
+// host_mdm_actions.lock_ref and unlock_pin in a single transaction. Mirrors WipeHostViaWindowsMDM.
+func (ds *Datastore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, unlockPIN string) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "lock_ref", &unlockPIN)
 }
 
 // WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and upserts
 // host_mdm_actions.wipe_ref in a single transaction.
 func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
-	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref")
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref", nil)
 }
 
 // ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and
 // upserts host_mdm_actions.clear_passcode_ref in a single transaction.
 func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
-	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref", nil)
 }
 
 // GetMDMAndroidCommandResults returns the results for an Android command identified by commandUUID.
@@ -1523,7 +1510,8 @@ func (ds *Datastore) ClearHostMDMActions(ctx context.Context, hostID uint) error
 }
 
 // issueAndroidHostMDMRef performs the two-write transaction. refColumn is hard-coded by callers. The caller is responsible for populating cmd.CommandUUID.
-func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
+// unlockPIN is written alongside the ref when non-nil.
+func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string, unlockPIN *string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
 			INSERT INTO mdm_android_commands
@@ -1544,7 +1532,16 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 			VALUES (?, ?, ?)
 			ON DUPLICATE KEY UPDATE %s = VALUES(%s), fleet_platform = VALUES(fleet_platform)
 		`, refColumn, refColumn, refColumn)
-		if _, err := tx.ExecContext(ctx, actionsStmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
+		args := []any{host.ID, cmd.CommandUUID, host.FleetPlatform()}
+		if unlockPIN != nil {
+			actionsStmt = fmt.Sprintf(`
+				INSERT INTO host_mdm_actions (host_id, %s, unlock_pin, fleet_platform)
+				VALUES (?, ?, ?, ?)
+				ON DUPLICATE KEY UPDATE %s = VALUES(%s), unlock_pin = VALUES(unlock_pin), fleet_platform = VALUES(fleet_platform)
+			`, refColumn, refColumn, refColumn)
+			args = []any{host.ID, cmd.CommandUUID, *unlockPIN, host.FleetPlatform()}
+		}
+		if _, err := tx.ExecContext(ctx, actionsStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert host_mdm_actions for android "+refColumn)
 		}
 		return nil

@@ -1,0 +1,1 @@
+- Fixed an issue where a certain query could lock up during an MDM enrollment swarm.

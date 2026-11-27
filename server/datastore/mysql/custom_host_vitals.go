@@ -208,18 +208,28 @@ func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtConte
 				FROM mdm_android_configuration_profiles p
 				LEFT JOIN teams t ON t.id = p.team_id;`,
 		},
-		// An Android app's managed configuration is delivered by the software
-		// worker rather than the profile reconciler, but it references vitals the
-		// same way a profile does, so it gets the same delete protection.
+		// App configurations are delivered with the app install rather than by the
+		// profile reconciler, but they reference vitals the same way a profile
+		// does, so they get the same delete protection.
 		{
-			desc: "get android app configuration contents",
-			stmt: `SELECT 'android_app_config' AS entity,
+			desc: "get app store app configuration contents",
+			stmt: `SELECT 'app_config' AS entity,
 				COALESCE(NULLIF(va.name, ''), vat.adam_id) AS name,
 				COALESCE(t.name, 'Unassigned') AS team_name, vat.configuration AS contents
 				FROM vpp_apps_teams vat
-				LEFT JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = 'android'
+				LEFT JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 				LEFT JOIN teams t ON t.id = vat.team_id
-				WHERE vat.platform = 'android' AND vat.configuration IS NOT NULL;`,
+				WHERE vat.configuration IS NOT NULL;`,
+		},
+		{
+			desc: "get in-house app configuration contents",
+			stmt: `SELECT 'app_config' AS entity,
+				COALESCE(st.name, iha.filename) AS name,
+				COALESCE(t.name, 'Unassigned') AS team_name, ihac.configuration AS contents
+				FROM in_house_app_configurations ihac
+				JOIN in_house_apps iha ON iha.id = ihac.in_house_app_id
+				LEFT JOIN software_titles st ON st.id = iha.title_id
+				LEFT JOIN teams t ON t.id = iha.team_id;`,
 		},
 		// Software installer and setup-experience scripts exceed secret-variable
 		// delete-protection (which doesn't scan them), so a vital can't be deleted
@@ -352,6 +362,10 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 		if err := resendAndroidAppConfigsForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resend android app configs for custom host vital value change")
 		}
+
+		if err := resendAppleAppStoreAppConfigsForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend apple app store app configs for custom host vital value change")
+		}
 		return nil
 	})
 }
@@ -430,7 +444,7 @@ func resendMDMProfilesForCustomHostVital(ctx context.Context, tx sqlx.ExtContext
 			desc:       "windows profiles",
 			selectStmt: customHostVitalResendWindowsProfilesSelectStmt,
 			updateStmt: `UPDATE host_mdm_windows_profiles
-				SET status = NULL, detail = NULL, command_uuid = ''
+				SET status = NULL, detail = NULL, command_uuid = '', retries = 0
 				WHERE host_uuid = ? AND operation_type = ? AND profile_uuid IN (?)`,
 			isWindows: true,
 		},
@@ -528,6 +542,66 @@ WHERE
 	return setHostAndroidSoftwareInstallsNeedsResendTx(ctx, tx, []uint{hostID}, appTeamIDs)
 }
 
+// Mirrors queueManagedConfigResendJobs, which can't be reused because custom
+// host vitals aren't tracked in mdm_configuration_profile_variables.
+func resendAppleAppStoreAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
+	varName := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)
+
+	// Skip a version when the host is in scope for an earlier version of the
+	// same app: the host gets the configuration of that earlier version.
+	selectStmt := fmt.Sprintf(`
+SELECT
+	vat.id AS app_team_id,
+	vat.configuration
+FROM
+	vpp_apps_teams vat
+	JOIN hosts h ON vat.global_or_team_id = COALESCE(h.team_id, 0)
+WHERE
+	h.id = ? AND
+	vat.platform != ? AND
+	INSTR(vat.configuration, ?) > 0 AND
+	NOT EXISTS (
+		SELECT 1 FROM vpp_apps_teams earlier_vat
+		WHERE earlier_vat.adam_id = vat.adam_id AND earlier_vat.platform = vat.platform
+			AND earlier_vat.global_or_team_id = vat.global_or_team_id AND earlier_vat.id < vat.id
+			AND EXISTS (%s)
+	)
+`, fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "earlier_vat.id"))
+
+	var candidates []struct {
+		AppTeamID     uint   `db:"app_team_id"`
+		Configuration string `db:"configuration"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &candidates, selectStmt, hostID, fleet.AndroidPlatform, varName); err != nil {
+		return ctxerr.Wrap(ctx, err, "select apple app store app configs referencing custom host vital")
+	}
+
+	var appTeamIDs []uint
+	for _, candidate := range candidates {
+		if fleet.ContainsVar(candidate.Configuration, varName) {
+			appTeamIDs = append(appTeamIDs, candidate.AppTeamID)
+		}
+	}
+	if len(appTeamIDs) == 0 {
+		return nil
+	}
+
+	// Flag installs of any version, since a host's latest install can be of
+	// another version with the same configuration.
+	stmt, args, err := sqlx.In(`
+UPDATE host_vpp_software_installs hvsi
+JOIN vpp_apps_teams vat ON vat.adam_id = hvsi.adam_id AND vat.platform = hvsi.platform
+SET hvsi.needs_resend = 1
+WHERE hvsi.host_id = ? AND vat.id IN (?) AND hvsi.canceled = 0`, hostID, appTeamIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build apple app store app configuration resend update")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark apple app store app configuration resend for custom host vital")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetHostCustomHostVitals(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 	var vitals []fleet.HostCustomHostVital
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &vitals, `
@@ -585,7 +659,7 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 		return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: missingIDs, MissingNames: missingNames}
 	}
 
-	expanded := expandDocumentVars(document, func(s string) (string, bool) {
+	expanded, _ := expandDocumentVars(document, func(s string) (string, bool) {
 		if !strings.HasPrefix(s, fleet.CustomHostVitalPrefix) {
 			return "", false
 		}

@@ -42,6 +42,9 @@ func TestEnrollOrbitWindowsOneTimeSecretLink(t *testing.T) {
 		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
 			return nil, newNotFoundError()
 		}
+		ds.ClearEndUserAfterWindowsResetFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (bool, error) {
+			return false, nil
+		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			cfg := &fleet.AppConfig{}
 			cfg.MDM.WindowsEnabledAndConfigured = true

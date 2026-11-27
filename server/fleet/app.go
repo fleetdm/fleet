@@ -1227,10 +1227,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
 
-	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
-		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
-		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
-	}
 	if c.Integrations.Jira != nil {
 		clone.Integrations.Jira = make([]*JiraIntegration, len(c.Integrations.Jira))
 		for i, j := range c.Integrations.Jira {
@@ -1465,8 +1461,8 @@ type FailingPoliciesWebhookSettings struct {
 	Enable bool `json:"enable_failing_policies_webhook"`
 	// DestinationURL is the webhook's URL.
 	DestinationURL string `json:"destination_url"`
-	// PolicyIDs is a list of policy IDs for which the webhook will be configured.
-	PolicyIDs []uint `json:"policy_ids"`
+	// Each policy's webhooks_and_tickets_enabled replaced the list of policy IDs.
+	_ struct{} `json:"-" removedkey:"policy_ids" renamescope:"failing_policies_webhook"`
 	// HostBatchSize allows sending multiple requests in batches of hosts for each policy.
 	// A value of 0 means no batching.
 	HostBatchSize int `json:"host_batch_size"`
@@ -2268,6 +2264,10 @@ const (
 	HeaderLicenseKey          = "X-Fleet-License"
 	HeaderLicenseValueExpired = "Expired"
 )
+
+// HeaderClientVersion carries the version of the fleetctl that sends the request. Fleet can rely on it, unlike the User-Agent, which
+// admins can override with custom headers.
+const HeaderClientVersion = "X-Fleet-Client-Version"
 
 type Logging struct {
 	Debug  bool          `json:"debug"`

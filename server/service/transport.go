@@ -754,7 +754,3 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 
 	return userOpts, nil
 }
-
-type getGenericSpecRequest struct {
-	Name string `url:"name"`
-}

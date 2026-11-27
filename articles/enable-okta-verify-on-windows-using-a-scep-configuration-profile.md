@@ -1,6 +1,5 @@
 # Enable Okta Verify on Windows using a SCEP configuration profile
 
-## Introduction
 
 This guide explains how to enable Okta Verify on Windows using a SCEP client certificate delivered by the Windows ClientCertificateInstall CSP. Fleet supports Exec commands in configuration profiles, allowing you to deploy the SCEP configuration and trigger enrollment in a single profile.
 

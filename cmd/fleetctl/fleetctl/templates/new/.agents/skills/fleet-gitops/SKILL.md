@@ -51,7 +51,7 @@ These are enforced by `fleetctl gitops` or by Fleet, and are the usual reasons a
 - **File roles are fixed.** `org_settings` only in `default.yml`; `software:` only in fleet files; `agent_options` and `reports` not in `unassigned.yml`; each fleet file's `name` must be unique.
 - **Quote anything YAML would mangle.** `version: "1.2"`, `app_store_id: "361285480"`, `auto_update_window_start: "21:00"` (unquoted `21:00` parses as the integer 75600), and names containing colons or emoji. Label and report names must be ASCII; fleet names may use emoji.
 - **Secrets never land in git.** The repo already uses `$VARIABLE` placeholders that CI substitutes (enroll secrets, webhook URLs, API keys). Follow that pattern and tell the user which new CI variable to add. Inside scripts and profiles, `$FLEET_SECRET_NAME` is a secret stored in Fleet and `$FLEET_VAR_HOST_…` is a per-host value Fleet fills in at delivery. A dry run skips any profile containing `$FLEET_SECRET_`, so say so when it applies.
-- **Naming.** The product says "fleet" where the API and some keys still say `team`, and "report" where older YAML says `queries`. Use the new words in prose and new files; keep the existing keys in files you edit.
+- **Naming.** Fleet 5 rejects the old `team` keys (for example `team_settings`; use `settings`), so always say "fleet". The product says "report" where older YAML says `queries`. Use the new words in prose and new files; keep the existing `queries` keys in files you edit.
 
 ## Validate before you report
 

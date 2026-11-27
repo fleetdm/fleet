@@ -4,14 +4,12 @@
   h3 {
     font-size: $small;
     margin: 0;
-    font-weight: normal;
   }
 
   &__preview-img {
     margin-top: $pad-xxlarge;
     width: 100%;
     display: block;
-    max-width: 540px;
     margin: 40px auto 0;
   }
 }
