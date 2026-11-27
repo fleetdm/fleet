@@ -252,6 +252,22 @@ func teardownProvisioningAccount(username string, newUser string) error {
 	return nil
 }
 
+// blankShell makes username's next sign-in start without Explorer, so its
+// desktop never shows. The account's registry hive must be loaded.
+func blankShell(username string) error {
+	sid, _, _, err := windows.LookupSID("", username)
+	if err != nil {
+		return fmt.Errorf("looking up SID for %s: %w", username, err)
+	}
+	k, _, err := registry.CreateKey(registry.USERS, sid.String()+`\Software\Microsoft\Windows NT\CurrentVersion\Winlogon`, registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("open user Winlogon key: %w", err)
+	}
+	defer k.Close()
+	// Winlogon needs a shell command; this one exits at once and shows nothing.
+	return k.SetStringValue("Shell", systemTool("rundll32.exe"))
+}
+
 // applyProvisioningPackage installs a provisioning package (.ppkg) as SYSTEM.
 func applyProvisioningPackage(path string) error {
 	ps := filepath.Join(systemTool("WindowsPowerShell"), "v1.0", "powershell.exe")

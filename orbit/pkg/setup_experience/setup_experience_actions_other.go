@@ -36,3 +36,7 @@ func entraJoined() bool { return false }
 func restartWindows() error {
 	return errors.New("restart is only supported on Windows")
 }
+
+func blankShell(_ string) error {
+	return errors.New("changing the shell is only supported on Windows")
+}

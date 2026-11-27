@@ -34,8 +34,17 @@ const pinEnrollmentPendingFilename = "windows_pin_enrollment_pending"
 const entraJoinPackageFilename = "entra-join.ppkg"
 
 // entraJoinPendingFilename marks that the join package was applied and the
-// device hasn't yet restarted with the join in place.
+// device hasn't yet restarted with the join in place. Until then the
+// provisioning account stays signed in behind the wait page.
 const entraJoinPendingFilename = "windows_entra_join_pending"
+
+// entraJoinPollInterval is how often fleetd checks whether the join completed.
+const entraJoinPollInterval = 2 * time.Second
+
+const (
+	entraJoinResumePollInterval = 500 * time.Millisecond
+	entraJoinResumeTimeout      = 5 * time.Minute
+)
 
 // pinEnrollmentDelay gives a brand-new profile time to finish its first-logon
 // setup before the PIN prompt opens, so the prompt lands on a ready desktop.
@@ -104,6 +113,8 @@ type WindowsSetupExperiencer struct {
 	// createdUser is the account created from the IdP identity.
 	createdUser string
 	finished    bool
+	// watchingJoin is set once waitForEntraJoin is polling for the Entra join.
+	watchingJoin bool
 	// tearingDown is set while a retried provisioning account teardown runs.
 	tearingDown bool
 
@@ -142,7 +153,27 @@ func NewWindowsSetupExperiencer(client WindowsSetupExperienceInitiator, rootDir 
 	if b, err := os.ReadFile(s.pinPendingPath()); err == nil {
 		s.pinPendingUser = strings.TrimSpace(string(b))
 	}
+	if fileExists(filepath.Join(rootDir, entraJoinPendingFilename)) {
+		go s.resumeEntraJoin()
+	}
 	return s
+}
+
+// resumeEntraJoin covers the provisioning desktop with the wait page as soon
+// as the account is auto-logged in after the join restart, without waiting for
+// the first config poll.
+func (s *WindowsSetupExperiencer) resumeEntraJoin() {
+	deadline := time.Now().Add(entraJoinResumeTimeout)
+	for time.Now().Before(deadline) {
+		s.mu.Lock()
+		s.continueEntraJoin()
+		shown := s.passwordPage != nil
+		s.mu.Unlock()
+		if shown {
+			return
+		}
+		time.Sleep(entraJoinResumePollInterval)
+	}
 }
 
 func (s *WindowsSetupExperiencer) pinPendingPath() string {
@@ -174,6 +205,10 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if fileExists(filepath.Join(s.rootDir, entraJoinPendingFilename)) {
+		s.continueEntraJoin()
+		return nil
+	}
 	if s.pinPendingUser != "" {
 		// The account was created; the provisioning account must be gone before
 		// the end user's first login.
@@ -188,9 +223,7 @@ func (s *WindowsSetupExperiencer) Run(cfg *fleet.OrbitConfig) error {
 		// Setup is over, so an enabled provisioning account is a failed teardown.
 		if localAccountEnabled(ProvisioningAccountName) {
 			s.retryTeardown()
-			return nil
 		}
-		s.restartAfterEntraJoin()
 		return nil
 	}
 
@@ -434,36 +467,71 @@ func (s *WindowsSetupExperiencer) completeEntraJoin(page *passwordPage, pkg stri
 	if err := os.WriteFile(filepath.Join(s.rootDir, entraJoinPendingFilename), nil, constant.DefaultFileMode); err != nil {
 		log.Error().Err(err).Msg("windows setup experience: recording pending Entra join")
 	}
+	// The provisioning account signs in once more after the restart.
+	if err := blankShell(ProvisioningAccountName); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: blanking provisioning shell")
+	}
 	// The package holds the bulk enrollment token.
 	if err := os.Remove(pkg); err != nil {
 		log.Error().Err(err).Msg("windows setup experience: removing Entra join package")
 	}
-	// If teardown fails, Run retries it on later polls.
-	if err := teardownProvisioningAccount(ProvisioningAccountName, ""); err != nil {
-		log.Error().Err(err).Msg("windows setup experience: tearing down provisioning account")
+	// Windows usually restarts on its own now and finishes the join on the next
+	// boot. The wait page stays up until the join is confirmed.
+	if !s.watchingJoin {
+		s.watchingJoin = true
+		go s.waitForEntraJoin()
 	}
-	_ = page.Close()
-	s.finish()
-	log.Info().Msg("windows setup experience: complete (Entra join)")
 }
 
-// restartAfterEntraJoin restarts the device once the join completes. The join
-// can finish after the sign-in screen is already up, and that sign-in screen
-// rejects Entra accounts until the next boot. s.mu must be held.
-func (s *WindowsSetupExperiencer) restartAfterEntraJoin() {
-	pending := filepath.Join(s.rootDir, entraJoinPendingFilename)
-	if !fileExists(pending) || !entraJoined() {
-		return
+// continueEntraJoin picks the join back up after the restart the package
+// causes: the provisioning account is auto-logged in again, so show the wait
+// page over its desktop until the join completes. s.mu must be held.
+func (s *WindowsSetupExperiencer) continueEntraJoin() {
+	if user, sessionID, present, err := s.interactiveSession(); err == nil && present && strings.EqualFold(user, ProvisioningAccountName) {
+		if !s.desktopHidden {
+			if err := HideDesktop(sessionID); err != nil {
+				log.Error().Err(err).Msg("windows setup experience: hiding provisioning desktop")
+			} else {
+				s.desktopHidden = true
+			}
+		}
+		if s.passwordPage == nil {
+			if page, err := newJoinPage(); err != nil {
+				log.Error().Err(err).Msg("windows setup experience: starting Entra join page")
+			} else if err := s.openURL(page.URL()); err != nil {
+				log.Error().Err(err).Msg("windows setup experience: opening Entra join page")
+				_ = page.Close()
+			} else {
+				s.passwordPage = page
+				log.Info().Msg("windows setup experience: showing Entra join wait page")
+			}
+		}
 	}
-	if err := os.Remove(pending); err != nil {
-		log.Error().Err(err).Msg("windows setup experience: clearing pending Entra join")
-		return
+	if !s.watchingJoin {
+		s.watchingJoin = true
+		go s.waitForEntraJoin()
 	}
-	// Someone already signed in, so the sign-in screen worked.
-	if _, _, present, err := s.interactiveSession(); err != nil || present {
-		return
+}
+
+// waitForEntraJoin waits for the join to complete, then tears down the
+// provisioning account and restarts, so the first sign-in screen the end user
+// sees accepts their Entra account. A sign-in screen that was up before the
+// join completed rejects Entra accounts until the next boot.
+func (s *WindowsSetupExperiencer) waitForEntraJoin() {
+	for !entraJoined() {
+		time.Sleep(entraJoinPollInterval)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	log.Info().Msg("windows setup experience: Entra join complete, restarting")
+	if err := teardownProvisioningAccount(ProvisioningAccountName, ""); err != nil {
+		// Run retries the teardown after the restart.
+		log.Error().Err(err).Msg("windows setup experience: tearing down provisioning account")
+	}
+	if err := os.Remove(filepath.Join(s.rootDir, entraJoinPendingFilename)); err != nil {
+		log.Error().Err(err).Msg("windows setup experience: clearing pending Entra join")
+	}
+	s.finish()
 	if err := restartWindows(); err != nil {
 		log.Error().Err(err).Msg("windows setup experience: restarting after Entra join")
 	}
