@@ -69,9 +69,11 @@
 //
 // # The per-host publish quarantine (label-membership invalidation)
 //
-// Per-host records are invalidated CONSERVATIVELY: every successful
-// persistence of a host's label results deletes its record (no value diff).
-// Ordering the DEL after the DB commit is necessary but not sufficient — a
+// Per-host records are invalidated when persisting a host's label results
+// adds or removes a membership row. Unchanged results do not invalidate:
+// every host re-reports its labels each label interval, and hosts enrolled
+// together report together, so invalidating on every persistence rebuilds
+// the whole fleet's configs on that schedule. Ordering the DEL after the DB commit is necessary but not sufficient — a
 // build that STARTED before the membership commit, or read a lagging MySQL
 // replica after it, can publish a pre-change ETag AFTER the DEL. The
 // deployment fence cannot gate this (membership persistence is continuous at
@@ -86,9 +88,8 @@
 // in-flight request duration plus slack — and is deliberately NOT the
 // deployment fence's 180s (which is derived from in-memory cache TTLs that do
 // not apply to membership reads). Residual risk beyond the quarantine
-// (replication incidents with lag > 30s) is bounded by the next label cycle's
-// conservative invalidation and, failing that, the record's jittered backstop
-// TTL. This bounded-staleness contract is explicit and accepted.
+// (replication incidents with lag > 30s) is bounded by the record's jittered
+// backstop TTL. This bounded-staleness contract is explicit and accepted.
 //
 // # Gate state (cache-mode selection)
 //
@@ -107,6 +108,10 @@
 // avoided: it would couple config-request latency to a possibly-hung query.
 // TestGateLoaderLeaderElection pins one loader per miss window.
 //
+// While the label-scope state is cached, a check-in reads it together with
+// the generation and the host's records in one MGET (LookupETag): every Redis
+// call takes a pool connection, and check-ins are the highest-volume caller.
+//
 // # Key layout
 //
 // Six keys, all sharing the {cfgetag} hash tag (see Redis Cluster below).
@@ -115,7 +120,7 @@
 // the generation — and, per host, the scope and platform — before trusting the
 // stored validator.
 //
-//	{cfgetag}:etag:v<ver>:<scope>:<platform>   shared record   TTL 1h
+//	{cfgetag}:etag:v<ver>:<scope>:<platform>   shared record   TTL 50-70m jittered
 //	{cfgetag}:host-etag:v<ver>:<hostID>        per-host record TTL 50-70m jittered
 //	{cfgetag}:host-quarantine:<hostID>         per-host publish quarantine, TTL 30s
 //	{cfgetag}:gen                              generation counter, no TTL

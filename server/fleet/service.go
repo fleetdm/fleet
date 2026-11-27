@@ -1851,6 +1851,18 @@ func (s ConfigETagLabelScopes) Any() bool {
 	return s.Global || len(s.TeamIDs) > 0
 }
 
+// ConfigETagLookup is the result of ConfigETagStore.LookupETag.
+type ConfigETagLookup struct {
+	// LabelScopesCached is false when the label-scope state was not cached;
+	// every other field is then zero and the caller must use LabelScopes.
+	LabelScopesCached bool
+	LabelScopes       ConfigETagLabelScopes
+	// ETag and Valid are for the shared or per-host record, whichever
+	// LabelScopes selects for the host.
+	ETag  string
+	Valid bool
+}
+
 // ErrConfigETagGateLoading is returned by ConfigETagStore.LabelScopes when
 // another request on this Fleet instance is already loading the missing gate
 // state. It signals NORMAL contention, not a fault: callers must treat the
@@ -1906,10 +1918,9 @@ type ConfigETagStore interface {
 	// InvalidateHost atomically deletes the host's PER-HOST record and arms
 	// its 30-second publish quarantine (one Lua script — a pipeline is not
 	// atomic and would let a straddling build republish stale membership
-	// between the DEL and the quarantine SET). Called conservatively after
-	// every successful persistence of the host's label results — no value
-	// diff required — and from manual membership paths where the affected
-	// host IDs are known.
+	// between the DEL and the quarantine SET). Called after every
+	// persistence of the host's label results that changed its membership,
+	// and from manual membership paths where the affected host IDs are known.
 	InvalidateHost(ctx context.Context, hostID uint) error
 
 	// LabelScopes returns the cached set of scopes containing label-scoped
@@ -1924,6 +1935,10 @@ type ConfigETagStore interface {
 	// invalidation hooks, where the answer may have just changed in either
 	// direction.
 	ResetLabelScopes(ctx context.Context) error
+
+	// LookupETag reads the cached label-scope state and the host's current
+	// record for the mode it selects.
+	LookupETag(ctx context.Context, hostID uint, fleetID *uint, scope, platform string) (ConfigETagLookup, error)
 }
 
 const (

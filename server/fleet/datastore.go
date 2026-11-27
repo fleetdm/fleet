@@ -1463,6 +1463,10 @@ type Datastore interface {
 	// not the label matches. The time parameter is the timestamp to save with the query execution.
 	RecordLabelQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
+	// RecordLabelQueryExecutionsWithChanges is RecordLabelQueryExecutions, also reporting whether any label membership
+	// row was added or removed.
+	RecordLabelQueryExecutionsWithChanges(ctx context.Context, host *Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) (membershipChanged bool, err error)
+
 	// SaveHostUsers updates the user list of a host.
 	// The update consists of deleting existing entries that are not in the given `users`
 	// slice, updating existing entries and inserting new entries.

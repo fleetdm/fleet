@@ -1145,6 +1145,11 @@ func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
+	_, err := ds.RecordLabelQueryExecutionsWithChanges(ctx, host, results, updated, deferredSaveHost)
+	return err
+}
+
+func (ds *Datastore) RecordLabelQueryExecutionsWithChanges(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) (bool, error) {
 	// Sort the results to have generated SQL queries ordered to minimize
 	// deadlocks. See https://github.com/fleetdm/fleet/issues/1146.
 	orderedIDs := make([]uint, 0, len(results))
@@ -1175,15 +1180,29 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 		}
 	}
 
+	var membershipChanged bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		membershipChanged = false
+
 		// Complete inserts if necessary
 		if len(vals) > 0 {
 			sql := `INSERT INTO label_membership (updated_at, label_id, host_id) VALUES `
 			sql += strings.Join(bindvars, ",") + ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
-			_, err := tx.ExecContext(ctx, sql, vals...)
+			res, err := tx.ExecContext(ctx, sql, vals...)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert label query executions (%v)", vals)
+			}
+			affected, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "rows affected by label membership upsert")
+			}
+			// MySQL counts an upsert row as 2 when it updates an existing row and
+			// 1 when it inserts one, so fewer than 2 per row means a row was
+			// added. A row rewritten with the same updated_at also counts 1
+			// (clientFoundRows), which only costs an extra invalidation.
+			if affected < 2*int64(len(bindvars)) {
+				membershipChanged = true
 			}
 		}
 
@@ -1195,9 +1214,16 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 				return ctxerr.Wrap(ctx, err, "IN for DELETE FROM label_membership")
 			}
 			query = tx.Rebind(query)
-			_, err = tx.ExecContext(ctx, query, args...)
+			res, err := tx.ExecContext(ctx, query, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete label query executions")
+			}
+			deleted, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "rows affected by label membership delete")
+			}
+			if deleted > 0 {
+				membershipChanged = true
 			}
 		}
 
@@ -1214,7 +1240,7 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 		return nil
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if deferredSaveHost {
@@ -1222,7 +1248,7 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 		defer close(errCh)
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return membershipChanged, ctx.Err()
 		case ds.writeCh <- itemToWrite{
 			ctx:   ctx,
 			errCh: errCh,
@@ -1232,10 +1258,10 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 				what:      "label_updated_at",
 			},
 		}:
-			return <-errCh
+			return membershipChanged, <-errCh
 		}
 	}
-	return nil
+	return membershipChanged, nil
 }
 
 // ListLabelsForHost returns a list of fleet.Label for a given host id.

@@ -223,9 +223,16 @@ func (s *Store) GetETagIfCurrent(ctx context.Context, scope, platform string) (e
 		metricRequests.WithLabelValues("shared", "error").Inc()
 		return "", false, err
 	}
+	etag, ok = checkSharedRecord(record, currentGen)
+	return etag, ok, nil
+}
+
+// checkSharedRecord validates a SHARED record value ("" when missing) against
+// the current generation.
+func checkSharedRecord(record, currentGen string) (etag string, ok bool) {
 	if record == "" {
 		metricRequests.WithLabelValues("shared", "miss").Inc()
-		return "", false, nil
+		return "", false
 	}
 
 	// The record is "<generation>|<etag>", written by SetIfNoFence.
@@ -233,15 +240,15 @@ func (s *Store) GetETagIfCurrent(ctx context.Context, scope, platform string) (e
 	if !found || recordETag == "" {
 		// malformed record: treat as a miss, never as a match
 		metricRequests.WithLabelValues("shared", "miss").Inc()
-		return "", false, nil
+		return "", false
 	}
 	if recordGen != currentGen {
 		// A config-affecting write happened after this record was stored.
 		metricRequests.WithLabelValues("shared", "stale_gen").Inc()
-		return "", false, nil
+		return "", false
 	}
 	metricRequests.WithLabelValues("shared", "hit").Inc()
-	return recordETag, true, nil
+	return recordETag, true
 }
 
 // setIfNoFenceScript persists a SHARED ETag record stamped with the current
@@ -346,9 +353,16 @@ func (s *Store) GetHostETagIfCurrent(ctx context.Context, hostID uint, scope, pl
 		metricRequests.WithLabelValues("host", "error").Inc()
 		return "", false, err
 	}
+	etag, ok = checkHostRecord(record, currentGen, scope, platform)
+	return etag, ok, nil
+}
+
+// checkHostRecord validates a PER-HOST record value ("" when missing) against
+// the current generation and the authenticated host's scope and platform.
+func checkHostRecord(record, currentGen, scope, platform string) (etag string, ok bool) {
 	if record == "" {
 		metricRequests.WithLabelValues("host", "miss").Inc()
-		return "", false, nil
+		return "", false
 	}
 
 	// The record is "<generation>|<scope>|<platform>|<etag>", written by
@@ -363,19 +377,19 @@ func (s *Store) GetHostETagIfCurrent(ctx context.Context, hostID uint, scope, pl
 	parts := strings.SplitN(record, "|", 4)
 	if len(parts) != 4 || parts[3] == "" {
 		metricRequests.WithLabelValues("host", "miss").Inc()
-		return "", false, nil
+		return "", false
 	}
 	if parts[0] != currentGen {
 		metricRequests.WithLabelValues("host", "stale_gen").Inc()
-		return "", false, nil
+		return "", false
 	}
 	if parts[1] != scope || parts[2] != platform {
 		// team transfer or platform change since the record was written
 		metricRequests.WithLabelValues("host", "miss").Inc()
-		return "", false, nil
+		return "", false
 	}
 	metricRequests.WithLabelValues("host", "hit").Inc()
-	return parts[3], true, nil
+	return parts[3], true
 }
 
 // setHostIfNoFenceScript persists a PER-HOST ETag record stamped with the
@@ -448,9 +462,9 @@ redis.call('SET', KEYS[2], '1', 'EX', ARGV[1])
 return 1
 `
 
-// InvalidateHost must be called after every successful persistence of the
-// host's label results (conservatively — no membership value diff required)
-// and from manual membership paths where the affected host IDs are known. It
+// InvalidateHost must be called after every persistence of the host's label
+// results that changed its membership, and from manual membership paths where
+// the affected host IDs are known. It
 // deletes the host's record and arms its publish quarantine so a straddling
 // build cannot republish pre-change membership.
 func (s *Store) InvalidateHost(ctx context.Context, hostID uint) error {
@@ -592,6 +606,61 @@ func (s *Store) ResetLabelScopes(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "redis config etag label scopes reset")
 	}
 	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Combined read
+////////////////////////////////////////////////////////////////////////////////
+
+// LookupETag reads both of the host's candidate records because the mode
+// that picks one is only known after the read; fetching an unused record
+// costs a few bytes, while a second round trip costs a pool connection per
+// check-in.
+func (s *Store) LookupETag(ctx context.Context, hostID uint, fleetID *uint, scope, platform string) (fleet.ConfigETagLookup, error) {
+	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
+	defer conn.Close()
+
+	keys := []any{s.scopeModesKey(), s.genKey(), s.etagKey(scope, platform), s.hostETagKey(hostID)}
+	vals, err := redigo.Values(conn.Do("MGET", keys...))
+	if err != nil {
+		metricRequests.WithLabelValues("lookup", "error").Inc()
+		return fleet.ConfigETagLookup{}, ctxerr.Wrap(ctx, err, "redis config etag lookup")
+	}
+	if len(vals) != len(keys) {
+		metricRequests.WithLabelValues("lookup", "error").Inc()
+		return fleet.ConfigETagLookup{}, ctxerr.Errorf(ctx, "redis config etag lookup: got %d values, want %d", len(vals), len(keys))
+	}
+	if vals[0] == nil {
+		return fleet.ConfigETagLookup{}, nil
+	}
+
+	strs := make([]string, len(keys))
+	for i, v := range vals {
+		if v == nil {
+			continue
+		}
+		if strs[i], err = redigo.String(v, nil); err != nil {
+			metricRequests.WithLabelValues("lookup", "error").Inc()
+			return fleet.ConfigETagLookup{}, ctxerr.Wrap(ctx, err, "redis config etag lookup value type")
+		}
+	}
+	var scopes fleet.ConfigETagLabelScopes
+	if err := json.Unmarshal([]byte(strs[0]), &scopes); err != nil {
+		metricRequests.WithLabelValues("lookup", "error").Inc()
+		return fleet.ConfigETagLookup{}, ctxerr.Wrap(ctx, err, "parse cached label scopes")
+	}
+	currentGen := strs[1]
+	if currentGen == "" {
+		currentGen = "0"
+	}
+
+	lookup := fleet.ConfigETagLookup{LabelScopesCached: true, LabelScopes: scopes}
+	if scopes.PerHostMode(fleetID) {
+		lookup.ETag, lookup.Valid = checkHostRecord(strs[3], currentGen, scope, platform)
+	} else {
+		lookup.ETag, lookup.Valid = checkSharedRecord(strs[2], currentGen)
+	}
+	return lookup, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

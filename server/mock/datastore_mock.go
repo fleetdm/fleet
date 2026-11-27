@@ -924,6 +924,8 @@ type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host,
 
 type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
+type RecordLabelQueryExecutionsWithChangesFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) (membershipChanged bool, err error)
+
 type SaveHostUsersFunc func(ctx context.Context, hostID uint, users []fleet.HostUser) error
 
 type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *json.RawMessage) error
@@ -4012,6 +4014,9 @@ type DataStore struct {
 
 	RecordLabelQueryExecutionsFunc        RecordLabelQueryExecutionsFunc
 	RecordLabelQueryExecutionsFuncInvoked bool
+
+	RecordLabelQueryExecutionsWithChangesFunc        RecordLabelQueryExecutionsWithChangesFunc
+	RecordLabelQueryExecutionsWithChangesFuncInvoked bool
 
 	SaveHostUsersFunc        SaveHostUsersFunc
 	SaveHostUsersFuncInvoked bool
@@ -9771,6 +9776,13 @@ func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 	s.RecordLabelQueryExecutionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.RecordLabelQueryExecutionsFunc(ctx, host, results, t, deferredSaveHost)
+}
+
+func (s *DataStore) RecordLabelQueryExecutionsWithChanges(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) (membershipChanged bool, err error) {
+	s.mu.Lock()
+	s.RecordLabelQueryExecutionsWithChangesFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordLabelQueryExecutionsWithChangesFunc(ctx, host, results, t, deferredSaveHost)
 }
 
 func (s *DataStore) SaveHostUsers(ctx context.Context, hostID uint, users []fleet.HostUser) error {
