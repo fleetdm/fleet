@@ -10,7 +10,7 @@ The BIOS is the small program that wakes a PC up before Windows or Linux does. I
 - Hosts enrolled with fleetd, with [scripts enabled](https://fleetdm.com/guides/scripts).
 - If your PCs have a BIOS supervisor password, a custom variable named `BIOS_PASSWORD` in **Controls** > **Variables**. Add it before uploading the scripts below, since Fleet won't save a script that uses a variable it hasn't heard of.
 
-> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every device. It still stays out of your scripts and Git, which matters most. Fleet is already used in production on Lenovo hardware in healthcare, finance, and government, and this hasn't been a blocker there. Want to talk through your setup? [Reach out](https://fleetdm.com/support).
+> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every device. It still stays out of your scripts and Git, which matters most. Fleet is already used in production on Lenovo hardware in healthcare, finance, and government, and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
 
 ## Step 1: Label your Lenovo PCs
 
