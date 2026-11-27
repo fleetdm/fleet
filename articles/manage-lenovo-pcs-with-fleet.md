@@ -2,7 +2,9 @@
 
 I'm one of those people who enjoys poking around in BIOS setup. I realize it's not a popular hobby, though if you clicked on a guide about Lenovo BIOS settings, you might be one too. So I was a little too pleased when companies moving off Intune prompted this question around what would happen to their BIOS settings.
 
-The BIOS is the small program that wakes a PC up before Windows or Linux does. It decides what the PC can start from, whether Secure Boot is on, and whether the TPM works. Secure Boot only lets trusted software start, and the TPM is a tiny chip that guards encryption keys. Your disk encryption and EDR (the security software that watches devices for attackers) both depend on those settings being right, and like any software, the BIOS needs patches now and then. So the job is to keep the BIOS updated and its settings locked down. Lenovo makes tools for both, and Intune just runs them. Fleet can run them too, and covers Linux with open-source tools.
+The BIOS is the small program that wakes a PC up before Windows or Linux does. It decides what the PC can start from, whether Secure Boot is on, and whether the TPM works. Secure Boot only lets trusted software start, and the TPM is a tiny chip that guards encryption keys.
+
+Your disk encryption and EDR (the security software that watches devices for attackers) both depend on those settings being right, and like any software, the BIOS needs patches now and then. So the job is to keep the BIOS updated and its settings locked down. Lenovo makes tools for both, and Intune just runs them. Fleet can run them too, and on Linux it uses the open-source tools Lenovo supports there.
 
 ## Prerequisites
 
@@ -10,7 +12,7 @@ The BIOS is the small program that wakes a PC up before Windows or Linux does. I
 - Hosts enrolled with fleetd, with [scripts enabled](https://fleetdm.com/guides/scripts).
 - If your PCs have a BIOS supervisor password, add it as a custom variable named `BIOS_PASSWORD` in **Controls** > **Variables**. Do this first, since Fleet won't save a script that uses a variable it hasn't heard of.
 
-> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every device. The good news is that the password stays out of your scripts and out of Git. Fleet is already used in production on Lenovo hardware in highly regulated industries (healthcare, finance, government), and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
+> **Note:** Fleet can't yet store a different BIOS password for each host ([#59972](https://github.com/fleetdm/fleet/issues/59972)), so one [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) holds the same password for every device. At least the password stays out of your scripts and out of Git. Fleet is already used in production on Lenovo hardware in highly regulated industries (healthcare, finance, government), and this hasn't been a blocker there. If you'd like to talk through your setup, [reach out](https://fleetdm.com/support).
 
 ## Step 1: Label your Lenovo PCs
 
@@ -77,9 +79,9 @@ Click each BIOS policy's **Automation** column, choose **Run script**, pick the 
 
 ## Step 3: Lock down BIOS settings
 
-An up-to-date BIOS still needs the right settings, or Secure Boot and the TPM are just good intentions. ThinkPads accept settings through [WMI](https://docs.lenovocdrt.com/ref/bios/wmi/wmi_guide/) (Windows' built-in way to read and change system settings), so a short script does the job with nothing extra to install. If you built a Think BIOS Config Tool setup for Intune, you can keep it, since the tool is a PowerShell module a Fleet script can run.
+An up-to-date BIOS still needs the right settings, or Secure Boot and the TPM are just good intentions. ThinkPads accept settings through [WMI](https://docs.lenovocdrt.com/ref/bios/wmi/wmi_guide/) (Windows' built-in way to read and change system settings), so a short script does the job with nothing extra to install.
 
-Upload `lenovo-bios-security-settings.ps1`. It turns on Secure Boot, the TPM, and virtualization, and turns off the UEFI network stacks, which closes off network (PXE) boot:
+Upload `lenovo-bios-security-settings.ps1`. It turns on Secure Boot, the TPM, and virtualization, and turns off the UEFI network stacks, which turns off network (PXE) boot, where a PC starts from a server instead of its own disk:
 
 ```powershell
 $set = Get-WmiObject -Class Lenovo_SetBiosSetting -Namespace root\wmi
@@ -99,17 +101,17 @@ if ($r -ne 'Success') { exit 1 }
 
 Following Lenovo's WMI guide, the script sets the values, then gives the password, then saves. Fleet swaps in the real password for `$FLEET_SECRET_BIOS_PASSWORD` before the script reaches the device. If you don't use a supervisor password, drop `$pw` and the `WmiOpcodeInterface` line.
 
-The setting names come from Lenovo's [ThinkPad BIOS settings reference](https://docs.lenovocdrt.com/ref/bios/bios_guide/). `SecurityChip` is Lenovo's name for the TPM. On AMD models, use `AmdVt` instead of `VirtualizationTechnology`. ThinkCentre and ThinkStation PCs use different names altogether.
+The setting names come from Lenovo's [ThinkPad BIOS settings reference](https://docs.lenovocdrt.com/ref/bios/bios_guide/). `SecurityChip` is Lenovo's name for the TPM. On AMD models, use `AmdVt` instead of `VirtualizationTechnology`. ThinkCentre and ThinkStation PCs use different names altogether. Already have a Think BIOS Config Tool setup from Intune? You can keep it. The tool is a PowerShell module, so a Fleet script can run it.
 
-Network (PXE) boot lets a PC start from a server instead of its own disk. If your team reimages PCs that way, it stops working once the network stacks are off, so try the script on one PC of each model first. Lenovo has no single switch for USB boot. It lives in `BootOrder`, which this script leaves alone.
+If your team reimages PCs over the network, that stops working once the stacks are off, so try the script on one PC of each model first. USB boot doesn't have its own switch on Lenovo PCs. It's part of `BootOrder`, which this script leaves alone.
 
-To check each setting, add a policy targeted at **Lenovo** that reads it from [`wmi_bios_info`](https://fleetdm.com/tables/wmi_bios_info):
+To check each setting, first run `SELECT name, value FROM wmi_bios_info;` as a live report on one PC of each model to see the exact names and values. Then add a policy targeted at **Lenovo** that reads the setting from [`wmi_bios_info`](https://fleetdm.com/tables/wmi_bios_info):
 
 ```sql
 SELECT 1 FROM wmi_bios_info WHERE name = 'VirtualizationTechnology' AND value = 'Enable';
 ```
 
-To see the exact names and values, run `SELECT name, value FROM wmi_bios_info;` as a live report on one PC of each model. Secure Boot and the TPM have tables of their own:
+Secure Boot and the TPM have tables of their own:
 
 ```sql
 SELECT 1 FROM secureboot WHERE secure_boot = 1;
@@ -121,14 +123,14 @@ SELECT 1 FROM tpm_info WHERE enabled = 1 AND activated = 1;
 
 Give these policies the settings script as a **Run script** automation, like in step 2. If someone changes a setting, the policy fails on its next run and Fleet changes it back. The supervisor password stops most changes before they happen, and the policy tidies up after anyone who gets past it.
 
-Last, keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), because BitLocker notices when the startup chain changes. A surprise BitLocker recovery prompt can be the first sign that something in the startup chain changed. Before the help desk reads out a recovery key, have them check Fleet for a recent BIOS update or setting change, Secure Boot included. If nothing explains it, investigate before unlocking.
+Last, keep [enforcing disk encryption](https://fleetdm.com/guides/enforce-disk-encryption), BitLocker notices when the startup chain changes, so a surprise recovery prompt can be your first clue. Before the help desk reads out a recovery key, have them check Fleet for a recent BIOS update or setting change, Secure Boot included. If nothing explains it, investigate before unlocking.
 
 ## Step 4: Do the same on Linux
 
 System Update, Commercial Vantage, and the Think BIOS Config Tool are Windows-only. Lenovo hasn't left Linux out, though. It just uses open-source tools there.
 
 - For updates, Lenovo firmware is [listed on the Linux Vendor Firmware Service](https://fwupd.org/lvfs/search?value=lenovo), and [fwupd](https://fwupd.github.io/libfwupdplugin/fwupdmgr.html) installs it.
-- For settings, on its Linux-certified PCs from 2020 on, Lenovo supports changing BIOS settings through the kernel's `thinklmi` driver. See Lenovo's [ThinkLMI guide](https://download.lenovo.com/pccbbs/mobiles_pdf/lenovo_bios_setup_linux_wmi_sysfs_1.2.pdf).
+- For settings, Lenovo supports the kernel's `thinklmi` driver on its Linux-certified PCs from 2020 and later. See Lenovo's [ThinkLMI guide](https://download.lenovo.com/pccbbs/mobiles_pdf/lenovo_bios_setup_linux_wmi_sysfs_1.2.pdf).
 
 Upload `linux-update-firmware.sh` and attach it to a copy of the BIOS version policy from step 2 with its platform set to Linux:
 
