@@ -1,0 +1,266 @@
+name: OpenSSF Scorecard PR Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write #intentional error
+
+jobs:
+  scorecard-analysis:
+    name: Run Scorecard on PR
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Create results directory
+        run: mkdir -p /tmp/scorecard-results
+
+      - name: Install Scorecard
+        run: |
+          SCORECARD_VERSION=$(curl -s https://api.github.com/repos/ossf/scorecard/releases/latest | jq -r '.tag_name')
+          echo "Installing Scorecard $SCORECARD_VERSION"
+          SCORECARD_URL="https://github.com/ossf/scorecard/releases/download/${SCORECARD_VERSION}/scorecard_${SCORECARD_VERSION#v}_linux_amd64.tar.gz"
+          echo "Downloading from: $SCORECARD_URL"
+          mkdir -p /tmp/scorecard-install
+          curl -sSfL "$SCORECARD_URL" -o /tmp/scorecard-install/scorecard.tar.gz
+          tar -xz -C /tmp/scorecard-install -f /tmp/scorecard-install/scorecard.tar.gz
+          chmod +x /tmp/scorecard-install/scorecard
+          ln -s /tmp/scorecard-install/scorecard /usr/local/bin/scorecard
+          scorecard version
+
+      - name: Checkout PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard on PR branch
+        run: |
+          scorecard --local . --show-details --checks Token-Permissions,Dangerous-Workflow,Pinned-Dependencies,Vulnerabilities,Binary-Artifacts --format json > /tmp/scorecard-results/results_pr.json
+          cat /tmp/scorecard-results/results_pr.json | jq
+
+      - name: Checkout base branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Run Scorecard on base branch
+        run: |
+          scorecard --local . --show-details --checks Token-Permissions,Dangerous-Workflow,Pinned-Dependencies,Vulnerabilities,Binary-Artifacts --format json > /tmp/scorecard-results/results_base.json
+          cat /tmp/scorecard-results/results_base.json | jq
+
+      - name: Compare Scorecard results
+        id: compare
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Check if files exist
+            if (!fs.existsSync('/tmp/scorecard-results/results_pr.json')) {
+              console.error('ERROR: /tmp/scorecard-results/results_pr.json not found');
+              process.exit(1);
+            }
+
+            if (!fs.existsSync('/tmp/scorecard-results/results_base.json')) {
+              console.error('ERROR: /tmp/scorecard-results/results_base.json not found');
+              process.exit(1);
+            }
+
+            // Parse JSON results
+            const prResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_pr.json', 'utf8'));
+            const baseResults = JSON.parse(fs.readFileSync('/tmp/scorecard-results/results_base.json', 'utf8'));
+
+            // Extract checks and their scores
+            const prChecks = new Map();
+            const baseChecks = new Map();
+
+            if (prResults.checks) {
+              prResults.checks.forEach(check => {
+                prChecks.set(check.name, {
+                  score: check.score,
+                  reason: check.reason || '',
+                  details: check.details || []
+                });
+              });
+            }
+
+            if (baseResults.checks) {
+              baseResults.checks.forEach(check => {
+                baseChecks.set(check.name, {
+                  score: check.score,
+                  reason: check.reason || '',
+                  details: check.details || []
+                });
+              });
+            }
+
+            // Helper function to find new details
+            function findNewDetails(prDetails, baseDetails) {
+              const baseSet = new Set(baseDetails);
+              return prDetails.filter(detail => !baseSet.has(detail));
+            }
+
+            // Helper function to filter out Info-level details
+            function filterInfoDetails(details) {
+              return details.filter(detail => !detail.startsWith('Info:'));
+            }
+
+            // Find new or regressed issues (score decreased)
+            const newIssues = [];
+
+            prChecks.forEach((prCheck, checkName) => {
+              const baseCheck = baseChecks.get(checkName);
+              
+              // If the check didn't exist in base, it's new
+              if (!baseCheck) {
+                const significantDetails = filterInfoDetails(prCheck.details);
+                newIssues.push({
+                  name: checkName,
+                  prScore: prCheck.score,
+                  baseScore: null,
+                  isNew: true,
+                  reason: prCheck.reason,
+                  prDetails: significantDetails // Show all non-Info details
+                });
+              }
+              // If the score decreased, it's a regression
+              else if (prCheck.score < baseCheck.score) {
+                const significantDetails = filterInfoDetails(prCheck.details);
+                newIssues.push({
+                  name: checkName,
+                  prScore: prCheck.score,
+                  baseScore: baseCheck.score,
+                  isRegression: true,
+                  reason: prCheck.reason,
+                  prDetails: significantDetails
+                });
+              }
+              // For checks with details (like Vulnerabilities), compare detail counts and content
+              // This catches cases where details change even if score stays the same
+              else if (prCheck.details && baseCheck.details && 
+                       prCheck.details.length > baseCheck.details.length) {
+                // Filter out Info-level details before comparing
+                const prDetailsSignificant = filterInfoDetails(prCheck.details);
+                const baseDetailsSignificant = filterInfoDetails(baseCheck.details);
+                
+                // Only flag as regression if significant (non-Info) details increased
+                if (prDetailsSignificant.length > baseDetailsSignificant.length) {
+                  const newDetails = findNewDetails(prDetailsSignificant, baseDetailsSignificant);
+                  newIssues.push({
+                    name: checkName,
+                    prScore: prCheck.score,
+                    baseScore: baseCheck.score,
+                    isRegression: true,
+                    detailsAdded: true,
+                    prDetailCount: prDetailsSignificant.length,
+                    baseDetailCount: baseDetailsSignificant.length,
+                    newDetailsCount: newDetails.length,
+                    reason: prCheck.reason,
+                    newDetails: newDetails // Show all new details
+                  });
+                }
+              }
+            });
+
+            // Store results for comment step
+            core.setOutput('newIssuesCount', newIssues.length);
+            core.setOutput('newIssuesJson', JSON.stringify(newIssues));
+            
+            if (newIssues.length > 0) {
+              console.log(`Found ${newIssues.length} new or regressed Scorecard checks`);
+              newIssues.forEach(issue => {
+                if (issue.isNew) {
+                  console.log(`  - NEW: ${issue.name} (score: ${issue.prScore})`);
+                } else if (issue.detailsAdded) {
+                  console.log(`  - REGRESSED: ${issue.name} (${issue.baseDetailCount} → ${issue.prDetailCount} issues)`);
+                  if (issue.newDetails && issue.newDetails.length > 0) {
+                    console.log(`    New issues detected: ${issue.newDetailsCount}`);
+                    issue.newDetails.forEach(detail => {
+                      console.log(`      • ${detail}`);
+                    });
+                  }
+                } else if (issue.isRegression) {
+                  console.log(`  - REGRESSED: ${issue.name} (${issue.baseScore} → ${issue.prScore})`);
+                }
+              });
+            } else {
+              console.log('No new or regressed Scorecard checks found');
+            }
+
+      - name: Comment on PR with results
+        if: steps.compare.outputs.newIssuesCount > 0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          NEW_ISSUES_JSON: ${{ steps.compare.outputs.newIssuesJson }}
+        with:
+          script: |
+            const newIssues = JSON.parse(process.env.NEW_ISSUES_JSON);
+            
+            let comment = '## 🔒 OpenSSF Scorecard Changes Detected\n\n';
+            comment += `This PR introduces ${newIssues.length} new or regressed security/quality check(s):\n\n`;
+
+            newIssues.forEach((issue, index) => {
+              comment += `### ${index + 1}. ${issue.name}\n`;
+              
+              if (issue.isNew) {
+                comment += `**Status**: ✨ NEW\n`;
+                comment += `**Score**: ${issue.prScore}\n`;
+                comment += `**Reason**: ${issue.reason}\n`;
+              } else if (issue.detailsAdded) {
+                comment += `**Status**: ⚠️ MORE ISSUES DETECTED\n`;
+                comment += `**Score**: ${issue.prScore} (unchanged)\n`;
+                comment += `**Issue Count**: ${issue.baseDetailCount} → ${issue.prDetailCount} (+${issue.newDetailsCount} new)\n`;
+                comment += `**Reason**: ${issue.reason}\n`;
+                
+                if (issue.newDetails && issue.newDetails.length > 0) {
+                  comment += `\n**Sample of new issues**:\n`;
+                  issue.newDetails.forEach(detail => {
+                    comment += `- ${detail}\n`;
+                  });
+                }
+              } else if (issue.isRegression) {
+                comment += `**Status**: ⚠️ REGRESSED\n`;
+                comment += `**Score**: ${issue.baseScore} → ${issue.prScore}\n`;
+                comment += `**Reason**: ${issue.reason}\n`;
+                
+                if (issue.prDetails && issue.prDetails.length > 0) {
+                  comment += `\n**Current details**:\n`;
+                  issue.prDetails.forEach(detail => {
+                    comment += `- ${detail}\n`;
+                  });
+                }
+              }
+              
+              comment += '\n';
+            });
+
+            comment += '\n---\n';
+            comment += 'See the [OpenSSF Scorecard documentation](https://github.com/ossf/scorecard/blob/main/docs/checks.md) for details on each check.\n';
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.compare.outputs.newIssuesCount }}" -gt "0" ]; then
+            echo "❌ Scorecard found ${{ steps.compare.outputs.newIssuesCount }} new or regressed security checks in this PR"
+            echo "See the PR comment above for details"
+            exit 1
+          else
+            echo "✓ No new Scorecard issues detected"
+          fi
