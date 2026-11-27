@@ -1,6 +1,6 @@
 # How to retire computers securely: IT asset disposition with Fleet
 
-Every computer leaves the company eventually. IT asset disposition (ITAD) is how it leaves safely: the data is gone, the device is out of your systems, and you have proof. Fleet handles the digital side. An ITAD partner handles the physical side.
+Every computer leaves the company eventually. IT asset disposition (ITAD) is how it leaves safely: the data is gone, the device is out of your systems, and you have proof. Fleet handles most of the digital side. An ITAD partner handles the physical side.
 
 ## What IT asset disposition is
 
@@ -26,7 +26,7 @@ Resellers like [CDW](https://www.cdw.com/content/cdw/en/services/renewals-and-wa
 
 ## Where Fleet fits
 
-Your ITAD partner takes over once the computer is in a box. Fleet handles most of what happens before that: knowing what you're retiring, confirming it's encrypted, locking it, wiping it, and removing it from your systems. Fleet doesn't handle the physical part.
+Your ITAD partner takes over once the computer is in a box. Fleet handles most of what happens before that: knowing what you're retiring, confirming it's encrypted, locking it, wiping it, and removing it from your systems.
 
 ## Before you begin
 
@@ -43,13 +43,13 @@ On the **Hosts** page, search or filter for the devices you're retiring. Select 
 
 ### 2. Confirm the disk is encrypted
 
-Go to **Controls > OS settings > Disk encryption** and check that each host shows **Verified**. Fleet [enforces encryption](https://fleetdm.com/guides/enforce-disk-encryption) on macOS (FileVault) and Windows (BitLocker), and escrows keys for macOS, Windows, and Linux (Ubuntu, Kubuntu, Fedora, and Omarchy). Encryption is your safety net if a device goes missing in transit.
+Go to **Controls > OS settings > Disk encryption** and check that the hosts you're retiring are counted under **Verified**. Select a status to see which hosts it includes. Fleet [enforces encryption](https://fleetdm.com/guides/enforce-disk-encryption) on macOS (FileVault) and Windows (BitLocker), and escrows keys for macOS, Windows, and Linux (Ubuntu, Kubuntu, Fedora, and Omarchy). Encryption is your safety net if a device goes missing in transit.
 
 ### 3. Lock it if it's not back yet
 
 If a departing employee still has the computer, [lock it](https://fleetdm.com/guides/lock-wipe-hosts) from **Actions > Lock** on the **Host details** page. On a Mac, Fleet shows a six-digit PIN.
 
-> **Note:** Fleet can't wipe a locked host. When the device comes back, unlock it before step 5. On a Mac, type the PIN on the device. On other platforms, select **Actions > Unlock**.
+> **Note:** Fleet can't wipe a locked host. When the device comes back, select **Actions > Unlock** before step 5. On a Mac, Fleet shows the PIN again, and you type it on the device. Other platforms unlock remotely.
 
 ### 4. Clear the locks that block resale
 
@@ -104,10 +104,10 @@ SERIAL=C02XXXXXXXXX
 # Find the host
 ID=$(curl -s -H "$AUTH" "$FLEET/api/v1/fleet/hosts/identifier/$SERIAL?exclude_software=true" | jq .host.id)
 
-# Wipe it
+# Unlock it first if it's locked, then wipe it
 curl -s -X POST -H "$AUTH" "$FLEET/api/v1/fleet/hosts/$ID/wipe"
 
-# After the wipe finishes: release it from Apple Business, then delete it
+# After the wipe finishes: release Apple devices from Apple Business, then delete the host
 curl -s -X POST -H "$AUTH" -d "{\"ids\": [$ID]}" "$FLEET/api/v1/fleet/hosts/release_ab"
 curl -s -X DELETE -H "$AUTH" "$FLEET/api/v1/fleet/hosts/$ID"
 ```
@@ -120,7 +120,7 @@ To export the manifest, call [`GET /api/v1/fleet/hosts/report?format=csv`](https
 - [ ] Confirm disk encryption and escrowed keys
 - [ ] Lock any device that hasn't come back
 - [ ] Turn off Activation Lock, deregister from Autopilot, and clear BIOS passwords
-- [ ] Wipe the device and wait for it to finish
+- [ ] Unlock it if needed, then wipe it and wait for it to finish
 - [ ] Release Apple devices from Apple Business, then delete the host from Fleet
 - [ ] Match the ITAD partner's manifest against your export
 - [ ] File each certificate with the Fleet audit log entries, by serial number
