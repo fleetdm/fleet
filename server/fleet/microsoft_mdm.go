@@ -973,8 +973,18 @@ type MDMWindowsEnrolledDevice struct {
 	CreatedAt       time.Time  `db:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at"`
 
-	// LinkedHostID is the host that has HostUUID
+	// LinkedHostID is the host that owns HostUUID's Windows MDM state. On insert, it is the enrolling host.
 	LinkedHostID *uint `db:"linked_host_id"`
+}
+
+// WindowsMDMUUIDOwnedByOtherHostError is returned when a host claims the Windows MDM state of a hardware UUID that another host owns.
+type WindowsMDMUUIDOwnedByOtherHostError struct {
+	HostUUID    string
+	OwnerHostID uint
+}
+
+func (e *WindowsMDMUUIDOwnedByOtherHostError) Error() string {
+	return fmt.Sprintf("the Windows MDM state of hardware UUID %s belongs to host %d", e.HostUUID, e.OwnerHostID)
 }
 
 // WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql

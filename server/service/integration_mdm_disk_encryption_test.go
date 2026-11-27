@@ -882,6 +882,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 		MDMEnrollClientVersion: "10.0.26100",
 		MDMNotInOOBE:           true,
 		HostUUID:               host.UUID,
+		LinkedHostID:           &host.ID,
 	}))
 
 	// request encryption key with no auth token

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -3835,7 +3836,17 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	// Covers edge case where plain osquery is enrolled in Fleet when end user enrolls in MDM.
 	fleetdOnDevice := host.OrbitNodeKey != nil && *host.OrbitNodeKey != ""
 	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"], fleetdOnDevice)
+	if IsWindowsMDMLinkRefused(err) {
+		return nil
+	}
 	return err
+}
+
+// IsWindowsMDMLinkRefused reports whether LinkWindowsHostMDMEnrollment refused the link because another host sharing the UUID owns
+// its Windows MDM state. The refusal is already logged.
+func IsWindowsMDMLinkRefused(err error) bool {
+	_, ok := errors.AsType[*fleet.WindowsMDMUUIDOwnedByOtherHostError](err)
+	return ok
 }
 
 // LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
@@ -3846,12 +3857,19 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 // Returns true when UpdateMDMWindowsEnrollmentsHostUUID reported a new link, false when it did not. The "no change"
 // case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to this
 // same hostUUID and its host was not deleted since; (b) no row matched mdmDeviceID at all (e.g. the enrollment was
-// deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
-// rather than infer it from the boolean alone.
+// deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment rather than infer it from the
+// boolean alone. When another host sharing the UUID owns its Windows MDM state, nothing is linked and the error satisfies
+// IsWindowsMDMLinkRefused.
 func LinkWindowsHostMDMEnrollment(
 	ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string, fleetdOnDevice bool,
 ) (bool, error) {
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostID, hostUUID, mdmDeviceID)
+	if ownedErr, ok := errors.AsType[*fleet.WindowsMDMUUIDOwnedByOtherHostError](err); ok {
+		logger.WarnContext(ctx, "not linking windows mdm enrollment: another host with the same hardware UUID owns its MDM; "+
+			"delete the stale host", "host_id", hostID, "host_uuid", hostUUID, "owner_host_id", ownedErr.OwnerHostID,
+			"device_id", mdmDeviceID)
+		return false, err
+	}
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
 	}

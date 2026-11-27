@@ -150,6 +150,7 @@ func testOrbitConfigNotifyWindowsMDMSync(t *testing.T, ds *Datastore, notifier *
 			MDMHardwareID:  uuid.NewString(),
 			MDMDeviceState: microsoft_mdm.MDMDeviceStateEnrolled,
 			HostUUID:       host.UUID,
+			LinkedHostID:   &host.ID,
 		}
 		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, device))
 		require.NoError(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, host.UUID, syncCapable))

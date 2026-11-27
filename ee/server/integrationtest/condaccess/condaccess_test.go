@@ -211,6 +211,7 @@ func testOneTimeChallenge(t *testing.T, s *Suite) {
 		MDMDeviceType:  "CIMClient_Windows",
 		MDMEnrollType:  "ProgrammaticEnrollment",
 		HostUUID:       host.UUID,
+		LinkedHostID:   &host.ID,
 	}))
 	device, err := s.DS.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, "device-one-time-1")
 	require.NoError(t, err)

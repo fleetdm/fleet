@@ -845,9 +845,9 @@ func insertWindowsEnrollment(t *testing.T, ds *Datastore, hardwareID, hostUUID s
 }
 
 // linkWindowsEnrollment links an existing enrollment to a host, as fleetd enrolling does.
-func linkWindowsEnrollment(t *testing.T, ds *Datastore, device *fleet.MDMWindowsEnrolledDevice, hostUUID string) {
+func linkWindowsEnrollment(t *testing.T, ds *Datastore, device *fleet.MDMWindowsEnrolledDevice, host *fleet.Host) {
 	t.Helper()
-	_, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(t.Context(), hostUUID, device.MDMDeviceID)
+	_, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(t.Context(), host.ID, host.UUID, device.MDMDeviceID)
 	require.NoError(t, err)
 }
 
@@ -1056,7 +1056,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		before := liveWindowsSecret(t, ds, device.ID)
 
-		linkWindowsEnrollment(t, ds, device, host.UUID)
+		linkWindowsEnrollment(t, ds, device, host)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		after := liveWindowsSecret(t, ds, device.ID)
 		require.Equal(t, before.Secret, after.Secret, "reused, not replaced")
@@ -1095,7 +1095,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h.ID, *consumed.HostID)
 
-		linkWindowsEnrollment(t, ds, device, h.UUID)
+		linkWindowsEnrollment(t, ds, device, h)
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		live := liveWindowsSecret(t, ds, device.ID)
 
@@ -1163,7 +1163,7 @@ func testOneTimeEnrollSecretWindowsHostBinding(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.MintWindowsMDMOneTimeEnrollSecret(ctx, device.ID))
 		row := liveWindowsSecret(t, ds, device.ID)
 		require.Nil(t, row.HostID)
-		linkWindowsEnrollment(t, ds, device, h.UUID)
+		linkWindowsEnrollment(t, ds, device, h)
 
 		enrolled, err := ds.EnrollOrbit(ctx, orbitEnrollOpts(h, nil, fleet.WithEnrollOrbitOneTimeEnrollSecret(row.ID))...)
 		require.NoError(t, err)
@@ -1386,12 +1386,12 @@ func testOneTimeEnrollSecretWindowsDeletedHostFleet(t *testing.T, ds *Datastore)
 			enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, device.MDMDeviceID)
 			require.NoError(t, err)
 			require.Equal(t, recordedTeam(t, device.ID), enrolled.DeletedHostTeamID)
-			updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, h.UUID, device.MDMDeviceID)
+			updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, h.ID, h.UUID, device.MDMDeviceID)
 			require.NoError(t, err)
 			require.Equal(t, !tc.notRecorded, updated)
 			require.NoError(t, ds.MDMWindowsClearDeletedHostTeam(ctx, device.MDMDeviceID))
 			require.Nil(t, recordedTeam(t, device.ID))
-			updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, h.UUID, device.MDMDeviceID)
+			updated, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, h.ID, h.UUID, device.MDMDeviceID)
 			require.NoError(t, err)
 			require.False(t, updated)
 		})

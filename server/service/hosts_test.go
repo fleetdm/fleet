@@ -573,6 +573,7 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
+	ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
@@ -783,6 +784,7 @@ func mockHostDetailsDatastore(ds *mock.Store) {
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
+	ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
@@ -1166,6 +1168,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 			return nil, nil
 		}
+		ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 			return nil, nil
 		}
@@ -1270,6 +1273,7 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
+	ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
@@ -1360,6 +1364,7 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
+	ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
@@ -1477,6 +1482,7 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) { return nil, nil }
+	ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) { return nil, nil }
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
@@ -5477,6 +5483,7 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	}
 	for _, tt := range windowsCases {
 		t.Run(tt.name, func(t *testing.T) {
+			ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, host_uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 				return tt.storedProfiles, nil
 			}
@@ -5548,6 +5555,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
+	ds.GetWindowsMDMUUIDOwnerFunc = func(ctx context.Context, hostUUID string) (uint, error) { return 0, nil }
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}

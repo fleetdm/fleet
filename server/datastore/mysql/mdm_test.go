@@ -121,12 +121,14 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
 		HostUUID:               windowsH.UUID,
+		LinkedHostID:           &windowsH.ID,
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
 	windowsEnrollment.ID = mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, windowsEnrollment.MDMHardwareID)
 	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
+		windowsH.ID,
 		windowsEnrollment.HostUUID,
 		windowsEnrollment.MDMDeviceID,
 	)
@@ -4065,6 +4067,7 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 				MDMEnrollClientVersion: "10.0.19045.2965",
 				MDMNotInOOBE:           false,
 				HostUUID:               h.UUID,
+				LinkedHostID:           &h.ID,
 			}
 			err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 			require.NoError(t, err)
@@ -4327,6 +4330,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
 		HostUUID:               connectedWin.UUID,
+		LinkedHostID:           &connectedWin.ID,
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
@@ -4353,6 +4357,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
 		HostUUID:               disconnectedWithoutCheckoutWin.UUID,
+		LinkedHostID:           &disconnectedWithoutCheckoutWin.ID,
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollmentDisconnectedWithoutCheckout)
 	require.NoError(t, err)
@@ -4532,6 +4537,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		MDMEnrollClientVersion: "10.0.19045.2965",
 		MDMNotInOOBE:           false,
 		HostUUID:               windowsH.UUID,
+		LinkedHostID:           &windowsH.ID,
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)

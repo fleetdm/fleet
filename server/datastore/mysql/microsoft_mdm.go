@@ -43,7 +43,8 @@ func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 	    JOIN host_mdm hm ON hm.host_id = h.id
 	  WHERE h.id = %d
 	    AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
-	    AND hm.enrolled = 1 LIMIT 1
+	    AND hm.enrolled = 1
+	    AND `+hostIsWindowsMDMOwner+` LIMIT 1
 	`, h.ID))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -86,9 +87,9 @@ const mdmWindowsEnrolledDeviceColumns = `
 		created_at,
 		updated_at,
 		host_uuid,
-		-- A subquery rather than a join, so hosts sharing a UUID do not multiply the row.
+		-- A subquery rather than a join, so hosts sharing a UUID do not multiply the row. The UUID's owner when it has one.
 		(SELECT h.id FROM hosts h WHERE h.uuid = mdm_windows_enrollments.host_uuid AND mdm_windows_enrollments.host_uuid != ''
-			AND h.platform = 'windows' ORDER BY h.id LIMIT 1) AS linked_host_id
+			AND h.platform = 'windows' ORDER BY ` + hostIsWindowsMDMOwner + ` DESC, h.id LIMIT 1) AS linked_host_id
 `
 
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
@@ -404,14 +405,14 @@ func (ds *Datastore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwa
 }
 
 // WindowsHostLiteByUUID looks up a Windows host by UUID. Hosts can share a UUID, so it picks the one an enrollment's linked_host_id
-// resolves to, the lowest id.
+// resolves to: the UUID's Windows MDM owner, else the lowest id.
 func (ds *Datastore) WindowsHostLiteByUUID(ctx context.Context, hostUUID string) (*fleet.HostLite, error) {
 	const stmt = `
 		SELECT ` + hostLiteColumns + `
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		WHERE h.uuid = ? AND h.platform = 'windows'
-		ORDER BY h.id LIMIT 1`
+		ORDER BY ` + hostIsWindowsMDMOwner + ` DESC, h.id LIMIT 1`
 	var host fleet.HostLite
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -791,41 +792,47 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			entra_device_id       = VALUES(entra_device_id),
 			fleetd_present_at     = NULL
 	`
-	_, err := ds.writer(ctx).ExecContext(
-		ctx,
-		stmt,
-		device.MDMDeviceID,
-		device.MDMHardwareID,
-		device.MDMDeviceState,
-		device.MDMDeviceType,
-		device.MDMDeviceName,
-		device.MDMEnrollType,
-		device.MDMEnrollUserID,
-		device.MDMEnrollProtoVersion,
-		device.MDMEnrollClientVersion,
-		device.MDMNotInOOBE,
-		device.AwaitingConfiguration,
-		device.AwaitingConfigurationAt,
-		device.HostUUID,
-		device.CredentialsHash,
-		device.CredentialsAcknowledged,
-		device.ZTDRegistrationID,
-		device.EntraDeviceID,
-	)
-	if err != nil {
-		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if device.HostUUID != "" && device.LinkedHostID != nil {
+			if err := claimWindowsMDMUUIDOwnerDB(ctx, tx, device.HostUUID, *device.LinkedHostID, windowsMDMOwnerClaimedByEnrollment); err != nil {
+				return err
+			}
 		}
-		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsEnrolledDevice")
-	}
-
-	return nil
+		_, err := tx.ExecContext(
+			ctx,
+			stmt,
+			device.MDMDeviceID,
+			device.MDMHardwareID,
+			device.MDMDeviceState,
+			device.MDMDeviceType,
+			device.MDMDeviceName,
+			device.MDMEnrollType,
+			device.MDMEnrollUserID,
+			device.MDMEnrollProtoVersion,
+			device.MDMEnrollClientVersion,
+			device.MDMNotInOOBE,
+			device.AwaitingConfiguration,
+			device.AwaitingConfigurationAt,
+			device.HostUUID,
+			device.CredentialsHash,
+			device.CredentialsAcknowledged,
+			device.ZTDRegistrationID,
+			device.EntraDeviceID,
+		)
+		if err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsEnrolledDevice", device.MDMHardwareID))
+			}
+			return ctxerr.Wrap(ctx, err, "inserting MDMWindowsEnrolledDevice")
+		}
+		return nil
+	})
 }
 
 // forgetEndUserAfterWindowsResetDB clears the previous end user of a host coming back from a reset, before the reset status goes.
 func forgetEndUserAfterWindowsResetDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	var hostID uint
-	err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
+	err := sqlx.GetContext(ctx, tx, &hostID, windowsHostIDOfUUIDOwnerFirst, hostUUID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil
@@ -867,7 +874,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 		loadStmt        = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
-		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
+		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (" + windowsHostIDOfUUIDOwnerFirst + ")"
 		delProfilesStmt = "DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?"
 		// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; for Windows that's the
 		// host's OsqueryHostID, NOT the Fleet host UUID stored on the MDM enrollment. Resolve via JOIN so we delete by
@@ -2291,21 +2298,43 @@ WHERE
 	return results, nil
 }
 
-func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
+func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
 	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically signals a new MDM
 	// enrollment in certain cases, as it is the first time we associate a host with an enrollment. A deleted host's enrollment's
 	// deleted host marker also counts as a new link.
 	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ?, fleetd_present_at = NULL
 		WHERE mdm_device_id = ? AND (host_uuid <> ? OR deleted_host_team_id IS NOT NULL)`
-	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
+	var updated bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		updated = false
+		// A device ID that matches no enrollment must not claim the UUID, or it would lock out the host that has one.
+		var enrollmentIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &enrollmentIDs,
+			`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ? FOR UPDATE`, mdmDeviceID); err != nil {
+			return ctxerr.Wrap(ctx, err, "lock windows enrollment to link")
+		}
+		if len(enrollmentIDs) == 0 {
+			return nil
+		}
+		// Claimed even when the link is unchanged, so a linked UUID left without an owner gets one on the next osquery check-in.
+		if err := claimWindowsMDMUUIDOwnerDB(ctx, tx, hostUUID, hostID, windowsMDMOwnerClaimedByLink); err != nil {
+			return err
+		}
+		res, err := tx.ExecContext(ctx, stmt, hostUUID, mdmDeviceID, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
+		}
+		aff, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
+		}
+		updated = aff > 0
+		return nil
+	})
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
+		return false, err
 	}
-	aff, err := res.RowsAffected()
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
-	}
-	return aff > 0, nil
+	return updated, nil
 }
 
 func (ds *Datastore) MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error {
@@ -2478,7 +2507,7 @@ WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
     hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
+    hmdm.enrolled = 1 AND ` + hostIsWindowsMDMOwner + ` AND
     %s`
 
 	var args []interface{}
@@ -3209,7 +3238,7 @@ WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
     hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
+    hmdm.enrolled = 1 AND `+hostIsWindowsMDMOwner+` AND
     %s
 GROUP BY
     final_status`,
@@ -3308,7 +3337,7 @@ WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
     hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
+    hmdm.enrolled = 1 AND `+hostIsWindowsMDMOwner+` AND
     %s
 GROUP BY
     final_status`,

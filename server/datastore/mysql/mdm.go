@@ -2529,6 +2529,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	  WHERE mwe.host_uuid IN (?)
 	    AND mwe.device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
 	    AND hm.enrolled = 1
+	    AND ` + hostIsWindowsMDMOwner + `
 	`
 	if err := setConnectedUUIDs(winStmt, winUUIDs, res); err != nil {
 		return nil, err
@@ -2868,7 +2869,7 @@ WHERE
 	mwe.device_state = :device_state_enrolled AND
 	h.platform = 'windows' AND
 	hmdm.is_server = 0 AND
-	hmdm.enrolled = 1 AND
+	hmdm.enrolled = 1 AND ` + hostIsWindowsMDMOwner + ` AND
 	hmwp.profile_uuid = :profile_uuid
 GROUP BY
 	final_status`

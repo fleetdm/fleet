@@ -2691,7 +2691,9 @@ type Datastore interface {
 	// WSTEPAssociateCertHash associates a certificate hash with a device.
 	WSTEPAssociateCertHash(ctx context.Context, deviceUUID string, hash string) error
 
-	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database
+	// MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the database. When HostUUID is set, LinkedHostID must
+	// name the enrolling host, which claims the Windows MDM ownership of the UUID in the same transaction. It returns a
+	// *WindowsMDMUUIDOwnedByOtherHostError if another host owns it.
 	MDMWindowsInsertEnrolledDevice(ctx context.Context, device *MDMWindowsEnrolledDevice) error
 
 	// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a given windows device enrollment entry from the database using the HW
@@ -2843,9 +2845,15 @@ type Datastore interface {
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
-	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID. It returns true when the host UUID
-	// changed, or when the enrollment's host was deleted and this is its first link since.
-	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+	// UpdateMDMWindowsEnrollmentsHostUUID links the enrollment with the MDM device ID to the host, which claims the Windows MDM
+	// ownership of its UUID in the same transaction. It returns true when the host UUID changed, or when the enrollment's host was
+	// deleted and this is its first link since. It returns a *WindowsMDMUUIDOwnedByOtherHostError, and links nothing, if another
+	// host owns the UUID.
+	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostID uint, hostUUID string, mdmDeviceID string) (bool, error)
+
+	// GetWindowsMDMUUIDOwner returns the ID of the host that owns the Windows MDM state of the hardware UUID, or 0 if none does. An
+	// owner whose host was deleted, or whose UUID no Windows MDM enrollment is linked to any more, does not count.
+	GetWindowsMDMUUIDOwner(ctx context.Context, hostUUID string) (uint, error)
 
 	// MDMWindowsClearDeletedHostTeam clears the deleted host marker of the device's enrollments.
 	MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error

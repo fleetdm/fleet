@@ -12,25 +12,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// windowsReconcileHostPredicate selects the hosts the Windows reconciler manages. The enrollment relationships are EXISTS subqueries
-// rather than JOINs so a host with more than one mdm_windows_enrollments row (the table has no uniqueness on host_uuid) yields one
-// record. A device's enrollment and host_mdm_windows_profiles rows are keyed by UUID, so when hosts rows share a UUID only one eligible
-// row is selected: the one whose osquery_host_id is the UUID (fleetd's default host identifier), else the highest id. The NOT EXISTS
-// must repeat each per-row condition, or a higher-ranked ineligible row would hide it. Its index and join-order hints stop MySQL from
-// reading hosts or host_mdm once per row when their index statistics are stale.
-const windowsReconcileHostPredicate = `
-			h.platform = 'windows'
+// windowsReconcileHostsFrom selects the hosts the Windows reconciler manages: only a UUID's Windows MDM owner, walked in primary key
+// order. EXISTS rather than JOIN so a host with several mdm_windows_enrollments rows (host_uuid isn't unique) yields one record.
+const windowsReconcileHostsFrom = `
+		FROM host_mdm_uuid_owners hmuo
+		STRAIGHT_JOIN hosts h ON h.id = hmuo.host_id AND h.uuid = hmuo.host_uuid
+		WHERE hmuo.mdm_platform = 'windows'
+			AND h.platform = 'windows'
 			AND EXISTS (
 				SELECT 1 FROM mdm_windows_enrollments mwe WHERE mwe.host_uuid = h.uuid
 			)
 			AND EXISTS (
 				SELECT 1 FROM host_mdm hmdm WHERE hmdm.host_id = h.id AND hmdm.enrolled = 1
-			)
-			AND NOT EXISTS (
-				SELECT 1 FROM hosts h2 FORCE INDEX (idx_hosts_uuid)
-				STRAIGHT_JOIN host_mdm hmdm2 ON hmdm2.host_id = h2.id AND hmdm2.enrolled = 1
-				WHERE h2.uuid = h.uuid AND h2.platform = 'windows'
-					AND (COALESCE(h2.osquery_host_id = h2.uuid, FALSE), h2.id) > (COALESCE(h.osquery_host_id = h.uuid, FALSE), h.id)
 			)`
 
 // listWindowsMDMHostsForReconcileBatchTransaction returns up to batchSize Windows-MDM-enrolled hosts with uuid > afterHostUUID,
@@ -47,9 +40,9 @@ func (ds *Datastore) listWindowsMDMHostsForReconcileBatchTransaction(
 			h.uuid             AS uuid,
 			h.team_id          AS team_id,
 			h.label_updated_at AS label_updated_at
-		FROM hosts h
-		WHERE h.uuid > ? AND ` + windowsReconcileHostPredicate + `
-		ORDER BY h.uuid
+		` + windowsReconcileHostsFrom + `
+			AND hmuo.host_uuid > ?
+		ORDER BY hmuo.host_uuid
 		LIMIT ?
 	`
 
@@ -69,8 +62,8 @@ func (ds *Datastore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID
 			h.uuid             AS uuid,
 			h.team_id          AS team_id,
 			h.label_updated_at AS label_updated_at
-		FROM hosts h
-		WHERE h.uuid = ? AND ` + windowsReconcileHostPredicate
+		` + windowsReconcileHostsFrom + `
+			AND hmuo.host_uuid = ?`
 
 	var host fleet.WindowsHostReconcileInfo
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); err != nil {
