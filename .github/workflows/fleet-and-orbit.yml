@@ -133,7 +133,9 @@ jobs:
           echo "$CERT_PEM" | base64 -d > cert.pem
           # Start tunnels (Fleet and TUF)
           cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
-          cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.tuf_subdomain }} --url http://localhost:8081 --name ${{ needs.gen.outputs.tuf_subdomain }} --logfile cloudflared-tuf.log &
+          # The TUF tunnel (and its DNS record) was created by run-tuf-and-gen-pkgs; run a new connector for it.
+          TUF_TUNNEL_TOKEN=$(cloudflared tunnel --origincert cert.pem token ${{ needs.gen.outputs.tuf_subdomain }})
+          cloudflared tunnel --url http://localhost:8081 --logfile cloudflared-tuf.log run --token "$TUF_TUNNEL_TOKEN" &
           for name in ${{ needs.gen.outputs.subdomain }} ${{ needs.gen.outputs.tuf_subdomain }}; do
             until [[ $(cloudflared tunnel --origincert cert.pem info -o json $name | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
               echo "Awaiting tunnel $name ready..."
@@ -358,26 +360,68 @@ jobs:
         with:
           name: macos-pre-built-apps
 
-      - name: Build Repository
+      - name: Build Repository and run TUF server
         env:
           SYSTEMS: "macos windows linux"
+          ORBIT_VERSION_OVERRIDE: ${{ needs.gen.outputs.orbit_version }}
+          MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: 1
+          FLEET_DESKTOP: 1
+        run: |
+          ./tools/tuf/test/main.sh
+
+      # fleetctl package downloads targets from --update-url, which is also the URL baked into
+      # the packages, so the TUF tunnel must already be serving this repository. The tunnel is
+      # kept (not deleted) so run-server can reconnect to it and keep serving after this job ends.
+      - name: Start TUF tunnel
+        env:
+          CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
+        run: |
+          sudo sysctl -w net.core.rmem_max=2500000
+          wget https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+          echo "$CERT_PEM" | base64 -d > cert.pem
+          cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.tuf_subdomain }} --url http://localhost:8081 --name ${{ needs.gen.outputs.tuf_subdomain }} --logfile cloudflared-tuf.log &
+          until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.tuf_subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
+            echo "Awaiting TUF tunnel ready..."
+            sleep 5
+          done
+          # Cloudflare's resolver sees the new DNS record immediately.
+          for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
+            sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+          done
+          sudo resolvectl flush-caches || true
+          until curl -fsS -o /dev/null ${{ needs.gen.outputs.tuf_address }}/root.json; do
+            echo "Awaiting TUF server reachable through tunnel..."
+            sleep 5
+          done
+
+      - name: Generate packages
+        env:
           PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
           PKG_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
           DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
           DEB_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
           MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
           MSI_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
-          ORBIT_VERSION_OVERRIDE: ${{ needs.gen.outputs.orbit_version }}
-          SKIP_SERVER: 1
           ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
-          MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: 1
           GENERATE_PKG: 1
           GENERATE_DEB: 1
           GENERATE_MSI: 1
           FLEET_DESKTOP: 1
           DEBUG: 1
         run: |
-          ./tools/tuf/test/main.sh
+          ROOT_KEYS=$(./build/fleetctl updates roots --path test_tuf)
+          export ROOT_KEYS
+          ./tools/tuf/test/gen_pkgs.sh
+
+      - name: Stop TUF tunnel connector
+        if: always()
+        run: |
+          pkill cloudflared || true
+          # run-server deletes the tunnel; if this job fails, run-server never runs, so delete it here.
+          if [ "${{ job.status }}" != "success" ] && [ -f cert.pem ]; then
+            cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.tuf_subdomain }} || true
+          fi
 
       - name: Build orbit N+1
         env:
