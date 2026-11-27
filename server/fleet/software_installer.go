@@ -749,6 +749,12 @@ func (p *UploadSoftwareInstallerPayload) FMADisplayName() string {
 	return p.Title
 }
 
+// FromMaintainedApp reports whether the payload was built from a Fleet-maintained app. An app added with
+// edited scripts has no FleetMaintainedAppID, but keeps its catalog name.
+func (p *UploadSoftwareInstallerPayload) FromMaintainedApp() bool {
+	return p.FleetMaintainedAppID != nil || p.FMAName != ""
+}
+
 // SoftwareInstallerLookupRow projects the columns needed to resolve an
 // installer's identity from its (filename, platform) natural key.
 type SoftwareInstallerLookupRow struct {

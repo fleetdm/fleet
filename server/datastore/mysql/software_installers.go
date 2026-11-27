@@ -515,7 +515,15 @@ func softwareInstallerTitleSelect(payload *fleet.UploadSoftwareInstallerPayload)
 	switch {
 	case payload.BundleIdentifier != "":
 		// match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match
-		return `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`,
+		nameMatch := `name = ? AND source = ? AND extension_for = ''`
+		if payload.FromMaintainedApp() {
+			// A package's bundle identifier is read from its metadata and can differ from what hosts report,
+			// which the name match makes up for. A Fleet-maintained app's comes from the catalog, so a
+			// same-named title with another bundle identifier is a different app (ChatGPT's former
+			// com.openai.chat title), and hosts would never report the installer's software under it.
+			nameMatch += ` AND bundle_identifier IS NULL`
+		}
+		return `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (` + nameMatch + `) ORDER BY bundle_identifier = ? DESC LIMIT 1`,
 			[]any{payload.BundleIdentifier, payload.Source, payload.Title, payload.Source, payload.BundleIdentifier}
 	case payload.Source == "programs" && payload.UpgradeCode != "":
 		// select by either name or upgrade code, preferring upgrade code

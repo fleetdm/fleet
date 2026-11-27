@@ -128,6 +128,16 @@ func FetchAppsList(ctx context.Context) (*AppsList, error) {
 	return &appsList, nil
 }
 
+// darwinIdentifierOverrides replaces the bundle identifier the published catalog lists for an
+// app, for vendors that moved their app to a new one. The catalog keeps the old identifier
+// because every Fleet version reads it, and an older server would move existing installers to
+// the new title without carrying their references along (a migration does that on upgrade).
+//
+// ChatGPT was rebuilt on the discontinued Codex app, so current builds report com.openai.codex.
+var darwinIdentifierOverrides = map[string]string{
+	"chatgpt/darwin": "com.openai.codex",
+}
+
 func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Datastore) error {
 	var gotApps []string
 
@@ -136,6 +146,9 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 
 		if app.UniqueIdentifier == "" {
 			app.UniqueIdentifier = app.Name
+		}
+		if identifier, ok := darwinIdentifierOverrides[app.Slug]; ok {
+			app.UniqueIdentifier = identifier
 		}
 
 		if _, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{

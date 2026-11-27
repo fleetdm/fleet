@@ -54,6 +54,15 @@ func TestUnrelatedSharedDarwinIdentifiers(t *testing.T) {
 	require.Equal(t, map[string][]string{
 		"org.mozilla.firefox": {"firefox/darwin", "firefox@esr/darwin", "other-browser/darwin"},
 	}, unrelatedSharedDarwinIdentifiers(apps))
+
+	// The server-side override counts, not the identifier the catalog lists.
+	apps = []appListing{
+		{Slug: "chatgpt/darwin", Platform: "darwin", UniqueIdentifier: "com.openai.chat"},
+		{Slug: "codex-app/darwin", Platform: "darwin", UniqueIdentifier: "com.openai.codex"},
+	}
+	require.Equal(t, map[string][]string{
+		"com.openai.codex": {"chatgpt/darwin", "codex-app/darwin"},
+	}, unrelatedSharedDarwinIdentifiers(apps))
 }
 
 // unrelatedSharedDarwinIdentifiers returns, per macOS bundle identifier, the sorted
@@ -61,10 +70,14 @@ func TestUnrelatedSharedDarwinIdentifiers(t *testing.T) {
 func unrelatedSharedDarwinIdentifiers(apps []appListing) map[string][]string {
 	slugsByIdentifier := make(map[string][]string)
 	for _, app := range apps {
-		if app.Platform != "darwin" || app.UniqueIdentifier == "" {
+		identifier := app.UniqueIdentifier
+		if override, ok := darwinIdentifierOverrides[app.Slug]; ok {
+			identifier = override
+		}
+		if app.Platform != "darwin" || identifier == "" {
 			continue
 		}
-		slugsByIdentifier[app.UniqueIdentifier] = append(slugsByIdentifier[app.UniqueIdentifier], app.Slug)
+		slugsByIdentifier[identifier] = append(slugsByIdentifier[identifier], app.Slug)
 	}
 
 	violations := make(map[string][]string)
