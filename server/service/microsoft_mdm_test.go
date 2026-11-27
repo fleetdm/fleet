@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"encoding/base64"
@@ -4306,10 +4307,12 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 	})
 }
 
-func TestProcessIncomingMDMCmdsDoesNotResendEnrollSecretADMX(t *testing.T) {
+func TestProcessIncomingMDMCmdsEnrollSecretStatuses(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{})
 	svcImpl := svc.(validationMiddleware).Service.(*Service)
+	var logs bytes.Buffer
+	svcImpl.logger = slog.New(slog.NewTextHandler(&logs, nil))
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: "device-1", HostUUID: "host-1", EnrolledActivityAt: new(time.Now())}
 
 	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, _ fleet.EnrichedSyncML, _ []string) (*fleet.MDMWindowsSaveResponseResult, error) {
@@ -4321,12 +4324,14 @@ func TestProcessIncomingMDMCmdsDoesNotResendEnrollSecretADMX(t *testing.T) {
 		return nil, nil
 	}
 
-	status418 := func(cmdRef string) string {
-		return `<Status><CmdID>s-` + cmdRef + `</CmdID><MsgRef>1</MsgRef><CmdRef>` + cmdRef + `</CmdRef><Cmd>Add</Cmd><Data>418</Data></Status>`
+	status := func(cmdRef, cmd, code string) string {
+		return `<Status><CmdID>s-` + cmdRef + `</CmdID><MsgRef>1</MsgRef><CmdRef>` + cmdRef + `</CmdRef><Cmd>` + cmd + `</Cmd><Data>` + code +
+			`</Data></Status>`
 	}
 	raw := `<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD><VerProto>DM/1.2</VerProto><SessionID>1</SessionID>` +
 		`<MsgID>1</MsgID><Source><LocURI>device-1</LocURI></Source></SyncHdr><SyncBody>` +
-		status418(fleetdEnrollSecretCmdIDPrefix+"admx") + status418("profile-add") + `<Final/></SyncBody></SyncML>`
+		status(fleetdEnrollSecretCmdIDPrefix+"admx", "Add", "418") + status("profile-add", "Add", "418") +
+		status(fleetdEnrollSecretCmdIDPrefix+"policy", "Replace", "500") + `<Final/></SyncBody></SyncML>`
 	reqMsg := &fleet.SyncML{}
 	require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
 	reqMsg.Raw = []byte(raw)
@@ -4335,6 +4340,9 @@ func TestProcessIncomingMDMCmdsDoesNotResendEnrollSecretADMX(t *testing.T) {
 	require.NoError(t, err)
 	// The device answers 418 to the ADMX ingest on every resent fleetd install. Resending it as a Replace would clone that install.
 	require.Equal(t, []string{"profile-add"}, resendLookup)
+	// A failed secret write is logged, the expected 418 isn't.
+	require.Equal(t, 1, strings.Count(logs.String(), "didn't apply the enroll secret"))
+	require.Contains(t, logs.String(), "cmd_ref="+fleetdEnrollSecretCmdIDPrefix+"policy status=500")
 }
 
 func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {

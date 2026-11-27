@@ -1580,7 +1580,7 @@ func (svc *Service) deleteRegistryEnrollSecretPolicy(ctx context.Context, enroll
 	}
 	// Only an install that sent the secret through the registry leaves the policy behind, and a Delete on a device without it fails
 	// with 404: a device that already had fleetd, or one whose host was deleted and whose fleetd re-enrolled on its own. Read from
-	// the primary: the install was answered recently, and a missed one is never retried.
+	// the primary: the install was queued or answered recently, and a missed one is never retried.
 	sent, err := svc.ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID,
 		syncml.FleetdWindowsInstallerGUID, windowsEnrollSecretPolicyURI)
 	if err != nil {
@@ -2296,6 +2296,14 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
+		// Results for these Fleet-internal commands aren't saved, so a failure to write the enroll secret is only visible here. Without
+		// it, fleetd installs but can't enroll.
+		if protoCMD.Verb == mdm_types.CmdStatus && protoCMD.Cmd.Data != nil && protoCMD.Cmd.CmdRef != nil &&
+			strings.HasPrefix(*protoCMD.Cmd.CmdRef, fleetdEnrollSecretCmdIDPrefix) &&
+			!strings.HasPrefix(*protoCMD.Cmd.Data, "2") && *protoCMD.Cmd.Data != "418" {
+			svc.logger.WarnContext(ctx, "windows mdm: the device didn't apply the enroll secret for the fleetd install", "device_id", deviceID,
+				"cmd_ref", *protoCMD.Cmd.CmdRef, "status", *protoCMD.Cmd.Data)
+		}
 		// An already ingested enroll secret ADMX is fine as is, and resending it would clone the whole fleetd install.
 		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil &&
 			!strings.HasPrefix(*protoCMD.Cmd.CmdRef, fleetdEnrollSecretCmdIDPrefix) {

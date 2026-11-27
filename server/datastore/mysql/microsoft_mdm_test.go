@@ -7158,8 +7158,8 @@ func testMDMWindowsEnrollSecretPolicySentSinceDelete(t *testing.T, ds *Datastore
 		}))
 		return cmdUUID
 	}
-	// answer records the device's result for a command and drops its queue row, as happens to acked commands eventually.
-	answer := func(d *fleet.MDMWindowsEnrolledDevice, cmdUUID string) {
+	// answerWith records a result for a command and drops its queue row, as happens to acked commands eventually.
+	answerWith := func(d *fleet.MDMWindowsEnrolledDevice, cmdUUID, statusCode string) {
 		t.Helper()
 		compressed, err := compressWindowsMDMResponse([]byte("resp"))
 		require.NoError(t, err)
@@ -7173,13 +7173,14 @@ func testMDMWindowsEnrollSecretPolicySentSinceDelete(t *testing.T, ds *Datastore
 				return err
 			}
 			if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
-				VALUES (?, ?, '', ?, '200')`, d.ID, cmdUUID, responseID); err != nil {
+				VALUES (?, ?, '', ?, ?)`, d.ID, cmdUUID, responseID, statusCode); err != nil {
 				return err
 			}
 			_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?`, d.ID, cmdUUID)
 			return err
 		})
 	}
+	answer := func(d *fleet.MDMWindowsEnrolledDevice, cmdUUID string) { answerWith(d, cmdUUID, "200") }
 	sent := func(d *fleet.MDMWindowsEnrolledDevice) bool {
 		t.Helper()
 		got, err := ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctx, d.ID, installURI, policyURI)
@@ -7199,8 +7200,14 @@ func testMDMWindowsEnrollSecretPolicySentSinceDelete(t *testing.T, ds *Datastore
 	require.False(t, sent(device), "another enrollment's install")
 	require.True(t, sent(other))
 
+	answerWith(device, queue(device, installURI, routedInstall(policyURI)), "500")
+	require.False(t, sent(device), "an install the device rejected")
+	require.NoError(t, ds.MDMWindowsFailUndeliverableCommand(ctx, device, queue(device, installURI, routedInstall(policyURI)), "unparseable"))
+	require.False(t, sent(device), "an install Fleet failed as undeliverable")
+
+	// The session that first sees fleetd can carry the install's result, which is saved after the session is handled.
 	installUUID := queue(device, installURI, routedInstall(policyURI))
-	require.False(t, sent(device), "an install the device hasn't answered yet")
+	require.True(t, sent(device), "an install still in the queue")
 	answer(device, installUUID)
 	require.True(t, sent(device))
 
