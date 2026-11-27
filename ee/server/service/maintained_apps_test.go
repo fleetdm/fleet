@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mocksoftware "github.com/fleetdm/fleet/v4/server/mock/software"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
@@ -408,6 +409,38 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
+}
+
+func TestAddFleetMaintainedAppChecksumMismatch(t *testing.T) {
+	server := newFakeManifestServer(t)
+	server.bytes = []byte("replacement installer")
+
+	ds := new(mock.Store)
+	ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error { return nil }
+	ds.GetMaintainedAppByIDFunc = func(context.Context, uint, *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{ID: testFMAAppID, Name: "Example app", Slug: testFMASlug}, nil
+	}
+	svc := newTestService(t, ds)
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	id, err := svc.AddFleetMaintainedApp(ctx, nil, testFMAAppID, "", "", "", "", false, false, nil, nil, nil)
+	require.Error(t, err)
+	require.Zero(t, id)
+	require.False(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
+
+	response := httptest.NewRecorder()
+	endpointer.EncodeError(ctx, err, response, nil)
+	require.Equal(t, http.StatusUnprocessableEntity, response.Code)
+	var body endpointer.JsonError
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
+	require.Len(t, body.Errors, 1)
+	detail := body.Errors[0]
+	require.Equal(t, "fleet_maintained_app.url", detail["name"])
+	require.Contains(t, detail["reason"], "Example app")
+	require.Contains(t, detail["reason"], server.srv.URL+server.installerPath)
+	require.Contains(t, detail["reason"], "SHA-256")
+	require.Contains(t, detail["reason"], "Try adding the app again")
 }
 
 // TestAddFleetMaintainedAppReconcilesWindowsTitles covers the wiring, not the merge

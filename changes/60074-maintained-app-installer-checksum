@@ -1,0 +1,1 @@
+* Fixed an issue where adding a Fleet-maintained app returned a generic server error if the downloaded installer did not match its catalog checksum. Fleet now identifies the app and installer URL and explains when to retry.
