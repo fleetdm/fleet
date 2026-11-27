@@ -34,13 +34,15 @@ module.exports = {
         clientSecret: sails.config.custom.salesforceIntegrationClientSecret,
       },
       // The client credentials flow does not return a refresh token, so request a new access token if the session expires.
-      refreshFn: async (connection, callback)=>{
-        try {
-          await connection.authorize({ grant_type: 'client_credentials' });// eslint-disable-line camelcase
-          return callback(undefined, connection.accessToken);
-        } catch (err) {
-          return callback(err);
-        }
+      refreshFn: (connection, done)=>{
+        (async()=>{
+          try {
+            await connection.authorize({ grant_type: 'client_credentials' });// eslint-disable-line camelcase
+            return done(undefined, connection.accessToken);
+          } catch (err) {
+            return done(err);
+          }
+        })();
       },
     });
 
