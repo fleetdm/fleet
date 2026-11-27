@@ -1,7 +1,8 @@
 # This workflow tests orbit code changes (compiles orbit from source).
 # It uses a fleet instance also built and executed from source.
 #
-# It tests that orbit osquery agents enroll successfully to Fleet.
+# It tests that orbit osquery agents enroll successfully to Fleet, and that the
+# branch's orbit (N) can auto-update itself to an N+1 orbit pushed to a TUF repository.
 name: Test fleetctl package, orbit, and fleet
 
 on:
@@ -48,11 +49,22 @@ jobs:
       domain: ${{ steps.gen.outputs.domain }}
       address: ${{ steps.gen.outputs.address }}
       enroll_secret: ${{ steps.gen.outputs.enroll_secret }}
+      tuf_subdomain: ${{ steps.gen.outputs.tuf_subdomain }}
+      tuf_address: ${{ steps.gen.outputs.tuf_address }}
+      orbit_version: ${{ steps.gen.outputs.orbit_version }}
+      orbit_next_version: ${{ steps.gen.outputs.orbit_next_version }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
         with:
           egress-policy: audit
+
+      - name: Checkout version script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: tools/tuf/test/load_orbit_version_vars.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - id: gen
         run: |
@@ -62,16 +74,26 @@ jobs:
           echo "address=https://fleet-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
           ENROLL=$(uuidgen)
           echo "enroll_secret=$ENROLL" >> $GITHUB_OUTPUT
+          # The TUF server must outlive the job that builds it so agents can auto-update from it.
+          echo "tuf_subdomain=tuf-test-$UUID" >> $GITHUB_OUTPUT
+          echo "tuf_address=https://tuf-test-$UUID.fleetuem.com" >> $GITHUB_OUTPUT
+          # N is what agents are installed with; N+1 is pushed later to verify orbit can auto-update itself.
+          # Patch is at most ~65019, so +1 stays under WiX's 65535 limit.
+          source ./tools/tuf/test/load_orbit_version_vars.sh
+          echo "orbit_version=$ORBIT_VERSION" >> $GITHUB_OUTPUT
+          echo "orbit_next_version=$ORBIT_MAJOR.$ORBIT_MINOR.$((ORBIT_PATCH + 1))" >> $GITHUB_OUTPUT
 
+  # Besides running Fleet, this job serves the TUF repository built by run-tuf-and-gen-pkgs
+  # (via a second tunnel) and pushes the N+1 orbit once all hosts are enrolled on N.
   run-server:
     permissions:
       contents: read
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       matrix:
         mysql: ["mysql:8.0.44"]
     runs-on: ubuntu-8core
-    needs: gen
+    needs: [gen, run-tuf-and-gen-pkgs]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
@@ -109,12 +131,27 @@ jobs:
 
           # Add secret
           echo "$CERT_PEM" | base64 -d > cert.pem
-          # Start tunnel
-          cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.subdomain }} --url http://localhost:1337 --name ${{ needs.gen.outputs.subdomain }} --logfile cloudflared.log &
-          until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
-            echo "Awaiting tunnel ready..."
-            sleep 5
+          # Both tunnels (and their DNS records) were created by run-tuf-and-gen-pkgs; run connectors for them.
+          FLEET_TUNNEL_TOKEN=$(cloudflared tunnel --origincert cert.pem token ${{ needs.gen.outputs.subdomain }})
+          cloudflared tunnel --url http://localhost:1337 --logfile cloudflared.log run --token "$FLEET_TUNNEL_TOKEN" &
+          TUF_TUNNEL_TOKEN=$(cloudflared tunnel --origincert cert.pem token ${{ needs.gen.outputs.tuf_subdomain }})
+          cloudflared tunnel --url http://localhost:8081 --logfile cloudflared-tuf.log run --token "$TUF_TUNNEL_TOKEN" &
+          for name in ${{ needs.gen.outputs.subdomain }} ${{ needs.gen.outputs.tuf_subdomain }}; do
+            until [[ $(cloudflared tunnel --origincert cert.pem info -o json $name | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
+              echo "Awaiting tunnel $name ready..."
+              sleep 5
+            done
           done
+
+      - name: Download TUF repository and orbit N+1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: tuf-repo
+
+      - name: Run TUF server
+        run: |
+          tar xzf tuf-repo.tar.gz
+          TUF_PATH=test_tuf TUF_PORT=8081 ./tools/tuf/test/run_server.sh
 
       - name: Start Infra Dependencies
         run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis
@@ -142,6 +179,9 @@ jobs:
           # it up (extension registered by then), so orbit_version populates within the
           # run. Required by the orbit_version wait gate below.
           FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL: 30s
+          ORBIT_VERSION: ${{ needs.gen.outputs.orbit_version }}
+          ORBIT_NEXT_VERSION: ${{ needs.gen.outputs.orbit_next_version }}
+          TUF_PATH: test_tuf
         run: |
           mkdir ./fleet_log
           make db-reset
@@ -175,7 +215,7 @@ jobs:
           ' > config.yml
           ./build/fleetctl apply -f config.yml
           # Wait until all three platforms (darwin, ubuntu, windows) are enrolled as
-          # distinct hosts AND have reported both osquery_version and orbit_version.
+          # distinct hosts AND have reported osquery_version and the expected orbit_version.
           #
           # osquery_version is on the host list, but orbit_version comes from
           # host_orbit_info, which is ONLY joined by the by-id host detail query
@@ -183,38 +223,54 @@ jobs:
           # `get hosts <identifier>` (HostByIdentifier) surface it. So we read
           # osquery_version + id from the list and look up orbit_version per host via
           # `fleetctl api` against the by-id detail endpoint.
-          while :; do
-            hosts=$(./build/fleetctl get hosts --json || true)
-            ready=0
-            counted=""
-            echo "Enrollment status:"
-            while IFS=$'\t' read -r id platform osq; do
-              [ -n "$id" ] || continue
-              # orbit_version is only returned by the by-id detail endpoint.
-              ov=$(./build/fleetctl api "/api/v1/fleet/hosts/$id" 2>/dev/null | jq -r '.host.orbit_version // ""' || true)
-              echo "  id=$id platform=$platform osquery_version=${osq:-<none>} orbit_version=${ov:-<none>}"
-              case "$platform" in
-                darwin|ubuntu|windows) ;;
-                *) continue ;;
-              esac
-              # count each expected platform once, only when both versions are present
-              if [ -n "$osq" ] && [ -n "$ov" ] && [[ " $counted " != *" $platform "* ]]; then
-                counted="$counted $platform"
-                ready=$((ready + 1))
+          wait_orbit_version() {
+            local want=$1 deadline=$(( $(date +%s) + $2 ))
+            while :; do
+              hosts=$(./build/fleetctl get hosts --json || true)
+              ready=0
+              counted=""
+              echo "Status (want orbit_version=$want):"
+              while IFS=$'\t' read -r id platform osq; do
+                [ -n "$id" ] || continue
+                ov=$(./build/fleetctl api "/api/v1/fleet/hosts/$id" 2>/dev/null | jq -r '.host.orbit_version // ""' || true)
+                echo "  id=$id platform=$platform osquery_version=${osq:-<none>} orbit_version=${ov:-<none>}"
+                case "$platform" in
+                  darwin|ubuntu|windows) ;;
+                  *) continue ;;
+                esac
+                if [ -n "$osq" ] && [ "$ov" = "$want" ] && [[ " $counted " != *" $platform "* ]]; then
+                  counted="$counted $platform"
+                  ready=$((ready + 1))
+                fi
+              done < <(printf '%s' "$hosts" | jq -s -r '.[] | "\(.spec.id // "")\t\(.spec.platform // "?")\t\(.spec.osquery_version // "")"')
+              if [ "$ready" -eq 3 ]; then
+                return 0
               fi
-            done < <(printf '%s' "$hosts" | jq -s -r '.[] | "\(.spec.id // "")\t\(.spec.platform // "?")\t\(.spec.osquery_version // "")"')
-            if [ "$ready" -eq 3 ]; then
-              break
-            fi
-            echo "Waiting for darwin, ubuntu and windows hosts to fully enroll ($ready/3 with osquery_version + orbit_version)..."
-            sleep 30
-          done
-          ./build/fleetctl get hosts
-          echo "Success! darwin, ubuntu and windows hosts fully enrolled (osquery_version + orbit_version)."
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "Timed out waiting for orbit_version=$want ($ready/3)."
+                return 1
+              fi
+              echo "Waiting for darwin, ubuntu and windows hosts ($ready/3)..."
+              sleep 30
+            done
+          }
 
-      - name: Cleanup tunnel
+          wait_orbit_version "$ORBIT_VERSION" 2400
+          ./build/fleetctl get hosts
+          echo "Success! darwin, ubuntu and windows hosts enrolled with orbit $ORBIT_VERSION."
+
+          # Push orbit N+1 (built from this branch) and verify that orbit N auto-updates to it.
+          ./tools/tuf/test/push_target.sh macos orbit orbit-next-darwin "$ORBIT_NEXT_VERSION"
+          ./tools/tuf/test/push_target.sh linux orbit orbit-next-linux "$ORBIT_NEXT_VERSION"
+          ./tools/tuf/test/push_target.sh windows orbit orbit-next-windows.exe "$ORBIT_NEXT_VERSION"
+          wait_orbit_version "$ORBIT_NEXT_VERSION" 1200
+          echo "Success! darwin, ubuntu and windows hosts auto-updated to orbit $ORBIT_NEXT_VERSION."
+
+      - name: Cleanup tunnels
         if: always()
-        run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}
+        run: |
+          cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }} || true
+          cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.tuf_subdomain }} || true
 
       - name: Upload fleet logs
         if: always()
@@ -229,7 +285,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cloudflared.log
-          path: cloudflared.log
+          path: cloudflared*.log
 
   # Here we generate the Fleet Desktop and osqueryd targets for
   # macOS which can only be generated from a macOS host.
@@ -269,13 +325,8 @@ jobs:
             desktop.app.tar.gz
             osqueryd.app.tar.gz
 
-  # TODO(lucas): Currently, to simplify the workflow we do all in one job:
-  # 1. Generate TUF repository (compile Orbit from source).
-  # 2. Run TUF server on localhost.
-  # 3. Generate packages using localhost TUF server.
-  #
-  # When installing the generated packages, Orbit will log "update errors"
-  # because the TUF URL is set to http://localhost:8081.
+  # Generates the TUF repository (orbit N compiled from source) and packages pointing
+  # to the TUF tunnel, and builds orbit N+1. The repository is served by run-server.
   #
   # TODO(lucas): Test the generated RPM package on a CentOS docker image.
   #
@@ -312,21 +363,92 @@ jobs:
       - name: Build Repository and run TUF server
         env:
           SYSTEMS: "macos windows linux"
-          PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
-          PKG_TUF_URL: http://localhost:8081
-          DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
-          DEB_TUF_URL: http://localhost:8081
-          MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
-          MSI_TUF_URL: http://localhost:8081
-          ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
+          ORBIT_VERSION_OVERRIDE: ${{ needs.gen.outputs.orbit_version }}
           MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: 1
+          FLEET_DESKTOP: 1
+        run: |
+          ./tools/tuf/test/main.sh
+
+      # fleetctl package downloads targets from --update-url, which is also the URL baked into
+      # the packages, so the TUF tunnel must already be serving this repository. Tunnels are
+      # kept (not deleted) so run-server can reconnect to them after this job ends.
+      #
+      # The Fleet tunnel is also created here (but not run) so its DNS record exists before the
+      # agent jobs start; otherwise macOS caches the NXDOMAIN answer for a long time.
+      - name: Start tunnels
+        env:
+          CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
+        run: |
+          sudo sysctl -w net.core.rmem_max=2500000
+          wget https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+          echo "$CERT_PEM" | base64 -d > cert.pem
+          cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.tuf_subdomain }} --url http://localhost:8081 --name ${{ needs.gen.outputs.tuf_subdomain }} --logfile cloudflared-tuf.log &
+          until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.tuf_subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
+            echo "Awaiting TUF tunnel ready..."
+            sleep 5
+          done
+          cloudflared tunnel --origincert cert.pem create ${{ needs.gen.outputs.subdomain }}
+          cloudflared tunnel --origincert cert.pem route dns ${{ needs.gen.outputs.subdomain }} ${{ needs.gen.outputs.domain }}
+          # Cloudflare's resolver sees the new DNS record immediately.
+          for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
+            sudo resolvectl dns "$iface" 1.1.1.1 2>/dev/null || true
+          done
+          sudo resolvectl flush-caches || true
+          until curl -fsS -o /dev/null ${{ needs.gen.outputs.tuf_address }}/root.json; do
+            echo "Awaiting TUF server reachable through tunnel..."
+            sleep 5
+          done
+
+      - name: Generate packages
+        env:
+          PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
+          PKG_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+          DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
+          DEB_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+          MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
+          MSI_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+          ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
           GENERATE_PKG: 1
           GENERATE_DEB: 1
           GENERATE_MSI: 1
           FLEET_DESKTOP: 1
           DEBUG: 1
         run: |
-          ./tools/tuf/test/main.sh
+          ROOT_KEYS=$(./build/fleetctl updates roots --path test_tuf)
+          export ROOT_KEYS
+          ./tools/tuf/test/gen_pkgs.sh
+
+      - name: Stop TUF tunnel connector
+        if: always()
+        run: |
+          pkill cloudflared || true
+          # run-server deletes the tunnels; if this job fails, run-server never runs, so delete them here.
+          if [ "${{ job.status }}" != "success" ] && [ -f cert.pem ]; then
+            cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.tuf_subdomain }} || true
+            cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }} || true
+          fi
+
+      - name: Build orbit N+1
+        env:
+          ORBIT_NEXT_VERSION: ${{ needs.gen.outputs.orbit_next_version }}
+        run: |
+          # Same GOOS/GOARCH/CGO settings create_repository.sh uses for orbit N on this runner.
+          ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_NEXT_VERSION -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$(git rev-parse HEAD)"
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="$ldflags" -o orbit-next-darwin ./orbit/cmd/orbit
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$ldflags" -o orbit-next-linux ./orbit/cmd/orbit
+          CGO_ENABLED=0 ORBIT_VERSION=$ORBIT_NEXT_VERSION make orbit-windows
+          mv orbit.exe orbit-next-windows.exe
+
+      - name: Package TUF repository and orbit N+1
+        # tar preserves the repository layout (including empty dirs) that upload-artifact would drop.
+        run: tar czf tuf-repo.tar.gz test_tuf orbit-next-darwin orbit-next-linux orbit-next-windows.exe
+
+      - name: Upload TUF repository and orbit N+1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: tuf-repo
+          path: tuf-repo.tar.gz
 
       - name: Upload PKG installer
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -352,7 +474,7 @@ jobs:
   orbit-macos:
     permissions:
       contents: read
-    timeout-minutes: 60
+    timeout-minutes: 120
     runs-on: macos-latest
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
@@ -400,14 +522,14 @@ jobs:
       - name: Wait enroll
         run: |
           # Wait until the fleet server goes down, which signals that run-server has
-          # finished verifying enrollment and torn down the tunnel. Require several
+          # finished verifying enrollment and auto-update, and torn down the tunnel. Require several
           # consecutive failures so a transient blip (e.g. a 5xx while the server is
           # still up) doesn't let us proceed early, and cap the total wait so a stuck
-          # tunnel fails fast instead of riding the 60m job timeout.
+          # tunnel fails fast instead of riding the job timeout.
           down=0
-          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          required_down=18  # ~3m of consecutive failures confirms the server is gone (not a tunnel blip)
           attempts=0
-          max_attempts=180  # ~30 minutes at 10s intervals
+          max_attempts=540  # ~90 minutes at 10s intervals (run-server also waits for the N+1 auto-update)
           while [ "$down" -lt "$required_down" ]; do
             if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/healthz; then
               down=0
@@ -457,7 +579,7 @@ jobs:
           sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
   orbit-ubuntu:
-    timeout-minutes: 60
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
@@ -497,14 +619,14 @@ jobs:
       - name: Wait enroll
         run: |
           # Wait until the fleet server goes down, which signals that run-server has
-          # finished verifying enrollment and torn down the tunnel. Require several
+          # finished verifying enrollment and auto-update, and torn down the tunnel. Require several
           # consecutive failures so a transient blip (e.g. a 5xx while the server is
           # still up) doesn't let us proceed early, and cap the total wait so a stuck
-          # tunnel fails fast instead of riding the 60m job timeout.
+          # tunnel fails fast instead of riding the job timeout.
           down=0
-          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          required_down=18  # ~3m of consecutive failures confirms the server is gone (not a tunnel blip)
           attempts=0
-          max_attempts=180  # ~30 minutes at 10s intervals
+          max_attempts=540  # ~90 minutes at 10s intervals (run-server also waits for the N+1 auto-update)
           while [ "$down" -lt "$required_down" ]; do
             if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/healthz; then
               down=0
@@ -543,7 +665,7 @@ jobs:
           sudo apt remove fleet-osquery -y
 
   orbit-windows:
-    timeout-minutes: 60
+    timeout-minutes: 120
     needs: [gen, run-tuf-and-gen-pkgs]
     runs-on: windows-latest
     steps:
@@ -584,14 +706,14 @@ jobs:
       - name: Wait enroll
         run: |
           # Wait until the fleet server goes down, which signals that run-server has
-          # finished verifying enrollment and torn down the tunnel. Require several
+          # finished verifying enrollment and auto-update, and torn down the tunnel. Require several
           # consecutive failures so a transient blip (e.g. a 5xx while the server is
           # still up) doesn't let us proceed early, and cap the total wait so a stuck
-          # tunnel fails fast instead of riding the 60m job timeout.
+          # tunnel fails fast instead of riding the job timeout.
           down=0
-          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          required_down=18  # ~3m of consecutive failures confirms the server is gone (not a tunnel blip)
           attempts=0
-          max_attempts=180  # ~30 minutes at 10s intervals
+          max_attempts=540  # ~90 minutes at 10s intervals (run-server also waits for the N+1 auto-update)
           while [ "$down" -lt "$required_down" ]; do
             if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/healthz; then
               down=0
