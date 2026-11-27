@@ -4094,6 +4094,11 @@ type Datastore interface {
 	// enrollment has no live secret, or when the last push failed on the device.
 	WindowsMDMEnrollSecretPushed(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
+	// MDMWindowsEnrollSecretPolicySentSinceDelete reports whether a command targeting installLocURI that carries policyLocURI (a
+	// fleetd install that sent the enroll secret through the registry) went to the Windows MDM enrollment after its last command
+	// targeting policyLocURI.
+	MDMWindowsEnrollSecretPolicySentSinceDelete(ctx context.Context, enrollmentID uint, installLocURI, policyLocURI string) (bool, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Custom host vitals
 	CreateCustomHostVital(ctx context.Context, name string) (CustomHostVital, error)

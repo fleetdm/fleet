@@ -1554,8 +1554,13 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 			isPresent = usedByOrbit
 		}
 		if isPresent {
-			// Best effort: if this fails, the next session checks again.
-			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
+			// Queued before presence is recorded, so the next session retries it if this fails.
+			if err := svc.deleteRegistryEnrollSecretPolicy(ctx, enrolledDevice); err != nil {
+				svc.logger.ErrorContext(ctx, "windows mdm: failed to queue the enroll secret policy removal", "err", err,
+					"device_id", enrolledDevice.MDMDeviceID)
+				ctxerr.Handle(ctx, err)
+			} else if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
+				// Best effort: if this fails, the next session checks again.
 				svc.logger.ErrorContext(ctx, "windows mdm: failed to record fleetd present", "err", err, "device_id", enrolledDevice.MDMDeviceID)
 				ctxerr.Handle(ctx, err)
 			}
@@ -1564,6 +1569,32 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 	}
 
 	return true, nil
+}
+
+// deleteRegistryEnrollSecretPolicy queues the removal of the policy that sent the enroll secret through the registry, once fleetd
+// has it. While the policy exists, Windows writes the value back on every check-in, and fleetd loads it again at each start.
+func (svc *Service) deleteRegistryEnrollSecretPolicy(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) error {
+	// With one-time enroll secrets, the Fleet-managed enroll secret profile owns this policy.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets {
+		return nil
+	}
+	// Only an install that sent the secret through the registry leaves the policy behind, and a Delete on a device without it fails
+	// with 404: a device that already had fleetd, or one whose host was deleted and whose fleetd re-enrolled on its own.
+	sent, err := svc.ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctx, enrolledDevice.ID, syncml.FleetdWindowsInstallerGUID,
+		windowsEnrollSecretPolicyURI)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for an enroll secret sent through the registry")
+	}
+	if !sent {
+		return nil
+	}
+	cmdUUID := uuid.NewString()
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdUUID,
+		RawCommand:   []byte(`<Delete><CmdID>` + cmdUUID + `</CmdID><Item><Target><LocURI>` + windowsEnrollSecretPolicyURI + `</LocURI></Target></Item></Delete>`),
+		TargetLocURI: windowsEnrollSecretPolicyURI,
+	})
+	return ctxerr.Wrap(ctx, err, "insert command to delete the enroll secret policy")
 }
 
 // generateWindowsEUAToken returns a Fleet-signed EUA token for the given Windows

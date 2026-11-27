@@ -3789,6 +3789,12 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		usedByOrbit bool          // orbit enrolled with a one-time secret minted for the enrollment
 		recorded    bool          // the enrollment already records fleetd as present
 		wantPresent bool
+		// An install sent the secret through the registry since the last delete, so the policy is deleted once fleetd is present
+		// (not in one-time mode).
+		policySent       bool
+		oneTime          bool
+		deleteFails      bool
+		wantPolicyDelete bool
 	}{
 		{name: "non-UPN enrollment is always present", nonUPN: true, wantPresent: true},
 		{name: "UPN already recorded as present skips the host lookups", recorded: true, seenOffset: -20 * 24 * time.Hour, wantPresent: true},
@@ -3802,6 +3808,11 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		// ("at/after"). This fails under a strict After() comparison and passes under !Before().
 		{name: "UPN check-in exactly at grace boundary", seenOffset: -fleetdPresenceGracePeriod, wantPresent: true},
 		{name: "UPN check-in beyond grace before enrollment", seenOffset: -2 * fleetdPresenceGracePeriod, wantPresent: false},
+		{name: "secret sent through the registry: policy deleted when fleetd is first seen", seenOffset: time.Minute, policySent: true, wantPresent: true, wantPolicyDelete: true},
+		{name: "secret sent through the registry: nothing deleted before fleetd is seen", seenOffset: -20 * 24 * time.Hour, policySent: true, wantPresent: false},
+		{name: "secret sent through the registry: nothing deleted once presence is recorded", recorded: true, policySent: true, wantPresent: true},
+		{name: "secret sent through the registry with one-time secrets: the profile owns the policy", seenOffset: time.Minute, policySent: true, oneTime: true, wantPresent: true},
+		{name: "secret sent through the registry: presence not recorded when queuing the delete fails", seenOffset: time.Minute, policySent: true, deleteFails: true, wantPresent: true, wantPolicyDelete: true},
 	}
 
 	for _, tc := range cases {
@@ -3836,7 +3847,23 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 				assert.Equal(t, hostUUID, linkedHostUUID)
 				return nil
 			}
-			svc := &Service{ds: ds}
+			ds.MDMWindowsEnrollSecretPolicySentSinceDeleteFunc = func(ctx context.Context, enrollmentID uint, installLocURI, policyLocURI string) (bool, error) {
+				assert.EqualValues(t, 17, enrollmentID)
+				assert.Equal(t, syncml.FleetdWindowsInstallerGUID, installLocURI)
+				assert.Equal(t, windowsEnrollSecretPolicyURI, policyLocURI)
+				return tc.policySent, nil
+			}
+			ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+				assert.Equal(t, []string{"device-17"}, deviceIDs)
+				assert.Equal(t, windowsEnrollSecretPolicyURI, cmd.TargetLocURI)
+				assert.Contains(t, string(cmd.RawCommand), "<Delete><CmdID>"+cmd.CommandUUID+"</CmdID>")
+				if tc.deleteFails {
+					return errors.New("insert failed")
+				}
+				return nil
+			}
+			svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+			svc.config.MDM.WindowsOneTimeEnrollSecrets = tc.oneTime
 
 			var recordedAt *time.Time
 			if tc.recorded {
@@ -3844,6 +3871,7 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			}
 			present, err := svc.isFleetdPresentOnDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
 				ID:              17,
+				MDMDeviceID:     "device-17",
 				MDMEnrollUserID: enrollUser,
 				HostUUID:        hostUUID,
 				CreatedAt:       enrolledAt,
@@ -3852,7 +3880,8 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantPresent, present)
 			assert.Equal(t, !tc.recorded && !tc.nonUPN && !tc.unlinked, ds.WindowsHostLiteByUUIDFuncInvoked)
-			assert.Equal(t, tc.wantPresent && !tc.recorded && !tc.nonUPN, ds.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked)
+			assert.Equal(t, tc.wantPresent && !tc.recorded && !tc.nonUPN && !tc.deleteFails, ds.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked)
+			assert.Equal(t, tc.wantPolicyDelete, ds.MDMWindowsInsertCommandForHostsFuncInvoked)
 		})
 	}
 }

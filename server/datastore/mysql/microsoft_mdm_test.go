@@ -79,6 +79,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
+		{"TestMDMWindowsEnrollSecretPolicySentSinceDelete", testMDMWindowsEnrollSecretPolicySentSinceDelete},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 		{"TestWindowsMDMProfilePriorContentRetention", testWindowsMDMProfilePriorContentRetention},
@@ -7138,6 +7139,69 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 	assert.Equal(t, string(fleet.MDMDeliveryPending), status, "Host profile status should be reset to pending on resend")
 	require.True(t, detail.Valid, "Host profile detail should be cleared on resend")
 	assert.Empty(t, detail.String, "Host profile detail should be cleared on resend")
+}
+
+func testMDMWindowsEnrollSecretPolicySentSinceDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		installURI = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/fleetd/DownloadInstall"
+		policyURI  = "./Device/Vendor/MSFT/Policy/Config/Area~Policy~category/EnrollSecret"
+	)
+	device := insertWindowsEnrollment(t, ds, "policy-sent", "")
+	other := insertWindowsEnrollment(t, ds, "policy-other", "")
+
+	queue := func(d *fleet.MDMWindowsEnrolledDevice, target, raw string) string {
+		t.Helper()
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.MDMDeviceID}, &fleet.MDMWindowsCommand{
+			CommandUUID: cmdUUID, RawCommand: []byte(raw), TargetLocURI: target,
+		}))
+		return cmdUUID
+	}
+	sent := func(d *fleet.MDMWindowsEnrolledDevice) bool {
+		t.Helper()
+		got, err := ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctx, d.ID, installURI, policyURI)
+		require.NoError(t, err)
+		return got
+	}
+	routedInstall := `<Add>ADMX</Add><Replace><Item><Target><LocURI>` + policyURI + `</LocURI></Target></Item></Replace><Exec>MSI</Exec>`
+
+	require.False(t, sent(device), "nothing sent")
+	queue(device, installURI, `<Add>MSI</Add><Exec>MSI</Exec>`)
+	require.False(t, sent(device), "an install without the policy")
+	queue(other, installURI, routedInstall)
+	require.False(t, sent(device), "another enrollment's install")
+	require.True(t, sent(other))
+
+	installUUID := queue(device, installURI, routedInstall)
+	require.True(t, sent(device))
+	// Acked commands drop out of the queue eventually, and the result still counts.
+	compressed, err := compressWindowsMDMResponse([]byte("resp"))
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, device.ID, compressed)
+		if err != nil {
+			return err
+		}
+		responseID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
+			VALUES (?, ?, '', ?, '200')`, device.ID, installUUID, responseID); err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?`, device.ID, installUUID)
+		return err
+	})
+	require.True(t, sent(device))
+
+	queue(device, policyURI, `<Delete><Item><Target><LocURI>`+policyURI+`</LocURI></Target></Item></Delete>`)
+	require.False(t, sent(device), "the policy was deleted since")
+	require.True(t, sent(other), "a delete for one enrollment doesn't count for another")
+
+	queue(device, installURI, routedInstall)
+	require.True(t, sent(device), "sent again after the delete")
 }
 
 func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
