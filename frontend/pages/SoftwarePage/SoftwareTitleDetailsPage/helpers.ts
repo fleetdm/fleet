@@ -124,6 +124,7 @@ const adaptAppStoreApp = (
   const version = softwareTitle.app_store_apps?.[0];
   if (!version) return undefined;
   return {
+    id: version.id,
     name: softwareTitle.name,
     display_name: softwareTitle.display_name,
     app_store_id: version.app_store_id,

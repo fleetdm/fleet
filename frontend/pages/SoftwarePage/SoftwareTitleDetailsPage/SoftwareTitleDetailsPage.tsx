@@ -822,13 +822,13 @@ const SoftwareTitleDetailsPage = ({
       <DeleteSoftwareModal
         softwareId={softwareId}
         teamId={teamIdForApi}
-        // Don't send installer_id for in-house apps because delete only accepts it for custom packages.
-        installerId={
-          isIpadOrIphoneSoftwareSource(title.source)
+        installerId={selected?.installer_id}
+        versionId={
+          selected
             ? undefined
-            : selected?.installer_id
+            : selectedVersionId ?? title.app_store_apps?.[0]?.id
         }
-        versionId={isVersionDelete ? selectedVersionId ?? undefined : undefined}
+        isVersionDelete={isVersionDelete}
         isLastVersion={isLastVersion}
         gitOpsModeEnabled={gitOpsModeEnabled}
         isAppStoreApp={isAppStoreApp}
@@ -894,11 +894,13 @@ const SoftwareTitleDetailsPage = ({
     // Otherwise (single-package back-compat or app-store), `meta.softwareInstaller`
     // already points at the only installer.
     const selected = findSelectedPackage(title);
+    // The selected package was removed while the modal was open. Falling back
+    // to the first package would send the edit to a different one.
+    if (selectedInstallerId !== null && !selected) return null;
     return (
       <EditSoftwareModal
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        installerId={selected?.installer_id}
         softwareInstaller={selected ?? meta.softwareInstaller}
         refetchSoftwareTitle={refetchSoftwareTitle}
         onExit={closeLibraryEditModal}

@@ -97,6 +97,7 @@ const EditAutoUpdateConfigModal = ({
   const onSubmitForm = async (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
+    if (!firstAppStoreApp) return false;
     const newValidation = validateFormData(formData, true);
     setFormValidation(newValidation);
 
@@ -107,7 +108,12 @@ const EditAutoUpdateConfigModal = ({
     setIsUpdatingConfiguration(true);
 
     try {
-      await softwareAPI.editAppStoreApp(softwareTitle.id, teamId, formData);
+      await softwareAPI.editAppStoreApp(
+        softwareTitle.id,
+        teamId,
+        firstAppStoreApp.id,
+        formData
+      );
 
       notify.success(
         <>

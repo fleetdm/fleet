@@ -17,7 +17,7 @@ jest.mock("components/ToastNotification", () => ({
 
 jest.mock("services/entities/software", () => ({
   __esModule: true,
-  default: { deleteSoftwareInstaller: jest.fn() },
+  default: { deleteSoftwarePackage: jest.fn(), deleteAppStoreApp: jest.fn() },
 }));
 
 const renderModal = (
@@ -100,7 +100,7 @@ describe("DeleteSoftwareModal", () => {
     });
 
     it("names the deleted package in the success toast", async () => {
-      (softwareAPI.deleteSoftwareInstaller as jest.Mock).mockResolvedValue({});
+      (softwareAPI.deleteSoftwarePackage as jest.Mock).mockResolvedValue({});
       renderModal({
         canActivateMultiplePackages: true,
         installerId: 3,
@@ -138,6 +138,54 @@ describe("DeleteSoftwareModal", () => {
       expect(
         screen.getByText("Custom icon and display name will be deleted.")
       ).toBeVisible();
+    });
+
+    it("keeps the 'Delete software' copy and calls the version URL on a single-version App Store title", async () => {
+      (softwareAPI.deleteAppStoreApp as jest.Mock).mockResolvedValue({});
+      renderModal({
+        versionId: 7,
+        isVersionDelete: false,
+        isAppStoreApp: true,
+      });
+
+      expect(screen.getByText("Delete software")).toBeInTheDocument();
+      expect(screen.queryByText("Delete version")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Custom icon and display name will be deleted.")
+      ).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+      await waitFor(() =>
+        expect(softwareAPI.deleteAppStoreApp).toHaveBeenCalledWith(1, 1, 7)
+      );
+      expect(softwareAPI.deleteSoftwarePackage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("per-item delete calls", () => {
+    it("deletes a package through its package id only", async () => {
+      (softwareAPI.deleteSoftwarePackage as jest.Mock).mockResolvedValue({});
+      renderModal({ installerId: 3 });
+
+      await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+      await waitFor(() =>
+        expect(softwareAPI.deleteSoftwarePackage).toHaveBeenCalledWith(1, 1, 3)
+      );
+      expect(softwareAPI.deleteAppStoreApp).not.toHaveBeenCalled();
+    });
+
+    it("deletes an App Store app through its version id only", async () => {
+      (softwareAPI.deleteAppStoreApp as jest.Mock).mockResolvedValue({});
+      renderModal({ versionId: 7 });
+
+      await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+      await waitFor(() =>
+        expect(softwareAPI.deleteAppStoreApp).toHaveBeenCalledWith(1, 1, 7)
+      );
+      expect(softwareAPI.deleteSoftwarePackage).not.toHaveBeenCalled();
     });
   });
 });

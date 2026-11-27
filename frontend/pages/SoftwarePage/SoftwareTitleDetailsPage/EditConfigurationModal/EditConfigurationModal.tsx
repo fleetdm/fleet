@@ -132,6 +132,7 @@ const EditConfigurationModal = ({
         await softwareAPI.editSoftwarePackage({
           data: buildSubmitPayload(),
           softwareId,
+          packageId: softwareInstaller.installer_id,
           teamId,
         });
       } else {
@@ -139,6 +140,7 @@ const EditConfigurationModal = ({
         await softwareAPI.editAppStoreApp(
           softwareId,
           teamId,
+          softwareInstaller.id,
           buildSubmitPayload()
         );
       }

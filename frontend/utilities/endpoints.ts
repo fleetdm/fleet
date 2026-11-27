@@ -284,11 +284,13 @@ export default {
   // Software endpoints
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
-  EDIT_SOFTWARE_PACKAGE: (id: number) =>
-    `/${API_VERSION}/fleet/software/titles/${id}/package`,
+  // PATCH (edit) and DELETE share this URL
+  SOFTWARE_TITLE_PACKAGE: (titleId: number, packageId: number) =>
+    `/${API_VERSION}/fleet/software/titles/${titleId}/packages/${packageId}`,
   SOFTWARE_APP_STORE_APPS: `/${API_VERSION}/fleet/software/app_store_apps`, // VPP apps and Google Play apps
-  EDIT_SOFTWARE_APP_STORE_APP: (id: number) =>
-    `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`, // VPP apps and Google Play apps
+  // PATCH (edit) and DELETE share this URL. VPP apps and Google Play apps
+  SOFTWARE_TITLE_APP_STORE_APP: (titleId: number, versionId: number) =>
+    `/${API_VERSION}/fleet/software/titles/${titleId}/app_store_apps/${versionId}`,
   SOFTWARE_ICON: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/icon`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
@@ -302,8 +304,6 @@ export default {
     `/${API_VERSION}/fleet/software/install/${uuid}/results`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
-  SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
-    `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
   SOFTWARE_FLEET_MAINTAINED_APPS: `/${API_VERSION}/fleet/software/fleet_maintained_apps`,
   SOFTWARE_FLEET_MAINTAINED_APP: (id: number) =>
     `/${API_VERSION}/fleet/software/fleet_maintained_apps/${id}`,

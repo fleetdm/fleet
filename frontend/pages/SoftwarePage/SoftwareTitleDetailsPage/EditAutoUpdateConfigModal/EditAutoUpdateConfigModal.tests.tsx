@@ -15,6 +15,12 @@ import EditAutoUpdateConfigModal, {
   ISoftwareAutoUpdateConfigFormData,
 } from "./EditAutoUpdateConfigModal";
 
+// The modal edits the title's first App Store version, so it needs one.
+const mockTitle = () =>
+  createMockSoftwareTitleDetails({
+    app_store_apps: [createMockAppStoreAppVersion({ id: 41 })],
+  });
+
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
 };
@@ -63,7 +69,7 @@ describe("Edit Auto Update Config Modal", () => {
     it("Does not show maintenance window options when 'Enable auto updates' is not configured", async () => {
       render(
         <EditAutoUpdateConfigModal
-          softwareTitle={createMockSoftwareTitleDetails()}
+          softwareTitle={mockTitle()}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
           onExit={jest.fn()}
@@ -113,7 +119,7 @@ describe("Edit Auto Update Config Modal", () => {
     it("Shows maintenance window options when 'Enable auto updates' is checked", async () => {
       const { user } = render(
         <EditAutoUpdateConfigModal
-          softwareTitle={createMockSoftwareTitleDetails()}
+          softwareTitle={mockTitle()}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
           onExit={jest.fn()}
@@ -170,7 +176,7 @@ describe("Edit Auto Update Config Modal", () => {
       it("Requires start time to be HH:MM format", async () => {
         const { user } = render(
           <EditAutoUpdateConfigModal
-            softwareTitle={createMockSoftwareTitleDetails()}
+            softwareTitle={mockTitle()}
             teamId={1}
             refetchSoftwareTitle={jest.fn()}
             onExit={jest.fn()}
@@ -212,7 +218,7 @@ describe("Edit Auto Update Config Modal", () => {
       it("Requires end time to be HH:MM format", async () => {
         const { user } = render(
           <EditAutoUpdateConfigModal
-            softwareTitle={createMockSoftwareTitleDetails()}
+            softwareTitle={mockTitle()}
             teamId={1}
             refetchSoftwareTitle={jest.fn()}
             onExit={jest.fn()}
@@ -255,7 +261,7 @@ describe("Edit Auto Update Config Modal", () => {
       it("Requires both start and end times to be set", async () => {
         const { user } = render(
           <EditAutoUpdateConfigModal
-            softwareTitle={createMockSoftwareTitleDetails()}
+            softwareTitle={mockTitle()}
             teamId={1}
             refetchSoftwareTitle={jest.fn()}
             onExit={jest.fn()}
@@ -328,7 +334,7 @@ describe("Edit Auto Update Config Modal", () => {
       it("Requires window to be at least one hour", async () => {
         const { user } = render(
           <EditAutoUpdateConfigModal
-            softwareTitle={createMockSoftwareTitleDetails()}
+            softwareTitle={mockTitle()}
             teamId={1}
             refetchSoftwareTitle={jest.fn()}
             onExit={jest.fn()}
@@ -368,7 +374,7 @@ describe("Edit Auto Update Config Modal", () => {
     it("Shows 'All hosts' if no labels are configured for the title", async () => {
       render(
         <EditAutoUpdateConfigModal
-          softwareTitle={createMockSoftwareTitleDetails()}
+          softwareTitle={mockTitle()}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
           onExit={jest.fn()}
@@ -450,22 +456,25 @@ describe("Edit Auto Update Config Modal", () => {
 
   describe("Submitting the form", () => {
     const requestSpy = jest.fn();
+    const urlSpy = jest.fn();
     const submitHandler = http.patch(
-      baseUrl("/software/titles/*/app_store_app"),
+      baseUrl("/software/titles/*/app_store_apps/*"),
       async ({ request }) => {
         const requestData = (await request.json()) as ISoftwareAutoUpdateConfigFormData;
         requestSpy(requestData);
+        urlSpy(new URL(request.url).pathname);
         return HttpResponse.json({});
       }
     );
     beforeEach(() => {
       mockServer.use(submitHandler);
       requestSpy.mockClear();
+      urlSpy.mockClear();
     });
     it("Sends the correct payload when 'Enable auto updates' is unchecked", async () => {
       const { user } = render(
         <EditAutoUpdateConfigModal
-          softwareTitle={createMockSoftwareTitleDetails()}
+          softwareTitle={mockTitle()}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
           onExit={jest.fn()}
@@ -486,12 +495,15 @@ describe("Edit Auto Update Config Modal", () => {
           fleet_id: 1,
         });
       });
+      expect(urlSpy).toHaveBeenCalledWith(
+        "/api/latest/fleet/software/titles/1/app_store_apps/41"
+      );
     });
 
     it("Sends the correct payload when 'Enable auto updates' is checked and a valid window is configured", async () => {
       const { user } = render(
         <EditAutoUpdateConfigModal
-          softwareTitle={createMockSoftwareTitleDetails()}
+          softwareTitle={mockTitle()}
           teamId={1}
           refetchSoftwareTitle={jest.fn()}
           onExit={jest.fn()}
