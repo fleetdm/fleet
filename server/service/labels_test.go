@@ -423,11 +423,11 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 
 	labels, err := svc.ListLabels(test.UserContext(ctx, test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000}, nil, true)
 	require.NoError(t, err)
-	require.Len(t, labels, 13)
+	require.Len(t, labels, 14)
 
 	labelsSummary, err := svc.LabelsSummary(test.UserContext(ctx, test.UserAdmin), nil)
 	require.NoError(t, err)
-	require.Len(t, labelsSummary, 13)
+	require.Len(t, labelsSummary, 14)
 }
 
 func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
