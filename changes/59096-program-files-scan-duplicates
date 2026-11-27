@@ -1,0 +1,1 @@
+- Windows hosts no longer list executables of already installed programs, Windows component executables (Internet Explorer, Windows Media Player, Defender tools other than `MsMpEng.exe`) or uninstallers from the Program Files scan as software.
