@@ -1,0 +1,1 @@
+- Fixed the "Vulnerable" and "Severity" filters on the software inventory page taking tens of seconds, or failing, on instances with large software inventories.
