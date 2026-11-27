@@ -57,7 +57,7 @@ To spot the PCs that fall behind anyway, add a policy. A policy is a yes-or-no q
 SELECT s.hardware_model, p.version, p.date FROM system_info s, platform_info p;
 ```
 
-Then navigate to **Policies**, select your fleet, and add one policy per model. Use the model name from the live report, and HP's minimum version written in the same format your hosts report:
+Then navigate to **Policies**, select your fleet, and add one policy per model. In the policy form, set **Target** to **Custom** and check **HP**, so your other PCs don't fail an HP policy (or get HP's scripts). Do the same for every policy in this guide. Use the model name from the live report, and HP's minimum version written in the same format your hosts report:
 
 ```sql
 SELECT 1 FROM system_info s, platform_info p
@@ -144,7 +144,7 @@ Keep the `channel` line, because [`windows_eventlog`](https://fleetdm.com/tables
 
 These IDs come from HP's [Sure Start event table](https://h10032.www1.hp.com/ctg/Manual/c05163901.pdf), published in 2016 (a long time ago, in firmware years), so check them against your models. The `datetime` column is when HP Notifications copied the event, and `data` has when it happened.
 
-Then add a policy, targeted at the **HP** label, that fails on any corruption event:
+Then add a policy, targeted at the **HP** label like the others, that fails on any corruption event:
 
 ```sql
 SELECT 1 WHERE NOT EXISTS (
@@ -199,15 +199,15 @@ labels:
   - name: HP
     query: SELECT 1 FROM system_info WHERE hardware_vendor LIKE 'HP%' OR hardware_vendor LIKE 'Hewlett%';
     label_membership_type: dynamic
-agent_options:
-  script_execution_timeout: 1800
-  # ...the rest of your existing agent options
 ```
 
-Add these to the `labels` and `agent_options` you already have, since GitOps removes labels that aren't listed. Policy automations live in a fleet file, and each script must also be listed in that fleet's `controls.scripts`. `fleets/workstations.yml`:
+Add this to the `labels` you already have, since GitOps removes labels that aren't listed. Policy automations live in a fleet file, along with the longer script timeout, and each script must also be listed in that fleet's `controls.scripts`. `fleets/workstations.yml`:
 
 ```yaml
 name: Workstations
+agent_options:
+  script_execution_timeout: 1800
+  # ...plus the rest of this fleet's existing agent options
 controls:
   scripts:
     - path: ../lib/windows/scripts/hp-update-bios-firmware-drivers.ps1
@@ -240,7 +240,7 @@ reports:
     interval: 86400
     labels_include_any:
       - HP
-# ...plus the agent_options and other keys your fleet file already has
+# ...plus any other keys your fleet file already has
 ```
 
 Store the BIOS password as a GitHub or GitLab secret named `FLEET_SECRET_BIOS_PASSWORD`, as described in [Secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
