@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.61.1",
+      "version": "2.62.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'KeePass Password Safe %' AND publisher = 'Dominik Reichl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'KeePass Password Safe %' AND publisher = 'Dominik Reichl' AND version_compare(version, '2.61.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'KeePass Password Safe %' AND publisher = 'Dominik Reichl' AND version_compare(version, '2.62.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'keepass.exe');"
       },
-      "installer_url": "https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.61.1/KeePass-2.61.1-Setup.exe/download",
+      "installer_url": "https://sourceforge.net/projects/keepass/files/KeePass%202.x/2.62/KeePass-2.62-Setup.exe/download",
       "install_script_ref": "d790544b",
       "uninstall_script_ref": "0fc165e0",
-      "sha256": "9923a8b228fe3d8fbe46979991f45d7e0d63f649766596da191eb879b293d38d",
+      "sha256": "84cd9829fc4dbb04320db69d7bc78dbe29a70142c16b474d4acd7463dc45409e",
       "default_categories": [
         "Productivity"
       ]
