@@ -913,9 +913,25 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 	// would send every config request to the database for the whole outage.
 	labelScopesUnknown := false
 	mode := fleet.ConfigETagModeOff
+	hasClientETag := clientETag != nil && *clientETag != ""
+	// Set when the label-scope state was cached and the record came back in
+	// the same Redis round trip; otherwise the record is read separately below.
+	var prefetched *fleet.ConfigETagLookup
 	if store != nil {
 		mode = fleet.ConfigETagModeBypass
-		scopes, err := store.LabelScopes(ctx, svc.labelScopedReportScopes)
+		var scopes fleet.ConfigETagLabelScopes
+		var err error
+		if hasClientETag {
+			var lookup fleet.ConfigETagLookup
+			lookup, err = store.LookupETag(ctx, host.ID, host.TeamID, scope, host.Platform)
+			if err == nil && lookup.LabelScopesCached {
+				prefetched = &lookup
+				scopes = lookup.LabelScopes
+			}
+		}
+		if err == nil && prefetched == nil {
+			scopes, err = store.LabelScopes(ctx, svc.labelScopedReportScopes)
+		}
 		switch {
 		case errors.Is(err, fleet.ErrConfigETagGateLoading):
 			// Another request on this instance is loading the gate state:
@@ -939,17 +955,20 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 		})
 	}
 
-	// THE SHORT CIRCUIT One Redis MGET; zero database reads on a hit.
+	// THE SHORT CIRCUIT One Redis MGET (shared with the label-scope read
+	// above when that state is cached); zero database reads on a hit.
 	// Gated on a non-empty client etag: an agent that did not opt in (nil)
 	// or holds no validator yet ("") always gets a full build, and can never
 	// be answered "unchanged". The store != nil guard is technically implied
 	// (mode can only be shared/host when a store was selected above) but is
 	// stated here so the invariant is local — for nilaway, and for anyone
 	// who later reorders the mode selection.
-	if store != nil && clientETag != nil && *clientETag != "" {
+	if store != nil && hasClientETag {
 		switch mode {
 		case fleet.ConfigETagModeShared:
-			storedETag, valid, err := store.GetETagIfCurrent(ctx, scope, host.Platform)
+			storedETag, valid, err := readETag(prefetched, func() (string, bool, error) {
+				return store.GetETagIfCurrent(ctx, scope, host.Platform)
+			})
 			switch {
 			case err != nil:
 				// FAIL OPEN: fall through to the full build.
@@ -966,7 +985,9 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 			// GetHostETagIfCurrent validates generation, stored scope, and stored
 			// platform against the authenticated host context — a team
 			// transfer or platform change reads as a miss.
-			storedETag, valid, err := store.GetHostETagIfCurrent(ctx, host.ID, scope, host.Platform)
+			storedETag, valid, err := readETag(prefetched, func() (string, bool, error) {
+				return store.GetHostETagIfCurrent(ctx, host.ID, scope, host.Platform)
+			})
 			switch {
 			case err != nil:
 				svc.logConfigETagError(ctx, "config etag: redis host read failed; falling back to full config build", err)
@@ -1048,6 +1069,13 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, clientETag *str
 		}
 	}
 	return result, nil
+}
+
+func readETag(prefetched *fleet.ConfigETagLookup, read func() (string, bool, error)) (string, bool, error) {
+	if prefetched != nil {
+		return prefetched.ETag, prefetched.Valid, nil
+	}
+	return read()
 }
 
 // labelScopedReportScopes is the loader for the label-scope mode state: one

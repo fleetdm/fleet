@@ -34,13 +34,17 @@ type stubConfigETagStore struct {
 	hostSetErr error
 
 	// gate state
-	scopes      fleet.ConfigETagLabelScopes
-	scopesErr   error
-	callLoaders bool // when true, LabelScopes defers to the load callback
+	scopes            fleet.ConfigETagLabelScopes
+	scopesErr         error
+	callLoaders       bool // when true, LabelScopes defers to the load callback
+	labelScopesCached bool // when true, LookupETag returns the gate state and record
+	lookupErr         error
 
 	// recorded interactions
 	getCalls        int
 	hostGetCalls    int
+	lookupCalls     int
+	scopesCalls     int
 	setCalls        int
 	hostSetCalls    int
 	lastSetScope    string
@@ -97,6 +101,7 @@ func (s *stubConfigETagStore) InvalidateHost(ctx context.Context, hostID uint) e
 }
 
 func (s *stubConfigETagStore) LabelScopes(ctx context.Context, load func(ctx context.Context) (fleet.ConfigETagLabelScopes, error)) (fleet.ConfigETagLabelScopes, error) {
+	s.scopesCalls++
 	if s.scopesErr != nil {
 		return fleet.ConfigETagLabelScopes{}, s.scopesErr
 	}
@@ -107,6 +112,23 @@ func (s *stubConfigETagStore) LabelScopes(ctx context.Context, load func(ctx con
 }
 
 func (s *stubConfigETagStore) ResetLabelScopes(ctx context.Context) error { return nil }
+
+func (s *stubConfigETagStore) LookupETag(ctx context.Context, hostID uint, fleetID *uint, scope, platform string) (fleet.ConfigETagLookup, error) {
+	s.lookupCalls++
+	if s.lookupErr != nil {
+		return fleet.ConfigETagLookup{}, s.lookupErr
+	}
+	if !s.labelScopesCached {
+		return fleet.ConfigETagLookup{}, nil
+	}
+	lookup := fleet.ConfigETagLookup{LabelScopesCached: true, LabelScopes: s.scopes}
+	if s.scopes.PerHostMode(fleetID) {
+		lookup.ETag, lookup.Valid = s.hostETag, s.hostValid
+	} else {
+		lookup.ETag, lookup.Valid = s.etag, s.valid
+	}
+	return lookup, nil
+}
 
 // newETagTestDS returns a mock datastore sufficient for a minimal full
 // config build (no agent options, no schedules) plus the label-scope gate
@@ -715,4 +737,57 @@ func TestFenceTTLOutlivesInMemoryCaches(t *testing.T) {
 		"a shared record must outlive the fence, or the cache can never warm")
 	assert.Greater(t, redis_config_etag.DefaultHostETagMinTTL, redis_config_etag.DefaultFenceTTL,
 		"a per-host record must outlive the fence")
+}
+
+// TestConfigETagCachedLabelScopesSingleRead: with the label-scope state cached, a hit must
+// come from the combined lookup alone, with no separate gate or record read.
+func TestConfigETagCachedLabelScopesSingleRead(t *testing.T) {
+	fleetID := uint(3)
+	for _, tc := range []struct {
+		name       string
+		scopes     fleet.ConfigETagLabelScopes
+		wantStatus fleet.ConfigETagCacheStatus
+	}{
+		{"shared", fleet.ConfigETagLabelScopes{}, fleet.ConfigETagStatusRedisNotModified},
+		{"per-host", fleet.ConfigETagLabelScopes{TeamIDs: []uint{fleetID}}, fleet.ConfigETagStatusRedisHostNotModified},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newETagTestDS()
+			svc, ctx := newTestService(t, ds, nil, nil)
+			store := &stubConfigETagStore{
+				labelScopesCached: true, scopes: tc.scopes,
+				etag: `"stored"`, valid: true, hostETag: `"stored"`, hostValid: true,
+			}
+			svc.SetConfigETagStore(store)
+			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: &fleetID, Platform: "darwin"})
+
+			res, err := svc.GetClientConfigWithETag(ctx, new(`"stored"`))
+			require.NoError(t, err)
+			require.True(t, res.NotModified)
+			require.Equal(t, tc.wantStatus, res.CacheStatus)
+			require.Equal(t, 1, store.lookupCalls)
+			require.Zero(t, store.scopesCalls)
+			require.Zero(t, store.getCalls)
+			require.Zero(t, store.hostGetCalls)
+			require.False(t, ds.ListScheduledQueriesForAgentsFuncInvoked, "a hit must not build the config")
+		})
+	}
+}
+
+// TestConfigETagLookupErrorFailsOpen: a failed combined lookup must bypass the
+// short circuit and still deliver a full config.
+func TestConfigETagLookupErrorFailsOpen(t *testing.T) {
+	ds := newETagTestDS()
+	svc, ctx := newTestService(t, ds, nil, nil)
+	store := &stubConfigETagStore{lookupErr: assert.AnError, etag: `"stored"`, valid: true}
+	svc.SetConfigETagStore(store)
+	ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
+
+	res, err := svc.GetClientConfigWithETag(ctx, new(`"stored"`))
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConfigETagModeBypass, res.Mode)
+	require.Zero(t, store.scopesCalls)
+	require.Zero(t, store.getCalls)
+	require.Zero(t, store.setCalls)
+	require.True(t, ds.ListScheduledQueriesForAgentsFuncInvoked)
 }

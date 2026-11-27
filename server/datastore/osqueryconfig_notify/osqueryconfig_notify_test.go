@@ -364,14 +364,15 @@ func TestCoversETagInvalidation(t *testing.T) {
 	skipped := map[string]string{
 		"NewTeam": "a new fleet has no hosts",
 		// Label membership changes: fallback poll only.
-		"ApplyLabelSpecs":                     "label membership",
-		"ApplyLabelSpecsWithAuthor":           "label membership",
-		"SaveLabel":                           "label membership",
-		"UpdateLabelMembershipByHostIDs":      "label membership",
-		"UpdateLabelMembershipByHostCriteria": "label membership",
-		"AddLabelsToHost":                     "label membership",
-		"RemoveLabelsFromHost":                "label membership",
-		"RecordLabelQueryExecutions":          "label membership",
+		"ApplyLabelSpecs":                       "label membership",
+		"ApplyLabelSpecsWithAuthor":             "label membership",
+		"SaveLabel":                             "label membership",
+		"UpdateLabelMembershipByHostIDs":        "label membership",
+		"UpdateLabelMembershipByHostCriteria":   "label membership",
+		"AddLabelsToHost":                       "label membership",
+		"RemoveLabelsFromHost":                  "label membership",
+		"RecordLabelQueryExecutions":            "label membership",
+		"RecordLabelQueryExecutionsWithChanges": "label membership",
 	}
 	ours := map[string]struct{}{}
 	for _, m := range declaredMethods(t, ".") {

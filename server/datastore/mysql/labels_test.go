@@ -91,6 +91,7 @@ func TestLabels(t *testing.T) {
 		{"Save", testLabelsSave},
 		{"QueriesForLinuxPlatformLabel", testLabelsQueriesForLinuxPlatformLabel},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
+		{"RecordLabelQueryExecutionsReportsChanges", testRecordLabelQueryExecutionsReportsChanges},
 		{"RecordLabelQueryExecutionsQueryErrorKeepsMembership", testRecordLabelQueryExecutionsQueryErrorKeepsMembership},
 		{"DeleteLabel", testDeleteLabel},
 		{"DeleteLabelMembership", testDeleteLabelMembership},
@@ -1441,6 +1442,56 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	require.Nil(t, err)
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now(), false))
+}
+
+func testRecordLabelQueryExecutionsReportsChanges(t *testing.T, db *Datastore) {
+	ctx := t.Context()
+	host, err := db.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("reports-changes"),
+		NodeKey:         new("reports-changes"),
+		UUID:            "reports-changes",
+		Hostname:        "reports-changes.local",
+	})
+	require.NoError(t, err)
+	l1, err := db.NewLabel(ctx, &fleet.Label{Name: "reports changes 1", Query: "SELECT 1"})
+	require.NoError(t, err)
+	l2, err := db.NewLabel(ctx, &fleet.Label{Name: "reports changes 2", Query: "SELECT 2"})
+	require.NoError(t, err)
+
+	steps := []struct {
+		name        string
+		results     map[uint]*bool
+		deferred    bool
+		wantChanged bool
+	}{
+		{"first match is added", map[uint]*bool{l1.ID: new(true), l2.ID: new(false)}, false, true},
+		{"same results again", map[uint]*bool{l1.ID: new(true), l2.ID: new(false)}, false, false},
+		{"existing match only", map[uint]*bool{l1.ID: new(true)}, false, false},
+		{"non-match for a non-member", map[uint]*bool{l2.ID: new(false)}, false, false},
+		{"query error leaves membership", map[uint]*bool{l1.ID: nil}, false, false},
+		{"member stops matching", map[uint]*bool{l1.ID: new(false)}, false, true},
+		{"deferred add", map[uint]*bool{l1.ID: new(true), l2.ID: new(true)}, true, true},
+		{"deferred unchanged", map[uint]*bool{l1.ID: new(true), l2.ID: new(true)}, true, false},
+		{"mixed add and remove", map[uint]*bool{l1.ID: new(false), l2.ID: new(true)}, false, true},
+	}
+	// Each label run happens at a later time; a same-second rewrite would
+	// report a change.
+	runAt := time.Now()
+	for _, step := range steps {
+		runAt = runAt.Add(time.Minute)
+		changed, err := db.RecordLabelQueryExecutionsWithChanges(ctx, host, step.results, runAt, step.deferred)
+		require.NoError(t, err, step.name)
+		require.Equal(t, step.wantChanged, changed, step.name)
+	}
+
+	labels, err := db.ListLabelsForHost(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	require.Equal(t, l2.ID, labels[0].ID)
 }
 
 func testRecordLabelQueryExecutionsQueryErrorKeepsMembership(t *testing.T, db *Datastore) {

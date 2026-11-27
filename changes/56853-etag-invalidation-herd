@@ -1,0 +1,1 @@
+- Reduced Redis load and full config rebuilds from osquery config ETags: live queries, unchanged label results, and unchanged app config saves no longer invalidate stored config ETags, and a cached config check-in now makes one Redis call instead of two.

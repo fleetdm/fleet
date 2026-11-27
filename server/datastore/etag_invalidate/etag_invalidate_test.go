@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
@@ -72,8 +73,13 @@ var deploymentHookCases = []deploymentHookCase{
 	{
 		"SaveAppConfig", resetsNothing,
 		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "old"}}, nil
+			}
 			ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return nil }
-			return &ds.SaveAppConfigFuncInvoked, func() error { return d.SaveAppConfig(hookTestCtx, &fleet.AppConfig{}) }
+			return &ds.SaveAppConfigFuncInvoked, func() error {
+				return d.SaveAppConfig(hookTestCtx, &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "new"}})
+			}
 		},
 	},
 	{
@@ -112,7 +118,7 @@ var deploymentHookCases = []deploymentHookCase{
 			ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 				return query, nil
 			}
-			return &ds.NewQueryFuncInvoked, func() error { _, err := d.NewQuery(hookTestCtx, &fleet.Query{}); return err }
+			return &ds.NewQueryFuncInvoked, func() error { _, err := d.NewQuery(hookTestCtx, &fleet.Query{Saved: true}); return err }
 		},
 	},
 	{
@@ -205,11 +211,19 @@ var perHostHookCases = []perHostHookCase{
 	{
 		"RecordLabelQueryExecutions", []uint{11},
 		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
-				return nil
-			}
-			return &ds.RecordLabelQueryExecutionsFuncInvoked, func() error {
+			ds.RecordLabelQueryExecutionsWithChangesFunc = membershipChanged(true, nil)
+			return &ds.RecordLabelQueryExecutionsWithChangesFuncInvoked, func() error {
 				return d.RecordLabelQueryExecutions(hookTestCtx, &fleet.Host{ID: 11}, nil, time.Now(), false)
+			}
+		},
+	},
+	{
+		"RecordLabelQueryExecutionsWithChanges", []uint{12},
+		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
+			ds.RecordLabelQueryExecutionsWithChangesFunc = membershipChanged(true, nil)
+			return &ds.RecordLabelQueryExecutionsWithChangesFuncInvoked, func() error {
+				_, err := d.RecordLabelQueryExecutionsWithChanges(hookTestCtx, &fleet.Host{ID: 12}, nil, time.Now(), false)
+				return err
 			}
 		},
 	},
@@ -295,10 +309,9 @@ func TestNoInvalidationOnWriteError(t *testing.T) {
 	ds, store, d := newTestDatastore()
 
 	wantErr := errors.New("boom")
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return wantErr }
-	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
-		return wantErr
-	}
+	ds.RecordLabelQueryExecutionsWithChangesFunc = membershipChanged(false, wantErr)
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
 		return wantErr
 	}
@@ -346,9 +359,7 @@ func TestInvalidationErrorsAreSwallowed(t *testing.T) {
 	ds.SaveQueryFunc = func(ctx context.Context, q *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
 		return nil
 	}
-	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
-		return nil
-	}
+	ds.RecordLabelQueryExecutionsWithChangesFunc = membershipChanged(true, nil)
 
 	require.NoError(t, d.SaveQuery(ctx, &fleet.Query{}, false, false))
 	require.Equal(t, 1, store.invalidateCalls)
@@ -356,4 +367,80 @@ func TestInvalidationErrorsAreSwallowed(t *testing.T) {
 
 	require.NoError(t, d.RecordLabelQueryExecutions(ctx, &fleet.Host{ID: 9}, nil, time.Now(), false))
 	require.Equal(t, []uint{9}, store.hostInvalidations)
+}
+
+func membershipChanged(changed bool, err error) mock.RecordLabelQueryExecutionsWithChangesFunc {
+	return func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) (bool, error) {
+		return changed, err
+	}
+}
+
+// TestNoInvalidationWithoutConfigChange covers writes that cannot change any
+// host's config: they must not invalidate, because each deployment-wide
+// invalidation rebuilds every host's config.
+func TestNoInvalidationWithoutConfigChange(t *testing.T) {
+	t.Run("unsaved live query", func(t *testing.T) {
+		ds, store, d := newTestDatastore()
+		ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+			return query, nil
+		}
+		_, err := d.NewQuery(t.Context(), &fleet.Query{Saved: false})
+		require.NoError(t, err)
+		require.True(t, ds.NewQueryFuncInvoked)
+		require.Equal(t, 0, store.invalidateCalls)
+		require.Equal(t, 0, store.labelScopesResetCalls)
+	})
+
+	t.Run("unchanged app config", func(t *testing.T) {
+		ds, store, d := newTestDatastore()
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "same"}}, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return nil }
+		require.NoError(t, d.SaveAppConfig(t.Context(), &fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "same"}}))
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		require.Equal(t, 0, store.invalidateCalls)
+	})
+
+	t.Run("app config comparison reads fresh primary data", func(t *testing.T) {
+		ds, _, d := newTestDatastore()
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx))
+			require.True(t, ctxdb.IsCachedMysqlBypassed(ctx))
+			return &fleet.AppConfig{}, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return nil }
+		require.NoError(t, d.SaveAppConfig(t.Context(), &fleet.AppConfig{}))
+		require.True(t, ds.AppConfigFuncInvoked)
+	})
+
+	t.Run("unchanged label membership", func(t *testing.T) {
+		ds, store, d := newTestDatastore()
+		ds.RecordLabelQueryExecutionsWithChangesFunc = membershipChanged(false, nil)
+		require.NoError(t, d.RecordLabelQueryExecutions(t.Context(), &fleet.Host{ID: 3}, nil, time.Now(), false))
+		require.Empty(t, store.hostInvalidations)
+		require.Equal(t, 0, store.invalidateCalls)
+	})
+}
+
+// TestInvalidationWhenUnchangedCannotBeProven: when the stored app config
+// cannot be read, the save must still invalidate.
+func TestInvalidationWhenUnchangedCannotBeProven(t *testing.T) {
+	ds, store, d := newTestDatastore()
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return nil, errors.New("read failed") }
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return nil }
+	require.NoError(t, d.SaveAppConfig(t.Context(), &fleet.AppConfig{}))
+	require.Equal(t, 1, store.invalidateCalls)
+}
+
+// TestLabelInvalidationAfterDeferredWriteError: membership commits before the
+// deferred label_updated_at write, so a changed membership must invalidate
+// even when that later write fails.
+func TestLabelInvalidationAfterDeferredWriteError(t *testing.T) {
+	ds, store, d := newTestDatastore()
+	wantErr := errors.New("deferred write failed")
+	ds.RecordLabelQueryExecutionsWithChangesFunc = membershipChanged(true, wantErr)
+	err := d.RecordLabelQueryExecutions(t.Context(), &fleet.Host{ID: 8}, nil, time.Now(), true)
+	require.ErrorIs(t, err, wantErr)
+	require.Equal(t, []uint{8}, store.hostInvalidations)
 }

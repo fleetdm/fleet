@@ -1,11 +1,14 @@
 package etag_invalidate
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"log/slog"
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -120,12 +123,37 @@ func (d *Datastore) invalidateHost(ctx context.Context, hostID uint, reason stri
 // alter the rendered osquery config.
 // ///////////////////////////////////////////////////////////////////////////
 
+// SaveAppConfig skips the invalidation when the saved config equals the stored
+// one: every Fleet boot saves the app config unchanged, and each deployment-wide
+// invalidation forces a full config rebuild on every host.
 func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
+	unchanged := d.appConfigUnchanged(ctx, info)
 	if err := d.Datastore.SaveAppConfig(ctx, info); err != nil {
 		return err
 	}
-	d.invalidate(ctx, "SaveAppConfig")
+	if !unchanged {
+		d.invalidate(ctx, "SaveAppConfig")
+	}
 	return nil
+}
+
+// appConfigUnchanged reports false whenever it cannot prove equality, so a
+// failure here only costs an extra invalidation.
+func (d *Datastore) appConfigUnchanged(ctx context.Context, info *fleet.AppConfig) bool {
+	readCtx := ctxdb.BypassCachedMysql(ctxdb.RequirePrimary(ctx, true), true)
+	stored, err := d.Datastore.AppConfig(readCtx)
+	if err != nil {
+		return false
+	}
+	storedJSON, err := json.Marshal(stored)
+	if err != nil {
+		return false
+	}
+	newJSON, err := json.Marshal(info)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(storedJSON, newJSON)
 }
 
 // ///////////////////////////////////////////////////////////////////////////
@@ -179,7 +207,12 @@ func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fl
 	if err != nil {
 		return nil, err
 	}
-	d.invalidateAndResetLabelScopes(ctx, "NewQuery")
+	// Every live query creates an unsaved query. Config builds only read saved
+	// queries, so invalidating here would force a fleet-wide rebuild per live
+	// query for no config change.
+	if query.Saved {
+		d.invalidateAndResetLabelScopes(ctx, "NewQuery")
+	}
 	return q, nil
 }
 
@@ -327,18 +360,28 @@ func (d *Datastore) RemoveLabelsFromHost(ctx context.Context, hostID uint, label
 
 // ///////////////////////////////////////////////////////////////////////////
 // Routine label result persistence — PER-HOST invalidation only (see the
-// HARD RULE in the package docs). Conservative by design: every successful
-// persistence invalidates, with no membership value diff.
+// HARD RULE in the package docs), and only when membership actually changed.
 // ///////////////////////////////////////////////////////////////////////////
 
 // RecordLabelQueryExecutions is the synchronous label persistence path. The
-// invalidation runs only after the underlying write succeeds — invalidating
+// invalidation runs only after the underlying write commits — invalidating
 // before commit would let an intervening build republish pre-change
 // membership before the write completes.
 func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error {
-	if err := d.Datastore.RecordLabelQueryExecutions(ctx, host, results, t, deferredSaveHost); err != nil {
-		return err
+	_, err := d.RecordLabelQueryExecutionsWithChanges(ctx, host, results, t, deferredSaveHost)
+	return err
+}
+
+// RecordLabelQueryExecutionsWithChanges invalidates only when membership
+// changed: every host re-reports its labels each label interval, and hosts
+// enrolled together do so together, so invalidating on unchanged results
+// rebuilds the whole fleet's configs on that schedule.
+func (d *Datastore) RecordLabelQueryExecutionsWithChanges(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) (bool, error) {
+	changed, err := d.Datastore.RecordLabelQueryExecutionsWithChanges(ctx, host, results, t, deferredSaveHost)
+	// changed with an error means the membership commit succeeded and only
+	// the deferred label_updated_at write failed.
+	if changed {
+		d.invalidateHost(ctx, host.ID, "RecordLabelQueryExecutions")
 	}
-	d.invalidateHost(ctx, host.ID, "RecordLabelQueryExecutions")
-	return nil
+	return changed, err
 }

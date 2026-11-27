@@ -26,6 +26,7 @@ func TestRedisConfigETag(t *testing.T) {
 		testHostQuarantine,
 		testHostGenerationInvalidation,
 		testLabelScopesState,
+		testLookupETag,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -334,7 +335,68 @@ func testLabelScopesState(t *testing.T, s *Store) {
 	require.LessOrEqual(t, ttl, int(gateStateTTL.Seconds()))
 }
 
-// redigoInt converts a redigo reply to int, for TTL assertions.
+func testLookupETag(t *testing.T, s *Store) {
+	ctx := t.Context()
+	fleetID := uint(7)
+	// "team:<id>" is the scope format the record keys use.
+	const scope, platform = "team:7", "darwin"
+	cacheLabelScopes := func(scopes fleet.ConfigETagLabelScopes) {
+		require.NoError(t, s.ResetLabelScopes(ctx))
+		_, err := s.LabelScopes(ctx, func(ctx context.Context) (fleet.ConfigETagLabelScopes, error) { return scopes, nil })
+		require.NoError(t, err)
+	}
+
+	// With no cached label-scope state, the lookup reports nothing, so the
+	// caller falls back to LabelScopes (which loads it) instead of guessing a
+	// mode.
+	lookup, err := s.LookupETag(ctx, 1, &fleetID, scope, platform)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConfigETagLookup{}, lookup)
+
+	// Store both a shared record for (fleet 7, darwin) and a per-host record
+	// for host 1, with different ETags, so each assertion below shows which
+	// record the lookup picked.
+	stored, err := s.SetIfNoFence(ctx, scope, platform, "shared-etag")
+	require.NoError(t, err)
+	require.True(t, stored)
+	stored, err = s.SetHostIfNoFence(ctx, 1, scope, platform, "host-etag")
+	require.NoError(t, err)
+	require.True(t, stored)
+
+	// Only fleet 8 has label-scoped reports, so a host in fleet 7 is in
+	// shared mode and gets the shared record, along with the cached state.
+	cacheLabelScopes(fleet.ConfigETagLabelScopes{TeamIDs: []uint{8}})
+	lookup, err = s.LookupETag(ctx, 1, &fleetID, scope, platform)
+	require.NoError(t, err)
+	require.True(t, lookup.LabelScopesCached)
+	require.Equal(t, []uint{8}, lookup.LabelScopes.TeamIDs)
+	require.True(t, lookup.Valid)
+	require.Equal(t, "shared-etag", lookup.ETag)
+
+	// Fleet 7 now has label-scoped reports, so the same host is in per-host
+	// mode and gets its own record.
+	cacheLabelScopes(fleet.ConfigETagLabelScopes{TeamIDs: []uint{fleetID}})
+	lookup, err = s.LookupETag(ctx, 1, &fleetID, scope, platform)
+	require.NoError(t, err)
+	require.True(t, lookup.Valid)
+	require.Equal(t, "host-etag", lookup.ETag)
+
+	// The per-host record was written for darwin; a lookup for another
+	// platform (the host changed platform) must not trust it.
+	lookup, err = s.LookupETag(ctx, 1, &fleetID, scope, "windows")
+	require.NoError(t, err)
+	require.True(t, lookup.LabelScopesCached)
+	require.False(t, lookup.Valid)
+
+	// A config-affecting write bumps the generation, so the record stored
+	// before it is stale even though it still exists in Redis.
+	require.NoError(t, s.Invalidate(ctx))
+	lookup, err = s.LookupETag(ctx, 1, &fleetID, scope, platform)
+	require.NoError(t, err)
+	require.True(t, lookup.LabelScopesCached)
+	require.False(t, lookup.Valid)
+}
+
 func redigoInt(reply any, err error) (int, error) {
 	if err != nil {
 		return 0, err
