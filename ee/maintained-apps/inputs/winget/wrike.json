@@ -5,7 +5,9 @@
   "unique_identifier": "Wrike for Windows (64 bit)",
   "installer_arch": "x64",
   "installer_type": "msi",
-  "installer_scope": "machine",
+  "installer_scope": "user",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/wrike_install.ps1",
-  "default_categories": ["Productivity"]
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/wrike_uninstall.ps1",
+  "default_categories": ["Productivity"],
+  "frozen": true
 }
