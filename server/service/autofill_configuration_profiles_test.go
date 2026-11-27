@@ -709,7 +709,7 @@ func TestAutofillConfigProfileCredentials(t *testing.T) {
 	t.Run("fleetdm.com's limit is a 429 with Retry-After on both endpoints", func(t *testing.T) {
 		svc, ctx, _ := newAutofillTestService(t, fleet.TierFree, nil)
 		resetsAt := time.Now().Add(48 * time.Hour).UTC().Truncate(time.Second)
-		gen.respond(http.StatusTooManyRequests, `{"error": "generationLimitReached", "resetsAt": "`+resetsAt.Format(time.RFC3339)+`"}`)
+		gen.respond(http.StatusTooManyRequests, `{"error": "generationLimitReached", "resetsAt": "`+resetsAt.Format(time.RFC3339)+`", "limit": 15}`)
 
 		_, err := svc.AutofillConfigProfileContent(ctx, "Turn off AirDrop", "apple", 0)
 		requireAutofillError(t, err, "base", fleet.AutofillConfigProfileLimitReachedReason, true)
@@ -717,17 +717,35 @@ func TestAutofillConfigProfileCredentials(t *testing.T) {
 		assert.Equal(t, http.StatusTooManyRequests, limitErr.StatusCode())
 		assert.Equal(t, fleet.AutofillConfigProfileContentErrorMessage, limitErr.Message)
 		assert.InDelta(t, 48*60*60, limitErr.RetryAfterSeconds, 5)
+		assert.Equal(t, 15, limitErr.Limit)
 
 		_, _, err = svc.AutofillConfigProfileNameDescription(ctx, "Turn off AirDrop", "apple")
 		requireAutofillError(t, err, "base", fleet.AutofillConfigProfileLimitReachedReason, true)
 		limitErr = autofillErrorOf(t, err)
 		assert.Equal(t, http.StatusTooManyRequests, limitErr.StatusCode())
 		assert.Equal(t, fleet.AutofillConfigProfileNameDescriptionErrorMessage, limitErr.Message)
+		assert.Equal(t, 15, limitErr.Limit)
 
 		// A 429 that isn't the limit, such as a rate limit in front of fleetdm.com, is an outage like any other.
 		gen.respond(http.StatusTooManyRequests, `Too Many Requests`)
 		_, err = svc.AutofillConfigProfileContent(ctx, "Turn off AirDrop", "apple", 0)
 		requireAutofillError(t, err, "base", "The AI service is unavailable.", false)
+		assert.Zero(t, autofillErrorOf(t, err).Limit)
+	})
+
+	t.Run("an unexpired Premium license's limit is relayed on both endpoints", func(t *testing.T) {
+		svc, ctx, _ := newAutofillTestService(t, fleet.TierPremium, nil)
+		gen.respond(http.StatusTooManyRequests, `{"error": "generationLimitReached", "resetsAt": "`+time.Now().Add(time.Hour).UTC().Format(time.RFC3339)+`", "limit": 300}`)
+
+		_, err := svc.AutofillConfigProfileContent(ctx, "Turn off AirDrop", "apple", 0)
+		requireAutofillError(t, err, "base", fleet.AutofillConfigProfileLimitReachedReason, true)
+		assert.Equal(t, http.StatusTooManyRequests, autofillErrorOf(t, err).StatusCode())
+		assert.Equal(t, 300, autofillErrorOf(t, err).Limit)
+		assert.Equal(t, "test-license-key", gen.lastBody["fleetLicenseKey"], "authenticated as Fleet Premium")
+
+		_, _, err = svc.AutofillConfigProfileNameDescription(ctx, "Turn off AirDrop", "apple")
+		requireAutofillError(t, err, "base", fleet.AutofillConfigProfileLimitReachedReason, true)
+		assert.Equal(t, 300, autofillErrorOf(t, err).Limit)
 	})
 }
 

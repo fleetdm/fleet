@@ -520,6 +520,7 @@ func autofillLimitError(ctx context.Context, message string, status int, body []
 	var limit struct {
 		Error    string    `json:"error"`
 		ResetsAt time.Time `json:"resetsAt"`
+		Limit    int       `json:"limit"`
 	}
 	if json.Unmarshal(body, &limit) != nil || limit.Error != "generationLimitReached" {
 		return nil
@@ -538,6 +539,7 @@ func autofillLimitError(ctx context.Context, message string, status int, body []
 		Reason:            fleet.AutofillConfigProfileLimitReachedReason,
 		Status:            http.StatusTooManyRequests,
 		RetryAfterSeconds: retryAfter,
+		Limit:             limit.Limit,
 	}, "profile generator limit reached")
 }
 

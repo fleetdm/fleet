@@ -49,6 +49,10 @@ func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, en
 		for _, reason := range e.MoreReasons {
 			jsonErr.Errors = append(jsonErr.Errors, map[string]string{"name": e.Field, "reason": reason})
 		}
+		if e.Limit > 0 {
+			enc.Encode(autofillLimitJSONError{JsonError: *jsonErr, Limit: e.Limit}) //nolint:errcheck
+			return true
+		}
 		enc.Encode(jsonErr) //nolint:errcheck
 		return true
 
@@ -99,6 +103,13 @@ func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, en
 type deviceSSORequiredJSONError struct {
 	endpointer.JsonError
 	SSORequired bool `json:"sso_required"`
+}
+
+// autofillLimitJSONError is the standard error envelope plus the monthly limit
+// fleetdm.com reported, which the limit banner shows.
+type autofillLimitJSONError struct {
+	endpointer.JsonError
+	Limit int `json:"limit"`
 }
 
 // MailError is set when an error performing mail operations
