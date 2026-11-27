@@ -28,7 +28,8 @@
     Every step is logged to standard output so it appears in Fleet's script output.
     The fleetd node key is never logged, and only the first and last groups of the
     recovery password are logged (e.g. 123456-******-...-******-654321).
-    Exit code 0 = rotated and escrowed, 1 = failed (see the log for the state left behind).
+    Exit code 0 = rotated, escrowed, and every old recovery password removed;
+    1 = failed or incomplete (see the log for the state left behind).
 #>
 #Requires -RunAsAdministrator
 $ErrorActionPreference = 'Stop'
@@ -58,8 +59,10 @@ function Get-FleetdSetting {
     foreach ($line in @($svc.Environment)) {
         if ($line -match "^$EnvName=(.+)$") { return @{ Value = $Matches[1].Trim(); Source = "service Environment ($EnvName)" } }
     }
-    if ($svc.ImagePath -match "--$FlagName[=\s]+`"?([^`"\s]+)") {
-        return @{ Value = $Matches[1].Trim(); Source = "service ImagePath (--$FlagName)" }
+    # Quoted values can contain spaces (e.g. --root-dir="C:\Program Files\Orbit").
+    if ($svc.ImagePath -match "--$FlagName(?:=|\s+)(?:`"([^`"]*)`"|([^`"\s]+))") {
+        # Only one of the two groups matches; joining them avoids a $null for an empty quoted value.
+        return @{ Value = "$($Matches[1])$($Matches[2])".Trim(); Source = "service ImagePath (--$FlagName)" }
     }
     return $null
 }
@@ -223,12 +226,15 @@ try {
                 }
             }
             Write-ProtectorState "After rotation"
-            if ($failedRemovals -gt 0) {
-                Write-Log "New key escrowed, but $failedRemovals old protector(s) remain and still unlock the drive." 'WARN'
-            }
-            Write-Log "SUCCESS: recovery key rotated and escrowed. New protector ID: $newId"
             Write-Log "Key Fleet should now show (masked): $keyForLog"
-            $exitCode = 0
+            if ($failedRemovals -gt 0) {
+                # The old key still unlocks the drive, so the shared key isn't invalidated yet.
+                Write-Log "FAILED: new key escrowed, but $failedRemovals old protector(s) remain and still unlock the drive. New protector ID: $newId. Run the script again to remove them." 'ERROR'
+            }
+            else {
+                Write-Log "SUCCESS: recovery key rotated and escrowed. New protector ID: $newId"
+                $exitCode = 0
+            }
         }
         'rejected' {
             Remove-BitLockerKeyProtector -MountPoint $MountPoint -KeyProtectorId $newId | Out-Null

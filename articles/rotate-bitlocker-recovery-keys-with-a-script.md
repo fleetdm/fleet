@@ -92,7 +92,7 @@ Disk encryption is probably off for the host's fleet, so Fleet didn't store the 
 
 **Output shows "Could not remove old protector"**
 
-Fleet has the new key, but the old key still unlocks the disk. Run the script again to remove it.
+Fleet has the new key, but the old key still unlocks the disk, so the script exits with code 1. Run the script again. It escrows another new key and removes every older one, including the one it couldn't remove before.
 
 ## Further reading
 
