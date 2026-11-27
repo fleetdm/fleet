@@ -30,6 +30,9 @@ builds:
     flags:
       - -tags=full,fts5,netgo
       - -trimpath
+      # Snapshot commits have no release tag as an ancestor, so the VCS-derived
+      # module version is a misleading pseudo-version of an old release.
+      - -buildvcs=false
     ldflags:
       # Reduce binary size by stripping debug symbols.
       - -s
@@ -53,6 +56,7 @@ builds:
       - amd64
     flags:
       - -trimpath
+      - -buildvcs=false
     ldflags:
       # Reduce binary size by stripping debug symbols.
       - -s
