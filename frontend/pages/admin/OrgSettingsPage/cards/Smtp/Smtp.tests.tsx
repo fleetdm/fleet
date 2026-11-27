@@ -2,7 +2,6 @@ import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
-import { trimFormData } from "hooks/useFormValidation";
 import { renderWithSetup, createMockRouter } from "test/test-utils";
 
 import Smtp, { validate } from "./Smtp";
@@ -84,43 +83,6 @@ describe("Smtp", () => {
 
       expect(errors.smtpPort).toBe("Enter a server port");
       expect(errors.smtpServer).toBeUndefined();
-    });
-
-    // Blur validates the raw value; Save validates the trimmed one. A
-    // whitespace-only value counts as empty and must get the same result from
-    // both.
-    it("treats a whitespace-only sender address as empty when SMTP is enabled", () => {
-      const data = { ...baseFormData, smtpSenderAddress: "   " };
-
-      expect(validate(data).smtpSenderAddress).toBe("Enter a sender address");
-      expect(validate(data)).toEqual(validate(trimFormData(data)));
-    });
-
-    it("accepts a whitespace-only sender address when SMTP is disabled", () => {
-      const data = {
-        ...baseFormData,
-        enableSMTP: false,
-        smtpSenderAddress: "   ",
-      };
-
-      expect(validate(data).smtpSenderAddress).toBeUndefined();
-      expect(validate(data)).toEqual(validate(trimFormData(data)));
-    });
-
-    it("treats whitespace-only server and username as empty", () => {
-      const data = {
-        ...baseFormData,
-        smtpServer: "   ",
-        smtpAuthenticationType: "authtype_username_password",
-        smtpUsername: "   ",
-        smtpPassword: "secret",
-      };
-
-      expect(validate(data).smtpServer).toBe("Enter an SMTP server");
-      expect(validate(data).smtpUsername).toBe("Enter an SMTP username");
-      expect(validate(data)).toEqual(
-        validate(trimFormData(data, ["smtpPassword"]))
-      );
     });
   });
 });

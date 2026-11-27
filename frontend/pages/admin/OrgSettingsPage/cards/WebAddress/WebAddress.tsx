@@ -16,7 +16,7 @@ interface IWebAddressFormData {
 
 export const validate = ({ serverURL }: IWebAddressFormData): IFormErrors => {
   const errors: IFormErrors = {};
-  if (!serverURL.trim()) {
+  if (!serverURL) {
     errors.serverURL = "Enter your Fleet web address";
   } else if (
     !isValidURL({

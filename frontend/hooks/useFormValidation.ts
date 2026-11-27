@@ -279,7 +279,9 @@ const useFormValidation = <TFormData extends object>({
     Object.keys(changes).forEach((key) => dirtyFieldsRef.current.add(key));
     setIsDirty(true);
 
-    const currentErrors = validateRef.current(next);
+    const currentErrors = validateRef.current(
+      trimFormData(next, skipTrimRef.current)
+    );
     setErrors((prev) =>
       pruneErrors(prev, currentErrors, serverErrorFieldsRef.current)
     );
@@ -319,7 +321,11 @@ const useFormValidation = <TFormData extends object>({
     // Blur hands the field back to client validation, so a server verdict on it
     // no longer applies.
     serverErrorFieldsRef.current.delete(name);
-    const currentErrors = validateRef.current(formDataRef.current);
+    // Validate what submit would send (trimmed, see `skipTrim`), so blur and
+    // submit never disagree about a whitespace-only or padded value.
+    const currentErrors = validateRef.current(
+      trimFormData(formDataRef.current, skipTrimRef.current)
+    );
     const message = currentErrors[name];
     setErrors((prev) => {
       const pruned = pruneErrors(

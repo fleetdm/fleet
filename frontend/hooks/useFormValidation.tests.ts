@@ -153,6 +153,24 @@ describe("useFormValidation", () => {
       expect(result.current.getError("email")).toBe("Enter a valid email");
     });
 
+    it("validateField treats a whitespace-only value as empty, like handleSubmit", () => {
+      const { result } = setup();
+
+      act(() => result.current.setField("password", "   "));
+      act(() => result.current.validateField("password"));
+
+      expect(result.current.getError("password")).toBe("Enter a password");
+    });
+
+    it("validateField leaves skipTrim fields verbatim, like handleSubmit", () => {
+      const { result } = setup({ skipTrim: ["password"] });
+
+      act(() => result.current.setField("password", "   "));
+      act(() => result.current.validateField("password"));
+
+      expect(result.current.getError("password")).toBeUndefined();
+    });
+
     it("setField keeps the field dirty after its value returns to the initial one", () => {
       const { result } = setup();
 
@@ -242,6 +260,18 @@ describe("useFormValidation", () => {
 
       expect(result.current.getError("password")).toBeUndefined();
       expect(result.current.getError("name")).toBe("Enter a name");
+    });
+
+    it("commitFields validates trimmed values, like handleSubmit", () => {
+      const { result } = setup();
+
+      act(() => result.current.handleSubmit(jest.fn())(submitEvent()));
+      expect(result.current.getError("password")).toBe("Enter a password");
+
+      act(() => result.current.setField("password", "   "));
+      act(() => result.current.commitFields({ name: "Alice" }));
+
+      expect(result.current.getError("password")).toBe("Enter a password");
     });
 
     it("commitFields adds no error on a form whose errors have not been revealed", () => {
