@@ -1,173 +1,93 @@
 # Conditional access makes removing the MDM pointless
 
-*An end user who removes MDM still has a working laptop. What they lose is access to email, chat, and every other app behind single sign-on. Here's how that works on Macs, PCs, Linux, and personal phones.*
+*Mac admins used to worry about employees removing MDM. Conditional access mostly solved that. The problem worth worrying about now is quieter: a work certificate copied onto a personal laptop.*
 
 ## Key takeaways
 
-- **Removing MDM isn't the risk it used to be.** If single sign-on (SSO) checks enrollment, a device that drops out of MDM loses access to company apps at the next sign-in. The incentive to remove it goes away.
-- **There are three common ways to prove enrollment.** A device certificate, a check by an agent your identity provider (IdP) installs, or a direct question from the IdP to the MDM. Most setups use one, and some combine two.
-- **Certificates are only as strong as their private key.** A key locked in a TPM can't be copied to another computer, and a non-exportable key is hard to copy. An exportable key takes seconds, so check how your certificates are issued before trusting them.
-- **Macs and PCs take about an afternoon to set up.** Fleet acts as a sign-in factor in Okta, checks a non-exportable device certificate, and blocks hosts that fail the policies you pick. Entra, Duo, and PingFederate are supported too.
-- **Personal phones can prove they're managed without handing over the whole device.** Okta management attestation marks enrolled iPhones and Android devices as managed, including personal devices enrolled with User Enrollment or a work profile.
-- **Linux is next.** Okta conditional access for Linux is in progress at Fleet, and the steps below show what setup will look like. Duo and PingFederate already work on Linux today.
+- **Removing MDM only locks the user out.** Once single sign-on (SSO) checks enrollment, a Mac that leaves MDM loses email, chat, and every other work app at the next sign-in.
+- **Absolute solves PC problems.** Its firmware persistence, lost-laptop tracking, and blue screen recovery are built for PCs. On a Mac, Apple's Automated Device Enrollment already keeps MDM in place.
+- **Jamf, Intune, and Fleet can all enforce this.** They differ in which operating systems and identity providers they support, and in how a device proves who it is.
+- **The real gap is a copied certificate.** An employee who copies their sign-in certificate onto a personal Mac never removes MDM. Depending on your setup, the personal Mac can still pass.
+- **A key in the Secure Enclave closes it.** Platform SSO with Entra, or Okta FastPass, keeps the device's key in hardware, where it can't be copied.
 
 <a purpose="cta-button" href="https://fleetdm.com/guides/conditional-access">Explore conditional access</a>
 
-Every few months, a thread pops up on Reddit or in a Mac admins Slack about end users removing MDM. Someone with admin rights deletes the enrollment profile, or a contractor wipes the device and skips enrollment, and IT finds out weeks later. The replies usually go two ways: lock down local admin rights and make the MDM profile non-removable, or buy a firmware-level tool like Absolute Security that reinstalls agents after they're deleted.
+Every few months, someone in a Mac admins forum asks how to stop employees from removing MDM. A developer with admin rights deletes the enrollment profile, or a contractor wipes their MacBook and skips enrollment, and IT finds out weeks later.
 
-Both are reasonable. But most of the IT and security teams I talk to have stopped worrying about this, because they've changed the question. Instead of "how do we stop someone from removing MDM?", they ask "what happens when they do?" If the answer is "they can't sign in to anything," removing MDM stops being a security problem and becomes a help desk ticket. The trick is making SSO check enrollment, and there are three common ways to do it.
+The replies split two ways: take away admin rights, or buy something that can't be removed, like Absolute. Both made sense once. Most IT teams I talk to have since stopped worrying about MDM removal, and they're right to. But it took me a while to see what they should be worrying about instead.
 
-## Three ways to prove a device is enrolled
+## Why removing MDM used to matter
 
-### 1. A device certificate
+MDM is how IT knows a Mac is encrypted, patched, and running the right security tools. Remove it, and IT is blind.
 
-The MDM installs a client certificate on the device. At sign-in, the IdP or VPN asks the browser for it and checks that your certificate authority (CA) issued it. No certificate, no access.
+Apple solved most of this years ago. Macs bought through Apple Business enroll during setup with [Automated Device Enrollment](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web), and the enrollment can be made non-removable. Fleet's default enrollment profile does this. Wipe the Mac, and Setup Assistant enrolls it again. The gap is Macs enrolled by hand, and Fleet can [block those entirely](https://fleetdm.com/docs/configuration/yaml-files#controls) with `only_allow_apple_business_enrollment`.
 
-When the private key is generated on the device and marked non-exportable, or kept in a Windows PC's TPM, the user can't take it with them. Removing MDM removes the certificate along with everything else the MDM installed, on both macOS and [Windows](https://learn.microsoft.com/en-us/windows/client-management/disconnecting-from-mdm-unenrollment). This is the simplest of the three methods, when it's done right.
+Absolute's pitch is firmware persistence: an agent [built into PCs from close to 30 manufacturers](https://www.absolute.com/en/why/persistence) that reinstalls itself if someone deletes it. Teams mostly buy it to find, freeze, and recover lost or stolen laptops, which Absolute has done since it was called Computrace. It can also [repair PCs stuck on a blue screen](https://www.absolute.com/blog/absolute-security-automates-remediation-for-crowdstrike-and-other-windows-bsod-incidents), like the [8.5 million](https://blogs.microsoft.com/blog/2024/07/20/helping-our-customers-through-the-crowdstrike-outage/) that crashed during the 2024 CrowdStrike outage. Those are PC problems. Absolute runs on Macs as a regular agent, and Apple's own tools already keep Macs enrolled and recoverable.
 
-### 2. A check by the IdP's own agent
+## Conditional access made removal pointless
 
-The IdP installs its own app on the device, such as Okta Verify, Microsoft's Company Portal, or Google's Endpoint Verification. The app looks for a signal that the device is managed, like a certificate or a key that only the MDM delivers, and reports the device's status back to the IdP. Okta calls this management attestation.
+Conditional access flips the question. Instead of stopping someone from removing MDM, it makes removal useless. Each time someone signs in to a work app, your identity provider (IdP) checks that the device is enrolled. Remove MDM, and Slack stops working.
 
-### 3. A direct MDM-to-IdP link
+There are three common ways to check:
 
-The IdP asks the MDM directly whether the device is enrolled and compliant before it lets the user in. Microsoft Intune and Entra work this way, and Fleet can play the same role for Entra as a compliance partner. Fleet's Okta integration also works this way: Okta hands the sign-in to Fleet as a factor, Fleet identifies the host by its certificate, and Fleet checks the host's policies before sending the user back to Okta.
+1. **A device certificate.** MDM installs a certificate, and the IdP asks the browser for it at sign-in.
+2. **The IdP's own app.** Okta Verify or Microsoft's Company Portal looks for a signal only MDM delivers, and reports back.
+3. **A direct question.** The IdP asks the MDM whether the device is enrolled and compliant. Entra works this way with Intune and Jamf, and Okta works this way with Fleet.
 
-That last part matters. With a direct link, the IdP isn't just checking that a device was once enrolled. It's checking that the device is passing the policies you care about right now, like disk encryption, a current OS version, or a running EDR agent.
+Here's where the two big names in Mac management, and Fleet, stand:
 
-## The weak spot: certificates that can be copied
+| | Mac | Windows | Linux |
+|---|---|---|---|
+| Jamf | Entra or Okta | No (Jamf doesn't manage Windows) | No |
+| Microsoft Intune | Entra | Entra | Entra, for web apps in Edge on Ubuntu and Red Hat |
+| Fleet | Okta, Entra, Duo, or PingFederate | Okta, Entra, Duo, or PingFederate | Duo or PingFederate, with Okta [coming soon](https://github.com/fleetdm/fleet/issues/53286) |
 
-Method 1 has one failure mode, and it's a big one. If the private key isn't tied to hardware, someone can export the certificate and import it on an unmanaged computer. The IdP sees a valid certificate and lets them in.
+Sources: [Jamf](https://trusted.jamf.com/docs/win-modern-device-management), [Intune](https://learn.microsoft.com/en-us/intune/fundamentals/platform-guide-linux), [Fleet](https://fleetdm.com/guides/conditional-access).
 
-This happens more often than you'd think. The usual causes:
+Any of these turns MDM removal from a security incident into a help desk ticket. So what's left to worry about?
 
-- **A PKCS #12 identity pushed to every device.** Some teams generate one certificate and private key, wrap them in a `.p12` file, and deploy the same file everywhere. Anyone who can read the file has a certificate that works on any computer.
-- **SCEP with an exportable key.** SCEP generates the key on the device, which is good, but Apple's SCEP payload lets the key be exported from the keychain unless `KeyIsExtractable` is set to `false`. [The default is `true`](https://github.com/apple/device-management/blob/release/mdm/profiles/com.apple.security.scep.yaml).
-- **Software key storage on Windows.** The `ClientCertificateInstall` CSP keeps the key in the software key storage provider (KSP) unless the profile asks for the TPM. [Software is the default](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
-- **Linux.** Linux browsers keep certificates in an NSS database in the user's home folder. There's no MDM-managed hardware keystore by default, so the key is a file that can be copied.
+## The problem nobody's talking about
 
-### Ways around it
+Picture an engineer with a work MacBook and a personal one. They'd rather read email on the personal one. They don't remove MDM from anything. They copy the sign-in certificate from the work Mac to the personal Mac.
 
-**Make keys non-exportable, and put them in hardware where you can.** This is the real fix on Macs and PCs. On Windows, the certificate profile Fleet generates for Okta conditional access sets the CSP's `KeyProtection` option to `2`, which Microsoft documents as storing the key in the TPM when the device has one. Fleet's Okta integration requires Windows 11, and Windows 11 requires a TPM 2.0 chip, so in practice these keys live in the TPM.
+The threat was never a Mac leaving MDM. It's a personal Mac borrowing the identity of an enrolled one. Whether that works depends on how your devices prove who they are.
 
-macOS is more nuanced. Fleet's macOS profile sets `KeyIsExtractable` to `false`, so macOS won't export the key from the keychain. But the key lives in the login keychain, not the Secure Enclave. Apple's ACME payload can generate a truly hardware-bound key in the Secure Enclave on macOS 14 and later, and Fleet already uses it to secure the MDM connection itself. But browsers generally can't use hardware-bound ACME certificates for client authentication on macOS. Only Apple's built-in clients, like Wi-Fi and the built-in VPN client, can. That's why the next two fixes matter on a Mac.
+**Fleet as an Okta factor.** Fleet finds the host by the certificate's serial number and checks that host's policies. A copied certificate points back to the work Mac, which is enrolled and patched, so the personal Mac passes every check. Copying takes effort: Fleet marks the key non-exportable on macOS and keeps it in the TPM on Windows. But on a Mac, the key sits in the login keychain, not the Secure Enclave, and the employee knows their own keychain password. We've filed this [as a bug](https://github.com/fleetdm/fleet/issues/60032). Fleet is open source, and anyone with an AI assistant could find it in the code in minutes, so we'd rather tell you ourselves.
 
-**Issue one certificate per device, and check it against the device.** A certificate that maps to exactly one host can be traced and revoked. Fleet looks up the host by the certificate's serial number at every sign-in, then checks that host's policies. A copied certificate only works while the original host is enrolled, current, and passing. Delete the host in Fleet and its certificate stops working right away.
+**Jamf, or any MDM, with Okta management attestation.** Jamf installs a certificate from Okta into the login keychain, and Okta [recommends making it non-exportable](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm). A copy makes the personal Mac look managed. Okta's own posture checks, like OS version, do run on the personal Mac, so it has to pass those itself.
 
-**Combine methods.** Pair the certificate with a second signal the IdP checks on its own, so a copied certificate alone isn't enough. Okta FastPass is a good fit: Okta Verify [keeps its signing key in the Secure Enclave on macOS and in the TPM on Windows](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass), so it covers the gap left by keychain-based browser certificates on the Mac. Add your IdP's network zones and behavior detection on top, so a sign-in from an unfamiliar location triggers extra verification.
+**Jamf, Intune, or Fleet with Entra.** Entra identifies the Mac by a key created at Platform SSO registration. Since August 2025, new registrations [keep that key in the Secure Enclave](https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage), which never lets it out. On Windows, Entra keeps the device key [in the TPM](https://learn.microsoft.com/en-us/entra/identity/devices/concept-primary-refresh-token). There's nothing to copy.
 
-**Keep certificates short-lived when you run the CA.** The less time a copied certificate stays valid, the less it's worth stealing. Fleet issues its Okta conditional access certificates for 398 days, Apple's maximum, and renews them automatically. With integrations that use your own CA, like PingFederate, you choose the lifetime, and Fleet's automatic renewal keeps short lifetimes from turning into help desk tickets.
+Is this a big deal? For most companies, no. The employee still needs a real, enrolled, compliant work computer, and deleting that host in Fleet kills its certificate. Most people who try it want convenience, not your data. I've been that person. But it means conditional access isn't always checking what it seems to check, and you should know that before you rely on it.
 
-**On Linux, a TPM-backed key is worth exploring.** Most modern laptops ship with a TPM 2.0 chip. The open source [`tpm2-pkcs11`](https://github.com/tpm2-software/tpm2-pkcs11) project exposes TPM-backed keys as a PKCS #11 token, and NSS, the certificate store Chrome and Firefox use on Linux, can load PKCS #11 modules. The project doesn't document browser setups, and we haven't tested one, so treat this as a project, not a checkbox. Until then, lean on per-device certificates and policy checks.
+## How to close the gap on a Mac
 
-**Watch for the same certificate in two places.** Okta's System Log records the client IP address for every sign-in, and Fleet records each host's public IP address. If a user's sign-ins come from an IP address their host in Fleet has never reported, or from two networks at once, investigate.
+**Put the device key in the Secure Enclave.** With Entra, deploy [Platform SSO with a Secure Enclave key](https://fleetdm.com/guides/deploying-entra-platform-sso-with-fleet). With Okta, require [FastPass](https://support.okta.com/help/s/blog/a67WR00000BlpvDYAR/experts-helping-customers-a-technical-deep-dive-into-okta-fastpass) alongside Fleet. Okta Verify keeps its key in the Secure Enclave, so a copied certificate alone won't get anyone in.
 
-## Set up conditional access with Fleet and Okta
+**Attest the MDM connection.** Turn on [`apple_require_hardware_attestation`](https://fleetdm.com/docs/configuration/yaml-files#controls). Apple silicon Macs enrolling through Apple Business then prove, with a Secure Enclave key, that they're the Mac you bought. Everything Fleet tells Okta about that Mac comes over that connection.
 
-The examples below use Okta, because it's the IdP we hear about most. Here's where the other major IdPs stand with Fleet:
-
-| IdP | macOS | Windows | Linux | iPhone, iPad, and Android |
-|---|---|---|---|---|
-| Okta | Yes, with policy checks | Yes, with policy checks | Coming soon | Yes, with management attestation |
-| Microsoft Entra | Yes, with policy checks | Yes, with policy checks | No | No |
-| Cisco Duo | Managed check | Managed check | Managed check | No |
-| PingFederate | Yes, with critical policy checks | Yes, with critical policy checks | Yes, with critical policy checks | No |
-| Google | No | No | No | Yes, company-owned only |
-
-"Managed check" means the IdP blocks hosts that aren't managed by Fleet. "Policy checks" means it also blocks hosts that fail the Fleet policies you choose. Duo can also block hosts that fail critical policies, with [a sync delay](https://fleetdm.com/guides/duo-conditional-access-integration) today. Ping's integration uses PingFederate's X.509 Certificate Integration Kit. PingID, Ping's MFA app, doesn't check the device on its own. If you use PingOne without PingFederate, [talk to us](https://fleetdm.com/contact).
-
-These steps are abridged. Each section links to the full guide, which covers the details you'll need in production.
-
-### Macs and PCs
-
-Fleet's Okta integration covers macOS and Windows. Fleet adds itself to Okta as an identity provider used only as a factor, deploys a hardware-bound certificate to each host, and checks the host's policies every time someone signs in. Okta Adaptive MFA is required.
-
-1. **Set up the mTLS proxy (self-hosted only).** Okta reaches Fleet through a reverse proxy on an `okta.` subdomain that requires the host's client certificate. Fleet's managed cloud handles this for you, and the [fleet-terraform addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) sets it up on AWS.
-2. **Connect Fleet and Okta.** In Fleet, head to **Settings > Integrations > Conditional access** and select **Connect** on the Okta card. Download the IdP signature certificate, add Fleet as a **SAML 2.0 IdP** in Okta with **IdP Usage** set to **Factor only**, then copy Okta's IdP ID, ACS URL, audience URI, and certificate back into Fleet.
-
-<!-- TODO(screenshot): Fleet > Settings > Integrations > Conditional access, with the Okta card's "Connect" modal open. Save as website/assets/images/articles/conditional-access-makes-removing-mdm-pointless-okta-connect-[width]x[height]@2x.png -->
-
-3. **Deploy the certificate profiles.** On the Okta card, select **Profiles**. Deploy the macOS profile, and the Windows certificate and browser profiles, as [custom OS settings](https://fleetdm.com/guides/custom-os-settings).
-4. **Add Fleet as an authenticator in Okta.** In Okta, head to **Security > Authenticators**, add an **IdP Authenticator**, and select **Fleet**.
-5. **Require Fleet in an authentication policy.** Add a rule to the authentication policy for the apps you want to protect. Scope it to **macOS** and **Windows**, and add the Fleet authenticator to the authentication method chain.
-
-<!-- TODO(screenshot): Okta Admin Console > Security > Authentication policies > Add rule, showing "Device platform is" set to macOS and Windows and the Fleet IdP authenticator in the method chain. -->
-
-6. **Choose which policies block sign-in.** In Fleet, head to **Policies**, choose a fleet, and select **Manage automations > Conditional access**. Turn it on and select the policies that should block sign-in.
-
-<!-- TODO(screenshot): Fleet > Policies > Manage automations > Conditional access modal with a few policies selected. -->
-
-Here are the policies that close the loop on MDM removal. Select them in step 6, and a host that leaves MDM fails its policy and loses access on its next sign-in. On macOS:
+**Fail Macs that leave MDM.** Add this policy to conditional access:
 
 ```sql
 SELECT 1 FROM mdm WHERE enrolled = 'true' AND server_url LIKE '%fleet.example.com%';
 ```
 
-Replace `fleet.example.com` with your Fleet server's hostname. On Windows, use the policy from Fleet's [MDM turned on](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/policies/mdm-turned-on.yml) example:
+Replace `fleet.example.com` with your Fleet server's hostname.
 
-```sql
-SELECT 1 FROM mdm_bridge WHERE enrollment_status = 'device_enrolled';
-```
+**Watch where sign-ins come from.** Okta's System Log records each sign-in's IP address, and Fleet records each host's public IP. A sign-in from somewhere the host has never been deserves a look.
 
-On macOS and Windows, removing MDM also removes the certificate Fleet's profiles installed, so the host can't reach Fleet's sign-in check at all. The policy is a second line of defense, and it tells you which hosts left so you can follow up.
+On Windows, Fleet's key already lives in the TPM. Linux is the weakest platform for every vendor, because browsers keep certificates in files, so pair any Linux certificate with policy checks and a second factor.
 
-When a host fails a policy, the end user lands on their **My device** page with instructions to fix it. Once they fix it and select **Refetch**, they can sign in again.
+## Set it up
 
-<!-- TODO(screenshot): End user's browser showing the Fleet "My device" page after a blocked Okta sign-in, with the failing policy and fix instructions. -->
+- **Macs and PCs with Okta.** Add Fleet to Okta as a factor, deploy the certificate profiles, and choose which policies block sign-in. [Guide](https://fleetdm.com/guides/okta-conditional-access-integration)
+- **Macs and PCs with Entra.** Add Fleet as a compliance partner and deploy Platform SSO. [Guide](https://fleetdm.com/guides/entra-conditional-access-integration)
+- **Personal iPhones and Android phones.** Use Okta management attestation, delivered to Okta Verify through Fleet. When a phone leaves Fleet, Okta Verify goes with it. [Guide](https://fleetdm.com/guides/configure-okta-management-attestation-for-mobile-devices)
+- **Linux.** Use [Duo](https://fleetdm.com/guides/duo-conditional-access-integration) or [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration) today. Okta support is in progress.
 
-Full guide: [Conditional access: Okta](https://fleetdm.com/guides/okta-conditional-access-integration)
+## Guard the right door
 
-Using a different IdP? See [Entra](https://fleetdm.com/guides/entra-conditional-access-integration), [Duo](https://fleetdm.com/guides/duo-conditional-access-integration), or [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration). If you use Okta and only need to require a managed Windows device, without Fleet's policy checks, see [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile).
-
-### Personal phones and tablets (BYOD)
-
-Personal devices are where the "just make MDM non-removable" answer falls apart, because the device isn't yours to lock down. End users can remove a personal enrollment whenever they want, and they should be able to. Conditional access makes that a fair trade: keep the work enrollment and keep access to work apps, or remove it and lose both.
-
-For personal iPhones, iPads, and Android devices, use Okta management attestation. Okta generates a secret key, Fleet delivers it to Okta Verify through managed app configuration, and Okta marks the device as managed. When an iPhone or iPad leaves Fleet, iOS removes Okta Verify with it, because Fleet installs App Store apps on mobile devices as managed apps that go away when MDM is removed. Removing an Android work profile removes the apps inside it. Either way, the secret key is gone, and the device can't prove it's managed at the next sign-in.
-
-1. **Create an app hint in Okta.** Head to **Security > Device integrations > Management attestation**, select **Create app hint**, and choose **iOS**. Copy the secret key, set **Device management provider** to `Fleet`, and set the enrollment link to your Fleet BYOD enrollment URL. Repeat for Android, which uses its own key.
-2. **Store the secret key in Fleet.** Add it as a [custom variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) instead of pasting it into the app configuration.
-3. **Deploy Okta Verify with managed app configuration.** Add Okta Verify from the App Store (iOS) or Google Play (Android) in Fleet, then add the app configuration with the `managementHint` key.
-
-<!-- TODO(screenshot): Fleet > Software > Okta Verify (iOS) > edit app configuration, showing the managementHint key with a $FLEET_SECRET_ variable. -->
-
-4. **Require a managed device in Okta.** In the authentication policy for your apps, add a rule for **iOS** and **Android**. Set **Device state** to **Registered**, and require devices managed by a third-party device management solution.
-
-<!-- TODO(screenshot): Okta authentication policy rule for iOS and Android with "Device state is: Registered" and "Device management is: Managed". -->
-
-On iPhones and iPads with Account-driven User Enrollment, Okta marks the whole device as managed, not just the work partition. Android work profiles don't have this limitation.
-
-Full guide: [Configure Okta management attestation for mobile devices with Fleet](https://fleetdm.com/guides/configure-okta-management-attestation-for-mobile-devices)
-
-To enroll personal devices, see [Enroll personal iPhones and iPads](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts). If your phones are company-owned and you use Google Workspace, [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration) blocks devices that aren't company-owned and managed by Fleet, which means it blocks personal devices by design.
-
-### Linux (coming soon)
-
-> **Note:** Okta conditional access for Linux isn't released yet. It's [in progress](https://github.com/fleetdm/fleet/issues/53286), starting with Ubuntu and RHEL. The steps below show the expected setup and may change before release. Until then, [Duo](https://fleetdm.com/guides/duo-conditional-access-integration) and [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration) support Linux today.
-
-Linux doesn't have MDM configuration profiles, so the certificate has to get there another way. Fleet's current plan is to deliver it with a script. An earlier prototype had Fleet's agent request the certificate on its own, so the delivery step is the part most likely to change. Everything on the Okta side stays the same as for Macs and PCs.
-
-1. **Connect Fleet and Okta.** If you already set up Okta conditional access for macOS or Windows, skip this step. Otherwise, follow steps 1 and 2 in [Macs and PCs](#macs-and-pcs).
-2. **Deploy the certificate with a script.** Add the Linux certificate script as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages), and install it during [setup experience](https://fleetdm.com/guides/setup-experience) so new hosts get the certificate as they enroll. The script requests a certificate from Fleet and imports it into each user's Chrome and Firefox certificate stores, because Linux browsers don't read certificates from the filesystem. Hosts need `libnss3-tools` (Ubuntu) or `nss-tools` (RHEL).
-
-<!-- TODO: Link the Linux conditional access certificate script once it lands in docs/solutions/linux/scripts/, and confirm whether Fleet surfaces it on the Okta card's "Profiles" modal (new "Linux" tab) or in the guide only. Update step 2 to match. -->
-
-3. **Renew the certificate automatically.** Add a policy that fails when the certificate is missing or close to expiring, and use a [policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet) to rerun the script on failing hosts. This also catches users who open Firefox for the first time after the script ran.
-
-<!-- TODO: Add the renewal policy query once the certificate path and subject are final. Model it on the Okta FastPass for Linux renewal policy. -->
-
-4. **Add Linux to your Okta authentication policy.** Edit the rule from [Macs and PCs](#macs-and-pcs) step 5 so it also applies to Linux. Okta doesn't have a separate Linux platform. Its [platform condition](https://developer.okta.com/okta-sdk-java/apidocs/com/okta/sdk/resource/model/PolicyPlatformOperatingSystemType.html) covers Android, iOS, macOS, Windows, and **Other**, so add the **Other** desktop platform. That also covers any other desktop OS, so make sure those hosts have a certificate too, or give them their own rule.
-5. **Choose which Linux policies block sign-in.** In Fleet, head to **Policies > Manage automations > Conditional access** and select policies that target Linux, like disk encryption or a required OS version.
-
-<!-- TODO(screenshot): Fleet > Policies > Manage automations > Conditional access with a Linux policy (e.g. "Disk encryption enabled (Linux)") selected. Capture once the feature ships. -->
-
-As covered above, the certificate's private key on Linux lives in a browser's software keystore, so it's the easiest platform to copy a certificate from. A copied certificate still only works while its original host is enrolled and passing policies, and pairing it with [Okta FastPass for Linux](https://fleetdm.com/guides/deploy-okta-fastpass-for-linux) adds a second check.
-
-Full guide: Coming soon. <!-- TODO: Link the Linux section of the Okta conditional access guide once it ships. -->
-
-## Stop chasing removals and start checking sign-ins
-
-You can't make MDM impossible to remove on a device someone has admin rights to, and on a personal phone you shouldn't try. What you can do is make sure removing it doesn't get anyone anything. When every sign-in checks a non-exportable certificate against a host that's enrolled and passing policies, a device that leaves MDM just stops working for work, on every platform you manage.
+Stop asking whether employees can remove MDM. With conditional access, it doesn't matter. Ask whether a computer you've never seen can borrow the identity of one you have. On a Mac, the answer comes down to where the key lives.
 
 ## See it live
 
@@ -177,8 +97,8 @@ Start with the [conditional access guide](https://fleetdm.com/guides/conditional
 - **Compare plans:** Conditional access is part of [Fleet Premium](https://fleetdm.com/pricing).
 
 <meta name="articleTitle" value="Conditional access makes removing the MDM pointless">
-<meta name="authorFullName" value="TODO">
-<meta name="authorGitHubUsername" value="TODO">
+<meta name="authorFullName" value="Mike McNeil">
+<meta name="authorGitHubUsername" value="mikermcneil">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-12-01">
-<meta name="description" value="If SSO checks MDM enrollment, removing MDM just locks the user out. How to set up conditional access for Macs, PCs, Linux, and BYOD phones.">
+<meta name="publishedOn" value="2026-11-27">
+<meta name="description" value="Conditional access makes removing MDM pointless. The real risk is a copied certificate. How Jamf, Intune, and Fleet compare on Macs.">
