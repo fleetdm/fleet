@@ -7,6 +7,9 @@ module.exports = {
   description: 'Identify the Fleet server asking the configuration profile generator for a profile, from its Fleet Premium license key or its registration secret.',
 
 
+  extendedDescription: 'A Fleet Premium license is counted on a usage row of its own, created on its first request.',
+
+
   inputs: {
 
     req: {
@@ -27,7 +30,7 @@ module.exports = {
 
     success: {
       outputFriendlyName: 'Fleet server',
-      outputDescription: 'Either the `sub` of a Fleet Premium license (`licenseSubject`), or the Fleet Free registration (`registration`) to limit.',
+      outputDescription: 'What to limit: either the usage of a Fleet Premium license (`licenseUsage`), or a Fleet Free registration (`registration`).',
       outputType: 'ref',
     },
 
@@ -56,7 +59,21 @@ module.exports = {
       }
       // "basic" is the deprecated name for Fleet Premium, and still appears on older licenses.
       if(license && _.contains(['premium', 'trial', 'basic'], license.tier)) {
-        return { licenseSubject: license.sub };
+        let licenseKeyHash = crypto.createHash('sha256').update(fleetLicenseKey.split('.').slice(0, 2).join('.')).digest('hex');
+        let licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash });
+        if(!licenseUsage) {
+          // Fleet asks for a profile and for its name and description at the same time, so two first requests
+          // for one license arrive together.  The one that loses the race reads the row the other created.
+          licenseUsage = await ProfileGeneratorLicenseUsage.create({
+            licenseKeyHash,
+            organization: _.isString(license.sub) ? license.sub : '',
+          }).fetch()
+          .tolerate('E_UNIQUE');
+          if(!licenseUsage) {
+            licenseUsage = await ProfileGeneratorLicenseUsage.findOne({ licenseKeyHash });
+          }
+        }
+        return { licenseUsage };
       }
     }
 

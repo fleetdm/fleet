@@ -7,7 +7,7 @@ module.exports = {
   description: 'Name and describe the configuration profile an IT admin\'s instructions ask for, for a Fleet server, quickly enough to show while the profile itself is generated.',
 
 
-  extendedDescription: 'Authenticated and limited like profile generation, but counted separately: a Fleet Free registration also stops getting names and descriptions once it reaches its profile limit.',
+  extendedDescription: 'Authenticated and limited like profile generation, but counted separately: a registration or license also stops getting names and descriptions once it reaches its profile limit.',
 
 
   inputs: {
@@ -67,16 +67,14 @@ module.exports = {
       return 'unauthorized';
     });
 
-    let usage;
-    if(fleetServer.registration) {
-      usage = await sails.helpers.profileGenerator.countOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'nameAndDescription' })
-      .intercept('limitReached', (err)=>{
-        return {generationLimitReached: {error: 'generationLimitReached', resetsAt: err.raw}};
-      });
-      sails.log.info(`Naming and describing a configuration profile for Fleet Free registration ${fleetServer.registration.id} (${usage.nameAndDescriptionRequestsThisMonth} of ${sails.config.custom.profileGeneratorMonthlyNameAndDescriptionLimit} this month).`);
-    } else {
-      sails.log.info(`Naming and describing a configuration profile for Fleet Premium license ${fleetServer.licenseSubject}.`);
-    }
+    // Fleet Free is counted per registration, and Fleet Premium per license.
+    let credential = fleetServer.registration ? { registrationId: fleetServer.registration.id } : { licenseUsageId: fleetServer.licenseUsage.id };
+    let usage = await sails.helpers.profileGenerator.countOneRequest.with(_.extend({ requestType: 'nameAndDescription' }, credential))
+    .intercept('limitReached', (err)=>{
+      return {generationLimitReached: {error: 'generationLimitReached', resetsAt: err.raw.resetsAt, limit: err.raw.profileLimit}};
+    });
+    let fleetServerName = fleetServer.registration ? `Fleet Free registration ${fleetServer.registration.id}` : `the Fleet Premium license of ${fleetServer.licenseUsage.organization}`;
+    sails.log.info(`Naming and describing a configuration profile for ${fleetServerName} (${usage.nameAndDescriptionRequestsThisMonth} names and descriptions, ${usage.profileGenerationsThisMonth} of ${usage.profileLimit} profiles this month).`);
 
     // Fleet's limits on a profile's name and description.
     const MAX_NAME_LENGTH = 255;
@@ -130,8 +128,8 @@ ${naturalLanguageInstructions}
       result = await Promise.race([naming, new Promise((resolve)=>{ timeout = setTimeout(()=>{ resolve('timedOut'); }, Math.max(0, TIMEOUT_MS - (Date.now() - startedAt))); })]);
     } catch(err) {
       // Only a request the AI service never answered is given back, the same as for a profile.
-      if(usage && err.llmDidNotAnswer) {
-        await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'nameAndDescription', usageMonth: usage.usageMonth });
+      if(err.llmDidNotAnswer) {
+        await sails.helpers.profileGenerator.giveBackOneRequest.with(_.extend({ requestType: 'nameAndDescription', usageMonth: usage.usageMonth }, credential));
       }
       throw err;
     } finally {
@@ -139,17 +137,15 @@ ${naturalLanguageInstructions}
     }
     if(result === 'timedOut') {
       // Still given back if the AI service turns out never to have answered, after Fleet has its error.
-      if(usage) {
-        naming.catch(async (err)=>{
-          if(!err.llmDidNotAnswer) {
-            return;
-          }
-          await sails.helpers.profileGenerator.giveBackOneRequest.with({ registrationId: fleetServer.registration.id, requestType: 'nameAndDescription', usageMonth: usage.usageMonth })
-          .tolerate((giveBackErr)=>{
-            sails.log.warn(`Could not give back a timed-out name and description request to configuration profile generator registration ${fleetServer.registration.id}: ${giveBackErr.message}`);
-          });
+      naming.catch(async (err)=>{
+        if(!err.llmDidNotAnswer) {
+          return;
+        }
+        await sails.helpers.profileGenerator.giveBackOneRequest.with(_.extend({ requestType: 'nameAndDescription', usageMonth: usage.usageMonth }, credential))
+        .tolerate((giveBackErr)=>{
+          sails.log.warn(`Could not give back a timed-out name and description request for ${fleetServerName}: ${giveBackErr.message}`);
         });
-      }
+      });
       throw new Error(`Naming and describing a configuration profile took over ${TIMEOUT_MS}ms.`);
     }
 

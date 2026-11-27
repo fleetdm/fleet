@@ -14,7 +14,12 @@ module.exports = {
 
     registrationId: {
       type: 'number',
-      required: true,
+      description: 'The Fleet Free registration the request was counted against.  Exactly one of this and `licenseUsageId` is required.',
+    },
+
+    licenseUsageId: {
+      type: 'number',
+      description: 'The usage row of the Fleet Premium license the request was counted against.',
     },
 
     requestType: {
@@ -32,26 +37,32 @@ module.exports = {
   },
 
 
-  fn: async function ({registrationId, requestType, usageMonth}) {
+  fn: async function ({registrationId, licenseUsageId, requestType, usageMonth}) {
+
+    if(!registrationId === !licenseUsageId) {
+      throw new Error('Could not give back a configuration profile generator request: exactly one of registrationId and licenseUsageId is required.');
+    }
+    let model = registrationId ? ProfileGeneratorRegistration : ProfileGeneratorLicenseUsage;
+    let id = registrationId || licenseUsageId;
 
     let counterName = requestType === 'profile' ? 'profileGenerationsThisMonth' : 'nameAndDescriptionRequestsThisMonth';
 
     const MAX_ATTEMPTS = 5;
     for(let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      let registration = await ProfileGeneratorRegistration.findOne({ id: registrationId });
-      if(!registration || registration.usageMonth !== usageMonth || registration[counterName] <= 0) {
+      let record = await model.findOne({ id });
+      if(!record || record.usageMonth !== usageMonth || record[counterName] <= 0) {
         return;
       }
-      let updatedRegistration = await ProfileGeneratorRegistration.updateOne({
-        id: registrationId,
+      let updatedRecord = await model.updateOne({
+        id,
         usageMonth,
-        [counterName]: registration[counterName],
-      }).set({ [counterName]: registration[counterName] - 1 });
-      if(updatedRegistration) {
+        [counterName]: record[counterName],
+      }).set({ [counterName]: record[counterName] - 1 });
+      if(updatedRecord) {
         return;
       }
     }
-    sails.log.warn(`Could not give back a ${requestType} request to configuration profile generator registration ${registrationId} after ${MAX_ATTEMPTS} attempts, because other requests kept changing its counters.`);
+    sails.log.warn(`Could not give back a ${requestType} request to configuration profile generator ${model.identity} ${id} after ${MAX_ATTEMPTS} attempts, because other requests kept changing its counters.`);
 
   }
 

@@ -1636,6 +1636,7 @@ module.exports.routes = {
   'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
   'GET /learn-more-about/fleet-5-upgrade': '/guides/upgrade-to-fleet-5',
   'GET /learn-more-about/fleet-5-migration': '/guides/upgrade-to-fleet-5',
+  'GET /learn-more-about/build-configuration-profiles-with-ai': '/guides/build-configuration-profiles-with-ai',
   'GET /learn-more-about/microsoft-store-msix-apps': '/guides/install-app-store-apps#supported-microsoft-store-apps',
   'GET /learn-more-about/fleetctl-trigger': '/guides/trigger-fleet-schedules-on-demand',
 

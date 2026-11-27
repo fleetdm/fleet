@@ -69,6 +69,7 @@
     "AndroidEnterprise": false,
     "RenderProofOfValue": false,
     "ProfileGeneratorRegistration",
+    "ProfileGeneratorLicenseUsage": false,
     "GoogleConditionalAccessServer": false
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
