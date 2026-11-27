@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.5.7",
+      "version": "4.6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.lulu.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.lulu.app' AND version_compare(bundle_short_version, '4.5.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.objective-see.lulu.app' AND version_compare(bundle_short_version, '4.6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.objective-see.lulu.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/objective-see/LuLu/releases/download/v4.5.7/LuLu_4.5.7.dmg",
+      "installer_url": "https://github.com/objective-see/LuLu/releases/download/v4.6.0/LuLu_4.6.0.dmg",
       "install_script_ref": "927f1d47",
       "uninstall_script_ref": "e31bc8d4",
-      "sha256": "8d60f32b6972648aab9203f2f68bd3a804e2e05c23d60200d5e093d6bdb06e8c",
+      "sha256": "dae17df4829c0974376cba7d4340a6d69f0d54ab02e7f763cac81ba3f735c6f9",
       "default_categories": [
         "Developer tools"
       ]
