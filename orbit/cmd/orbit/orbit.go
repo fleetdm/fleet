@@ -506,6 +506,9 @@ func moveDeliveredEnrollSecretToFile(secret string, clearDelivered func() error,
 // failure is only logged, so it never blocks enrollment.
 func restrictEnrollSecretFile(path string) {
 	if _, err := os.Stat(path); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Warn().Err(err).Msg("failed to restrict the enroll secret file")
+		}
 		return
 	}
 	if err := platform.ChmodRestrictFile(path); err != nil {
