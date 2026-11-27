@@ -1,6 +1,6 @@
 # The following fields are read-only metadata and are not supported in GitOps.
 # They are preserved for reference and for use by other tooling.
-# Affected fields: purpose, tags, contributors, platforms
+# Affected fields: purpose, tags, contributors, platforms, cis_id
 
 - name: "[Win 11 Intune BL] CIS - Ensure 'Device Enumeration Policy' is set to 'Block all (most restrictive)'"
   platform: windows

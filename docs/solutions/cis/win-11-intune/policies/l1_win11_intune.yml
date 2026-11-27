@@ -1,6 +1,6 @@
 # The following fields are read-only metadata and are not supported in GitOps.
 # They are preserved for reference and for use by other tooling.
-# Affected fields: purpose, tags, contributors, platforms
+# Affected fields: purpose, tags, contributors, platforms, cis_id
 
 - platform: windows
   name: "[Win 11 Intune L1] CIS - Ensure 'Allow Cortana Above Lock' is set to 'Block'"
@@ -1780,7 +1780,7 @@
     (4,194,240 kilobytes) in kilobyte increments.
 
     The recommended state for this setting is: Enabled: 32,768 or greater.'
-
+  
   resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
@@ -1804,7 +1804,7 @@
     (4,194,240 kilobytes) in kilobyte increments.
 
     The recommended state for this setting is: Enabled: 32,768 or greater.'
-
+  
   resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following
@@ -1828,7 +1828,7 @@
     (4,194,240 kilobytes) in kilobyte increments.
 
     The recommended state for this setting is: Enabled: 32,768 or greater.'
-
+  
   resolution: '
 
     To establish the recommended configuration via configuration profiles, set the following

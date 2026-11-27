@@ -56,22 +56,22 @@ func TestGroupFromBytesWithStdLib(t *testing.T) {
 	require.NotEmpty(t, g.Policies)
 }
 
-func TestGroupFromBytesWithMacOS13CISQueries(t *testing.T) {
+func TestGroupFromBytesWithMacOS15CISQueries(t *testing.T) {
 	cisQueries := loadSpec(t,
-		"ee", "cis", "macos-13", "cis-policy-queries.yml",
+		"docs", "solutions", "cis", "macos-15", "policies", "cis-policy-queries.yml",
 	)
-	g, err := GroupFromBytes(cisQueries)
-	require.NoError(t, err)
-	require.NotEmpty(t, g.Policies)
+	var policies []*Policy
+	require.NoError(t, YamlUnmarshal(cisQueries, &policies))
+	require.NotEmpty(t, policies)
 }
 
 func TestGroupFromBytesWithWin10CISQueries(t *testing.T) {
 	cisQueries := loadSpec(t,
-		"ee", "cis", "win-10", "cis-policy-queries.yml",
+		"docs", "solutions", "cis", "win-10", "policies", "cis-policy-queries.yml",
 	)
-	g, err := GroupFromBytes(cisQueries)
-	require.NoError(t, err)
-	require.NotEmpty(t, g.Policies)
+	var policies []*Policy
+	require.NoError(t, YamlUnmarshal(cisQueries, &policies))
+	require.NotEmpty(t, policies)
 }
 
 func TestGroupFromBytesMissingFields(t *testing.T) {
