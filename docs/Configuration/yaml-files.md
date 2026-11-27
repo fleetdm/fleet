@@ -140,15 +140,17 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they're not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To force patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+To patch the app when this policy fails, set one of these options to `true`. Only one can be `true`. If none are set, the policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
 
-To silently patch the app when this policy fails and app is not open, set both `install_software` and `patch_when_closed to `true`. 
-
-To notify the end user before the app is patched, set `install_software` and `notify_before_patching` to `true`. Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
+- `force_patch`: Fleet patches the app when this policy fails, whether or not the app is open.
+- `patch_when_closed`: Fleet silently patches the app when this policy fails and the app isn't open.
+- `notify_before_patching`: Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
 Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs. Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
+
+Each policy can have one automation. If a policy turns on more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, or `webhooks_and_tickets_enabled`, `fleetctl gitops` fails with an error.
 
 ##### Install software
 
@@ -180,6 +182,12 @@ To trigger a configuration profile resend when a policy fails, specify:
 
 > When the configuration profile automation is added or changed, the policy's status will reset for associated hosts. This allows the resend to trigger on hosts that had previously failed the policy.
 
+##### Webhook or ticket
+
+To send failing hosts to a webhook or create a ticket when a policy fails, specify:
+
+- `webhooks_and_tickets_enabled: true` (default: `false`). Fleet uses the [`failing_policies_webhook`](#failing-policies-webhook), Jira, or Zendesk destination configured for the policy's fleet (or "All fleets" for global policies).
+
 ##### Example
 
 ##### Inline
@@ -194,8 +202,7 @@ policies:
     query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
     platform: darwin
     critical: false
-    calendar_events_enabled: false
-    conditional_access_enabled: true
+    webhooks_and_tickets_enabled: true
     hidden: false
     labels_include_any:
       - Engineering
@@ -213,8 +220,6 @@ policies:
   query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
   platform: darwin
   critical: false
-  calendar_events_enabled: false
-  conditional_access_enabled: true
   hidden: false
   resend_configuration_profile: "Passcode requirements"
 - name: macOS - Disable guest account
@@ -223,7 +228,6 @@ policies:
   query: "SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;"
   platform: darwin
   critical: false
-  calendar_events_enabled: false
   run_script:
     path: ./disable-guest-account.sh
 - name: macOS - Firefox installed
@@ -256,7 +260,6 @@ policies:
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
-  install_software: true
   patch_when_closed: true
 - name: Slack
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
@@ -264,13 +267,12 @@ policies:
   type: patch
   fleet_maintained_app_slug: slack/darwin
   continuous_automations_enabled: true
-  install_software: true
+  force_patch: true
 - name: 1Password up to date
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: 1password/darwin
-  install_software: true
   notify_before_patching: true
 ```
 
@@ -1486,8 +1488,9 @@ team_settings:
 
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
-- `policy_ids` is the list of policies that will trigger a webhook.
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a failing policy will be sent in a single request.
+
+To choose which policies trigger the webhook, set [`webhooks_and_tickets_enabled`](#webhook-or-ticket) on each policy.
 
 #### Example
 
@@ -1498,10 +1501,6 @@ org_settings:
       enable_failing_policies_webhook: true
       destination_url: https://example.org/webhook_handler
       host_batch_size: 0
-      policy_ids:
-        - 1
-        - 2
-        - 3
 ```
 
 #### host_status_webhook
