@@ -39,6 +39,7 @@ func TestChartPackageDependencies(t *testing.T) {
 		pkg             string
 		shouldNotDepend []string // defaults to m + "/..." if empty
 		ignoreDeps      []string
+		ignoreXTests    []string
 	}{
 		{
 			// Root package only depends on api (for dataset implementations).
@@ -71,6 +72,8 @@ func TestChartPackageDependencies(t *testing.T) {
 			name:       "internal/service depends on chart and platform packages",
 			pkg:        m + "/server/chart/internal/service",
 			ignoreDeps: slices.Concat(chartPkgs, platformPkgs),
+			// Its external tests run the service on the MySQL store; the last case still checks their imports.
+			ignoreXTests: []string{m + "/server/chart/internal/service"},
 		},
 		{
 			name: "bootstrap depends on chart and platform packages",
@@ -107,6 +110,9 @@ func TestChartPackageDependencies(t *testing.T) {
 
 			if len(tc.ignoreDeps) > 0 {
 				test.IgnoreDeps(tc.ignoreDeps...)
+			}
+			if len(tc.ignoreXTests) > 0 {
+				test.IgnoreXTests(tc.ignoreXTests...)
 			}
 
 			test.Check()

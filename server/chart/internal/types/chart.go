@@ -145,6 +145,11 @@ type Datastore interface {
 		entityIDs []string,
 	) ([]api.DataPoint, error)
 
+	// SCDChangesCoveredFrom returns covered_from for the dataset: ReplaySCDChanges holds the history of
+	// every bucket that ends at or after it. found is false when the change storage has not started for the
+	// dataset.
+	SCDChangesCoveredFrom(ctx context.Context, dataset string) (coveredFrom time.Time, found bool, err error)
+
 	// GetHostIDsForFilter returns the host IDs that match the given host filter.
 	GetHostIDsForFilter(ctx context.Context, hostFilter *HostFilter) ([]uint, error)
 

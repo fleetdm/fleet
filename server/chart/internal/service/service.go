@@ -42,6 +42,7 @@ type Service struct {
 	logger    *slog.Logger
 
 	requestTimeout time.Duration
+	now            func() time.Time
 }
 
 // NewService creates a new chart service.
@@ -56,6 +57,7 @@ func NewService(authz platform_authz.Authorizer, store types.Datastore, viewerPr
 		logger:    logger,
 
 		requestTimeout: chartRequestTimeout,
+		now:            time.Now,
 	}
 }
 
@@ -151,7 +153,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	}
 	bucketSize := time.Duration(hours) * time.Hour
 
-	startDate, endDate := computeBucketRange(time.Now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
+	startDate, endDate := computeBucketRange(s.now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
 
 	storageCtx, cancel := context.WithTimeout(ctx, s.requestTimeout)
 	defer cancel()
@@ -204,7 +206,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		}
 	}
 
-	data, err := s.store.GetSCDData(storageCtx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
+	data, err := s.readData(storageCtx, dataset, startDate, endDate, bucketSize, filterMask, entityIDs)
 	if err != nil {
 		return nil, chartStorageError(ctx, storageCtx, err)
 	}
@@ -232,6 +234,36 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		},
 		Data: data,
 	}, nil
+}
+
+// readData returns the buckets of a chart request. The cve dataset is replayed from the change storage when it
+// holds the history of every bucket; otherwise, and for the other datasets, the host_scd_data rows are read.
+func (s *Service) readData(
+	ctx context.Context,
+	dataset api.Dataset,
+	startDate, endDate time.Time,
+	bucketSize time.Duration,
+	filterMask *roaring.Bitmap,
+	entityIDs []string,
+) ([]api.DataPoint, error) {
+	name := dataset.Name()
+	if name == api.MetricCVE {
+		coveredFrom, found, err := s.store.SCDChangesCoveredFrom(ctx, name)
+		switch {
+		case err != nil && ctx.Err() != nil:
+			return nil, err
+		case err != nil:
+			if s.logger != nil {
+				s.logger.ErrorContext(ctx, "read chart change coverage, reading the full host sets instead",
+					"dataset", name, "err", ctxerr.Wrap(ctx, err, "read chart change coverage"))
+			}
+		// Bucket i is labeled with its start, startDate + (i+1)*bucketSize, so the first bucket ends at
+		// startDate + 2*bucketSize.
+		case found && !coveredFrom.After(startDate.Add(2*bucketSize)):
+			return s.store.ReplaySCDChanges(ctx, name, startDate, endDate, bucketSize, filterMask, entityIDs)
+		}
+	}
+	return s.store.GetSCDData(ctx, name, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
 }
 
 // chartStorageError turns an error caused by the request deadline into a 422,

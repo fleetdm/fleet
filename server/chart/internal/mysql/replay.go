@@ -277,3 +277,17 @@ func (c *replayCounts) apply(rb *roaring.Bitmap, delta int32) {
 		return true
 	})
 }
+
+// SCDChangesCoveredFrom returns host_scd_change_state.covered_from for the dataset, and false when the change
+// storage has not started for it.
+func (ds *Datastore) SCDChangesCoveredFrom(ctx context.Context, dataset string) (time.Time, bool, error) {
+	var coveredFrom []time.Time
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &coveredFrom,
+		`SELECT covered_from FROM host_scd_change_state WHERE dataset = ?`, dataset); err != nil {
+		return time.Time{}, false, ctxerr.Wrap(ctx, err, "read chart change coverage")
+	}
+	if len(coveredFrom) == 0 {
+		return time.Time{}, false, nil
+	}
+	return coveredFrom[0].UTC(), true, nil
+}

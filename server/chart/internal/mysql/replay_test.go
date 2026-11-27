@@ -70,6 +70,7 @@ func TestReplaySCDChanges(t *testing.T) {
 		{"explicit history", testReplaySCDChangesExplicit},
 		{"random histories match the snapshot read", testReplaySCDChangesRandom},
 		{"empty inputs and missing data", testReplaySCDChangesEmpty},
+		{"covered from", testSCDChangesCoveredFrom},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -240,4 +241,34 @@ func testReplaySCDChangesEmpty(t *testing.T, _ *testutils.TestDB, ds *Datastore)
 	got, err := ds.ReplaySCDChanges(t.Context(), "cve", h0, h0.Add(30*time.Minute), time.Hour, nil, nil)
 	require.NoError(t, err)
 	require.Nil(t, got, "a range shorter than one bucket has no buckets")
+}
+
+func testSCDChangesCoveredFrom(t *testing.T, _ *testutils.TestDB, ds *Datastore) {
+	_, ok, err := ds.SCDChangesCoveredFrom(t.Context(), "cve")
+	require.NoError(t, err)
+	require.False(t, ok, "the change storage has not started")
+
+	h := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	oldTick(t, ds, h.Add(-48*time.Hour), hostSets{"CVE-A": {1}})
+	collectTick(t, ds, "cve", h, hostSets{"CVE-A": {1, 2}})
+	collectTick(t, ds, "uptime", h, hostSets{"": {1}})
+
+	coveredFrom, ok, err := ds.SCDChangesCoveredFrom(t.Context(), "cve")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, h, coveredFrom, "before conversion, the changes cover from the first collection")
+
+	convertAll(t, ds, "cve")
+	coveredFrom, ok, err = ds.SCDChangesCoveredFrom(t.Context(), "cve")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, h.AddDate(0, 0, -scdConvertDays), coveredFrom)
+
+	require.NoError(t, ds.DeleteAllForDataset(t.Context(), "cve", 100))
+	_, ok, err = ds.SCDChangesCoveredFrom(t.Context(), "cve")
+	require.NoError(t, err)
+	require.False(t, ok, "a global scrub removes the change storage")
+	_, ok, err = ds.SCDChangesCoveredFrom(t.Context(), "uptime")
+	require.NoError(t, err)
+	require.True(t, ok)
 }
