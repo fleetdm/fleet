@@ -920,6 +920,53 @@ func (svc *Service) VerifyExistingEnterpriseIfAny(ctx context.Context) error {
 	return svc.verifyEnterpriseExistsWithGoogle(ctx, enterprise)
 }
 
+func (svc *Service) IsEnterpriseAlive(ctx context.Context) (bool, error) {
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	switch {
+	case fleet.IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "checking for existing enterprise")
+	case !enterprise.IsValid():
+		// Blank enterprise row (no bound ID) is semantically the same as not-found;
+		// skip the Google call rather than compare against "enterprises/".
+		return false, nil
+	}
+
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	enterprises, err := svc.androidAPIClient.EnterprisesList(ctx, appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		// Fleet's proxy returns 404 when it has no enterprises registered for the caller's
+		// Fleet server URL; treat that as a confirmed-missing enterprise, not a probe failure.
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) && gerr.Code == http.StatusNotFound {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "listing enterprises")
+	}
+
+	// The direct Google client lists every enterprise in the GCP project without filtering
+	// by server URL, so a suffix match can misidentify an unrelated enterprise whose ID
+	// ends in ours. Match the full resource name instead.
+	wantName := enterprise.Name()
+	for _, ent := range enterprises {
+		if ent.Name == wantName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // cleanupDeletedEnterprise performs the complete cleanup when an enterprise deletion is detected
 func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *android.Enterprise, enterpriseID string) {
 	// Clean up proxy database records by calling proxy DELETE endpoint

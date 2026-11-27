@@ -109,7 +109,23 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID \"com.app.id.not.found\" isn't available in Play Store. Please find ID on the Play Store and try again.")
+	s.Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID \"com.app.id.not.found\" isn't available in your organization's managed Google Play. Approve it at https://play.google.com/work, or verify the ID and try again.")
+
+	// Dead-enterprise probe branch: when AMAPI 404s on the app lookup AND IsEnterpriseAlive
+	// confirms the binding is gone (empty EnterprisesList), the admin should see the reconnect
+	// copy instead of the managed Play copy.
+	originalEnterprisesListFunc := s.androidAPIClient.EnterprisesListFunc
+	s.androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
+	r = s.Do(
+		"POST",
+		"/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
+		http.StatusUnprocessableEntity,
+	)
+	s.Contains(extractServerErrorText(r.Body), "Couldn't add software. Fleet is no longer connected to your Android Enterprise. An admin can reconnect Android MDM in Settings > Integrations > Mobile device management, then try again.")
+	s.androidAPIClient.EnterprisesListFunc = originalEnterprisesListFunc
 
 	amapiConfig := struct {
 		AppIDsToNames                     map[string]string
