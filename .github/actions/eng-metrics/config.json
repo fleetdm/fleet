@@ -1,5 +1,5 @@
 {
-  "repositories": ["fleetdm/fleet", "fleetdm/fleet-gitops"],
+  "repositories": ["fleetdm/fleet"],
   "targetBranch": "main",
   "bigQueryDatasetId": "github_metrics",
   "lookbackDays": 5,
