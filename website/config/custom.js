@@ -133,8 +133,9 @@ module.exports.custom = {
     'tools/api': 'lukeheath', //« Scripts used to interact with the Fleet API
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
-    // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
-    // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
+    'docs/Configuration': 'noahtalerman', //« Interim API design DRI. Not a required reviewer (no CODEOWNERS entry), so anyone at Fleet can approve.
+    'docs/API/rest-api.md': 'noahtalerman', //« Interim API design DRI. Not a required reviewer.
+    'docs/Contributing/reference/api-for-contributors.md': 'noahtalerman', //« Interim API design DRI. Required reviewers are the /docs/Contributing owners in CODEOWNERS.
     'schema': 'noahtalerman',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'noahtalerman', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
