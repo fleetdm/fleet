@@ -1,0 +1,1 @@
+- Fixed a bug where the Install button for an in-house app on an iOS or iPadOS host was greyed out or changed between page loads, because the host had a past install attempt from another fleet's copy of the app. The host's Library tab now offers the copy in its current fleet.
