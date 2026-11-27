@@ -323,7 +323,21 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 		return err
 	}
 
+	// A name already saved in this fleet can be sent again even with a path separator, which new names can't have.
+	savedNames := map[string]struct{}{}
+	if slices.ContainsFunc(assets, func(a fleet.MDMAppleDDMAssetBatchPayload) bool { return strings.ContainsAny(a.Name, `/\`) }) {
+		saved, err := svc.ds.ListAppleDDMAssets(ctx, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing saved assets")
+		}
+		for _, sa := range saved {
+			savedNames[sa.Name] = struct{}{}
+		}
+	}
 	for _, a := range assets {
+		if _, saved := savedNames[a.Name]; saved {
+			continue
+		}
 		if err := validateAppleDDMAssetName(a.Name); err != nil {
 			return ctxerr.Wrapf(ctx, err, "validating asset %q", a.Name)
 		}

@@ -557,6 +557,10 @@ func TestBatchSetAppleDDMAssets(t *testing.T) {
 	ds.BatchSetAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error) {
 		return &fleet.MDMAppleDDMAssetsBatchChanges{}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		require.Nil(t, teamID)
+		return []*fleet.DDMAsset{{Name: "saved/b"}}, nil
+	}
 	reset := func() { ds.BatchSetAppleDDMAssetsFuncInvoked = false }
 
 	t.Run("Observer cannot batch set", func(t *testing.T) {
@@ -611,6 +615,16 @@ func TestBatchSetAppleDDMAssets(t *testing.T) {
 		}, true)
 		require.ErrorContains(t, err, "Asset name must not contain")
 		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+	})
+
+	t.Run("Name saved in the fleet can be sent again", func(t *testing.T) {
+		defer reset()
+		err := svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{{Name: "Saved/b", Contents: assetData("id.s")}}, false)
+		require.ErrorContains(t, err, "Asset name must not contain")
+		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
+		err = svc.BatchSetAppleDDMAssets(ctx, nil, "", []fleet.MDMAppleDDMAssetBatchPayload{{Name: "saved/b", Contents: assetData("id.s")}}, false)
+		require.NoError(t, err)
+		require.True(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
 	})
 
 	t.Run("Dry run does not write", func(t *testing.T) {

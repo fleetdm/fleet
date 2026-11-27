@@ -1380,6 +1380,10 @@ func TestBatchSetScriptsDryRunNewFleet(t *testing.T) {
 		}
 		return nil, nil
 	}
+	// Saved without a fleet; a fleet that doesn't exist yet has no saved names.
+	ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+		return []*fleet.Script{{ID: 1, Name: "tools/saved.sh"}}, nil, nil
+	}
 
 	newFleet := new("New fleet")
 	cases := []struct {
@@ -1409,6 +1413,11 @@ func TestBatchSetScriptsDryRunNewFleet(t *testing.T) {
 				{Name: "dup.sh", ScriptContents: []byte("echo two")},
 			},
 			"More than one script has the same file name",
+		},
+		{
+			"name with a folder",
+			[]fleet.ScriptPayload{{Name: "tools/saved.sh", ScriptContents: []byte("echo hello")}},
+			`The file name must not contain "/" or "\".`,
 		},
 		{
 			"valid payload",
@@ -1514,6 +1523,15 @@ func TestScriptNamesWithFolders(t *testing.T) {
 		return nil
 	}
 
+	ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
+		require.Nil(t, teamID)
+		return []*fleet.Script{{ID: 1, Name: "tools/saved.sh"}}, nil, nil
+	}
+	batch := func(name string) error {
+		_, err := svc.BatchSetScripts(ctx, nil, nil, []fleet.ScriptPayload{{Name: name, ScriptContents: []byte("echo hi")}}, true)
+		return err
+	}
+
 	const nameErr = `The file name must not contain "/" or "\".`
 	_, err := svc.NewScript(ctx, nil, `tools\fix.sh`, strings.NewReader("echo hi"))
 	require.ErrorContains(t, err, nameErr)
@@ -1521,6 +1539,14 @@ func TestScriptNamesWithFolders(t *testing.T) {
 	require.ErrorContains(t, err, nameErr)
 	require.False(t, ds.NewScriptFuncInvoked)
 	require.False(t, ds.BatchSetScriptsFuncInvoked)
+
+	// A name already saved in the fleet can be sent again, exactly as saved.
+	require.NoError(t, batch("tools/saved.sh"))
+	require.ErrorContains(t, batch("Tools/saved.sh"), nameErr)
+
+	ds.ListScriptsFuncInvoked = false
+	require.NoError(t, batch("fix.sh"))
+	require.False(t, ds.ListScriptsFuncInvoked, "plain names need no lookup")
 }
 func TestBatchScriptCancelReplicaLag(t *testing.T) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}

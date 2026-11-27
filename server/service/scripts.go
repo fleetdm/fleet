@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -724,6 +726,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 
 	var teamID *uint
 	var teamName *string
+	var newFleet bool
 
 	if maybeTmID != nil || maybeTmName != nil {
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, maybeTmID, maybeTmName)
@@ -734,6 +737,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 			if !dryRun || !fleet.IsNotFound(err) {
 				return nil, err
 			}
+			newFleet = true
 		} else {
 			teamID = &team.ID
 			teamName = &team.Name
@@ -742,6 +746,18 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// A name already saved in this fleet can be sent again even with a path separator, which new names can't have.
+	savedNames := map[string]struct{}{}
+	if !newFleet && slices.ContainsFunc(payloads, func(p fleet.ScriptPayload) bool { return strings.ContainsAny(p.Name, `/\`) }) {
+		saved, _, err := svc.ds.ListScripts(ctx, teamID, fleet.ListOptions{})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing saved scripts")
+		}
+		for _, s := range saved {
+			savedNames[s.Name] = struct{}{}
+		}
 	}
 
 	scripts := make([]*fleet.Script, 0, len(payloads))
@@ -754,7 +770,11 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 			TeamID:         teamID,
 		}
 
-		if err := script.ValidateNewScript(); err != nil {
+		validate := script.ValidateNewScript
+		if _, saved := savedNames[p.Name]; saved {
+			validate = script.ValidateScript
+		}
+		if err := validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
 		}
