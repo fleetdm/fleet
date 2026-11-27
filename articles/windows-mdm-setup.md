@@ -71,6 +71,8 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 Windows MDM turns on after an end user signs in to the host. Windows completes MDM enrollment in the context of a signed-in user, so a host with no interactive user session (for example, a freshly imaged, kiosk, or shared device waiting at the lock screen) reports MDM as "Off", and any pending commands, configuration profiles, and disk encryption stay queued. Fleet retries enrollment automatically and finishes within about 30 seconds of the next sign-in.
 
+Windows ties the MDM enrollment to the user who is signed in when MDM turns on. That user is the only one who receives [user-scoped configuration profiles](https://fleetdm.com/guides/custom-os-settings#device-and-user-scope). If you install fleetd while signed in as an IT admin, MDM turns on for the IT admin's account. Deleting that user's account and profile removes the host from MDM, and Fleet still shows MDM as "On" for the host.
+
 > Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
 
 ### Where Windows stores the MDM certificate
@@ -79,7 +81,7 @@ Fleet's MDM identity certificate isn't in `LocalMachine\My`. Windows chooses the
 
 `C:\Windows\System32\config\systemprofile\AppData\Roaming\Microsoft\SystemCertificates\My`
 
-A copy also appears in the personal store of the user who was signed in during enrollment. That copy has no private key. Both locations are expected. The private key is stored machine-wide, so removing a user profile doesn't affect MDM.
+A copy also appears in the personal store of the user who was signed in during enrollment. That copy has no private key. Both locations are expected. The private key is stored machine-wide, but the enrollment itself is tied to that user. Removing other users' profiles doesn't affect MDM. Deleting the account and profile of the user who was signed in during enrollment removes the host from MDM. Learn more in [Manual enrollment](#manual-enrollment).
 
 Hosts that enroll through Microsoft Entra ID or Autopilot use a device enrollment instead. Windows files their certificate in `LocalMachine\My`.
 

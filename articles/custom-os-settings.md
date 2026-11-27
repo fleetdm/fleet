@@ -153,7 +153,12 @@ Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at t
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
-On Windows, Fleet does not support user-scoped profiles on devices shared by multiple users. User-scoped profiles are delivered to the currently signed-in user, so the user who completes the initial enrollment receives all user-scoped profiles defined at that time. If an admin adds or changes user-scoped profiles later, they may be delivered to a different user.
+On Windows, Fleet delivers each user-scoped profile to one user per host. Fleet doesn't support user-scoped profiles for every user of a host shared by multiple users. Which user receives them depends on how the host enrolled:
+
+- **Hosts enrolled through Microsoft Entra ID** (Windows Autopilot, Entra join, or **Settings > Accounts > Access work or school**): Fleet delivers user-scoped profiles after an Entra user signs in. Windows applies them to the Entra user who is signed in when Fleet delivers them. Entra users who sign in later don't receive profiles that Fleet already delivered. Local (non-Entra) accounts on the host never receive user-scoped profiles.
+- **Hosts enrolled by installing fleetd**: Windows ties the MDM enrollment to the local account that was signed in when MDM turned on. Only that account receives user-scoped profiles, and they stay **Pending** while that account isn't signed in. Other accounts on the host, including accounts created later, don't receive them. If an IT admin was signed in when MDM turned on, the IT admin's account receives the user-scoped profiles, not the end user's.
+
+> On hosts enrolled by installing fleetd, deleting the account and profile of the user that MDM was turned on for removes the host from MDM. Windows deletes the enrollment and reverts the settings Fleet applied, and Fleet still shows MDM as "On" for the host.
 
 How to deliver user-scoped configuration profiles:
 
@@ -203,7 +208,7 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
-Fleet delivers user-scoped profiles after an end user signs in to the host. Until then, they show **Pending**. If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
+Fleet delivers user-scoped profiles after an end user signs in to the host. Until then, they show **Pending**. Which user receives them depends on how the host enrolled. Learn more in [Device and user scope](#device-and-user-scope). If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
 
 #### Upgrading from below 4.71.0
 
