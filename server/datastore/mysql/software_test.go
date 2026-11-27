@@ -7074,7 +7074,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 
 	// Create an intermediate failure record
-	failedExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID, originalInstall, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -7083,6 +7083,13 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, failedExecID)
+
+	// Check the returned install, it should be the original row the failure record copied from
+	require.NotNil(t, originalInstall)
+	require.NotNil(t, originalInstall.SoftwareInstallerID)
+	require.Equal(t, installerID, *originalInstall.SoftwareInstallerID)
+	require.NotNil(t, originalInstall.UserID)
+	require.Equal(t, user.ID, *originalInstall.UserID)
 
 	// Verify original record is still pending using GetSoftwareInstallResults
 	originalResult, err := ds.GetSoftwareInstallResults(ctx, "original-uuid")
@@ -7121,7 +7128,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, count)
 
 	// Test idempotency: calling again with same retries_remaining should return same UUID and not create new record
-	failedExecID2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID2, _, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -7143,7 +7150,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	require.Equal(t, "network timeout updated", *updatedResult.Output)
 
 	// Test with different retries_remaining creates new record
-	failedExecID3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID3, _, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
@@ -15328,7 +15335,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	require.Nil(t, removedInstall.InstallerID)
 	require.Nil(t, removedInstall.Status) // removed nulls the aggregate status
 
-	failedExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID, _, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "removed-installer-uuid",
 		InstallScriptExitCode: new(1),
@@ -15386,7 +15393,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	require.Nil(t, titleDeletedRow.TitleID)
 	require.Nil(t, titleDeletedRow.Status) // removed nulls the aggregate status
 
-	failedExecID2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID2, _, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "deleted-title-uuid",
 		InstallScriptExitCode: new(1),
@@ -15448,7 +15455,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	_, err = ds.GetSoftwareInstallResults(ctx, "pending-delete-uuid")
 	require.True(t, fleet.IsNotFound(err))
 
-	pendingDeleteExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	pendingDeleteExecID, _, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "pending-delete-uuid",
 		InstallScriptExitCode: new(1),
@@ -15557,7 +15564,7 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	require.True(t, batchDoneRow.Removed)
 	require.Nil(t, batchDoneRow.Status) // removed nulls the aggregate status
 
-	batchPendingExecID, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	batchPendingExecID, _, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "batch-pending-uuid",
 		InstallScriptExitCode: new(1),

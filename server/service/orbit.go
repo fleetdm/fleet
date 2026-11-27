@@ -2274,12 +2274,51 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
 
+	// A pre-install query that returned no result stops fleetd before it downloads the
+	// package, so no attempt against the installer was made.
+	preInstallConditionFailed := result.Status() == fleet.SoftwareInstallFailed &&
+		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == ""
+
+	downloadAttempted := true
+	if preInstallConditionFailed {
+		downloadAttempted = false
+	} else if result.InstallScriptExitCode != nil {
+		// fleetd and the server set these exit codes before the installer is downloaded.
+		switch *result.InstallScriptExitCode {
+		case fleet.ExitCodeScriptsDisabled, fleet.ExitCodeInstallerNotFound, fleet.ExitCodeFleetVarResolutionFailed:
+			downloadAttempted = false
+		}
+	}
+
 	// If this is an intermediate failure that will be retried, handle it specially
 	if result.RetriesRemaining > 0 {
 		// Create a record while keeping the original pending
-		_, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
+		_, originalInstall, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "save intermediate install failure")
+		}
+
+		// Only setup experience installs are retried by fleetd, and each retry downloads the installer again.
+		if downloadAttempted && originalInstall.SoftwareInstallerID != nil && svc.installAttemptCounter != nil {
+			var attempts int
+			attempts, err = svc.installAttemptCounter.RecordAttempt(ctx, host.ID, *originalInstall.SoftwareInstallerID, fleet.PolicyAutomationInstallAttemptExpiry)
+			if err != nil {
+				svc.logger.ErrorContext(
+					ctx, "failed to record automatic software install attempt",
+					"host_id", host.ID,
+					"software_installer_id", *originalInstall.SoftwareInstallerID,
+					"err", err,
+				)
+			} else if attempts > fleet.MaxPolicyAutomationInstallAttempts {
+				svc.logger.ErrorContext(
+					ctx, "automatic software install attempt over the limit",
+					"host_id", host.ID,
+					"software_installer_id", *originalInstall.SoftwareInstallerID,
+					"install_uuid", result.InstallUUID,
+					"attempts", attempts,
+					"max_attempts", fleet.MaxPolicyAutomationInstallAttempts,
+				)
+			}
 		}
 
 		// Don't create activities for intermediate failures during setup experience.
@@ -2292,16 +2331,22 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	}
 
+	existingInstall, err := svc.ds.GetSoftwareInstallResults(ctxdb.RequirePrimary(ctx, true), result.InstallUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get existing install")
+	}
+
+	// fleetd sends the final result again if the request fails, so the result can already be stored.
+	var resultAlreadyStored bool
+	if existingInstall != nil && existingInstall.Status != fleet.SoftwareInstallPending {
+		resultAlreadyStored = true
+	}
+
 	// Calculate attempt_number for retries by counting existing attempts
-	attemptNumber, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, result.InstallUUID)
+	attemptNumber, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, existingInstall)
 	if err != nil {
 		return err
 	}
-
-	// A pre-install query that returned no result stops fleetd before it downloads the
-	// package, so no attempt against the installer was made.
-	preInstallConditionFailed := result.Status() == fleet.SoftwareInstallFailed &&
-		result.PreInstallConditionOutput != nil && *result.PreInstallConditionOutput == ""
 
 	// A patch policy install whose managed app-open query returned no result means the app was
 	// open: a skip, not a failure. Key on the snapshotted override_pre_install_query flag on the
@@ -2309,33 +2354,16 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	// between activation and this result callback (which nulls policy_id via ON DELETE SET NULL)
 	// still classifies as a skip. An ordinary empty pre_install_query on a non-patch install has
 	// override_pre_install_query = 0 and continues to fail and count toward the retry cap.
-	//
-	// Force read from primary: on a fresh activation the snapshot may not have replicated yet,
-	// and a stale/missing read would silently downgrade a real skip into an ordinary failure
-	// (consuming a retry attempt). Log rather than swallow a read error for the same reason.
-	isAppOpenSkip := false
-	if preInstallConditionFailed {
-		cur, curErr := svc.ds.GetSoftwareInstallResults(ctxdb.RequirePrimary(ctx, true), result.InstallUUID)
-		switch {
-		case curErr != nil:
-			svc.logger.ErrorContext(
-				ctx,
-				"failed to load install result for app-open skip classification; defaulting to failure",
-				"host_id", host.ID,
-				"install_uuid", result.InstallUUID,
-				"err", curErr,
-			)
-		case cur != nil:
-			isAppOpenSkip = cur.OverridePreInstallQuery
-		}
+	var isAppOpenSkip bool
+	if preInstallConditionFailed && existingInstall != nil {
+		isAppOpenSkip = existingInstall.OverridePreInstallQuery
 	}
 
 	// Check if a non-policy install failure will be retried so we can skip
 	// updating setup experience status during intermediate retries.
 	willRetryNonPolicyOnFailure := false
 	if attemptNumber != nil && *attemptNumber < fleet.MaxSoftwareInstallAttempts && result.Status() == fleet.SoftwareInstallFailed {
-		currentInstall, checkErr := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
-		if checkErr == nil && currentInstall != nil && currentInstall.PolicyID == nil {
+		if existingInstall != nil && existingInstall.PolicyID == nil {
 			willRetryNonPolicyOnFailure = true
 		}
 	}
@@ -2381,6 +2409,39 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
+	// Count automatic installs that downloaded the installer, before anything below can fail.
+	var isAutomaticInstall, isNewDownload bool
+	var softwareInstallerID uint
+	if existingInstall != nil && existingInstall.SoftwareInstallerID != nil && !installWasCanceled && (existingInstall.PolicyID != nil || fromSetupExperience) {
+		isAutomaticInstall = true
+		softwareInstallerID = *existingInstall.SoftwareInstallerID // existingInstall shouldn't be nil anyway
+	}
+	if downloadAttempted && !resultAlreadyStored && result.Status() != fleet.SoftwareInstallPending {
+		isNewDownload = true
+	}
+
+	if isAutomaticInstall && isNewDownload && svc.installAttemptCounter != nil {
+		var attempts int
+		attempts, err = svc.installAttemptCounter.RecordAttempt(ctx, host.ID, softwareInstallerID, fleet.PolicyAutomationInstallAttemptExpiry)
+		if err != nil {
+			svc.logger.ErrorContext(
+				ctx, "failed to record automatic software install attempt",
+				"host_id", host.ID,
+				"software_installer_id", softwareInstallerID,
+				"err", err,
+			)
+		} else if attempts > fleet.MaxPolicyAutomationInstallAttempts {
+			svc.logger.ErrorContext(
+				ctx, "automatic software install attempt over the limit",
+				"host_id", host.ID,
+				"software_installer_id", softwareInstallerID,
+				"install_uuid", result.InstallUUID,
+				"attempts", attempts,
+				"max_attempts", fleet.MaxPolicyAutomationInstallAttempts,
+			)
+		}
+	}
+
 	// do not create a "past" activity if the status is not terminal or if the activity
 	// was canceled.
 	if status := result.Status(); status != fleet.SoftwareInstallPending && !installWasCanceled {
@@ -2407,47 +2468,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 			}
 
-			failures := 0
-
-			// Only an attempt that downloaded and ran the installer counts, so an app-open
-			// skip or a pre-install query that did not pass records nothing.
-			if hsi.SoftwareInstallerID != nil && svc.installAttemptCounter != nil {
-				switch {
-				case status == fleet.SoftwareInstalled:
-					if err := svc.installAttemptCounter.ResetAttempts(ctx, host.ID, *hsi.SoftwareInstallerID); err != nil {
-						svc.logger.ErrorContext(
-							ctx, "failed to reset policy automation install attempts",
-							"host_id", host.ID,
-							"software_installer_id", *hsi.SoftwareInstallerID,
-							"err", err,
-						)
-					}
-				case status == fleet.SoftwareInstallFailed && !isAppOpenSkip && !preInstallConditionFailed:
-					attempts, err := svc.installAttemptCounter.RecordAttempt(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.PolicyAutomationInstallAttemptExpiry)
-					if err != nil {
-						svc.logger.ErrorContext(
-							ctx, "failed to record policy automation install attempt",
-							"host_id", host.ID,
-							"software_installer_id", *hsi.SoftwareInstallerID,
-							"err", err,
-						)
-					} else {
-						failures = attempts
-					}
-				case status == fleet.SoftwareInstallFailed:
-					// Read the count without adding to it, since the retry check below still needs it.
-					attempts, err := svc.installAttemptCounter.CountAttempts(ctx, host.ID, *hsi.SoftwareInstallerID)
-					if err != nil {
-						svc.logger.ErrorContext(ctx, "failed to count policy automation install failures", "host_id", host.ID, "software_installer_id", *hsi.SoftwareInstallerID, "err", err)
-					} else {
-						failures = attempts
-					}
-				}
-			}
-
 			// Skip the immediate-retry ladder for app-open skips; the next continuous run re-fires.
 			if status == fleet.SoftwareInstallFailed && !isAppOpenSkip {
-				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi, failures)
+				shouldRetry, err := svc.shouldRetryPolicyAutomationSoftwareInstall(ctx, host, hsi)
 				if err != nil {
 					svc.logger.ErrorContext(
 						ctx,
@@ -2457,7 +2480,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 						"err", err,
 					)
 				} else if shouldRetry {
-					if err := svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi); err != nil {
+					if err := svc.retrySoftwareInstall(ctx, host, hsi, false); err != nil {
 						svc.logger.ErrorContext(
 							ctx,
 							"failed to queue policy automation software install retry",
@@ -2572,16 +2595,16 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	return nil
 }
 
-func (svc *Service) installFailureLimitReached(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) bool {
+func (svc *Service) installAttemptLimitReached(ctx context.Context, hostID uint, softwareInstallerID uint, policyID uint) bool {
 	if svc.installAttemptCounter == nil {
 		return false
 	}
 
-	failures, err := svc.installAttemptCounter.CountAttempts(ctx, hostID, softwareInstallerID)
+	attempts, err := svc.installAttemptCounter.CountAttempts(ctx, hostID, softwareInstallerID)
 	if err != nil {
 		// A Redis error is treated the same as a count of 0, so the install goes ahead.
 		svc.logger.ErrorContext(
-			ctx, "failed to count policy automation install failures",
+			ctx, "failed to count automatic software install attempts",
 			"host_id", hostID,
 			"software_installer_id", softwareInstallerID,
 			"err", err,
@@ -2589,24 +2612,24 @@ func (svc *Service) installFailureLimitReached(ctx context.Context, hostID uint,
 		return false
 	}
 
-	if failures < fleet.MaxPolicyAutomationInstallAttempts {
+	if attempts < fleet.MaxPolicyAutomationInstallAttempts {
 		return false
 	}
 
 	svc.logger.WarnContext(
-		ctx, "policy automation install has failed too many times for this host and installer",
+		ctx, "automatic software install was attempted too many times for this host and installer",
 		"host_id", hostID,
 		"policy_id", policyID,
 		"software_installer_id", softwareInstallerID,
-		"failures", failures,
-		"max_failures", fleet.MaxPolicyAutomationInstallAttempts,
+		"attempts", attempts,
+		"max_attempts", fleet.MaxPolicyAutomationInstallAttempts,
 	)
 	return true
 }
 
 // shouldRetryPolicyAutomationSoftwareInstall checks if a failed policy automation software install should be retried.
-// Returns true if retry should be queued. failures is the current failure count for this host and installer.
-func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, failures int) (bool, error) {
+// Returns true if retry should be queued.
+func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
 	if hsi.AttemptNumber == nil {
 		// should not happen
 		return false, ctxerr.New(ctx, "attempt_number is nil for policy automation install")
@@ -2614,11 +2637,15 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 
 	currentAttempt := *hsi.AttemptNumber
 
-	if failures >= fleet.MaxPolicyAutomationInstallAttempts {
+	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
 		return false, nil
 	}
 
-	if currentAttempt >= fleet.MaxPolicyAutomationRetries {
+	if hsi.SoftwareInstallerID == nil {
+		return false, nil
+	}
+
+	if svc.installAttemptLimitReached(ctx, host.ID, *hsi.SoftwareInstallerID, *hsi.PolicyID) {
 		return false, nil
 	}
 
@@ -2640,8 +2667,16 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 	return policyFailing, nil
 }
 
-// retryPolicyAutomationSoftwareInstall queues a retry for a policy automation software install.
-func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) error {
+// shouldRetrySoftwareInstall checks if a failed non-policy software install should be retried.
+func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
+	if hsi.AttemptNumber == nil {
+		return false, nil
+	}
+	return *hsi.AttemptNumber < fleet.MaxSoftwareInstallAttempts, nil
+}
+
+// retrySoftwareInstall queues a retry for a policy automation or non-policy software install.
+func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, fromSetupExperience bool) error {
 	// Retry the version currently targeted by the title, not the (possibly
 	// superseded) installer this attempt was frozen on, so a retry after an
 	// auto-update installs the active version rather than looping on the old one.
@@ -2651,51 +2686,28 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 	}
 	svc.logger.InfoContext(
 		ctx,
-		"queuing policy automation software install retry",
-		"host_id", host.ID,
-		"policy_id", *hsi.PolicyID,
-		"software_installer_id", installerID,
-		"current_attempt", *hsi.AttemptNumber,
-	)
-	// The retry needs the same app open decision as the attempt it retries.
-	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
-		PolicyID:                hsi.PolicyID,
-		OverridePreInstallQuery: hsi.OverridePreInstallQuery,
-		DeferActivation:         svc.deferFleetInitiatedActivation(),
-	})
-	return err
-}
-
-// shouldRetrySoftwareInstall checks if a failed non-policy software install should be retried.
-func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.HostSoftwareInstallerResult) (bool, error) {
-	if hsi.AttemptNumber == nil {
-		return false, nil
-	}
-	return *hsi.AttemptNumber < fleet.MaxSoftwareInstallAttempts, nil
-}
-
-// retrySoftwareInstall queues a retry for a non-policy software install.
-func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, fromSetupExperience bool) error {
-	// Retry the version currently targeted by the title, not the (possibly
-	// superseded) installer this attempt was frozen on.
-	installerID, err := svc.ds.ResolveActiveInstallerForRetry(ctx, *hsi.SoftwareInstallerID)
-	if err != nil {
-		return err
-	}
-	svc.logger.InfoContext(
-		ctx,
 		"queuing software install retry",
 		"host_id", host.ID,
+		"policy_id", ptr.ValOrZero(hsi.PolicyID),
 		"software_installer_id", installerID,
 		"self_service", hsi.SelfService,
 		"current_attempt", *hsi.AttemptNumber,
 	)
-	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
+	installOptions := fleet.HostSoftwareInstallOptions{
 		SelfService:        hsi.SelfService,
 		UserID:             hsi.UserID,
+		PolicyID:           hsi.PolicyID,
 		ForSetupExperience: fromSetupExperience,
-		WithRetries:        true,
-	})
+	}
+	// Delay policy automation retries like other Fleet-initiated installs and copy the app open
+	// decision. Their attempt number comes from counting rows, so with_retries is not set.
+	if hsi.PolicyID != nil {
+		installOptions.DeferActivation = svc.deferFleetInitiatedActivation()
+		installOptions.OverridePreInstallQuery = hsi.OverridePreInstallQuery
+	} else {
+		installOptions.WithRetries = true
+	}
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, installOptions)
 	return err
 }
 
@@ -2776,12 +2788,7 @@ func (svc *Service) getPolicyAutomationScriptAttemptNumber(ctx context.Context, 
 
 // getSoftwareInstallerAttemptNumber calculates the attempt number for a software install.
 // Returns nil for installs that don't have a software_installer_id.
-func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, installUUID string) (*int, error) {
-	currentInstall, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "get current install info for attempt number calculation")
-	}
-
+func (svc *Service) getSoftwareInstallerAttemptNumber(ctx context.Context, host *fleet.Host, currentInstall *fleet.HostSoftwareInstallerResult) (*int, error) {
 	if currentInstall == nil || currentInstall.SoftwareInstallerID == nil {
 		return nil, nil
 	}

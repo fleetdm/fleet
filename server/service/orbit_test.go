@@ -818,7 +818,7 @@ func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
 	t.Run("retries the frozen installer when it is still active", func(t *testing.T) {
 		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
-		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.NoError(t, svc.retrySoftwareInstall(ctx, host, hsi, false))
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.Equal(t, frozenID, capturedInstallerID)
 		require.Equal(t, &policyID, capturedOpts.PolicyID)
@@ -831,10 +831,25 @@ func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
 			return activeID, nil
 		}
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
-		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.NoError(t, svc.retrySoftwareInstall(ctx, host, hsi, false))
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.Equal(t, activeID, capturedInstallerID, "policy retry targets the current active installer, not the frozen one")
 		require.Equal(t, &policyID, capturedOpts.PolicyID)
+	})
+
+	t.Run("policy retry keeps the app open decision and does not use with_retries", func(t *testing.T) {
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
+		patchHSI := &fleet.HostSoftwareInstallerResult{
+			SoftwareInstallerID:     &frozenID,
+			PolicyID:                &policyID,
+			AttemptNumber:           new(1),
+			OverridePreInstallQuery: true,
+		}
+		require.NoError(t, svc.retrySoftwareInstall(ctx, host, patchHSI, false))
+		require.True(t, capturedOpts.OverridePreInstallQuery)
+		require.False(t, capturedOpts.WithRetries)
+		require.False(t, capturedOpts.SelfService)
+		require.Nil(t, capturedOpts.UserID)
 	})
 }
 
@@ -848,19 +863,15 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 	host := &fleet.Host{ID: 1}
 
 	t.Run("returns nil when install not found", func(t *testing.T) {
-		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-			return nil, newNotFoundError()
-		}
-		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		var currentInstall *fleet.HostSoftwareInstallerResult
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, currentInstall)
 		require.NoError(t, err)
 		require.Nil(t, result)
 	})
 
 	t.Run("returns nil when software installer ID is nil", func(t *testing.T) {
-		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-			return &fleet.HostSoftwareInstallerResult{SoftwareInstallerID: nil}, nil
-		}
-		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		currentInstall := &fleet.HostSoftwareInstallerResult{SoftwareInstallerID: nil}
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, currentInstall)
 		require.NoError(t, err)
 		require.Nil(t, result)
 	})
@@ -868,11 +879,9 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 	t.Run("counts policy install attempts", func(t *testing.T) {
 		policyID := uint(10)
 		installerID := uint(20)
-		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-			return &fleet.HostSoftwareInstallerResult{
-				SoftwareInstallerID: &installerID,
-				PolicyID:            &policyID,
-			}, nil
+		currentInstall := &fleet.HostSoftwareInstallerResult{
+			SoftwareInstallerID: &installerID,
+			PolicyID:            &policyID,
 		}
 		ds.CountHostSoftwareInstallAttemptsFunc = func(ctx context.Context, hostID, siID, polID uint) (int, error) {
 			require.Equal(t, host.ID, hostID)
@@ -880,7 +889,7 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 			require.Equal(t, policyID, polID)
 			return 2, nil
 		}
-		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, currentInstall)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.Equal(t, 2, *result)
@@ -890,15 +899,13 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 	t.Run("returns attempt number from install for non-policy retry-eligible install", func(t *testing.T) {
 		installerID := uint(20)
 		attemptNum := 2
-		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-			return &fleet.HostSoftwareInstallerResult{
-				SoftwareInstallerID: &installerID,
-				PolicyID:            nil, // non-policy install
-				AttemptNumber:       &attemptNum,
-			}, nil
+		currentInstall := &fleet.HostSoftwareInstallerResult{
+			SoftwareInstallerID: &installerID,
+			PolicyID:            nil, // non-policy install
+			AttemptNumber:       &attemptNum,
 		}
 		ds.CountHostSoftwareInstallAttemptsFuncInvoked = false
-		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, currentInstall)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.Equal(t, 2, *result)
@@ -907,15 +914,13 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 
 	t.Run("returns nil for non-policy install without retry support", func(t *testing.T) {
 		installerID := uint(20)
-		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
-			return &fleet.HostSoftwareInstallerResult{
-				SoftwareInstallerID: &installerID,
-				PolicyID:            nil, // non-policy install
-				AttemptNumber:       nil, // not created with WithRetries
-			}, nil
+		currentInstall := &fleet.HostSoftwareInstallerResult{
+			SoftwareInstallerID: &installerID,
+			PolicyID:            nil, // non-policy install
+			AttemptNumber:       nil, // not created with WithRetries
 		}
 		ds.CountHostSoftwareInstallAttemptsFuncInvoked = false
-		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, currentInstall)
 		require.NoError(t, err)
 		require.Nil(t, result)
 		require.False(t, ds.CountHostSoftwareInstallAttemptsFuncInvoked)
@@ -928,7 +933,8 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
 
-	svc, ctx := newTestService(t, ds, nil, nil)
+	attemptCounter := NewMemSoftwareInstallAttemptCounter()
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{InstallAttemptCounter: attemptCounter})
 
 	// Create admin user
 	user, err := ds.NewUser(ctx, &fleet.User{
@@ -1034,6 +1040,19 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 		)
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
+
+	// Count the install attempt, the failed policy install should count once
+	attempts, err := attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
+
+	// Send the same result again while the replica still has the install as pending, the count
+	// should not change
+	err = svc.SaveHostSoftwareInstallResult(ctx, result)
+	require.NoError(t, err)
+	attempts, err = attemptCounter.CountAttempts(ctx, host.ID, installerID)
+	require.NoError(t, err)
+	require.Equal(t, 1, attempts)
 }
 
 // TestSaveHostSoftwareInstallResultAppOpenSkip verifies that an app-open result on a patch-when-closed

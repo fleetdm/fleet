@@ -194,7 +194,7 @@ const PolicyNoTeamID = uint(0)
 // Max times a policy automation will be retried on failure.
 const MaxPolicyAutomationRetries = 3
 
-// Max amount of retries allowed in a row via policy automations.
+// Max automatic install attempts for a host and installer before policy automations stop queueing it.
 const MaxPolicyAutomationInstallAttempts = 10
 
 // Time to live of the install attempt counter key when it is not updated again.

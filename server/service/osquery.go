@@ -3150,7 +3150,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 
 		// Don't attempt another install for this policy if the retry limit is reached.
-		if svc.installFailureLimitReached(ctx, hostID, installerMetadata.InstallerID, policyID) {
+		if svc.installAttemptLimitReached(ctx, hostID, installerMetadata.InstallerID, policyID) {
 			continue
 		}
 

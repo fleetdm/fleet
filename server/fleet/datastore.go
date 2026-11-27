@@ -993,9 +993,10 @@ type Datastore interface {
 	// CreateIntermediateInstallFailureRecord creates a completed failure record for an
 	// installation attempt that will be retried, while keeping the original pending.
 	// It returns a deterministic execution ID for the failure record (unique per base
-	// install UUID and retry ordinal) to support idempotency. This method is for
-	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
-	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
+	// install UUID and retry ordinal) to support idempotency, and the original install it
+	// copied from. This method is for persistence/bookkeeping only and must not be used to
+	// trigger user-visible side effects.
+	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, *HostSoftwareInstallerResult, error)
 
 	// Software categories — per-fleet, user-managed categories used to group
 	// software (e.g. for the self-service UI).
