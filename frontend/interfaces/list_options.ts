@@ -9,5 +9,3 @@ export interface IListOptions {
 }
 
 export type IListSort = Pick<IListOptions, "order_key" | "order_direction">;
-
-export type IListPagination = Pick<IListOptions, "page" | "per_page">;

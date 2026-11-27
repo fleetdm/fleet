@@ -8,22 +8,16 @@ import {
   ISoftwareTitleDetails,
   IAppStoreApp,
   IAppStoreAppVersion,
-  IFleetMaintainedApp,
   IFleetMaintainedAppDetails,
   ISoftwareInstallResult,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
-  ISoftwareTitleResponse,
   ISoftwareVersionsResponse,
-  ISoftwareVersionResponse,
 } from "services/entities/software";
 
 import { IOperatingSystemVersion } from "../interfaces/operating_system";
-import { IGetSetupExperienceSoftwareResponse } from "../services/entities/mdm";
 import { IOSVersionsResponse } from "../services/entities/operating_systems";
-
-import { createMockListEntitiesResponseCommon } from "./commonMock";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   hosts_count: 1,
@@ -304,26 +298,6 @@ export const createMockSoftwareTitleDetails = (
   return { ...DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK, ...overrides };
 };
 
-const DEFAULT_SOFTWARE_TITLE_RESPONSE: ISoftwareTitleResponse = {
-  software_title: createMockSoftwareTitleDetails(),
-};
-
-export const createMockSoftwareTitleResponse = (
-  overrides?: Partial<ISoftwareTitleResponse>
-): ISoftwareTitleResponse => {
-  return { ...DEFAULT_SOFTWARE_TITLE_RESPONSE, ...overrides };
-};
-
-const DEFAULT_SOFTWARE_VERSION_RESPONSE = {
-  software: createMockSoftwareVersion(),
-};
-
-export const createMockSoftwareVersionResponse = (
-  overrides?: Partial<ISoftwareVersionResponse>
-): ISoftwareVersionResponse => {
-  return { ...DEFAULT_SOFTWARE_VERSION_RESPONSE, ...overrides };
-};
-
 const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   installer_id: 1,
   name: "TestPackage-1.2.3.pkg",
@@ -431,23 +405,6 @@ export const createMockSoftwareTitlesResponse = (
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
 };
 
-const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
-  id: 1,
-  name: "test app",
-  version: "1.2.3",
-  platform: "darwin",
-  slug: "test-app/darwin",
-};
-
-export const createMockFleetMaintainedApp = (
-  overrides?: Partial<IFleetMaintainedApp>
-): IFleetMaintainedApp => {
-  return {
-    ...DEFAULT_FLEET_MAINTAINED_APPS_MOCK,
-    ...overrides,
-  };
-};
-
 const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   id: 1,
   name: "Test app",
@@ -495,16 +452,4 @@ export const createMockSoftwareInstallResult = (
     ...DEFAULT_SOFTWARE_INSTALL_RESULT,
     ...overrides,
   };
-};
-
-const DEFAULT_SETUP_EXPERIENCE_SOFTWARE_MOCK: IGetSetupExperienceSoftwareResponse = {
-  ...createMockListEntitiesResponseCommon(),
-  counts_updated_at: null,
-  software_titles: [createMockSoftwareTitle()],
-};
-
-export const createMockSetupExperienceSoftware = (
-  overrides?: Partial<IGetSetupExperienceSoftwareResponse>
-): IGetSetupExperienceSoftwareResponse => {
-  return { ...DEFAULT_SETUP_EXPERIENCE_SOFTWARE_MOCK, ...overrides };
 };

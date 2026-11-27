@@ -143,8 +143,6 @@ export const createMockHostGeolocation = (
   };
 };
 
-export const createMockHostResponse = { host: createMockHost() };
-
 export const createMockHostsResponse = (overrides?: Partial<IHost>[]) => {
   const numHosts = overrides?.length || 1;
   const hosts = Array(numHosts)

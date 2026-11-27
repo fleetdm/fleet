@@ -28,11 +28,6 @@ export const osqueryTableColumnNames = flatMap(osqueryTables, (table) => {
   return table.hidden ? [] : tableColumnNames;
 });
 
-// Note: Hiding columns where table key hidden is set to true
-export const osqueryTableColumns = flatMap(osqueryTables, (table) => {
-  return table.hidden ? [] : table.columns;
-});
-
 // Note: Hiding columns where table key hidden is set to true or if tables are defined but it doesn't include that table
 export const selectedTableColumns = (selectedTables: string[]) => {
   const columnsFilteredBySelection = flatMap(osqueryTables, (table) => {

@@ -1,19 +1,4 @@
-import PropTypes from "prop-types";
-
 import { QueryablePlatform, QueryableDisplayPlatform } from "./platform";
-
-export default PropTypes.shape({
-  columns: PropTypes.arrayOf(
-    PropTypes.shape({
-      description: PropTypes.string,
-      name: PropTypes.string,
-      type: PropTypes.string,
-    })
-  ),
-  description: PropTypes.string,
-  name: PropTypes.string,
-  platform: PropTypes.string,
-});
 
 export type ColumnType =
   | "integer"

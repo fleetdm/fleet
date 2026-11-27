@@ -17,11 +17,6 @@ import {
 
 import { DEPDeviceStatus, MacSettingsStatusQueryParam } from "./hosts";
 
-export interface ISortOption {
-  key: string;
-  direction: string;
-}
-
 export interface IHostsCountResponse {
   count: number;
 }

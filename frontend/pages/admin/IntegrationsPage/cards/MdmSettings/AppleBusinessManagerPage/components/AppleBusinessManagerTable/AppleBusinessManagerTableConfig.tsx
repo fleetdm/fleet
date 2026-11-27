@@ -287,7 +287,3 @@ export const generateTableConfig = (
     },
   ];
 };
-
-export const generateTableData = (data: IMdmAbToken[]) => {
-  return data;
-};

@@ -1,22 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
 import { IHost } from "interfaces/host";
-import { ISelectedTargetsForApi, ITargetsAPIResponse } from "interfaces/target";
+import { ISelectedTargetsForApi } from "interfaces/target";
 import sendRequest from "services";
-import appendTargetTypeToTargets from "utilities/append_target_type_to_targets";
 import endpoints from "utilities/endpoints";
-
-interface ITargetsProps {
-  query?: string;
-  queryId?: number | null;
-  selected: ISelectedTargetsForApi;
-}
-
-const defaultSelected = {
-  hosts: [],
-  labels: [],
-  fleets: [],
-};
 
 export interface ITargetsSearchParams {
   report_id?: number | null;
@@ -39,27 +26,8 @@ export interface ITargetsCountResponse {
   targets_online: number;
   targets_offline: number;
 }
-// TODO: deprecated until frontend\components\forms\fields\SelectTargetsDropdown
-// is fully replaced with frontend\components\TargetsInput
-const DEPRECATED_defaultSelected = {
-  hosts: [],
-  labels: [],
-};
 
 export default {
-  loadAll: ({
-    query = "",
-    queryId = null,
-    selected = defaultSelected,
-  }: ITargetsProps): Promise<ITargetsAPIResponse> => {
-    const { TARGETS } = endpoints;
-
-    return sendRequest("POST", TARGETS, {
-      query,
-      report_id: queryId,
-      selected,
-    });
-  },
   search: (params: ITargetsSearchParams): Promise<ITargetsSearchResponse> => {
     if (!params?.excluded_host_ids || !params?.query) {
       return Promise.reject("Invalid usage: missing required parameter(s)");
@@ -77,29 +45,5 @@ export default {
     const path = `${TARGETS}/count`;
 
     return sendRequest("POST", path, params);
-  },
-  // TODO: deprecated until frontend\components\forms\fields\SelectTargetsDropdown
-  // is fully replaced with frontend\components\TargetsInput
-  DEPRECATED_loadAll: (
-    query = "",
-    queryId = null,
-    selected = DEPRECATED_defaultSelected
-  ) => {
-    const { TARGETS } = endpoints;
-    return sendRequest("POST", TARGETS, {
-      query,
-      report_id: queryId,
-      selected,
-    }).then((response) => {
-      const { targets } = response;
-      return {
-        ...response,
-        targets: [
-          ...appendTargetTypeToTargets(targets.hosts, "hosts"),
-          ...appendTargetTypeToTargets(targets.labels, "labels"),
-          ...appendTargetTypeToTargets(targets.fleets, "teams"),
-        ],
-      };
-    });
   },
 };

@@ -1,26 +1,8 @@
 import { uniq } from "lodash";
-import PropTypes from "prop-types";
 
-import { IconNames } from "components/icons";
-
-import { ICommandResult } from "./command";
 import { ILabelSoftwareTitle } from "./label";
 import { IVppTokenSummary } from "./mdm";
 import { HOST_APPLE_PLATFORMS, isLinuxLike, Platform } from "./platform";
-import vulnerabilityInterface from "./vulnerability";
-
-export default PropTypes.shape({
-  type: PropTypes.string,
-  name: PropTypes.string,
-  version: PropTypes.string,
-  source: PropTypes.string,
-  id: PropTypes.number,
-  vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
-});
-
-export interface IGetSoftwareByIdResponse {
-  software: ISoftware;
-}
 
 // TODO: old software interface. replaced with ISoftwareVersion
 // check to see if we still need this.
@@ -939,8 +921,6 @@ export const NO_VULNERABILITIES_TOOLTIP_BY_SOURCE: Partial<
     "AI skills are markdown files, so they don't have vulnerabilities.",
 };
 
-export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
-
 /** For go_binaries the toolchain version is part of the row's identity, so it's shown
  * alongside the version. rpm_packages also populates `release` and must not be.
  * Version entries carry no source of their own; spread the entry and add the row's. */
@@ -1033,14 +1013,6 @@ export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
  */
 export type EnhancedSoftwareInstallUninstallStatus = typeof ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
-export const isValidSoftwareInstallUninstallStatus = (
-  s: string | undefined | null
-): s is EnhancedSoftwareInstallUninstallStatus =>
-  !!s &&
-  ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES.includes(
-    s as EnhancedSoftwareInstallUninstallStatus
-  );
-
 export const SOFTWARE_AGGREGATE_STATUSES = [
   "installed",
   "pending",
@@ -1115,11 +1087,6 @@ export type ISoftwareScriptResult = Omit<ISoftwareInstallResult, "status"> & {
 
 export interface ISoftwareInstallResults {
   results: ISoftwareInstallResult;
-}
-
-/** For Software .ipa installs, we use the install results API to return MDM command results */
-export interface ISoftwareIpaInstallResults {
-  results: ICommandResult;
 }
 
 // ISoftwareInstallerType defines the supported installer types for
@@ -1284,26 +1251,12 @@ export const HOST_SOFTWARE_UI_SUCCESS_STATUSES = [
   "never_ran_script", // Script package never ran before
 ] as const;
 export type HostSoftwareUiSuccessStatus = typeof HOST_SOFTWARE_UI_SUCCESS_STATUSES[number];
-export const isSoftwareSuccessStatus = (
-  status: IHostSoftwareUiStatus
-): status is HostSoftwareUiSuccessStatus =>
-  HOST_SOFTWARE_UI_SUCCESS_STATUSES.includes(
-    status as HostSoftwareUiSuccessStatus
-  );
-
 // Update-available UI status
 export const HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES = [
   "update_available", // In inventory, but newer fleet installer version is available
   "skipped_install", // Patch-when-closed skip; renders as a deferred update
 ] as const;
 export type HostSoftwareUiUpdateAvailableStatus = typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES[number];
-export const isSoftwareUpdateAvailableStatus = (
-  status: IHostSoftwareUiStatus
-): status is HostSoftwareUiUpdateAvailableStatus =>
-  HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES.includes(
-    status as HostSoftwareUiUpdateAvailableStatus
-  );
-
 // Master UI status type, combining all:
 export type IHostSoftwareUiStatus =
   | HostSoftwareUiErrorStatus
@@ -1330,10 +1283,6 @@ export interface IHostSoftwareWithUiStatus extends IHostSoftware {
  */
 export type IVPPHostSoftware = IHostSoftware & {
   commandUuid?: string;
-};
-
-export type IHostSoftwareUninstall = IHostSoftwareWithUiStatus & {
-  scriptExecutionId: string;
 };
 
 export type IDeviceSoftware = IHostSoftware;
@@ -1439,47 +1388,6 @@ export const aggregateInstallStatusCounts = (
   pending: packageStatuses.pending_install + packageStatuses.pending_uninstall,
   failed: packageStatuses.failed_install + packageStatuses.failed_uninstall,
 });
-
-export const INSTALL_STATUS_ICONS: Record<
-  EnhancedSoftwareInstallUninstallStatus | "pending" | "failed",
-  IconNames
-> = {
-  pending: "pending",
-  pending_install: "pending",
-  installed: "success",
-  uninstalled: "success",
-  failed: "error",
-  failed_install: "error",
-  pending_uninstall: "pending",
-  failed_uninstall: "error",
-  ran_script: "success", // Script-only software
-  failed_script: "error", // Script-only software
-  pending_script: "pending", // Script-only software
-} as const;
-
-type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
-  last_install: ISoftwareLastInstall;
-};
-
-export const hasHostSoftwarePackageLastInstall = (
-  software: IHostSoftware
-): software is IHostSoftware & {
-  package: IHostSoftwarePackageWithLastInstall;
-} => {
-  return !!software.package?.last_install;
-};
-
-type IHostAppWithLastInstall = IHostAppStoreApp & {
-  last_install: IAppLastInstall;
-};
-
-export const hasHostSoftwareAppLastInstall = (
-  software: IHostSoftware
-): software is IHostSoftware & {
-  app_store_app: IHostAppWithLastInstall;
-} => {
-  return !!software.app_store_app?.last_install;
-};
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);

@@ -66,6 +66,7 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   },
 };
 
+// eslint-disable-next-line import/prefer-default-export
 export const generateTableConfig = (
   actionSelectHandler: (value: string, team: IMdmVppToken) => void,
   gitopsModeEnabled: boolean,
@@ -148,8 +149,4 @@ export const generateTableConfig = (
       ),
     },
   ];
-};
-
-export const generateTableData = (data: IMdmVppToken[]) => {
-  return data;
 };

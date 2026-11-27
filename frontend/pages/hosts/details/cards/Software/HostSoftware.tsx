@@ -25,7 +25,6 @@ import {
 import {
   getSoftwareTypesForPlatform,
   IHostSoftware,
-  ISoftware,
   MACOS_APP_SOFTWARE_TYPE,
   softwareTypesToApiParams,
 } from "interfaces/software";
@@ -51,10 +50,6 @@ import HostSoftwareTable from "./HostSoftwareTable";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 
 const baseClass = "host-software-section";
-
-export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
-  vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
-}
 
 interface HostSoftwareQueryParams
   extends ReturnType<typeof parseHostSoftwareQueryParams> {

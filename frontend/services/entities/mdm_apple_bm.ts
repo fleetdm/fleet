@@ -3,10 +3,6 @@ import { IMdmAbToken } from "interfaces/mdm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
-export interface IAppleBusinessTokenFormData {
-  token: File | null;
-}
-
 export interface IGetAbTokensResponse {
   ab_tokens: IMdmAbToken[];
 }

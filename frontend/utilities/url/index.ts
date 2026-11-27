@@ -318,16 +318,6 @@ export const reconcileMutuallyExclusiveHostParams = ({
 
 const LABEL_PREFIX = "labels/";
 
-export const getStatusParam = (selectedLabels?: string[]) => {
-  if (selectedLabels === undefined) return undefined;
-
-  const status = selectedLabels.find((f) => !f.includes(LABEL_PREFIX));
-  if (status === undefined) return undefined;
-
-  const statusFilterList = ["new", "online", "offline", "missing"];
-  return statusFilterList.includes(status) ? status : undefined;
-};
-
 export const getLabelParam = (selectedLabels?: string[]) => {
   if (selectedLabels === undefined) return undefined;
 
